@@ -7,7 +7,7 @@
     "dev": "tsx watch --ignore storage/** --ignore apps/api/storage/** --env-file=.env src/index.ts",
     "build": "tsc -p tsconfig.json",
     "worker": "tsx --env-file=.env src/worker.ts",
-    "start": "tsx apps/api/src/index.ts",
+    "start": "node --loader tsx src/index.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio"
