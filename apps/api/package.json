@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch --ignore storage/** --ignore apps/api/storage/** --env-file=.env src/index.ts",
+    "build": "tsc"
     "worker": "tsx --env-file=.env src/worker.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node --env-file=.env dist/index.js",
