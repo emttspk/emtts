@@ -5,7 +5,10 @@ dist
 !.env.example
 .DS_Store
 coverage
-storage
+
+# Ignore only the dynamic data storage, not source code
+apps/api/storage
+outputs/
 
 # Runtime logs
 *.log
