@@ -2,10 +2,13 @@ FROM node:18
 
 WORKDIR /app
 
-COPY package*.json ./
+# Copy ONLY api package.json
+COPY apps/api/package*.json ./
+
 RUN npm install
 
-COPY . .
+# Copy only api code
+COPY apps/api ./
 
 RUN npm run build
 
