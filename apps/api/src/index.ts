@@ -10,7 +10,7 @@ import { shipmentsRouter } from "./routes/shipments.js";
 import { adminRouter } from "./routes/admin.js";
 import { subscriptionsRouter } from "./routes/subscriptions.js";
 import { plansRouter } from "./routes/plans.js";
-import { ensureStorageDirs } from "./storage/paths.js";
+import { ensureStorageDirs } from "./storage/paths";
 import { startCleanupCron } from "./cron/cleanup.js";
 import { requireAuth } from "./middleware/auth.js";
 
