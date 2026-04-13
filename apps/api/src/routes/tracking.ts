@@ -7,26 +7,26 @@ import { existsSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { parse as parseCsv } from "csv-parse/sync";
-import { prisma } from "../prisma.js";
-import { requireAuth } from "../middleware/auth.js";
-import type { AuthedRequest } from "../middleware/auth.js";
-import { ensureStorageDirs, outputsDir, uploadsDir } from "../storage/paths.js";
-import { trackingQueue } from "../queue/queue.js";
-import { redisConnection } from "../queue/redis.js";
-import { parseOrdersFromFile } from "../parse/orders.js";
-import { parseTrackingNumbersFromFile } from "../parse/tracking.js";
-import { validateTrackingId } from "../validation/trackingId.js";
-import { finalizeQueuedTrackingToGenerated, releaseQueuedTracking } from "../usage/limits.js";
-import { consumeUnits, refundUnits, refundUnitsByAmount } from "../usage/unitConsumption.js";
+import { prisma } from "../prisma";
+import { requireAuth } from "../middleware/auth";
+import type { AuthedRequest } from "../middleware/auth";
+import { ensureStorageDirs, outputsDir, uploadsDir } from "../storage/paths";
+import { trackingQueue } from "../queue/queue";
+import { redisConnection } from "../queue/redis";
+import { parseOrdersFromFile } from "../parse/orders";
+import { parseTrackingNumbersFromFile } from "../parse/tracking";
+import { validateTrackingId } from "../validation/trackingId";
+import { finalizeQueuedTrackingToGenerated, releaseQueuedTracking } from "../usage/limits";
+import { consumeUnits, refundUnits, refundUnitsByAmount } from "../usage/unitConsumption";
 import {
   pythonTrackOne,
   pythonTrackBulk,
   pythonSubmitComplaint,
   PythonServiceTimeoutError,
   PythonServiceUnavailableError,
-} from "../services/trackingService.js";
-import { processTracking } from "../services/trackingStatus.js";
-import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "../services/trackingIntelligence.js";
+} from "../services/trackingService";
+import { processTracking } from "../services/trackingStatus";
+import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "../services/trackingIntelligence";
 
 export const trackingRouter = Router();
 const inlineRunningJobs = new Set<string>();

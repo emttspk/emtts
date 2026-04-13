@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
-import { prisma } from "../prisma.js";
-import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
+import { prisma } from "../prisma";
+import { requireAuth, type AuthedRequest } from "../middleware/auth";
 
 export const subscriptionsRouter = Router();
 
@@ -28,4 +28,3 @@ subscriptionsRouter.post("/start", requireAuth, async (req: AuthedRequest, res) 
   });
   res.json({ subscription: sub });
 });
-

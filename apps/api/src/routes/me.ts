@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
-import { prisma } from "../prisma.js";
-import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
-import { monthKeyUTC } from "../usage/month.js";
+import { prisma } from "../prisma";
+import { requireAuth, type AuthedRequest } from "../middleware/auth";
+import { monthKeyUTC } from "../usage/month";
 
 export const meRouter = Router();
 
@@ -102,4 +102,3 @@ meRouter.patch("/", requireAuth, async (req: AuthedRequest, res) => {
   });
   return res.json({ user });
 });
-

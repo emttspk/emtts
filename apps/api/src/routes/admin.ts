@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { z } from "zod";
-import { prisma } from "../prisma.js";
-import { requireAuth, requireAdmin } from "../middleware/auth.js";
-import { monthKeyUTC } from "../usage/month.js";
-import { env } from "../config.js";
-import { labelQueue } from "../queue/queue.js";
-import { refundUnitsByAmount } from "../usage/unitConsumption.js";
+import { prisma } from "../prisma";
+import { requireAuth, requireAdmin } from "../middleware/auth";
+import { monthKeyUTC } from "../usage/month";
+import { env } from "../config";
+import { labelQueue } from "../queue/queue";
+import { refundUnitsByAmount } from "../usage/unitConsumption";
 
 export const adminRouter = Router();
 

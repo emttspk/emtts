@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { prisma } from "../prisma.js";
+import { prisma } from "../prisma";
 
 export const plansRouter = Router();
 
@@ -31,4 +31,3 @@ plansRouter.get("/", async (_req, res) => {
   const plans = await prisma.plan.findMany({ orderBy: { priceCents: "asc" } });
   res.json({ plans });
 });
-

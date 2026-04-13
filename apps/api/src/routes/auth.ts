@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
-import { prisma } from "../prisma.js";
-import { hashPassword, verifyPassword } from "../auth/password.js";
-import { asAppRole, signAccessToken } from "../auth/jwt.js";
+import { prisma } from "../prisma";
+import { hashPassword, verifyPassword } from "../auth/password";
+import { asAppRole, signAccessToken } from "../auth/jwt";
 
 export const authRouter = Router();
 
