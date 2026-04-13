@@ -1,0 +1,23 @@
+node_modules
+dist
+.env
+.env.*
+!.env.example
+.DS_Store
+coverage
+storage
+
+# Runtime logs
+*.log
+*.err.log
+*.out.log
+
+# Temporary / smoke-test outputs
+tmp-*.pdf
+smoke-*.pdf
+
+# Excel / CSV test artifacts (local only)
+LCS*.xls
+LCS*.xlsx
+
+tracking/credentials.json

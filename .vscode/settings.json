@@ -1,0 +1,45 @@
+{
+  // ─── File Watcher Exclusions ────────────────────────────────────────────────
+  // Prevents VS Code from watching these heavy/generated directories for changes.
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/storage/**": true,
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/apps/api/apps/**": true,
+    "**/__pycache__/**": true,
+    "**/python-service/__pycache__/**": true,
+    "**/tracking/__pycache__/**": true
+  },
+
+  // ─── File Explorer Exclusions ────────────────────────────────────────────────
+  // Hides these folders from the Explorer panel and reduces indexing overhead.
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.git": true,
+    "**/__pycache__": true,
+    "**/apps/api/apps": true
+  },
+
+  // ─── Search Exclusions ───────────────────────────────────────────────────────
+  // Prevents "Find in Files" from scanning generated / vendor directories.
+  "search.exclude": {
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/storage/**": true,
+    "**/__pycache__/**": true,
+    "**/apps/api/apps/**": true,
+    "**/*.log": true,
+    "**/package-lock.json": true
+  },
+
+  // ─── TypeScript Performance ──────────────────────────────────────────────────
+  "typescript.disableAutomaticTypeAcquisition": false,
+  "typescript.preferences.includePackageJsonAutoImports": "on",
+
+  // ─── Editor ─────────────────────────────────────────────────────────────────
+  "editor.formatOnSave": false,
+  "files.autoSave": "onFocusChange"
+}

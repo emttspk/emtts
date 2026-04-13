@@ -1,0 +1,74 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import Card from "../components/Card";
+import JobsTable from "../components/JobsTable";
+import EmptyState from "../components/EmptyState";
+import { api } from "../lib/api";
+import type { LabelJob } from "../lib/types";
+
+export default function Jobs() {
+  const nav = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const [jobs, setJobs] = useState<LabelJob[]>([]);
+  const [loading, setLoading] = useState(true);
+  const timer = useRef<number | null>(null);
+  const filter = params.get("filter") === "completed" ? "completed" : "all";
+
+  async function load() {
+    const data = await api<{ jobs: LabelJob[] }>("/api/jobs");
+    setJobs(data.jobs);
+    setLoading(false);
+    // Keep polling while any job is still in-progress
+    const hasPending = data.jobs.some((j) => j.status === "QUEUED" || j.status === "PROCESSING");
+    if (!hasPending && timer.current) {
+      window.clearInterval(timer.current);
+      timer.current = null;
+    } else if (hasPending && !timer.current) {
+      timer.current = window.setInterval(() => load().catch(() => {}), 3000);
+    }
+  }
+
+  useEffect(() => {
+    load().catch(() => {});
+    return () => {
+      if (timer.current) window.clearInterval(timer.current);
+    };
+  }, []);
+
+  const visibleJobs = useMemo(() => (filter === "completed" ? jobs.filter((job) => job.status === "COMPLETED") : jobs), [filter, jobs]);
+  const completedCount = useMemo(() => jobs.filter((job) => job.status === "COMPLETED").length, [jobs]);
+
+  if (!loading && visibleJobs.length === 0) return <EmptyState onUploadClick={() => nav("/upload")} />;
+
+  return (
+    <div className="space-y-5">
+      <Card className="p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="text-xl font-semibold text-slate-950">Jobs</div>
+            <div className="mt-1 text-sm text-slate-600">Downloads are now part of the same jobs workflow. Switch between all activity and ready files here.</div>
+          </div>
+          <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+            <button
+              type="button"
+              className={`rounded-2xl px-4 py-2 text-sm font-medium transition ${filter === "all" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600"}`}
+              onClick={() => setParams({ filter: "all" })}
+            >
+              All Jobs ({jobs.length})
+            </button>
+            <button
+              type="button"
+              className={`rounded-2xl px-4 py-2 text-sm font-medium transition ${filter === "completed" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600"}`}
+              onClick={() => setParams({ filter: "completed" })}
+            >
+              Ready Downloads ({completedCount})
+            </button>
+          </div>
+        </div>
+      </Card>
+
+      <JobsTable jobs={visibleJobs} title={filter === "completed" ? "Ready Downloads" : "All Jobs"} onJobsChanged={load} />
+    </div>
+  );
+}
+

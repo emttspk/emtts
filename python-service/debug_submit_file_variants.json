@@ -1,0 +1,34 @@
+{
+  "with_files": {
+    "status": 200,
+    "missing_sender": true,
+    "missing_booking": true,
+    "missing_mobile": true,
+    "missing_city": true,
+    "snippet": "\r <!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\r <html xmlns=\"http://www.w3.org/1999/xhtml\">\r <head><title>\r \tSubmit New Exp"
+  },
+  "no_files": {
+    "status": 200,
+    "missing_sender": true,
+    "missing_booking": true,
+    "missing_mobile": true,
+    "missing_city": true,
+    "snippet": "\r <!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\r <html xmlns=\"http://www.w3.org/1999/xhtml\">\r <head><title>\r \tSubmit New Exp"
+  },
+  "with_files_no_image": {
+    "status": 200,
+    "missing_sender": true,
+    "missing_booking": true,
+    "missing_mobile": true,
+    "missing_city": true,
+    "snippet": "\r <!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\r <html xmlns=\"http://www.w3.org/1999/xhtml\">\r <head><title>\r \tSubmit New Exp"
+  },
+  "no_files_no_image": {
+    "status": 200,
+    "missing_sender": true,
+    "missing_booking": true,
+    "missing_mobile": true,
+    "missing_city": true,
+    "snippet": "\r <!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\r <html xmlns=\"http://www.w3.org/1999/xhtml\">\r <head><title>\r \tSubmit New Exp"
+  }
+}

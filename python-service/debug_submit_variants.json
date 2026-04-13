@@ -1,0 +1,42 @@
+{
+  "current": {
+    "status": 200,
+    "snippet": "\r <!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\r <html xmlns=\"http://www.w3.org/1999/xhtml\">\r <head><title>\r \tSubmit New Exp",
+    "has_missing_sender": true,
+    "has_missing_receiver": true,
+    "has_missing_booking": true,
+    "has_missing_mobile": true
+  },
+  "target_imagebutton_no_xy": {
+    "status": 200,
+    "snippet": "\r <!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\r <html xmlns=\"http://www.w3.org/1999/xhtml\">\r <head><title>\r \tSubmit New Exp",
+    "has_missing_sender": true,
+    "has_missing_receiver": true,
+    "has_missing_booking": true,
+    "has_missing_mobile": true
+  },
+  "target_imagebutton_with_xy": {
+    "status": 200,
+    "snippet": "\r <!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\r <html xmlns=\"http://www.w3.org/1999/xhtml\">\r <head><title>\r \tSubmit New Exp",
+    "has_missing_sender": true,
+    "has_missing_receiver": true,
+    "has_missing_booking": true,
+    "has_missing_mobile": true
+  },
+  "target_imagebutton_no_image": {
+    "status": 200,
+    "snippet": "\r <!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\r <html xmlns=\"http://www.w3.org/1999/xhtml\">\r <head><title>\r \tSubmit New Exp",
+    "has_missing_sender": true,
+    "has_missing_receiver": true,
+    "has_missing_booking": true,
+    "has_missing_mobile": true
+  },
+  "no_target_no_xy": {
+    "status": 200,
+    "snippet": "\r <!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\r <html xmlns=\"http://www.w3.org/1999/xhtml\">\r <head><title>\r \tSubmit New Exp",
+    "has_missing_sender": true,
+    "has_missing_receiver": true,
+    "has_missing_booking": true,
+    "has_missing_mobile": true
+  }
+}

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4f46e5" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#111827" stop-opacity="0.04"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="720" fill="white"/>
+  <rect x="40" y="40" width="1120" height="640" rx="28" fill="url(#g)" stroke="#e5e7eb"/>
+  <text x="600" y="320" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system" font-size="44" font-weight="700" fill="#111827">
+    Barcode Printing Demo
+  </text>
+  <text x="600" y="380" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system" font-size="20" fill="#4b5563">
+    Add your video at /media/barcode-demo.mp4
+  </text>
+</svg>
+

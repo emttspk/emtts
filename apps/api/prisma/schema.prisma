@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id @default(uuid())
+  email           String   @unique
+  passwordHash    String
+  role            String   @default("USER")
+  suspended       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  companyName     String?
+  address         String?
+  contactNumber   String?
+  originCity      String?
+  extraLabelCredits    Int      @default(0)
+  extraTrackingCredits Int      @default(0)
+
+  subscriptions Subscription[]
+  jobs          LabelJob[]
+  trackingJobs  TrackingJob[]
+  shipments     Shipment[]
+  usage         UsageMonthly[]
+  refunds       RefundRequest[]
+}
+
+model Plan {
+  id                String   @id @default(uuid())
+  name              String
+  priceCents        Int
+  monthlyLabelLimit Int
+  monthlyTrackingLimit Int    @default(0)
+  createdAt         DateTime @default(now())
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                 String             @id @default(uuid())
+  userId             String
+  planId             String
+  status             String             @default("ACTIVE")
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  createdAt          DateTime           @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([planId])
+}
+
+model UsageMonthly {
+  id              String   @id @default(uuid())
+  userId          String
+  month           String
+  labelsGenerated Int      @default(0)
+  labelsQueued    Int      @default(0)
+  trackingGenerated Int    @default(0)
+  trackingQueued    Int    @default(0)
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, month])
+  @@index([month])
+}
+
+model LabelJob {
+  id                String    @id @default(uuid())
+  userId            String
+  originalFilename  String
+  recordCount       Int
+  unitCount         Int       @default(0)
+  includeMoneyOrders Boolean  @default(true)
+  status            String    @default("QUEUED")
+  error             String?
+  uploadPath        String
+  labelsPdfPath     String?
+  moneyOrderPdfPath String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Shipment {
+  id              String   @id @default(uuid())
+  userId          String
+  trackingNumber  String
+  mosId           String?
+  articleType     String?
+  bookingOffice   String?
+  deliveryOffice  String?
+  consigneeName   String?
+  consigneeAddress String?
+  consigneePhone  String?
+  lastScanDate    DateTime?
+  currentStatus   String?
+  returnReason    String?
+  complaintEligible Boolean @default(false)
+  complaintDate   DateTime?
+  events          Json?
+  shipmentType    String?
+  status          String?
+  city            String?
+  latestDate      String?
+  latestTime      String?
+  daysPassed      Int?
+  complaintStatus String?  @default("NOT_REQUIRED")
+  complaintText   String?
+  rawJson         String?
+  adminCode       String?
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([complaintStatus])
+  @@unique([userId, trackingNumber])
+  @@index([userId])
+}
+
+model TrackingJob {
+  id               String   @id @default(uuid())
+  userId           String
+  kind             String   @default("BULK_TRACK") // BULK_TRACK | COMPLAINT
+  status           String   @default("QUEUED") // QUEUED | PROCESSING | COMPLETED | FAILED
+  error            String?
+  originalFilename String?
+  recordCount      Int      @default(0)
+  uploadPath       String?
+  resultPath       String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([kind])
+}
+
+model RefundRequest {
+  id          String   @id @default(uuid())
+  userId      String
+  trackingId  String?
+  units       Int
+  reason      String
+  status      String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}

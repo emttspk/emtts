@@ -1,0 +1,6 @@
+shipperName,shipperPhone,shipperAddress,shipperEmail,BookingCity,consigneeName,consigneeEmail,consigneePhone,consigneeAddress,ConsigneeCity,CollectAmount,ordered,ProductDescription,Weight,shipmenttype,numberOfPieces,TrackingID
+Acme Store,03001234567,"1 Mall Road",ops@acme.example,Lahore,Ali Raza,ali@example.com,03111222333,"House 10, Street 5",Lahore,20000,2026-03-25,Books,1.0,VPL,1,VPL260300001
+Acme Store,03001234567,"1 Mall Road",ops@acme.example,Lahore,Sara Khan,sara@example.com,03223334444,"Flat 4, Model Town",Karachi,9500,2026-03-25,Clothes,0.5,UMS,1,VPL260300002
+Acme Store,03001234567,"1 Mall Road",ops@acme.example,Lahore,Usman,usman@example.com,03335556666,"Block B, Street 9",Islamabad,12000,2026-03-25,Shoes,0.8,COD,1,VPL260300003
+Acme Store,03001234567,"1 Mall Road",ops@acme.example,Lahore,Ayesha,ayesha@example.com,03009998888,"House 5, Gulshan",Multan,5000,2026-03-25,Documents,0.2,RL,1,VPL260300004
+Acme Store,03001234567,"1 Mall Road",ops@acme.example,Lahore,Hamza,hamza@example.com,03007776666,"Shop 12, Saddar",Peshawar,18000,2026-03-25,Electronics,2.0,PAR,2,VPL260300005

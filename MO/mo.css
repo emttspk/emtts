@@ -1,0 +1,101 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu&family=Roboto+Mono&display=swap');
+
+body {
+  margin: 0;
+  padding: 0;
+  background: #f0f0f0;
+  font-family: Arial, sans-serif;
+}
+
+.print-sheet {
+  width: 210mm; /* A4 width */
+  margin: auto;
+  background: white;
+  padding: 10mm;
+}
+
+.mo-slot {
+  position: relative;
+  width: 100%;
+  height: 120mm;
+  margin-bottom: 10mm;
+  border: 1px dashed #ccc;
+  overflow: hidden;
+}
+
+.form-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 2px solid #000;
+  box-sizing: border-box;
+  padding: 5mm;
+}
+
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid #000;
+  padding-bottom: 2mm;
+  margin-bottom: 2mm;
+}
+
+.title-area {
+  font-weight: bold;
+  font-size: 1.2em;
+  text-align: center;
+}
+
+.section-addresses {
+  display: flex;
+  border-top: 1px solid #000;
+  height: 50mm;
+}
+
+.receiver-side, .sender-side {
+  flex: 1;
+  padding: 2mm;
+  border-right: 1px solid #000;
+}
+
+.sender-side {
+  border-right: none;
+}
+
+.label {
+  font-size: 0.8em;
+  color: #333;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.field {
+  position: absolute;
+  font-weight: bold;
+}
+
+/* Positioning for data over the HTML form */
+.f-mo-number { top: 15mm; left: 30mm; }
+.f-date { top: 15mm; right: 20mm; }
+.f-receiver-name { top: 45mm; left: 10mm; }
+.f-sender-name { top: 45mm; left: 105mm; }
+
+.urdu-text, .urdu-list {
+  font-family: 'Noto Nastaliq Urdu', serif;
+  direction: rtl;
+  line-height: 2;
+}
+
+@media print {
+  body { background: none; }
+  .print-sheet { padding: 0; margin: 0; }
+}

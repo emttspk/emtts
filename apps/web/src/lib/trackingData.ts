@@ -1,0 +1,462 @@
+import type { Shipment } from "./types";
+
+export type StatusCardFilter = "ALL" | "DELIVERED" | "PENDING" | "RETURNED" | "DELAYED";
+
+type TrackingEvent = {
+  date: string;
+  time: string;
+  location: string;
+  description: string;
+  timestamp: number | null;
+};
+
+export type FinalTrackingRecord = {
+  shipment: Shipment;
+  final_status: string;
+  delayed: boolean;
+  last_event_at: number;
+  amount: number;
+  complaint_enabled: boolean;
+};
+
+export type TrackingStats = {
+  total: number;
+  delivered: number;
+  pending: number;
+  returned: number;
+  delayed: number;
+  totalAmount: number;
+  deliveredAmount: number;
+  pendingAmount: number;
+  returnedAmount: number;
+  delayedAmount: number;
+};
+
+const DELAY_THRESHOLD_MS = 72 * 60 * 60 * 1000;
+const DELAY_MAX_WINDOW_MS = 120 * 60 * 60 * 1000;
+
+function text(value: unknown): string {
+  return String(value ?? "").trim();
+}
+
+function parseRaw(rawJson?: string | null): Record<string, unknown> {
+  if (!rawJson) return {};
+  try {
+    const parsed = JSON.parse(rawJson);
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function parseMoney(value: unknown): number {
+  const raw = text(value);
+  if (!raw) return 0;
+  const match = raw.match(/[\d,]+(?:\.\d+)?/);
+  const num = Number((match ? match[0] : raw).replace(/,/g, ""));
+  return Number.isFinite(num) ? num : 0;
+}
+
+function statusFromRaw(raw: Record<string, unknown>, shipmentStatus?: string | null): string {
+  const manualOverride = Boolean(raw.manual_override);
+  const manualStatus = text(raw.manual_status || shipmentStatus).toUpperCase();
+  if (manualOverride && manualStatus) {
+    return manualStatus;
+  }
+
+  const manualPendingOverride = Boolean(raw.manual_pending_override);
+  if (manualPendingOverride && text(shipmentStatus).toUpperCase() === "PENDING") {
+    return "PENDING";
+  }
+  return (
+    text(raw.final_status) ||
+    text(raw.system_status) ||
+    text(raw.System_Status) ||
+    text(shipmentStatus) ||
+    "PENDING"
+  );
+}
+
+function normalizeFinalStatus(status: string): string {
+  const upper = text(status).toUpperCase();
+  if (upper === "DELIVERED WITH PAYMENT") return "DELIVERED WITH PAYMENT";
+  if (upper.includes("DELIVER")) return "DELIVERED";
+  if (upper.includes("RETURN")) return "RETURNED";
+  if (upper.includes("PENDING")) return "PENDING";
+  return "PENDING";
+}
+
+function toTimestampMs(dateRaw: string, timeRaw: string): number | null {
+  const date = text(dateRaw);
+  if (!date) return null;
+  const time = text(timeRaw) || "00:00";
+  const d = new Date(`${date} ${time}`);
+  if (!Number.isFinite(d.getTime())) return null;
+  return d.getTime();
+}
+
+function extractTrackingEvents(raw: Record<string, unknown>): TrackingEvent[] {
+  const tracking = raw.tracking as Record<string, unknown> | undefined;
+  const events = (tracking?.events as Array<Record<string, unknown>> | undefined) ?? (raw.events as Array<Record<string, unknown>> | undefined);
+  if (Array.isArray(events) && events.length > 0) {
+    return events
+      .map((event) => {
+        const date = text(event?.date);
+        const time = text(event?.time) || "00:00";
+        const location = text(event?.location ?? event?.city);
+        const description = text(event?.description ?? event?.detail ?? event?.status);
+        return {
+          date,
+          time,
+          location,
+          description,
+          timestamp: toTimestampMs(date, time),
+        };
+      })
+      .filter((event) => event.date || event.time || event.location || event.description)
+      .sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
+  }
+
+  const history = (tracking?.history as Array<unknown> | undefined) ?? (raw.history as Array<unknown> | undefined) ?? [];
+  if (!Array.isArray(history)) return [];
+  return history
+    .map((item): TrackingEvent => {
+      if (Array.isArray(item)) {
+        const date = text(item[0]);
+        const time = text(item[1]) || "00:00";
+        const description = text(item[2]);
+        const location = text(item[3]);
+        return { date, time, location, description, timestamp: toTimestampMs(date, time) };
+      }
+
+      if (item && typeof item === "object") {
+        const event = item as Record<string, unknown>;
+        const date = text(event.date ?? event.latest_date);
+        const time = text(event.time ?? event.latest_time) || "00:00";
+        const location = text(event.location ?? event.city);
+        const description = text(event.description ?? event.detail ?? event.status);
+        return { date, time, location, description, timestamp: toTimestampMs(date, time) };
+      }
+
+      return { date: "", time: "00:00", location: "", description: text(item), timestamp: null };
+    })
+    .filter((event) => event.date || event.time || event.location || event.description)
+    .sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
+}
+
+function normalizeOffice(value: string): string {
+  return text(value)
+    .toUpperCase()
+    .replace(/POST OFFICE/g, "")
+    .replace(/DELIVERY OFFICE/g, "")
+    .replace(/\bGPO\b/g, "")
+    .replace(/\bDMO\b/g, "")
+    .replace(/\bDPO\b/g, "")
+    .replace(/\bOFFICE\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function bookingOfficeFromRaw(raw: Record<string, unknown>, shipment: Shipment, events: TrackingEvent[]): string {
+  const tracking = raw.tracking as Record<string, unknown> | undefined;
+  const explicit = text(
+    tracking?.booking_office ??
+    raw.booking_office ??
+    raw.Booking_Office ??
+    raw.bookingOffice ??
+    raw.senderCity ??
+    shipment.city,
+  );
+  if (explicit) return explicit;
+  return text(events[0]?.location);
+}
+
+function isSameOffice(left: string, right: string): boolean {
+  const normalizedLeft = normalizeOffice(left);
+  const normalizedRight = normalizeOffice(right);
+  return Boolean(normalizedLeft && normalizedRight && normalizedLeft === normalizedRight);
+}
+
+function isBookingDmoLocation(location: string, bookingOffice: string): boolean {
+  const upperLocation = text(location).toUpperCase();
+  const normalizedLocation = normalizeOffice(location);
+  const normalizedBooking = normalizeOffice(bookingOffice);
+  return Boolean(
+    upperLocation.includes("DMO") &&
+    normalizedLocation &&
+    normalizedBooking &&
+    normalizedLocation.includes(normalizedBooking),
+  );
+}
+
+function isReturnedToOrigin(lastEvent: TrackingEvent | null, bookingOffice: string): boolean {
+  if (!lastEvent) return false;
+  const description = text(lastEvent.description).toLowerCase();
+  const bookingOfficeLower = text(bookingOffice).toLowerCase();
+  const atBookingOffice = isSameOffice(lastEvent.location, bookingOffice);
+  const atBookingDmo = isBookingDmoLocation(lastEvent.location, bookingOffice);
+  const explicitDelivered =
+    description.includes("delivered to sender") ||
+    description.includes("delivered at booking office") ||
+    (bookingOfficeLower.length > 0 && description.includes(`delivered at ${bookingOfficeLower}`));
+  if (explicitDelivered) return true;
+
+  const receiptOnlyAtOrigin =
+    (atBookingOffice || atBookingDmo) &&
+    /(received|arrival|arrived)/.test(description) &&
+    !description.includes("delivered");
+  if (receiptOnlyAtOrigin) return false;
+
+  const movementOnly = /(dispatch|dispatched|sent|received|arrival|arrived|in transit|return to sender|returned to sender)/.test(description);
+  return (atBookingOffice || atBookingDmo) && !movementOnly;
+}
+
+function isReturnFinalizedEvent(description: string): boolean {
+  const d = text(description).toLowerCase();
+  return (
+    d.includes("delivered to sender") ||
+    d.includes("returned to booking office") ||
+    d.includes("received at booking dmo after return")
+  );
+}
+
+function hasForwardAndReverseFlow(events: TrackingEvent[]): boolean {
+  if (events.length === 0) return false;
+  let forwardStage = 0;
+  let reverseStage = 0;
+
+  for (const ev of events) {
+    const blob = `${text(ev.location)} ${text(ev.description)}`.toLowerCase();
+    const isBooking = blob.includes("booking") || blob.includes("booked");
+    const isDmo = blob.includes("dmo") || blob.includes("dispatch") || blob.includes("received at") || blob.includes("arrived at");
+    const isDelivery = blob.includes("delivery") || blob.includes("out for delivery") || blob.includes("delivery office");
+
+    if (forwardStage === 0 && isBooking) {
+      forwardStage = 1;
+      continue;
+    }
+    if (forwardStage === 1 && isDmo) {
+      forwardStage = 2;
+      continue;
+    }
+    if (forwardStage === 2 && isDelivery) {
+      forwardStage = 3;
+      continue;
+    }
+
+    if (forwardStage >= 3) {
+      if (reverseStage === 0 && isDelivery) {
+        reverseStage = 1;
+        continue;
+      }
+      if (reverseStage === 1 && isDmo) {
+        reverseStage = 2;
+        continue;
+      }
+      if (reverseStage === 2 && isBooking) {
+        reverseStage = 3;
+        break;
+      }
+    }
+  }
+
+  return forwardStage >= 3 && reverseStage >= 3;
+}
+
+function bookingAgeDays(shipment: Shipment, events: TrackingEvent[]): number {
+  if (typeof shipment.daysPassed === "number" && Number.isFinite(shipment.daysPassed)) {
+    return shipment.daysPassed;
+  }
+  const firstTimestamp = events.find((event) => event.timestamp != null)?.timestamp;
+  if (firstTimestamp != null) {
+    return Math.max(0, Math.floor((Date.now() - firstTimestamp) / (1000 * 60 * 60 * 24)));
+  }
+  const createdAt = new Date(shipment.createdAt).getTime();
+  if (Number.isFinite(createdAt)) {
+    return Math.max(0, Math.floor((Date.now() - createdAt) / (1000 * 60 * 60 * 24)));
+  }
+  return 0;
+}
+
+function parseDueDateToTs(input: string): number | null {
+  const value = text(input);
+  if (!value) return null;
+  const slash = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slash) {
+    const day = Number(slash[1]);
+    const month = Number(slash[2]);
+    const year = Number(slash[3]);
+    const dt = new Date(year, month - 1, day, 0, 0, 0, 0).getTime();
+    return Number.isFinite(dt) ? dt : null;
+  }
+  const iso = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (iso) {
+    const year = Number(iso[1]);
+    const month = Number(iso[2]);
+    const day = Number(iso[3]);
+    const dt = new Date(year, month - 1, day, 0, 0, 0, 0).getTime();
+    return Number.isFinite(dt) ? dt : null;
+  }
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function hasActiveComplaint(shipment: Shipment): boolean {
+  const status = text(shipment.complaintStatus).toUpperCase();
+  if (status !== "FILED") return false;
+  const blob = text(shipment.complaintText);
+  const id = blob.match(/COMPLAINT_ID\s*:\s*([A-Z0-9\-]+)/i)?.[1]
+    ?? blob.match(/Complaint\s*ID\s*([A-Z0-9\-]+)/i)?.[1]
+    ?? "";
+  if (!id) return false;
+
+  const due = blob.match(/DUE_DATE\s*:\s*([^\n|]+)/i)?.[1]
+    ?? blob.match(/Due\s*Date\s*(?:on)?\s*([0-3]?\d\/[0-1]?\d\/\d{4}|\d{4}-\d{1,2}-\d{1,2})/i)?.[1]
+    ?? "";
+  const dueTs = parseDueDateToTs(String(due).trim());
+  if (dueTs == null) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return dueTs >= today.getTime();
+}
+
+function deriveFinalStatus(baseStatus: string, raw: Record<string, unknown>, _shipment: Shipment): string {
+  if (Boolean(raw.manual_override)) {
+    return normalizeFinalStatus(text(raw.manual_status || baseStatus));
+  }
+
+  const events = extractTrackingEvents(raw);
+  const sortedDesc = [...events].sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+  const latestEvent = sortedDesc[0] ?? null;
+  const sortedAsc = [...events].sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
+  const hasReturnFlow = hasForwardAndReverseFlow(sortedAsc);
+
+  // Latest valid return event + reverse flow confirmation is required for RETURNED.
+  if (latestEvent && isReturnFinalizedEvent(text(latestEvent.description)) && hasReturnFlow) {
+    return "RETURNED";
+  }
+
+  if (baseStatus === "RETURNED" && (!latestEvent || !isReturnFinalizedEvent(text(latestEvent.description)) || !hasReturnFlow)) {
+    return "PENDING";
+  }
+
+  return baseStatus;
+}
+
+function deriveComplaintEnabled(finalStatus: string, raw: Record<string, unknown>, shipment: Shipment): boolean {
+  const manualPendingOverride =
+    Boolean(raw.manual_override) &&
+    text(raw.manual_status).toUpperCase() === "PENDING";
+  if (manualPendingOverride) return true;
+  if (finalStatus !== "PENDING") return false;
+  return !hasActiveComplaint(shipment);
+}
+
+function getLastEventAt(raw: Record<string, unknown>, shipment: Shipment): number {
+  const tracking = raw.tracking as Record<string, unknown> | undefined;
+  const events = (tracking?.events as Array<Record<string, unknown>> | undefined) ?? (raw.events as Array<Record<string, unknown>> | undefined) ?? [];
+  let latest = 0;
+
+  if (Array.isArray(events)) {
+    for (const ev of events) {
+      const ts = toTimestampMs(text(ev?.date), text(ev?.time));
+      if (ts && ts > latest) latest = ts;
+    }
+  }
+
+  if (latest > 0) return latest;
+
+  const fromLatest = toTimestampMs(text(shipment.latestDate), text(shipment.latestTime));
+  if (fromLatest) return fromLatest;
+
+  const fromUpdated = new Date(shipment.updatedAt).getTime();
+  return Number.isFinite(fromUpdated) ? fromUpdated : Date.now();
+}
+
+export function getFinalTrackingData(records: Shipment[], nowMs = Date.now()): FinalTrackingRecord[] {
+  return records.map((shipment) => {
+    const raw = parseRaw(shipment.rawJson);
+    const baseStatus = normalizeFinalStatus(statusFromRaw(raw, shipment.status));
+    const finalStatus = deriveFinalStatus(baseStatus, raw, shipment);
+    const lastEventAt = getLastEventAt(raw, shipment);
+    const ageMs = nowMs - lastEventAt;
+    const delayed = ageMs > DELAY_THRESHOLD_MS && ageMs <= DELAY_MAX_WINDOW_MS && finalStatus.includes("PENDING");
+    const complaintEnabled = deriveComplaintEnabled(finalStatus, raw, shipment);
+
+    const amount = parseMoney(
+      raw.CollectAmount ??
+      raw.collectAmount ??
+      raw.collect_amount ??
+      raw.collected_amount,
+    );
+
+    return {
+      shipment,
+      final_status: finalStatus,
+      delayed,
+      last_event_at: lastEventAt,
+      amount,
+      complaint_enabled: complaintEnabled,
+    };
+  });
+}
+
+export function sortFinalTrackingData(records: FinalTrackingRecord[]): FinalTrackingRecord[] {
+  return [...records].sort((a, b) => b.last_event_at - a.last_event_at);
+}
+
+export function filterFinalTrackingData(records: FinalTrackingRecord[], filter: StatusCardFilter): FinalTrackingRecord[] {
+  if (filter === "ALL") return records;
+  if (filter === "DELAYED") return records.filter((r) => r.delayed);
+  if (filter === "DELIVERED") return records.filter((r) => r.final_status === "DELIVERED" || r.final_status === "DELIVERED WITH PAYMENT");
+  if (filter === "RETURNED") return records.filter((r) => r.final_status === "RETURNED");
+  return records.filter((r) => r.final_status.includes("PENDING"));
+}
+
+export function computeStats(records: FinalTrackingRecord[]): TrackingStats {
+  let delivered = 0;
+  let pending = 0;
+  let returned = 0;
+  let delayed = 0;
+
+  let totalAmount = 0;
+  let deliveredAmount = 0;
+  let pendingAmount = 0;
+  let returnedAmount = 0;
+  let delayedAmount = 0;
+
+  for (const row of records) {
+    const status = row.final_status;
+    const amount = row.amount;
+    totalAmount += amount;
+
+    if (status === "DELIVERED" || status === "DELIVERED WITH PAYMENT") {
+      delivered += 1;
+      deliveredAmount += amount;
+    } else if (status === "RETURNED") {
+      returned += 1;
+      returnedAmount += amount;
+    } else if (status.includes("PENDING")) {
+      pending += 1;
+      pendingAmount += amount;
+    }
+
+    if (row.delayed) {
+      delayed += 1;
+      delayedAmount += amount;
+    }
+  }
+
+  return {
+    total: records.length,
+    delivered,
+    pending,
+    returned,
+    delayed,
+    totalAmount,
+    deliveredAmount,
+    pendingAmount,
+    returnedAmount,
+    delayedAmount,
+  };
+}

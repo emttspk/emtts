@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Money Order Front</title>
+    <link rel="stylesheet" href="./mo.css" />
+  </head>
+  <body>
+    <!--
+      Data contract (do not change APIs or structure):
+      mo1/ mo2 values should be mapped from existing label/order data.
+      Required mapping:
+      - mo_number: system generated (MOSXXXXXXXX)
+      - amount_rs: CollectAmount (COD / amount)
+      - commission: MO Commission
+      - total: Total amount
+      - sender_name: shipperName
+      - sender_address: shipperAddress
+      - sender_city: senderCity
+      - receiver_name: consigneeName
+      - receiver_address: consigneeAddress
+      - receiver_city: receiverCity
+      - vp_article_no: TrackingID
+      - barcode_src: optional existing barcode image
+    -->
+
+    <section class="print-sheet">
+      <article class="mo-slot">
+        <!-- HTML-based Background Replacement -->
+        <div class="form-background">
+          <div class="form-header">
+            <div class="logo-area">PAKISTAN POST</div>
+            <div class="title-area">MONEY ORDER / منی آرڈر</div>
+            <div class="office-use">FOR OFFICE USE ONLY / صرف دفتری استعمال کے لیے</div>
+          </div>
+          
+          <div class="form-body-grid">
+            <div class="section-top">
+              <span class="label">MO No / منی آرڈر نمبر:</span>
+              <span class="label">Date / تاریخ:</span>
+            </div>
+            
+            <div class="section-amount">
+              <span class="label">Amount in Figures / رقم (ہندسوں میں):</span>
+              <span class="label">Amount in Words / رقم (لفظوں میں):</span>
+            </div>
+
+            <div class="section-addresses">
+              <div class="receiver-side">
+                <div class="label">Payee Name & Address / نام و پتہ وصول کنندہ:</div>
+              </div>
+              <div class="sender-side">
+                <div class="label">Sender Name & Address / نام و پتہ مرسل:</div>
+              </div>
+            </div>
+
+            <div class="section-accounts">
+              <div class="acc-row"><span class="label">Amount / رقم:</span></div>
+              <div class="acc-row"><span class="label">Commission / کمیشن:</span></div>
+              <div class="acc-row"><span class="label">Total / میزان:</span></div>
+            </div>
+          </div>
+
+          <div class="form-footer">
+            <div class="label">Postmaster Signature / دستخط پوسٹ ماسٹر</div>
+          </div>
+        </div>
+
+        <div class="overlay">
+          <div class="stamp-zone front-round-stamp"></div>
+          <div class="stamp-zone front-oblong-stamp"></div>
+
+          <div class="field field-line f-mo-number text-mono">{{mo1.mo_number}}</div>
+          <div class="field field-line f-date text-regular">{{mo1.issue_date}}</div>
+
+          <div class="field field-line f-amount-rs text-amount">{{mo1.amount_rs}}</div>
+          <div class="field field-line f-amount-ps text-amount">00</div>
+
+          <div class="field field-line f-vp-article text-mono">{{mo1.vp_article_no}}</div>
+          <div class="field field-line f-amount-words text-regular">{{mo1.amount_words}}</div>
+
+          <div class="field field-line f-receiver-name text-strong">{{mo1.receiver_name}}</div>
+          <div class="field field-line f-receiver-address text-regular">{{mo1.receiver_address}}</div>
+          <div class="field field-line f-receiver-city text-regular">{{mo1.receiver_city}}</div>
+
+          <div class="field field-line f-sender-name text-strong">{{mo1.sender_name}}</div>
+          <div class="field field-line f-sender-address text-regular">{{mo1.sender_address}}</div>
+          <div class="field field-line f-sender-city text-regular">{{mo1.sender_city}}</div>
+
+          <div class="field field-line f-commission text-mono">{{mo1.commission}}</div>
+          <div class="field field-line f-total text-mono">{{mo1.total}}</div>
+          <div class="field field-line f-tracking text-mono">{{mo1.vp_article_no}}</div>
+
+          <img class="f-barcode" src="{{mo1.barcode_src}}" alt="" />
+        </div>
+      </article>
+
+      <article class="mo-slot">
+        <!-- HTML-based Background Replacement -->
+        <div class="form-background">
+          <div class="form-header">
+            <div class="logo-area">PAKISTAN POST</div>
+            <div class="title-area">MONEY ORDER / منی آرڈر</div>
+            <div class="office-use">FOR OFFICE USE ONLY / صرف دفتری استعمال کے لیے</div>
+          </div>
+          
+          <div class="form-body-grid">
+            <div class="section-top">
+              <span class="label">MO No / منی آرڈر نمبر:</span>
+              <span class="label">Date / تاریخ:</span>
+            </div>
+            
+            <div class="section-amount">
+              <span class="label">Amount in Figures / رقم (ہندسوں میں):</span>
+              <span class="label">Amount in Words / رقم (لفظوں میں):</span>
+            </div>
+
+            <div class="section-addresses">
+              <div class="receiver-side">
+                <div class="label">Payee Name & Address / نام و پتہ وصول کنندہ:</div>
+              </div>
+              <div class="sender-side">
+                <div class="label">Sender Name & Address / نام و پتہ مرسل:</div>
+              </div>
+            </div>
+
+            <div class="section-accounts">
+              <div class="acc-row"><span class="label">Amount / رقم:</span></div>
+              <div class="acc-row"><span class="label">Commission / کمیشن:</span></div>
+              <div class="acc-row"><span class="label">Total / میزان:</span></div>
+            </div>
+          </div>
+
+          <div class="form-footer">
+            <div class="label">Postmaster Signature / دستخط پوسٹ ماسٹر</div>
+          </div>
+        </div>
+
+        <div class="overlay">
+          <div class="stamp-zone front-round-stamp"></div>
+          <div class="stamp-zone front-oblong-stamp"></div>
+
+          <div class="field field-line f-mo-number text-mono">{{mo2.mo_number}}</div>
+          <div class="field field-line f-date text-regular">{{mo2.issue_date}}</div>
+
+          <div class="field field-line f-amount-rs text-amount">{{mo2.amount_rs}}</div>
+          <div class="field field-line f-amount-ps text-amount">00</div>
+
+          <div class="field field-line f-vp-article text-mono">{{mo2.vp_article_no}}</div>
+          <div class="field field-line f-amount-words text-regular">{{mo2.amount_words}}</div>
+
+          <div class="field field-line f-receiver-name text-strong">{{mo2.receiver_name}}</div>
+          <div class="field field-line f-receiver-address text-regular">{{mo2.receiver_address}}</div>
+          <div class="field field-line f-receiver-city text-regular">{{mo2.receiver_city}}</div>
+
+          <div class="field field-line f-sender-name text-strong">{{mo2.sender_name}}</div>
+          <div class="field field-line f-sender-address text-regular">{{mo2.sender_address}}</div>
+          <div class="field field-line f-sender-city text-regular">{{mo2.sender_city}}</div>
+
+          <div class="field field-line f-commission text-mono">{{mo2.commission}}</div>
+          <div class="field field-line f-total text-mono">{{mo2.total}}</div>
+          <div class="field field-line f-tracking text-mono">{{mo2.vp_article_no}}</div>
+
+          <img class="f-barcode" src="{{mo2.barcode_src}}" alt="" />
+        </div>
+      </article>
+    </section>
+  </body>
+</html>

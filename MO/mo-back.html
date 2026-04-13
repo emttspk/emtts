@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Money Order Back</title>
+    <link rel="stylesheet" href="./mo.css" />
+  </head>
+  <body>
+    <!--
+      Back side is intentionally mostly static (official Urdu content from the form background).
+      Optional minimal values can be printed only where needed.
+      Duplex note: use the same slot geometry as front and print with flip on short edge.
+    -->
+
+    <section class="print-sheet">
+      <article class="mo-slot">
+        <div class="form-background back-side">
+          <div class="ack-section">
+            <div class="title">ACKNOWLEDGEMENT / رسید</div>
+            <p class="urdu-text">موصول کیا منی آرڈر مندرجہ بالا رقم جس کا حوالہ پشت پر درج ہے۔</p>
+            <p class="eng-text">Received the amount of Money Order specified on the reverse.</p>
+            <div class="sig-line">
+              <span class="label">Signature of Payee / دستخط وصول کنندہ: ____________________</span>
+            </div>
+            <div class="sig-line">
+              <span class="label">Date / تاریخ: ____________________</span>
+            </div>
+          </div>
+
+          <div class="instructions-section">
+            <div class="title">INSTRUCTIONS / ہدایات</div>
+            <ol class="urdu-list">
+              <li>منی آرڈر کی ادائیگی کے وقت اصل شناختی کارڈ دکھانا لازمی ہے۔</li>
+              <li>رقم کی وصولی پر دستخط یا انگوٹھا لگانا ضروری ہے۔</li>
+              <li>کسی بھی شکایت کی صورت میں متعلقہ پوسٹ ماسٹر سے رجوع کریں۔</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="overlay">
+          <div class="stamp-zone back-round-stamp"></div>
+          <div class="stamp-zone back-oblong-stamp"></div>
+
+          <div class="field field-line b-ref-mo-number text-mono">{{mo1.mo_number}}</div>
+          <div class="field field-line b-ref-tracking text-mono">{{mo1.vp_article_no}}</div>
+          <div class="field field-line b-ref-sender text-regular">{{mo1.sender_name}}</div>
+          <div class="field field-line b-ref-receiver text-regular">{{mo1.receiver_name}}</div>
+        </div>
+      </article>
+
+      <article class="mo-slot">
+        <img class="form-bg" src="../MO/MO Back.png" alt="MO Back Background" />
+        <div class="overlay">
+          <div class="stamp-zone back-round-stamp"></div>
+          <div class="stamp-zone back-oblong-stamp"></div>
+
+          <div class="field field-line b-ref-mo-number text-mono">{{mo2.mo_number}}</div>
+          <div class="field field-line b-ref-tracking text-mono">{{mo2.vp_article_no}}</div>
+          <div class="field field-line b-ref-sender text-regular">{{mo2.sender_name}}</div>
+          <div class="field field-line b-ref-receiver text-regular">{{mo2.receiver_name}}</div>
+        </div>
+      </article>
+    </section>
+  </body>
+</html>

@@ -1,0 +1,303 @@
+<!doctype html>
+<!--
+  FLYER LABEL TEMPLATE — 8 per A4 (2 × 4 grid)
+  Label size: 105mm × 74.25mm
+  Page size : 210mm × 297mm (A4, 3mm margin)
+  Rendered server-side via flyerHtml() in labels.ts.
+  This file is a reference layout. Data is injected via the TypeScript renderer.
+
+  LAYOUT STRUCTURE (MO Format — Compact):
+  ① HEADER  — Carrier name + Prefix badge
+  ② BARCODE — Tracking barcode (compact) + Tracking ID (mono)
+  ③ PRIMARY — Tracking ID · Order/Ref · Booking Date (single row)
+  ④ ADDRESS — TO (receiver, bold) + FROM (sender)
+  ⑤ AMOUNT  — Gross / Commission / Net (VPL/VPP) or Gross only (COD)
+  ⑥ FOOTER  — Weight · Branding
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Flyer Label (8 per A4)</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 3mm;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        color: #000;
+        font-family: Arial, sans-serif;
+      }
+
+      /* A4 page — 2 × 4 grid (8 labels) */
+      .fl-page {
+        width: 204mm;
+        height: 291mm;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-rows: repeat(4, 1fr);
+        gap: 3mm;
+        box-sizing: border-box;
+        page-break-after: always;
+      }
+
+      .fl-page:last-child {
+        page-break-after: auto;
+      }
+
+      /* Label cell — 105mm × 74.25mm */
+      .fl-label {
+        width: 100%;
+        height: 100%;
+        border: 0.5mm solid #000;
+        box-sizing: border-box;
+        padding: 2mm;
+        display: grid;
+        grid-template-rows: auto auto auto 1fr auto auto;
+        gap: 1mm;
+        overflow: hidden;
+      }
+
+      .fl-label-empty {
+        background: #fff;
+        border: 0.3mm dashed #ccc;
+      }
+
+      /* ─── ① HEADER ─── */
+      .fl-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 0.3mm solid #000;
+        padding-bottom: 0.8mm;
+      }
+
+      .fl-carrier-stack {
+        display: grid;
+        gap: 0.25mm;
+        min-width: 0;
+      }
+
+      .fl-carrier {
+        font-weight: 900;
+        font-size: 3.5mm;
+        text-transform: uppercase;
+        letter-spacing: 0.12mm;
+      }
+
+      .fl-dispatch-date {
+        font-size: 2.1mm;
+        font-weight: 700;
+        line-height: 1.05;
+      }
+
+      .fl-badge {
+        border: 0.3mm solid #000;
+        padding: 0.6mm 1.2mm;
+        font-weight: 900;
+        font-size: 3mm;
+        white-space: nowrap;
+      }
+
+      /* ─── ② BARCODE ─── */
+      .fl-barcode-wrap {
+        display: grid;
+        justify-items: center;
+        gap: 0.5mm;
+      }
+
+      .fl-barcode-image {
+        width: 88mm;
+        height: 9mm;
+        object-fit: contain;
+        display: block;
+      }
+
+      .fl-barcode-fallback {
+        width: 88mm;
+        height: 9mm;
+        border: 0.3mm dashed #000;
+        display: grid;
+        place-items: center;
+        font-weight: 900;
+        font-size: 2.5mm;
+      }
+
+      .fl-tracking {
+        font-family: "Courier New", Courier, monospace;
+        font-weight: 900;
+        letter-spacing: 0.5mm;
+        font-size: 2.4mm;
+      }
+
+      /* ─── ③ PRIMARY BLOCK ─── */
+      .fl-primary {
+        display: flex;
+        gap: 2mm;
+        border: 0.2mm solid #000;
+        padding: 1mm 1.5mm;
+      }
+
+      .fl-pb-field { display: grid; gap: 0.2mm; flex: 1; }
+      .fl-pb-label {
+        font-size: 1.9mm;
+        font-weight: 900;
+        text-transform: uppercase;
+        color: #444;
+        letter-spacing: 0.1mm;
+      }
+      .fl-pb-value {
+        font-family: "Courier New", Courier, monospace;
+        font-size: 2.2mm;
+        font-weight: 700;
+        line-height: 1.1;
+      }
+
+      /* ─── ④ ADDRESS — TO ─── */
+      .fl-to {
+        display: grid;
+        gap: 0.5mm;
+        overflow: hidden;
+      }
+
+      .fl-k { font-weight: 900; font-size: 2.5mm; letter-spacing: 0.3mm; }
+      .fl-name { font-weight: 900; font-size: 3.1mm; }
+      .fl-addr { font-size: 2.5mm; line-height: 1.15; white-space: pre-line; overflow: hidden; }
+      .fl-city-phone { font-size: 2.4mm; color: #222; }
+
+      /* ─── ⑤ AMOUNT BLOCK ─── */
+      .fl-amount {
+        border: 0.25mm solid #000;
+        padding: 1mm 1.5mm;
+        display: grid;
+        gap: 0.5mm;
+      }
+
+      .fl-amount-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 1mm;
+      }
+
+      .fl-amount-label { font-size: 2.3mm; font-weight: 900; }
+      .fl-amount-value {
+        font-family: "Courier New", Courier, monospace;
+        font-size: 2.3mm;
+        font-weight: 900;
+      }
+      .fl-amount-divider { border-top: 0.2mm solid #000; margin: 0.3mm 0; }
+      .fl-amount-net .fl-amount-label,
+      .fl-amount-net .fl-amount-value { font-size: 2.6mm; }
+
+      /* ─── ⑥ FOOTER ─── */
+      .fl-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1mm;
+        border-top: 0.3mm solid #000;
+        padding-top: 0.8mm;
+        font-size: 2.3mm;
+      }
+
+      .fl-from-name { font-weight: 700; }
+      .fl-from-city { color: #444; }
+      .fl-weight {
+        border: 0.25mm solid #000;
+        padding: 0.3mm 0.8mm;
+        font-family: "Courier New", Courier, monospace;
+        font-size: 2.2mm;
+        font-weight: 700;
+      }
+      .fl-brand { font-size: 2mm; font-weight: 700; text-align: right; }
+    </style>
+  </head>
+  <body>
+    <!-- Rendered by flyerHtml() — one .fl-page block per 8 orders -->
+    <div class="fl-page">
+      <!-- SLOT 1 — sample (VPL/VPP layout) -->
+      <div class="fl-label">
+
+        <!-- ① HEADER -->
+        <div class="fl-top">
+          <div class="fl-carrier-stack">
+            <div class="fl-carrier">Pakistan Post</div>
+            <div class="fl-dispatch-date">Dispatch Date: 2026-04-02</div>
+          </div>
+          <div class="fl-badge">VPL Rs.500</div>
+        </div>
+
+        <!-- ② BARCODE -->
+        <div class="fl-barcode-wrap">
+          <!-- <img src="data:..." class="fl-barcode-image" alt="Barcode" /> -->
+          <div class="fl-barcode-fallback">TRACKING NUMBER</div>
+          <div class="fl-tracking">VPL2600001</div>
+        </div>
+
+        <!-- ③ PRIMARY BLOCK -->
+        <div class="fl-primary">
+          <div class="fl-pb-field">
+            <div class="fl-pb-label">Tracking ID</div>
+            <div class="fl-pb-value">VPL2600001</div>
+          </div>
+          <div class="fl-pb-field">
+            <div class="fl-pb-label">Order / Ref</div>
+            <div class="fl-pb-value">ORD-10001</div>
+          </div>
+          <div class="fl-pb-field">
+            <div class="fl-pb-label">Booking Date</div>
+            <div class="fl-pb-value">31-03-26</div>
+          </div>
+        </div>
+
+        <!-- ④ ADDRESS — TO (receiver) -->
+        <div class="fl-to">
+          <span class="fl-k">TO:</span>
+          <span class="fl-name">Receiver Full Name</span>
+          <div class="fl-addr">123 Example Street, Area</div>
+          <div class="fl-city-phone">Karachi · 03001234567</div>
+        </div>
+
+        <!-- ⑤ AMOUNT BLOCK — VPL/VPP: Gross / Commission / Net -->
+        <!--   For COD: show Gross Amount only (no commission row)   -->
+        <div class="fl-amount">
+          <div class="fl-amount-row">
+            <span class="fl-amount-label">Gross:</span>
+            <span class="fl-amount-value">Rs. 500</span>
+          </div>
+          <div class="fl-amount-row">
+            <span class="fl-amount-label">Commission:</span>
+            <span class="fl-amount-value">Rs. 75</span>
+          </div>
+          <div class="fl-amount-divider"></div>
+          <div class="fl-amount-row fl-amount-net">
+            <span class="fl-amount-label">Net:</span>
+            <span class="fl-amount-value">Rs. 425</span>
+          </div>
+        </div>
+
+        <!-- ⑥ FOOTER: FROM sender · Weight · Branding -->
+        <div class="fl-footer">
+          <span class="fl-from-name">Sender Name</span>
+          <span class="fl-from-city">Lahore</span>
+          <span class="fl-weight">500 g</span>
+          <span class="fl-brand">www.bd.pk</span>
+        </div>
+
+      </div>
+
+      <!-- SLOTS 2–8: identical structure, filled by flyerHtml() renderer -->
+      <div class="fl-label fl-label-empty"></div>
+      <div class="fl-label fl-label-empty"></div>
+      <div class="fl-label fl-label-empty"></div>
+      <div class="fl-label fl-label-empty"></div>
+      <div class="fl-label fl-label-empty"></div>
+      <div class="fl-label fl-label-empty"></div>
+      <div class="fl-label fl-label-empty"></div>
+    </div>
+  </body>
+</html>
