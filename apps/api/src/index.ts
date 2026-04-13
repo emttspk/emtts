@@ -1,18 +1,18 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import { env } from "./config.js";
-import { authRouter } from "./routes/auth.js";
-import { meRouter } from "./routes/me.js";
-import { handleLabelUpload, jobsRouter, labelUploadMiddleware } from "./routes/jobs.js";
-import { trackingRouter } from "./routes/tracking.js";
-import { shipmentsRouter } from "./routes/shipments.js";
-import { adminRouter } from "./routes/admin.js";
-import { subscriptionsRouter } from "./routes/subscriptions.js";
-import { plansRouter } from "./routes/plans.js";
+import { env } from "./config";
+import { authRouter } from "./routes/auth";
+import { meRouter } from "./routes/me";
+import { handleLabelUpload, jobsRouter, labelUploadMiddleware } from "./routes/jobs";
+import { trackingRouter } from "./routes/tracking";
+import { shipmentsRouter } from "./routes/shipments";
+import { adminRouter } from "./routes/admin";
+import { subscriptionsRouter } from "./routes/subscriptions";
+import { plansRouter } from "./routes/plans";
 import { ensureStorageDirs } from "./storage/paths";
-import { startCleanupCron } from "./cron/cleanup.js";
-import { requireAuth } from "./middleware/auth.js";
+import { startCleanupCron } from "./cron/cleanup";
+import { requireAuth } from "./middleware/auth";
 
 const app = express();
 
