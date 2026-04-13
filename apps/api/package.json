@@ -5,9 +5,8 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch --ignore storage/** --ignore apps/api/storage/** --env-file=.env src/index.ts",
-    "build": "tsc",
-    "worker": "tsx --env-file=.env src/worker.ts",
     "build": "tsc -p tsconfig.json",
+    "worker": "tsx --env-file=.env src/worker.ts",
     "start": "TS_NODE_TRANSPILE_ONLY=true npx ts-node src/index.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
