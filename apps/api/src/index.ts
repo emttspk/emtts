@@ -267,6 +267,7 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 await ensureStorageDirs();
 await ensureDefaultPlans().catch(err => console.error("Failed to seed default plans:", err));
 startCleanupCron();
+console.log(`PORT: ${env.PORT}`);
 const server = app.listen(env.PORT, () => {
   // eslint-disable-next-line no-console
   console.log(`API listening on http://localhost:${env.PORT}`);
