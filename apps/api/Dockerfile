@@ -1,13 +1,22 @@
-FROM node:18
+FROM node:20-slim
 
 WORKDIR /app
 
-COPY apps/api/package*.json ./
+# Copy root package files to handle workspaces
+COPY package*.json ./
+COPY apps/api/package*.json ./apps/api/
 
-RUN npm install --omit=dev
+# Install ALL dependencies (including devDeps needed for tsc)
+RUN npm install
 
-COPY apps/api ./
+# Copy source code
+COPY apps/api ./apps/api
+
+WORKDIR /app/apps/api
+
+# Build the TypeScript project
+RUN npm run build
 
 EXPOSE 3000
 
-CMD ["node", "src/index.ts"]
+CMD ["npm", "start"]
