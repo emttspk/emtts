@@ -16,6 +16,11 @@ if (!provider) {
   if (provider) {
     process.env.DATABASE_PROVIDER = provider;
     console.log(`Inferred DATABASE_PROVIDER=${provider} from DATABASE_URL`);
+  } else if (url) {
+    // Fallback for production: assume postgresql if URL is set but can't infer
+    provider = 'postgresql';
+    process.env.DATABASE_PROVIDER = provider;
+    console.log(`Could not infer provider, defaulting to postgresql for DATABASE_URL: ${url.substring(0, 20)}...`);
   } else {
     console.log(`Could not infer provider from DATABASE_URL: ${url}`);
   }
