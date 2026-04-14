@@ -268,9 +268,9 @@ await ensureStorageDirs();
 await ensureDefaultPlans().catch(err => console.error("Failed to seed default plans:", err));
 startCleanupCron();
 console.log(`PORT: ${env.PORT}`);
-const server = app.listen(env.PORT, () => {
+const server = app.listen(env.PORT, '0.0.0.0', () => {
   // eslint-disable-next-line no-console
-  console.log(`API listening on http://localhost:${env.PORT}`);
+  console.log(`API listening on http://0.0.0.0:${env.PORT}`);
 });
 
 server.on("error", (err: any) => {
