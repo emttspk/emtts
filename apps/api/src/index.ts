@@ -15,6 +15,8 @@ import { ensureStorageDirs } from "./storage/paths"
 import { startCleanupCron } from "./cron/cleanup";
 import { requireAuth } from "./middleware/auth";
 
+console.log("🚀 Starting LabelGen API server...");
+
 // Validate critical environment variables at startup
 function validateEnvironment() {
   const errors: string[] = [];
