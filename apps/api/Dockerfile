@@ -20,4 +20,4 @@ RUN npm run build
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma db push --schema=prisma/schema.prisma && node dist/index.js"]
+CMD ["sh", "-c", "node dist/index.js"]
