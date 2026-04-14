@@ -59,8 +59,8 @@ async function verifyDatabaseConnection() {
     console.log("Database connection verified.");
   } catch (err) {
     console.error("❌ DATABASE CONNECTION FAILED:", err instanceof Error ? err.message : err);
-    console.error("Ensure production DATABASE_URL is set and the database is reachable.");
-    process.exit(1);
+    console.error("Continuing without database connection for debugging.");
+    // process.exit(1);
   }
 }
 
