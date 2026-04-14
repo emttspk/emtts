@@ -26,4 +26,4 @@ RUN find dist -name "*.js" -exec sed -i 's/from "\(\.\.\/\.\?\([^"]*\)\)"/from "
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "node dist/index.js"]
+CMD ["node", "dist/index.js"]
