@@ -9,12 +9,15 @@ function inferProvider(url) {
 }
 
 const url = process.env.DATABASE_URL;
+console.log(`DATABASE_URL: ${url ? url.substring(0, 20) + '...' : 'not set'}`);
 let provider = process.env.DATABASE_PROVIDER;
 if (!provider) {
   provider = inferProvider(url);
   if (provider) {
     process.env.DATABASE_PROVIDER = provider;
     console.log(`Inferred DATABASE_PROVIDER=${provider} from DATABASE_URL`);
+  } else {
+    console.log(`Could not infer provider from DATABASE_URL: ${url}`);
   }
 }
 
