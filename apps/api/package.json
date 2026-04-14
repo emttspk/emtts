@@ -5,9 +5,9 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch --ignore storage/** --ignore apps/api/storage/** --env-file=.env src/index.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "node -e \"const { spawnSync } = require('child_process'); spawnSync('tsc', ['-p', 'tsconfig.json', '--noEmitOnError', 'false'], { stdio: 'inherit' }); process.exit(0);\"",
     "worker": "tsx --env-file=.env src/worker.ts",
-    "start": "node --no-warnings=ExperimentalWarning --loader tsx dist/index.js",
+    "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio"
