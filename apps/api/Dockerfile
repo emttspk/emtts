@@ -21,6 +21,9 @@ COPY apps/api ./
 RUN npx prisma generate --schema=prisma/schema.prisma
 RUN npm run build
 
+# Fix ESM imports to add .js extensions
+RUN find dist -name "*.js" -exec sed -i 's/from "\(\.\.\/\.\?\([^"]*\)\)"/from "\1.js"/g' {} \;
+
 EXPOSE 3000
 
 CMD ["sh", "-c", "node dist/index.js"]
