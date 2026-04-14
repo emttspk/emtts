@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { env } from "./config.js";
+import { prisma } from "./prisma.js";
 import { authRouter } from "./routes/auth.js";
 import { meRouter } from "./routes/me.js";
 import { handleLabelUpload, jobsRouter, labelUploadMiddleware } from "./routes/jobs.js";
@@ -13,6 +14,55 @@ import { plansRouter } from "./routes/plans.js";
 import { ensureStorageDirs } from "./storage/paths.js"
 import { startCleanupCron } from "./cron/cleanup.js";
 import { requireAuth } from "./middleware/auth.js";
+
+// Validate critical environment variables at startup
+function validateEnvironment() {
+  const errors: string[] = [];
+  
+  // DATABASE_URL validation
+  if (!process.env.DATABASE_URL) {
+    errors.push("DATABASE_URL environment variable is not set");
+  } else {
+    const dbUrl = process.env.DATABASE_URL;
+    const isValidPostgres = dbUrl.startsWith("postgresql://") || dbUrl.startsWith("postgres://");
+    const isValidSqlite = dbUrl.startsWith("file:");
+    if (!isValidPostgres && !isValidSqlite) {
+      errors.push(`DATABASE_URL is invalid: ${dbUrl.substring(0, 50)}... Must start with postgresql://, postgres://, or file:`);
+    }
+  }
+
+  // JWT_SECRET validation
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 16) {
+    errors.push("JWT_SECRET environment variable must be set and at least 16 characters");
+  }
+
+  if (errors.length > 0) {
+    console.error("❌ STARTUP VALIDATION FAILED:");
+    errors.forEach((err) => console.error(`   - ${err}`));
+    console.error("\nFIX FOR RAILWAY:");
+    console.error("   1. Go to your Railway project");
+    console.error("   2. Link a PostgreSQL database (or set DATABASE_URL manually)");
+    console.error("   3. Set environment variables:");
+    console.error("      DATABASE_URL=<postgresql connection string>");
+    console.error("      JWT_SECRET=<at least 16 random characters>");
+    process.exit(1);
+  }
+}
+
+async function verifyDatabaseConnection() {
+  try {
+    await prisma.$connect();
+    await prisma.$queryRaw`SELECT 1`; 
+    console.log("Database connection verified.");
+  } catch (err) {
+    console.error("❌ DATABASE CONNECTION FAILED:", err instanceof Error ? err.message : err);
+    console.error("Ensure production DATABASE_URL is set and the database is reachable.");
+    process.exit(1);
+  }
+}
+
+validateEnvironment();
+await verifyDatabaseConnection();
 
 const app = express();
 
