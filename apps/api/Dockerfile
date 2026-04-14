@@ -4,6 +4,9 @@ WORKDIR /app/apps/api
 
 RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
+# Set default DATABASE_PROVIDER for production
+ENV DATABASE_PROVIDER=postgresql
+
 # Copy API package metadata and Prisma schema before install
 COPY apps/api/package.json ./
 COPY apps/api/prisma ./prisma

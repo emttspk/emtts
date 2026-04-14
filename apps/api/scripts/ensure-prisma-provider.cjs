@@ -28,8 +28,8 @@ if (!provider) {
 
 if (!process.env.DATABASE_PROVIDER) {
   console.error("ERROR: DATABASE_PROVIDER is not set and could not be inferred from DATABASE_URL.");
-  console.error("Set DATABASE_PROVIDER to postgresql, mysql, or sqlite.");
-  process.exit(1);
+  console.error("Defaulting to postgresql for production.");
+  process.env.DATABASE_PROVIDER = 'postgresql';
 }
 
 const args = process.argv.slice(2);
