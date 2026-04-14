@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { z } from "zod";
-import { prisma } from "../prisma";
-import { requireAuth, requireAdmin } from "../middleware/auth";
-import { monthKeyUTC } from "../usage/month";
-import { env } from "../config";
-import { labelQueue } from "../queue/queue";
-import { refundUnitsByAmount } from "../usage/unitConsumption";
+import { prisma } from "../prisma.js";
+import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { monthKeyUTC } from "../usage/month.js";
+import { env } from "../config.js";
+import { labelQueue } from "../queue/queue.js";
+import { refundUnitsByAmount } from "../usage/unitConsumption.js";
 
 export const adminRouter = Router();
 
@@ -306,7 +306,7 @@ adminRouter.post("/plans", async (req, res) => {
     })
     .parse(req.body);
 
-  const plan = await prisma.plan.create({ data: body });
+  const plan = await prisma.plan.create({ data: body as any });
   res.json({ plan });
 });
 

@@ -1,7 +1,7 @@
 import path from "node:path";
 import fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { env } from "../config";
+import { env } from "../config.js";
 
 export function appRoot() {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");

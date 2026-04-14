@@ -142,7 +142,7 @@ export async function parseOrdersFromFile(filePath: string, opts?: { allowMissin
     } else {
       const trackingResult = validateTrackingId(strictRow.TrackingID);
       if (!trackingResult.ok) {
-        invalidRows.push(`Row ${i + 2}: ${trackingResult.reason}`);
+        invalidRows.push(`Row ${i + 2}: ${(trackingResult as any).reason}`);
       } else {
         strictRow.TrackingID = trackingResult.value;
       }

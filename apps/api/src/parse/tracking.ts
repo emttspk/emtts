@@ -58,7 +58,7 @@ export async function parseTrackingNumbersFromFile(filePath: string, trackingFie
   values.forEach((value, i) => {
     const parsed = validateTrackingId(value);
     if (!parsed.ok) {
-      invalidRows.push(`Row ${i + 2}: ${parsed.reason}`);
+      invalidRows.push(`Row ${i + 2}: ${(parsed as any).reason}`);
       return;
     }
     out.push(parsed.value);

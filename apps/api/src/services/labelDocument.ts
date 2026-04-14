@@ -35,7 +35,7 @@ export function prepareLabelOrders(
     const trackingNumber = manualTracking || (opts.autoGenerateTracking ? buildTrackingId(serial++) : "");
     const validated = validateTrackingId(trackingNumber);
     if (!validated.ok) {
-      throw new Error(`Invalid trackingId for barcode generation: ${validated.reason}`);
+      throw new Error(`Invalid trackingId for barcode generation: ${(validated as any).reason}`);
     }
 
     const trackingId = validated.value;

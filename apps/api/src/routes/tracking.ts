@@ -7,26 +7,26 @@ import { existsSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { parse as parseCsv } from "csv-parse/sync";
-import { prisma } from "../prisma";
-import { requireAuth } from "../middleware/auth";
-import type { AuthedRequest } from "../middleware/auth";
-import { ensureStorageDirs, outputsDir, uploadsDir } from "../storage/paths";
-import { trackingQueue } from "../queue/queue";
-import { redisConnection } from "../queue/redis";
-import { parseOrdersFromFile } from "../parse/orders";
-import { parseTrackingNumbersFromFile } from "../parse/tracking";
-import { validateTrackingId } from "../validation/trackingId";
-import { finalizeQueuedTrackingToGenerated, releaseQueuedTracking } from "../usage/limits";
-import { consumeUnits, refundUnits, refundUnitsByAmount } from "../usage/unitConsumption";
+import { prisma } from "../prisma.js";
+import { requireAuth } from "../middleware/auth.js";
+import type { AuthedRequest } from "../middleware/auth.js";
+import { ensureStorageDirs, outputsDir, uploadsDir } from "../storage/paths.js";
+import { trackingQueue } from "../queue/queue.js";
+import { redisConnection } from "../queue/redis.js";
+import { parseOrdersFromFile } from "../parse/orders.js";
+import { parseTrackingNumbersFromFile } from "../parse/tracking.js";
+import { validateTrackingId } from "../validation/trackingId.js";
+import { finalizeQueuedTrackingToGenerated, releaseQueuedTracking } from "../usage/limits.js";
+import { consumeUnits, refundUnits, refundUnitsByAmount } from "../usage/unitConsumption.js";
 import {
   pythonTrackOne,
   pythonTrackBulk,
   pythonSubmitComplaint,
   PythonServiceTimeoutError,
   PythonServiceUnavailableError,
-} from "../services/trackingService";
-import { processTracking } from "../services/trackingStatus";
-import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "../services/trackingIntelligence";
+} from "../services/trackingService.js";
+import { processTracking } from "../services/trackingStatus.js";
+import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "../services/trackingIntelligence.js";
 
 export const trackingRouter = Router();
 const inlineRunningJobs = new Set<string>();
@@ -432,7 +432,7 @@ export async function handleTrackingBulk(req: Request, res: Response) {
         .map((t, i) => {
           const result = validateTrackingId(t);
           if (!result.ok) {
-            invalid.push(`Row ${i + 1}: ${result.reason}`);
+            invalid.push(`Row ${i + 1}: ${(result as any).reason}`);
             return "";
           }
           return result.value;
@@ -473,7 +473,7 @@ export async function handleTrackingBulk(req: Request, res: Response) {
 
     trackingUnitRequests = trackingNumbers.map((_, i) => ({ actionType: "tracking", requestKey: `${idempotencyKey}:tracking:${i}` }));
     const consumeResult = await consumeUnits(userId, trackingUnitRequests);
-    if (!consumeResult.ok) throw new Error(consumeResult.reason);
+    if (!consumeResult.ok) throw new Error((consumeResult as any).reason ?? "Unit consumption failed");
     reservedTracking = true;
   } catch (e) {
     if (bulkLockKey) {
@@ -1150,7 +1150,7 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
   // Consume units for complaint
   const consumeResult = await consumeUnits(userId, [{ actionType: "tracking", requestKey: `complaint:${trackingNumber}:${Date.now()}` }]);
   if (!consumeResult.ok) {
-    return res.status(402).json({ success: false, message: consumeResult.reason });
+    return res.status(402).json({ success: false, message: (consumeResult as any).reason ?? "Unit consumption failed" });
   }
 
   let resp: {
