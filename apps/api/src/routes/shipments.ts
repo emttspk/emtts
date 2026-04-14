@@ -1,15 +1,15 @@
 import { Router } from "express";
 import { z } from "zod";
-import { prisma } from "../prisma.js";
-import { requireAuth } from "../middleware/auth.js";
-import type { AuthedRequest } from "../middleware/auth.js";
-import { pythonTrackBulk, PythonServiceUnavailableError, PythonServiceTimeoutError } from "../services/trackingService.js";
-import { canonicalShipmentStatus, calculateStatusCards, isComplaintEnabled, processTracking } from "../services/trackingStatus.js";
-import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "../services/trackingIntelligence.js";
-import { buildTrackingCycleAuditRecord } from "../services/trackingCycleAudit.js";
-import { getTrackingCycleCorrections, saveTrackingCycleCorrections } from "../services/trackingCycleCorrections.js";
-import { validateAndImportCycleAudit, parseCSV } from "../services/trackingCycleImport.js";
-import { consumeUnit, refundUnit } from "../usage/unitConsumption.js";
+import { prisma } from "../prisma";
+import { requireAuth } from "../middleware/auth";
+import type { AuthedRequest } from "../middleware/auth";
+import { pythonTrackBulk, PythonServiceUnavailableError, PythonServiceTimeoutError } from "../services/trackingService";
+import { canonicalShipmentStatus, calculateStatusCards, isComplaintEnabled, processTracking } from "../services/trackingStatus";
+import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "../services/trackingIntelligence";
+import { buildTrackingCycleAuditRecord } from "../services/trackingCycleAudit";
+import { getTrackingCycleCorrections, saveTrackingCycleCorrections } from "../services/trackingCycleCorrections";
+import { validateAndImportCycleAudit, parseCSV } from "../services/trackingCycleImport";
+import { consumeUnit, refundUnit } from "../usage/unitConsumption";
 
 export const shipmentsRouter = Router();
 

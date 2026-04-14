@@ -10,7 +10,7 @@ const envSchema = z.object({
   REDIS_URL: z.string().default("redis://localhost:6379"),
   JWT_SECRET: z.string().default("development-secret-key-at-least-16-chars"),
   WEB_ORIGIN: z.string().default("http://localhost:3000"),
-  STORAGE_DIR: z.string().default("apps/api/storage"),
+  STORAGE_DIR: z.string().default("storage"),
   PYTHON_SERVICE_URL: z.string().default("http://localhost:8000"),
   ADMIN_BOOTSTRAP_SECRET: z.string().min(16).optional(),
   MONEY_ORDER_FRONT_IMAGE_PATH: z.string().optional(),

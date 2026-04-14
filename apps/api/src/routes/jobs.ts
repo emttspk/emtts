@@ -5,16 +5,16 @@ import multer from "multer";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import { prisma } from "../prisma.js";
-import { requireAuth } from "../middleware/auth.js";
-import type { AuthedRequest } from "../middleware/auth.js";
-import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, resolveStoredPath, toStoredPath, uploadsDir, waitForStoredFile } from "../storage/paths.js";
-import { parseOrdersFromFile } from "../parse/orders.js";
-import { labelQueue } from "../queue/queue.js";
-import { consumeUnits, refundUnits } from "../usage/unitConsumption.js";
-import { previewLabelHtml, renderLabelDocumentHtml, type LabelPrintMode } from "../templates/labels.js";
-import { prepareLabelOrders } from "../services/labelDocument.js";
-import { shouldShowValuePayableAmount } from "../validation/trackingId.js";
+import { prisma } from "../prisma";
+import { requireAuth } from "../middleware/auth";
+import type { AuthedRequest } from "../middleware/auth";
+import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, resolveStoredPath, toStoredPath, uploadsDir, waitForStoredFile } from "../storage/paths";
+import { parseOrdersFromFile } from "../parse/orders";
+import { labelQueue } from "../queue/queue";
+import { consumeUnits, refundUnits } from "../usage/unitConsumption";
+import { previewLabelHtml, renderLabelDocumentHtml, type LabelPrintMode } from "../templates/labels";
+import { prepareLabelOrders } from "../services/labelDocument";
+import { shouldShowValuePayableAmount } from "../validation/trackingId";
 
 export const jobsRouter = Router();
 

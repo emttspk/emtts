@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { prisma } from "../prisma.js";
+import { prisma } from "../prisma";
 
 export const plansRouter = Router();
 
-async function ensureDefaultPlans() {
+export async function ensureDefaultPlans() {
   const defaults = [
     { name: "Free Plan", priceCents: 0, monthlyLabelLimit: 250, monthlyTrackingLimit: 250 },
     { name: "Business Plan", priceCents: 250000, monthlyLabelLimit: 2000, monthlyTrackingLimit: 2000 },
@@ -26,8 +26,12 @@ async function ensureDefaultPlans() {
   }
 }
 
-plansRouter.get("/", async (_req, res) => {
-  await ensureDefaultPlans();
-  const plans = await prisma.plan.findMany({ orderBy: { priceCents: "asc" } });
-  res.json({ plans });
+plansRouter.get("/", async (_req, res, next) => {
+  try {
+    // Plans are now seeded at startup for better performance and reliability
+    const plans = await prisma.plan.findMany({ orderBy: { priceCents: "asc" } });
+    res.json({ plans });
+  } catch (err) {
+    next(err);
+  }
 });

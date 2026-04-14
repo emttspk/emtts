@@ -1,19 +1,19 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import { env } from "./config.js";
-import { prisma } from "./prisma.js";
-import { authRouter } from "./routes/auth.js";
-import { meRouter } from "./routes/me.js";
-import { handleLabelUpload, jobsRouter, labelUploadMiddleware } from "./routes/jobs.js";
-import { trackingRouter } from "./routes/tracking.js";
-import { shipmentsRouter } from "./routes/shipments.js";
-import { adminRouter } from "./routes/admin.js";
-import { subscriptionsRouter } from "./routes/subscriptions.js";
-import { plansRouter } from "./routes/plans.js";
-import { ensureStorageDirs } from "./storage/paths.js"
-import { startCleanupCron } from "./cron/cleanup.js";
-import { requireAuth } from "./middleware/auth.js";
+import { env } from "./config";
+import { prisma } from "./prisma";
+import { authRouter } from "./routes/auth";
+import { meRouter } from "./routes/me";
+import { handleLabelUpload, jobsRouter, labelUploadMiddleware } from "./routes/jobs";
+import { trackingRouter } from "./routes/tracking";
+import { shipmentsRouter } from "./routes/shipments";
+import { adminRouter } from "./routes/admin";
+import { subscriptionsRouter } from "./routes/subscriptions";
+import { plansRouter, ensureDefaultPlans } from "./routes/plans";
+import { ensureStorageDirs } from "./storage/paths"
+import { startCleanupCron } from "./cron/cleanup";
+import { requireAuth } from "./middleware/auth";
 
 // Validate critical environment variables at startup
 function validateEnvironment() {
@@ -262,6 +262,7 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 });
 
 await ensureStorageDirs();
+await ensureDefaultPlans().catch(err => console.error("Failed to seed default plans:", err));
 startCleanupCron();
 const server = app.listen(env.PORT, () => {
   // eslint-disable-next-line no-console
