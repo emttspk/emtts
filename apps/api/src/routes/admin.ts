@@ -252,7 +252,7 @@ adminRouter.post("/refunds/:refundId/approve", async (req, res) => {
       units: updated.units,
       reason: updated.reason,
       status: updated.status,
-      updatedAt: updated.approvedAt,
+      updatedAt: updated.updatedAt,
     },
   });
 });
@@ -286,7 +286,7 @@ adminRouter.post("/refunds/:refundId/reject", async (req, res) => {
       units: updated.units,
       reason: updated.reason,
       status: updated.status,
-      updatedAt: updated.rejectedAt,
+      updatedAt: updated.updatedAt,
     },
   });
 });

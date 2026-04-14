@@ -109,7 +109,7 @@ model Shipment {
   returnReason    String?
   complaintEligible Boolean @default(false)
   complaintDate   DateTime?
-  events          Json?
+  events          String?
   shipmentType    String?
   status          String?
   city            String?
