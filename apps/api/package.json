@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch --ignore storage/** --ignore apps/api/storage/** --env-file=.env src/index.ts",
     "prebuild": "prisma generate --schema=prisma/schema.prisma",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc",
     "postinstall": "prisma generate --schema=prisma/schema.prisma",
     "prestart": "npm run build",
     "worker": "tsx --env-file=.env src/worker.ts",

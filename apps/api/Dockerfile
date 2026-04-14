@@ -2,21 +2,23 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Copy workspace package metadata first so dependency install can run before source copy
+RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+
+# Copy workspace package metadata and Prisma schema before install
 COPY package.json ./
 COPY apps/api/package.json ./apps/api/
+COPY apps/api/prisma ./apps/api/prisma
 
 # Install workspace dependencies
 RUN npm install --workspaces
 
-# Copy app source and Prisma schema
+# Copy API source code
 COPY apps/api ./apps/api
 
-WORKDIR /app/apps/api
-
-# Build the TypeScript project and generate Prisma client
-RUN npm run build
+# Generate Prisma client and build the API
+RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
+RUN cd apps/api && npm run build
 
 EXPOSE 3000
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "apps/api/dist/index.js"]
