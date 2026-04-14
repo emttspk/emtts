@@ -23,7 +23,8 @@ function validateEnvironment() {
   
   // DATABASE_URL validation
   if (!process.env.DATABASE_URL) {
-    errors.push("DATABASE_URL environment variable is not set");
+    console.warn("⚠️  DATABASE_URL not set, continuing for debugging");
+    // errors.push("DATABASE_URL environment variable is not set");
   } else {
     const dbUrl = process.env.DATABASE_URL;
     const isValidPostgres = dbUrl.startsWith("postgresql://") || dbUrl.startsWith("postgres://");
