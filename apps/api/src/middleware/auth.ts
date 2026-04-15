@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
-import { verifyAccessToken } from "../auth/jwt.js";
-import type { AppRole } from "../auth/jwt.js";
+import { verifyAccessToken } from "../auth/jwt";
+import type { AppRole } from "../auth/jwt";
 
 export type AuthedRequest = Request & {
   user?: { id: string; role: AppRole };
