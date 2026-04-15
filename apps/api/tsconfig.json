@@ -1,9 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ES2022",
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": false,
@@ -11,7 +10,6 @@
     "skipLibCheck": true,
     "rootDir": "src",
     "outDir": "dist",
-    "allowImportingTsExtensions": false,
     "noEmit": false
   },
   "include": ["src"],

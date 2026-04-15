@@ -26,7 +26,7 @@ import {
   shouldApplyPakistanPostValuePayableRules,
   shouldShowValuePayableAmount,
   validateMoneyOrderNumber,
-} from "./validation/trackingId";
+} from "./validation/trackingId.js";
 import {
   pythonHealthCheck,
   pythonSubmitComplaint,
@@ -34,9 +34,9 @@ import {
   pythonTrackOne,
   PythonServiceTimeoutError,
   PythonServiceUnavailableError,
-} from "./services/trackingService";
-import { processTracking } from "./services/trackingStatus";
-import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "./services/trackingIntelligence";
+} from "./services/trackingService.js";
+import { processTracking } from "./services/trackingStatus.js";
+import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "./services/trackingIntelligence.js";
 
 function normalizeCollectedAmount(input: unknown): number {
   const raw = String(input ?? "").trim();
