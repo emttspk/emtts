@@ -19,7 +19,7 @@ COPY apps/api ./
 
 # Generate Prisma client and build the API
 RUN npx prisma generate --schema=prisma/schema.prisma
-RUN npm run build
+RUN rm -rf dist && npm run build
 
 EXPOSE 3000
 
