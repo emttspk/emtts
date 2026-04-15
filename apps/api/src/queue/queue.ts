@@ -1,21 +1,42 @@
 import { Queue } from "bullmq";
-import { redisConnection } from "./redis.js";
+import { getRedisConnection } from "./redis.js";
 
 export const labelQueueName = "label-generation";
 export const trackingQueueName = "tracking-engine";
 
-export const labelQueue = new Queue(labelQueueName, {
-  connection: redisConnection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: { type: "exponential", delay: 5_000 },
-  },
+function createLazyQueue(name: string, defaultJobOptions: unknown) {
+  let queue: Queue | null = null;
+
+  const create = () => {
+    if (!queue) {
+      queue = new Queue(name, {
+        connection: getRedisConnection(),
+        defaultJobOptions,
+      });
+    }
+    return queue;
+  };
+
+  return new Proxy({} as Queue, {
+    get(_target, prop) {
+      const instance = create();
+      const value = (instance as any)[prop];
+      return typeof value === "function" ? value.bind(instance) : value;
+    },
+    set(_target, prop, value) {
+      const instance = create();
+      (instance as any)[prop] = value;
+      return true;
+    },
+  });
+}
+
+export const labelQueue = createLazyQueue(labelQueueName, {
+  attempts: 3,
+  backoff: { type: "exponential", delay: 5_000 },
 });
 
-export const trackingQueue = new Queue(trackingQueueName, {
-  connection: redisConnection,
-  defaultJobOptions: {
-    attempts: 2,
-    backoff: { type: "exponential", delay: 10_000 },
-  },
+export const trackingQueue = createLazyQueue(trackingQueueName, {
+  attempts: 2,
+  backoff: { type: "exponential", delay: 10_000 },
 });

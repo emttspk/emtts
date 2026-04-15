@@ -2,9 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { env } from "./config.js";
-// Fixed prisma import v2
 import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient()
 import { authRouter } from "./routes/auth.js";
 import { meRouter } from "./routes/me.js";
 import { handleLabelUpload, jobsRouter, labelUploadMiddleware } from "./routes/jobs.js";
@@ -13,30 +11,40 @@ import { shipmentsRouter } from "./routes/shipments.js";
 import { adminRouter } from "./routes/admin.js";
 import { subscriptionsRouter } from "./routes/subscriptions.js";
 import { plansRouter, ensureDefaultPlans } from "./routes/plans.js";
-import { ensureStorageDirs } from "./storage/paths.js"
+import { ensureStorageDirs } from "./storage/paths.js";
 import { startCleanupCron } from "./cron/cleanup.js";
 import { requireAuth } from "./middleware/auth.js";
 
 console.log("🚀 Starting LabelGen API server FIXED...");
 
-// Validate critical environment variables at startup
+function normalizeDatabaseUrl() {
+  if (!process.env.DATABASE_URL) return;
+  const trimmedUrl = process.env.DATABASE_URL.trim();
+  if (trimmedUrl.startsWith("postgres://")) {
+    process.env.DATABASE_URL = trimmedUrl.replace(/^postgres:\/\//, "postgresql://");
+  } else {
+    process.env.DATABASE_URL = trimmedUrl;
+  }
+}
+
 function validateEnvironment() {
   const errors: string[] = [];
-  
-  // DATABASE_URL validation
+
   if (!process.env.DATABASE_URL) {
-    console.warn("⚠️  DATABASE_URL not set, continuing for debugging");
-    // errors.push("DATABASE_URL environment variable is not set");
+    if (process.env.NODE_ENV === "development") {
+      console.warn("⚠️  DATABASE_URL not set, using local PostgreSQL default for development.");
+      process.env.DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/labelgen?schema=public";
+    } else {
+      errors.push("DATABASE_URL environment variable is not set.");
+    }
   } else {
     const dbUrl = process.env.DATABASE_URL;
     const isValidPostgres = dbUrl.startsWith("postgresql://") || dbUrl.startsWith("postgres://");
-    const isValidSqlite = dbUrl.startsWith("file:");
-    if (!isValidPostgres && !isValidSqlite) {
-      errors.push(`DATABASE_URL is invalid: ${dbUrl.substring(0, 50)}... Must start with postgresql://, postgres://, or file:`);
+    if (!isValidPostgres) {
+      errors.push(`DATABASE_URL is invalid: ${dbUrl.substring(0, 50)}... Must start with postgresql:// or postgres://`);
     }
   }
 
-  // JWT_SECRET validation
   if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 16) {
     console.warn("⚠️  JWT_SECRET not set or too short, using default for development");
     process.env.JWT_SECRET = "development-jwt-secret-at-least-32-chars-long";
@@ -55,20 +63,22 @@ function validateEnvironment() {
   }
 }
 
-async function verifyDatabaseConnection() {
+async function verifyDatabaseConnection(prisma: PrismaClient) {
   try {
     await prisma.$connect();
-    await prisma.$queryRaw`SELECT 1`; 
+    await prisma.$queryRaw`SELECT 1`;
     console.log("Database connection verified.");
   } catch (err) {
     console.error("❌ DATABASE CONNECTION FAILED:", err instanceof Error ? err.message : err);
-    console.error("Continuing without database connection for debugging.");
-    // process.exit(1);
+    console.error("Please check DATABASE_URL and database availability.");
+    process.exit(1);
   }
 }
 
+normalizeDatabaseUrl();
 validateEnvironment();
-await verifyDatabaseConnection();
+const prisma = new PrismaClient();
+await verifyDatabaseConnection(prisma);
 
 const app = express();
 
@@ -91,6 +101,8 @@ app.use(
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+app.get("/", (_req, res) => res.json({ success: true, message: "LabelGen API is running" }));
+app.get("/api", (_req, res) => res.json({ success: true, message: "LabelGen API is running" }));
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.get("/api/template.csv", (_req, res) => {

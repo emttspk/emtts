@@ -13,7 +13,7 @@ import { requireAuth } from "../middleware/auth.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { ensureStorageDirs, outputsDir, uploadsDir } from "../storage/paths.js";
 import { trackingQueue } from "../queue/queue.js";
-import { redisConnection } from "../queue/redis.js";
+import { getRedisConnection } from "../queue/redis.js";
 import { parseOrdersFromFile } from "../parse/orders.js";
 import { parseTrackingNumbersFromFile } from "../parse/tracking.js";
 import { validateTrackingId } from "../validation/trackingId.js";
@@ -455,9 +455,9 @@ export async function handleTrackingBulk(req: Request, res: Response) {
     }
 
     bulkLockKey = buildBulkLockKey(userId, trackingNumbers);
-    const lockAcquired = await redisConnection.set(bulkLockKey, job.id, "EX", 1800, "NX");
+    const lockAcquired = await getRedisConnection().set(bulkLockKey, job.id, "EX", 1800, "NX");
     if (lockAcquired !== "OK") {
-      const existingJobId = (await redisConnection.get(bulkLockKey)) ?? null;
+      const existingJobId = (await getRedisConnection().get(bulkLockKey)) ?? null;
       await prisma.trackingJob.update({
         where: { id: job.id },
         data: { status: "FAILED", error: "Duplicate bulk request ignored" },
@@ -478,9 +478,9 @@ export async function handleTrackingBulk(req: Request, res: Response) {
     reservedTracking = true;
   } catch (e) {
     if (bulkLockKey) {
-      const currentLockValue = await redisConnection.get(bulkLockKey);
+      const currentLockValue = await getRedisConnection().get(bulkLockKey);
       if (currentLockValue === job.id) {
-        await redisConnection.del(bulkLockKey);
+        await getRedisConnection().del(bulkLockKey);
       }
     }
     await prisma.trackingJob.update({
@@ -551,9 +551,9 @@ export async function handleTrackingBulk(req: Request, res: Response) {
     }
   } catch (e) {
     if (bulkLockKey) {
-      const currentLockValue = await redisConnection.get(bulkLockKey);
+      const currentLockValue = await getRedisConnection().get(bulkLockKey);
       if (currentLockValue === job.id) {
-        await redisConnection.del(bulkLockKey);
+        await getRedisConnection().del(bulkLockKey);
       }
     }
     if (reservedTracking) {

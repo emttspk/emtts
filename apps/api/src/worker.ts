@@ -10,7 +10,7 @@ import { env } from "./config.js";
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 import { labelQueue, labelQueueName, trackingQueue, trackingQueueName } from "./queue/queue.js";
-import { redisConnection } from "./queue/redis.js";
+import { getRedisConnection } from "./queue/redis.js";
 import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, toStoredPath, waitForStoredFile } from "./storage/paths.js";
 import { parseOrdersFromFile } from "./parse/orders.js";
 import { moneyOrderHtml, renderLabelDocumentHtml, type LabelOrder } from "./templates/labels.js";
@@ -716,7 +716,7 @@ const worker = new Worker(
       }
     }
   },
-  { connection: redisConnection, concurrency: 2 },
+  { connection: getRedisConnection(), concurrency: 2 },
 );
 
 worker.on("failed", (job, err) => {
@@ -764,7 +764,7 @@ const trackingWorker = new Worker(
     if (data.kind === "BULK_TRACK") {
       console.log(`[BulkTracking] Job Started ID=${job.id}`);
       while (!globalBulkLockAcquired) {
-        const lockAcquired = await redisConnection.set(globalBulkLockKey, globalBulkLockValue, "EX", 300, "NX");
+        const lockAcquired = await getRedisConnection().set(globalBulkLockKey, globalBulkLockValue, "EX", 300, "NX");
         if (lockAcquired === "OK") {
           globalBulkLockAcquired = true;
           break;
@@ -1026,9 +1026,9 @@ const trackingWorker = new Worker(
     } finally {
       if (data.kind === "BULK_TRACK" && globalBulkLockAcquired) {
         try {
-          const currentGlobalLockValue = await redisConnection.get(globalBulkLockKey);
+          const currentGlobalLockValue = await getRedisConnection().get(globalBulkLockKey);
           if (currentGlobalLockValue === globalBulkLockValue) {
-            await redisConnection.del(globalBulkLockKey);
+            await getRedisConnection().del(globalBulkLockKey);
           }
         } catch (globalLockError) {
           console.warn(`[BulkTracking] Failed to release global lock for job ${job.id}:`, globalLockError);
@@ -1036,9 +1036,9 @@ const trackingWorker = new Worker(
       }
       if (data.kind === "BULK_TRACK" && data.lockKey) {
         try {
-          const currentLockValue = await redisConnection.get(data.lockKey);
+          const currentLockValue = await getRedisConnection().get(data.lockKey);
           if (currentLockValue === job.id) {
-            await redisConnection.del(data.lockKey);
+            await getRedisConnection().del(data.lockKey);
           }
         } catch (lockError) {
           console.warn(`[BulkTracking] Failed to release lock for job ${job.id}:`, lockError);
@@ -1046,7 +1046,7 @@ const trackingWorker = new Worker(
       }
     }
   },
-  { connection: redisConnection, concurrency: 1 },
+  { connection: getRedisConnection(), concurrency: 1 },
 );
 
 trackingWorker.on("failed", (job, err) => {
