@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
-import { prisma } from "../prisma.js";
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
 import { hashPassword, verifyPassword } from "../auth/password.js";
 import { asAppRole, signAccessToken } from "../auth/jwt.js";
 

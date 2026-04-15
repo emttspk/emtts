@@ -1,4 +1,5 @@
-import { prisma } from "./apps/api/src/prisma.ts";
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
 import { processTracking } from "./apps/api/src/services/trackingStatus.ts";
 
 const trackingNumbers = ["VPL26030230", "VPL14437502", "VPL14437563", "VPL14437444", "VPL12511818"];

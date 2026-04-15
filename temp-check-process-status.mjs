@@ -1,4 +1,5 @@
-import { prisma } from "./apps/api/src/prisma.ts";
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
 import { processTracking } from "./apps/api/src/services/trackingStatus.ts";
 
 const tn = "VPL26030230";

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { prisma } from "../prisma.js";
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
 
 type ProcessedShape = {
   systemStatus: string;

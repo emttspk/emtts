@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
-import { prisma } from "../prisma.js";
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import { monthKeyUTC } from "../usage/month.js";
 

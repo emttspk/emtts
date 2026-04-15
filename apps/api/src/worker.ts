@@ -6,17 +6,18 @@ import { createCanvas } from "canvas";
 import JsBarcode from "jsbarcode";
 import puppeteer, { type Browser } from "puppeteer";
 import path from "node:path";
-import { env } from "./config";
-import { prisma } from "./prisma";
-import { labelQueue, labelQueueName, trackingQueue, trackingQueueName } from "./queue/queue";
-import { redisConnection } from "./queue/redis";
-import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, toStoredPath, waitForStoredFile } from "./storage/paths";
-import { parseOrdersFromFile } from "./parse/orders";
-import { moneyOrderHtml, renderLabelDocumentHtml, type LabelOrder } from "./templates/labels";
-import { htmlToPdfBuffer } from "./pdf/render";
-import { finalizeQueuedToGenerated, finalizeQueuedTrackingToGenerated, releaseQueuedLabels, releaseQueuedTracking } from "./usage/limits";
-import { loadMoneyOrderBackgrounds } from "./money-order/backgrounds";
-import { prepareLabelOrders } from "./services/labelDocument";
+import { env } from "./config.js";
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
+import { labelQueue, labelQueueName, trackingQueue, trackingQueueName } from "./queue/queue.js";
+import { redisConnection } from "./queue/redis.js";
+import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, toStoredPath, waitForStoredFile } from "./storage/paths.js";
+import { parseOrdersFromFile } from "./parse/orders.js";
+import { moneyOrderHtml, renderLabelDocumentHtml, type LabelOrder } from "./templates/labels.js";
+import { htmlToPdfBuffer } from "./pdf/render.js";
+import { finalizeQueuedToGenerated, finalizeQueuedTrackingToGenerated, releaseQueuedLabels, releaseQueuedTracking } from "./usage/limits.js";
+import { loadMoneyOrderBackgrounds } from "./money-order/backgrounds.js";
+import { prepareLabelOrders } from "./services/labelDocument.js";
 import {
   buildMoneyOrderNumber,
   moneyOrderBreakdown,

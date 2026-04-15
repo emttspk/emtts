@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { prisma } from "../prisma.js";
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
 import { monthKeyUTC } from "./month.js";
 
 export type UnitActionType = "label" | "tracking" | "money_order";

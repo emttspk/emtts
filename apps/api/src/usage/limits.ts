@@ -1,4 +1,5 @@
-import { prisma } from '../prisma.js';
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
 
 type LimitResult = { ok: true; reason: '' } | { ok: false; reason: string };
 
