@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
-import { hashPassword, verifyPassword } from "../auth/password";
+import { hashPassword, verifyPassword } from "../auth/password.js";
 import { asAppRole, signAccessToken } from "../auth/jwt.js";
 
 export const authRouter = Router();
