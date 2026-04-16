@@ -450,7 +450,7 @@ await ensureDefaultPlans().catch(err => console.error("Failed to seed default pl
 })();
 
 startCleanupCron();
-const PORT = Number(process.env.PORT ?? env.PORT ?? 3000);
+const PORT = Number(process.env.PORT || 3000);
 console.log(`PORT: ${PORT}`);
 const server = app.listen(PORT, '0.0.0.0', () => {
   // eslint-disable-next-line no-console
