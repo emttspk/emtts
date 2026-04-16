@@ -5,6 +5,7 @@ import multer from "multer";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
+import puppeteer from "puppeteer";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import type { AuthedRequest } from "../middleware/auth.js";
@@ -12,6 +13,7 @@ import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, resolveStoredPath
 import { parseOrdersFromFile } from "../parse/orders.js";
 import { labelQueue } from "../queue/queue.js";
 import { ensureRedisConnection } from "../queue/redis.js";
+import { htmlToPdfBuffer } from "../pdf/render.js";
 import { consumeUnits, refundUnits } from "../usage/unitConsumption.js";
 import { previewLabelHtml, renderLabelDocumentHtml, type LabelPrintMode } from "../templates/labels.js";
 import { prepareLabelOrders } from "../services/labelDocument.js";
@@ -472,12 +474,70 @@ export async function handleLabelUpload(req: Request, res: Response) {
     );
     return res.json({ success: true, message: "File uploaded successfully", jobId: job.id, recordCount: ordersCount });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to enqueue job";
+    if (/connection is closed/i.test(msg)) {
+      let browser: puppeteer.Browser | null = null;
+      try {
+        const orders = await parseOrdersFromFile(uploadPath, { allowMissingTrackingId: autoGenerateTracking });
+        const labelOrders = prepareLabelOrders(orders, {
+          autoGenerateTracking,
+          barcodeMode,
+          trackingScheme,
+          carrierType,
+          shipmentType,
+          outputMode: printMode,
+        });
+        const html = renderLabelDocumentHtml(labelOrders, {
+          autoGenerateTracking,
+          includeMoneyOrders: effectiveGenerateMoneyOrder,
+          outputMode: printMode,
+        });
+
+        browser = await puppeteer.launch({
+          headless: true,
+          args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        });
+
+        const pdfData = await htmlToPdfBuffer(html, browser, printMode === "envelope" ? "envelope-9x4" : "A4");
+        const labelsPath = path.join(outputsDir(), `${job.id}-labels.pdf`);
+        await fs.writeFile(labelsPath, Buffer.from(pdfData));
+
+        await withReconnectRetry(async () => prisma.labelJob.update({
+          where: { id: job.id },
+          data: {
+            status: "COMPLETED",
+            error: null,
+            labelsPdfPath: toStoredPath(labelsPath),
+            includeMoneyOrders: effectiveGenerateMoneyOrder,
+          },
+        }));
+
+        return res.json({
+          success: true,
+          message: "File uploaded and labels generated",
+          jobId: job.id,
+          recordCount: ordersCount,
+        });
+      } catch (inlineError) {
+        const inlineMsg = inlineError instanceof Error ? inlineError.message : "Inline generation failed";
+        await withReconnectRetry(async () => prisma.labelJob.update({
+          where: { id: job.id },
+          data: { status: "FAILED", error: inlineMsg },
+        }));
+        await refundUnits(userId, actionRequests);
+        return res.status(500).json({ success: false, error: inlineMsg, message: inlineMsg });
+      } finally {
+        if (browser) {
+          await browser.close().catch(() => undefined);
+        }
+      }
+    }
+
     await withReconnectRetry(async () => prisma.labelJob.update({
       where: { id: job.id },
       data: { status: "FAILED", error: "Failed to enqueue job" },
     }));
     await refundUnits(userId, actionRequests);
-    const msg = e instanceof Error ? e.message : "Failed to enqueue job";
     return res.status(500).json({ success: false, error: msg, message: msg });
   }
 }
