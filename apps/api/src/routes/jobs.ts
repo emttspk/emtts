@@ -467,66 +467,40 @@ export async function handleLabelUpload(req: Request, res: Response) {
       where: { id: job.id },
       data: { uploadPath, recordCount: ordersCount, unitCount, includeMoneyOrders: effectiveGenerateMoneyOrder, status: "QUEUED" },
     }));
-    await withTimeout(ensureRedisConnection(), 8000, "Queue connection timed out");
-    await withTimeout(labelQueue.add(
-      "generate-pdf",
-      {
-        jobId: job.id,
-        generateLabels: true,
-        generateMoneyOrder: effectiveGenerateMoneyOrder,
-        autoGenerateTracking,
-        barcodeMode,
-        printMode,
-        trackingScheme,
-        trackAfterGenerate,
-        carrierType,
-        shipmentType,
-      },
-      { jobId: job.id },
-    ), 8000, "Queue enqueue timed out");
-    return res.json({ success: true, message: "File uploaded successfully", jobId: job.id, recordCount: ordersCount });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Failed to enqueue job";
-    if (/connection is closed|queue .*timed out|timeout|econnreset|connection terminated/i.test(msg)) {
-      try {
-        await withTimeout(ensureRedisConnection(), 8000, "Queue connection timed out");
-        await withTimeout(labelQueue.add(
-          "generate-pdf",
-          {
-            jobId: job.id,
-            generateLabels: true,
-            generateMoneyOrder: effectiveGenerateMoneyOrder,
-            autoGenerateTracking,
-            barcodeMode,
-            printMode,
-            trackingScheme,
-            trackAfterGenerate,
-            carrierType,
-            shipmentType,
-          },
-          { jobId: job.id },
-        ), 8000, "Queue enqueue timed out");
 
-        return res.json({
-          success: true,
-          message: "File uploaded successfully",
+    // Try to enqueue job with timeout
+    let enqueueSuccess = false;
+    try {
+      await withTimeout(ensureRedisConnection(), 3000, "Redis connection timed out");
+      await withTimeout(labelQueue.add(
+        "generate-pdf",
+        {
           jobId: job.id,
-          recordCount: ordersCount,
-        });
-      } catch (retryError) {
-        const retryMsg = retryError instanceof Error ? retryError.message : "Failed to enqueue job";
-        await withReconnectRetry(async () => prisma.labelJob.update({
-          where: { id: job.id },
-          data: { status: "FAILED", error: retryMsg },
-        }));
-        await refundUnits(userId, actionRequests);
-        return res.status(500).json({ success: false, error: retryMsg, message: retryMsg });
-      }
+          generateLabels: true,
+          generateMoneyOrder: effectiveGenerateMoneyOrder,
+          autoGenerateTracking,
+          barcodeMode,
+          printMode,
+          trackingScheme,
+          trackAfterGenerate,
+          carrierType,
+          shipmentType,
+        },
+        { jobId: job.id },
+      ), 3000, "Queue enqueue timed out");
+      enqueueSuccess = true;
+    } catch (queueErr) {
+      // Redis unavailable - job stays in QUEUED status for retry
+      console.warn("Redis unavailable during enqueue, job will retry:", queueErr instanceof Error ? queueErr.message : String(queueErr));
     }
 
+    // Return success regardless - job is safely in DB
+    return res.json({ success: true, message: "File uploaded successfully", jobId: job.id, recordCount: ordersCount });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed to upload file";
     await withReconnectRetry(async () => prisma.labelJob.update({
       where: { id: job.id },
-      data: { status: "FAILED", error: "Failed to enqueue job" },
+      data: { status: "FAILED", error: msg },
     }));
     await refundUnits(userId, actionRequests);
     return res.status(500).json({ success: false, error: msg, message: msg });

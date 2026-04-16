@@ -363,6 +363,52 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 
 await ensureStorageDirs();
 await ensureDefaultPlans().catch(err => console.error("Failed to seed default plans:", err));
+
+// Recovery: Try to re-enqueue jobs stuck in QUEUED status on startup
+(async () => {
+  try {
+    console.log("[RECOVERY] Checking for jobs stuck in QUEUED status...");
+    const queuedJobs = await prisma.labelJob.findMany({
+      where: { status: "QUEUED" },
+      take: 50,
+    });
+    
+    if (queuedJobs.length > 0) {
+      console.log(`[RECOVERY] Found ${queuedJobs.length} jobs in QUEUED status, attempting to re-enqueue...`);
+      // Dynamic import to avoid circular dependency
+      const { labelQueue } = await import("./queue/queue.js");
+      const { ensureRedisConnection } = await import("./queue/redis.js");
+      
+      for (const dbJob of queuedJobs) {
+        try {
+          await ensureRedisConnection();
+          const existingBullJob = await labelQueue.getJob(dbJob.id);
+          if (!existingBullJob) {
+            // Job not in queue, re-add it
+            await labelQueue.add(
+              "generate-pdf",
+              {
+                jobId: dbJob.id,
+                generateLabels: true,
+                generateMoneyOrder: dbJob.includeMoneyOrders,
+                autoGenerateTracking: false,
+                barcodeMode: "manual",
+                printMode: "labels",
+              },
+              { jobId: dbJob.id },
+            );
+            console.log(`[RECOVERY] Re-queued job ${dbJob.id}`);
+          }
+        } catch (err) {
+          console.warn(`[RECOVERY] Failed to re-queue job ${dbJob.id}:`, err instanceof Error ? err.message : String(err));
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[RECOVERY] Failed to recover stuck jobs:", err instanceof Error ? err.message : String(err));
+  }
+})();
+
 startCleanupCron();
 const PORT = Number(process.env.PORT ?? env.PORT ?? 3000);
 console.log(`PORT: ${PORT}`);
