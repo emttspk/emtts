@@ -18,3 +18,24 @@ export function getRedisConnection() {
   }
   return redisConnection;
 }
+
+export async function ensureRedisConnection() {
+  const redis = getRedisConnection();
+  try {
+    await redis.ping();
+    return redis;
+  } catch {
+    // no-op, reconnect below
+  }
+
+  if (redis.status === "wait" || redis.status === "close" || redis.status === "end") {
+    try {
+      await redis.connect();
+    } catch {
+      // ignore connect race errors
+    }
+  }
+
+  await redis.ping();
+  return redis;
+}

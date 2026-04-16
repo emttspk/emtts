@@ -12,7 +12,7 @@ import { requireAuth } from "../middleware/auth.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { ensureStorageDirs, outputsDir, uploadsDir } from "../storage/paths.js";
 import { trackingQueue } from "../queue/queue.js";
-import { getRedisConnection } from "../queue/redis.js";
+import { ensureRedisConnection, getRedisConnection } from "../queue/redis.js";
 import { parseOrdersFromFile } from "../parse/orders.js";
 import { parseTrackingNumbersFromFile } from "../parse/tracking.js";
 import { validateTrackingId } from "../validation/trackingId.js";
@@ -493,6 +493,7 @@ export async function handleTrackingBulk(req: Request, res: Response) {
   }
 
   try {
+    await ensureRedisConnection();
     await trackingQueue.add(
       "track-bulk",
       { jobId: job.id, kind: "BULK_TRACK", trackingNumbers, lockKey: bulkLockKey },

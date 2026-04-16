@@ -11,6 +11,7 @@ import type { AuthedRequest } from "../middleware/auth.js";
 import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, resolveStoredPath, toStoredPath, uploadsDir, waitForStoredFile } from "../storage/paths.js";
 import { parseOrdersFromFile } from "../parse/orders.js";
 import { labelQueue } from "../queue/queue.js";
+import { ensureRedisConnection } from "../queue/redis.js";
 import { consumeUnits, refundUnits } from "../usage/unitConsumption.js";
 import { previewLabelHtml, renderLabelDocumentHtml, type LabelPrintMode } from "../templates/labels.js";
 import { prepareLabelOrders } from "../services/labelDocument.js";
@@ -452,6 +453,7 @@ export async function handleLabelUpload(req: Request, res: Response) {
       where: { id: job.id },
       data: { uploadPath, recordCount: ordersCount, unitCount, includeMoneyOrders: effectiveGenerateMoneyOrder, status: "QUEUED" },
     }));
+    await ensureRedisConnection();
     await labelQueue.add(
       "generate-pdf",
       {
