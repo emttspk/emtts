@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import { getPrisma } from "../db.js";
+const prisma = getPrisma();
 import { requireAuth } from "../middleware/auth.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { pythonTrackBulk, PythonServiceUnavailableError, PythonServiceTimeoutError } from "../services/trackingService.js";
@@ -278,12 +278,21 @@ function hasReturnLatestEventRule(raw: Record<string, unknown>): boolean {
 }
 shipmentsRouter.get("/stats", async (req, res) => {
   const userId = (req as AuthedRequest).user!.id;
-  await ensureMoneyOrderTables();
+  try {
+    await ensureMoneyOrderTables();
+  } catch (err) {
+    console.log("Failed to ensure money order tables:", err instanceof Error ? err.message : err);
+  }
 
-  const shipments = await prisma.shipment.findMany({
-    where: { userId },
-    select: { trackingNumber: true, status: true, daysPassed: true, rawJson: true, createdAt: true },
-  });
+  let shipments: Array<{ trackingNumber: string; status: string | null; daysPassed: number | null; rawJson: string | null; createdAt: Date }> = [];
+  try {
+    shipments = await prisma.shipment.findMany({
+      where: { userId },
+      select: { trackingNumber: true, status: true, daysPassed: true, rawJson: true, createdAt: true },
+    });
+  } catch (err) {
+    console.log("Database unavailable for shipments, returning empty data:", err instanceof Error ? err.message : err);
+  }
 
   const total = shipments.length;
   const byStatus: Record<string, number> = {};

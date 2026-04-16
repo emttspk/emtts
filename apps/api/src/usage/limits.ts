@@ -1,5 +1,5 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import { getPrisma } from "../db.js";
+const prisma = getPrisma();
 
 type LimitResult = { ok: true; reason: '' } | { ok: false; reason: string };
 

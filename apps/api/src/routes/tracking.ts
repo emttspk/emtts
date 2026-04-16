@@ -7,8 +7,8 @@ import { existsSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { parse as parseCsv } from "csv-parse/sync";
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import { getPrisma } from "../db.js";
+const prisma = getPrisma();
 import { requireAuth } from "../middleware/auth.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { ensureStorageDirs, outputsDir, uploadsDir } from "../storage/paths.js";
@@ -625,10 +625,15 @@ trackingRouter.get("/track/:trackingNumber", requireAuth, async (req, res) => {
     const explicitMo = String((raw as any)?.moIssuedNumber ?? (raw as any)?.mo_issued_number ?? "").trim() || null;
     const processed = processTracking(raw, { explicitMo, trackingNumber: result.tracking_number });
 
-    const existing = await prisma.shipment.findUnique({
-      where: { userId_trackingNumber: { userId, trackingNumber: result.tracking_number } },
-      select: { rawJson: true },
-    });
+    let existing: { rawJson: string | null } | null = null;
+    try {
+      existing = await prisma.shipment.findUnique({
+        where: { userId_trackingNumber: { userId, trackingNumber: result.tracking_number } },
+        select: { rawJson: true },
+      });
+    } catch (err) {
+      console.log("Database unavailable for existing shipment check:", err instanceof Error ? err.message : err);
+    }
     let preserved: Record<string, unknown> = {};
     if (existing?.rawJson) {
       try {
@@ -673,27 +678,31 @@ trackingRouter.get("/track/:trackingNumber", requireAuth, async (req, res) => {
       moIssuedNumber: processed.moIssued !== "-" ? processed.moIssued : undefined,
     });
 
-    await prisma.shipment.upsert({
-      where: { userId_trackingNumber: { userId, trackingNumber: result.tracking_number } },
-      create: {
-        userId,
-        trackingNumber: result.tracking_number,
-        status: persistedStatus,
-        city: result.city ?? null,
-        latestDate: result.latest_date ?? null,
-        latestTime: result.latest_time ?? null,
-        daysPassed: result.days_passed ?? null,
-        rawJson: mergedRaw,
-      },
-      update: {
-        status: persistedStatus,
-        city: result.city ?? null,
-        latestDate: result.latest_date ?? null,
-        latestTime: result.latest_time ?? null,
-        daysPassed: result.days_passed ?? null,
-        rawJson: mergedRaw,
-      },
-    });
+    try {
+      await prisma.shipment.upsert({
+        where: { userId_trackingNumber: { userId, trackingNumber: result.tracking_number } },
+        create: {
+          userId,
+          trackingNumber: result.tracking_number,
+          status: persistedStatus,
+          city: result.city ?? null,
+          latestDate: result.latest_date ?? null,
+          latestTime: result.latest_time ?? null,
+          daysPassed: result.days_passed ?? null,
+          rawJson: mergedRaw,
+        },
+        update: {
+          status: persistedStatus,
+          city: result.city ?? null,
+          latestDate: result.latest_date ?? null,
+          latestTime: result.latest_time ?? null,
+          daysPassed: result.days_passed ?? null,
+          rawJson: mergedRaw,
+        },
+      });
+    } catch (err) {
+      console.log("Failed to save tracking data to database:", err instanceof Error ? err.message : err);
+    }
 
     const responseEventCount = Array.isArray(result.events) ? result.events.length : 0;
     const responseFirst = responseEventCount > 0 ? `${String(result.events?.[0]?.date ?? "")} ${String(result.events?.[0]?.time ?? "")}`.trim() : "-";

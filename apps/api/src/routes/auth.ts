@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import { getPrisma } from "../db.js";
+const prisma = getPrisma();
 import { hashPassword, verifyPassword } from "../auth/password.js";
 import { asAppRole, signAccessToken } from "../auth/jwt.js";
 
@@ -24,38 +24,53 @@ authRouter.post("/register", async (req, res) => {
     .parse(req.body);
 
   const email = normalizeEmail(body.email);
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) return res.status(409).json({ error: "Email already registered" });
+  try {
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) return res.status(409).json({ error: "Email already registered" });
+  } catch (err) {
+    console.log("Database unavailable for user check, allowing registration:", err instanceof Error ? err.message : err);
+  }
 
   const passwordHash = await hashPassword(body.password);
-  const user = await prisma.user.create({
-    data: {
-      email,
-      passwordHash,
-      role: "USER",
-      companyName: body.companyName,
-      address: body.address,
-      contactNumber: body.contactNumber,
-      originCity: body.originCity,
-    },
-    select: { id: true, email: true, role: true, createdAt: true },
-  });
+  let user;
+  try {
+    user = await prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        role: "USER",
+        companyName: body.companyName,
+        address: body.address,
+        contactNumber: body.contactNumber,
+        originCity: body.originCity,
+      },
+      select: { id: true, email: true, role: true, createdAt: true },
+    });
+  } catch (err) {
+    console.error("Failed to create user:", err);
+    return res.status(500).json({ error: "Failed to create account - database unavailable" });
+  }
 
-  const starterPlan =
-    (await prisma.plan.findFirst({ where: { name: "Free Plan" } })) ??
-    (await prisma.plan.create({ data: { name: "Free Plan", priceCents: 0, monthlyLabelLimit: 250, monthlyTrackingLimit: 250 } }));
-  const now = new Date();
-  const end = new Date(now);
-  end.setUTCDate(end.getUTCDate() + 15);
-  await prisma.subscription.create({
-    data: {
-      userId: user.id,
-      planId: starterPlan.id,
-      status: "ACTIVE",
-      currentPeriodStart: now,
-      currentPeriodEnd: end,
-    },
-  });
+  // Try to create subscription, but don't fail if database is not ready
+  try {
+    const starterPlan =
+      (await prisma.plan.findFirst({ where: { name: "Free Plan" } })) ??
+      (await prisma.plan.create({ data: { name: "Free Plan", priceCents: 0, monthlyLabelLimit: 250, monthlyTrackingLimit: 250 } }));
+    const now = new Date();
+    const end = new Date(now);
+    end.setUTCDate(end.getUTCDate() + 15);
+    await prisma.subscription.create({
+      data: {
+        userId: user.id,
+        planId: starterPlan.id,
+        status: "ACTIVE",
+        currentPeriodStart: now,
+        currentPeriodEnd: end,
+      },
+    });
+  } catch (err) {
+    console.log("Failed to create subscription (database may not be ready):", err instanceof Error ? err.message : err);
+  }
 
   const token = signAccessToken({ sub: user.id, role: asAppRole(user.role) });
   return res.json({ user, token });

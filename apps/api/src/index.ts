@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { env } from "./config.js";
-import { PrismaClient } from "@prisma/client";
+import { ensureDatabaseConnection } from "./db.js";
 import { authRouter } from "./routes/auth.js";
 import { meRouter } from "./routes/me.js";
 import { handleLabelUpload, jobsRouter, labelUploadMiddleware } from "./routes/jobs.js";
@@ -63,22 +63,10 @@ function validateEnvironment() {
   }
 }
 
-async function verifyDatabaseConnection(prisma: PrismaClient) {
-  try {
-    await prisma.$connect();
-    await prisma.$queryRaw`SELECT 1`;
-    console.log("Database connection verified.");
-  } catch (err) {
-    console.error("❌ DATABASE CONNECTION FAILED:", err instanceof Error ? err.message : err);
-    console.error("Please check DATABASE_URL and database availability.");
-    process.exit(1);
-  }
-}
-
 normalizeDatabaseUrl();
 validateEnvironment();
-const prisma = new PrismaClient();
-await verifyDatabaseConnection(prisma);
+// runMigrations() is now handled in package.json start script
+await ensureDatabaseConnection();
 
 const app = express();
 

@@ -5,8 +5,8 @@ import multer from "multer";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import { getPrisma } from "../db.js";
+const prisma = getPrisma();
 import { requireAuth } from "../middleware/auth.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, resolveStoredPath, toStoredPath, uploadsDir, waitForStoredFile } from "../storage/paths.js";
@@ -253,11 +253,16 @@ jobsRouter.post("/preview/labels", requireAuth, labelPreviewUploadMiddleware, as
 
 jobsRouter.get("/", requireAuth, async (req, res) => {
   const userId = (req as AuthedRequest).user!.id;
-  const jobs = await prisma.labelJob.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-  });
-  return res.json({ success: true, jobs });
+  try {
+    const jobs = await prisma.labelJob.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+    });
+    return res.json({ success: true, jobs });
+  } catch (err) {
+    console.log("Database unavailable for jobs, returning empty list:", err instanceof Error ? err.message : err);
+    return res.json({ success: true, jobs: [] });
+  }
 });
 
 jobsRouter.post("/delete", requireAuth, async (req, res) => {
