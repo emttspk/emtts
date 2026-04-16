@@ -609,8 +609,30 @@ trackingRouter.post("/live-bulk", requireAuth, async (req, res) => {
     return res.json({ success: true, results: resultsMap, fetched: bulkResults.length });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Tracking service error";
-    const status = e instanceof PythonServiceUnavailableError || e instanceof PythonServiceTimeoutError ? 503 : 500;
-    return res.status(status).json({ success: false, error: msg });
+    if (e instanceof PythonServiceUnavailableError || e instanceof PythonServiceTimeoutError) {
+      const degradedResults: Record<string, unknown> = {};
+      for (const id of ids) {
+        degradedResults[id.trim().toUpperCase()] = {
+          tracking_number: id.trim().toUpperCase(),
+          status: "Pending",
+          current_status: "Pending",
+          events: [],
+          meta: {
+            source: "degraded_mode",
+            reason: "python_service_unavailable",
+          },
+        };
+      }
+      return res.json({
+        success: true,
+        degraded: true,
+        warning: msg,
+        results: degradedResults,
+        fetched: 0,
+        cached: 0,
+      });
+    }
+    return res.status(500).json({ success: false, error: msg });
   }
 });
 
@@ -740,8 +762,59 @@ trackingRouter.get("/track/:trackingNumber", requireAuth, async (req, res) => {
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Tracking fetch failed";
-    const status = e instanceof PythonServiceUnavailableError || e instanceof PythonServiceTimeoutError ? 503 : 500;
-    return res.status(status).json({ success: false, error: msg });
+    if (e instanceof PythonServiceUnavailableError || e instanceof PythonServiceTimeoutError) {
+      const existingShipment = await prisma.shipment.findFirst({
+        where: { userId, trackingNumber },
+        select: {
+          trackingNumber: true,
+          status: true,
+          city: true,
+          latestDate: true,
+          latestTime: true,
+          daysPassed: true,
+          rawJson: true,
+        },
+      });
+
+      if (existingShipment) {
+        let raw: Record<string, unknown> = {};
+        try {
+          raw = existingShipment.rawJson ? (JSON.parse(existingShipment.rawJson) as Record<string, unknown>) : {};
+        } catch {
+          raw = {};
+        }
+
+        return res.json({
+          success: true,
+          degraded: true,
+          warning: msg,
+          tracking_number: existingShipment.trackingNumber,
+          status: existingShipment.status ?? "Pending",
+          current_status: existingShipment.status ?? "Pending",
+          city: existingShipment.city ?? null,
+          latest_date: existingShipment.latestDate ?? null,
+          latest_time: existingShipment.latestTime ?? null,
+          days_passed: existingShipment.daysPassed ?? null,
+          events: Array.isArray((raw as any)?.events) ? (raw as any).events : [],
+          raw,
+        });
+      }
+
+      return res.json({
+        success: true,
+        degraded: true,
+        warning: msg,
+        tracking_number: trackingNumber.toUpperCase(),
+        status: "Pending",
+        current_status: "Pending",
+        events: [],
+        meta: {
+          source: "degraded_mode",
+          reason: "python_service_unavailable",
+        },
+      });
+    }
+    return res.status(500).json({ success: false, error: msg });
   }
 });
 
