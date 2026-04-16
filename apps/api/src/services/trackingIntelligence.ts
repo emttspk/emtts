@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { getPrisma } from "../db.js";
-const prisma = getPrisma();
+import { prisma } from "../lib/prisma.js";
 
 type ProcessedShape = {
   systemStatus: string;

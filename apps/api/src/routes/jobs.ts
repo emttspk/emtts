@@ -5,8 +5,7 @@ import multer from "multer";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import { getPrisma } from "../db.js";
-const prisma = getPrisma();
+import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, resolveStoredPath, toStoredPath, uploadsDir, waitForStoredFile } from "../storage/paths.js";
@@ -311,6 +310,7 @@ jobsRouter.post("/delete", requireAuth, async (req, res) => {
 });
 
 export async function handleLabelUpload(req: Request, res: Response) {
+  await prisma.$connect();
   const userId = (req as AuthedRequest).user!.id;
   await ensureStorageDirs();
 

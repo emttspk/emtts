@@ -1,7 +1,6 @@
 import { Router } from "express";
-import { getPrisma } from "../db.js";
+import { prisma } from "../lib/prisma.js";
 
-const prisma = getPrisma();
 export const plansRouter = Router();
 
 export async function ensureDefaultPlans() {

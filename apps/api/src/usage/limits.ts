@@ -1,5 +1,4 @@
-import { getPrisma } from "../db.js";
-const prisma = getPrisma();
+import { prisma } from "../lib/prisma.js";
 
 type LimitResult = { ok: true; reason: '' } | { ok: false; reason: string };
 

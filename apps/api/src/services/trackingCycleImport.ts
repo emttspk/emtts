@@ -1,8 +1,7 @@
 import type { TrackingCycleAuditRecord } from "./trackingCycleAudit.js";
 import { buildTrackingCycleAuditRecord } from "./trackingCycleAudit.js";
 import { getTrackingCycleCorrections, saveTrackingCycleCorrections, type TrackingCycleExpectedStatus, type TrackingCycleDetected } from "./trackingCycleCorrections.js";
-import { getPrisma } from "../db.js";
-const prisma = getPrisma();
+import { prisma } from "../lib/prisma.js";
 
 export type ImportValidationResult = {
   success: boolean;

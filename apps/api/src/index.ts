@@ -7,6 +7,7 @@ import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { env } from "./config.js";
 import { ensureDatabaseConnection } from "./db.js";
+import { prisma } from "./lib/prisma.js";
 import { authRouter } from "./routes/auth.js";
 import { meRouter } from "./routes/me.js";
 import { handleLabelUpload, jobsRouter, labelUploadMiddleware } from "./routes/jobs.js";
@@ -127,6 +128,16 @@ app.use(
   }),
 );
 app.use(express.json({ limit: "2mb" }));
+
+app.use("/api", async (_req, res, next) => {
+  try {
+    await prisma.$connect();
+    return next();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Database connection failed";
+    return res.status(503).json({ success: false, message });
+  }
+});
 
 // API routes (these come first)
 app.get("/api", (_req, res) => res.json({ success: true, message: "LabelGen API is running" }));

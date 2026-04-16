@@ -1,8 +1,7 @@
 import cron from "node-cron";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { getPrisma } from "../db.js";
-const prisma = getPrisma();
+import { prisma } from "../lib/prisma.js";
 import { outputsDir, uploadsDir } from "../storage/paths.js";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;

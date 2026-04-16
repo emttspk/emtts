@@ -7,8 +7,7 @@ import { existsSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { parse as parseCsv } from "csv-parse/sync";
-import { getPrisma } from "../db.js";
-const prisma = getPrisma();
+import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { ensureStorageDirs, outputsDir, uploadsDir } from "../storage/paths.js";
@@ -390,6 +389,7 @@ export const trackingUploadMiddleware = (req: Request, res: Response, next: Next
 };
 
 export async function handleTrackingBulk(req: Request, res: Response) {
+  await prisma.$connect();
   const userId = (req as AuthedRequest).user!.id;
   await ensureStorageDirs();
 
@@ -586,6 +586,7 @@ trackingRouter.post("/upload", requireAuth, trackingUploadMiddleware, handleTrac
  * Returns: { results: { [trackingId]: TrackResult }, fetched: number, cached: number }
  */
 trackingRouter.post("/live-bulk", requireAuth, async (req, res) => {
+  await prisma.$connect();
   const userId = (req as AuthedRequest).user!.id;
   const body = z
     .object({ tracking_ids: z.array(z.string().min(1)).min(1).max(500) })
@@ -637,6 +638,7 @@ trackingRouter.post("/live-bulk", requireAuth, async (req, res) => {
 });
 
 trackingRouter.get("/track/:trackingNumber", requireAuth, async (req, res) => {
+  await prisma.$connect();
   const userId = (req as AuthedRequest).user!.id;
   const trackingNumber = String(req.params.trackingNumber ?? "").trim();
   if (!trackingNumber) return res.status(400).json({ success: false, error: "Invalid tracking number" });

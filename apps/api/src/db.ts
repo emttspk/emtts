@@ -1,6 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-let prismaClient: PrismaClient | null = null;
+import { prisma } from "./lib/prisma.js";
 
 function getDbHostFromUrl(url: string | undefined): string {
   if (!url) return "unknown";
@@ -13,10 +11,7 @@ function getDbHostFromUrl(url: string | undefined): string {
 }
 
 export function getPrisma() {
-  if (!prismaClient) {
-    prismaClient = new PrismaClient();
-  }
-  return prismaClient;
+  return prisma;
 }
 
 export async function ensureDatabaseConnection() {

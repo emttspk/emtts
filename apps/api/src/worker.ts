@@ -8,8 +8,7 @@ import puppeteer, { type Browser } from "puppeteer";
 import path from "node:path";
 import { Prisma } from "@prisma/client";
 import { env } from "./config.js";
-import { getPrisma } from "./db.js";
-const prisma = getPrisma();
+import { prisma } from "./lib/prisma.js";
 import { labelQueue, labelQueueName, trackingQueue, trackingQueueName } from "./queue/queue.js";
 import { getRedisConnection } from "./queue/redis.js";
 import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, toStoredPath, waitForStoredFile } from "./storage/paths.js";
@@ -48,6 +47,7 @@ function normalizeCollectedAmount(input: unknown): number {
 }
 
 await ensureStorageDirs();
+await prisma.$connect();
 
 async function reconcileLabelQueueState() {
   const jobs = await prisma.labelJob.findMany({
@@ -312,6 +312,7 @@ async function getMoneyOrdersByTracking(userId: string, trackingNumbers: string[
 const worker = new Worker(
   labelQueueName,
   async (bullJob) => {
+    await prisma.$connect();
     const {
       jobId,
       generateLabels,
