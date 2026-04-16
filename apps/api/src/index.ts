@@ -25,6 +25,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const BUILD_VERSION = process.env.RAILWAY_GIT_COMMIT_SHA ?? "local";
 
+const uploadDir = path.join(process.cwd(), "apps/api/storage/uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+  console.log("Uploads directory created:", uploadDir);
+}
+
 // CRITICAL: Validate DATABASE_URL before any Prisma operations
 console.log("DATABASE_URL exists:", !!process.env.DATABASE_URL);
 
@@ -129,10 +135,7 @@ validateEnvironment();
 // runMigrations() is now handled in package.json start script
 await ensureDatabaseConnection();
 
-const shouldStartWorkerInApi =
-  process.env.START_WORKER_IN_API === "true";
-
-if (shouldStartWorkerInApi) {
+async function startWorker() {
   try {
     await import("./worker.js");
     console.log("[STARTUP] Embedded BullMQ worker started in API process");
@@ -140,9 +143,9 @@ if (shouldStartWorkerInApi) {
     console.error("[STARTUP] Failed to start embedded worker:", error);
     process.exit(1);
   }
-} else {
-  console.log("[STARTUP] Embedded worker disabled. Run a dedicated worker process via: npm run worker -w @labelgen/api");
 }
+
+await startWorker();
 
 const app = express();
 

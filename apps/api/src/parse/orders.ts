@@ -1,5 +1,7 @@
 import xlsx from "xlsx";
 import fs from "node:fs/promises";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { validateTrackingId } from "../validation/trackingId.js";
 
 export type OrderRecord = {
@@ -53,8 +55,35 @@ const requiredRowFields: ReadonlyArray<StrictColumn> = [
 ];
 
 export async function parseOrdersFromFile(filePath: string, opts?: { allowMissingTrackingId?: boolean }): Promise<any[]> {
-  const fileContent = await fs.readFile(filePath);
-  const workbook = xlsx.read(fileContent);
+  const fileName = path.basename(String(filePath ?? "").trim());
+  const primaryUploadDir = path.join(process.cwd(), "apps/api/storage/uploads");
+  const fallbackUploadDir = path.join(process.cwd(), "storage/uploads");
+  const uploadBaseDir = existsSync(path.join(process.cwd(), "apps", "api")) ? primaryUploadDir : fallbackUploadDir;
+  const normalizedUploadPath = path.join(uploadBaseDir, fileName);
+
+  const candidatePath = existsSync(filePath)
+    ? filePath
+    : existsSync(normalizedUploadPath)
+      ? normalizedUploadPath
+      : null;
+
+  if (!candidatePath) {
+    throw new Error(`File not found: ${normalizedUploadPath}`);
+  }
+
+  console.log("Reading file:", candidatePath);
+  console.log("Reading file from:", candidatePath);
+
+  let workbook: xlsx.WorkBook;
+  try {
+    const fileContent = await fs.readFile(candidatePath);
+    workbook = xlsx.read(fileContent);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[OrdersParser] Failed reading/parsing file ${candidatePath}: ${message}`);
+    throw new Error(`Failed to parse uploaded file: ${message}`);
+  }
+
   const sheetName = workbook.SheetNames[0];
 
   if (!sheetName) {

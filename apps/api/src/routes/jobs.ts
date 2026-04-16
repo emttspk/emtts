@@ -169,9 +169,20 @@ async function waitForResolvedMoneyOrderRelPath(jobId: string, relPath: string |
 }
 
 function createSpreadsheetUpload() {
+  const primaryUploadDir = path.join(process.cwd(), "apps/api/storage/uploads");
+  const fallbackUploadDir = path.join(process.cwd(), "storage/uploads");
+  const uploadBaseDir = existsSync(path.join(process.cwd(), "apps", "api")) ? primaryUploadDir : fallbackUploadDir;
+
   return multer({
     storage: multer.diskStorage({
-      destination: (_req, _file, cb) => cb(null, uploadsDir()),
+      destination: async (_req, _file, cb) => {
+        try {
+          await fs.mkdir(uploadBaseDir, { recursive: true });
+          cb(null, uploadBaseDir);
+        } catch (error) {
+          cb(error as Error, uploadBaseDir);
+        }
+      },
       filename: (_req, file, cb) => {
         const ext = path.extname(file.originalname).toLowerCase();
         cb(null, `${randomUUID()}${ext}`);
@@ -381,8 +392,17 @@ export async function handleLabelUpload(req: Request, res: Response) {
     },
   }));
 
-  const uploadPath = path.join(uploadsDir(), `${job.id}${ext}`);
+  const primaryUploadDir = path.join(process.cwd(), "apps/api/storage/uploads");
+  const fallbackUploadDir = path.join(process.cwd(), "storage/uploads");
+  const uploadBaseDir = existsSync(path.join(process.cwd(), "apps", "api")) ? primaryUploadDir : fallbackUploadDir;
+  await fs.mkdir(uploadBaseDir, { recursive: true });
+
+  const fileName = `${job.id}${ext}`;
+  console.log("UPLOAD RECEIVED:", fileName);
+
+  const uploadPath = path.join(uploadBaseDir, fileName);
   await fs.rename(req.file.path, uploadPath);
+  console.log("File saved at:", uploadPath);
 
   let ordersCount = 0;
   let unitCount = 0;

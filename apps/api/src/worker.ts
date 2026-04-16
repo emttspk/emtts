@@ -357,6 +357,7 @@ const worker = new Worker(
   labelQueueName,
   async (bullJob) => {
     console.log(`Processing job... ${String(bullJob.id ?? "unknown")}`);
+    console.log(`Worker processing job: ${String(bullJob.id ?? "unknown")}`);
     await prisma.$connect();
     const {
       jobId,
@@ -405,7 +406,15 @@ const worker = new Worker(
         console.log("Auto Mode: Tracking + MO generated");
       }
 
-      const orders = await parseOrdersFromFile(job.uploadPath, { allowMissingTrackingId: doAutoGenerateTracking });
+      let orders: any[] = [];
+      try {
+        orders = await parseOrdersFromFile(job.uploadPath, { allowMissingTrackingId: doAutoGenerateTracking });
+        console.log(`[Worker] Parsing success for job ${jobId}. Rows: ${orders.length}`);
+      } catch (parseError) {
+        const parseMessage = parseError instanceof Error ? parseError.message : String(parseError);
+        console.error(`[Worker] File parse failed for job ${jobId}: ${parseMessage}`);
+        throw new Error(`Upload parsing failed: ${parseMessage}`);
+      }
       let useProfileShipper = false;
       if (job.user) {
         const user = job.user as any;
@@ -646,6 +655,7 @@ const worker = new Worker(
           throw new Error("Labels PDF was not fully written to disk");
         }
         console.log(`[Worker] Labels saved to ${labelsPath}`);
+        console.log("PDF generated successfully");
       }
 
       // --- Conditional Money Order Generation (isolated so a failure doesn't kill labels) ---
