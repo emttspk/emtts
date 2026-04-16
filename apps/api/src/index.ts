@@ -283,31 +283,60 @@ app.use("/api/jobs", jobsRouter);
 // Compatibility alias for older clients
 app.post("/api/upload", requireAuth, labelUploadMiddleware, handleLabelUpload);
 app.use("/api/tracking", trackingRouter);
+app.get("/api/track", (_req, res) => {
+  res.status(400).json({
+    success: false,
+    message: "Tracking number is required",
+    usage: "/api/track/:trackingNumber",
+  });
+});
 app.get("/api/track/:trackingNumber", requireAuth, (req, res, next) => {
   req.url = `/track/${req.params.trackingNumber}`;
   return (trackingRouter as any)(req, res, next);
+});
+app.get("/api/print", (_req, res) => {
+  res.json({
+    success: true,
+    message: "Print API is available",
+    endpoints: [
+      "/api/jobs/preview/labels",
+      "/api/jobs/:jobId/download/labels",
+      "/api/jobs/:jobId/download/money-order",
+    ],
+  });
+});
+app.get("/api/label", (_req, res) => {
+  res.json({
+    success: true,
+    message: "Label API is available",
+    endpoints: [
+      "/api/upload",
+      "/api/jobs/preview/labels",
+      "/api/jobs/:jobId/download/labels",
+    ],
+  });
 });
 app.use("/api/shipments", shipmentsRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/subscriptions", subscriptionsRouter);
 app.use("/api/plans", plansRouter);
 
+app.use("/api/*", (_req, res) => {
+  res.status(404).json({ success: false, message: "Route not found" });
+});
+
 // Serve static files from web build directory
 const webDistPath = path.resolve(__dirname, "../../web/dist");
 app.use(express.static(webDistPath));
 
 // Fallback to index.html for client-side routing
-app.get("*", (req, res) => {
+app.get(/^\/(?!api(?:\/|$)).*/, (req, res) => {
   const indexPath = path.resolve(webDistPath, "index.html");
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
   } else {
     res.status(404).json({ error: "Frontend not found" });
   }
-});
-
-app.use("*", (_req, res) => {
-  res.status(404).json({ success: false, message: "Route not found" });
 });
 
 // Global Error Handler
