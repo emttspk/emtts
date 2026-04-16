@@ -128,16 +128,17 @@ app.use(
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files from web build directory (old UI)
-const webDistPath = path.join(__dirname, "../../web/dist");
+// Serve static files from web build directory
+const webDistPath = path.resolve(__dirname, "../../web/dist");
 app.use(express.static(webDistPath));
+
 // Fallback to index.html for client-side routing
-app.use((req, res, next) => {
-  const indexPath = path.join(webDistPath, "index.html");
+app.get("*", (req, res) => {
+  const indexPath = path.resolve(webDistPath, "index.html");
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
   } else {
-    next();
+    res.status(404).json({ error: "Not found" });
   }
 });
 
