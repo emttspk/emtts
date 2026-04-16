@@ -23,9 +23,9 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: s
 
 export function getRedisConnection() {
   if (!redisConnection) {
-    const redisUrl = String(env.REDIS_URL ?? "").trim();
+    const redisUrl = String(process.env.REDIS_URL ?? env.REDIS_URL ?? "").trim();
     if (!redisUrl) {
-      throw new Error("REDIS_URL is not set. Queue services require a valid Redis connection string.");
+      throw new Error("Missing REDIS_URL environment variable. Set process.env.REDIS_URL to your Railway Redis connection string before starting API/worker.");
     }
     redisConnection = new Redis(redisUrl, {
       maxRetriesPerRequest: null,

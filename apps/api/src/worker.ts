@@ -45,18 +45,28 @@ function sanitizeRedisUrl(input: string | undefined | null) {
 }
 
 async function launchWorkerBrowser() {
-  const executablePath = String(process.env.PUPPETEER_EXECUTABLE_PATH ?? "").trim() || undefined;
   return puppeteer.launch({
     headless: true,
-    executablePath,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-gpu",
     ],
-    protocolTimeout: Number(process.env.PUPPETEER_PROTOCOL_TIMEOUT_MS ?? 120_000),
   });
+}
+
+async function waitForRedisReady() {
+  const retryDelayMs = Number(process.env.REDIS_CONNECT_RETRY_DELAY_MS ?? 2_000);
+  while (true) {
+    try {
+      await ensureRedisConnection();
+      console.log("Redis connected successfully");
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[Worker] Redis not ready: ${message}`);
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+    }
+  }
 }
 
 function normalizeCollectedAmount(input: unknown): number {
@@ -69,7 +79,8 @@ function normalizeCollectedAmount(input: unknown): number {
 
 await ensureStorageDirs();
 await prisma.$connect();
-await ensureRedisConnection();
+console.log("Worker starting...");
+await waitForRedisReady();
 
 async function reconcileLabelQueueState() {
   const jobs = await prisma.labelJob.findMany({
@@ -334,6 +345,7 @@ async function getMoneyOrdersByTracking(userId: string, trackingNumbers: string[
 const worker = new Worker(
   labelQueueName,
   async (bullJob) => {
+    console.log(`Processing job... ${String(bullJob.id ?? "unknown")}`);
     await prisma.$connect();
     const {
       jobId,
@@ -1064,6 +1076,8 @@ trackingWorker.on("error", (err) => {
     console.error("Tracking worker error:", err);
   }
 });
+
+console.log(`Worker ready (queues: ${labelQueueName}, ${trackingQueueName})`);
 
 function generateBarcodeBase64(text: string) {
   const canvas = createCanvas(400, 120);
