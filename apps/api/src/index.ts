@@ -96,55 +96,10 @@ app.use(
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-app.get("/", (_req, res) => {
-  res.type("html").status(200).send(`<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LabelGen API</title>
-    <style>
-      :root {
-        color-scheme: light;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        margin: 0;
-        min-height: 100vh;
-        display: grid;
-        place-items: center;
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        background: linear-gradient(135deg, #f8fbff 0%, #e9f2ff 100%);
-        color: #0f172a;
-      }
-      .card {
-        width: min(680px, 92vw);
-        padding: 2rem;
-        border-radius: 14px;
-        background: #ffffff;
-        box-shadow: 0 16px 36px rgba(15, 23, 42, 0.12);
-        text-align: center;
-      }
-      h1 {
-        margin: 0 0 0.75rem;
-        font-size: clamp(1.6rem, 2.2vw, 2rem);
-      }
-      p {
-        margin: 0;
-        font-size: 1.05rem;
-        color: #334155;
-      }
-    </style>
-  </head>
-  <body>
-    <main class="card">
-      <h1>LabelGen API</h1>
-      <p>API is running successfully</p>
-    </main>
-  </body>
-</html>`);
+app.get('/', (req, res) => {
+res.setHeader('Content-Type', 'text/html');
+res.send(`     <html>       <head>         <title>LabelGen API</title>       </head>       <body style="font-family: Arial; text-align:center; margin-top:50px;">         <h1>LabelGen API is running</h1>         <p>Backend is live on Railway</p>       </body>     </html>
+  `);
 });
 app.get("/api", (_req, res) => res.json({ success: true, message: "LabelGen API is running" }));
 app.get("/health", (_req, res) => res.json({ ok: true }));
