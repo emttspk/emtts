@@ -1,6 +1,10 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import fs from "fs";
+import path from "path";
+import { dirname } from "path";
+import { fileURLToPath } from "url";
 import { env } from "./config.js";
 import { ensureDatabaseConnection } from "./db.js";
 import { authRouter } from "./routes/auth.js";
@@ -14,6 +18,9 @@ import { plansRouter, ensureDefaultPlans } from "./routes/plans.js";
 import { ensureStorageDirs } from "./storage/paths.js";
 import { startCleanupCron } from "./cron/cleanup.js";
 import { requireAuth } from "./middleware/auth.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // CRITICAL: Validate DATABASE_URL before any Prisma operations
 console.log("DATABASE_URL exists:", !!process.env.DATABASE_URL);
@@ -125,8 +132,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static("../web/dist"));
 // Fallback to index.html for client-side routing
 app.use((req, res, next) => {
-  const fs = require("fs");
-  const path = require("path");
   const indexPath = path.join(__dirname, "../../web/dist/index.html");
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
