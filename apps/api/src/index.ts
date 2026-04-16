@@ -121,8 +121,19 @@ app.use(
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files from public directory
-app.use(express.static("public"));
+// Serve static files from web build directory (old UI)
+app.use(express.static("../web/dist"));
+// Fallback to index.html for client-side routing
+app.use((req, res, next) => {
+  const fs = require("fs");
+  const path = require("path");
+  const indexPath = path.join(__dirname, "../web/dist/index.html");
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    next();
+  }
+});
 
 // API routes
 app.get("/api", (_req, res) => res.json({ success: true, message: "LabelGen API is running" }));
