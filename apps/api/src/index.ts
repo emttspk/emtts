@@ -21,6 +21,17 @@ console.log(`[STARTUP] DATABASE_URL is set: ${process.env.DATABASE_URL ? "yes" :
 if (process.env.DATABASE_URL) {
   const sanitized = process.env.DATABASE_URL.replace(/([^:])([a-zA-Z0-9]+)@/, "$1***@");
   console.log(`[STARTUP] DATABASE_URL (sanitized): ${sanitized}`);
+  
+  // Extract database name from URL
+  try {
+    const url = new URL(process.env.DATABASE_URL);
+    const pathname = url.pathname;
+    const dbName = pathname.split('?')[0].replace(/^\//, '') || 'unknown';
+    console.log(`[STARTUP] Database name: ${dbName}`);
+    console.log(`[STARTUP] Database host: ${url.hostname}`);
+  } catch (e) {
+    console.warn(`[STARTUP] Could not parse DATABASE_URL`);
+  }
 }
 
 function normalizeDatabaseUrl() {
@@ -38,12 +49,7 @@ function validateEnvironment() {
   const errors: string[] = [];
 
   if (!process.env.DATABASE_URL) {
-    if (process.env.NODE_ENV === "development") {
-      console.warn("⚠️  DATABASE_URL not set, using local PostgreSQL default for development.");
-      process.env.DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/labelgen?schema=public";
-    } else {
-      errors.push("DATABASE_URL environment variable is not set.");
-    }
+    errors.push("DATABASE_URL environment variable is not set. For Railway: link a PostgreSQL service. For local dev: ensure .env file has DATABASE_URL.");
   } else {
     const dbUrl = process.env.DATABASE_URL;
     const isValidPostgres = dbUrl.startsWith("postgresql://") || dbUrl.startsWith("postgres://");
@@ -62,10 +68,12 @@ function validateEnvironment() {
     errors.forEach((err) => console.error(`   - ${err}`));
     console.error("\nFIX FOR RAILWAY:");
     console.error("   1. Go to your Railway project");
-    console.error("   2. Link a PostgreSQL database (or set DATABASE_URL manually)");
-    console.error("   3. Set environment variables:");
-    console.error("      DATABASE_URL=<postgresql connection string>");
-    console.error("      JWT_SECRET=<at least 16 random characters>");
+    console.error("   2. Link a PostgreSQL database");
+    console.error("   3. The DATABASE_URL will be automatically injected");
+    console.error("   4. Deploy or restart the service");
+    console.error("\nFIX FOR LOCAL DEVELOPMENT:");
+    console.error("   1. Ensure .env file exists with DATABASE_URL set");
+    console.error("   2. Run: npm run dev (loads .env automatically)");
     process.exit(1);
   }
 }
