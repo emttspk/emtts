@@ -231,6 +231,63 @@ function scheduleBulkRequest<T>(task: () => Promise<T>) {
   return next;
 }
 
+async function fallbackTrackFromHttp(trackingNumber: string, includeRaw: boolean): Promise<PythonTrackResult> {
+  const normalized = trackingNumber.trim().toUpperCase();
+  const endpoint = `https://ep.gov.pk/emtts/EPTrack_Live.aspx?ArticleIDz=${encodeURIComponent(normalized)}`;
+  const res = await fetch(endpoint, {
+    method: "GET",
+    headers: {
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "accept-language": "en-US,en;q=0.8",
+      "referer": "https://ep.gov.pk/emtts/EPTrack_Live.aspx",
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Fallback tracking endpoint failed with status ${res.status}`);
+  }
+
+  const html = await res.text();
+  const normalizedText = html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const upper = normalizedText.toUpperCase();
+
+  let status: "Pending" | "Delivered" | "Return" = "Pending";
+  if (upper.includes("DELIVERED")) {
+    status = "Delivered";
+  } else if (upper.includes("RETURN")) {
+    status = "Return";
+  }
+
+  const result: PythonTrackResult = {
+    tracking_number: normalized,
+    status,
+    city: null,
+    latest_date: null,
+    latest_time: null,
+    days_passed: null,
+    complaint_eligible: status === "Pending",
+    events: [],
+    service_status: "fallback_http",
+    failure_reason: "python_service_unavailable",
+  };
+
+  if (includeRaw) {
+    result.raw = {
+      source: "eptrack_http_fallback",
+      endpoint,
+      page_excerpt: normalizedText.slice(0, 4000),
+    };
+  }
+
+  return result;
+}
+
 export async function pythonHealthCheck(opts?: { timeoutMs?: number }) {
   const base = baseUrl();
   return fetchJson<{ ok: boolean }>(`${base}/health`, { method: "GET", timeoutMs: opts?.timeoutMs ?? 1500 });
@@ -305,14 +362,26 @@ export async function pythonTrackBulk(
           timeoutMs: batchTimeoutMs,
         });
       } catch (err) {
-        const list = await fetchJson<PythonTrackResult[]>(`${base}/track-bulk${includeRaw}`, {
-          method: "POST",
-          body: JSON.stringify({ tracking_numbers: batch }),
-          timeoutMs: batchTimeoutMs,
-        });
-        batchMap = Object.fromEntries(list.map((row) => [String(row.tracking_number ?? "").trim().toUpperCase(), row]));
-        if (err instanceof Error) {
-          console.warn(`[BulkTracking] /track/bulk fallback used: ${err.message}`);
+        try {
+          const list = await fetchJson<PythonTrackResult[]>(`${base}/track-bulk${includeRaw}`, {
+            method: "POST",
+            body: JSON.stringify({ tracking_numbers: batch }),
+            timeoutMs: batchTimeoutMs,
+          });
+          batchMap = Object.fromEntries(list.map((row) => [String(row.tracking_number ?? "").trim().toUpperCase(), row]));
+          if (err instanceof Error) {
+            console.warn(`[BulkTracking] /track/bulk fallback used: ${err.message}`);
+          }
+        } catch (innerErr) {
+          if (innerErr instanceof PythonServiceUnavailableError || innerErr instanceof PythonServiceTimeoutError) {
+            const fallbackRows = await Promise.all(batch.map((id) => fallbackTrackFromHttp(id, includeRawFlag)));
+            batchMap = Object.fromEntries(fallbackRows.map((row) => [String(row.tracking_number ?? "").trim().toUpperCase(), row]));
+            if (innerErr instanceof Error) {
+              console.warn(`[BulkTracking] HTTP fallback used for batch ${i + 1}/${batches.length}: ${innerErr.message}`);
+            }
+          } else {
+            throw innerErr;
+          }
         }
       }
 
@@ -372,10 +441,19 @@ export async function pythonTrackOne(trackingNumber: string, opts?: { includeRaw
   const request = scheduleTrackedRequest(async () => {
     const includeRaw = includeRawFlag ? "?include_raw=true" : "";
     const encoded = encodeURIComponent(normalizedTracking);
-    const result = await fetchJson<PythonTrackResult>(`${base}/track/${encoded}${includeRaw}`, {
-      method: "GET",
-      timeoutMs: 120_000,
-    });
+    let result: PythonTrackResult;
+    try {
+      result = await fetchJson<PythonTrackResult>(`${base}/track/${encoded}${includeRaw}`, {
+        method: "GET",
+        timeoutMs: 120_000,
+      });
+    } catch (error) {
+      if (error instanceof PythonServiceUnavailableError || error instanceof PythonServiceTimeoutError) {
+        result = await fallbackTrackFromHttp(normalizedTracking, includeRawFlag);
+      } else {
+        throw error;
+      }
+    }
     const patchedResult = applyTrackingPatchLayer(result);
     const before = timelineSummary(result.events);
     const after = timelineSummary(patchedResult.events);
