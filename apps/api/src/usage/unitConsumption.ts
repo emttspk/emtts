@@ -8,6 +8,23 @@ type ConsumeResult = { ok: true; remainingUnits: number; idempotent?: boolean } 
 
 let usageLogsReady = false;
 
+function isClosedConnectionError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /connection is closed|Can't reach database server|P1001/i.test(message);
+}
+
+async function withReconnectRetry<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (!isClosedConnectionError(error)) {
+      throw error;
+    }
+    await prisma.$connect();
+    return operation();
+  }
+}
+
 async function ensureUsageLogsTable() {
   if (usageLogsReady) return;
   await prisma.$executeRaw`
@@ -37,10 +54,13 @@ export async function consumeUnits(
   requests: Array<{ actionType: UnitActionType; requestKey: string }>,
 ): Promise<ConsumeResult> {
   if (requests.length === 0) return { ok: true, remainingUnits: 0, idempotent: true };
-  await ensureUsageLogsTable();
+  await prisma.$connect();
+  await withReconnectRetry(async () => {
+    await ensureUsageLogsTable();
+  });
 
   try {
-    return await prisma.$transaction(async (tx) => {
+    return await withReconnectRetry(async () => prisma.$transaction(async (tx) => {
       const subscription = await tx.subscription.findFirst({
         where: { userId, status: "ACTIVE" },
         include: { plan: true, user: { select: { extraLabelCredits: true } } },
@@ -104,7 +124,7 @@ export async function consumeUnits(
       }
 
       return { ok: true, remainingUnits: Math.max(0, totalUnits - usedUnits) };
-    });
+    }));
   } catch (e) {
     if (e instanceof Error && e.message === "Insufficient Units") {
       return { ok: false, reason: "Insufficient Units" };
@@ -122,10 +142,13 @@ export async function refundUnits(
   requests: Array<{ actionType: UnitActionType; requestKey: string }>,
 ): Promise<void> {
   if (requests.length === 0) return;
-  await ensureUsageLogsTable();
+  await prisma.$connect();
+  await withReconnectRetry(async () => {
+    await ensureUsageLogsTable();
+  });
 
   const month = monthKeyUTC();
-  await prisma.$transaction(async (tx) => {
+  await withReconnectRetry(async () => prisma.$transaction(async (tx) => {
     for (const req of requests) {
       await tx.$executeRaw`
         UPDATE usage_logs
@@ -157,7 +180,7 @@ export async function refundUnits(
       },
       data,
     });
-  });
+  }));
 }
 
 export async function refundUnitsByAmount(userId: string, units: number): Promise<void> {

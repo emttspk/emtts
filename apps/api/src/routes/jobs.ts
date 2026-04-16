@@ -18,6 +18,23 @@ import { shouldShowValuePayableAmount } from "../validation/trackingId.js";
 
 export const jobsRouter = Router();
 
+function isClosedConnectionError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /connection is closed|Can't reach database server|P1001/i.test(message);
+}
+
+async function withReconnectRetry<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (!isClosedConnectionError(error)) {
+      throw error;
+    }
+    await prisma.$connect();
+    return operation();
+  }
+}
+
 function toNum(value: unknown) {
   const parsed = Number(String(value ?? "").trim());
   return Number.isFinite(parsed) ? parsed : 0;
@@ -337,7 +354,7 @@ export async function handleLabelUpload(req: Request, res: Response) {
     return "standard";
   })();
 
-  const job = await prisma.labelJob.create({
+  const job = await withReconnectRetry(async () => prisma.labelJob.create({
     data: {
       userId,
       originalFilename: req.file.originalname,
@@ -347,7 +364,7 @@ export async function handleLabelUpload(req: Request, res: Response) {
       status: "QUEUED",
       uploadPath: "pending",
     },
-  });
+  }));
 
   const uploadPath = path.join(uploadsDir(), `${job.id}${ext}`);
   await fs.rename(req.file.path, uploadPath);
@@ -365,7 +382,7 @@ export async function handleLabelUpload(req: Request, res: Response) {
     if (ordersCount > 5000) throw new Error("Max upload size is 5000 records");
 
     const month = new Date().toISOString().slice(0, 7);
-    const usageBefore = await prisma.usageMonthly.findUnique({ where: { userId_month: { userId, month } } });
+    const usageBefore = await withReconnectRetry(async () => prisma.usageMonthly.findUnique({ where: { userId_month: { userId, month } } }));
     const unitsBefore = (usageBefore?.labelsGenerated ?? 0) + (usageBefore?.labelsQueued ?? 0);
 
     actionRequests = [];
@@ -407,7 +424,7 @@ export async function handleLabelUpload(req: Request, res: Response) {
     const consumeResult = await consumeUnits(userId, actionRequests);
     if (!consumeResult.ok) throw new Error((consumeResult as any).reason ?? "Unit consumption failed");
 
-    const usageAfter = await prisma.usageMonthly.findUnique({ where: { userId_month: { userId, month } } });
+    const usageAfter = await withReconnectRetry(async () => prisma.usageMonthly.findUnique({ where: { userId_month: { userId, month } } }));
     const unitsAfter = (usageAfter?.labelsGenerated ?? 0) + (usageAfter?.labelsQueued ?? 0);
     console.log("Units before:", unitsBefore);
     console.log("Records processed:", orders.length);
@@ -417,7 +434,7 @@ export async function handleLabelUpload(req: Request, res: Response) {
     console.log(`Money Orders: ${moneyOrderUnits} -> Units Deducted: ${moneyOrderUnits}`);
     console.log(`Tracking Uploaded: ${trackAfterGenerate ? ordersCount : 0} -> Units Deducted: ${trackingUnits}`);
   } catch (e) {
-    await prisma.labelJob.update({
+    await withReconnectRetry(async () => prisma.labelJob.update({
       where: { id: job.id },
       data: {
         status: "FAILED",
@@ -425,16 +442,16 @@ export async function handleLabelUpload(req: Request, res: Response) {
         uploadPath,
         includeMoneyOrders: effectiveGenerateMoneyOrder,
       },
-    });
+    }));
     const msg = e instanceof Error ? e.message : "Invalid upload";
     return res.status(400).json({ success: false, error: msg, message: msg });
   }
 
   try {
-    await prisma.labelJob.update({
+    await withReconnectRetry(async () => prisma.labelJob.update({
       where: { id: job.id },
       data: { uploadPath, recordCount: ordersCount, unitCount, includeMoneyOrders: effectiveGenerateMoneyOrder, status: "QUEUED" },
-    });
+    }));
     await labelQueue.add(
       "generate-pdf",
       {
@@ -453,10 +470,10 @@ export async function handleLabelUpload(req: Request, res: Response) {
     );
     return res.json({ success: true, message: "File uploaded successfully", jobId: job.id, recordCount: ordersCount });
   } catch (e) {
-    await prisma.labelJob.update({
+    await withReconnectRetry(async () => prisma.labelJob.update({
       where: { id: job.id },
       data: { status: "FAILED", error: "Failed to enqueue job" },
-    });
+    }));
     await refundUnits(userId, actionRequests);
     const msg = e instanceof Error ? e.message : "Failed to enqueue job";
     return res.status(500).json({ success: false, error: msg, message: msg });
