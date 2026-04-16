@@ -127,7 +127,7 @@ app.use(express.static("../web/dist"));
 app.use((req, res, next) => {
   const fs = require("fs");
   const path = require("path");
-  const indexPath = path.join(__dirname, "../web/dist/index.html");
+  const indexPath = path.join(__dirname, "../../web/dist/index.html");
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
   } else {
