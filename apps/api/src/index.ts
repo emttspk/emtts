@@ -21,6 +21,7 @@ import { requireAuth } from "./middleware/auth.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+const BUILD_VERSION = process.env.RAILWAY_GIT_COMMIT_SHA ?? "local";
 
 // CRITICAL: Validate DATABASE_URL before any Prisma operations
 console.log("DATABASE_URL exists:", !!process.env.DATABASE_URL);
@@ -129,6 +130,7 @@ app.use(express.json({ limit: "2mb" }));
 
 // API routes (these come first)
 app.get("/api", (_req, res) => res.json({ success: true, message: "LabelGen API is running" }));
+app.get("/api/version", (_req, res) => res.json({ success: true, version: BUILD_VERSION }));
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.get("/api/template.csv", (_req, res) => {
