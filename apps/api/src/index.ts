@@ -126,23 +126,8 @@ app.use(
   }),
 );
 app.use(express.json({ limit: "2mb" }));
-app.use(express.urlencoded({ extended: true }));
 
-// Serve static files from web build directory
-const webDistPath = path.resolve(__dirname, "../../web/dist");
-app.use(express.static(webDistPath));
-
-// Fallback to index.html for client-side routing
-app.get("*", (req, res) => {
-  const indexPath = path.resolve(webDistPath, "index.html");
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    res.status(404).json({ error: "Not found" });
-  }
-});
-
-// API routes
+// API routes (these come first)
 app.get("/api", (_req, res) => res.json({ success: true, message: "LabelGen API is running" }));
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
@@ -306,6 +291,20 @@ app.use("/api/shipments", shipmentsRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/subscriptions", subscriptionsRouter);
 app.use("/api/plans", plansRouter);
+
+// Serve static files from web build directory
+const webDistPath = path.resolve(__dirname, "../../web/dist");
+app.use(express.static(webDistPath));
+
+// Fallback to index.html for client-side routing
+app.get("*", (req, res) => {
+  const indexPath = path.resolve(webDistPath, "index.html");
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).json({ error: "Frontend not found" });
+  }
+});
 
 app.use("*", (_req, res) => {
   res.status(404).json({ success: false, message: "Route not found" });
