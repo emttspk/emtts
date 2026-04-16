@@ -23,7 +23,7 @@ export const jobsRouter = Router();
 
 function isClosedConnectionError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error ?? "");
-  return /connection is closed|Can't reach database server|P1001/i.test(message);
+  return /connection is closed|can't reach database server|p1001|timed out|timeout|econnreset|connection terminated/i.test(message);
 }
 
 async function withReconnectRetry<T>(operation: () => Promise<T>): Promise<T> {
@@ -46,6 +46,20 @@ function toNum(value: unknown) {
 function moneyOrderUnitsForAmount(total: number) {
   const normalized = Math.max(0, Math.floor(total));
   return Math.max(1, Math.ceil(normalized / 20000));
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 async function ensureJobDeletionSchedulesTable() {
@@ -455,8 +469,8 @@ export async function handleLabelUpload(req: Request, res: Response) {
       where: { id: job.id },
       data: { uploadPath, recordCount: ordersCount, unitCount, includeMoneyOrders: effectiveGenerateMoneyOrder, status: "QUEUED" },
     }));
-    await ensureRedisConnection();
-    await labelQueue.add(
+    await withTimeout(ensureRedisConnection(), 8000, "Queue connection timed out");
+    await withTimeout(labelQueue.add(
       "generate-pdf",
       {
         jobId: job.id,
@@ -471,7 +485,7 @@ export async function handleLabelUpload(req: Request, res: Response) {
         shipmentType,
       },
       { jobId: job.id },
-    );
+    ), 8000, "Queue enqueue timed out");
     return res.json({ success: true, message: "File uploaded successfully", jobId: job.id, recordCount: ordersCount });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to enqueue job";
