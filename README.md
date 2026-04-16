@@ -5,7 +5,7 @@ Bulk shipping label + money order form generation with background jobs and PDF e
 ## Stack
 - Frontend: React + Tailwind (Vite)
 - Backend: Node.js + Express (TypeScript)
-- DB: SQLite (Prisma)
+- DB: PostgreSQL (Prisma Migrations)
 - PDF: Puppeteer
 - Queue: Redis + BullMQ
 
@@ -20,6 +20,7 @@ Bulk shipping label + money order form generation with background jobs and PDF e
 4) DB schema:
    - `npm run prisma:generate -w apps/api`
    - `npm run prisma:migrate -w apps/api`
+   - Production start path: `npm run start -w apps/api` (runs `prisma migrate deploy` before API boot)
 5) Run API + worker + web (separate terminals):
    - API: `npm run dev -w apps/api`
    - Worker: `npm run worker -w apps/api`
@@ -37,6 +38,15 @@ If you see "Failed to reach API endpoint":
 - **Port Conflicts:** The API defaults to port 3000. Verify with `netstat` or `lsof` if the port is occupied.
 - **DB Errors:** Ensure `npm run prisma:migrate` was successful.
 - **Logs:** Check the terminal running `npm run dev -w apps/api` for any red stack traces.
+
+## Production Prisma Workflow
+- Deploy with migrations only: `npx prisma migrate deploy && node dist/index.js`
+- If production DB is empty: run deploy normally.
+- If production DB is non-empty and has no `_prisma_migrations` table, pick one path:
+   - Reset path (destructive): reset DB to empty, then run `prisma migrate deploy`.
+   - Baseline path (non-destructive): mark baseline as applied, then deploy remaining migrations:
+      - `npm run prisma:baseline:mark-init -w apps/api`
+      - `npm run prisma:migrate:deploy -w apps/api`
 
 ## Notes
 - Upload limit: max 5000 records per file (CSV/XLSX).
