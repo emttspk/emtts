@@ -32,14 +32,14 @@ async function deleteOldFiles(dir: string) {
 }
 
 async function ensureJobDeletionSchedulesTable() {
-  await prisma.$executeRawUnsafe(`
+  await prisma.$executeRaw`
     CREATE TABLE IF NOT EXISTS job_deletion_schedules (
       job_id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       delete_after_at TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
-  `);
+  `;
 }
 
 async function removeStoredFile(relPath: string | null | undefined) {
@@ -53,9 +53,9 @@ async function removeStoredFile(relPath: string | null | undefined) {
 
 async function cleanupScheduledJobDeletions() {
   await ensureJobDeletionSchedulesTable();
-  const rows = await prisma.$queryRawUnsafe<Array<{ job_id: string; user_id: string; delete_after_at: string }>>(
-    `SELECT job_id, user_id, delete_after_at FROM job_deletion_schedules`,
-  );
+  const rows = await prisma.$queryRaw<Array<{ job_id: string; user_id: string; delete_after_at: string }>>`
+    SELECT job_id, user_id, delete_after_at FROM job_deletion_schedules
+  `;
 
   for (const row of rows) {
     if (new Date(row.delete_after_at).getTime() > Date.now()) continue;
@@ -84,7 +84,7 @@ async function cleanupScheduledJobDeletions() {
       prisma.trackingJob.deleteMany({ where: { id: row.job_id, userId: row.user_id } }),
       prisma.labelJob.deleteMany({ where: { id: row.job_id, userId: row.user_id } }),
     ]);
-    await prisma.$executeRawUnsafe("DELETE FROM job_deletion_schedules WHERE job_id = ?", row.job_id);
+    await prisma.$executeRaw`DELETE FROM job_deletion_schedules WHERE job_id = ${row.job_id}`;
   }
 }
 

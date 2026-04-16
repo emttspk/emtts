@@ -30,17 +30,17 @@ function moneyOrderUnitsForAmount(total: number) {
 }
 
 async function ensureJobDeletionSchedulesTable() {
-  await prisma.$executeRawUnsafe(`
+  await prisma.$executeRaw`
     CREATE TABLE IF NOT EXISTS job_deletion_schedules (
       job_id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       delete_after_at TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
-  `);
-  await prisma.$executeRawUnsafe(
-    "CREATE INDEX IF NOT EXISTS idx_job_deletion_schedules_delete_after ON job_deletion_schedules(delete_after_at)",
-  );
+  `;
+  await prisma.$executeRaw`
+    CREATE INDEX IF NOT EXISTS idx_job_deletion_schedules_delete_after ON job_deletion_schedules(delete_after_at)
+  `;
 }
 
 async function removeStoredFile(relPath: string | null | undefined) {
@@ -96,7 +96,7 @@ async function deleteJobById(userId: string, jobId: string) {
     prisma.labelJob.deleteMany({ where: { id: jobId, userId } }),
   ]);
 
-  await prisma.$executeRawUnsafe("DELETE FROM job_deletion_schedules WHERE job_id = ?", jobId);
+  await prisma.$executeRaw`DELETE FROM job_deletion_schedules WHERE job_id = ${jobId}`;
 
   try {
     const queuedJob = await labelQueue.getJob(jobId);
@@ -289,12 +289,13 @@ jobsRouter.post("/delete", requireAuth, async (req, res) => {
     await ensureJobDeletionSchedulesTable();
     const deleteAfterAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     for (const jobId of jobIds) {
-      await prisma.$executeRawUnsafe(
-        `INSERT OR REPLACE INTO job_deletion_schedules (job_id, user_id, delete_after_at) VALUES (?, ?, ?)`,
-        jobId,
-        userId,
-        deleteAfterAt,
-      );
+      await prisma.$executeRaw`
+        INSERT INTO job_deletion_schedules (job_id, user_id, delete_after_at)
+        VALUES (${jobId}, ${userId}, ${deleteAfterAt})
+        ON CONFLICT (job_id) DO UPDATE SET
+          user_id = EXCLUDED.user_id,
+          delete_after_at = EXCLUDED.delete_after_at
+      `;
     }
     return res.json({ success: true, scheduled: jobIds.length, deleteAfterDays: 7 });
   }

@@ -6,6 +6,7 @@ import { createCanvas } from "canvas";
 import JsBarcode from "jsbarcode";
 import puppeteer, { type Browser } from "puppeteer";
 import path from "node:path";
+import { Prisma } from "@prisma/client";
 import { env } from "./config.js";
 import { getPrisma } from "./db.js";
 const prisma = getPrisma();
@@ -109,9 +110,9 @@ let moneyOrderTablesReady = false;
 
 async function ensureMoneyOrderTables() {
   if (moneyOrderTablesReady) return;
-  await prisma.$executeRawUnsafe(`
+  await prisma.$executeRaw`
     CREATE TABLE IF NOT EXISTS money_orders (
-      seq INTEGER PRIMARY KEY AUTOINCREMENT,
+      seq BIGSERIAL PRIMARY KEY,
       id TEXT NOT NULL,
       user_id TEXT NOT NULL,
       tracking_number TEXT NOT NULL,
@@ -120,40 +121,34 @@ async function ensureMoneyOrderTables() {
       tracking_id TEXT,
       issue_date TEXT,
       amount REAL NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
-  `);
-  const columns = await prisma.$queryRawUnsafe<Array<{ name: string }>>("PRAGMA table_info(money_orders)");
-  const hasColumn = (name: string) => columns.some((col) => String(col.name).toLowerCase() === name.toLowerCase());
+  `;
+  const columns = await prisma.$queryRaw<Array<{ column_name: string }>>`
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'money_orders'
+  `;
+  const hasColumn = (name: string) => columns.some((col) => String(col.column_name).toLowerCase() === name.toLowerCase());
   if (!hasColumn("tracking_id")) {
-    await prisma.$executeRawUnsafe("ALTER TABLE money_orders ADD COLUMN tracking_id TEXT");
+    await prisma.$executeRaw`ALTER TABLE money_orders ADD COLUMN IF NOT EXISTS tracking_id TEXT`;
   }
   if (!hasColumn("issue_date")) {
-    await prisma.$executeRawUnsafe("ALTER TABLE money_orders ADD COLUMN issue_date TEXT");
+    await prisma.$executeRaw`ALTER TABLE money_orders ADD COLUMN IF NOT EXISTS issue_date TEXT`;
   }
   if (!hasColumn("amount")) {
-    await prisma.$executeRawUnsafe("ALTER TABLE money_orders ADD COLUMN amount REAL NOT NULL DEFAULT 0");
+    await prisma.$executeRaw`ALTER TABLE money_orders ADD COLUMN IF NOT EXISTS amount REAL NOT NULL DEFAULT 0`;
   }
   if (!hasColumn("segment_index")) {
-    await prisma.$executeRawUnsafe("ALTER TABLE money_orders ADD COLUMN segment_index INTEGER NOT NULL DEFAULT 0");
+    await prisma.$executeRaw`ALTER TABLE money_orders ADD COLUMN IF NOT EXISTS segment_index INTEGER NOT NULL DEFAULT 0`;
   }
-  await prisma.$executeRawUnsafe(
-    "CREATE UNIQUE INDEX IF NOT EXISTS idx_money_orders_mo_number ON money_orders(mo_number)",
-  );
-  await prisma.$executeRawUnsafe("DROP INDEX IF EXISTS idx_money_orders_user_tracking");
-  await prisma.$executeRawUnsafe(
-    "CREATE UNIQUE INDEX IF NOT EXISTS idx_money_orders_user_tracking_segment ON money_orders(user_id, tracking_number, segment_index)",
-  );
-  await prisma.$executeRawUnsafe(
-    "CREATE INDEX IF NOT EXISTS idx_money_orders_user_tracking_id ON money_orders(user_id, tracking_id)",
-  );
-  await prisma.$executeRawUnsafe(
-    "CREATE INDEX IF NOT EXISTS idx_money_orders_user_tracking ON money_orders(user_id, tracking_number)",
-  );
-  await prisma.$executeRawUnsafe(
-    "CREATE INDEX IF NOT EXISTS idx_money_orders_issue_date ON money_orders(issue_date)",
-  );
+  await prisma.$executeRaw`CREATE UNIQUE INDEX IF NOT EXISTS idx_money_orders_mo_number ON money_orders(mo_number)`;
+  await prisma.$executeRaw`DROP INDEX IF EXISTS idx_money_orders_user_tracking`;
+  await prisma.$executeRaw`CREATE UNIQUE INDEX IF NOT EXISTS idx_money_orders_user_tracking_segment ON money_orders(user_id, tracking_number, segment_index)`;
+  await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS idx_money_orders_user_tracking_id ON money_orders(user_id, tracking_id)`;
+  await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS idx_money_orders_user_tracking ON money_orders(user_id, tracking_number)`;
+  await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS idx_money_orders_issue_date ON money_orders(issue_date)`;
   moneyOrderTablesReady = true;
 }
 
@@ -185,10 +180,14 @@ async function allocateNextMoneyOrderNumber(issueDate: string, reservedNumbers: 
   await ensureMoneyOrderTables();
 
   let sequence = 1;
-  const latest = await prisma.$queryRawUnsafe<Array<{ mo_number: string }>>(
-    `SELECT mo_number FROM money_orders WHERE mo_number LIKE ? ORDER BY LENGTH(mo_number) DESC, mo_number DESC LIMIT 1`,
-    `${buildMoneyOrderNumber(1, issueDate).slice(0, 7)}%`,
-  );
+  const latestPrefix = `${buildMoneyOrderNumber(1, issueDate).slice(0, 7)}%`;
+  const latest = await prisma.$queryRaw<Array<{ mo_number: string }>>`
+    SELECT mo_number
+    FROM money_orders
+    WHERE mo_number LIKE ${latestPrefix}
+    ORDER BY LENGTH(mo_number) DESC, mo_number DESC
+    LIMIT 1
+  `;
   const latestSequence = parseIdentifierSequence(String(latest[0]?.mo_number ?? ""));
   if (latestSequence && latestSequence > 0) {
     sequence = latestSequence + 1;
@@ -227,14 +226,12 @@ async function ensureSystemMoneyOrders(
 
   for (const row of uniqueRows) {
     const desiredLines = moneyOrderBreakdown(row.amount, row.shipmentType);
-    const existing = await prisma.$queryRawUnsafe<MoneyOrderRow[]>(
-      `SELECT seq, tracking_number, tracking_id, mo_number, issue_date, amount, segment_index
-       FROM money_orders
-       WHERE user_id = ? AND tracking_number = ?
-       ORDER BY segment_index ASC, seq ASC`,
-      userId,
-      row.trackingNumber,
-    );
+    const existing = await prisma.$queryRaw<MoneyOrderRow[]>`
+      SELECT seq, tracking_number, tracking_id, mo_number, issue_date, amount, segment_index
+      FROM money_orders
+      WHERE user_id = ${userId} AND tracking_number = ${row.trackingNumber}
+      ORDER BY segment_index ASC, seq ASC
+    `;
 
     existing.forEach((currentRow) => {
       const validatedMoNumber = validateMoneyOrderNumber(currentRow.mo_number);
@@ -245,11 +242,9 @@ async function ensureSystemMoneyOrders(
 
     if (desiredLines.length === 0) {
       if (existing.length > 0) {
-        await prisma.$executeRawUnsafe(
-          `DELETE FROM money_orders WHERE user_id = ? AND tracking_number = ?`,
-          userId,
-          row.trackingNumber,
-        );
+        await prisma.$executeRaw`
+          DELETE FROM money_orders WHERE user_id = ${userId} AND tracking_number = ${row.trackingNumber}
+        `;
       }
       continue;
     }
@@ -262,46 +257,31 @@ async function ensureSystemMoneyOrders(
         : await allocateNextMoneyOrderNumber(row.issueDate, reservedNumbers);
 
       if (currentRow) {
-        await prisma.$executeRawUnsafe(
-          `UPDATE money_orders
-           SET mo_number = ?,
-               segment_index = ?,
-               tracking_id = ?,
-               issue_date = ?,
-               amount = ?,
-               updated_at = CURRENT_TIMESTAMP
-           WHERE seq = ?`,
-          moNumber,
-          desiredLine.segmentIndex,
-          row.trackingNumber,
-          row.issueDate,
-          desiredLine.moAmount,
-          currentRow.seq,
-        );
+        await prisma.$executeRaw`
+          UPDATE money_orders
+          SET mo_number = ${moNumber},
+              segment_index = ${desiredLine.segmentIndex},
+              tracking_id = ${row.trackingNumber},
+              issue_date = ${row.issueDate},
+              amount = ${desiredLine.moAmount},
+              updated_at = CURRENT_TIMESTAMP
+          WHERE seq = ${currentRow.seq}
+        `;
         continue;
       }
 
-      await prisma.$executeRawUnsafe(
-        `INSERT INTO money_orders (id, user_id, tracking_number, mo_number, segment_index, tracking_id, issue_date, amount)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        randomUUID(),
-        userId,
-        row.trackingNumber,
-        moNumber,
-        desiredLine.segmentIndex,
-        row.trackingNumber,
-        row.issueDate,
-        desiredLine.moAmount,
-      );
+      await prisma.$executeRaw`
+        INSERT INTO money_orders (id, user_id, tracking_number, mo_number, segment_index, tracking_id, issue_date, amount)
+        VALUES (${randomUUID()}, ${userId}, ${row.trackingNumber}, ${moNumber}, ${desiredLine.segmentIndex}, ${row.trackingNumber}, ${row.issueDate}, ${desiredLine.moAmount})
+      `;
     }
 
     const staleRows = existing.filter((item) => item.segment_index >= desiredLines.length);
     if (staleRows.length > 0) {
-      const placeholders = staleRows.map(() => "?").join(",");
-      await prisma.$executeRawUnsafe(
-        `DELETE FROM money_orders WHERE seq IN (${placeholders})`,
-        ...staleRows.map((item) => item.seq),
-      );
+      const staleSeqs = staleRows.map((item) => item.seq);
+      await prisma.$executeRaw`
+        DELETE FROM money_orders WHERE seq IN (${Prisma.join(staleSeqs)})
+      `;
     }
   }
 }
@@ -311,15 +291,12 @@ async function getMoneyOrdersByTracking(userId: string, trackingNumbers: string[
   if (uniqueTracking.length === 0) return new Map<string, MoneyOrderRow[]>();
   await ensureMoneyOrderTables();
 
-  const placeholders = uniqueTracking.map(() => "?").join(",");
-  const rows = await prisma.$queryRawUnsafe<MoneyOrderRow[]>(
-    `SELECT seq, tracking_number, tracking_id, mo_number, issue_date, amount, segment_index
-     FROM money_orders
-     WHERE user_id = ? AND tracking_number IN (${placeholders})
-     ORDER BY tracking_number ASC, segment_index ASC, seq ASC`,
-    userId,
-    ...uniqueTracking,
-  );
+  const rows = await prisma.$queryRaw<MoneyOrderRow[]>`
+    SELECT seq, tracking_number, tracking_id, mo_number, issue_date, amount, segment_index
+    FROM money_orders
+    WHERE user_id = ${userId} AND tracking_number IN (${Prisma.join(uniqueTracking)})
+    ORDER BY tracking_number ASC, segment_index ASC, seq ASC
+  `;
 
   const grouped = new Map<string, MoneyOrderRow[]>();
   for (const row of rows) {

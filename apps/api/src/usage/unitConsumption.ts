@@ -11,7 +11,7 @@ let usageLogsReady = false;
 
 async function ensureUsageLogsTable() {
   if (usageLogsReady) return;
-  await prisma.$executeRawUnsafe(`
+  await prisma.$executeRaw`
     CREATE TABLE IF NOT EXISTS usage_logs (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -22,10 +22,10 @@ async function ensureUsageLogsTable() {
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       refunded_at TEXT
     )
-  `);
-  await prisma.$executeRawUnsafe(
-    "CREATE UNIQUE INDEX IF NOT EXISTS usage_logs_unique_request ON usage_logs(user_id, action_type, request_key)",
-  );
+  `;
+  await prisma.$executeRaw`
+    CREATE UNIQUE INDEX IF NOT EXISTS usage_logs_unique_request ON usage_logs(user_id, action_type, request_key)
+  `;
   usageLogsReady = true;
 }
 
@@ -58,10 +58,9 @@ export async function consumeUnits(
       const month = monthKeyUTC();
       const totalUnits = subscription.plan.monthlyLabelLimit + (subscription.user.extraLabelCredits ?? 0);
 
-      const existing = await tx.$queryRawUnsafe<Array<{ action_type: string; request_key: string; status: string }>>(
-        `SELECT action_type, request_key, status FROM usage_logs WHERE user_id = ?`,
-        userId,
-      );
+      const existing = await tx.$queryRaw<Array<{ action_type: string; request_key: string; status: string }>>`
+        SELECT action_type, request_key, status FROM usage_logs WHERE user_id = ${userId}
+      `;
       const existingMap = new Map(existing.map((row) => [`${row.action_type}::${row.request_key}`, row.status]));
       const pendingRequests = requests.filter(
         (r) => !existingMap.has(`${r.actionType}::${r.requestKey}`),
@@ -98,13 +97,11 @@ export async function consumeUnits(
       }
 
       for (const req of pendingRequests) {
-        await tx.$executeRawUnsafe(
-          `INSERT OR IGNORE INTO usage_logs (id, user_id, action_type, units_used, request_key, status) VALUES (?, ?, ?, 1, ?, 'CONSUMED')`,
-          randomUUID(),
-          userId,
-          req.actionType,
-          req.requestKey,
-        );
+        await tx.$executeRaw`
+          INSERT INTO usage_logs (id, user_id, action_type, units_used, request_key, status)
+          VALUES (${randomUUID()}, ${userId}, ${req.actionType}, 1, ${req.requestKey}, 'CONSUMED')
+          ON CONFLICT (user_id, action_type, request_key) DO NOTHING
+        `;
       }
 
       return { ok: true, remainingUnits: Math.max(0, totalUnits - usedUnits) };
@@ -131,12 +128,11 @@ export async function refundUnits(
   const month = monthKeyUTC();
   await prisma.$transaction(async (tx) => {
     for (const req of requests) {
-      await tx.$executeRawUnsafe(
-        `UPDATE usage_logs SET status = 'REFUNDED', refunded_at = CURRENT_TIMESTAMP WHERE user_id = ? AND action_type = ? AND request_key = ? AND status = 'CONSUMED'`,
-        userId,
-        req.actionType,
-        req.requestKey,
-      );
+      await tx.$executeRaw`
+        UPDATE usage_logs
+        SET status = 'REFUNDED', refunded_at = CURRENT_TIMESTAMP
+        WHERE user_id = ${userId} AND action_type = ${req.actionType} AND request_key = ${req.requestKey} AND status = 'CONSUMED'
+      `;
     }
 
     const totalQueuedUnits = requests.length;

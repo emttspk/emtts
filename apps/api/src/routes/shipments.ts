@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { getPrisma } from "../db.js";
 const prisma = getPrisma();
 import { requireAuth } from "../middleware/auth.js";
@@ -33,9 +34,9 @@ type MoneyOrderSummary = {
 
 async function ensureMoneyOrderTables() {
   if (moTablesReady) return;
-  await prisma.$executeRawUnsafe(`
+  await prisma.$executeRaw`
     CREATE TABLE IF NOT EXISTS money_orders (
-      seq INTEGER PRIMARY KEY AUTOINCREMENT,
+      seq BIGSERIAL PRIMARY KEY,
       id TEXT NOT NULL,
       user_id TEXT NOT NULL,
       tracking_number TEXT NOT NULL,
@@ -44,55 +45,46 @@ async function ensureMoneyOrderTables() {
       tracking_id TEXT,
       issue_date TEXT,
       amount REAL NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
-  `);
-  const columns = await prisma.$queryRawUnsafe<Array<{ name: string }>>("PRAGMA table_info(money_orders)");
-  const hasColumn = (name: string) => columns.some((col) => String(col.name).toLowerCase() === name.toLowerCase());
+  `;
+  const columns = await prisma.$queryRaw<Array<{ column_name: string }>>`
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'money_orders'
+  `;
+  const hasColumn = (name: string) => columns.some((col) => String(col.column_name).toLowerCase() === name.toLowerCase());
   if (!hasColumn("tracking_id")) {
-    await prisma.$executeRawUnsafe("ALTER TABLE money_orders ADD COLUMN tracking_id TEXT");
+    await prisma.$executeRaw`ALTER TABLE money_orders ADD COLUMN IF NOT EXISTS tracking_id TEXT`;
   }
   if (!hasColumn("issue_date")) {
-    await prisma.$executeRawUnsafe("ALTER TABLE money_orders ADD COLUMN issue_date TEXT");
+    await prisma.$executeRaw`ALTER TABLE money_orders ADD COLUMN IF NOT EXISTS issue_date TEXT`;
   }
   if (!hasColumn("amount")) {
-    await prisma.$executeRawUnsafe("ALTER TABLE money_orders ADD COLUMN amount REAL NOT NULL DEFAULT 0");
+    await prisma.$executeRaw`ALTER TABLE money_orders ADD COLUMN IF NOT EXISTS amount REAL NOT NULL DEFAULT 0`;
   }
   if (!hasColumn("segment_index")) {
-    await prisma.$executeRawUnsafe("ALTER TABLE money_orders ADD COLUMN segment_index INTEGER NOT NULL DEFAULT 0");
+    await prisma.$executeRaw`ALTER TABLE money_orders ADD COLUMN IF NOT EXISTS segment_index INTEGER NOT NULL DEFAULT 0`;
   }
-  await prisma.$executeRawUnsafe(
-    "CREATE UNIQUE INDEX IF NOT EXISTS idx_money_orders_mo_number ON money_orders(mo_number)",
-  );
-  await prisma.$executeRawUnsafe("DROP INDEX IF EXISTS idx_money_orders_user_tracking");
-  await prisma.$executeRawUnsafe(
-    "CREATE UNIQUE INDEX IF NOT EXISTS idx_money_orders_user_tracking_segment ON money_orders(user_id, tracking_number, segment_index)",
-  );
-  await prisma.$executeRawUnsafe(
-    "CREATE INDEX IF NOT EXISTS idx_money_orders_user_tracking_id ON money_orders(user_id, tracking_id)",
-  );
-  await prisma.$executeRawUnsafe(
-    "CREATE INDEX IF NOT EXISTS idx_money_orders_user_tracking ON money_orders(user_id, tracking_number)",
-  );
-  await prisma.$executeRawUnsafe(
-    "CREATE INDEX IF NOT EXISTS idx_money_orders_issue_date ON money_orders(issue_date)",
-  );
+  await prisma.$executeRaw`CREATE UNIQUE INDEX IF NOT EXISTS idx_money_orders_mo_number ON money_orders(mo_number)`;
+  await prisma.$executeRaw`DROP INDEX IF EXISTS idx_money_orders_user_tracking`;
+  await prisma.$executeRaw`CREATE UNIQUE INDEX IF NOT EXISTS idx_money_orders_user_tracking_segment ON money_orders(user_id, tracking_number, segment_index)`;
+  await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS idx_money_orders_user_tracking_id ON money_orders(user_id, tracking_id)`;
+  await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS idx_money_orders_user_tracking ON money_orders(user_id, tracking_number)`;
+  await prisma.$executeRaw`CREATE INDEX IF NOT EXISTS idx_money_orders_issue_date ON money_orders(issue_date)`;
   moTablesReady = true;
 }
 
 async function getMoneyOrderMap(userId: string, trackingNumbers: string[]) {
   await ensureMoneyOrderTables();
   if (trackingNumbers.length === 0) return new Map<string, MoneyOrderSummary>();
-  const placeholders = trackingNumbers.map(() => "?").join(",");
-  const rows = await prisma.$queryRawUnsafe<MoneyOrderRow[]>(
-    `SELECT mo_number, tracking_number, segment_index, amount
-     FROM money_orders
-     WHERE user_id = ? AND tracking_number IN (${placeholders})
-     ORDER BY tracking_number ASC, segment_index ASC, mo_number ASC`,
-    userId,
-    ...trackingNumbers,
-  );
+  const rows = await prisma.$queryRaw<MoneyOrderRow[]>`
+    SELECT mo_number, tracking_number, segment_index, amount
+    FROM money_orders
+    WHERE user_id = ${userId} AND tracking_number IN (${Prisma.join(trackingNumbers)})
+    ORDER BY tracking_number ASC, segment_index ASC, mo_number ASC
+  `;
   const grouped = new Map<string, MoneyOrderSummary>();
   rows.forEach((row) => {
     const trackingNumber = String(row.tracking_number ?? "").trim();
