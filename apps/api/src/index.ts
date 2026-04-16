@@ -19,6 +19,7 @@ import { plansRouter, ensureDefaultPlans } from "./routes/plans.js";
 import { ensureStorageDirs } from "./storage/paths.js";
 import { startCleanupCron } from "./cron/cleanup.js";
 import { requireAuth } from "./middleware/auth.js";
+import { releaseQueuedLabels } from "./usage/limits.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -90,6 +91,7 @@ function validateEnvironment() {
   }
 
   const redisUrl = String(process.env.REDIS_URL ?? "").trim();
+  const pythonServiceUrl = String(process.env.PYTHON_SERVICE_URL ?? "").trim();
   const queueEnabled = process.env.START_WORKER_IN_API !== "false";
   const isProduction = process.env.NODE_ENV === "production";
   if (queueEnabled) {
@@ -97,6 +99,13 @@ function validateEnvironment() {
       errors.push("REDIS_URL environment variable is not set. Queue processing requires a Redis service.");
     } else if (isProduction && /(localhost|127\.0\.0\.1)/i.test(redisUrl)) {
       errors.push("REDIS_URL points to localhost in production. Configure Railway Redis and set REDIS_URL.");
+    }
+  }
+  if (isProduction) {
+    if (!pythonServiceUrl) {
+      errors.push("PYTHON_SERVICE_URL is not set. Tracking/complaint processing requires a reachable Python service.");
+    } else if (/(localhost|127\.0\.0\.1)/i.test(pythonServiceUrl)) {
+      errors.push("PYTHON_SERVICE_URL points to localhost in production. Configure Railway internal Python service URL.");
     }
   }
 
@@ -425,7 +434,13 @@ await ensureDefaultPlans().catch(err => console.error("Failed to seed default pl
             console.log(`[RECOVERY] Re-queued job ${dbJob.id}`);
           }
         } catch (err) {
-          console.warn(`[RECOVERY] Failed to re-queue job ${dbJob.id}:`, err instanceof Error ? err.message : String(err));
+          const message = err instanceof Error ? err.message : String(err);
+          console.warn(`[RECOVERY] Failed to re-queue job ${dbJob.id}:`, message);
+          await prisma.labelJob.update({
+            where: { id: dbJob.id },
+            data: { status: "FAILED", error: `Recovery enqueue failed: ${message}` },
+          });
+          await releaseQueuedLabels(dbJob.userId, dbJob.unitCount || dbJob.recordCount).catch(() => {});
         }
       }
     }

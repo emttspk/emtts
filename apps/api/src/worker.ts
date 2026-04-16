@@ -652,9 +652,8 @@ const worker = new Worker(
           }
         } catch (moErr) {
           console.error(`[Worker] Money order generation failed for job ${jobId}:`, moErr);
-          // Non-fatal: labels PDF is still valid
-          moneyPdf = null;
-          moneyPath = null;
+          const moMessage = moErr instanceof Error ? moErr.message : "Money order generation failed";
+          throw new Error(`Money order generation failed: ${moMessage}`);
         }
       }
 

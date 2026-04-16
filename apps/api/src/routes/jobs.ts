@@ -468,8 +468,8 @@ export async function handleLabelUpload(req: Request, res: Response) {
       data: { uploadPath, recordCount: ordersCount, unitCount, includeMoneyOrders: effectiveGenerateMoneyOrder, status: "QUEUED" },
     }));
 
-    // Try to enqueue job with timeout
-    let enqueueSuccess = false;
+    // Try to enqueue job with timeout. If this fails, mark FAILED immediately so
+    // jobs do not remain stuck in QUEUED forever.
     try {
       await withTimeout(ensureRedisConnection(), 3000, "Redis connection timed out");
       await withTimeout(labelQueue.add(
@@ -488,13 +488,25 @@ export async function handleLabelUpload(req: Request, res: Response) {
         },
         { jobId: job.id },
       ), 3000, "Queue enqueue timed out");
-      enqueueSuccess = true;
     } catch (queueErr) {
-      // Redis unavailable - job stays in QUEUED status for retry
-      console.warn("Redis unavailable during enqueue, job will retry:", queueErr instanceof Error ? queueErr.message : String(queueErr));
+      const queueMessage = queueErr instanceof Error ? queueErr.message : "Queue enqueue failed";
+      console.error(`[Upload] Queue enqueue failed for job ${job.id}: ${queueMessage}`);
+      await withReconnectRetry(async () =>
+        prisma.labelJob.update({
+          where: { id: job.id },
+          data: { status: "FAILED", error: `Queue unavailable: ${queueMessage}` },
+        }),
+      );
+      await refundUnits(userId, actionRequests);
+      return res.status(503).json({
+        success: false,
+        error: "Queue unavailable",
+        message: "Queue unavailable. Please retry after Redis/worker is healthy.",
+        jobId: job.id,
+      });
     }
 
-    // Return success regardless - job is safely in DB
+    // Return success only when enqueue succeeded.
     return res.json({ success: true, message: "File uploaded successfully", jobId: job.id, recordCount: ordersCount });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to upload file";
