@@ -75,7 +75,11 @@ export class PythonServiceTimeoutError extends Error {
 }
 
 function baseUrl() {
-  return env.PYTHON_SERVICE_URL.replace(/\/+$/, "");
+  const value = String(env.PYTHON_SERVICE_URL ?? "").trim();
+  if (!value) {
+    throw new Error("PYTHON_SERVICE_URL is not configured");
+  }
+  return value.replace(/\/+$/, "");
 }
 
 const TRACK_CACHE_TTL_MS = 10 * 60 * 1000;

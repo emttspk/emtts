@@ -6,7 +6,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "start": "npm run preview"
+    "start": "node scripts/start.cjs"
   },
   "dependencies": {
     "jspdf": "^4.2.1",

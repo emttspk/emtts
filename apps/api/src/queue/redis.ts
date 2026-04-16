@@ -5,7 +5,11 @@ let redisConnection;
 
 export function getRedisConnection() {
   if (!redisConnection) {
-    redisConnection = new Redis(env.REDIS_URL, {
+    const redisUrl = String(env.REDIS_URL ?? "").trim();
+    if (!redisUrl) {
+      throw new Error("REDIS_URL is not set. Queue services require a valid Redis connection string.");
+    }
+    redisConnection = new Redis(redisUrl, {
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
       lazyConnect: true,

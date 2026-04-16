@@ -36,10 +36,6 @@ async function execRaw(db: any, query: string, ...params: unknown[]) {
   return db.$executeRawUnsafe(toPgSql(query), ...params);
 }
 
-async function queryRaw<T>(db: any, query: string, ...params: unknown[]): Promise<T> {
-  return db.$queryRawUnsafe(toPgSql(query), ...params) as Promise<T>;
-}
-
 function txt(v: unknown): string {
   return String(v ?? "").trim();
 }
@@ -362,9 +358,9 @@ export async function refreshTrackingIntelligenceAggregates(userIdInput: string)
   const userId = txt(userIdInput);
   if (!userId) return;
 
-  const core = await queryRaw<Array<any>>(prisma, `SELECT * FROM tracking_core_intelligence WHERE user_id = ?`, userId);
-  const metrics = await queryRaw<Array<any>>(prisma, `SELECT * FROM tracking_derived_metrics_intelligence WHERE user_id = ?`, userId);
-  const events = await queryRaw<Array<any>>(prisma, `SELECT * FROM tracking_events_intelligence WHERE user_id = ?`, userId);
+  const core = await prisma.$queryRaw<Array<any>>`SELECT * FROM tracking_core_intelligence WHERE user_id = ${userId}`;
+  const metrics = await prisma.$queryRaw<Array<any>>`SELECT * FROM tracking_derived_metrics_intelligence WHERE user_id = ${userId}`;
+  const events = await prisma.$queryRaw<Array<any>>`SELECT * FROM tracking_events_intelligence WHERE user_id = ${userId}`;
 
   const metricByTracking = new Map<string, any>();
   metrics.forEach((m) => metricByTracking.set(String(m.tracking_id), m));
@@ -520,10 +516,10 @@ export async function refreshTrackingIntelligenceAggregates(userIdInput: string)
 }
 
 async function refreshPredictionAndBusinessLayer(userId: string) {
-  const core = await queryRaw<Array<any>>(prisma, `SELECT * FROM tracking_core_intelligence WHERE user_id = ?`, userId);
-  const metrics = await queryRaw<Array<any>>(prisma, `SELECT * FROM tracking_derived_metrics_intelligence WHERE user_id = ?`, userId);
-  const routes = await queryRaw<Array<any>>(prisma, `SELECT * FROM route_performance_intelligence WHERE user_id = ?`, userId);
-  const returnBehavior = await queryRaw<Array<any>>(prisma, `SELECT * FROM return_behavior_intelligence WHERE user_id = ?`, userId);
+  const core = await prisma.$queryRaw<Array<any>>`SELECT * FROM tracking_core_intelligence WHERE user_id = ${userId}`;
+  const metrics = await prisma.$queryRaw<Array<any>>`SELECT * FROM tracking_derived_metrics_intelligence WHERE user_id = ${userId}`;
+  const routes = await prisma.$queryRaw<Array<any>>`SELECT * FROM route_performance_intelligence WHERE user_id = ${userId}`;
+  const returnBehavior = await prisma.$queryRaw<Array<any>>`SELECT * FROM return_behavior_intelligence WHERE user_id = ${userId}`;
 
   const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
   const metricMap = new Map(metrics.map((m) => [String(m.tracking_id), m]));
@@ -576,5 +572,4 @@ async function refreshPredictionAndBusinessLayer(userId: string) {
     );
   });
 }
-
 

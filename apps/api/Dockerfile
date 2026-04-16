@@ -1,18 +1,26 @@
 FROM node:20
 
+# Set root
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm install
-
+# Copy all files first
 COPY . .
 
-# Build frontend
-RUN cd apps/web && npm install && npm run build
+# Install root deps (if any)
+RUN npm install
 
-# Build backend
-RUN cd apps/api && npm install && npm run build
+# -------- BUILD WEB --------
+WORKDIR /app/apps/web
+RUN npm install
+RUN npm run build
 
+# -------- BUILD API --------
+WORKDIR /app/apps/api
+RUN npm install
+RUN npx prisma generate --schema=prisma/schema.prisma
+RUN npm run build
+
+# -------- RUN API --------
 WORKDIR /app/apps/api
 
 EXPOSE 3000
