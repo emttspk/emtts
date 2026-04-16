@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { api } from "../lib/api";
+import { api, apiUrl } from "../lib/api";
 import { setSession } from "../lib/auth";
 import AuthShell from "../components/AuthShell";
 
@@ -30,14 +30,21 @@ export default function Register() {
           setErr(null);
           setLoading(true);
           try {
-            const data = await api<{ token: string; user: { role: string } }>("/api/auth/register", {
+            const endpoint = "/api/auth/register";
+            const fullUrl = apiUrl(endpoint);
+            console.log(`[REGISTER] Attempting registration for: ${email}`);
+            console.log(`[REGISTER] Request URL: ${fullUrl}`);
+            const data = await api<{ token: string; user: { role: string } }>(endpoint, {
               method: "POST",
               body: JSON.stringify({ email, password, companyName: companyName || null, address: address || null, contactNumber: contactNumber || null, originCity: originCity || null }),
             });
+            console.log(`[REGISTER] Success, received token and user role: ${data.user.role}`);
             setSession(data.token, data.user.role);
             nav("/dashboard");
           } catch (e) {
-            setErr(e instanceof Error ? e.message : "Registration failed");
+            const errorMsg = e instanceof Error ? e.message : "Registration failed";
+            console.error(`[REGISTER] Error: ${errorMsg}`);
+            setErr(errorMsg);
           } finally {
             setLoading(false);
           }

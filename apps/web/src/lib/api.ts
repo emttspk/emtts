@@ -4,6 +4,11 @@ const envBase =
   (import.meta.env.VITE_API_BASE as string | undefined) ?? (import.meta.env.VITE_API_URL as string | undefined);
 const base = envBase?.trim() || "";
 
+// Log API configuration for debugging
+console.log(`[API] Base URL configured: "${base}" (empty means same-origin requests to /api)`);
+console.log(`[API] VITE_API_BASE: "${import.meta.env.VITE_API_BASE ?? "undefined"}"`);
+console.log(`[API] VITE_API_URL: "${import.meta.env.VITE_API_URL ?? "undefined"}"`);
+
 function networkErrorMessage(url: string) {
   return `Failed to reach API endpoint ${url}. Verify the API server is running and reachable.`;
 }
@@ -31,8 +36,13 @@ export async function api<T>(path: string, init: RequestInit = {}) {
   let body: any;
   try {
     body = JSON.parse(text);
-  } catch {
-    throw new Error(`Non-JSON response: ${text}`);
+  } catch (parseError) {
+    // Log detailed error info when JSON parsing fails
+    console.error(`[API] Non-JSON response from ${url}`);
+    console.error(`[API] Status: ${res.status} ${res.statusText}`);
+    console.error(`[API] Content-Type: ${res.headers.get("content-type")}`);
+    console.error(`[API] Response body (first 500 chars): ${text.substring(0, 500)}`);
+    throw new Error(`Non-JSON response from ${path}: ${text.substring(0, 200)}`);
   }
   if (!res.ok) throw new Error(body?.error ?? body?.message ?? "Request failed");
   if (path.includes("/api/tracking/track/")) {
@@ -73,8 +83,13 @@ export async function uploadFile(path: string, file: File, fields?: Record<strin
   let body: any;
   try {
     body = JSON.parse(text);
-  } catch {
-    throw new Error(`Non-JSON response: ${text}`);
+  } catch (parseError) {
+    // Log detailed error info when JSON parsing fails
+    console.error(`[API] Non-JSON response from ${url}`);
+    console.error(`[API] Status: ${res.status} ${res.statusText}`);
+    console.error(`[API] Content-Type: ${res.headers.get("content-type")}`);
+    console.error(`[API] Response body (first 500 chars): ${text.substring(0, 500)}`);
+    throw new Error(`Non-JSON response from ${path}: ${text.substring(0, 200)}`);
   }
   if (!res.ok) throw new Error(body?.error ?? body?.message ?? "Upload failed");
   return body;
@@ -83,15 +98,37 @@ export async function uploadFile(path: string, file: File, fields?: Record<strin
 export async function apiHealthCheck(timeoutMs = 2000) {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  const url = apiUrl("/api/health");
+  console.log(`[HEALTH] Checking API health at: ${url}`);
   try {
-    const res = await fetch(apiUrl("/api/health"), { signal: controller.signal });
-    if (!res.ok) throw new Error("API not healthy");
+    const res = await fetch(url, { signal: controller.signal });
+    console.log(`[HEALTH] Status: ${res.status} ${res.statusText}`);
+    console.log(`[HEALTH] Content-Type: ${res.headers.get("content-type")}`);
+    if (!res.ok) {
+      console.error(`[HEALTH] API returned error status`);
+      throw new Error("API not healthy");
+    }
+    console.log(`[HEALTH] API is healthy ✓`);
     return true;
-  } catch {
-    throw new Error("API is offline or unreachable. Start the API on http://localhost:3000 and try again.");
+  } catch (e) {
+    const errorMsg = e instanceof Error ? e.message : "Unknown error";
+    console.error(`[HEALTH] API check failed: ${errorMsg}`);
+    throw new Error("API is offline or unreachable. Verify VITE_API_BASE is set correctly.");
   } finally {
     window.clearTimeout(timeout);
   }
+}
+
+// Helper function for debugging API connectivity
+export function debugApiConfig() {
+  const url = apiUrl("/api/auth/login");
+  console.group("[DEBUG] API Configuration");
+  console.log(`VITE_API_BASE: "${base}"`);
+  console.log(`Sample URL: ${url}`);
+  console.log(`Current Origin: ${window.location.origin}`);
+  console.log(`API accessible: ${url.startsWith("http") ? "Yes (different origin)" : "No (same origin)"}`);
+  console.groupEnd();
+  return { base, sampleUrl: url, origin: window.location.origin };
 }
 
 export async function downloadApiFile(path: string) {

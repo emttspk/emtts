@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api } from "../lib/api";
+import { api, apiUrl } from "../lib/api";
 import { setSession } from "../lib/auth";
 import AuthShell from "../components/AuthShell";
 
@@ -24,14 +24,21 @@ export default function Login() {
           setErr(null);
           setLoading(true);
           try {
-            const data = await api<{ token: string; user: { role: string } }>("/api/auth/login", {
+            const endpoint = "/api/auth/login";
+            const fullUrl = apiUrl(endpoint);
+            console.log(`[LOGIN] Attempting login for: ${email}`);
+            console.log(`[LOGIN] Request URL: ${fullUrl}`);
+            const data = await api<{ token: string; user: { role: string } }>(endpoint, {
               method: "POST",
               body: JSON.stringify({ email, password }),
             });
+            console.log(`[LOGIN] Success, received token and user role: ${data.user.role}`);
             setSession(data.token, data.user.role);
             nav("/dashboard");
           } catch (e) {
-            setErr(e instanceof Error ? e.message : "Login failed");
+            const errorMsg = e instanceof Error ? e.message : "Login failed";
+            console.error(`[LOGIN] Error: ${errorMsg}`);
+            setErr(errorMsg);
           } finally {
             setLoading(false);
           }
