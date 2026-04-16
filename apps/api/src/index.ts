@@ -16,12 +16,19 @@ import { startCleanupCron } from "./cron/cleanup.js";
 import { requireAuth } from "./middleware/auth.js";
 
 console.log("🚀 Starting LabelGen API server FIXED...");
+console.log(`[STARTUP] NODE_ENV=${process.env.NODE_ENV}`);
+console.log(`[STARTUP] DATABASE_URL is set: ${process.env.DATABASE_URL ? "yes" : "no"}`);
+if (process.env.DATABASE_URL) {
+  const sanitized = process.env.DATABASE_URL.replace(/([^:])([a-zA-Z0-9]+)@/, "$1***@");
+  console.log(`[STARTUP] DATABASE_URL (sanitized): ${sanitized}`);
+}
 
 function normalizeDatabaseUrl() {
   if (!process.env.DATABASE_URL) return;
   const trimmedUrl = process.env.DATABASE_URL.trim();
   if (trimmedUrl.startsWith("postgres://")) {
     process.env.DATABASE_URL = trimmedUrl.replace(/^postgres:\/\//, "postgresql://");
+    console.log("[DB-NORM] Normalized postgres:// to postgresql://");
   } else {
     process.env.DATABASE_URL = trimmedUrl;
   }
@@ -89,7 +96,56 @@ app.use(
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-app.get("/", (_req, res) => res.json({ success: true, message: "LabelGen API is running" }));
+app.get("/", (_req, res) => {
+  res.type("html").status(200).send(`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LabelGen API</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #f8fbff 0%, #e9f2ff 100%);
+        color: #0f172a;
+      }
+      .card {
+        width: min(680px, 92vw);
+        padding: 2rem;
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow: 0 16px 36px rgba(15, 23, 42, 0.12);
+        text-align: center;
+      }
+      h1 {
+        margin: 0 0 0.75rem;
+        font-size: clamp(1.6rem, 2.2vw, 2rem);
+      }
+      p {
+        margin: 0;
+        font-size: 1.05rem;
+        color: #334155;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>LabelGen API</h1>
+      <p>API is running successfully</p>
+    </main>
+  </body>
+</html>`);
+});
 app.get("/api", (_req, res) => res.json({ success: true, message: "LabelGen API is running" }));
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
@@ -270,15 +326,16 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 await ensureStorageDirs();
 await ensureDefaultPlans().catch(err => console.error("Failed to seed default plans:", err));
 startCleanupCron();
-console.log(`PORT: ${env.PORT}`);
-const server = app.listen(env.PORT, '0.0.0.0', () => {
+const PORT = Number(process.env.PORT ?? env.PORT ?? 3000);
+console.log(`PORT: ${PORT}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
   // eslint-disable-next-line no-console
-  console.log(`API listening on http://0.0.0.0:${env.PORT}`);
+  console.log(`API listening on http://0.0.0.0:${PORT}`);
 });
 
 server.on("error", (err: any) => {
   if (err?.code === "EADDRINUSE") {
-    console.error(`API port ${env.PORT} is already in use. Stop the other running API process and try again.`);
+    console.error(`API port ${PORT} is already in use. Stop the other running API process and try again.`);
     process.exit(1);
   }
   console.error("API server error:", err);

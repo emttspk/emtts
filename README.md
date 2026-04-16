@@ -41,13 +41,12 @@ If you see "Failed to reach API endpoint":
 
 ## Production Prisma Workflow
 - Deploy with migrations only: `npx prisma migrate deploy && node dist/index.js`
-- Startup includes a Prisma preflight guard (`prestart`) that blocks non-empty databases missing `_prisma_migrations`.
-- If production DB is empty: run deploy normally.
-- If production DB is non-empty and has no `_prisma_migrations` table, pick one path:
-   - Reset path (destructive): reset DB to empty, then run `prisma migrate deploy`.
-   - Baseline path (non-destructive): mark baseline as applied, then deploy remaining migrations:
-      - `npm run prisma:baseline:mark-init -w apps/api`
-      - `npm run prisma:migrate:deploy -w apps/api`
+- Ensure database is clean/empty before first deployment.
+- Migrations will run on startup and create all required tables.
+- **CRITICAL:** Use Railway internal database URL only:
+  - Use: `postgresql://[user]:[password]@postgres.railway.internal:5432/[database]`
+  - Not external URLs; they cause P3005 errors and migration mismatches.
+- Startup logs will display which database host is being connected to for verification.
 
 ## Notes
 - Upload limit: max 5000 records per file (CSV/XLSX).
