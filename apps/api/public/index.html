@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LabelGen Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 900px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        .controls {
+            margin-bottom: 30px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1em;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: 600;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            font-size: 0.95em;
+        }
+        
+        .status.loading {
+            background: #e3f2fd;
+            color: #1976d2;
+            border-left: 4px solid #1976d2;
+        }
+        
+        .status.success {
+            background: #e8f5e9;
+            color: #388e3c;
+            border-left: 4px solid #388e3c;
+        }
+        
+        .status.error {
+            background: #ffebee;
+            color: #d32f2f;
+            border-left: 4px solid #d32f2f;
+        }
+        
+        .table-wrapper {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        
+        thead {
+            background: #f5f5f5;
+        }
+        
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+            color: #555;
+        }
+        
+        tr:hover {
+            background: #f9f9f9;
+        }
+        
+        .empty {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-size: 1.1em;
+        }
+        
+        .api-info {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f0f4ff;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+            font-size: 0.9em;
+            color: #555;
+        }
+        
+        .api-info p {
+            margin: 8px 0;
+        }
+        
+        .api-info code {
+            background: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: "Courier New", monospace;
+            color: #d32f2f;
+        }
+        
+        .health-check {
+            margin-top: 20px;
+            padding: 12px;
+            background: #e8f5e9;
+            border-radius: 6px;
+            color: #388e3c;
+            font-size: 0.95em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>LabelGen Dashboard</h1>
+        <p class="subtitle">Subscription Plans Management</p>
+        
+        <div class="controls">
+            <button id="loadPlansBtn">Load Plans</button>
+            <button id="healthCheckBtn">Check Health</button>
+        </div>
+        
+        <div id="status"></div>
+        
+        <div id="plansContainer" style="display: none;">
+            <div class="table-wrapper">
+                <table id="plansTable">
+                    <thead>
+                        <tr>
+                            <th>Plan Name</th>
+                            <th>Price (¢)</th>
+                            <th>Monthly Labels</th>
+                            <th>Monthly Tracking</th>
+                            <th>Created</th>
+                        </tr>
+                    </thead>
+                    <tbody id="plansList">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="api-info">
+            <p><strong>API Endpoints Used:</strong></p>
+            <p>• Plans: <code>GET /api/plans</code></p>
+            <p><strong>Backend:</strong> LabelGen API running on Railway</p>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = window.location.origin; // Uses current domain
+        const loadPlansBtn = document.getElementById('loadPlansBtn');
+        const healthCheckBtn = document.getElementById('healthCheckBtn');
+        const statusDiv = document.getElementById('status');
+        const plansContainer = document.getElementById('plansContainer');
+        const plansList = document.getElementById('plansList');
+
+        // Show status message
+        function showStatus(message, type = 'info') {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            statusDiv.style.display = 'block';
+        }
+
+        // Hide status message
+        function hideStatus() {
+            statusDiv.style.display = 'none';
+        }
+
+        // Format date
+        function formatDate(dateString) {
+            try {
+                return new Date(dateString).toLocaleDateString();
+            } catch {
+                return 'N/A';
+            }
+        }
+
+        // Load plans from API
+        async function loadPlans() {
+            loadPlansBtn.disabled = true;
+            showStatus('Loading plans...', 'loading');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/plans`);
+                
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data.plans || !Array.isArray(data.plans)) {
+                    throw new Error('Invalid response format: missing plans array');
+                }
+                
+                // Clear table
+                plansList.innerHTML = '';
+                
+                // Populate table
+                if (data.plans.length === 0) {
+                    plansList.innerHTML = '<tr><td colspan="5" class="empty">No plans found</td></tr>';
+                } else {
+                    data.plans.forEach(plan => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td><strong>${escapeHtml(plan.name)}</strong></td>
+                            <td>${plan.priceCents}</td>
+                            <td>${plan.monthlyLabelLimit}</td>
+                            <td>${plan.monthlyTrackingLimit || 0}</td>
+                            <td>${formatDate(plan.createdAt)}</td>
+                        `;
+                        plansList.appendChild(row);
+                    });
+                }
+                
+                plansContainer.style.display = 'block';
+                showStatus(`Successfully loaded ${data.plans.length} plan(s)`, 'success');
+                
+            } catch (error) {
+                console.error('Error loading plans:', error);
+                showStatus(`Error: ${error.message}`, 'error');
+                plansContainer.style.display = 'none';
+            } finally {
+                loadPlansBtn.disabled = false;
+            }
+        }
+
+        // Check API health
+        async function checkHealth() {
+            healthCheckBtn.disabled = true;
+            showStatus('Checking API health...', 'loading');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/health`);
+                
+                if (!response.ok) {
+                    throw new Error(`Health check failed: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.ok) {
+                    showStatus('✓ Backend API is healthy', 'success');
+                } else {
+                    showStatus('⚠ Backend API returned unexpected response', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Health check failed:', error);
+                showStatus(`Health check failed: ${error.message}`, 'error');
+            } finally {
+                healthCheckBtn.disabled = false;
+            }
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Event listeners
+        loadPlansBtn.addEventListener('click', loadPlans);
+        healthCheckBtn.addEventListener('click', checkHealth);
+
+        // Load plans on page load (optional)
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('LabelGen Dashboard loaded');
+            console.log('API Base URL:', API_BASE_URL);
+        });
+    </script>
+</body>
+</html>

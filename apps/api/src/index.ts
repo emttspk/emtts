@@ -121,11 +121,10 @@ app.use(
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-app.get('/', (req, res) => {
-res.setHeader('Content-Type', 'text/html');
-res.send(`     <html>       <head>         <title>LabelGen API</title>       </head>       <body style="font-family: Arial; text-align:center; margin-top:50px;">         <h1>LabelGen API is running</h1>         <p>Backend is live on Railway</p>       </body>     </html>
-  `);
-});
+// Serve static files from public directory
+app.use(express.static("public"));
+
+// API routes
 app.get("/api", (_req, res) => res.json({ success: true, message: "LabelGen API is running" }));
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
