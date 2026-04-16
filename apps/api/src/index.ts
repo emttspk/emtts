@@ -15,6 +15,23 @@ import { ensureStorageDirs } from "./storage/paths.js";
 import { startCleanupCron } from "./cron/cleanup.js";
 import { requireAuth } from "./middleware/auth.js";
 
+// CRITICAL: Validate DATABASE_URL before any Prisma operations
+console.log("DATABASE_URL exists:", !!process.env.DATABASE_URL);
+
+if (!process.env.DATABASE_URL) {
+  console.error("DATABASE_URL is missing");
+  console.error("For Railway: Link a PostgreSQL database service. It will auto-inject DATABASE_URL.");
+  console.error("For local dev: Ensure .env file exists with DATABASE_URL set.");
+  process.exit(1);
+}
+
+if (!process.env.DATABASE_URL.startsWith("postgresql://") && !process.env.DATABASE_URL.startsWith("postgres://")) {
+  console.error("Invalid DATABASE_URL format");
+  console.error(`Received: ${process.env.DATABASE_URL.substring(0, 50)}...`);
+  console.error("Must start with postgresql:// or postgres://");
+  process.exit(1);
+}
+
 console.log("🚀 Starting LabelGen API server FIXED...");
 console.log(`[STARTUP] NODE_ENV=${process.env.NODE_ENV}`);
 console.log(`[STARTUP] DATABASE_URL is set: ${process.env.DATABASE_URL ? "yes" : "no"}`);
