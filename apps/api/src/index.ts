@@ -130,8 +130,7 @@ validateEnvironment();
 await ensureDatabaseConnection();
 
 const shouldStartWorkerInApi =
-  process.env.START_WORKER_IN_API === "true" ||
-  (process.env.NODE_ENV === "production" && process.env.START_WORKER_IN_API !== "false");
+  process.env.START_WORKER_IN_API === "true";
 
 if (shouldStartWorkerInApi) {
   try {
@@ -141,6 +140,8 @@ if (shouldStartWorkerInApi) {
     console.error("[STARTUP] Failed to start embedded worker:", error);
     process.exit(1);
   }
+} else {
+  console.log("[STARTUP] Embedded worker disabled. Run a dedicated worker process via: npm run worker -w @labelgen/api");
 }
 
 const app = express();

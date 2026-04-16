@@ -10,7 +10,7 @@ import { Prisma } from "@prisma/client";
 import { env } from "./config.js";
 import { prisma } from "./lib/prisma.js";
 import { labelQueue, labelQueueName, trackingQueue, trackingQueueName } from "./queue/queue.js";
-import { getRedisConnection } from "./queue/redis.js";
+import { ensureRedisConnection, getRedisConnection } from "./queue/redis.js";
 import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, toStoredPath, waitForStoredFile } from "./storage/paths.js";
 import { parseOrdersFromFile } from "./parse/orders.js";
 import { moneyOrderHtml, renderLabelDocumentHtml, type LabelOrder } from "./templates/labels.js";
@@ -38,6 +38,27 @@ import {
 import { processTracking } from "./services/trackingStatus.js";
 import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "./services/trackingIntelligence.js";
 
+function sanitizeRedisUrl(input: string | undefined | null) {
+  const value = String(input ?? "").trim();
+  if (!value) return "(not set)";
+  return value.replace(/:[^:@]*@/, ":****@");
+}
+
+async function launchWorkerBrowser() {
+  const executablePath = String(process.env.PUPPETEER_EXECUTABLE_PATH ?? "").trim() || undefined;
+  return puppeteer.launch({
+    headless: true,
+    executablePath,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+    ],
+    protocolTimeout: Number(process.env.PUPPETEER_PROTOCOL_TIMEOUT_MS ?? 120_000),
+  });
+}
+
 function normalizeCollectedAmount(input: unknown): number {
   const raw = String(input ?? "").trim();
   if (!raw) return 0;
@@ -48,6 +69,7 @@ function normalizeCollectedAmount(input: unknown): number {
 
 await ensureStorageDirs();
 await prisma.$connect();
+await ensureRedisConnection();
 
 async function reconcileLabelQueueState() {
   const jobs = await prisma.labelJob.findMany({
@@ -348,10 +370,7 @@ const worker = new Worker(
 
     let browser: Browser | undefined;
     try {
-      browser = await puppeteer.launch({
-        headless: true,
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
-      });
+      browser = await launchWorkerBrowser();
 
       // --- Control Flags ---
       const doGenerateLabels = generateLabels === true; // Hard block: false if undefined or false
@@ -721,7 +740,7 @@ worker.on("error", (err) => {
 });
 
 // eslint-disable-next-line no-console
-console.log(`Worker started. Connecting to Redis at ${env.REDIS_URL.replace(/:[^:@]*@/, ":****@")}...`);
+console.log(`Worker started. Connecting to Redis at ${sanitizeRedisUrl(env.REDIS_URL)}...`);
 
 const trackingWorker = new Worker(
   trackingQueueName,

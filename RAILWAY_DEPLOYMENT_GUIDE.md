@@ -1,5 +1,14 @@
 # Railway Deployment - Frontend & Backend Setup
 
+## Build/Runtime Baseline (Railpack)
+
+1. Remove Dockerfile-based deploys and use Railway default builder (Railpack/Nixpacks).
+2. Set build command to: `npm install && npm run build`
+3. API start command: `npm run start`
+4. Worker start command (separate Railway service): `npm run worker -w @labelgen/api`
+
+Do not use `npm install npm run build` because it is an invalid shell command.
+
 ## Issue: "Non-JSON response" in Login/Register
 
 This error typically means the frontend is making API requests that aren't reaching the backend, resulting in HTML error pages instead of JSON responses.
