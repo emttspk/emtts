@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+﻿import { randomUUID } from "node:crypto";
 import { prisma } from "../lib/prisma.js";
 
 type ProcessedShape = {
@@ -26,6 +26,19 @@ type DerivedMetrics = {
 };
 
 let tablesReady = false;
+
+function toPgSql(query: string): string {
+  let index = 0;
+  return query.replace(/\?/g, () => `$${++index}`);
+}
+
+async function execRaw(db: any, query: string, ...params: unknown[]) {
+  return db.$executeRawUnsafe(toPgSql(query), ...params);
+}
+
+async function queryRaw<T>(db: any, query: string, ...params: unknown[]): Promise<T> {
+  return db.$queryRawUnsafe(toPgSql(query), ...params) as Promise<T>;
+}
 
 function txt(v: unknown): string {
   return String(v ?? "").trim();
@@ -174,7 +187,7 @@ function toReason(desc: string): string {
 
 async function ensureIntelligenceTables() {
   if (tablesReady) return;
-  await prisma.$executeRawUnsafe(`
+  await execRaw(prisma, `
     CREATE TABLE IF NOT EXISTS tracking_core_intelligence (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -193,9 +206,9 @@ async function ensureIntelligenceTables() {
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
-  await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS idx_tracking_core_user_tracking ON tracking_core_intelligence(user_id, tracking_id)`);
+  await execRaw(prisma, `CREATE UNIQUE INDEX IF NOT EXISTS idx_tracking_core_user_tracking ON tracking_core_intelligence(user_id, tracking_id)`);
 
-  await prisma.$executeRawUnsafe(`
+  await execRaw(prisma, `
     CREATE TABLE IF NOT EXISTS tracking_events_intelligence (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -210,9 +223,9 @@ async function ensureIntelligenceTables() {
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
-  await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS idx_tracking_events_unique ON tracking_events_intelligence(user_id, tracking_id, event_order, event_time, event_description)`);
+  await execRaw(prisma, `CREATE UNIQUE INDEX IF NOT EXISTS idx_tracking_events_unique ON tracking_events_intelligence(user_id, tracking_id, event_order, event_time, event_description)`);
 
-  await prisma.$executeRawUnsafe(`
+  await execRaw(prisma, `
     CREATE TABLE IF NOT EXISTS tracking_derived_metrics_intelligence (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -227,19 +240,19 @@ async function ensureIntelligenceTables() {
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
-  await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS idx_tracking_metrics_user_tracking ON tracking_derived_metrics_intelligence(user_id, tracking_id)`);
+  await execRaw(prisma, `CREATE UNIQUE INDEX IF NOT EXISTS idx_tracking_metrics_user_tracking ON tracking_derived_metrics_intelligence(user_id, tracking_id)`);
 
-  await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS route_performance_intelligence (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, origin_city TEXT, destination_city TEXT, total_shipments INTEGER NOT NULL DEFAULT 0, delivered_count INTEGER NOT NULL DEFAULT 0, returned_count INTEGER NOT NULL DEFAULT 0, avg_delivery_time REAL, delay_rate REAL, success_rate REAL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
-  await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS delivery_office_performance_intelligence (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, delivery_office TEXT, city TEXT, total_parcels INTEGER NOT NULL DEFAULT 0, delivered_count INTEGER NOT NULL DEFAULT 0, returned_count INTEGER NOT NULL DEFAULT 0, avg_last_mile_time REAL, failure_rate REAL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
-  await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS failure_reasons_intelligence (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, reason TEXT, city TEXT, delivery_office TEXT, count INTEGER NOT NULL DEFAULT 0, percentage REAL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
-  await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS time_analysis_intelligence (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, hour_of_day INTEGER, day_of_week INTEGER, delivery_count INTEGER NOT NULL DEFAULT 0, success_rate REAL, avg_delivery_time REAL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
-  await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS return_behavior_intelligence (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, city TEXT, return_rate REAL, avg_return_days REAL, common_reason TEXT, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
-  await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS seller_performance_intelligence (id TEXT PRIMARY KEY, user_id TEXT NOT NULL UNIQUE, total_shipments INTEGER NOT NULL DEFAULT 0, success_rate REAL, return_rate REAL, avg_delivery_time REAL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
-  await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS cod_payment_tracking_intelligence (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, tracking_id TEXT NOT NULL, collect_amount REAL, payment_status TEXT, payment_date TEXT, payment_delay_days REAL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
-  await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS idx_cod_payment_user_tracking ON cod_payment_tracking_intelligence(user_id, tracking_id)`);
-  await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS tracking_predictions_intelligence (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, tracking_id TEXT NOT NULL, expected_delivery_time_hours REAL, delay_probability REAL, return_probability REAL, risk_band TEXT, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
-  await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS idx_predictions_user_tracking ON tracking_predictions_intelligence(user_id, tracking_id)`);
-  await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS business_dashboard_intelligence (id TEXT PRIMARY KEY, user_id TEXT NOT NULL UNIQUE, best_cities_json TEXT, worst_routes_json TEXT, cod_risk_zones_json TEXT, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
+  await execRaw(prisma, `CREATE TABLE IF NOT EXISTS route_performance_intelligence (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, origin_city TEXT, destination_city TEXT, total_shipments INTEGER NOT NULL DEFAULT 0, delivered_count INTEGER NOT NULL DEFAULT 0, returned_count INTEGER NOT NULL DEFAULT 0, avg_delivery_time REAL, delay_rate REAL, success_rate REAL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
+  await execRaw(prisma, `CREATE TABLE IF NOT EXISTS delivery_office_performance_intelligence (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, delivery_office TEXT, city TEXT, total_parcels INTEGER NOT NULL DEFAULT 0, delivered_count INTEGER NOT NULL DEFAULT 0, returned_count INTEGER NOT NULL DEFAULT 0, avg_last_mile_time REAL, failure_rate REAL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
+  await execRaw(prisma, `CREATE TABLE IF NOT EXISTS failure_reasons_intelligence (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, reason TEXT, city TEXT, delivery_office TEXT, count INTEGER NOT NULL DEFAULT 0, percentage REAL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
+  await execRaw(prisma, `CREATE TABLE IF NOT EXISTS time_analysis_intelligence (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, hour_of_day INTEGER, day_of_week INTEGER, delivery_count INTEGER NOT NULL DEFAULT 0, success_rate REAL, avg_delivery_time REAL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
+  await execRaw(prisma, `CREATE TABLE IF NOT EXISTS return_behavior_intelligence (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, city TEXT, return_rate REAL, avg_return_days REAL, common_reason TEXT, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
+  await execRaw(prisma, `CREATE TABLE IF NOT EXISTS seller_performance_intelligence (id TEXT PRIMARY KEY, user_id TEXT NOT NULL UNIQUE, total_shipments INTEGER NOT NULL DEFAULT 0, success_rate REAL, return_rate REAL, avg_delivery_time REAL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
+  await execRaw(prisma, `CREATE TABLE IF NOT EXISTS cod_payment_tracking_intelligence (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, tracking_id TEXT NOT NULL, collect_amount REAL, payment_status TEXT, payment_date TEXT, payment_delay_days REAL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
+  await execRaw(prisma, `CREATE UNIQUE INDEX IF NOT EXISTS idx_cod_payment_user_tracking ON cod_payment_tracking_intelligence(user_id, tracking_id)`);
+  await execRaw(prisma, `CREATE TABLE IF NOT EXISTS tracking_predictions_intelligence (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, tracking_id TEXT NOT NULL, expected_delivery_time_hours REAL, delay_probability REAL, return_probability REAL, risk_band TEXT, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
+  await execRaw(prisma, `CREATE UNIQUE INDEX IF NOT EXISTS idx_predictions_user_tracking ON tracking_predictions_intelligence(user_id, tracking_id)`);
+  await execRaw(prisma, `CREATE TABLE IF NOT EXISTS business_dashboard_intelligence (id TEXT PRIMARY KEY, user_id TEXT NOT NULL UNIQUE, best_cities_json TEXT, worst_routes_json TEXT, cod_risk_zones_json TEXT, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
   tablesReady = true;
 }
 
@@ -276,7 +289,7 @@ export async function persistTrackingIntelligence(input: {
   const coreId = `${userId}:${trackingId}`;
 
   await prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe(
+    await execRaw(tx, 
       `INSERT INTO tracking_core_intelligence
        (id, user_id, tracking_id, service_type, booking_date, origin_city, destination_city, booking_office, delivery_office, current_status, system_status, is_delivered, is_returned, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -297,9 +310,9 @@ export async function persistTrackingIntelligence(input: {
       isDelivered ? 1 : 0, isReturned ? 1 : 0,
     );
 
-    await tx.$executeRawUnsafe(`DELETE FROM tracking_events_intelligence WHERE user_id = ? AND tracking_id = ?`, userId, trackingId);
+    await execRaw(tx, `DELETE FROM tracking_events_intelligence WHERE user_id = ? AND tracking_id = ?`, userId, trackingId);
     for (const ev of events) {
-      await tx.$executeRawUnsafe(
+      await execRaw(tx, 
         `INSERT INTO tracking_events_intelligence
          (id, user_id, tracking_id, event_time, event_city, event_description, event_type, office_type, bag_id, event_order)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -307,7 +320,7 @@ export async function persistTrackingIntelligence(input: {
       );
     }
 
-    await tx.$executeRawUnsafe(
+    await execRaw(tx, 
       `INSERT INTO tracking_derived_metrics_intelligence
        (id, user_id, tracking_id, total_delivery_time_hours, dmo_to_dmo_time, last_mile_time, return_time, delivery_attempts, delay_flag, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -329,7 +342,7 @@ export async function persistTrackingIntelligence(input: {
         : systemStatus.startsWith("RETURN")
           ? "PAYMENT_STOPPED"
           : "PENDING";
-    await tx.$executeRawUnsafe(
+    await execRaw(tx, 
       `INSERT INTO cod_payment_tracking_intelligence
        (id, user_id, tracking_id, collect_amount, payment_status, payment_date, payment_delay_days, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -349,9 +362,9 @@ export async function refreshTrackingIntelligenceAggregates(userIdInput: string)
   const userId = txt(userIdInput);
   if (!userId) return;
 
-  const core = await prisma.$queryRawUnsafe<Array<any>>(`SELECT * FROM tracking_core_intelligence WHERE user_id = ?`, userId);
-  const metrics = await prisma.$queryRawUnsafe<Array<any>>(`SELECT * FROM tracking_derived_metrics_intelligence WHERE user_id = ?`, userId);
-  const events = await prisma.$queryRawUnsafe<Array<any>>(`SELECT * FROM tracking_events_intelligence WHERE user_id = ?`, userId);
+  const core = await queryRaw<Array<any>>(prisma, `SELECT * FROM tracking_core_intelligence WHERE user_id = ?`, userId);
+  const metrics = await queryRaw<Array<any>>(prisma, `SELECT * FROM tracking_derived_metrics_intelligence WHERE user_id = ?`, userId);
+  const events = await queryRaw<Array<any>>(prisma, `SELECT * FROM tracking_events_intelligence WHERE user_id = ?`, userId);
 
   const metricByTracking = new Map<string, any>();
   metrics.forEach((m) => metricByTracking.set(String(m.tracking_id), m));
@@ -426,16 +439,16 @@ export async function refreshTrackingIntelligenceAggregates(userIdInput: string)
   const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
 
   await prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe(`DELETE FROM route_performance_intelligence WHERE user_id = ?`, userId);
-    await tx.$executeRawUnsafe(`DELETE FROM delivery_office_performance_intelligence WHERE user_id = ?`, userId);
-    await tx.$executeRawUnsafe(`DELETE FROM failure_reasons_intelligence WHERE user_id = ?`, userId);
-    await tx.$executeRawUnsafe(`DELETE FROM time_analysis_intelligence WHERE user_id = ?`, userId);
-    await tx.$executeRawUnsafe(`DELETE FROM return_behavior_intelligence WHERE user_id = ?`, userId);
+    await execRaw(tx, `DELETE FROM route_performance_intelligence WHERE user_id = ?`, userId);
+    await execRaw(tx, `DELETE FROM delivery_office_performance_intelligence WHERE user_id = ?`, userId);
+    await execRaw(tx, `DELETE FROM failure_reasons_intelligence WHERE user_id = ?`, userId);
+    await execRaw(tx, `DELETE FROM time_analysis_intelligence WHERE user_id = ?`, userId);
+    await execRaw(tx, `DELETE FROM return_behavior_intelligence WHERE user_id = ?`, userId);
 
     for (const r of routeMap.values()) {
       const successRate = r.total > 0 ? (r.delivered / r.total) * 100 : 0;
       const delayRate = r.total > 0 ? (r.delay / r.total) * 100 : 0;
-      await tx.$executeRawUnsafe(
+      await execRaw(tx, 
         `INSERT INTO route_performance_intelligence
          (id, user_id, origin_city, destination_city, total_shipments, delivered_count, returned_count, avg_delivery_time, delay_rate, success_rate, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
@@ -445,7 +458,7 @@ export async function refreshTrackingIntelligenceAggregates(userIdInput: string)
 
     for (const o of officeMap.values()) {
       const failureRate = o.total > 0 ? (o.failed / o.total) * 100 : 0;
-      await tx.$executeRawUnsafe(
+      await execRaw(tx, 
         `INSERT INTO delivery_office_performance_intelligence
          (id, user_id, delivery_office, city, total_parcels, delivered_count, returned_count, avg_last_mile_time, failure_rate, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
@@ -466,7 +479,7 @@ export async function refreshTrackingIntelligenceAggregates(userIdInput: string)
       reasonMap.set(key, row);
     });
     for (const r of reasonMap.values()) {
-      await tx.$executeRawUnsafe(
+      await execRaw(tx, 
         `INSERT INTO failure_reasons_intelligence
          (id, user_id, reason, city, delivery_office, count, percentage, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
@@ -476,7 +489,7 @@ export async function refreshTrackingIntelligenceAggregates(userIdInput: string)
 
     for (const t of timeMap.values()) {
       const successRate = t.total > 0 ? (t.delivered / t.total) * 100 : 0;
-      await tx.$executeRawUnsafe(
+      await execRaw(tx, 
         `INSERT INTO time_analysis_intelligence
          (id, user_id, hour_of_day, day_of_week, delivery_count, success_rate, avg_delivery_time, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
@@ -494,7 +507,7 @@ export async function refreshTrackingIntelligenceAggregates(userIdInput: string)
         }
       }
       const returnRate = b.total > 0 ? (b.returned / b.total) * 100 : 0;
-      await tx.$executeRawUnsafe(
+      await execRaw(tx, 
         `INSERT INTO return_behavior_intelligence
          (id, user_id, city, return_rate, avg_return_days, common_reason, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
@@ -507,10 +520,10 @@ export async function refreshTrackingIntelligenceAggregates(userIdInput: string)
 }
 
 async function refreshPredictionAndBusinessLayer(userId: string) {
-  const core = await prisma.$queryRawUnsafe<Array<any>>(`SELECT * FROM tracking_core_intelligence WHERE user_id = ?`, userId);
-  const metrics = await prisma.$queryRawUnsafe<Array<any>>(`SELECT * FROM tracking_derived_metrics_intelligence WHERE user_id = ?`, userId);
-  const routes = await prisma.$queryRawUnsafe<Array<any>>(`SELECT * FROM route_performance_intelligence WHERE user_id = ?`, userId);
-  const returnBehavior = await prisma.$queryRawUnsafe<Array<any>>(`SELECT * FROM return_behavior_intelligence WHERE user_id = ?`, userId);
+  const core = await queryRaw<Array<any>>(prisma, `SELECT * FROM tracking_core_intelligence WHERE user_id = ?`, userId);
+  const metrics = await queryRaw<Array<any>>(prisma, `SELECT * FROM tracking_derived_metrics_intelligence WHERE user_id = ?`, userId);
+  const routes = await queryRaw<Array<any>>(prisma, `SELECT * FROM route_performance_intelligence WHERE user_id = ?`, userId);
+  const returnBehavior = await queryRaw<Array<any>>(prisma, `SELECT * FROM return_behavior_intelligence WHERE user_id = ?`, userId);
 
   const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
   const metricMap = new Map(metrics.map((m) => [String(m.tracking_id), m]));
@@ -518,14 +531,14 @@ async function refreshPredictionAndBusinessLayer(userId: string) {
   const sellerAvg = avg(metrics.map((m) => Number(m.total_delivery_time_hours)).filter((v) => Number.isFinite(v)) as number[]) ?? 0;
 
   await prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe(`DELETE FROM tracking_predictions_intelligence WHERE user_id = ?`, userId);
+    await execRaw(tx, `DELETE FROM tracking_predictions_intelligence WHERE user_id = ?`, userId);
     for (const c of core) {
       const route = routeMap.get(`${txt(c.origin_city)}|${txt(c.destination_city)}`);
       const expectedDelivery = route ? Number(route.avg_delivery_time ?? sellerAvg) : sellerAvg;
       const delayProb = Math.min(0.95, Math.max(0.05, Number(route?.delay_rate ?? 20) / 100));
       const returnProb = Math.min(0.95, Math.max(0.01, Number(route?.returned_count ?? 0) / Math.max(1, Number(route?.total_shipments ?? 1))));
       const riskBand = delayProb >= 0.6 || returnProb >= 0.6 ? "HIGH" : delayProb >= 0.3 || returnProb >= 0.3 ? "MEDIUM" : "LOW";
-      await tx.$executeRawUnsafe(
+      await execRaw(tx, 
         `INSERT INTO tracking_predictions_intelligence
          (id, user_id, tracking_id, expected_delivery_time_hours, delay_probability, return_probability, risk_band, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
@@ -550,7 +563,7 @@ async function refreshPredictionAndBusinessLayer(userId: string) {
       .slice(0, 5)
       .map((r) => ({ city: txt(r.city), returnRate: Number(r.return_rate ?? 0) }));
 
-    await tx.$executeRawUnsafe(
+    await execRaw(tx, 
       `INSERT INTO business_dashboard_intelligence
        (id, user_id, best_cities_json, worst_routes_json, cod_risk_zones_json, updated_at)
        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -563,3 +576,5 @@ async function refreshPredictionAndBusinessLayer(userId: string) {
     );
   });
 }
+
+

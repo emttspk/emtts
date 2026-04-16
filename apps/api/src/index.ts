@@ -89,6 +89,17 @@ function validateEnvironment() {
     process.env.JWT_SECRET = "development-jwt-secret-at-least-32-chars-long";
   }
 
+  const redisUrl = String(process.env.REDIS_URL ?? "").trim();
+  const queueEnabled = process.env.START_WORKER_IN_API !== "false";
+  const isProduction = process.env.NODE_ENV === "production";
+  if (queueEnabled) {
+    if (!redisUrl) {
+      errors.push("REDIS_URL environment variable is not set. Queue processing requires a Redis service.");
+    } else if (isProduction && /(localhost|127\.0\.0\.1)/i.test(redisUrl)) {
+      errors.push("REDIS_URL points to localhost in production. Configure Railway Redis and set REDIS_URL.");
+    }
+  }
+
   if (errors.length > 0) {
     console.error("❌ STARTUP VALIDATION FAILED:");
     errors.forEach((err) => console.error(`   - ${err}`));
@@ -108,6 +119,20 @@ normalizeDatabaseUrl();
 validateEnvironment();
 // runMigrations() is now handled in package.json start script
 await ensureDatabaseConnection();
+
+const shouldStartWorkerInApi =
+  process.env.START_WORKER_IN_API === "true" ||
+  (process.env.NODE_ENV === "production" && process.env.START_WORKER_IN_API !== "false");
+
+if (shouldStartWorkerInApi) {
+  try {
+    await import("./worker.js");
+    console.log("[STARTUP] Embedded BullMQ worker started in API process");
+  } catch (error) {
+    console.error("[STARTUP] Failed to start embedded worker:", error);
+    process.exit(1);
+  }
+}
 
 const app = express();
 
