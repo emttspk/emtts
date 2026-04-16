@@ -45,13 +45,24 @@ function sanitizeRedisUrl(input: string | undefined | null) {
 }
 
 async function launchWorkerBrowser() {
-  return puppeteer.launch({
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-    ],
-  });
+  console.log("Launching Puppeteer...");
+  try {
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+      ],
+    });
+    console.log("Puppeteer launched successfully");
+    return browser;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[Worker] Puppeteer launch failed: ${message}`);
+    throw error;
+  }
 }
 
 async function waitForRedisReady() {
