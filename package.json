@@ -2,7 +2,8 @@
   "name": "p-post-label-generator",
   "private": true,
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "packages/*"
   ],
   "engines": {
     "node": ">=20"
@@ -12,11 +13,11 @@
     "dev:api": "npm run dev -w apps/api",
     "worker": "npm run worker -w apps/api",
     "dev:all": "concurrently \"npm run dev -w apps/api\" \"npm run worker -w apps/api\" \"npm run dev -w apps/web\"",
-    "build:web": "npm run build -w apps/web",
-    "start:web": "npm run preview -w apps/web",
+    "build:web": "cd apps/web && npm install && npm run build",
+    "start:web": "cd apps/web && npm run preview -- --host 0.0.0.0 --port $PORT",
     "start": "npm run start:web",
-    "build": "npm run build --workspaces --if-present",
-    "build:all": "npm run build --workspaces --if-present"
+    "build": "cd apps/web && npm install && npm run build",
+    "build:all": "cd apps/web && npm install && npm run build"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
