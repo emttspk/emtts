@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { createCanvas } from "canvas";
 import JsBarcode from "jsbarcode";
-import puppeteer, { type Browser } from "puppeteer";
+import puppeteer from "puppeteer";
 import path from "node:path";
 import { Prisma } from "@prisma/client";
 import { env } from "./config.js";
@@ -45,15 +45,13 @@ function sanitizeRedisUrl(input: string | undefined | null) {
 }
 
 async function launchWorkerBrowser() {
-  console.log("Launching Puppeteer...");
+  console.log("Launching Puppeteer with bundled Chromium");
   try {
     const browser = await puppeteer.launch({
-      headless: true,
+      headless: "new" as any,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
       ],
     });
     console.log("Puppeteer launched successfully");
@@ -392,7 +390,7 @@ const worker = new Worker(
 
     await prisma.labelJob.update({ where: { id: jobId }, data: { status: "PROCESSING", error: null } });
 
-    let browser: Browser | undefined;
+    let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined;
     try {
       browser = await launchWorkerBrowser();
 

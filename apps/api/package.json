@@ -9,7 +9,7 @@
     "worker:dev": "tsx --env-file=.env src/worker.ts",
     "worker": "node dist/worker.js",
     "start": "node dist/index.js",
-    "prisma:generate": "npx prisma generate --schema=prisma/schema.prisma",
+    "prisma:generate": "prisma generate --schema=prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev --schema=prisma/schema.prisma",
     "prisma:studio": "prisma studio --schema=prisma/schema.prisma"
   },

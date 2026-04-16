@@ -3,6 +3,14 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "baseUrl": ".",
+    "paths": {
+      "bullmq": ["../../node_modules/bullmq"],
+      "canvas": ["../../node_modules/canvas"],
+      "jsbarcode": ["../../node_modules/jsbarcode"],
+      "puppeteer": ["../../node_modules/puppeteer"],
+      "@prisma/client": ["../../node_modules/@prisma/client"]
+    },
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": false,
