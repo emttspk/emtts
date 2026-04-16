@@ -27,8 +27,9 @@ RUN npm install
 # Copy API source code
 COPY apps/api ./
 
-# Copy web dist to be served by API
-COPY --from=0 /app/apps/web/dist ../web/dist
+# Explicitly copy web dist to the right location
+RUN mkdir -p ../web/dist
+COPY --from=0 /app/apps/web/dist /app/apps/web/dist
 
 # Generate Prisma client and build the API
 RUN npx prisma generate --schema=prisma/schema.prisma
