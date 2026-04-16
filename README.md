@@ -41,6 +41,7 @@ If you see "Failed to reach API endpoint":
 
 ## Production Prisma Workflow
 - Deploy with migrations only: `npx prisma migrate deploy && node dist/index.js`
+- Startup includes a Prisma preflight guard (`prestart`) that blocks non-empty databases missing `_prisma_migrations`.
 - If production DB is empty: run deploy normally.
 - If production DB is non-empty and has no `_prisma_migrations` table, pick one path:
    - Reset path (destructive): reset DB to empty, then run `prisma migrate deploy`.

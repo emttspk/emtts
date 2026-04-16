@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
   "dev": "tsx watch --ignore storage/** --ignore apps/api/storage/** --env-file=.env src/index.ts",
+  "prestart": "node scripts/prisma-preflight.mjs",
   "build": "tsc",
   "worker": "tsx --env-file=.env src/worker.ts",
   "start": "npx prisma migrate deploy && node dist/index.js",
