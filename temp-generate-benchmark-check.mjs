@@ -58,7 +58,15 @@ async function main() {
   });
   const labelHtml = labelsHtml([order], { autoGenerateTracking: false, includeMoneyOrders: true });
 
-  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox", "--disable-setuid-sandbox"] });
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu"
+    ]
+  });
   try {
     const renderPdf = async (html) => {
       const page = await browser.newPage();

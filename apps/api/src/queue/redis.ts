@@ -1,10 +1,14 @@
-export { connection } from "../lib/redis.js";
-import { connection } from "../lib/redis.js";
+export { connection, redis } from "../lib/redis.js";
+import { redis } from "../lib/redis.js";
 
 export function getRedisConnection() {
-  return connection;
+  return redis;
 }
 
 export async function ensureRedisConnection() {
-  return connection;
+  if (redis.status === "wait") {
+    await redis.connect();
+  }
+  await redis.ping();
+  return redis;
 }

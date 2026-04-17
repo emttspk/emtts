@@ -2,12 +2,10 @@ import puppeteer, { type Browser } from "puppeteer";
 
 export async function launchPuppeteerBrowser() {
   const browser = await puppeteer.launch({
-    headless: true,
+    headless: "new" as any,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-gpu",
     ],
   });
   return browser;

@@ -1,11 +1,11 @@
 {
   "name": "@labelgen/web",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host",
     "start": "node scripts/start.cjs"
   },
   "dependencies": {

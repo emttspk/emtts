@@ -1,30 +1,18 @@
-import IORedis from "ioredis";
+import Redis from "ioredis";
 
-// @ts-expect-error ioredis default import is constructable at runtime in this project setup.
-export const connection = new IORedis(process.env.REDIS_URL!, {
+export const redis = new Redis(process.env.REDIS_URL, {
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
-
-  // REQUIRED FOR RAILWAY TLS
-  tls: {},
-  family: 0,
-
-  connectTimeout: 20000,
-  commandTimeout: 20000,
-
+  connectTimeout: 10000,
+  commandTimeout: 10000,
+  lazyConnect: true,
   retryStrategy(times) {
-    return Math.min(times * 500, 5000);
+    return Math.min(times * 200, 2000);
   },
 });
 
-connection.on("connect", () => {
-  console.log("Redis connected");
-});
+export const connection = redis;
 
-connection.on("ready", () => {
-  console.log("Redis ready");
-});
-
-connection.on("error", (err) => {
-  console.error("Redis error:", err);
-});
+redis.on("connect", () => console.log("Redis connected"));
+redis.on("ready", () => console.log("Redis ready"));
+redis.on("error", (err) => console.error("Redis error:", err));

@@ -10,7 +10,7 @@ import path from "node:path";
 import { Prisma } from "@prisma/client";
 import { env } from "./config.js";
 import { prisma } from "./lib/prisma.js";
-import { connection } from "./lib/redis.js";
+import { connection, redis } from "./lib/redis.js";
 import { labelQueue, labelQueueName, trackingQueue, trackingQueueName } from "./queue/queue.js";
 import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, toStoredPath, waitForStoredFile } from "./storage/paths.js";
 import { parseOrdersFromFile } from "./parse/orders.js";
@@ -59,6 +59,8 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: s
   }
 }
 
+const TIMEOUT = 60_000;
+
 const timeout = (ms: number) =>
   new Promise<never>((_, reject) => {
     setTimeout(() => reject(new Error("Job timeout")), ms);
@@ -95,6 +97,10 @@ function normalizeCollectedAmount(input: unknown): number {
 
 await ensureStorageDirs();
 await prisma.$connect();
+if (redis.status === "wait") {
+  await redis.connect();
+}
+await redis.ping();
 console.log("Worker starting...");
 console.log("[WORKER] UPLOAD_DIR:", process.env.UPLOAD_DIR || "/app/storage/uploads");
 console.log("Using Redis:", process.env.REDIS_URL);
@@ -403,8 +409,10 @@ const worker = new Worker(
 
     let browser: Browser | undefined;
     try {
-      // Prefer filePath from job data (set at upload time); fall back to DB uploadPath
-      const resolvedFilePath = jobDataFilePath || job.uploadPath;
+      const resolvedFilePath = String(jobDataFilePath ?? "").trim();
+      if (!resolvedFilePath) {
+        throw new UnrecoverableError("Missing filePath in job data");
+      }
       console.log(`[WORKER] Reading file: ${resolvedFilePath}`);
 
       if (!existsSync(resolvedFilePath)) {
@@ -764,7 +772,7 @@ const worker = new Worker(
     }
     };
 
-    return await Promise.race([processJob(), timeout(30_000)]);
+    return await Promise.race([processJob(), timeout(TIMEOUT)]);
   },
   { connection, concurrency: 1, lockDuration: 60_000 },
 );

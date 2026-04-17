@@ -1,5 +1,6 @@
 {
   "name": "p-post-label-generator",
+  "version": "1.0.0",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -9,11 +10,11 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev:web": "npm run dev -w apps/web",
+    "dev:web": "npm run preview -w apps/web",
     "dev:api": "npm run dev -w apps/api",
     "worker": "npm run worker -w apps/api",
     "worker:dev": "npm run worker:dev -w apps/api",
-    "dev:all": "concurrently \"npm run dev -w apps/api\" \"npm run worker:dev -w apps/api\" \"npm run dev -w apps/web\"",
+    "dev:all": "concurrently \"npm run dev -w apps/api\" \"npm run worker:dev -w apps/api\" \"npm run preview -w apps/web\"",
     "build:web": "cd apps/web && npm install && npm run build",
     "start:web": "cd apps/web && npm run start",
     "start": "node apps/api/dist/index.js",
