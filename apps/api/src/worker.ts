@@ -411,7 +411,17 @@ const worker = new Worker(
     try {
       const uploadDir = path.dirname(job.uploadPath);
       mkdirSync(uploadDir, { recursive: true });
+      console.log(`[DEBUG PATH] job.uploadPath=${job.uploadPath}`);
+      console.log(`[DEBUG PATH] cwd=${process.cwd()}`);
+      console.log(`[DEBUG PATH] uploadDir=${uploadDir}`);
+      try {
+        const dirContents = await fs.readdir(uploadDir);
+        console.log(`[DEBUG PATH] uploadDir contents (${dirContents.length} files):`, dirContents.slice(0, 20).join(", "));
+      } catch {
+        console.warn(`[DEBUG PATH] uploadDir not readable: ${uploadDir}`);
+      }
       if (!existsSync(job.uploadPath)) {
+        console.error(`[DEBUG PATH] FILE NOT FOUND: ${job.uploadPath}`);
         throw new Error(`Upload file not found at ${job.uploadPath}`);
       }
 
