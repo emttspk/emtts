@@ -96,7 +96,7 @@ function normalizeCollectedAmount(input: unknown): number {
 await ensureStorageDirs();
 await prisma.$connect();
 console.log("Worker starting...");
-console.log("REDIS_URL:", process.env.REDIS_URL);
+console.log("Using Redis:", process.env.REDIS_URL);
 
 async function reconcileLabelQueueState() {
   const jobs = await prisma.labelJob.findMany({

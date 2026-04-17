@@ -4,17 +4,16 @@ import IORedis from "ioredis";
 export const connection = new IORedis(process.env.REDIS_URL!, {
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
-  lazyConnect: false,
 
-  // CRITICAL FOR RAILWAY
-  tls: process.env.REDIS_URL?.startsWith("rediss://") ? {} : undefined,
+  // REQUIRED FOR RAILWAY TLS
+  tls: {},
   family: 0,
 
-  connectTimeout: 15000,
-  commandTimeout: 15000,
+  connectTimeout: 20000,
+  commandTimeout: 20000,
 
   retryStrategy(times) {
-    return Math.min(times * 300, 3000);
+    return Math.min(times * 500, 5000);
   },
 });
 
