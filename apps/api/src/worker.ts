@@ -71,7 +71,7 @@ async function safeJob<T>(processJob: () => Promise<T>) {
 
 async function launchWorkerBrowser() {
   console.log("Using puppeteer package:", require.resolve("puppeteer"));
-  console.log("Launching Puppeteer...");
+  console.log("Launching Puppeteer with bundled Chromium");
   try {
     const launchTimeoutMs = Number(process.env.PUPPETEER_LAUNCH_TIMEOUT_MS ?? 30_000);
     const browser = await withTimeout(
@@ -101,6 +101,7 @@ function normalizeCollectedAmount(input: unknown): number {
 await ensureStorageDirs();
 await prisma.$connect();
 await ensureRedisConnection();
+console.log("Worker started");
 console.log("[Worker] Worker started");
 console.log(`[Worker] Redis connected: ${sanitizeRedisUrl(env.REDIS_URL)}`);
 console.log(`[Worker] Upload directory: ${uploadsDir()}`);
@@ -369,6 +370,7 @@ const worker = new Worker(
   labelQueueName,
   async (bullJob) => {
     const processJob = async () => {
+    console.log("Processing job");
     console.log(`[Worker] Processing job ${String(bullJob.id ?? "unknown")}`);
     await prisma.$connect();
     const {
@@ -744,6 +746,7 @@ const worker = new Worker(
       });
 
       await finalizeQueuedToGenerated(job.userId, job.unitCount || job.recordCount);
+      console.log("Job completed");
       console.log(`[Worker] Job completed ${jobId}`);
       console.log(`[Worker] Job ${jobId} completed successfully`);
 
