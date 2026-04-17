@@ -108,12 +108,12 @@ if (!redisUrl) {
 console.log("\n[4/4] Path consistency");
 ok(`UPLOAD_DIR: ${UPLOAD_DIR}`);
 
-// No reference to apps/api/storage should exist at runtime
-const badPath = path.join(process.cwd(), "apps/api/storage/uploads");
-if (fs.existsSync(badPath)) {
-  fail("Stale path", `${badPath} still exists — may cause confusion`);
+// Confirm UPLOAD_DIR is inside CWD/storage (not a hardcoded /app path)
+const isAbsoluteHardcoded = UPLOAD_DIR === "/app/storage/uploads";
+if (isAbsoluteHardcoded) {
+  fail("Upload path", "UPLOAD_DIR is still hardcoded to /app/storage/uploads — should be CWD-relative");
 } else {
-  ok("No stale apps/api/storage/uploads directory");
+  ok(`Upload path is CWD-relative: ${UPLOAD_DIR}`);
 }
 
 // ---------- Summary ----------

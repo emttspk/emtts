@@ -1,15 +1,14 @@
 import puppeteer, { type Browser } from "puppeteer";
 
 export async function launchPuppeteerBrowser() {
-  const bundledExecutablePath = puppeteer.executablePath();
-  console.log(`[Puppeteer] Using bundled Chromium: ${bundledExecutablePath}`);
+  console.log("Launching Puppeteer...");
   const browser = await puppeteer.launch({
-    executablePath: bundledExecutablePath,
-    headless: "new" as any,
-    timeout: Number(process.env.PUPPETEER_LAUNCH_TIMEOUT_MS ?? 30_000),
+    headless: true,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
     ],
   });
   return browser;
