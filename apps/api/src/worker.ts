@@ -10,8 +10,8 @@ import path from "node:path";
 import { Prisma } from "@prisma/client";
 import { env } from "./config.js";
 import { prisma } from "./lib/prisma.js";
+import { connection } from "./lib/redis.js";
 import { labelQueue, labelQueueName, trackingQueue, trackingQueueName } from "./queue/queue.js";
-import { connection } from "./queue/redis.js";
 import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, toStoredPath, waitForStoredFile } from "./storage/paths.js";
 import { parseOrdersFromFile } from "./parse/orders.js";
 import { moneyOrderHtml, renderLabelDocumentHtml, type LabelOrder } from "./templates/labels.js";
@@ -96,7 +96,7 @@ function normalizeCollectedAmount(input: unknown): number {
 await ensureStorageDirs();
 await prisma.$connect();
 console.log("Worker starting...");
-console.log("REDIS URL:", process.env.REDIS_URL ? "SET" : "MISSING");
+console.log("REDIS_URL:", process.env.REDIS_URL);
 
 async function reconcileLabelQueueState() {
   const jobs = await prisma.labelJob.findMany({
@@ -362,7 +362,7 @@ const worker = new Worker(
   labelQueueName,
   async (bullJob) => {
     const processJob = async () => {
-    console.log(`Processing job... ${String(bullJob.id ?? "unknown")}`);
+    console.log("Processing job:", bullJob.id);
     console.log(`Worker processing job: ${String(bullJob.id ?? "unknown")}`);
     await prisma.$connect();
     const {
@@ -770,31 +770,22 @@ const worker = new Worker(
 
     return await Promise.race([processJob(), timeout(30_000)]);
   },
-  { connection, concurrency: 2 },
+  { connection, concurrency: 1, lockDuration: 60_000 },
 );
+
+worker.on("completed", (job) => {
+  // eslint-disable-next-line no-console
+  console.log("Job completed:", job.id);
+});
 
 worker.on("failed", (job, err) => {
   // eslint-disable-next-line no-console
-  console.error("Worker job failed", job?.id, err);
+  console.error("Job failed:", job?.id, err);
 });
 
 worker.on("error", (err) => {
-  const isConnRefused =
-    err.message.includes("ECONNREFUSED") ||
-    (err as any).code === "ECONNREFUSED" ||
-    (err.name === "AggregateError" && (err as any).errors?.some((e: any) => e.code === "ECONNREFUSED"));
-  const isConnReset = err.message.includes("ECONNRESET") || (err as any).code === "ECONNRESET";
-
-  if (isConnRefused) {
-    // eslint-disable-next-line no-console
-    console.error("Could not connect to Redis. Please ensure Redis is running and accessible at the configured URL from your .env file.");
-  } else if (isConnReset) {
-    // eslint-disable-next-line no-console
-    console.error("Redis connection was reset (ECONNRESET). Please ensure Redis is stable/running and retry the job.");
-  } else {
-    // eslint-disable-next-line no-console
-    console.error("A worker error occurred:", err);
-  }
+  // eslint-disable-next-line no-console
+  console.error("Worker error:", err);
 });
 
 // eslint-disable-next-line no-console
