@@ -104,7 +104,8 @@ function validateEnvironment() {
   } else if (isProduction && /(localhost|127\.0\.0\.1)/i.test(redisUrl)) {
     errors.push("REDIS_URL points to localhost in production. Configure Railway Redis and set REDIS_URL.");
   } else if (isProduction && !redisUrl.startsWith("rediss://")) {
-    errors.push("REDIS_URL must use TLS in production. Use rediss://default:password@host:port");
+    // Warn but do not block startup — some Railway plans expose redis:// internally
+    console.warn("⚠️  [Redis] REDIS_URL does not use TLS (rediss://). This is fine for internal Railway networking but ensure the URL is correct.");
   }
   if (isProduction) {
     if (!pythonServiceUrl) {
