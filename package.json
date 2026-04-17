@@ -19,8 +19,7 @@
     "start:web": "cd apps/web && npm run start",
     "start": "npm run start --workspace=@labelgen/api",
     "build": "npm run build --workspace=@labelgen/api && npm run build --workspace=@labelgen/web",
-    "build:all": "npm run build",
-    "postinstall": "npx prisma generate"
+    "build:all": "npm run build"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
