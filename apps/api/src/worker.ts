@@ -1,7 +1,8 @@
 import { UnrecoverableError, Worker } from "bullmq";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
+import { createRequire } from "node:module";
 import { createCanvas } from "canvas";
 import JsBarcode from "jsbarcode";
 import type { Browser } from "puppeteer";
@@ -38,24 +39,36 @@ import {
 import { processTracking } from "./services/trackingStatus.js";
 import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "./services/trackingIntelligence.js";
 
+const require = createRequire(import.meta.url);
+
 function sanitizeRedisUrl(input: string | undefined | null) {
   const value = String(input ?? "").trim();
   if (!value) return "(not set)";
   return value.replace(/:[^:@]*@/, ":****@");
 }
 
-async function launchWorkerBrowser() {
-  console.log("Launching Puppeteer...");
-  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-    console.warn("[Worker] Ignoring PUPPETEER_EXECUTABLE_PATH to force bundled Chromium");
-    delete process.env.PUPPETEER_EXECUTABLE_PATH;
-  }
-  if (process.env.CHROME_BIN) {
-    console.warn("[Worker] Ignoring CHROME_BIN to force bundled Chromium");
-    delete process.env.CHROME_BIN;
-  }
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
   try {
-    const browser = await launchPuppeteerBrowser();
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
+async function launchWorkerBrowser() {
+  console.log("Using puppeteer package:", require.resolve("puppeteer"));
+  console.log("Launching Puppeteer...");
+  try {
+    const launchTimeoutMs = Number(process.env.PUPPETEER_LAUNCH_TIMEOUT_MS ?? 30_000);
+    const browser = await withTimeout(
+      launchPuppeteerBrowser(),
+      launchTimeoutMs,
+      `Puppeteer launch timed out after ${launchTimeoutMs}ms`,
+    );
     const version = await browser.version();
     console.log(`Browser version: ${version}`);
     console.log("Puppeteer launched successfully");
@@ -396,6 +409,12 @@ const worker = new Worker(
 
     let browser: Browser | undefined;
     try {
+      const uploadDir = path.dirname(job.uploadPath);
+      mkdirSync(uploadDir, { recursive: true });
+      if (!existsSync(job.uploadPath)) {
+        throw new Error(`Upload file not found at ${job.uploadPath}`);
+      }
+
       browser = await launchWorkerBrowser();
 
       // --- Control Flags ---

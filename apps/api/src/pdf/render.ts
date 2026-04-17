@@ -1,9 +1,8 @@
 import puppeteer, { type Browser } from "puppeteer";
 
 export async function launchPuppeteerBrowser() {
-  return puppeteer.launch({
+  const browser = await puppeteer.launch({
     headless: true,
-    executablePath: await puppeteer.executablePath(),
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
@@ -11,6 +10,7 @@ export async function launchPuppeteerBrowser() {
       "--disable-gpu",
     ],
   });
+  return browser;
 }
 
 export async function htmlToPdfBuffer(
