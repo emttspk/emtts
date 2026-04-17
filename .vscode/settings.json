@@ -37,6 +37,7 @@
 
   // ─── TypeScript Performance ──────────────────────────────────────────────────
   "typescript.disableAutomaticTypeAcquisition": false,
+  "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.preferences.includePackageJsonAutoImports": "on",
 
   // ─── Editor ─────────────────────────────────────────────────────────────────

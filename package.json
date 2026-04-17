@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "engines": {
-    "node": ">=20"
+    "node": "22.x"
   },
   "scripts": {
     "dev:web": "npm run preview -w apps/web",
@@ -24,6 +24,7 @@
   "devDependencies": {
     "@types/node": "^25.5.0",
     "concurrently": "^9.2.1",
+    "puppeteer": "^22.15.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
