@@ -56,9 +56,7 @@ const requiredRowFields: ReadonlyArray<StrictColumn> = [
 
 export async function parseOrdersFromFile(filePath: string, opts?: { allowMissingTrackingId?: boolean }): Promise<any[]> {
   const fileName = path.basename(String(filePath ?? "").trim());
-  const primaryUploadDir = path.join(process.cwd(), "apps/api/storage/uploads");
-  const fallbackUploadDir = path.join(process.cwd(), "storage/uploads");
-  const uploadBaseDir = existsSync(path.join(process.cwd(), "apps", "api")) ? primaryUploadDir : fallbackUploadDir;
+  const uploadBaseDir = path.join(process.cwd(), "storage/uploads");
   const normalizedUploadPath = path.join(uploadBaseDir, fileName);
 
   const candidatePath = existsSync(filePath)

@@ -8,7 +8,9 @@ export function appRoot() {
 }
 
 export function storageRoot() {
-  return path.resolve(appRoot(), env.STORAGE_DIR);
+  const dir = env.STORAGE_DIR;
+  if (path.isAbsolute(dir)) return dir;
+  return path.resolve(process.cwd(), dir);
 }
 
 export function uploadsDir() {

@@ -169,9 +169,7 @@ async function waitForResolvedMoneyOrderRelPath(jobId: string, relPath: string |
 }
 
 function createSpreadsheetUpload() {
-  const primaryUploadDir = path.join(process.cwd(), "apps/api/storage/uploads");
-  const fallbackUploadDir = path.join(process.cwd(), "storage/uploads");
-  const uploadBaseDir = existsSync(path.join(process.cwd(), "apps", "api")) ? primaryUploadDir : fallbackUploadDir;
+  const uploadBaseDir = path.join(process.cwd(), "storage/uploads");
 
   return multer({
     storage: multer.diskStorage({
@@ -392,9 +390,7 @@ export async function handleLabelUpload(req: Request, res: Response) {
     },
   }));
 
-  const primaryUploadDir = path.join(process.cwd(), "apps/api/storage/uploads");
-  const fallbackUploadDir = path.join(process.cwd(), "storage/uploads");
-  const uploadBaseDir = existsSync(path.join(process.cwd(), "apps", "api")) ? primaryUploadDir : fallbackUploadDir;
+  const uploadBaseDir = path.join(process.cwd(), "storage/uploads");
   await fs.mkdir(uploadBaseDir, { recursive: true });
 
   const fileName = `${job.id}${ext}`;
