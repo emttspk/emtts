@@ -99,8 +99,10 @@ await ensureStorageDirs();
 await prisma.$connect();
 if (redis.status === "wait") {
   await redis.connect();
+  console.log("Redis connected");
 }
 await redis.ping();
+console.log("Redis ping success");
 console.log("Worker starting...");
 console.log("[WORKER] UPLOAD_DIR:", process.env.UPLOAD_DIR || "/app/storage/uploads");
 console.log("Using Redis:", process.env.REDIS_URL);

@@ -3,11 +3,11 @@ import Redis from "ioredis";
 export const redis = new Redis(process.env.REDIS_URL, {
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
-  connectTimeout: 10000,
-  commandTimeout: 10000,
+  connectTimeout: 15000,
+  commandTimeout: 15000,
   lazyConnect: true,
   retryStrategy(times) {
-    return Math.min(times * 200, 2000);
+    return Math.min(times * 300, 3000);
   },
 });
 
