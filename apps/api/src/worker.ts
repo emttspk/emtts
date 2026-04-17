@@ -11,7 +11,7 @@ import { Prisma } from "@prisma/client";
 import { env } from "./config.js";
 import { prisma } from "./lib/prisma.js";
 import { labelQueue, labelQueueName, trackingQueue, trackingQueueName } from "./queue/queue.js";
-import { ensureRedisConnection, getRedisConnection } from "./queue/redis.js";
+import { connection } from "./queue/redis.js";
 import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, toStoredPath, waitForStoredFile } from "./storage/paths.js";
 import { parseOrdersFromFile } from "./parse/orders.js";
 import { moneyOrderHtml, renderLabelDocumentHtml, type LabelOrder } from "./templates/labels.js";
@@ -59,6 +59,11 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: s
   }
 }
 
+const timeout = (ms: number) =>
+  new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error("Job timeout")), ms);
+  });
+
 async function launchWorkerBrowser() {
   console.log("Using puppeteer package:", require.resolve("puppeteer"));
   console.log("Launching Puppeteer...");
@@ -80,21 +85,6 @@ async function launchWorkerBrowser() {
   }
 }
 
-async function waitForRedisReady() {
-  const retryDelayMs = Number(process.env.REDIS_CONNECT_RETRY_DELAY_MS ?? 2_000);
-  while (true) {
-    try {
-      await ensureRedisConnection();
-      console.log("Redis connected successfully");
-      return;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`[Worker] Redis not ready: ${message}`);
-      await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
-    }
-  }
-}
-
 function normalizeCollectedAmount(input: unknown): number {
   const raw = String(input ?? "").trim();
   if (!raw) return 0;
@@ -106,7 +96,7 @@ function normalizeCollectedAmount(input: unknown): number {
 await ensureStorageDirs();
 await prisma.$connect();
 console.log("Worker starting...");
-await waitForRedisReady();
+console.log("REDIS URL:", process.env.REDIS_URL ? "SET" : "MISSING");
 
 async function reconcileLabelQueueState() {
   const jobs = await prisma.labelJob.findMany({
@@ -371,6 +361,7 @@ async function getMoneyOrdersByTracking(userId: string, trackingNumbers: string[
 const worker = new Worker(
   labelQueueName,
   async (bullJob) => {
+    const processJob = async () => {
     console.log(`Processing job... ${String(bullJob.id ?? "unknown")}`);
     console.log(`Worker processing job: ${String(bullJob.id ?? "unknown")}`);
     await prisma.$connect();
@@ -775,8 +766,11 @@ const worker = new Worker(
         await browser.close();
       }
     }
+    };
+
+    return await Promise.race([processJob(), timeout(30_000)]);
   },
-  { connection: getRedisConnection(), concurrency: 2 },
+  { connection, concurrency: 2 },
 );
 
 worker.on("failed", (job, err) => {
@@ -824,7 +818,7 @@ const trackingWorker = new Worker(
     if (data.kind === "BULK_TRACK") {
       console.log(`[BulkTracking] Job Started ID=${job.id}`);
       while (!globalBulkLockAcquired) {
-        const lockAcquired = await getRedisConnection().set(globalBulkLockKey, globalBulkLockValue, "EX", 300, "NX");
+        const lockAcquired = await connection.set(globalBulkLockKey, globalBulkLockValue, "EX", 300, "NX");
         if (lockAcquired === "OK") {
           globalBulkLockAcquired = true;
           break;
@@ -1086,9 +1080,9 @@ const trackingWorker = new Worker(
     } finally {
       if (data.kind === "BULK_TRACK" && globalBulkLockAcquired) {
         try {
-          const currentGlobalLockValue = await getRedisConnection().get(globalBulkLockKey);
+          const currentGlobalLockValue = await connection.get(globalBulkLockKey);
           if (currentGlobalLockValue === globalBulkLockValue) {
-            await getRedisConnection().del(globalBulkLockKey);
+            await connection.del(globalBulkLockKey);
           }
         } catch (globalLockError) {
           console.warn(`[BulkTracking] Failed to release global lock for job ${job.id}:`, globalLockError);
@@ -1096,9 +1090,9 @@ const trackingWorker = new Worker(
       }
       if (data.kind === "BULK_TRACK" && data.lockKey) {
         try {
-          const currentLockValue = await getRedisConnection().get(data.lockKey);
+          const currentLockValue = await connection.get(data.lockKey);
           if (currentLockValue === job.id) {
-            await getRedisConnection().del(data.lockKey);
+            await connection.del(data.lockKey);
           }
         } catch (lockError) {
           console.warn(`[BulkTracking] Failed to release lock for job ${job.id}:`, lockError);
@@ -1106,7 +1100,7 @@ const trackingWorker = new Worker(
       }
     }
   },
-  { connection: getRedisConnection(), concurrency: 1 },
+  { connection, concurrency: 1 },
 );
 
 trackingWorker.on("failed", (job, err) => {

@@ -1,5 +1,5 @@
 import { Queue } from "bullmq";
-import { getRedisConnection } from "./redis.js";
+import { connection } from "./redis.js";
 
 export const labelQueueName = "label-generation";
 export const trackingQueueName = "tracking-engine";
@@ -10,7 +10,7 @@ function createLazyQueue(name: string, defaultJobOptions: unknown) {
   const create = () => {
     if (!queue) {
       queue = new Queue(name, {
-        connection: getRedisConnection(),
+        connection,
         defaultJobOptions,
       });
     }
