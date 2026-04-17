@@ -6,6 +6,8 @@
 2. Set build command to: `npm install && npm run build`
 3. API start command: `npm run start`
 4. Worker start command (separate Railway service): `npm run worker -w @labelgen/api`
+5. Set `REDIS_URL` to Railway Redis TLS format: `rediss://default:password@host:port`
+6. Do not install system Chromium via apt; use bundled `puppeteer` only.
 
 Do not use `npm install npm run build` because it is an invalid shell command.
 

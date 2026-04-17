@@ -89,10 +89,13 @@ if (!redisUrl) {
     const redis = new Redis(redisUrl, {
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
-      connectTimeout: 10_000,
-      commandTimeout: 5_000,
-      retryStrategy: (times: number) => Math.min(times * 100, 2_000),
+      connectTimeout: 15_000,
+      commandTimeout: 15_000,
+      lazyConnect: true,
+      retryStrategy: (times: number) => Math.min(times * 300, 3_000),
     });
+    await redis.connect();
+    ok("Redis connected");
     const pong = await redis.ping();
     ok(`Redis ping: ${pong}`);
     await redis.quit();

@@ -15,10 +15,10 @@
     "worker": "npm run worker -w apps/api",
     "worker:dev": "npm run worker:dev -w apps/api",
     "dev:all": "concurrently \"npm run dev -w apps/api\" \"npm run worker:dev -w apps/api\" \"npm run preview -w apps/web\"",
-    "build:web": "cd apps/web && npm install && npm run build",
+    "build:web": "npm run build --workspace=@labelgen/web",
     "start:web": "cd apps/web && npm run start",
     "start": "node apps/api/dist/index.js",
-    "build": "npm run build --workspace=@labelgen/web && npm run build --workspace=@labelgen/api",
+    "build": "npm run build --workspace=@labelgen/api && npm run build --workspace=@labelgen/web",
     "build:all": "npm run build"
   },
   "devDependencies": {

@@ -105,6 +105,8 @@ function validateEnvironment() {
       errors.push("REDIS_URL environment variable is not set. Queue processing requires a Redis service.");
     } else if (isProduction && /(localhost|127\.0\.0\.1)/i.test(redisUrl)) {
       errors.push("REDIS_URL points to localhost in production. Configure Railway Redis and set REDIS_URL.");
+    } else if (isProduction && !redisUrl.startsWith("rediss://")) {
+      errors.push("REDIS_URL must use TLS in production. Use rediss://default:password@host:port");
     }
   }
   if (isProduction) {
