@@ -45,14 +45,16 @@ function sanitizeRedisUrl(input: string | undefined | null) {
 }
 
 async function launchWorkerBrowser() {
-  console.log("Launching Puppeteer with bundled Chromium");
+  console.log("Launching Puppeteer (bundled Chromium mode)");
   try {
     const browser = await puppeteer.launch({
-      headless: "new" as any,
+      headless: true,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
-      ],
+        "--disable-dev-shm-usage",
+        "--disable-gpu"
+      ]
     });
     console.log("Puppeteer launched successfully");
     return browser;
