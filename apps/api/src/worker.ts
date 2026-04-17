@@ -1,3 +1,4 @@
+console.log("🔥 WORKER FILE LOADED");
 import { UnrecoverableError, Worker } from "bullmq";
 import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
@@ -370,6 +371,7 @@ const worker = new Worker(
   labelQueueName,
   async (bullJob) => {
     const processJob = async () => {
+    console.log("🔥 JOB RECEIVED");
     console.log("Processing job");
     console.log(`[Worker] Processing job ${String(bullJob.id ?? "unknown")}`);
     await prisma.$connect();
@@ -801,6 +803,7 @@ console.log(`Worker started. Connecting to Redis at ${sanitizeRedisUrl(env.REDIS
 const trackingWorker = new Worker(
   trackingQueueName,
   async (bullJob) => {
+    console.log("🔥 JOB RECEIVED");
     const data = bullJob.data as
       | { jobId: string; kind: "BULK_TRACK"; trackingNumbers: string[]; lockKey?: string | null }
       | { jobId: string; kind: "COMPLAINT"; trackingNumber: string; phone: string; complaintText?: string };

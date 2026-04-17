@@ -98,16 +98,13 @@ function validateEnvironment() {
 
   const redisUrl = String(process.env.REDIS_URL ?? "").trim();
   const pythonServiceUrl = String(process.env.PYTHON_SERVICE_URL ?? "").trim();
-  const queueEnabled = process.env.START_WORKER_IN_API !== "false";
   const isProduction = process.env.NODE_ENV === "production";
-  if (queueEnabled) {
-    if (!redisUrl) {
-      errors.push("REDIS_URL environment variable is not set. Queue processing requires a Redis service.");
-    } else if (isProduction && /(localhost|127\.0\.0\.1)/i.test(redisUrl)) {
-      errors.push("REDIS_URL points to localhost in production. Configure Railway Redis and set REDIS_URL.");
-    } else if (isProduction && !redisUrl.startsWith("rediss://")) {
-      errors.push("REDIS_URL must use TLS in production. Use rediss://default:password@host:port");
-    }
+  if (!redisUrl) {
+    errors.push("REDIS_URL environment variable is not set. Queue processing requires a Redis service.");
+  } else if (isProduction && /(localhost|127\.0\.0\.1)/i.test(redisUrl)) {
+    errors.push("REDIS_URL points to localhost in production. Configure Railway Redis and set REDIS_URL.");
+  } else if (isProduction && !redisUrl.startsWith("rediss://")) {
+    errors.push("REDIS_URL must use TLS in production. Use rediss://default:password@host:port");
   }
   if (isProduction) {
     if (!pythonServiceUrl) {
@@ -139,8 +136,9 @@ await ensureDatabaseConnection();
 
 async function startWorker() {
   try {
+    console.log("🚀 Starting BullMQ worker inside API process...");
     await import("./worker.js");
-    console.log("[STARTUP] Embedded BullMQ worker started in API process");
+    console.log("[STARTUP] Worker module loaded and running");
   } catch (error) {
     console.error("[STARTUP] Failed to start embedded worker:", error);
     process.exit(1);
