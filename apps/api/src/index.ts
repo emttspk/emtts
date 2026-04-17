@@ -20,15 +20,15 @@ import { ensureStorageDirs } from "./storage/paths.js";
 import { startCleanupCron } from "./cron/cleanup.js";
 import { requireAuth } from "./middleware/auth.js";
 import { releaseQueuedLabels } from "./usage/limits.js";
+import { UPLOAD_DIR } from "./utils/paths.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const BUILD_VERSION = process.env.RAILWAY_GIT_COMMIT_SHA ?? "local";
 
-const uploadDir = path.join(process.cwd(), "storage/uploads");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-  console.log("Uploads directory created:", uploadDir);
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  console.log("[STARTUP] Uploads directory created:", UPLOAD_DIR);
 }
 
 // CRITICAL: Validate DATABASE_URL before any Prisma operations

@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { validateTrackingId } from "../validation/trackingId.js";
+import { uploadsDir } from "../storage/paths.js";
 
 export type OrderRecord = {
   shipperName: string;
@@ -56,8 +57,7 @@ const requiredRowFields: ReadonlyArray<StrictColumn> = [
 
 export async function parseOrdersFromFile(filePath: string, opts?: { allowMissingTrackingId?: boolean }): Promise<any[]> {
   const fileName = path.basename(String(filePath ?? "").trim());
-  const uploadBaseDir = path.join(process.cwd(), "storage/uploads");
-  const normalizedUploadPath = path.join(uploadBaseDir, fileName);
+  const normalizedUploadPath = path.join(uploadsDir(), fileName);
 
   const candidatePath = existsSync(filePath)
     ? filePath

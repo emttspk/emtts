@@ -1,5 +1,5 @@
 import { UnrecoverableError, Worker } from "bullmq";
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
@@ -96,6 +96,7 @@ function normalizeCollectedAmount(input: unknown): number {
 await ensureStorageDirs();
 await prisma.$connect();
 console.log("Worker starting...");
+console.log("[WORKER] UPLOAD_DIR:", process.env.UPLOAD_DIR || "/app/storage/uploads");
 console.log("Using Redis:", process.env.REDIS_URL);
 
 async function reconcileLabelQueueState() {
@@ -376,8 +377,10 @@ const worker = new Worker(
       trackAfterGenerate,
       carrierType,
       shipmentType,
+      filePath: jobDataFilePath,
     } = bullJob.data as {
       jobId: string;
+      filePath?: string;
       generateLabels?: boolean;
       autoGenerateTracking?: boolean;
       generateMoneyOrder?: boolean;
@@ -400,20 +403,13 @@ const worker = new Worker(
 
     let browser: Browser | undefined;
     try {
-      const uploadDir = path.dirname(job.uploadPath);
-      mkdirSync(uploadDir, { recursive: true });
-      console.log(`[DEBUG PATH] job.uploadPath=${job.uploadPath}`);
-      console.log(`[DEBUG PATH] cwd=${process.cwd()}`);
-      console.log(`[DEBUG PATH] uploadDir=${uploadDir}`);
-      try {
-        const dirContents = await fs.readdir(uploadDir);
-        console.log(`[DEBUG PATH] uploadDir contents (${dirContents.length} files):`, dirContents.slice(0, 20).join(", "));
-      } catch {
-        console.warn(`[DEBUG PATH] uploadDir not readable: ${uploadDir}`);
-      }
-      if (!existsSync(job.uploadPath)) {
-        console.error(`[DEBUG PATH] FILE NOT FOUND: ${job.uploadPath}`);
-        throw new Error(`Upload file not found at ${job.uploadPath}`);
+      // Prefer filePath from job data (set at upload time); fall back to DB uploadPath
+      const resolvedFilePath = jobDataFilePath || job.uploadPath;
+      console.log(`[WORKER] Reading file: ${resolvedFilePath}`);
+
+      if (!existsSync(resolvedFilePath)) {
+        console.error(`[WORKER] Upload file not found at ${resolvedFilePath}`);
+        throw new UnrecoverableError(`Upload file not found at ${resolvedFilePath}`);
       }
 
       browser = await launchWorkerBrowser();
@@ -430,7 +426,7 @@ const worker = new Worker(
 
       let orders: any[] = [];
       try {
-        orders = await parseOrdersFromFile(job.uploadPath, { allowMissingTrackingId: doAutoGenerateTracking });
+        orders = await parseOrdersFromFile(resolvedFilePath, { allowMissingTrackingId: doAutoGenerateTracking });
         console.log(`[Worker] Parsing success for job ${jobId}. Rows: ${orders.length}`);
       } catch (parseError) {
         const parseMessage = parseError instanceof Error ? parseError.message : String(parseError);

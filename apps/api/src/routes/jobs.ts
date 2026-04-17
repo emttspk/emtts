@@ -169,11 +169,10 @@ async function waitForResolvedMoneyOrderRelPath(jobId: string, relPath: string |
 }
 
 function createSpreadsheetUpload() {
-  const uploadBaseDir = path.join(process.cwd(), "storage/uploads");
-
   return multer({
     storage: multer.diskStorage({
       destination: async (_req, _file, cb) => {
+        const uploadBaseDir = uploadsDir();
         try {
           await fs.mkdir(uploadBaseDir, { recursive: true });
           cb(null, uploadBaseDir);
@@ -390,7 +389,7 @@ export async function handleLabelUpload(req: Request, res: Response) {
     },
   }));
 
-  const uploadBaseDir = path.join(process.cwd(), "storage/uploads");
+  const uploadBaseDir = uploadsDir();
   await fs.mkdir(uploadBaseDir, { recursive: true });
 
   const fileName = `${job.id}${ext}`;
@@ -398,7 +397,7 @@ export async function handleLabelUpload(req: Request, res: Response) {
 
   const uploadPath = path.join(uploadBaseDir, fileName);
   await fs.rename(req.file.path, uploadPath);
-  console.log("File saved at:", uploadPath);
+  console.log("[UPLOAD] Saved file:", uploadPath);
 
   let ordersCount = 0;
   let unitCount = 0;
@@ -492,6 +491,7 @@ export async function handleLabelUpload(req: Request, res: Response) {
         "generate-pdf",
         {
           jobId: job.id,
+          filePath: uploadPath,
           generateLabels: true,
           generateMoneyOrder: effectiveGenerateMoneyOrder,
           autoGenerateTracking,

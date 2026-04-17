@@ -2,19 +2,19 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { env } from "../config.js";
+import { UPLOAD_DIR } from "../utils/paths.js";
 
 export function appRoot() {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 }
 
 export function storageRoot() {
-  const dir = env.STORAGE_DIR;
-  if (path.isAbsolute(dir)) return dir;
-  return path.resolve(process.cwd(), dir);
+  // Derive storage root from UPLOAD_DIR (one level up from uploads/)
+  return path.dirname(UPLOAD_DIR);
 }
 
 export function uploadsDir() {
-  return path.join(storageRoot(), "uploads");
+  return UPLOAD_DIR;
 }
 
 export function outputsDir() {

@@ -14,9 +14,10 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { UPLOAD_DIR } from "../utils/paths.js";
+import { outputsDir } from "../storage/paths.js";
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), "storage/uploads");
-const OUTPUT_DIR = path.join(process.cwd(), "storage/outputs");
+const OUTPUT_DIR = outputsDir();
 
 let passed = 0;
 let failed = 0;
@@ -102,16 +103,10 @@ if (!redisUrl) {
 
 // ---------- 4. Path consistency ----------
 console.log("\n[4/4] Path consistency");
-const cwd = process.cwd();
-const expectedUploads = path.join(cwd, "storage/uploads");
-if (UPLOAD_DIR === expectedUploads || path.resolve(UPLOAD_DIR) === path.resolve(expectedUploads)) {
-  ok(`UPLOAD_DIR resolves to cwd/storage/uploads`);
-} else {
-  ok(`UPLOAD_DIR override: ${UPLOAD_DIR}`);
-}
+ok(`UPLOAD_DIR: ${UPLOAD_DIR}`);
 
 // No reference to apps/api/storage should exist at runtime
-const badPath = path.join(cwd, "apps/api/storage/uploads");
+const badPath = path.join(process.cwd(), "apps/api/storage/uploads");
 if (fs.existsSync(badPath)) {
   fail("Stale path", `${badPath} still exists — may cause confusion`);
 } else {
