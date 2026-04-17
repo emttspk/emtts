@@ -132,7 +132,12 @@ function validateEnvironment() {
 normalizeDatabaseUrl();
 validateEnvironment();
 // runMigrations() is now handled in package.json start script
-await ensureDatabaseConnection();
+// NOTE: Ensure database connection BUT DO NOT BLOCK startup
+// This will initialize in the background while the server starts
+ensureDatabaseConnection().catch(err => {
+  console.error("[DB] Failed to establish initial connection:", err instanceof Error ? err.message : String(err));
+  // Continue anyway - health checks and routes will provide fallback handling
+});
 
 // Global crash protection
 process.on("uncaughtException", (err) => {
@@ -397,65 +402,12 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
   }
 });
 
-await ensureStorageDirs();
-await ensureDefaultPlans().catch(err => console.error("Failed to seed default plans:", err));
-
-// Recovery: Try to re-enqueue jobs stuck in QUEUED status on startup
-(async () => {
-  try {
-    console.log("[RECOVERY] Checking for jobs stuck in QUEUED status...");
-    const queuedJobs = await prisma.labelJob.findMany({
-      where: { status: "QUEUED" },
-      take: 50,
-    });
-    
-    if (queuedJobs.length > 0) {
-      console.log(`[RECOVERY] Found ${queuedJobs.length} jobs in QUEUED status, attempting to re-enqueue...`);
-      // Dynamic import to avoid circular dependency
-      const { labelQueue } = await import("./queue/queue.js");
-      const { ensureRedisConnection } = await import("./queue/redis.js");
-      
-      for (const dbJob of queuedJobs) {
-        try {
-          await ensureRedisConnection();
-          const existingBullJob = await labelQueue.getJob(dbJob.id);
-          if (!existingBullJob) {
-            // Job not in queue, re-add it
-            await labelQueue.add(
-              "generate-pdf",
-              {
-                jobId: dbJob.id,
-                generateLabels: true,
-                generateMoneyOrder: dbJob.includeMoneyOrders,
-                autoGenerateTracking: false,
-                barcodeMode: "manual",
-                printMode: "labels",
-              },
-              { jobId: dbJob.id },
-            );
-            console.log(`[RECOVERY] Re-queued job ${dbJob.id}`);
-          }
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          console.warn(`[RECOVERY] Failed to re-queue job ${dbJob.id}:`, message);
-          await prisma.labelJob.update({
-            where: { id: dbJob.id },
-            data: { status: "FAILED", error: `Recovery enqueue failed: ${message}` },
-          });
-          await releaseQueuedLabels(dbJob.userId, dbJob.unitCount || dbJob.recordCount).catch(() => {});
-        }
-      }
-    }
-  } catch (err) {
-    console.warn("[RECOVERY] Failed to recover stuck jobs:", err instanceof Error ? err.message : String(err));
-  }
-})();
-
-startCleanupCron();
+// CRITICAL: Start server IMMEDIATELY without any blocking awaits
 const PORT = Number(process.env.PORT || 3000);
 console.log(`PORT: ${PORT}`);
+
+// Listen FIRST - this must not be blocked by anything
 const server = app.listen(PORT, '0.0.0.0', () => {
-  // eslint-disable-next-line no-console
   console.log(`✅ API listening on http://0.0.0.0:${PORT}`);
 });
 
@@ -467,6 +419,78 @@ server.on("error", (err: any) => {
   console.error("API server error:", err);
   process.exit(1);
 });
+
+// Run all initialization tasks asynchronously AFTER server starts
+(async () => {
+  try {
+    console.log("[INIT] Starting async initialization tasks...");
+    
+    // Ensure storage directories exist
+    await ensureStorageDirs();
+    console.log("[INIT] Storage directories ready");
+    
+    // Seed default plans
+    await ensureDefaultPlans().catch(err => console.error("[INIT] Failed to seed default plans:", err));
+    console.log("[INIT] Default plans ready");
+    
+    // Start cleanup cron
+    startCleanupCron();
+    console.log("[INIT] Cleanup cron started");
+    
+    // Recovery: Try to re-enqueue jobs stuck in QUEUED status
+    try {
+      console.log("[RECOVERY] Checking for jobs stuck in QUEUED status...");
+      const queuedJobs = await prisma.labelJob.findMany({
+        where: { status: "QUEUED" },
+        take: 50,
+      });
+      
+      if (queuedJobs.length > 0) {
+        console.log(`[RECOVERY] Found ${queuedJobs.length} jobs in QUEUED status, attempting to re-enqueue...`);
+        // Dynamic import to avoid circular dependency
+        const { labelQueue } = await import("./queue/queue.js");
+        const { ensureRedisConnection } = await import("./queue/redis.js");
+        
+        for (const dbJob of queuedJobs) {
+          try {
+            await ensureRedisConnection();
+            const existingBullJob = await labelQueue.getJob(dbJob.id);
+            if (!existingBullJob) {
+              // Job not in queue, re-add it
+              await labelQueue.add(
+                "generate-pdf",
+                {
+                  jobId: dbJob.id,
+                  generateLabels: true,
+                  generateMoneyOrder: dbJob.includeMoneyOrders,
+                  autoGenerateTracking: false,
+                  barcodeMode: "manual",
+                  printMode: "labels",
+                },
+                { jobId: dbJob.id },
+              );
+              console.log(`[RECOVERY] Re-queued job ${dbJob.id}`);
+            }
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.warn(`[RECOVERY] Failed to re-queue job ${dbJob.id}:`, message);
+            await prisma.labelJob.update({
+              where: { id: dbJob.id },
+              data: { status: "FAILED", error: `Recovery enqueue failed: ${message}` },
+            }).catch(() => {});
+            await releaseQueuedLabels(dbJob.userId, dbJob.unitCount || dbJob.recordCount).catch(() => {});
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("[RECOVERY] Failed to recover stuck jobs:", err instanceof Error ? err.message : String(err));
+    }
+    
+    console.log("[INIT] Async initialization complete");
+  } catch (err) {
+    console.error("[INIT] Fatal error during initialization:", err instanceof Error ? err.message : String(err));
+  }
+})();
 
 // Start worker NON-BLOCKING after server is ready
 setTimeout(async () => {
