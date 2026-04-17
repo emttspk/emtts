@@ -1,5 +1,18 @@
 import puppeteer, { type Browser } from "puppeteer";
 
+export async function launchPuppeteerBrowser() {
+  return puppeteer.launch({
+    headless: true,
+    executablePath: await puppeteer.executablePath(),
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+    ],
+  });
+}
+
 export async function htmlToPdfBuffer(
   html: string,
   browser: Browser,

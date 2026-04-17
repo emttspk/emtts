@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { createCanvas } from "canvas";
 import JsBarcode from "jsbarcode";
-import puppeteer from "puppeteer";
+import type { Browser } from "puppeteer";
 import path from "node:path";
 import { Prisma } from "@prisma/client";
 import { env } from "./config.js";
@@ -14,7 +14,7 @@ import { ensureRedisConnection, getRedisConnection } from "./queue/redis.js";
 import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, toStoredPath, waitForStoredFile } from "./storage/paths.js";
 import { parseOrdersFromFile } from "./parse/orders.js";
 import { moneyOrderHtml, renderLabelDocumentHtml, type LabelOrder } from "./templates/labels.js";
-import { htmlToPdfBuffer } from "./pdf/render.js";
+import { htmlToPdfBuffer, launchPuppeteerBrowser } from "./pdf/render.js";
 import { finalizeQueuedToGenerated, finalizeQueuedTrackingToGenerated, releaseQueuedLabels, releaseQueuedTracking } from "./usage/limits.js";
 import { loadMoneyOrderBackgrounds } from "./money-order/backgrounds.js";
 import { prepareLabelOrders } from "./services/labelDocument.js";
@@ -45,17 +45,19 @@ function sanitizeRedisUrl(input: string | undefined | null) {
 }
 
 async function launchWorkerBrowser() {
-  console.log("Launching Puppeteer (bundled Chromium mode)");
+  console.log("Launching Puppeteer...");
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    console.warn("[Worker] Ignoring PUPPETEER_EXECUTABLE_PATH to force bundled Chromium");
+    delete process.env.PUPPETEER_EXECUTABLE_PATH;
+  }
+  if (process.env.CHROME_BIN) {
+    console.warn("[Worker] Ignoring CHROME_BIN to force bundled Chromium");
+    delete process.env.CHROME_BIN;
+  }
   try {
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu"
-      ]
-    });
+    const browser = await launchPuppeteerBrowser();
+    const version = await browser.version();
+    console.log(`Browser version: ${version}`);
     console.log("Puppeteer launched successfully");
     return browser;
   } catch (error) {
@@ -392,7 +394,7 @@ const worker = new Worker(
 
     await prisma.labelJob.update({ where: { id: jobId }, data: { status: "PROCESSING", error: null } });
 
-    let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined;
+    let browser: Browser | undefined;
     try {
       browser = await launchWorkerBrowser();
 

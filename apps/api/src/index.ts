@@ -25,7 +25,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const BUILD_VERSION = process.env.RAILWAY_GIT_COMMIT_SHA ?? "local";
 
-const uploadDir = path.join(process.cwd(), "apps/api/storage/uploads");
+const uploadDir = path.join(process.cwd(), "storage/uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
   console.log("Uploads directory created:", uploadDir);

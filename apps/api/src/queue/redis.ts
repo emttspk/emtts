@@ -33,9 +33,9 @@ export function getRedisConnection() {
       lazyConnect: true,
       enableOfflineQueue: true,
       connectTimeout: Number(process.env.REDIS_CONNECT_TIMEOUT_MS ?? 10_000),
-      commandTimeout: Number(process.env.REDIS_COMMAND_TIMEOUT_MS ?? 10_000),
+      commandTimeout: Number(process.env.REDIS_COMMAND_TIMEOUT_MS ?? 5_000),
       maxLoadingRetryTime: 15_000,
-      retryStrategy: (times) => Math.min(times * 200, 5_000),
+      retryStrategy: (times) => Math.min(times * 100, 2_000),
       reconnectOnError: () => true,
     });
     redisConnection.on("error", (err) => {
