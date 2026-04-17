@@ -82,25 +82,15 @@ try {
 
 // ---------- 3. Redis ----------
 console.log("\n[3/4] Redis connection");
-const redisUrl = (process.env.REDIS_URL ?? "").trim();
-if (!redisUrl) {
+if (!process.env.REDIS_URL) {
   ok("Redis smoke skipped (REDIS_URL not set)");
 } else {
   try {
-    const { default: Redis } = await import("ioredis");
-    const redis = new Redis(redisUrl, {
-      maxRetriesPerRequest: null,
-      enableReadyCheck: false,
-      connectTimeout: 15_000,
-      commandTimeout: 15_000,
-      lazyConnect: true,
-      retryStrategy: (times: number) => Math.min(times * 300, 3_000),
-    });
-    await redis.connect();
-    ok("Redis connected");
+    // Re-use the shared singleton from lib/redis — no second connection needed.
+    const { redis } = await import("../lib/redis.js");
     const pong = await redis.ping();
+    ok(`Redis connected (status=${redis.status})`);
     ok(`Redis ping: ${pong}`);
-    await redis.quit();
   } catch (e) {
     fail("Redis connection", e instanceof Error ? e.message : String(e));
   }
