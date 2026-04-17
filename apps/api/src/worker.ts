@@ -13,7 +13,7 @@ import { prisma } from "./lib/prisma.js";
 import { connection } from "./lib/redis.js";
 import { labelQueue, labelQueueName, trackingQueue, trackingQueueName } from "./queue/queue.js";
 import { ensureRedisConnection } from "./queue/redis.js";
-import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, toStoredPath, waitForStoredFile } from "./storage/paths.js";
+import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, toStoredPath, uploadsDir, waitForStoredFile } from "./storage/paths.js";
 import { parseOrdersFromFile } from "./parse/orders.js";
 import { moneyOrderHtml, renderLabelDocumentHtml, type LabelOrder } from "./templates/labels.js";
 import { htmlToPdfBuffer, launchPuppeteerBrowser } from "./pdf/render.js";
@@ -60,12 +60,12 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: s
   }
 }
 
-const TIMEOUT = 60_000;
+const JOB_TIMEOUT_MS = 60_000;
 
 async function safeJob<T>(processJob: () => Promise<T>) {
   return Promise.race([
     processJob(),
-    new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Job timeout")), TIMEOUT)),
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`Job timeout after ${JOB_TIMEOUT_MS}ms`)), JOB_TIMEOUT_MS)),
   ]);
 }
 
@@ -101,9 +101,9 @@ function normalizeCollectedAmount(input: unknown): number {
 await ensureStorageDirs();
 await prisma.$connect();
 await ensureRedisConnection();
-console.log("Worker started");
-console.log("[WORKER] UPLOAD_DIR:", process.env.UPLOAD_DIR || "/app/storage/uploads");
-console.log("Using Redis:", process.env.REDIS_URL);
+console.log("[Worker] Worker started");
+console.log(`[Worker] Redis connected: ${sanitizeRedisUrl(env.REDIS_URL)}`);
+console.log(`[Worker] Upload directory: ${uploadsDir()}`);
 
 async function reconcileLabelQueueState() {
   const jobs = await prisma.labelJob.findMany({
@@ -369,8 +369,7 @@ const worker = new Worker(
   labelQueueName,
   async (bullJob) => {
     const processJob = async () => {
-    console.log("Processing job", bullJob.id);
-    console.log(`Worker processing job: ${String(bullJob.id ?? "unknown")}`);
+    console.log(`[Worker] Processing job ${String(bullJob.id ?? "unknown")}`);
     await prisma.$connect();
     const {
       jobId,
@@ -681,7 +680,7 @@ const worker = new Worker(
           throw new Error("Labels PDF was not fully written to disk");
         }
         console.log(`[Worker] Labels saved to ${labelsPath}`);
-        console.log("PDF generated");
+        console.log(`[Worker] PDF generated for job ${jobId}`);
       }
 
       // --- Conditional Money Order Generation (isolated so a failure doesn't kill labels) ---
@@ -745,7 +744,7 @@ const worker = new Worker(
       });
 
       await finalizeQueuedToGenerated(job.userId, job.unitCount || job.recordCount);
-      console.log("Job completed", jobId);
+      console.log(`[Worker] Job completed ${jobId}`);
       console.log(`[Worker] Job ${jobId} completed successfully`);
 
       // MANDATORY: Return paths so the API can find the files
@@ -813,7 +812,7 @@ const trackingWorker = new Worker(
     console.log(`[TrackingWorker] Starting job ${job.id} (${data.kind}) (BullMQ ID: ${bullJob.id})`);
     if (data.kind === "BULK_TRACK") {
       console.log(`[BulkTracking] Job Started ID=${job.id}`);
-      const lockWaitDeadline = Date.now() + TIMEOUT;
+      const lockWaitDeadline = Date.now() + JOB_TIMEOUT_MS;
       while (!globalBulkLockAcquired) {
         if (Date.now() > lockWaitDeadline) {
           throw new UnrecoverableError("Job timeout");

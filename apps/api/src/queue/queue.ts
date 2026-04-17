@@ -34,9 +34,11 @@ function createLazyQueue(name: string, defaultJobOptions: unknown) {
 export const labelQueue = createLazyQueue(labelQueueName, {
   attempts: 3,
   backoff: { type: "exponential", delay: 5_000 },
+  timeout: 60_000,
 });
 
 export const trackingQueue = createLazyQueue(trackingQueueName, {
   attempts: 2,
   backoff: { type: "exponential", delay: 10_000 },
+  timeout: 60_000,
 });
