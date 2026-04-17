@@ -99,14 +99,6 @@ function normalizeCollectedAmount(input: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-await ensureStorageDirs();
-await prisma.$connect();
-await ensureRedisConnection();
-console.log("Worker started");
-console.log("[Worker] Worker started");
-console.log(`[Worker] Redis connected: ${sanitizeRedisUrl(env.REDIS_URL)}`);
-console.log(`[Worker] Upload directory: ${uploadsDir()}`);
-
 async function reconcileLabelQueueState() {
   const jobs = await prisma.labelJob.findMany({
     where: { status: { in: ["QUEUED", "PROCESSING"] } },
@@ -161,8 +153,6 @@ async function reconcileLabelQueueState() {
     }
   }
 }
-
-await reconcileLabelQueueState();
 
 let moneyOrderTablesReady = false;
 
@@ -366,6 +356,21 @@ async function getMoneyOrdersByTracking(userId: string, trackingNumbers: string[
   }
   return grouped;
 }
+
+// Wrap all worker initialization in an async function to avoid blocking imports
+async function startWorker() {
+  try {
+    console.log("🔥 Worker initialization started");
+
+    await ensureStorageDirs();
+    await prisma.$connect();
+    await ensureRedisConnection();
+    console.log("Worker started");
+    console.log("[Worker] Worker started");
+    console.log(`[Worker] Redis connected: ${sanitizeRedisUrl(env.REDIS_URL)}`);
+    console.log(`[Worker] Upload directory: ${uploadsDir()}`);
+
+    await reconcileLabelQueueState();
 
 const worker = new Worker(
   labelQueueName,
@@ -1129,6 +1134,15 @@ trackingWorker.on("error", (err) => {
 });
 
 console.log(`Worker ready (queues: ${labelQueueName}, ${trackingQueueName})`);
+
+  } catch (err) {
+    console.error("❌ Worker initialization failed:", err instanceof Error ? err.message : String(err));
+    // Don't exit - let the API continue even if worker fails
+  }
+}
+
+// Start the worker non-blocking
+startWorker();
 
 function generateBarcodeBase64(text: string) {
   const canvas = createCanvas(400, 120);

@@ -134,18 +134,16 @@ validateEnvironment();
 // runMigrations() is now handled in package.json start script
 await ensureDatabaseConnection();
 
-async function startWorker() {
-  try {
-    console.log("🚀 Starting BullMQ worker inside API process...");
-    await import("./worker.js");
-    console.log("[STARTUP] Worker module loaded and running");
-  } catch (error) {
-    console.error("[STARTUP] Failed to start embedded worker:", error);
-    process.exit(1);
-  }
-}
+// Global crash protection
+process.on("uncaughtException", (err) => {
+  console.error("🔴 UNCAUGHT EXCEPTION:", err);
+  // Log but don't exit - let the process recover
+});
 
-await startWorker();
+process.on("unhandledRejection", (err) => {
+  console.error("🔴 UNHANDLED REJECTION:", err);
+  // Log but don't exit - let the process recover
+});
 
 const app = express();
 
@@ -458,7 +456,7 @@ const PORT = Number(process.env.PORT || 3000);
 console.log(`PORT: ${PORT}`);
 const server = app.listen(PORT, '0.0.0.0', () => {
   // eslint-disable-next-line no-console
-  console.log(`API listening on http://0.0.0.0:${PORT}`);
+  console.log(`✅ API listening on http://0.0.0.0:${PORT}`);
 });
 
 server.on("error", (err: any) => {
@@ -469,3 +467,13 @@ server.on("error", (err: any) => {
   console.error("API server error:", err);
   process.exit(1);
 });
+
+// Start worker NON-BLOCKING after server is ready
+setTimeout(async () => {
+  if (process.env.START_WORKER_IN_API !== "false") {
+    console.log("🚀 Starting worker (non-blocking)...");
+    import("./worker.js").catch(err => {
+      console.error("❌ Worker failed to start:", err instanceof Error ? err.message : String(err));
+    });
+  }
+}, 2000);
