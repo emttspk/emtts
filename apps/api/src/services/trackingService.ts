@@ -1,4 +1,3 @@
-import { env } from "../config.js";
 import { applyTrackingPatchLayer } from "./trackingPatch.js";
 
 export type PythonTrackResult = {
@@ -75,11 +74,23 @@ export class PythonServiceTimeoutError extends Error {
 }
 
 function baseUrl() {
-  const value = String(env.PYTHON_SERVICE_URL ?? "").trim();
-  if (!value) {
-    throw new Error("PYTHON_SERVICE_URL is not configured");
+  if (!process.env.PYTHON_SERVICE_URL) {
+    throw new Error("PYTHON_SERVICE_URL is missing");
   }
-  return value.replace(/\/+$/, "");
+
+  const value = String(process.env.PYTHON_SERVICE_URL).trim();
+  if (!value || value.toLowerCase() === "dummy") {
+    throw new Error("PYTHON_SERVICE_URL is missing");
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error("PYTHON_SERVICE_URL is invalid");
+  }
+
+  return parsed.toString().replace(/\/+$/, "");
 }
 
 const TRACK_CACHE_TTL_MS = 10 * 60 * 1000;
@@ -111,6 +122,7 @@ async function fetchJson<T>(url: string, init: RequestInit & { timeoutMs?: numbe
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
+    console.log("Calling tracking service:", url);
     const res = await fetch(url, {
       ...rest,
       headers: { "content-type": "application/json", ...(rest.headers ?? {}) },

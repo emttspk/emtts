@@ -1,15 +1,19 @@
-import { Redis } from "ioredis";
+import { Redis as IORedis } from "ioredis";
 
-const redisUrl = String(process.env.REDIS_URL ?? "").trim();
+const redisUrl = String(process.env.REDIS_URL || "").trim();
 
 if (!redisUrl) {
-  throw new Error("REDIS_URL is missing");
+  console.error("REDIS_URL missing");
 }
 
-export const redis = new Redis(redisUrl, {
-  tls: redisUrl.startsWith("rediss://") ? {} : undefined,
+export const redis = new IORedis(redisUrl, {
   maxRetriesPerRequest: null,
-  enableReadyCheck: false,
+  connectTimeout: 10000,
+  tls: redisUrl.startsWith("rediss://") ? {} : undefined,
 });
+
+redis.on("connect", () => console.log("Redis CONNECTED"));
+redis.on("ready", () => console.log("Redis READY"));
+redis.on("error", (err) => console.error("Redis ERROR:", err));
 
 export const connection = redis;

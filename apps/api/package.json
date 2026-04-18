@@ -11,7 +11,7 @@
     "worker": "node dist/worker.js",
     "start": "npx prisma generate --schema=prisma/schema.prisma && node dist/index.js",
     "smoke:railway": "node scripts/railway-smoke-test.mjs",
-    "debug:auto": "ts-node scripts/autoDebug.ts",
+    "debug:auto": "tsx --env-file=.env scripts/autoDebug.ts",
     "prisma:generate": "npx prisma generate --schema=prisma/schema.prisma",
     "prisma:migrate": "npx prisma migrate dev --schema=prisma/schema.prisma",
     "prisma:studio": "npx prisma studio --schema=prisma/schema.prisma"

@@ -1,6 +1,6 @@
 import { Queue } from "bullmq";
 import { connection } from "./redis.js";
-import { jobQueue, jobsQueueName } from "../lib/queue.js";
+import { getQueue, jobsQueueName } from "../lib/queue.js";
 
 export const labelQueueName = jobsQueueName;
 export const trackingQueueName = "tracking-engine";
@@ -32,7 +32,18 @@ function createLazyQueue(name: string, defaultJobOptions: unknown) {
   });
 }
 
-export const labelQueue = jobQueue;
+export const labelQueue = new Proxy({} as Queue, {
+  get(_target, prop) {
+    const instance = getQueue();
+    const value = (instance as any)[prop];
+    return typeof value === "function" ? value.bind(instance) : value;
+  },
+  set(_target, prop, value) {
+    const instance = getQueue();
+    (instance as any)[prop] = value;
+    return true;
+  },
+});
 
 export const trackingQueue = createLazyQueue(trackingQueueName, {
   attempts: 2,

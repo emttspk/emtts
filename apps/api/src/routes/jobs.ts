@@ -10,9 +10,9 @@ import { requireAuth } from "../middleware/auth.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, resolveStoredPath, toStoredPath, uploadsDir, waitForStoredFile } from "../storage/paths.js";
 import { parseOrdersFromFile } from "../parse/orders.js";
-import { jobQueue } from "../lib/queue.js";
 import { ensureRedisConnection } from "../queue/redis.js";
 import { consumeUnits, refundUnits } from "../usage/unitConsumption.js";
+import { getQueue } from "../lib/queue.js";
 import { previewLabelHtml, renderLabelDocumentHtml, type LabelPrintMode } from "../templates/labels.js";
 import { prepareLabelOrders } from "../services/labelDocument.js";
 import { shouldShowValuePayableAmount } from "../validation/trackingId.js";
@@ -130,7 +130,7 @@ async function deleteJobById(userId: string, jobId: string) {
   await prisma.$executeRaw`DELETE FROM job_deletion_schedules WHERE job_id = ${jobId}`;
 
   try {
-    const queuedJob = await jobQueue.getJob(jobId);
+    const queuedJob = await getQueue().getJob(jobId);
     await queuedJob?.remove();
   } catch {
     // ignore queue cleanup failures
@@ -486,8 +486,12 @@ export async function handleLabelUpload(req: Request, res: Response) {
     // Try to enqueue job with timeout. If this fails, mark FAILED immediately so
     // jobs do not remain stuck in QUEUED forever.
     try {
+      const queue = getQueue();
+      if (!queue) {
+        throw new Error("Queue unavailable");
+      }
       await withTimeout(ensureRedisConnection(), 3000, "Redis connection timed out");
-      await withTimeout(jobQueue.add(
+      await withTimeout(queue.add(
         "generate-pdf",
         {
           jobId: job.id,
@@ -554,7 +558,7 @@ jobsRouter.get("/:jobId/download/labels", requireAuth, async (req, res) => {
   // Prefer BullMQ return value, fall back to DB path
   let relPath: string | null | undefined = owned.labelsPdfPath;
   try {
-    const bullJob = await jobQueue.getJob(jobId);
+    const bullJob = await getQueue().getJob(jobId);
     if (bullJob?.finishedOn) {
       const result = (await bullJob.returnvalue) as { labelsPath?: string } | null;
       if (result?.labelsPath) relPath = result.labelsPath;
@@ -593,7 +597,7 @@ jobsRouter.get("/:jobId/download/money-orders", requireAuth, async (req, res) =>
   // Prefer BullMQ return value, fall back to DB path
   let relPath: string | null | undefined = owned.moneyOrderPdfPath;
   try {
-    const bullJob = await jobQueue.getJob(jobId);
+    const bullJob = await getQueue().getJob(jobId);
     if (bullJob?.finishedOn) {
       const result = (await bullJob.returnvalue) as { moneyOrderPath?: string } | null;
       if (result?.moneyOrderPath) relPath = result.moneyOrderPath;

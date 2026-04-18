@@ -12,7 +12,7 @@ import { Prisma } from "@prisma/client";
 import { env } from "./config.js";
 import { prisma } from "./lib/prisma.js";
 import { redis } from "./lib/redis.js";
-import { jobQueue, jobsQueueName } from "./lib/queue.js";
+import { getQueue, jobsQueueName } from "./lib/queue.js";
 import { trackingQueue, trackingQueueName } from "./queue/queue.js";
 import { ensureRedisConnection } from "./queue/redis.js";
 import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, toStoredPath, uploadsDir, waitForStoredFile } from "./storage/paths.js";
@@ -117,7 +117,7 @@ async function reconcileLabelQueueState() {
   });
 
   for (const dbJob of jobs) {
-    const queueJob = await jobQueue.getJob(dbJob.id);
+    const queueJob = await getQueue().getJob(dbJob.id);
     if (!queueJob) {
       // BullMQ job has expired or been removed from Redis while DB still shows active status.
       // Mark it as failed so it does not remain stuck indefinitely.
