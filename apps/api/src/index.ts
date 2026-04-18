@@ -80,6 +80,7 @@ function normalizeDatabaseUrl() {
 
 function validateEnvironment() {
   const errors: string[] = [];
+  const warnings: string[] = [];
 
   if (!process.env.DATABASE_URL) {
     errors.push("DATABASE_URL environment variable is not set. For Railway: link a PostgreSQL service. For local dev: ensure .env file has DATABASE_URL.");
@@ -89,11 +90,6 @@ function validateEnvironment() {
     if (!isValidPostgres) {
       errors.push(`DATABASE_URL is invalid: ${dbUrl.substring(0, 50)}... Must start with postgresql:// or postgres://`);
     }
-  }
-
-  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 16) {
-    console.warn("⚠️  JWT_SECRET not set or too short, using default for development");
-    process.env.JWT_SECRET = "development-jwt-secret-at-least-32-chars-long";
   }
 
   const redisUrl = String(process.env.REDIS_URL ?? "").trim();
@@ -109,10 +105,15 @@ function validateEnvironment() {
   }
   if (isProduction) {
     if (!pythonServiceUrl) {
-      errors.push("PYTHON_SERVICE_URL is not set. Tracking/complaint processing requires a reachable Python service.");
+      warnings.push("PYTHON_SERVICE_URL is not set. Tracking/complaint processing will stay unavailable until a Python service URL is configured.");
     } else if (/(localhost|127\.0\.0\.1)/i.test(pythonServiceUrl)) {
-      errors.push("PYTHON_SERVICE_URL points to localhost in production. Configure Railway internal Python service URL.");
+      warnings.push("PYTHON_SERVICE_URL points to localhost in production. Configure Railway internal Python service URL for tracking/complaint processing.");
     }
+  }
+
+  if (warnings.length > 0) {
+    console.warn("⚠️  STARTUP WARNINGS:");
+    warnings.forEach((warning) => console.warn(`   - ${warning}`));
   }
 
   if (errors.length > 0) {
@@ -171,7 +172,11 @@ app.use(
 );
 app.use(express.json({ limit: "2mb" }));
 
-app.use("/api", async (_req, res, next) => {
+app.use("/api", async (req, res, next) => {
+  if (req.path === "/" || req.path === "/health" || req.path === "/version") {
+    return next();
+  }
+
   try {
     await prisma.$connect();
     return next();
