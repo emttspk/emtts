@@ -240,8 +240,8 @@ if (!apiBaseUrl || !smokeEmail || !smokePassword) {
 console.log(`\n${"=".repeat(40)}`);
 if (failed === 0) {
   console.log(`SYSTEM WORKING — ${passed} checks passed`);
-  process.exit(0);
+  process.exitCode = 0;
 } else {
   console.error(`${failed} check(s) FAILED, ${passed} passed`);
-  process.exit(1);
+  process.exitCode = 1;
 }

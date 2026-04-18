@@ -1143,8 +1143,9 @@ console.log(`Worker ready (queues: ${jobsQueueName}, ${trackingQueueName})`);
   }
 }
 
-// Start the worker non-blocking
-startWorker();
+(async () => {
+  await startWorker();
+})();
 
 function generateBarcodeBase64(text: string) {
   const canvas = createCanvas(400, 120);

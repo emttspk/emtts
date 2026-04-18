@@ -6,6 +6,7 @@ import path from "path";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { env } from "./config.js";
+import "./worker.js";
 import { ensureDatabaseConnection } from "./db.js";
 import { prisma } from "./lib/prisma.js";
 import { authRouter } from "./routes/auth.js";
@@ -38,14 +39,14 @@ if (!process.env.DATABASE_URL) {
   console.error("DATABASE_URL is missing");
   console.error("For Railway: Link a PostgreSQL database service. It will auto-inject DATABASE_URL.");
   console.error("For local dev: Ensure .env file exists with DATABASE_URL set.");
-  process.exit(1);
+  throw new Error("DATABASE_URL is missing");
 }
 
 if (!process.env.DATABASE_URL.startsWith("postgresql://") && !process.env.DATABASE_URL.startsWith("postgres://")) {
   console.error("Invalid DATABASE_URL format");
   console.error(`Received: ${process.env.DATABASE_URL.substring(0, 50)}...`);
   console.error("Must start with postgresql:// or postgres://");
-  process.exit(1);
+  throw new Error("Invalid DATABASE_URL format");
 }
 
 console.log("🚀 Starting LabelGen API server FIXED...");
@@ -127,7 +128,7 @@ function validateEnvironment() {
     console.error("\nFIX FOR LOCAL DEVELOPMENT:");
     console.error("   1. Ensure .env file exists with DATABASE_URL set");
     console.error("   2. Run: npm run dev (loads .env automatically)");
-    process.exit(1);
+    throw new Error(`Startup validation failed: ${errors.join(" | ")}`);
   }
 }
 
@@ -420,10 +421,10 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 server.on("error", (err: any) => {
   if (err?.code === "EADDRINUSE") {
     console.error(`API port ${PORT} is already in use. Stop the other running API process and try again.`);
-    process.exit(1);
+    return;
   }
   console.error("API server error:", err);
-  process.exit(1);
+  return;
 });
 
 // Run all initialization tasks asynchronously AFTER server starts
@@ -499,12 +500,3 @@ server.on("error", (err: any) => {
   }
 })();
 
-// Start worker NON-BLOCKING after server is ready
-setTimeout(async () => {
-  if (process.env.START_WORKER_IN_API !== "false") {
-    console.log("🚀 Starting worker (non-blocking)...");
-    import("./worker.js").catch(err => {
-      console.error("❌ Worker failed to start:", err instanceof Error ? err.message : String(err));
-    });
-  }
-}, 2000);

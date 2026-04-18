@@ -3,6 +3,6 @@
     "command": "npm run build"
   },
   "deploy": {
-    "startCommand": "node apps/api/dist/index.js"
+    "startCommand": "npm run start"
   }
 }
