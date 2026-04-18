@@ -8,8 +8,17 @@ if (!redisUrl) {
 
 export const redis = new IORedis(redisUrl, {
   maxRetriesPerRequest: null,
-  connectTimeout: 10000,
-  tls: redisUrl.startsWith("rediss://") ? {} : undefined,
+  connectTimeout: 20000,
+
+  // force TLS for Railway
+  tls: {},
+
+  retryStrategy: (times) => {
+    return Math.min(times * 200, 5000);
+  },
+
+  enableReadyCheck: true,
+  lazyConnect: false,
 });
 
 redis.on("connect", () => console.log("Redis CONNECTED"));
