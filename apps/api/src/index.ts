@@ -6,7 +6,6 @@ import path from "path";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { env } from "./config.js";
-import "./worker.js";
 import { ensureDatabaseConnection } from "./db.js";
 import { prisma } from "./lib/prisma.js";
 import { authRouter } from "./routes/auth.js";

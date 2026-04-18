@@ -1143,9 +1143,13 @@ console.log(`Worker ready (queues: ${jobsQueueName}, ${trackingQueueName})`);
   }
 }
 
-(async () => {
-  await startWorker();
-})();
+startWorker()
+  .then(() => {
+    console.log("Worker started");
+  })
+  .catch((err) => {
+    console.error("Worker startup error:", err instanceof Error ? err.message : String(err));
+  });
 
 function generateBarcodeBase64(text: string) {
   const canvas = createCanvas(400, 120);
