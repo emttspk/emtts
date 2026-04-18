@@ -11,9 +11,7 @@ console.log("🚨 REDIS URL =", redisUrl);
 export const redis = new Redis(redisUrl, {
   maxRetriesPerRequest: null,
   connectTimeout: 20000,
-  tls: {
-    rejectUnauthorized: false,
-  },
+  tls: undefined,
 });
 
 redis.on("connect", () => console.log("✅ Redis CONNECTED"));
