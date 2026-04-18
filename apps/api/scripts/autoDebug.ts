@@ -37,6 +37,7 @@ class DebugError extends Error {
 }
 
 const API_BASE_URL = String(process.env.API_BASE_URL ?? "").trim();
+console.log("DEBUG API URL:", API_BASE_URL);
 const EMAIL = String(process.env.DEBUG_EMAIL ?? process.env.SMOKE_EMAIL ?? "").trim();
 const PASSWORD = String(process.env.DEBUG_PASSWORD ?? process.env.SMOKE_PASSWORD ?? "").trim();
 

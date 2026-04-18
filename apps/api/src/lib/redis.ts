@@ -1,10 +1,9 @@
 import { Redis as IORedis } from "ioredis";
 
-const redisUrl = String(process.env.REDIS_URL || "").trim();
-
-if (!redisUrl) {
-  console.error("REDIS_URL missing");
-}
+const redisUrl =
+  process.env.REDIS_URL ||
+  process.env.REDIS_PUBLIC_URL ||
+  "";
 
 export const redis = new IORedis(redisUrl, {
   maxRetriesPerRequest: null,
