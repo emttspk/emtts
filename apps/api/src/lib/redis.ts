@@ -1,23 +1,13 @@
-import { Redis as IORedis } from "ioredis";
+import { Redis } from "ioredis";
 
-const primaryRedisUrl = String(process.env.REDIS_URL ?? "").trim();
-const fallbackRedisUrl = String(process.env.REDIS_PUBLIC_URL ?? "").trim();
+const redisUrl = process.env.REDIS_URL || "";
 
-export const redisUrl = primaryRedisUrl || fallbackRedisUrl;
-export const redisUrlSource = primaryRedisUrl ? "REDIS_URL" : fallbackRedisUrl ? "REDIS_PUBLIC_URL" : "missing";
+console.log("🚨 REDIS URL =", redisUrl);
 
-if (!redisUrl) {
-  console.error("❌ REDIS_URL missing");
-} else {
-  console.log(`[Redis] Using ${redisUrlSource}`);
-}
-
-export const redis = new IORedis(redisUrl, {
+export const redis = new Redis(redisUrl, {
   maxRetriesPerRequest: null,
   connectTimeout: 20000,
-  enableReadyCheck: true,
-  lazyConnect: false,
-  tls: redisUrl.startsWith("rediss://") ? {} : undefined,
+  tls: {}, // required for Railway
 });
 
 redis.on("connect", () => console.log("✅ Redis CONNECTED"));
