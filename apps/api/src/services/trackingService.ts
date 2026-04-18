@@ -87,7 +87,7 @@ function baseUrl() {
   try {
     parsed = new URL(value);
   } catch {
-    throw new Error("PYTHON_SERVICE_URL is invalid");
+    console.warn("PYTHON_SERVICE_URL not valid, skipping external service");
   }
 
   return parsed.toString().replace(/\/+$/, "");
