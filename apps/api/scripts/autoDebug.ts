@@ -1,6 +1,8 @@
-import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
+/// <reference types="node" />
+
+import fs from "fs/promises";
+import os from "os";
+import path from "path";
 import xlsx from "xlsx";
 
 type JobStatus = "QUEUED" | "PROCESSING" | "COMPLETED" | "FAILED" | string;
@@ -237,7 +239,7 @@ async function getJob(token: string, jobId: string): Promise<JobResponse["job"]>
     throw new DebugError("API_CRASH", `Job status fetch failed: ${String(message)}`);
   }
 
-  return body?.job ?? null;
+  return body?.job ?? undefined;
 }
 
 async function waitForJobLifecycle(token: string, jobId: string) {

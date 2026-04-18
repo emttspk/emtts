@@ -1,6 +1,10 @@
 import { Redis } from "ioredis";
 
-const redisUrl = process.env.REDIS_URL || "";
+const primaryRedisUrl = String(process.env.REDIS_URL ?? "").trim();
+const fallbackRedisUrl = String(process.env.REDIS_PUBLIC_URL ?? "").trim();
+
+export const redisUrl = primaryRedisUrl || fallbackRedisUrl;
+export const redisUrlSource = primaryRedisUrl ? "REDIS_URL" : fallbackRedisUrl ? "REDIS_PUBLIC_URL" : "missing";
 
 console.log("🚨 REDIS URL =", redisUrl);
 
