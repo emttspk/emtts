@@ -3,7 +3,7 @@
 ## Build/Runtime Baseline (Railpack)
 
 1. Remove Dockerfile-based deploys and use Railway default builder (Railpack/Nixpacks).
-2. Set build command to: `npm install && npm run build`
+2. Set build command to: `npm install --omit=dev && npm run build`
 3. API start command: `node apps/api/dist/index.js`
 4. Worker start command (separate Railway service): `npm run worker -w @labelgen/api`
 5. Set `REDIS_URL` to Railway Redis TLS format: `rediss://default:password@host:port`
