@@ -1139,17 +1139,27 @@ console.log(`Worker ready (queues: ${jobsQueueName}, ${trackingQueueName})`);
 
   } catch (err) {
     console.error("❌ Worker initialization failed:", err instanceof Error ? err.message : String(err));
-    // Don't exit - let the API continue even if worker fails
+    throw err;
   }
 }
 
-startWorker()
-  .then(() => {
-    console.log("Worker started");
-  })
-  .catch((err) => {
-    console.error("Worker startup error:", err instanceof Error ? err.message : String(err));
-  });
+const WORKER_RETRY_DELAY_MS = 5_000;
+
+async function bootWorkerProcess() {
+  while (true) {
+    try {
+      await startWorker();
+      console.log("Worker started");
+      return;
+    } catch (err) {
+      console.error("Worker startup error:", err instanceof Error ? err.message : String(err));
+      console.log(`[Worker] Retrying startup in ${WORKER_RETRY_DELAY_MS}ms`);
+      await new Promise((resolve) => setTimeout(resolve, WORKER_RETRY_DELAY_MS));
+    }
+  }
+}
+
+void bootWorkerProcess();
 
 function generateBarcodeBase64(text: string) {
   const canvas = createCanvas(400, 120);
