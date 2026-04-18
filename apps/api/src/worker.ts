@@ -11,7 +11,7 @@ import path from "node:path";
 import { Prisma } from "@prisma/client";
 import { env } from "./config.js";
 import { prisma } from "./lib/prisma.js";
-import { redis, redisUrl, redisUrlSource } from "./lib/redis.js";
+import { redis } from "./lib/redis.js";
 import { getQueue, jobsQueueName } from "./lib/queue.js";
 import { trackingQueue, trackingQueueName } from "./queue/queue.js";
 import { ensureRedisConnection } from "./queue/redis.js";
@@ -365,11 +365,11 @@ async function startWorker() {
 
     await ensureStorageDirs();
     await prisma.$connect();
-    console.log(`[Worker] Waiting for Redis connection (${redisUrlSource})...`);
+    console.log("[Worker] Waiting for Redis connection (REDIS_URL)...");
     await ensureRedisConnection();
     console.log("Worker started");
     console.log("[Worker] Worker started");
-    console.log(`[Worker] Redis connected: ${sanitizeRedisUrl(redisUrl)}`);
+    console.log(`[Worker] Redis connected: ${sanitizeRedisUrl(process.env.REDIS_URL)}`);
     console.log(`[Worker] Upload directory: ${uploadsDir()}`);
 
     await reconcileLabelQueueState();
@@ -805,7 +805,7 @@ worker.on("error", (err) => {
 });
 
 // eslint-disable-next-line no-console
-console.log(`Worker started. Connecting to Redis at ${sanitizeRedisUrl(redisUrl)} (${redisUrlSource})...`);
+console.log(`Worker started. Connecting to Redis at ${sanitizeRedisUrl(process.env.REDIS_URL)} (REDIS_URL)...`);
 
 const trackingWorker = new Worker(
   trackingQueueName,
