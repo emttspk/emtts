@@ -1,7 +1,7 @@
 import { Queue } from "bullmq";
 import { redis } from "./redis.js";
 
-export const jobsQueueName = "jobs";
+export const jobsQueueName = "job";
 
 let queue: Queue | null = null;
 

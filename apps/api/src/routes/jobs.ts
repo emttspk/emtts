@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
 import { existsSync } from "node:fs";
+import fsSync from "node:fs";
 import multer from "multer";
 import path from "node:path";
 import fs from "node:fs/promises";
@@ -490,12 +491,14 @@ export async function handleLabelUpload(req: Request, res: Response) {
       if (!queue) {
         throw new Error("Queue unavailable");
       }
+      const fileBuffer = fsSync.readFileSync(uploadPath);
       await withTimeout(ensureRedisConnection(), 3000, "Redis connection timed out");
       await withTimeout(queue.add(
-        "generate-pdf",
+        "job",
         {
           jobId: job.id,
-          filePath: uploadPath,
+          fileBuffer,
+          fileName: req.file.originalname,
           generateLabels: true,
           generateMoneyOrder: effectiveGenerateMoneyOrder,
           autoGenerateTracking,
@@ -508,6 +511,7 @@ export async function handleLabelUpload(req: Request, res: Response) {
         },
         { jobId: job.id },
       ), 3000, "Queue enqueue timed out");
+      console.log("Job added:", job.id);
     } catch (queueErr) {
       const queueMessage = queueErr instanceof Error ? queueErr.message : "Queue enqueue failed";
       console.error(`[Upload] Queue enqueue failed for job ${job.id}: ${queueMessage}`);

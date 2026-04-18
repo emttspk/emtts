@@ -10,11 +10,11 @@
     "node": "22.x"
   },
   "scripts": {
-    "dev:web": "npm run preview -w apps/web",
-    "dev:api": "npm run dev -w apps/api",
-    "worker": "npm run worker -w apps/api",
-    "worker:dev": "npm run worker:dev -w apps/api",
-    "dev:all": "concurrently \"npm run dev -w apps/api\" \"npm run worker:dev -w apps/api\" \"npm run preview -w apps/web\"",
+    "dev:web": "npm run preview --workspace=@labelgen/web",
+    "dev:api": "npm run dev --workspace=@labelgen/api",
+    "worker": "npm run worker --workspace=@labelgen/api",
+    "worker:dev": "npm run worker:dev --workspace=@labelgen/api",
+    "dev:all": "concurrently \"npm run dev --workspace=@labelgen/api\" \"npm run worker:dev --workspace=@labelgen/api\" \"npm run preview --workspace=@labelgen/web\"",
     "build:web": "npm run build --workspace=@labelgen/web",
     "start:web": "cd apps/web && npm run start",
     "start": "npm run start --workspace=@labelgen/api",

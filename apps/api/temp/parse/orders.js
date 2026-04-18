@@ -25,8 +25,8 @@ const requiredRowFields = [
     "consigneePhone",
     "consigneeAddress",
 ];
-export async function parseOrdersFromFile(filePath, opts) {
-    const fileContent = await fs.readFile(filePath);
+export async function parseOrdersFromFile(inputPath, opts) {
+    const fileContent = await fs.readFile(inputPath);
     const workbook = xlsx.read(fileContent);
     const sheetName = workbook.SheetNames[0];
     if (!sheetName) {

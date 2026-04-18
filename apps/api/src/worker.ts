@@ -1,6 +1,5 @@
 console.log("🔥 WORKER FILE LOADED");
 import { UnrecoverableError, Worker } from "bullmq";
-import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
@@ -16,7 +15,7 @@ import { getQueue, jobsQueueName } from "./lib/queue.js";
 import { trackingQueue, trackingQueueName } from "./queue/queue.js";
 import { ensureRedisConnection } from "./queue/redis.js";
 import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, toStoredPath, uploadsDir, waitForStoredFile } from "./storage/paths.js";
-import { parseOrdersFromFile } from "./parse/orders.js";
+import { parseOrdersFromBuffer } from "./parse/orders.js";
 import { moneyOrderHtml, renderLabelDocumentHtml, type LabelOrder } from "./templates/labels.js";
 import { htmlToPdfBuffer, launchPuppeteerBrowser } from "./pdf/render.js";
 import { finalizeQueuedToGenerated, finalizeQueuedTrackingToGenerated, releaseQueuedLabels, releaseQueuedTracking } from "./usage/limits.js";
@@ -379,7 +378,7 @@ const worker = new Worker(
   async (bullJob) => {
     const processJob = async () => {
     console.log("🔥 JOB RECEIVED");
-    console.log("Processing job");
+    console.log("Processing job:", bullJob.id);
     console.log(`[Worker] Processing job ${String(bullJob.id ?? "unknown")}`);
     await prisma.$connect();
     const {
@@ -393,10 +392,12 @@ const worker = new Worker(
       trackAfterGenerate,
       carrierType,
       shipmentType,
-      filePath: jobDataFilePath,
+      fileBuffer,
+      fileName,
     } = bullJob.data as {
       jobId: string;
-      filePath?: string;
+      fileBuffer?: Buffer;
+      fileName?: string;
       generateLabels?: boolean;
       autoGenerateTracking?: boolean;
       generateMoneyOrder?: boolean;
@@ -419,15 +420,8 @@ const worker = new Worker(
 
     let browser: Browser | undefined;
     try {
-      const resolvedFilePath = String(jobDataFilePath ?? "").trim();
-      if (!resolvedFilePath) {
-        throw new UnrecoverableError("Missing filePath in job data");
-      }
-      console.log(`[WORKER] Reading file: ${resolvedFilePath}`);
-
-      if (!existsSync(resolvedFilePath)) {
-        console.error(`[WORKER] Upload file not found at ${resolvedFilePath}`);
-        throw new UnrecoverableError(`Upload file not found at ${resolvedFilePath}`);
+      if (!fileBuffer) {
+        throw new UnrecoverableError("File buffer missing in job");
       }
 
       browser = await launchWorkerBrowser();
@@ -444,7 +438,11 @@ const worker = new Worker(
 
       let orders: any[] = [];
       try {
-        orders = await parseOrdersFromFile(resolvedFilePath, { allowMissingTrackingId: doAutoGenerateTracking });
+        orders = await parseOrdersFromBuffer(
+          Buffer.from(fileBuffer),
+          String(fileName ?? `${jobId}.xlsx`),
+          { allowMissingTrackingId: doAutoGenerateTracking },
+        );
         console.log(`[Worker] Parsing success for job ${jobId}. Rows: ${orders.length}`);
       } catch (parseError) {
         const parseMessage = parseError instanceof Error ? parseError.message : String(parseError);
@@ -755,7 +753,7 @@ const worker = new Worker(
       });
 
       await finalizeQueuedToGenerated(job.userId, job.unitCount || job.recordCount);
-      console.log("Job completed");
+      console.log("Job completed:", bullJob.id);
       console.log(`[Worker] Job completed ${jobId}`);
       console.log(`[Worker] Job ${jobId} completed successfully`);
 

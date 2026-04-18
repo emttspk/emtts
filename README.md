@@ -18,12 +18,12 @@ Bulk shipping label + money order form generation with background jobs and PDF e
 3) Install deps (from repo root):
    - `npm install`
 4) DB schema:
-   - `npm run prisma:generate -w apps/api`
-   - `npm run prisma:migrate -w apps/api`
-   - Production start path: `npm run start -w apps/api` (runs `prisma migrate deploy` before API boot)
+   - `npm run prisma:generate --workspace=@labelgen/api`
+   - `npm run prisma:migrate --workspace=@labelgen/api`
+   - Production start path: `npm run start --workspace=@labelgen/api` (runs `prisma migrate deploy` before API boot)
 5) Run API + worker + web (separate terminals):
-   - API: `npm run dev -w apps/api`
-   - Worker: `npm run worker -w apps/api`
+   - API: `npm run dev --workspace=@labelgen/api`
+   - Worker: `npm run worker --workspace=@labelgen/api`
    - Web: `npm run dev -w apps/web`
 
 ## Connection Repair
@@ -37,7 +37,7 @@ If you see "Failed to reach API endpoint":
 - **Redis:** Ensure `docker compose up -d` is running. The API will crash if BullMQ cannot connect to Redis.
 - **Port Conflicts:** The API defaults to port 3000. Verify with `netstat` or `lsof` if the port is occupied.
 - **DB Errors:** Ensure `npm run prisma:migrate` was successful.
-- **Logs:** Check the terminal running `npm run dev -w apps/api` for any red stack traces.
+- **Logs:** Check the terminal running `npm run dev --workspace=@labelgen/api` for any red stack traces.
 
 ## Production Prisma Workflow
 - Deploy with migrations only: `npx prisma migrate deploy && node dist/index.js`

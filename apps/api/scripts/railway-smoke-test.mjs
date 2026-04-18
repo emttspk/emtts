@@ -53,19 +53,19 @@ async function login() {
 }
 
 async function createTempCsv() {
-  const filePath = path.join(os.tmpdir(), `railway-smoke-${Date.now()}.csv`);
+  const inputPath = path.join(os.tmpdir(), `railway-smoke-${Date.now()}.csv`);
   const csv = [
     "shipperName,shipperPhone,shipperAddress,shipperEmail,senderCity,consigneeName,consigneeEmail,consigneePhone,consigneeAddress,ConsigneeCity,CollectAmount,orderid,ProductDescription,Weight,shipment_type,numberOfPieces,TrackingID",
     "Acme Store,03001234567,1 Mall Road,ops@acme.example,Lahore,Ali Raza,ali@example.com,03111222333,House 10 Street 5,Lahore,20000,2026-04-17,Books,1.0,VPL,1,VPL260300001",
   ].join("\n");
 
-  await fs.writeFile(filePath, csv, "utf8");
-  return filePath;
+  await fs.writeFile(inputPath, csv, "utf8");
+  return inputPath;
 }
 
-async function uploadFile(token, filePath) {
+async function uploadFile(token, inputPath) {
   const form = new FormData();
-  const blob = new Blob([await fs.readFile(filePath)]);
+  const blob = new Blob([await fs.readFile(inputPath)]);
   form.append("file", blob, "smoke.csv");
   form.append("generateMoneyOrder", "false");
   form.append("autoGenerateTracking", "false");

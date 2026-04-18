@@ -17,8 +17,8 @@ function normalizeHeader(v: string) {
   return v.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-export async function parseTrackingNumbersFromFile(filePath: string, trackingField?: string): Promise<string[]> {
-  const fileContent = await fs.readFile(filePath);
+export async function parseTrackingNumbersFromFile(inputPath: string, trackingField?: string): Promise<string[]> {
+  const fileContent = await fs.readFile(inputPath);
   const workbook = xlsx.read(fileContent);
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) return [];

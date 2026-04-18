@@ -55,12 +55,12 @@ const requiredRowFields: ReadonlyArray<StrictColumn> = [
   "consigneeAddress",
 ];
 
-export async function parseOrdersFromFile(filePath: string, opts?: { allowMissingTrackingId?: boolean }): Promise<any[]> {
-  const fileName = path.basename(String(filePath ?? "").trim());
+export async function parseOrdersFromFile(inputPath: string, opts?: { allowMissingTrackingId?: boolean }): Promise<any[]> {
+  const fileName = path.basename(String(inputPath ?? "").trim());
   const normalizedUploadPath = path.join(uploadsDir(), fileName);
 
-  const candidatePath = existsSync(filePath)
-    ? filePath
+  const candidatePath = existsSync(inputPath)
+    ? inputPath
     : existsSync(normalizedUploadPath)
       ? normalizedUploadPath
       : null;
@@ -133,6 +133,116 @@ export async function parseOrdersFromFile(filePath: string, opts?: { allowMissin
     if (!strictToSource.has(strict)) {
       strictToSource.set(strict, key);
       sourceToStrict.set(key, strict);
+    }
+  }
+
+  const missingHeaders = strictColumns.filter((col) => !strictToSource.has(col));
+  if (missingHeaders.length > 0) {
+    throw new Error(`Missing required columns: ${missingHeaders.join(", ")}`);
+  }
+
+  const processedData: OrderRecord[] = jsonData.map((row, i) => {
+    const strictRow: Record<StrictColumn, string> = {} as Record<StrictColumn, string>;
+    for (const col of strictColumns) {
+      const sourceKey = strictToSource.get(col)!;
+      const raw = row[sourceKey];
+      strictRow[col] = raw === undefined || raw === null ? "" : String(raw).trim();
+    }
+
+    if (!strictRow.CollectAmount) {
+      strictRow.CollectAmount = "0";
+    }
+
+    const collectMatch = strictRow.CollectAmount.match(/[\d,]+(?:\.\d+)?/);
+    strictRow.CollectAmount = collectMatch ? collectMatch[0].replace(/,/g, "") : "0";
+
+    for (const reqCol of requiredRowFields) {
+      if (!strictRow[reqCol]) {
+        invalidRows.push(`Row ${i + 2}: ${reqCol} is required.`);
+      }
+    }
+
+    if (!strictRow.TrackingID) {
+      if (opts?.allowMissingTrackingId !== true) {
+        invalidRows.push(`Row ${i + 2}: TrackingID is required.`);
+      }
+    } else {
+      const trackingResult = validateTrackingId(strictRow.TrackingID);
+      if (!trackingResult.ok) {
+        invalidRows.push(`Row ${i + 2}: ${(trackingResult as any).reason}`);
+      } else {
+        strictRow.TrackingID = trackingResult.value;
+      }
+    }
+
+    return {
+      ...strictRow,
+    } satisfies OrderRecord;
+  });
+
+  if (invalidRows.length > 0) {
+    throw new Error(`Upload validation failed. ${invalidRows.slice(0, 30).join(" ")}`);
+  }
+
+  return processedData;
+}
+
+export async function parseOrdersFromBuffer(fileBuffer: Buffer, fileName: string, opts?: { allowMissingTrackingId?: boolean }): Promise<any[]> {
+  if (!fileBuffer || fileBuffer.length === 0) {
+    throw new Error("Uploaded file buffer is empty");
+  }
+
+  let workbook: xlsx.WorkBook;
+  try {
+    workbook = xlsx.read(fileBuffer, { type: "buffer" });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[OrdersParser] Failed reading/parsing buffer ${fileName}: ${message}`);
+    throw new Error(`Failed to parse uploaded file: ${message}`);
+  }
+
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) {
+    throw new Error("No sheets found in the uploaded file.");
+  }
+
+  const worksheet = workbook.Sheets[sheetName];
+  const jsonData = xlsx.utils.sheet_to_json<Record<string, any>>(worksheet, {
+    raw: false,
+    defval: "",
+  });
+
+  if (jsonData.length === 0) {
+    return [];
+  }
+
+  const normalizeKey = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const invalidRows: string[] = [];
+
+  const firstRow = jsonData[0] ?? {};
+  const strictToSource = new Map<StrictColumn, string>();
+
+  for (const key of Object.keys(firstRow)) {
+    let normalized = normalizeKey(key);
+    if (normalized === "bookingcity") {
+      normalized = "sendercity";
+    }
+    if (normalized === "consigneecity") {
+      normalized = "receivercity";
+    }
+    if (normalized === "orderid") {
+      normalized = "ordered";
+    }
+    if (normalized === "shipment_type") {
+      normalized = "shipmenttype";
+    }
+    if (normalized === "amount") {
+      normalized = "collectamount";
+    }
+    const strict = strictColumns.find((col) => normalizeKey(col) === normalized);
+    if (!strict) continue;
+    if (!strictToSource.has(strict)) {
+      strictToSource.set(strict, key);
     }
   }
 

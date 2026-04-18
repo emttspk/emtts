@@ -732,12 +732,12 @@ function resolveBenchmarkMoTemplatePath() {
 
 function loadBenchmarkMoHtml() {
   if (benchmarkMoHtmlCache) return benchmarkMoHtmlCache;
-  const filePath = resolveBenchmarkMoTemplatePath();
-  if (!filePath) {
+  const inputPath = resolveBenchmarkMoTemplatePath();
+  if (!inputPath) {
     benchmarkMoHtmlCache = "<!doctype html><html><head><meta charset=\"utf-8\"></head><body><div class=\"sheet\"></div><div class=\"sheet\"></div></body></html>";
     return benchmarkMoHtmlCache;
   }
-  benchmarkMoHtmlCache = fs.readFileSync(filePath, "utf8");
+  benchmarkMoHtmlCache = fs.readFileSync(inputPath, "utf8");
   return benchmarkMoHtmlCache;
 }
 

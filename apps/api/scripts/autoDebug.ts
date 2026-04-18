@@ -123,7 +123,7 @@ function buildTrackingId() {
 }
 
 async function createTestExcel(cycle: number): Promise<string> {
-  const filePath = path.join(os.tmpdir(), `auto-debug-${Date.now()}-${cycle}.xlsx`);
+  const inputPath = path.join(os.tmpdir(), `auto-debug-${Date.now()}-${cycle}.xlsx`);
   const row = {
     shipperName: "Auto Debug Shipper",
     shipperPhone: "03001234567",
@@ -147,8 +147,8 @@ async function createTestExcel(cycle: number): Promise<string> {
   const worksheet = xlsx.utils.json_to_sheet([row]);
   const workbook = xlsx.utils.book_new();
   xlsx.utils.book_append_sheet(workbook, worksheet, "Sheet1");
-  xlsx.writeFile(workbook, filePath);
-  return filePath;
+  xlsx.writeFile(workbook, inputPath);
+  return inputPath;
 }
 
 async function ensureApiHealth() {

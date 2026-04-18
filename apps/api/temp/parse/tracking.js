@@ -14,8 +14,8 @@ const TRACKING_HEADER_CANDIDATES = [
 function normalizeHeader(v) {
     return v.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
-export async function parseTrackingNumbersFromFile(filePath, trackingField) {
-    const fileContent = await fs.readFile(filePath);
+export async function parseTrackingNumbersFromFile(inputPath, trackingField) {
+    const fileContent = await fs.readFile(inputPath);
     const workbook = xlsx.read(fileContent);
     const sheetName = workbook.SheetNames[0];
     if (!sheetName)

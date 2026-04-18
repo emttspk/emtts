@@ -7,8 +7,8 @@ const ROOT = path.resolve(process.cwd(), "..", "..");
 const XLS_PATH = path.join(ROOT, "LCS 13-11-2024.xls");
 const OUT_PATH = path.join(process.cwd(), "temp-cycle-audit-100.json");
 
-function collectTrackingIdsFromWorkbook(filePath, limit = 100) {
-  const wb = xlsx.readFile(filePath, { cellDates: false });
+function collectTrackingIdsFromWorkbook(inputPath, limit = 100) {
+  const wb = xlsx.readFile(inputPath, { cellDates: false });
   const ids = [];
   const seen = new Set();
   const idRegex = /\b(?:[A-Z]{2,4}\d{8,16}|MOS[A-Z0-9]{4,})\b/i;
