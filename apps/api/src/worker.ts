@@ -367,6 +367,7 @@ async function startWorker() {
     console.log("[Worker] Waiting for Redis connection (REDIS_URL)...");
     await ensureRedisConnection();
     console.log("Worker started");
+    console.log("🚀 Worker started and listening for jobs...");
     console.log("[Worker] Worker started");
     console.log(`[Worker] Redis connected: ${sanitizeRedisUrl(process.env.REDIS_URL)}`);
     console.log(`[Worker] Upload directory: ${uploadsDir()}`);

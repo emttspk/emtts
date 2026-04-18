@@ -1,9 +1,17 @@
 {
-  "$schema": "https://railway.app/railway.schema.json",
-  "build": {
-    "command": "npm install --omit=dev && npm run build"
-  },
-  "deploy": {
-    "startCommand": "node apps/api/dist/index.js"
+  "services": {
+    "api": {
+      "build": {
+        "command": "npm install --omit=dev && npm run build"
+      },
+      "deploy": {
+        "startCommand": "node apps/api/dist/index.js"
+      }
+    },
+    "worker": {
+      "deploy": {
+        "startCommand": "node apps/api/dist/worker.js"
+      }
+    }
   }
 }
