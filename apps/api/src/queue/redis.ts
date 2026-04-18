@@ -11,9 +11,10 @@ export function getRedisConnection() {
  * so this mainly verifies liveness and logs status once.
  */
 export async function ensureRedisConnection() {
-  // Only attempt explicit connect if the client has not started yet
-  if (redis.status === "wait") {
-    console.log("Redis connecting...");
+  const status = redis.status;
+
+  if (status === "wait" || status === "end" || status === "close") {
+    console.log(`[Redis] connecting (status=${status})...`);
     await redis.connect();
   }
 
