@@ -6,7 +6,7 @@
   "scripts": {
     "build": "vite build",
     "preview": "vite preview --host",
-    "start": "node scripts/start.cjs"
+    "start": "npm run build && node scripts/start.cjs"
   },
   "dependencies": {
     "jspdf": "^4.2.1",

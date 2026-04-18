@@ -96,9 +96,11 @@ function validateEnvironment() {
   const pythonServiceUrl = String(process.env.PYTHON_SERVICE_URL ?? "").trim();
   const isProduction = process.env.NODE_ENV === "production";
   if (!redisUrl) {
-    errors.push("REDIS_URL environment variable is not set. Queue processing requires a Redis service.");
+    warnings.push("REDIS_URL environment variable is not set. Queue processing will be unavailable until Redis is configured.");
   } else if (isProduction && /(localhost|127\.0\.0\.1)/i.test(redisUrl)) {
-    errors.push("REDIS_URL points to localhost in production. Configure Railway Redis and set REDIS_URL.");
+    warnings.push("REDIS_URL points to localhost in production. Configure Railway Redis and set REDIS_URL.");
+  } else if (/(^|[:@/])HOST([:@/]|$)|(^|[:@/])PASSWORD([:@/]|$)/i.test(redisUrl)) {
+    warnings.push("REDIS_URL appears to be a placeholder value. Replace it with a real Redis URL.");
   } else if (isProduction && !redisUrl.startsWith("rediss://")) {
     // Warn but do not block startup — some Railway plans expose redis:// internally
     console.warn("⚠️  [Redis] REDIS_URL does not use TLS (rediss://). This is fine for internal Railway networking but ensure the URL is correct.");
@@ -126,7 +128,7 @@ function validateEnvironment() {
     console.error("   4. Deploy or restart the service");
     console.error("\nFIX FOR LOCAL DEVELOPMENT:");
     console.error("   1. Ensure .env file exists with DATABASE_URL set");
-    console.error("   2. Run: npm run dev (loads .env automatically)");
+    console.error("   2. Run: npm --workspace=@labelgen/api run dev (loads .env automatically)");
     throw new Error(`Startup validation failed: ${errors.join(" | ")}`);
   }
 }
@@ -411,11 +413,11 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 });
 
 // CRITICAL: Start server IMMEDIATELY without any blocking awaits
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 8080;
 console.log(`PORT: ${PORT}`);
 
 // Listen FIRST - this must not be blocked by anything
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`API running on port ${PORT}`);
 });
 
@@ -447,6 +449,11 @@ server.on("error", (err: any) => {
     
     // Recovery: Try to re-enqueue jobs stuck in QUEUED status
     try {
+      const redisUrl = String(process.env.REDIS_URL ?? "").trim();
+      const hasUsableRedis = !!redisUrl && !/(^|[:@/])HOST([:@/]|$)|(^|[:@/])PASSWORD([:@/]|$)/i.test(redisUrl);
+      if (!hasUsableRedis) {
+        console.log("[RECOVERY] Skipping queue recovery because REDIS_URL is missing or placeholder.");
+      } else {
       console.log("[RECOVERY] Checking for jobs stuck in QUEUED status...");
       const queuedJobs = await prisma.labelJob.findMany({
         where: { status: "QUEUED" },
@@ -490,6 +497,7 @@ server.on("error", (err: any) => {
             await releaseQueuedLabels(dbJob.userId, dbJob.unitCount || dbJob.recordCount).catch(() => {});
           }
         }
+      }
       }
     } catch (err) {
       console.warn("[RECOVERY] Failed to recover stuck jobs:", err instanceof Error ? err.message : String(err));

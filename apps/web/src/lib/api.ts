@@ -1,8 +1,9 @@
 import { getToken } from "./auth";
 
+const API_BASE_URL = "https://labelgenapi-production.up.railway.app";
 const envBase =
   (import.meta.env.VITE_API_BASE as string | undefined) ?? (import.meta.env.VITE_API_URL as string | undefined);
-const base = envBase?.trim() || "";
+const base = envBase?.trim() || API_BASE_URL;
 
 // Log API configuration for debugging
 console.log(`[API] Base URL configured: "${base}" (empty means same-origin requests to /api)`);
