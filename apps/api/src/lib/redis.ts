@@ -7,7 +7,9 @@ console.log("🚨 REDIS URL =", redisUrl);
 export const redis = new Redis(redisUrl, {
   maxRetriesPerRequest: null,
   connectTimeout: 20000,
-  tls: {}, // required for Railway
+  tls: {
+    rejectUnauthorized: false,
+  },
 });
 
 redis.on("connect", () => console.log("✅ Redis CONNECTED"));
