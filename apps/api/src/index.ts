@@ -189,8 +189,10 @@ app.use("/api", async (req, res, next) => {
 // API routes (these come first)
 app.get("/api", (_req, res) => res.json({ success: true, message: "LabelGen API is running" }));
 app.get("/api/version", (_req, res) => res.json({ success: true, version: BUILD_VERSION }));
-app.get("/health", (_req, res) => res.json({ ok: true }));
-app.get("/api/health", (_req, res) => res.json({ ok: true }));
+app.get("/health", (_req, res) => res.json({ status: "ok" }));
+app.get("/api/health", (_req, res) => {
+  res.json({ status: "ok" });
+});
 app.get("/api/template.csv", (_req, res) => {
   const header = [
     "shipperName",
@@ -409,12 +411,12 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 });
 
 // CRITICAL: Start server IMMEDIATELY without any blocking awaits
-const PORT = Number(process.env.PORT || 3000);
+const PORT = process.env.PORT || 3000;
 console.log(`PORT: ${PORT}`);
 
 // Listen FIRST - this must not be blocked by anything
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ API listening on http://0.0.0.0:${PORT}`);
+const server = app.listen(PORT, () => {
+  console.log(`API running on port ${PORT}`);
 });
 
 server.on("error", (err: any) => {
