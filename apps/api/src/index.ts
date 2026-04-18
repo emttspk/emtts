@@ -3,7 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import fs from "fs";
 import { env } from "./config.js";
-import { ensureDatabaseConnection } from "./db";
+import { ensureDatabaseConnection } from "./db.js";
 import { prisma } from "./lib/prisma.js";
 import { authRouter } from "./routes/auth.js";
 import { meRouter } from "./routes/me.js";
