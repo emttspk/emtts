@@ -6,7 +6,8 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch --ignore storage/** --ignore apps/api/storage/** --env-file=.env src/index.ts",
-    "build": "npx prisma generate --schema=prisma/schema.prisma && rimraf dist && tsc",
+    "build": "tsc",
+    "postbuild": "node -e \"const fs=require('fs');const path=require('path');const roots=['dist',path.join('apps','api','dist')];for(const out of roots){const srcDir=path.join(out,'src');if(!fs.existsSync(srcDir)) continue;for(const name of ['index.js','worker.js']){const from=path.join(srcDir,name);const to=path.join(out,name);if(fs.existsSync(from)){fs.copyFileSync(from,to);}}}\"",
     "worker:dev": "tsx --env-file=.env src/worker.ts",
     "worker": "node dist/worker.js",
     "start": "node dist/index.js",

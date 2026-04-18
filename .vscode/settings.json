@@ -40,6 +40,9 @@
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.preferences.includePackageJsonAutoImports": "on",
 
+  // ─── JSON Validation ────────────────────────────────────────────────────────
+  "json.schemaDownload.enable": false,
+
   // ─── Editor ─────────────────────────────────────────────────────────────────
   "editor.formatOnSave": false,
   "files.autoSave": "onFocusChange"

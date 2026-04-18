@@ -18,7 +18,8 @@
     "build:web": "npm run build --workspace=@labelgen/web",
     "start:web": "cd apps/web && npm run start",
     "start": "npm run start --workspace=@labelgen/api",
-    "build": "npm run build --workspace=@labelgen/api",
+    "build": "npm run build -w apps/api",
+    "postinstall": "npm run build",
     "build:all": "npm run build"
   },
   "dependencies": {
