@@ -6,8 +6,8 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch --ignore storage/** --ignore apps/api/storage/** --env-file=.env src/index.ts",
-    "build": "tsc",
-    "postbuild": "node -e \"const fs=require('fs');const path=require('path');const roots=['dist',path.join('apps','api','dist')];for(const out of roots){const srcDir=path.join(out,'src');if(!fs.existsSync(srcDir)) continue;for(const name of ['index.js','worker.js']){const from=path.join(srcDir,name);const to=path.join(out,name);if(fs.existsSync(from)){fs.copyFileSync(from,to);}}}\"",
+    "build": "rm -rf dist && tsc",
+    "postbuild": "node -e \"const fs=require('fs');const path=require('path');const roots=['dist',path.join('apps','api','dist')];for(const out of roots){const srcDir=path.join(out,'src');if(!fs.existsSync(srcDir)) continue;for(const entry of fs.readdirSync(srcDir,{withFileTypes:true})){const from=path.join(srcDir,entry.name);const to=path.join(out,entry.name);fs.cpSync(from,to,{recursive:true});}}\"",
     "worker:dev": "tsx --env-file=.env src/worker.ts",
     "worker": "node dist/worker.js",
     "start": "node dist/index.js",

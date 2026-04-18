@@ -3,7 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import fs from "fs";
 import { env } from "./config.js";
-import { ensureDatabaseConnection } from "./db.js";
+import { ensureDatabaseConnection } from "./db";
 import { prisma } from "./lib/prisma.js";
 import { authRouter } from "./routes/auth.js";
 import { meRouter } from "./routes/me.js";
@@ -331,7 +331,7 @@ app.get("/api/template.csv", (_req, res) => {
     ],
   ];
 
-  const esc = (v: string) => (/[\",\n]/.test(v) ? `"${v.replaceAll("\"", "\"\"")}"` : v);
+  const esc = (v: string) => (/[\",\n]/.test(v) ? `"${v.replace(/\"/g, "\"\"")}"` : v);
   const csv = [header, ...rows.map((r) => r.map((c) => esc(String(c))).join(","))].join("\n");
 
   res.setHeader("Content-Type", "text/csv; charset=utf-8");

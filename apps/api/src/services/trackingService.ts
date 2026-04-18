@@ -83,11 +83,12 @@ function baseUrl() {
     throw new Error("PYTHON_SERVICE_URL is missing");
   }
 
-  let parsed: URL;
+  let parsed: URL | null = null;
   try {
     parsed = new URL(value);
   } catch {
     console.warn("PYTHON_SERVICE_URL not valid, skipping external service");
+    throw new Error("PYTHON_SERVICE_URL not valid");
   }
 
   return parsed.toString().replace(/\/+$/, "");

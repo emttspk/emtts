@@ -355,9 +355,10 @@ export async function handleLabelUpload(req: Request, res: Response) {
   const userId = (req as AuthedRequest).user!.id;
   await ensureStorageDirs();
 
-  if (!req.file) return res.status(400).json({ success: false, error: "Missing file", message: "Missing file" });
+  const uploadedFile = req.file;
+  if (!uploadedFile) return res.status(400).json({ success: false, error: "Missing file", message: "Missing file" });
 
-  const ext = path.extname(req.file.originalname).toLowerCase();
+  const ext = path.extname(uploadedFile.originalname).toLowerCase();
   const generateMoneyOrderRequested = String(req.body?.generateMoneyOrder ?? "false").toLowerCase() === "true";
   const autoGenerateTracking = String(req.body?.autoGenerateTracking ?? "false").toLowerCase() === "true";
   const barcodeMode = String(req.body?.barcodeMode ?? "auto").toLowerCase() === "manual" ? "manual" : "auto";
@@ -381,7 +382,7 @@ export async function handleLabelUpload(req: Request, res: Response) {
   const job = await withReconnectRetry(async () => prisma.labelJob.create({
     data: {
       userId,
-      originalFilename: req.file.originalname,
+      originalFilename: uploadedFile.originalname,
       recordCount: 0,
       unitCount: 0,
       includeMoneyOrders: generateMoneyOrder,
@@ -397,7 +398,7 @@ export async function handleLabelUpload(req: Request, res: Response) {
   console.log("UPLOAD RECEIVED:", fileName);
 
   const uploadPath = path.join(uploadBaseDir, fileName);
-  await fs.rename(req.file.path, uploadPath);
+  await fs.rename(uploadedFile.path, uploadPath);
   console.log("[UPLOAD] Saved file:", uploadPath);
 
   let ordersCount = 0;
@@ -498,7 +499,7 @@ export async function handleLabelUpload(req: Request, res: Response) {
         {
           jobId: job.id,
           fileBuffer,
-          fileName: req.file.originalname,
+          fileName: uploadedFile.originalname,
           generateLabels: true,
           generateMoneyOrder: effectiveGenerateMoneyOrder,
           autoGenerateTracking,

@@ -306,7 +306,7 @@ export function buildTrackingCycleAuditRecord(
     current_status: currentNorm,
     expected_status: effectiveFinalStatus,
     cycle_detected: effectiveInterpretation.cycle_detected,
-    issue: issueCode === "MOS_VERIFIED_COMPLETED" ? "RESOLVED" : issueCode === "NO_ISSUE" ? "No issue" : issueCode.replaceAll("_", " "),
+    issue: issueCode === "MOS_VERIFIED_COMPLETED" ? "RESOLVED" : issueCode === "NO_ISSUE" ? "No issue" : issueCode.replace(/_/g, " "),
     reason: buildReason(effectiveInterpretation, mismatch),
     correction_required: !informationalOnly && !partialOnlyReturnNoise && mismatch,
     suggested_fix: suggestedFix(issueCode),
