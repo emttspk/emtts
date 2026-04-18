@@ -11,11 +11,11 @@ export const redis = new IORedis(redisUrl, {
   connectTimeout: 20000,
 
   // force TLS for Railway
-  tls: {},
+  tls: redisUrl.startsWith("rediss://") ? {} : undefined,
 
-  retryStrategy: (times) => {
-    return Math.min(times * 200, 5000);
-  },
+retryStrategy: (times) => {
+  return Math.min(times * 200, 5000);
+},
 
   enableReadyCheck: true,
   lazyConnect: false,
