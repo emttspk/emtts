@@ -2,9 +2,6 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import fs from "fs";
-import path from "path";
-import { dirname } from "path";
-import { fileURLToPath } from "url";
 import { env } from "./config.js";
 import { ensureDatabaseConnection } from "./db.js";
 import { prisma } from "./lib/prisma.js";
@@ -21,9 +18,6 @@ import { startCleanupCron } from "./cron/cleanup.js";
 import { requireAuth } from "./middleware/auth.js";
 import { releaseQueuedLabels } from "./usage/limits.js";
 import { UPLOAD_DIR } from "./utils/paths.js";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 const BUILD_VERSION = process.env.RAILWAY_GIT_COMMIT_SHA ?? "local";
 
 if (!fs.existsSync(UPLOAD_DIR)) {
@@ -173,6 +167,10 @@ app.use(
   }),
 );
 app.use(express.json({ limit: "2mb" }));
+
+app.get("/", (req, res) => {
+  res.status(200).send("OK");
+});
 
 app.use("/api", async (req, res, next) => {
   if (req.path === "/" || req.path === "/health" || req.path === "/version") {
@@ -389,20 +387,6 @@ app.use("/api/*", (_req, res) => {
   res.status(404).json({ success: false, message: "Route not found" });
 });
 
-// Serve static files from web build directory
-const webDistPath = path.resolve(__dirname, "../../web/dist");
-app.use(express.static(webDistPath));
-
-// Fallback to index.html for client-side routing
-app.get(/^\/(?!api(?:\/|$)).*/, (req, res) => {
-  const indexPath = path.resolve(webDistPath, "index.html");
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    res.status(404).json({ error: "Frontend not found" });
-  }
-});
-
 // Global Error Handler
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error("GLOBAL ERROR:", err);
@@ -417,9 +401,8 @@ const PORT = Number(process.env.PORT) || 8080;
 console.log(`PORT: ${PORT}`);
 
 // Listen FIRST - this must not be blocked by anything
-const server = app.listen(PORT, "0.0.0.0", () => {
-  console.log(`API running on port ${PORT}`);
-});
+const server = app.listen(PORT, "0.0.0.0");
+console.log(`API running on port ${PORT}`);
 
 server.on("error", (err: any) => {
   if (err?.code === "EADDRINUSE") {
