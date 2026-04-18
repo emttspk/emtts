@@ -9,7 +9,7 @@
 5. Set `REDIS_URL` to Railway Redis TLS format: `rediss://default:password@host:port`
 6. Do not install system Chromium via apt; use bundled `puppeteer` only.
 
-Do not use `npm install npm run build` because it is an invalid shell command.
+Do not omit `&&` between install and build commands.
 
 ## Issue: "Non-JSON response" in Login/Register
 

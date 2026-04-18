@@ -1,5 +1,5 @@
 export { connection, redis } from "../lib/redis.js";
-import { redis } from "../lib/redis.js";
+import { redis, redisEnabled } from "../lib/redis.js";
 
 export function getRedisConnection() {
   return redis;
@@ -11,6 +11,10 @@ export function getRedisConnection() {
  * so this mainly verifies liveness and logs status once.
  */
 export async function ensureRedisConnection() {
+  if (!redisEnabled) {
+    throw new Error("REDIS_URL is missing or placeholder");
+  }
+
   const status = redis.status;
 
   if (status === "wait" || status === "end" || status === "close") {

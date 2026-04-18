@@ -31,21 +31,17 @@ if (!fs.existsSync(UPLOAD_DIR)) {
   console.log("[STARTUP] Uploads directory created:", UPLOAD_DIR);
 }
 
-// CRITICAL: Validate DATABASE_URL before any Prisma operations
+// Log DATABASE_URL status without failing before the HTTP server binds.
 console.log("DATABASE_URL exists:", !!process.env.DATABASE_URL);
 
 if (!process.env.DATABASE_URL) {
-  console.error("DATABASE_URL is missing");
-  console.error("For Railway: Link a PostgreSQL database service. It will auto-inject DATABASE_URL.");
-  console.error("For local dev: Ensure .env file exists with DATABASE_URL set.");
-  throw new Error("DATABASE_URL is missing");
-}
-
-if (!process.env.DATABASE_URL.startsWith("postgresql://") && !process.env.DATABASE_URL.startsWith("postgres://")) {
-  console.error("Invalid DATABASE_URL format");
-  console.error(`Received: ${process.env.DATABASE_URL.substring(0, 50)}...`);
-  console.error("Must start with postgresql:// or postgres://");
-  throw new Error("Invalid DATABASE_URL format");
+  console.warn("DATABASE_URL is missing");
+  console.warn("For Railway: Link a PostgreSQL database service. It will auto-inject DATABASE_URL.");
+  console.warn("For local dev: Ensure .env file exists with DATABASE_URL set.");
+} else if (!process.env.DATABASE_URL.startsWith("postgresql://") && !process.env.DATABASE_URL.startsWith("postgres://")) {
+  console.warn("Invalid DATABASE_URL format");
+  console.warn(`Received: ${process.env.DATABASE_URL.substring(0, 50)}...`);
+  console.warn("Must start with postgresql:// or postgres://");
 }
 
 console.log("🚀 Starting LabelGen API server FIXED...");
@@ -78,17 +74,22 @@ function normalizeDatabaseUrl() {
   }
 }
 
+function hasUsableDatabaseUrl() {
+  const dbUrl = String(process.env.DATABASE_URL ?? "").trim();
+  return dbUrl.startsWith("postgresql://") || dbUrl.startsWith("postgres://");
+}
+
 function validateEnvironment() {
   const errors: string[] = [];
   const warnings: string[] = [];
 
   if (!process.env.DATABASE_URL) {
-    errors.push("DATABASE_URL environment variable is not set. For Railway: link a PostgreSQL service. For local dev: ensure .env file has DATABASE_URL.");
+    warnings.push("DATABASE_URL environment variable is not set. API health routes will stay online, but database-backed routes will be unavailable until a PostgreSQL service is configured.");
   } else {
     const dbUrl = process.env.DATABASE_URL;
     const isValidPostgres = dbUrl.startsWith("postgresql://") || dbUrl.startsWith("postgres://");
     if (!isValidPostgres) {
-      errors.push(`DATABASE_URL is invalid: ${dbUrl.substring(0, 50)}... Must start with postgresql:// or postgres://`);
+      warnings.push(`DATABASE_URL is invalid: ${dbUrl.substring(0, 50)}... Must start with postgresql:// or postgres://`);
     }
   }
 
@@ -121,15 +122,6 @@ function validateEnvironment() {
   if (errors.length > 0) {
     console.error("❌ STARTUP VALIDATION FAILED:");
     errors.forEach((err) => console.error(`   - ${err}`));
-    console.error("\nFIX FOR RAILWAY:");
-    console.error("   1. Go to your Railway project");
-    console.error("   2. Link a PostgreSQL database");
-    console.error("   3. The DATABASE_URL will be automatically injected");
-    console.error("   4. Deploy or restart the service");
-    console.error("\nFIX FOR LOCAL DEVELOPMENT:");
-    console.error("   1. Ensure .env file exists with DATABASE_URL set");
-    console.error("   2. Run: npm --workspace=@labelgen/api run dev (loads .env automatically)");
-    throw new Error(`Startup validation failed: ${errors.join(" | ")}`);
   }
 }
 
@@ -138,10 +130,18 @@ validateEnvironment();
 // runMigrations() is now handled in package.json start script
 // NOTE: Ensure database connection BUT DO NOT BLOCK startup
 // This will initialize in the background while the server starts
-ensureDatabaseConnection().catch(err => {
-  console.error("[DB] Failed to establish initial connection:", err instanceof Error ? err.message : String(err));
-  // Continue anyway - health checks and routes will provide fallback handling
-});
+const initialDatabaseReady = hasUsableDatabaseUrl()
+  ? ensureDatabaseConnection()
+      .then(() => true)
+      .catch(err => {
+        console.error("[DB] Failed to establish initial connection:", err instanceof Error ? err.message : String(err));
+        return false;
+      })
+  : Promise.resolve(false);
+
+if (!hasUsableDatabaseUrl()) {
+  console.warn("[DB] Skipping initial database connection because DATABASE_URL is missing or invalid.");
+}
 
 // Global crash protection
 process.on("uncaughtException", (err) => {
@@ -438,10 +438,16 @@ server.on("error", (err: any) => {
     // Ensure storage directories exist
     await ensureStorageDirs();
     console.log("[INIT] Storage directories ready");
-    
-    // Seed default plans
-    await ensureDefaultPlans().catch(err => console.error("[INIT] Failed to seed default plans:", err));
-    console.log("[INIT] Default plans ready");
+
+    const databaseReady = await initialDatabaseReady;
+
+    if (databaseReady) {
+      // Seed default plans
+      await ensureDefaultPlans().catch(err => console.error("[INIT] Failed to seed default plans:", err));
+      console.log("[INIT] Default plans ready");
+    } else {
+      console.log("[INIT] Skipping default plan seed because the database is unavailable.");
+    }
     
     // Start cleanup cron
     startCleanupCron();
@@ -449,52 +455,56 @@ server.on("error", (err: any) => {
     
     // Recovery: Try to re-enqueue jobs stuck in QUEUED status
     try {
+      if (!databaseReady) {
+        console.log("[RECOVERY] Skipping queue recovery because the database is unavailable.");
+      } else {
       const redisUrl = String(process.env.REDIS_URL ?? "").trim();
       const hasUsableRedis = !!redisUrl && !/(^|[:@/])HOST([:@/]|$)|(^|[:@/])PASSWORD([:@/]|$)/i.test(redisUrl);
       if (!hasUsableRedis) {
         console.log("[RECOVERY] Skipping queue recovery because REDIS_URL is missing or placeholder.");
       } else {
-      console.log("[RECOVERY] Checking for jobs stuck in QUEUED status...");
-      const queuedJobs = await prisma.labelJob.findMany({
-        where: { status: "QUEUED" },
-        take: 50,
-      });
-      
-      if (queuedJobs.length > 0) {
-        console.log(`[RECOVERY] Found ${queuedJobs.length} jobs in QUEUED status, attempting to re-enqueue...`);
-        // Dynamic import to avoid circular dependency
-        const { getQueue } = await import("./lib/queue.js");
-        const { ensureRedisConnection } = await import("./queue/redis.js");
-        
-        for (const dbJob of queuedJobs) {
-          try {
-            await ensureRedisConnection();
-            const queue = getQueue();
-            const existingBullJob = await queue.getJob(dbJob.id);
-            if (!existingBullJob) {
-              // Job not in queue, re-add it
-              await queue.add(
-                "generate-pdf",
-                {
-                  jobId: dbJob.id,
-                  generateLabels: true,
-                  generateMoneyOrder: dbJob.includeMoneyOrders,
-                  autoGenerateTracking: false,
-                  barcodeMode: "manual",
-                  printMode: "labels",
-                },
-                { jobId: dbJob.id },
-              );
-              console.log(`[RECOVERY] Re-queued job ${dbJob.id}`);
+        console.log("[RECOVERY] Checking for jobs stuck in QUEUED status...");
+        const queuedJobs = await prisma.labelJob.findMany({
+          where: { status: "QUEUED" },
+          take: 50,
+        });
+
+        if (queuedJobs.length > 0) {
+          console.log(`[RECOVERY] Found ${queuedJobs.length} jobs in QUEUED status, attempting to re-enqueue...`);
+          // Dynamic import to avoid circular dependency
+          const { getQueue } = await import("./lib/queue.js");
+          const { ensureRedisConnection } = await import("./queue/redis.js");
+
+          for (const dbJob of queuedJobs) {
+            try {
+              await ensureRedisConnection();
+              const queue = getQueue();
+              const existingBullJob = await queue.getJob(dbJob.id);
+              if (!existingBullJob) {
+                // Job not in queue, re-add it
+                await queue.add(
+                  "generate-pdf",
+                  {
+                    jobId: dbJob.id,
+                    generateLabels: true,
+                    generateMoneyOrder: dbJob.includeMoneyOrders,
+                    autoGenerateTracking: false,
+                    barcodeMode: "manual",
+                    printMode: "labels",
+                  },
+                  { jobId: dbJob.id },
+                );
+                console.log(`[RECOVERY] Re-queued job ${dbJob.id}`);
+              }
+            } catch (err) {
+              const message = err instanceof Error ? err.message : String(err);
+              console.warn(`[RECOVERY] Failed to re-queue job ${dbJob.id}:`, message);
+              await prisma.labelJob.update({
+                where: { id: dbJob.id },
+                data: { status: "FAILED", error: `Recovery enqueue failed: ${message}` },
+              }).catch(() => {});
+              await releaseQueuedLabels(dbJob.userId, dbJob.unitCount || dbJob.recordCount).catch(() => {});
             }
-          } catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            console.warn(`[RECOVERY] Failed to re-queue job ${dbJob.id}:`, message);
-            await prisma.labelJob.update({
-              where: { id: dbJob.id },
-              data: { status: "FAILED", error: `Recovery enqueue failed: ${message}` },
-            }).catch(() => {});
-            await releaseQueuedLabels(dbJob.userId, dbJob.unitCount || dbJob.recordCount).catch(() => {});
           }
         }
       }
