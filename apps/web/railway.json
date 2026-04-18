@@ -1,9 +1,9 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "command": "npm install --omit=dev && npm run build"
+    "command": "npm install\nnpm run build"
   },
   "deploy": {
-    "startCommand": "npm run build && npx serve dist -s -l $PORT"
+    "startCommand": "node dist/index.js"
   }
 }

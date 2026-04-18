@@ -1,16 +1,31 @@
 {
   "services": {
     "api": {
+      "rootDirectory": "apps/api",
       "build": {
-        "command": "npm install --omit=dev && npm run build"
+        "command": "npm install\nnpm run build"
+      },
+      "variables": {
+        "NPM_CONFIG_PRODUCTION": "false",
+        "NPM_CONFIG_FUND": "false",
+        "NPM_CONFIG_UPDATE_NOTIFIER": "false"
       },
       "deploy": {
-        "startCommand": "node apps/api/dist/index.js"
+        "startCommand": "node dist/index.js"
       }
     },
     "worker": {
+      "rootDirectory": "apps/api",
+      "build": {
+        "command": "npm install\nnpm run build"
+      },
+      "variables": {
+        "NPM_CONFIG_PRODUCTION": "false",
+        "NPM_CONFIG_FUND": "false",
+        "NPM_CONFIG_UPDATE_NOTIFIER": "false"
+      },
       "deploy": {
-        "startCommand": "node apps/api/dist/worker.js"
+        "startCommand": "node dist/worker.js"
       }
     }
   }

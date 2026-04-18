@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "engines": {
-    "node": "22.x"
+    "node": ">=22"
   },
   "scripts": {
     "dev:web": "npm run preview --workspace=@labelgen/web",
