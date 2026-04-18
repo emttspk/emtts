@@ -449,16 +449,16 @@ server.on("error", (err: any) => {
       if (queuedJobs.length > 0) {
         console.log(`[RECOVERY] Found ${queuedJobs.length} jobs in QUEUED status, attempting to re-enqueue...`);
         // Dynamic import to avoid circular dependency
-        const { labelQueue } = await import("./queue/queue.js");
+        const { jobQueue } = await import("./lib/queue.js");
         const { ensureRedisConnection } = await import("./queue/redis.js");
         
         for (const dbJob of queuedJobs) {
           try {
             await ensureRedisConnection();
-            const existingBullJob = await labelQueue.getJob(dbJob.id);
+            const existingBullJob = await jobQueue.getJob(dbJob.id);
             if (!existingBullJob) {
               // Job not in queue, re-add it
-              await labelQueue.add(
+              await jobQueue.add(
                 "generate-pdf",
                 {
                   jobId: dbJob.id,

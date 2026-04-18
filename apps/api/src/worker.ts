@@ -11,8 +11,9 @@ import path from "node:path";
 import { Prisma } from "@prisma/client";
 import { env } from "./config.js";
 import { prisma } from "./lib/prisma.js";
-import { connection } from "./lib/redis.js";
-import { labelQueue, labelQueueName, trackingQueue, trackingQueueName } from "./queue/queue.js";
+import { redis } from "./lib/redis.js";
+import { jobQueue, jobsQueueName } from "./lib/queue.js";
+import { trackingQueue, trackingQueueName } from "./queue/queue.js";
 import { ensureRedisConnection } from "./queue/redis.js";
 import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, toStoredPath, uploadsDir, waitForStoredFile } from "./storage/paths.js";
 import { parseOrdersFromFile } from "./parse/orders.js";
@@ -116,7 +117,7 @@ async function reconcileLabelQueueState() {
   });
 
   for (const dbJob of jobs) {
-    const queueJob = await labelQueue.getJob(dbJob.id);
+    const queueJob = await jobQueue.getJob(dbJob.id);
     if (!queueJob) {
       // BullMQ job has expired or been removed from Redis while DB still shows active status.
       // Mark it as failed so it does not remain stuck indefinitely.
@@ -373,7 +374,7 @@ async function startWorker() {
     await reconcileLabelQueueState();
 
 const worker = new Worker(
-  labelQueueName,
+  jobsQueueName,
   async (bullJob) => {
     const processJob = async () => {
     console.log("🔥 JOB RECEIVED");
@@ -784,7 +785,7 @@ const worker = new Worker(
 
     return await safeJob(processJob);
   },
-  { connection, concurrency: 1, lockDuration: 60_000 },
+  { connection: redis, concurrency: 1, lockDuration: 60_000 },
 );
 
 worker.on("completed", (job) => {
@@ -828,7 +829,7 @@ const trackingWorker = new Worker(
         if (Date.now() > lockWaitDeadline) {
           throw new UnrecoverableError("Job timeout");
         }
-        const lockAcquired = await connection.set(globalBulkLockKey, globalBulkLockValue, "EX", 300, "NX");
+        const lockAcquired = await redis.set(globalBulkLockKey, globalBulkLockValue, "EX", 300, "NX");
         if (lockAcquired === "OK") {
           globalBulkLockAcquired = true;
           break;
@@ -1090,9 +1091,9 @@ const trackingWorker = new Worker(
     } finally {
       if (data.kind === "BULK_TRACK" && globalBulkLockAcquired) {
         try {
-          const currentGlobalLockValue = await connection.get(globalBulkLockKey);
+          const currentGlobalLockValue = await redis.get(globalBulkLockKey);
           if (currentGlobalLockValue === globalBulkLockValue) {
-            await connection.del(globalBulkLockKey);
+            await redis.del(globalBulkLockKey);
           }
         } catch (globalLockError) {
           console.warn(`[BulkTracking] Failed to release global lock for job ${job.id}:`, globalLockError);
@@ -1100,9 +1101,9 @@ const trackingWorker = new Worker(
       }
       if (data.kind === "BULK_TRACK" && data.lockKey) {
         try {
-          const currentLockValue = await connection.get(data.lockKey);
+          const currentLockValue = await redis.get(data.lockKey);
           if (currentLockValue === job.id) {
-            await connection.del(data.lockKey);
+            await redis.del(data.lockKey);
           }
         } catch (lockError) {
           console.warn(`[BulkTracking] Failed to release lock for job ${job.id}:`, lockError);
@@ -1110,7 +1111,7 @@ const trackingWorker = new Worker(
       }
     }
   },
-  { connection, concurrency: 1 },
+  { connection: redis, concurrency: 1 },
 );
 
 trackingWorker.on("failed", (job, err) => {
@@ -1133,7 +1134,7 @@ trackingWorker.on("error", (err) => {
   }
 });
 
-console.log(`Worker ready (queues: ${labelQueueName}, ${trackingQueueName})`);
+console.log(`Worker ready (queues: ${jobsQueueName}, ${trackingQueueName})`);
 
   } catch (err) {
     console.error("❌ Worker initialization failed:", err instanceof Error ? err.message : String(err));

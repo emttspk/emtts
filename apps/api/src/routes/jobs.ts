@@ -10,7 +10,7 @@ import { requireAuth } from "../middleware/auth.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, resolveStoredPath, toStoredPath, uploadsDir, waitForStoredFile } from "../storage/paths.js";
 import { parseOrdersFromFile } from "../parse/orders.js";
-import { labelQueue } from "../queue/queue.js";
+import { jobQueue } from "../lib/queue.js";
 import { ensureRedisConnection } from "../queue/redis.js";
 import { consumeUnits, refundUnits } from "../usage/unitConsumption.js";
 import { previewLabelHtml, renderLabelDocumentHtml, type LabelPrintMode } from "../templates/labels.js";
@@ -130,7 +130,7 @@ async function deleteJobById(userId: string, jobId: string) {
   await prisma.$executeRaw`DELETE FROM job_deletion_schedules WHERE job_id = ${jobId}`;
 
   try {
-    const queuedJob = await labelQueue.getJob(jobId);
+    const queuedJob = await jobQueue.getJob(jobId);
     await queuedJob?.remove();
   } catch {
     // ignore queue cleanup failures
@@ -487,7 +487,7 @@ export async function handleLabelUpload(req: Request, res: Response) {
     // jobs do not remain stuck in QUEUED forever.
     try {
       await withTimeout(ensureRedisConnection(), 3000, "Redis connection timed out");
-      await withTimeout(labelQueue.add(
+      await withTimeout(jobQueue.add(
         "generate-pdf",
         {
           jobId: job.id,
@@ -554,7 +554,7 @@ jobsRouter.get("/:jobId/download/labels", requireAuth, async (req, res) => {
   // Prefer BullMQ return value, fall back to DB path
   let relPath: string | null | undefined = owned.labelsPdfPath;
   try {
-    const bullJob = await labelQueue.getJob(jobId);
+    const bullJob = await jobQueue.getJob(jobId);
     if (bullJob?.finishedOn) {
       const result = (await bullJob.returnvalue) as { labelsPath?: string } | null;
       if (result?.labelsPath) relPath = result.labelsPath;
@@ -593,7 +593,7 @@ jobsRouter.get("/:jobId/download/money-orders", requireAuth, async (req, res) =>
   // Prefer BullMQ return value, fall back to DB path
   let relPath: string | null | undefined = owned.moneyOrderPdfPath;
   try {
-    const bullJob = await labelQueue.getJob(jobId);
+    const bullJob = await jobQueue.getJob(jobId);
     if (bullJob?.finishedOn) {
       const result = (await bullJob.returnvalue) as { moneyOrderPath?: string } | null;
       if (result?.moneyOrderPath) relPath = result.moneyOrderPath;

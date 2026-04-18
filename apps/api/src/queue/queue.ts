@@ -1,7 +1,8 @@
 import { Queue } from "bullmq";
 import { connection } from "./redis.js";
+import { jobQueue, jobsQueueName } from "../lib/queue.js";
 
-export const labelQueueName = "label-generation";
+export const labelQueueName = jobsQueueName;
 export const trackingQueueName = "tracking-engine";
 
 function createLazyQueue(name: string, defaultJobOptions: unknown) {
@@ -31,11 +32,7 @@ function createLazyQueue(name: string, defaultJobOptions: unknown) {
   });
 }
 
-export const labelQueue = createLazyQueue(labelQueueName, {
-  attempts: 3,
-  backoff: { type: "exponential", delay: 5_000 },
-  timeout: 60_000,
-});
+export const labelQueue = jobQueue;
 
 export const trackingQueue = createLazyQueue(trackingQueueName, {
   attempts: 2,
