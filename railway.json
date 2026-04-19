@@ -8,12 +8,17 @@
     "releaseCommand": "npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma || echo '[release] prisma migrate deploy failed; continuing startup'"
   },
   "services": {
-    "worker": {
+    "Api": {
+      "deploy": {
+        "startCommand": "node apps/api/dist/index.js"
+      }
+    },
+    "Worker": {
       "deploy": {
         "startCommand": "node apps/api/dist/worker.js"
       }
     },
-    "python": {
+    "Python": {
       "deploy": {
         "startCommand": "python python-service/app.py"
       }
