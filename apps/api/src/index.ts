@@ -169,7 +169,11 @@ app.use(
 app.use(express.json({ limit: "2mb" }));
 
 app.get("/", (req, res) => {
-  res.status(200).send("OK");
+  return res.status(200).json({
+    status: "ok",
+    service: "LabelGen API",
+    version: "running",
+  });
 });
 
 app.use("/api", async (req, res, next) => {
