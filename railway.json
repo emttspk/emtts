@@ -5,8 +5,7 @@
     "buildCommand": "npm install --include=optional --no-audit --no-fund && npm run build"
   },
   "deploy": {
-    "releaseCommand": "npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma || echo '[release] prisma migrate deploy failed; continuing startup'",
-    "startCommand": "node apps/api/dist/index.js"
+    "releaseCommand": "npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma || echo '[release] prisma migrate deploy failed; continuing startup'"
   },
   "services": {
     "worker": {
