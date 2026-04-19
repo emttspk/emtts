@@ -173,14 +173,18 @@ app.use((req, _res, next) => {
   return next();
 });
 
-app.get("/", (req, res) => {
+app.get("/", (_req, res) => {
   return res.status(200).json({
     status: "ok",
-    service: "labelgen-api",
+    message: "API running",
   });
 });
 
-app.use("/api", async (req, res, next) => {
+app.get("/health", (_req, res) => res.json({ status: "ok" }));
+
+const router = express.Router();
+
+router.use(async (req, res, next) => {
   if (req.path === "/" || req.path === "/health" || req.path === "/version") {
     return next();
   }
@@ -195,13 +199,12 @@ app.use("/api", async (req, res, next) => {
 });
 
 // API routes (these come first)
-app.get("/api", (_req, res) => res.json({ success: true, message: "LabelGen API is running" }));
-app.get("/api/version", (_req, res) => res.json({ success: true, version: BUILD_VERSION }));
-app.get("/health", (_req, res) => res.json({ status: "ok" }));
-app.get("/api/health", (_req, res) => {
+router.get("/", (_req, res) => res.json({ success: true, message: "LabelGen API is running" }));
+router.get("/version", (_req, res) => res.json({ success: true, version: BUILD_VERSION }));
+router.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
-app.get("/api/template.csv", (_req, res) => {
+router.get("/template.csv", (_req, res) => {
   const header = [
     "shipperName",
     "shipperPhone",
@@ -347,24 +350,24 @@ app.get("/api/template.csv", (_req, res) => {
   return res.status(200).send(csv);
 });
 
-app.use("/api/auth", authRouter);
-app.use("/api/me", meRouter);
-app.use("/api/jobs", jobsRouter);
+router.use("/auth", authRouter);
+router.use("/me", meRouter);
+router.use("/jobs", jobsRouter);
 // Compatibility alias for older clients
-app.post("/api/upload", requireAuth, labelUploadMiddleware, handleLabelUpload);
-app.use("/api/tracking", trackingRouter);
-app.get("/api/track", (_req, res) => {
+router.post("/upload", requireAuth, labelUploadMiddleware, handleLabelUpload);
+router.use("/tracking", trackingRouter);
+router.get("/track", (_req, res) => {
   res.status(400).json({
     success: false,
     message: "Tracking number is required",
     usage: "/api/track/:trackingNumber",
   });
 });
-app.get("/api/track/:trackingNumber", requireAuth, (req, res, next) => {
+router.get("/track/:trackingNumber", requireAuth, (req, res, next) => {
   req.url = `/track/${req.params.trackingNumber}`;
   return (trackingRouter as any)(req, res, next);
 });
-app.get("/api/print", (_req, res) => {
+router.get("/print", (_req, res) => {
   res.json({
     success: true,
     message: "Print API is available",
@@ -375,7 +378,7 @@ app.get("/api/print", (_req, res) => {
     ],
   });
 });
-app.get("/api/label", (_req, res) => {
+router.get("/label", (_req, res) => {
   res.json({
     success: true,
     message: "Label API is available",
@@ -386,14 +389,16 @@ app.get("/api/label", (_req, res) => {
     ],
   });
 });
-app.use("/api/shipments", shipmentsRouter);
-app.use("/api/admin", adminRouter);
-app.use("/api/subscriptions", subscriptionsRouter);
-app.use("/api/plans", plansRouter);
+router.use("/shipments", shipmentsRouter);
+router.use("/admin", adminRouter);
+router.use("/subscriptions", subscriptionsRouter);
+router.use("/plans", plansRouter);
 
-app.use("/api/*", (_req, res) => {
+router.use("/*", (_req, res) => {
   res.status(404).json({ success: false, message: "Route not found" });
 });
+
+app.use("/api", router);
 
 // Global Error Handler
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
