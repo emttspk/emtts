@@ -184,11 +184,7 @@ app.get("/health", (_req, res) => res.json({ status: "ok" }));
 
 const router = express.Router();
 
-router.use(async (req, res, next) => {
-  if (req.path === "/" || req.path === "/health" || req.path === "/version") {
-    return next();
-  }
-
+const ensureApiDatabaseConnection: express.RequestHandler = async (_req, res, next) => {
   try {
     await prisma.$connect();
     return next();
@@ -196,7 +192,7 @@ router.use(async (req, res, next) => {
     const message = error instanceof Error ? error.message : "Database connection failed";
     return res.status(503).json({ success: false, message });
   }
-});
+};
 
 // API routes (these come first)
 router.get("/", (_req, res) => res.json({ success: true, message: "LabelGen API is running" }));
@@ -350,20 +346,20 @@ router.get("/template.csv", (_req, res) => {
   return res.status(200).send(csv);
 });
 
-router.use("/auth", authRouter);
-router.use("/me", meRouter);
-router.use("/jobs", jobsRouter);
+router.use("/auth", ensureApiDatabaseConnection, authRouter);
+router.use("/me", ensureApiDatabaseConnection, meRouter);
+router.use("/jobs", ensureApiDatabaseConnection, jobsRouter);
 // Compatibility alias for older clients
-router.post("/upload", requireAuth, labelUploadMiddleware, handleLabelUpload);
-router.use("/tracking", trackingRouter);
-router.get("/track", (_req, res) => {
+router.post("/upload", ensureApiDatabaseConnection, requireAuth, labelUploadMiddleware, handleLabelUpload);
+router.use("/tracking", ensureApiDatabaseConnection, trackingRouter);
+router.get("/track", ensureApiDatabaseConnection, (_req, res) => {
   res.status(400).json({
     success: false,
     message: "Tracking number is required",
     usage: "/api/track/:trackingNumber",
   });
 });
-router.get("/track/:trackingNumber", requireAuth, (req, res, next) => {
+router.get("/track/:trackingNumber", ensureApiDatabaseConnection, requireAuth, (req, res, next) => {
   req.url = `/track/${req.params.trackingNumber}`;
   return (trackingRouter as any)(req, res, next);
 });
@@ -389,9 +385,9 @@ router.get("/label", (_req, res) => {
     ],
   });
 });
-router.use("/shipments", shipmentsRouter);
-router.use("/admin", adminRouter);
-router.use("/subscriptions", subscriptionsRouter);
+router.use("/shipments", ensureApiDatabaseConnection, shipmentsRouter);
+router.use("/admin", ensureApiDatabaseConnection, adminRouter);
+router.use("/subscriptions", ensureApiDatabaseConnection, subscriptionsRouter);
 router.use("/plans", plansRouter);
 
 router.use("/*", (_req, res) => {
@@ -399,6 +395,9 @@ router.use("/*", (_req, res) => {
 });
 
 app.use("/api", router);
+app.use((_req, res) => {
+  res.status(404).json({ success: false, message: "Route not found" });
+});
 
 // Global Error Handler
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
