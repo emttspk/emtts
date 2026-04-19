@@ -788,6 +788,8 @@ const worker = new Worker(
   { connection: redis, concurrency: 1, lockDuration: 60_000 },
 );
 
+console.log("Job processing started");
+
 worker.on("completed", (job) => {
   // eslint-disable-next-line no-console
   console.log("Job completed:", job.id);
