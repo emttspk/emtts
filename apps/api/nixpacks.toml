@@ -1,5 +1,5 @@
 [phases.install]
-cmds = ["npm cache clean --force", "rm -rf node_modules", "npm install --include=optional --no-audit --ignore-scripts"]
+cmds = ["npm cache clean --force", "rm -rf node_modules", "npm install --include=optional --no-audit --ignore-scripts --build-from-source"]
 
 [phases.build]
 cmds = ["npm run prisma:generate", "npm run build"]
