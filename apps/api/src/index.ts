@@ -168,6 +168,11 @@ app.use(
 );
 app.use(express.json({ limit: "2mb" }));
 
+app.use((req, _res, next) => {
+  console.log(`[REQ] ${req.method} ${req.originalUrl}`);
+  return next();
+});
+
 app.get("/", (req, res) => {
   return res.status(200).json({
     status: "ok",
