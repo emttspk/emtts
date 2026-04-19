@@ -1,0 +1,1224 @@
+﻿{
+  "id": "144be6f4-a17c-47ec-8c23-3d5963c4d5fb",
+  "name": "EMTTS",
+  "deletedAt": null,
+  "workspace": {
+    "name": "emttspk's Projects"
+  },
+  "buckets": {
+    "edges": []
+  },
+  "environments": {
+    "edges": [
+      {
+        "node": {
+          "id": "94b155fc-32fe-467b-8b78-2ab7e7d3365d",
+          "name": "production",
+          "canAccess": true,
+          "deletedAt": null,
+          "unmergedChangesCount": null,
+          "serviceInstances": {
+            "edges": [
+              {
+                "node": {
+                  "id": "31930cdb-058b-4848-b696-4e5bf41ac001",
+                  "serviceId": "d2659c4f-fbd2-40b1-b0b9-699a1f83fe40",
+                  "serviceName": "Worker",
+                  "environmentId": "94b155fc-32fe-467b-8b78-2ab7e7d3365d",
+                  "latestDeployment": {
+                    "canRedeploy": true,
+                    "id": "adee7112-0205-493a-8b85-70414cdb24b8",
+                    "meta": {
+                      "branch": "main",
+                      "buildOnly": false,
+                      "commitAuthor": "emttspk",
+                      "commitHash": "52a4e0e0cc427ff19634c4253f53d5ed0f55057d",
+                      "commitMessage": "Trigger Railway api/worker redeploy",
+                      "configFile": "railway.json",
+                      "fileServiceManifest": {
+                        "build": {
+                          "buildCommand": "npm install --include=optional --no-audit --no-fund && npm run build",
+                          "builder": "NIXPACKS"
+                        },
+                        "deploy": {}
+                      },
+                      "ignoreWatchPatterns": true,
+                      "logsV2": true,
+                      "nixpacksProviders": [
+                        "node"
+                      ],
+                      "patchId": "87cfa053-db91-438b-88bc-9043efba1950",
+                      "plan": "hobby",
+                      "propertyFileMapping": {
+                        "build.buildCommand": "$.build.buildCommand",
+                        "build.builder": "$.build.builder",
+                        "deploy.releaseCommand": "$.deploy.releaseCommand"
+                      },
+                      "reason": "deploy",
+                      "repo": "emttspk/emtts",
+                      "rootDirectory": null,
+                      "runtime": "V2",
+                      "serviceManifest": {
+                        "build": {
+                          "buildCommand": "npm install --include=optional --no-audit --no-fund && npm run build",
+                          "buildEnvironment": null,
+                          "builder": "NIXPACKS",
+                          "dockerfilePath": null,
+                          "nixpacksConfigPath": "nixpacks.toml",
+                          "nixpacksPlan": null,
+                          "watchPatterns": [
+                            "/apps/api/**"
+                          ]
+                        },
+                        "deploy": {
+                          "cronSchedule": null,
+                          "drainingSeconds": null,
+                          "healthcheckPath": null,
+                          "healthcheckTimeout": null,
+                          "ipv6EgressEnabled": false,
+                          "limitOverride": null,
+                          "multiRegionConfig": {
+                            "us-west2": {
+                              "numReplicas": 1
+                            }
+                          },
+                          "numReplicas": 1,
+                          "overlapSeconds": null,
+                          "preDeployCommand": [
+                            "npx prisma migrate deploy"
+                          ],
+                          "region": null,
+                          "registryCredentials": null,
+                          "requiredMountPath": null,
+                          "restartPolicyMaxRetries": 10,
+                          "restartPolicyType": "ON_FAILURE",
+                          "runtime": "V2",
+                          "sleepApplication": false,
+                          "startCommand": "node dist/worker.js",
+                          "useLegacyStacker": false
+                        }
+                      },
+                      "volumeMounts": []
+                    },
+                    "status": "BUILDING",
+                    "createdAt": "2026-04-19T13:50:07.402Z",
+                    "deploymentStopped": true
+                  },
+                  "activeDeployments": [
+                    {
+                      "id": "adee7112-0205-493a-8b85-70414cdb24b8",
+                      "status": "BUILDING",
+                      "createdAt": "2026-04-19T13:50:07.402Z",
+                      "meta": {
+                        "branch": "main",
+                        "buildOnly": false,
+                        "commitAuthor": "emttspk",
+                        "commitHash": "52a4e0e0cc427ff19634c4253f53d5ed0f55057d",
+                        "commitMessage": "Trigger Railway api/worker redeploy",
+                        "configFile": "railway.json",
+                        "fileServiceManifest": {
+                          "build": {
+                            "buildCommand": "npm install --include=optional --no-audit --no-fund && npm run build",
+                            "builder": "NIXPACKS"
+                          },
+                          "deploy": {}
+                        },
+                        "ignoreWatchPatterns": true,
+                        "logsV2": true,
+                        "nixpacksProviders": [
+                          "node"
+                        ],
+                        "patchId": "87cfa053-db91-438b-88bc-9043efba1950",
+                        "plan": "hobby",
+                        "propertyFileMapping": {
+                          "build.buildCommand": "$.build.buildCommand",
+                          "build.builder": "$.build.builder",
+                          "deploy.releaseCommand": "$.deploy.releaseCommand"
+                        },
+                        "reason": "deploy",
+                        "repo": "emttspk/emtts",
+                        "rootDirectory": null,
+                        "runtime": "V2",
+                        "serviceManifest": {
+                          "build": {
+                            "buildCommand": "npm install --include=optional --no-audit --no-fund && npm run build",
+                            "buildEnvironment": null,
+                            "builder": "NIXPACKS",
+                            "dockerfilePath": null,
+                            "nixpacksConfigPath": "nixpacks.toml",
+                            "nixpacksPlan": null,
+                            "watchPatterns": [
+                              "/apps/api/**"
+                            ]
+                          },
+                          "deploy": {
+                            "cronSchedule": null,
+                            "drainingSeconds": null,
+                            "healthcheckPath": null,
+                            "healthcheckTimeout": null,
+                            "ipv6EgressEnabled": false,
+                            "limitOverride": null,
+                            "multiRegionConfig": {
+                              "us-west2": {
+                                "numReplicas": 1
+                              }
+                            },
+                            "numReplicas": 1,
+                            "overlapSeconds": null,
+                            "preDeployCommand": [
+                              "npx prisma migrate deploy"
+                            ],
+                            "region": null,
+                            "registryCredentials": null,
+                            "requiredMountPath": null,
+                            "restartPolicyMaxRetries": 10,
+                            "restartPolicyType": "ON_FAILURE",
+                            "runtime": "V2",
+                            "sleepApplication": false,
+                            "startCommand": "node dist/worker.js",
+                            "useLegacyStacker": false
+                          }
+                        },
+                        "volumeMounts": []
+                      }
+                    },
+                    {
+                      "id": "6926700c-6f7b-44dd-84be-a553c8775039",
+                      "status": "SUCCESS",
+                      "createdAt": "2026-04-19T13:43:26.284Z",
+                      "meta": {
+                        "buildOnly": false,
+                        "configFile": "railway.json",
+                        "duration": 1,
+                        "fileServiceManifest": {
+                          "build": {
+                            "buildCommand": "npm install --include=optional --no-audit --no-fund && npm run build && rm -rf dist && mkdir -p dist && cp -r apps/api/dist/. dist/",
+                            "builder": "NIXPACKS"
+                          },
+                          "deploy": {}
+                        },
+                        "imageDigest": "sha256:3e3388d523336c9e44d9b7eaeb9b27969b9de120473a8e6cefa1e68df0111a7b",
+                        "logsV2": true,
+                        "nixpacksProviders": [
+                          "node"
+                        ],
+                        "propertyFileMapping": {
+                          "build.buildCommand": "$.build.buildCommand",
+                          "build.builder": "$.build.builder",
+                          "deploy.releaseCommand": "$.deploy.releaseCommand"
+                        },
+                        "queuedReason": "Waiting for build slot",
+                        "reason": "deploy",
+                        "rootDirectory": null,
+                        "runtime": "V2",
+                        "serviceManifest": {
+                          "build": {
+                            "buildCommand": "npm install --include=optional --no-audit --no-fund && npm run build && rm -rf dist && mkdir -p dist && cp -r apps/api/dist/. dist/",
+                            "buildEnvironment": null,
+                            "builder": "NIXPACKS",
+                            "dockerfilePath": null,
+                            "nixpacksConfigPath": "nixpacks.toml",
+                            "nixpacksPlan": null,
+                            "watchPatterns": [
+                              "/apps/api/**"
+                            ]
+                          },
+                          "deploy": {
+                            "cronSchedule": null,
+                            "drainingSeconds": null,
+                            "healthcheckPath": null,
+                            "healthcheckTimeout": null,
+                            "ipv6EgressEnabled": false,
+                            "limitOverride": null,
+                            "multiRegionConfig": {
+                              "us-west2": {
+                                "numReplicas": 1
+                              }
+                            },
+                            "numReplicas": 1,
+                            "overlapSeconds": null,
+                            "preDeployCommand": [
+                              "npx prisma migrate deploy"
+                            ],
+                            "region": null,
+                            "registryCredentials": null,
+                            "requiredMountPath": null,
+                            "restartPolicyMaxRetries": 10,
+                            "restartPolicyType": "ON_FAILURE",
+                            "runtime": "V2",
+                            "sleepApplication": false,
+                            "startCommand": "node dist/worker.js",
+                            "useLegacyStacker": false
+                          }
+                        },
+                        "volumeMounts": []
+                      }
+                    }
+                  ],
+                  "source": {
+                    "repo": "emttspk/emtts",
+                    "image": null
+                  },
+                  "domains": {
+                    "serviceDomains": [
+                      {
+                        "id": "b98ca41f-c5d7-433e-8010-de5d24d272bd",
+                        "domain": "labelgenapi-copy-production.up.railway.app",
+                        "targetPort": null
+                      }
+                    ],
+                    "customDomains": []
+                  },
+                  "cronSchedule": null,
+                  "nextCronRunAt": null,
+                  "startCommand": "node dist/worker.js"
+                }
+              },
+              {
+                "node": {
+                  "id": "4d82ad8d-d99d-4365-b352-bd093d541962",
+                  "serviceId": "a9ba7b83-98a7-4d51-9469-46d9b339b25e",
+                  "serviceName": "Redis",
+                  "environmentId": "94b155fc-32fe-467b-8b78-2ab7e7d3365d",
+                  "latestDeployment": {
+                    "canRedeploy": true,
+                    "id": "b293976d-d804-4ea2-9e33-78a4cd05f049",
+                    "meta": {
+                      "image": "redis:8.2.1",
+                      "imageDigest": "sha256:5fa2edb1e408fa8235e6db8fab01d1afaaae96c9403ba67b70feceb8661e8621",
+                      "logsV2": true,
+                      "patchId": "f0013091-7b08-47a9-a3f6-66229957719a",
+                      "reason": "deploy",
+                      "runtime": "V2",
+                      "serviceManifest": {
+                        "build": {
+                          "buildCommand": null,
+                          "buildEnvironment": null,
+                          "builder": "RAILPACK",
+                          "dockerfilePath": null,
+                          "nixpacksConfigPath": null,
+                          "nixpacksPlan": null,
+                          "watchPatterns": []
+                        },
+                        "deploy": {
+                          "cronSchedule": null,
+                          "drainingSeconds": null,
+                          "healthcheckPath": null,
+                          "healthcheckTimeout": null,
+                          "ipv6EgressEnabled": false,
+                          "limitOverride": null,
+                          "multiRegionConfig": {
+                            "us-west2": {
+                              "numReplicas": 1
+                            }
+                          },
+                          "numReplicas": 1,
+                          "overlapSeconds": null,
+                          "preDeployCommand": null,
+                          "region": null,
+                          "registryCredentials": null,
+                          "requiredMountPath": null,
+                          "restartPolicyMaxRetries": 10,
+                          "restartPolicyType": "ON_FAILURE",
+                          "runtime": "V2",
+                          "sleepApplication": false,
+                          "startCommand": "/bin/sh -c \"rm -rf $RAILWAY_VOLUME_MOUNT_PATH/lost+found/ && exec docker-entrypoint.sh redis-server --requirepass $REDIS_PASSWORD --save 60 1 --dir $RAILWAY_VOLUME_MOUNT_PATH\"",
+                          "useLegacyStacker": false
+                        }
+                      },
+                      "volumeMounts": [
+                        "/data"
+                      ]
+                    },
+                    "status": "SUCCESS",
+                    "createdAt": "2026-04-19T12:13:28.921Z",
+                    "deploymentStopped": false
+                  },
+                  "activeDeployments": [
+                    {
+                      "id": "b293976d-d804-4ea2-9e33-78a4cd05f049",
+                      "status": "SUCCESS",
+                      "createdAt": "2026-04-19T12:13:28.921Z",
+                      "meta": {
+                        "image": "redis:8.2.1",
+                        "imageDigest": "sha256:5fa2edb1e408fa8235e6db8fab01d1afaaae96c9403ba67b70feceb8661e8621",
+                        "logsV2": true,
+                        "patchId": "f0013091-7b08-47a9-a3f6-66229957719a",
+                        "reason": "deploy",
+                        "runtime": "V2",
+                        "serviceManifest": {
+                          "build": {
+                            "buildCommand": null,
+                            "buildEnvironment": null,
+                            "builder": "RAILPACK",
+                            "dockerfilePath": null,
+                            "nixpacksConfigPath": null,
+                            "nixpacksPlan": null,
+                            "watchPatterns": []
+                          },
+                          "deploy": {
+                            "cronSchedule": null,
+                            "drainingSeconds": null,
+                            "healthcheckPath": null,
+                            "healthcheckTimeout": null,
+                            "ipv6EgressEnabled": false,
+                            "limitOverride": null,
+                            "multiRegionConfig": {
+                              "us-west2": {
+                                "numReplicas": 1
+                              }
+                            },
+                            "numReplicas": 1,
+                            "overlapSeconds": null,
+                            "preDeployCommand": null,
+                            "region": null,
+                            "registryCredentials": null,
+                            "requiredMountPath": null,
+                            "restartPolicyMaxRetries": 10,
+                            "restartPolicyType": "ON_FAILURE",
+                            "runtime": "V2",
+                            "sleepApplication": false,
+                            "startCommand": "/bin/sh -c \"rm -rf $RAILWAY_VOLUME_MOUNT_PATH/lost+found/ && exec docker-entrypoint.sh redis-server --requirepass $REDIS_PASSWORD --save 60 1 --dir $RAILWAY_VOLUME_MOUNT_PATH\"",
+                            "useLegacyStacker": false
+                          }
+                        },
+                        "volumeMounts": [
+                          "/data"
+                        ]
+                      }
+                    }
+                  ],
+                  "source": {
+                    "repo": null,
+                    "image": "redis:8.2.1"
+                  },
+                  "domains": {
+                    "serviceDomains": [],
+                    "customDomains": []
+                  },
+                  "cronSchedule": null,
+                  "nextCronRunAt": null,
+                  "startCommand": "/bin/sh -c \"rm -rf $RAILWAY_VOLUME_MOUNT_PATH/lost+found/ && exec docker-entrypoint.sh redis-server --requirepass $REDIS_PASSWORD --save 60 1 --dir $RAILWAY_VOLUME_MOUNT_PATH\""
+                }
+              },
+              {
+                "node": {
+                  "id": "4f598d8c-06df-4b71-885d-55dc63fde65b",
+                  "serviceId": "745ff786-8008-4532-a1ef-41a1539f2dda",
+                  "serviceName": "Python",
+                  "environmentId": "94b155fc-32fe-467b-8b78-2ab7e7d3365d",
+                  "latestDeployment": {
+                    "canRedeploy": true,
+                    "id": "4d15b723-aae8-487e-9b9d-ad920be03398",
+                    "meta": {
+                      "branch": "main",
+                      "buildOnly": false,
+                      "commitAuthor": "emttspk",
+                      "commitHash": "52a4e0e0cc427ff19634c4253f53d5ed0f55057d",
+                      "commitMessage": "Trigger Railway api/worker redeploy",
+                      "configFile": "railway.json",
+                      "fileServiceManifest": {
+                        "build": {
+                          "buildCommand": "npm install --include=optional --no-audit --no-fund && npm run build",
+                          "builder": "NIXPACKS"
+                        },
+                        "deploy": {}
+                      },
+                      "ignoreWatchPatterns": true,
+                      "imageDigest": "sha256:220df25414a16a6f1f6485d6164b431346a373f7afe0e6b8934ab1a538280242",
+                      "logsV2": true,
+                      "nixpacksProviders": [
+                        "node"
+                      ],
+                      "patchId": "48260004-d27a-4fab-b172-2035924f745d",
+                      "plan": "hobby",
+                      "propertyFileMapping": {
+                        "build.buildCommand": "$.build.buildCommand",
+                        "build.builder": "$.build.builder",
+                        "deploy.releaseCommand": "$.deploy.releaseCommand"
+                      },
+                      "reason": "deploy",
+                      "repo": "emttspk/emtts",
+                      "rootDirectory": null,
+                      "runtime": "V2",
+                      "serviceManifest": {
+                        "build": {
+                          "buildCommand": "npm install --include=optional --no-audit --no-fund && npm run build",
+                          "buildEnvironment": null,
+                          "builder": "NIXPACKS",
+                          "dockerfilePath": null,
+                          "nixpacksConfigPath": "nixpacks.toml",
+                          "nixpacksPlan": null,
+                          "watchPatterns": []
+                        },
+                        "deploy": {
+                          "cronSchedule": null,
+                          "drainingSeconds": null,
+                          "healthcheckPath": null,
+                          "healthcheckTimeout": null,
+                          "ipv6EgressEnabled": false,
+                          "limitOverride": null,
+                          "multiRegionConfig": {
+                            "us-west2": {
+                              "numReplicas": 1
+                            }
+                          },
+                          "numReplicas": 1,
+                          "overlapSeconds": null,
+                          "preDeployCommand": null,
+                          "region": null,
+                          "registryCredentials": null,
+                          "requiredMountPath": null,
+                          "restartPolicyMaxRetries": 10,
+                          "restartPolicyType": "ON_FAILURE",
+                          "runtime": "V2",
+                          "sleepApplication": false,
+                          "startCommand": null,
+                          "useLegacyStacker": false
+                        }
+                      },
+                      "volumeMounts": []
+                    },
+                    "status": "SUCCESS",
+                    "createdAt": "2026-04-19T13:27:55.113Z",
+                    "deploymentStopped": false
+                  },
+                  "activeDeployments": [
+                    {
+                      "id": "4d15b723-aae8-487e-9b9d-ad920be03398",
+                      "status": "SUCCESS",
+                      "createdAt": "2026-04-19T13:27:55.113Z",
+                      "meta": {
+                        "branch": "main",
+                        "buildOnly": false,
+                        "commitAuthor": "emttspk",
+                        "commitHash": "52a4e0e0cc427ff19634c4253f53d5ed0f55057d",
+                        "commitMessage": "Trigger Railway api/worker redeploy",
+                        "configFile": "railway.json",
+                        "fileServiceManifest": {
+                          "build": {
+                            "buildCommand": "npm install --include=optional --no-audit --no-fund && npm run build",
+                            "builder": "NIXPACKS"
+                          },
+                          "deploy": {}
+                        },
+                        "ignoreWatchPatterns": true,
+                        "imageDigest": "sha256:220df25414a16a6f1f6485d6164b431346a373f7afe0e6b8934ab1a538280242",
+                        "logsV2": true,
+                        "nixpacksProviders": [
+                          "node"
+                        ],
+                        "patchId": "48260004-d27a-4fab-b172-2035924f745d",
+                        "plan": "hobby",
+                        "propertyFileMapping": {
+                          "build.buildCommand": "$.build.buildCommand",
+                          "build.builder": "$.build.builder",
+                          "deploy.releaseCommand": "$.deploy.releaseCommand"
+                        },
+                        "reason": "deploy",
+                        "repo": "emttspk/emtts",
+                        "rootDirectory": null,
+                        "runtime": "V2",
+                        "serviceManifest": {
+                          "build": {
+                            "buildCommand": "npm install --include=optional --no-audit --no-fund && npm run build",
+                            "buildEnvironment": null,
+                            "builder": "NIXPACKS",
+                            "dockerfilePath": null,
+                            "nixpacksConfigPath": "nixpacks.toml",
+                            "nixpacksPlan": null,
+                            "watchPatterns": []
+                          },
+                          "deploy": {
+                            "cronSchedule": null,
+                            "drainingSeconds": null,
+                            "healthcheckPath": null,
+                            "healthcheckTimeout": null,
+                            "ipv6EgressEnabled": false,
+                            "limitOverride": null,
+                            "multiRegionConfig": {
+                              "us-west2": {
+                                "numReplicas": 1
+                              }
+                            },
+                            "numReplicas": 1,
+                            "overlapSeconds": null,
+                            "preDeployCommand": null,
+                            "region": null,
+                            "registryCredentials": null,
+                            "requiredMountPath": null,
+                            "restartPolicyMaxRetries": 10,
+                            "restartPolicyType": "ON_FAILURE",
+                            "runtime": "V2",
+                            "sleepApplication": false,
+                            "startCommand": null,
+                            "useLegacyStacker": false
+                          }
+                        },
+                        "volumeMounts": []
+                      }
+                    }
+                  ],
+                  "source": {
+                    "repo": "emttspk/emtts",
+                    "image": null
+                  },
+                  "domains": {
+                    "serviceDomains": [],
+                    "customDomains": []
+                  },
+                  "cronSchedule": null,
+                  "nextCronRunAt": null,
+                  "startCommand": null
+                }
+              },
+              {
+                "node": {
+                  "id": "5e3f971e-e56c-4257-aa37-3dfc42a5b456",
+                  "serviceId": "1019bb87-0115-4463-a714-23c477fd9d8e",
+                  "serviceName": "Api",
+                  "environmentId": "94b155fc-32fe-467b-8b78-2ab7e7d3365d",
+                  "latestDeployment": {
+                    "canRedeploy": false,
+                    "id": "cdff9c00-192f-45b4-86fe-297526f590f1",
+                    "meta": {
+                      "branch": "main",
+                      "buildOnly": false,
+                      "commitAuthor": "emttspk",
+                      "commitHash": "52a4e0e0cc427ff19634c4253f53d5ed0f55057d",
+                      "commitMessage": "Trigger Railway api/worker redeploy",
+                      "configFile": "railway.json",
+                      "fileServiceManifest": {
+                        "build": {
+                          "buildCommand": "npm install --include=optional --no-audit --no-fund && npm run build",
+                          "builder": "NIXPACKS"
+                        },
+                        "deploy": {}
+                      },
+                      "ignoreWatchPatterns": true,
+                      "logsV2": true,
+                      "nixpacksProviders": [
+                        "node"
+                      ],
+                      "patchId": "91b46dce-74c7-4a4c-8b5e-0fe74d308961",
+                      "plan": "hobby",
+                      "propertyFileMapping": {
+                        "build.buildCommand": "$.build.buildCommand",
+                        "build.builder": "$.build.builder",
+                        "deploy.releaseCommand": "$.deploy.releaseCommand"
+                      },
+                      "reason": "deploy",
+                      "repo": "emttspk/emtts",
+                      "rootDirectory": null,
+                      "runtime": "V2",
+                      "serviceManifest": {
+                        "build": {
+                          "buildCommand": "npm install --include=optional --no-audit --no-fund && npm run build",
+                          "buildEnvironment": null,
+                          "builder": "NIXPACKS",
+                          "dockerfilePath": null,
+                          "nixpacksConfigPath": "nixpacks.toml",
+                          "nixpacksPlan": null,
+                          "watchPatterns": [
+                            "/apps/api/**"
+                          ]
+                        },
+                        "deploy": {
+                          "cronSchedule": null,
+                          "drainingSeconds": null,
+                          "healthcheckPath": null,
+                          "healthcheckTimeout": null,
+                          "ipv6EgressEnabled": false,
+                          "limitOverride": null,
+                          "multiRegionConfig": {
+                            "us-west2": {
+                              "numReplicas": 1
+                            }
+                          },
+                          "numReplicas": 1,
+                          "overlapSeconds": null,
+                          "preDeployCommand": [
+                            "npx prisma migrate deploy"
+                          ],
+                          "region": null,
+                          "registryCredentials": null,
+                          "requiredMountPath": null,
+                          "restartPolicyMaxRetries": 10,
+                          "restartPolicyType": "ON_FAILURE",
+                          "runtime": "V2",
+                          "sleepApplication": false,
+                          "startCommand": "node dist/index.js",
+                          "useLegacyStacker": false
+                        }
+                      },
+                      "volumeMounts": []
+                    },
+                    "status": "BUILDING",
+                    "createdAt": "2026-04-19T13:50:03.589Z",
+                    "deploymentStopped": true
+                  },
+                  "activeDeployments": [
+                    {
+                      "id": "cdff9c00-192f-45b4-86fe-297526f590f1",
+                      "status": "BUILDING",
+                      "createdAt": "2026-04-19T13:50:03.589Z",
+                      "meta": {
+                        "branch": "main",
+                        "buildOnly": false,
+                        "commitAuthor": "emttspk",
+                        "commitHash": "52a4e0e0cc427ff19634c4253f53d5ed0f55057d",
+                        "commitMessage": "Trigger Railway api/worker redeploy",
+                        "configFile": "railway.json",
+                        "fileServiceManifest": {
+                          "build": {
+                            "buildCommand": "npm install --include=optional --no-audit --no-fund && npm run build",
+                            "builder": "NIXPACKS"
+                          },
+                          "deploy": {}
+                        },
+                        "ignoreWatchPatterns": true,
+                        "logsV2": true,
+                        "nixpacksProviders": [
+                          "node"
+                        ],
+                        "patchId": "91b46dce-74c7-4a4c-8b5e-0fe74d308961",
+                        "plan": "hobby",
+                        "propertyFileMapping": {
+                          "build.buildCommand": "$.build.buildCommand",
+                          "build.builder": "$.build.builder",
+                          "deploy.releaseCommand": "$.deploy.releaseCommand"
+                        },
+                        "reason": "deploy",
+                        "repo": "emttspk/emtts",
+                        "rootDirectory": null,
+                        "runtime": "V2",
+                        "serviceManifest": {
+                          "build": {
+                            "buildCommand": "npm install --include=optional --no-audit --no-fund && npm run build",
+                            "buildEnvironment": null,
+                            "builder": "NIXPACKS",
+                            "dockerfilePath": null,
+                            "nixpacksConfigPath": "nixpacks.toml",
+                            "nixpacksPlan": null,
+                            "watchPatterns": [
+                              "/apps/api/**"
+                            ]
+                          },
+                          "deploy": {
+                            "cronSchedule": null,
+                            "drainingSeconds": null,
+                            "healthcheckPath": null,
+                            "healthcheckTimeout": null,
+                            "ipv6EgressEnabled": false,
+                            "limitOverride": null,
+                            "multiRegionConfig": {
+                              "us-west2": {
+                                "numReplicas": 1
+                              }
+                            },
+                            "numReplicas": 1,
+                            "overlapSeconds": null,
+                            "preDeployCommand": [
+                              "npx prisma migrate deploy"
+                            ],
+                            "region": null,
+                            "registryCredentials": null,
+                            "requiredMountPath": null,
+                            "restartPolicyMaxRetries": 10,
+                            "restartPolicyType": "ON_FAILURE",
+                            "runtime": "V2",
+                            "sleepApplication": false,
+                            "startCommand": "node dist/index.js",
+                            "useLegacyStacker": false
+                          }
+                        },
+                        "volumeMounts": []
+                      }
+                    },
+                    {
+                      "id": "f35a98c0-fb0a-4b02-b46e-574b50741741",
+                      "status": "SUCCESS",
+                      "createdAt": "2026-04-19T13:43:19.822Z",
+                      "meta": {
+                        "buildOnly": false,
+                        "configFile": "railway.json",
+                        "duration": 0,
+                        "fileServiceManifest": {
+                          "build": {
+                            "buildCommand": "npm install --include=optional --no-audit --no-fund && npm run build && rm -rf dist && mkdir -p dist && cp -r apps/api/dist/. dist/",
+                            "builder": "NIXPACKS"
+                          },
+                          "deploy": {}
+                        },
+                        "imageDigest": "sha256:1b18330802601f7064c0d1f6f14197d629debab7cceba4d7bc7f7c393dd44211",
+                        "logsV2": true,
+                        "nixpacksProviders": [
+                          "node"
+                        ],
+                        "propertyFileMapping": {
+                          "build.buildCommand": "$.build.buildCommand",
+                          "build.builder": "$.build.builder",
+                          "deploy.releaseCommand": "$.deploy.releaseCommand"
+                        },
+                        "reason": "deploy",
+                        "rootDirectory": null,
+                        "runtime": "V2",
+                        "serviceManifest": {
+                          "build": {
+                            "buildCommand": "npm install --include=optional --no-audit --no-fund && npm run build && rm -rf dist && mkdir -p dist && cp -r apps/api/dist/. dist/",
+                            "buildEnvironment": null,
+                            "builder": "NIXPACKS",
+                            "dockerfilePath": null,
+                            "nixpacksConfigPath": "nixpacks.toml",
+                            "nixpacksPlan": null,
+                            "watchPatterns": [
+                              "/apps/api/**"
+                            ]
+                          },
+                          "deploy": {
+                            "cronSchedule": null,
+                            "drainingSeconds": null,
+                            "healthcheckPath": null,
+                            "healthcheckTimeout": null,
+                            "ipv6EgressEnabled": false,
+                            "limitOverride": null,
+                            "multiRegionConfig": {
+                              "us-west2": {
+                                "numReplicas": 1
+                              }
+                            },
+                            "numReplicas": 1,
+                            "overlapSeconds": null,
+                            "preDeployCommand": [
+                              "npx prisma migrate deploy"
+                            ],
+                            "region": null,
+                            "registryCredentials": null,
+                            "requiredMountPath": null,
+                            "restartPolicyMaxRetries": 10,
+                            "restartPolicyType": "ON_FAILURE",
+                            "runtime": "V2",
+                            "sleepApplication": false,
+                            "startCommand": "node dist/index.js",
+                            "useLegacyStacker": false
+                          }
+                        },
+                        "volumeMounts": []
+                      }
+                    }
+                  ],
+                  "source": {
+                    "repo": "emttspk/emtts",
+                    "image": null
+                  },
+                  "domains": {
+                    "serviceDomains": [
+                      {
+                        "id": "163c7dca-62d8-4519-9837-dde0de76f239",
+                        "domain": "labelgenapi-production.up.railway.app",
+                        "targetPort": 8080
+                      }
+                    ],
+                    "customDomains": []
+                  },
+                  "cronSchedule": null,
+                  "nextCronRunAt": null,
+                  "startCommand": "node dist/index.js"
+                }
+              },
+              {
+                "node": {
+                  "id": "90a353d7-f9f6-48be-bdda-557a90863dc4",
+                  "serviceId": "c31f6ca8-79eb-44b6-965e-203775e55b85",
+                  "serviceName": "Web",
+                  "environmentId": "94b155fc-32fe-467b-8b78-2ab7e7d3365d",
+                  "latestDeployment": {
+                    "canRedeploy": true,
+                    "id": "97227854-cb48-40de-a5e5-91567e155b07",
+                    "meta": {
+                      "branch": "main",
+                      "buildOnly": false,
+                      "commitAuthor": "emttspk",
+                      "commitHash": "892d9d72fdd0b181d0b9fe8ccefdfcb7c5a023c8",
+                      "commitMessage": "fix: stabilize deployment, environment alignment, and service startup",
+                      "configFile": "apps/web/railway.json",
+                      "fileServiceManifest": {
+                        "build": {},
+                        "deploy": {
+                          "startCommand": "node dist/index.js"
+                        }
+                      },
+                      "ignoreWatchPatterns": true,
+                      "logsV2": true,
+                      "nixpacksProviders": [
+                        "node"
+                      ],
+                      "patchId": "4977e062-17cd-44c7-a719-a8a358b044a5",
+                      "plan": "hobby",
+                      "propertyFileMapping": {
+                        "build.command": "$.build.command",
+                        "deploy.startCommand": "$.deploy.startCommand"
+                      },
+                      "reason": "deploy",
+                      "repo": "emttspk/emtts",
+                      "rootDirectory": "/apps/web",
+                      "runtime": "V2",
+                      "serviceManifest": {
+                        "build": {
+                          "buildCommand": "npm install npm run build --workspace=@labelgen/api npm run build --workspace=@labelgen/web",
+                          "buildEnvironment": null,
+                          "builder": "RAILPACK",
+                          "dockerfilePath": null,
+                          "nixpacksConfigPath": null,
+                          "nixpacksPlan": null,
+                          "watchPatterns": [
+                            "/apps/web/**"
+                          ]
+                        },
+                        "deploy": {
+                          "cronSchedule": null,
+                          "drainingSeconds": null,
+                          "healthcheckPath": null,
+                          "healthcheckTimeout": null,
+                          "ipv6EgressEnabled": false,
+                          "limitOverride": null,
+                          "multiRegionConfig": {
+                            "us-west2": {
+                              "numReplicas": 1
+                            }
+                          },
+                          "numReplicas": 1,
+                          "overlapSeconds": null,
+                          "preDeployCommand": null,
+                          "region": null,
+                          "registryCredentials": null,
+                          "requiredMountPath": null,
+                          "restartPolicyMaxRetries": 10,
+                          "restartPolicyType": "ON_FAILURE",
+                          "runtime": "V2",
+                          "sleepApplication": false,
+                          "startCommand": "node dist/index.js",
+                          "useLegacyStacker": false
+                        }
+                      },
+                      "volumeMounts": []
+                    },
+                    "status": "FAILED",
+                    "createdAt": "2026-04-19T12:14:47.889Z",
+                    "deploymentStopped": true
+                  },
+                  "activeDeployments": [
+                    {
+                      "id": "706bce44-b201-40a6-8bd1-c41af294f914",
+                      "status": "SUCCESS",
+                      "createdAt": "2026-04-13T16:51:31.544Z",
+                      "meta": {
+                        "branch": "main",
+                        "buildOnly": false,
+                        "commitAuthor": "emttspk",
+                        "commitHash": "ee49b30755b94b7bfebc0129fd52991629497cc3",
+                        "commitMessage": "clean upload without credentials",
+                        "fileServiceManifest": {},
+                        "ignoreWatchPatterns": true,
+                        "imageDigest": "sha256:7ebb6f08f4854b5a8a7d62d41c8074121d71e659b3bc4367425809b4032071a0",
+                        "logsV2": true,
+                        "nixpacksProviders": [
+                          "node"
+                        ],
+                        "patchId": "8a48d237-d513-47c5-8047-8b6babf86456",
+                        "plan": "trial",
+                        "propertyFileMapping": {},
+                        "railpackInfo": {
+                          "detectedProviders": [
+                            "node"
+                          ],
+                          "metadata": {
+                            "nodePackageManager": "npm",
+                            "nodeRuntime": "node",
+                            "providers": "node"
+                          },
+                          "railpackVersion": "0.23.0",
+                          "resolvedPackages": {
+                            "node": {
+                              "requestedVersion": ">=20",
+                              "resolvedVersion": "20.20.2"
+                            }
+                          }
+                        },
+                        "reason": "deploy",
+                        "repo": "emttspk/emtts",
+                        "rootDirectory": null,
+                        "runtime": "V2",
+                        "serviceManifest": {
+                          "build": {
+                            "buildCommand": "npm run build --workspace=@labelgen/web",
+                            "buildEnvironment": null,
+                            "builder": "RAILPACK",
+                            "dockerfilePath": null,
+                            "nixpacksConfigPath": null,
+                            "nixpacksPlan": null,
+                            "watchPatterns": [
+                              "/apps/web/**"
+                            ]
+                          },
+                          "deploy": {
+                            "cronSchedule": null,
+                            "drainingSeconds": null,
+                            "healthcheckPath": null,
+                            "healthcheckTimeout": null,
+                            "ipv6EgressEnabled": false,
+                            "limitOverride": null,
+                            "multiRegionConfig": {
+                              "us-west2": {
+                                "numReplicas": 1
+                              }
+                            },
+                            "numReplicas": 1,
+                            "overlapSeconds": null,
+                            "preDeployCommand": null,
+                            "region": null,
+                            "registryCredentials": null,
+                            "requiredMountPath": null,
+                            "restartPolicyMaxRetries": 10,
+                            "restartPolicyType": "ON_FAILURE",
+                            "runtime": "V2",
+                            "sleepApplication": false,
+                            "startCommand": "npm run dev --workspace=@labelgen/web",
+                            "useLegacyStacker": false
+                          }
+                        },
+                        "volumeMounts": []
+                      }
+                    }
+                  ],
+                  "source": {
+                    "repo": "emttspk/emtts",
+                    "image": null
+                  },
+                  "domains": {
+                    "serviceDomains": [],
+                    "customDomains": []
+                  },
+                  "cronSchedule": null,
+                  "nextCronRunAt": null,
+                  "startCommand": "cd apps/api && node dist/index.js"
+                }
+              },
+              {
+                "node": {
+                  "id": "a5c6bce7-0bba-4553-8871-aad9a0a97829",
+                  "serviceId": "fb8af0a9-b94c-4039-bb9a-740c3bcd2568",
+                  "serviceName": "Postgres",
+                  "environmentId": "94b155fc-32fe-467b-8b78-2ab7e7d3365d",
+                  "latestDeployment": {
+                    "canRedeploy": true,
+                    "id": "2fceaa5d-a2ac-49a4-80f6-669e70039be7",
+                    "meta": {
+                      "image": "ghcr.io/railwayapp-templates/postgres-ssl:18",
+                      "imageDigest": "sha256:fa690d2987966200b5f748a5f4eac79669870e72e2e497da7e8226f8cc371f2f",
+                      "logsV2": true,
+                      "patchId": "b2e8aa0a-6861-4cfe-8587-73949148f6a6",
+                      "reason": "deploy",
+                      "runtime": "V2",
+                      "serviceManifest": {
+                        "build": {
+                          "buildCommand": null,
+                          "buildEnvironment": null,
+                          "builder": "RAILPACK",
+                          "dockerfilePath": null,
+                          "nixpacksConfigPath": null,
+                          "nixpacksPlan": null,
+                          "watchPatterns": []
+                        },
+                        "deploy": {
+                          "cronSchedule": null,
+                          "drainingSeconds": null,
+                          "healthcheckPath": null,
+                          "healthcheckTimeout": null,
+                          "ipv6EgressEnabled": false,
+                          "limitOverride": null,
+                          "multiRegionConfig": {
+                            "us-west2": {
+                              "numReplicas": 1
+                            }
+                          },
+                          "numReplicas": 1,
+                          "overlapSeconds": null,
+                          "preDeployCommand": null,
+                          "region": null,
+                          "registryCredentials": null,
+                          "requiredMountPath": "/var/lib/postgresql/data",
+                          "restartPolicyMaxRetries": 10,
+                          "restartPolicyType": "ON_FAILURE",
+                          "runtime": "V2",
+                          "sleepApplication": false,
+                          "startCommand": null,
+                          "useLegacyStacker": false
+                        }
+                      },
+                      "volumeMounts": [
+                        "/var/lib/postgresql/data"
+                      ]
+                    },
+                    "status": "SUCCESS",
+                    "createdAt": "2026-04-19T12:14:29.487Z",
+                    "deploymentStopped": false
+                  },
+                  "activeDeployments": [
+                    {
+                      "id": "2fceaa5d-a2ac-49a4-80f6-669e70039be7",
+                      "status": "SUCCESS",
+                      "createdAt": "2026-04-19T12:14:29.487Z",
+                      "meta": {
+                        "image": "ghcr.io/railwayapp-templates/postgres-ssl:18",
+                        "imageDigest": "sha256:fa690d2987966200b5f748a5f4eac79669870e72e2e497da7e8226f8cc371f2f",
+                        "logsV2": true,
+                        "patchId": "b2e8aa0a-6861-4cfe-8587-73949148f6a6",
+                        "reason": "deploy",
+                        "runtime": "V2",
+                        "serviceManifest": {
+                          "build": {
+                            "buildCommand": null,
+                            "buildEnvironment": null,
+                            "builder": "RAILPACK",
+                            "dockerfilePath": null,
+                            "nixpacksConfigPath": null,
+                            "nixpacksPlan": null,
+                            "watchPatterns": []
+                          },
+                          "deploy": {
+                            "cronSchedule": null,
+                            "drainingSeconds": null,
+                            "healthcheckPath": null,
+                            "healthcheckTimeout": null,
+                            "ipv6EgressEnabled": false,
+                            "limitOverride": null,
+                            "multiRegionConfig": {
+                              "us-west2": {
+                                "numReplicas": 1
+                              }
+                            },
+                            "numReplicas": 1,
+                            "overlapSeconds": null,
+                            "preDeployCommand": null,
+                            "region": null,
+                            "registryCredentials": null,
+                            "requiredMountPath": "/var/lib/postgresql/data",
+                            "restartPolicyMaxRetries": 10,
+                            "restartPolicyType": "ON_FAILURE",
+                            "runtime": "V2",
+                            "sleepApplication": false,
+                            "startCommand": null,
+                            "useLegacyStacker": false
+                          }
+                        },
+                        "volumeMounts": [
+                          "/var/lib/postgresql/data"
+                        ]
+                      }
+                    }
+                  ],
+                  "source": {
+                    "repo": null,
+                    "image": "ghcr.io/railwayapp-templates/postgres-ssl:18"
+                  },
+                  "domains": {
+                    "serviceDomains": [],
+                    "customDomains": []
+                  },
+                  "cronSchedule": null,
+                  "nextCronRunAt": null,
+                  "startCommand": null
+                }
+              }
+            ]
+          },
+          "volumeInstances": {
+            "edges": [
+              {
+                "node": {
+                  "serviceId": null,
+                  "mountPath": "/var/lib/postgresql/data",
+                  "environmentId": "94b155fc-32fe-467b-8b78-2ab7e7d3365d",
+                  "currentSizeMB": 198.541312,
+                  "sizeMB": 5000,
+                  "volume": {
+                    "name": "postgres-volume",
+                    "id": "60dc3fbc-5e36-434c-a23d-363b07f1ae99"
+                  }
+                }
+              },
+              {
+                "node": {
+                  "serviceId": "fb8af0a9-b94c-4039-bb9a-740c3bcd2568",
+                  "mountPath": "/var/lib/postgresql/data",
+                  "environmentId": "94b155fc-32fe-467b-8b78-2ab7e7d3365d",
+                  "currentSizeMB": 117.587968,
+                  "sizeMB": 500,
+                  "volume": {
+                    "name": "postgres-volume-EpRr",
+                    "id": "97daca90-22a5-420c-999e-c764b392c107"
+                  }
+                }
+              },
+              {
+                "node": {
+                  "serviceId": "a9ba7b83-98a7-4d51-9469-46d9b339b25e",
+                  "mountPath": "/data",
+                  "environmentId": "94b155fc-32fe-467b-8b78-2ab7e7d3365d",
+                  "currentSizeMB": 52.781056,
+                  "sizeMB": 500,
+                  "volume": {
+                    "name": "redis-volume",
+                    "id": "2d2643ae-44c6-4764-93f9-990c52bd10dd"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "services": {
+    "edges": [
+      {
+        "node": {
+          "id": "1019bb87-0115-4463-a714-23c477fd9d8e",
+          "name": "Api"
+        }
+      },
+      {
+        "node": {
+          "id": "745ff786-8008-4532-a1ef-41a1539f2dda",
+          "name": "Python"
+        }
+      },
+      {
+        "node": {
+          "id": "a9ba7b83-98a7-4d51-9469-46d9b339b25e",
+          "name": "Redis"
+        }
+      },
+      {
+        "node": {
+          "id": "c31f6ca8-79eb-44b6-965e-203775e55b85",
+          "name": "Web"
+        }
+      },
+      {
+        "node": {
+          "id": "d2659c4f-fbd2-40b1-b0b9-699a1f83fe40",
+          "name": "Worker"
+        }
+      },
+      {
+        "node": {
+          "id": "fb8af0a9-b94c-4039-bb9a-740c3bcd2568",
+          "name": "Postgres"
+        }
+      }
+    ]
+  }
+}
+
