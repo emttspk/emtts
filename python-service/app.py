@@ -2060,3 +2060,10 @@ async def submit_complaint_api(req: ComplaintRequest, response: Response):
     "due_date": due_date,
     "already_exists": bool(result.get("already_exists")),
   }
+
+
+if __name__ == "__main__":
+  import uvicorn
+
+  port = int(os.getenv("PORT", "8000"))
+  uvicorn.run("app:app", host="0.0.0.0", port=port)
