@@ -19,6 +19,21 @@ import { requireAuth } from "./middleware/auth.js";
 import { releaseQueuedLabels } from "./usage/limits.js";
 import { UPLOAD_DIR } from "./utils/paths.js";
 const BUILD_VERSION = process.env.RAILWAY_GIT_COMMIT_SHA ?? "local";
+const isProduction = process.env.NODE_ENV === "production";
+
+function getUrlHost(url: string | undefined): string {
+  if (!url) return "";
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "";
+  }
+}
+
+function isLocalHost(host: string): boolean {
+  const normalized = host.toLowerCase();
+  return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "0.0.0.0";
+}
 
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -42,16 +57,18 @@ console.log("🚀 Starting LabelGen API server FIXED...");
 console.log(`[STARTUP] NODE_ENV=${process.env.NODE_ENV}`);
 console.log(`[STARTUP] DATABASE_URL is set: ${process.env.DATABASE_URL ? "yes" : "no"}`);
 if (process.env.DATABASE_URL) {
-  const sanitized = process.env.DATABASE_URL.replace(/([^:])([a-zA-Z0-9]+)@/, "$1***@");
-  console.log(`[STARTUP] DATABASE_URL (sanitized): ${sanitized}`);
-  
-  // Extract database name from URL
+  // Extract database metadata without printing credentials.
   try {
     const url = new URL(process.env.DATABASE_URL);
+    if (isProduction && isLocalHost(url.hostname)) {
+      console.error("[STARTUP] DATABASE_URL points to localhost in production. Set an external PostgreSQL URL.");
+    }
     const pathname = url.pathname;
     const dbName = pathname.split('?')[0].replace(/^\//, '') || 'unknown';
     console.log(`[STARTUP] Database name: ${dbName}`);
-    console.log(`[STARTUP] Database host: ${url.hostname}`);
+    if (!isProduction || !isLocalHost(url.hostname)) {
+      console.log(`[STARTUP] Database host: ${url.hostname}`);
+    }
   } catch (e) {
     console.warn(`[STARTUP] Could not parse DATABASE_URL`);
   }
@@ -70,7 +87,17 @@ function normalizeDatabaseUrl() {
 
 function hasUsableDatabaseUrl() {
   const dbUrl = String(process.env.DATABASE_URL ?? "").trim();
-  return dbUrl.startsWith("postgresql://") || dbUrl.startsWith("postgres://");
+  const validProtocol = dbUrl.startsWith("postgresql://") || dbUrl.startsWith("postgres://");
+  if (!validProtocol) return false;
+
+  if (isProduction) {
+    const host = getUrlHost(dbUrl);
+    if (isLocalHost(host)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function validateEnvironment() {
@@ -89,7 +116,7 @@ function validateEnvironment() {
 
   const redisUrl = String(process.env.REDIS_URL ?? "").trim();
   const pythonServiceUrl = String(process.env.PYTHON_SERVICE_URL ?? "").trim();
-  const isProduction = process.env.NODE_ENV === "production";
+  const dbHost = getUrlHost(process.env.DATABASE_URL);
   if (!redisUrl) {
     warnings.push("REDIS_URL environment variable is not set. Queue processing will be unavailable until Redis is configured.");
   } else if (isProduction && /(localhost|127\.0\.0\.1)/i.test(redisUrl)) {
@@ -101,6 +128,9 @@ function validateEnvironment() {
     console.warn("⚠️  [Redis] REDIS_URL does not use TLS (rediss://). This is fine for internal Railway networking but ensure the URL is correct.");
   }
   if (isProduction) {
+    if (dbHost && isLocalHost(dbHost)) {
+      warnings.push("DATABASE_URL points to localhost in production. Configure external PostgreSQL and set DATABASE_URL.");
+    }
     if (!pythonServiceUrl) {
       warnings.push("PYTHON_SERVICE_URL is not set. Tracking/complaint processing will stay unavailable until a Python service URL is configured.");
     } else if (/(localhost|127\.0\.0\.1)/i.test(pythonServiceUrl)) {

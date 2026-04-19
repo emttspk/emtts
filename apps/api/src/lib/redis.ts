@@ -1,11 +1,18 @@
 import { Redis as IORedis } from "ioredis";
 
 const redisUrl = String(process.env.REDIS_URL || "").trim();
-const hasUsableRedisUrl = !!redisUrl && !/(^|[:@/])HOST([:@/]|$)|(^|[:@/])PASSWORD([:@/]|$)/i.test(redisUrl);
+const isProduction = process.env.NODE_ENV === "production";
+const hasPlaceholderRedisUrl = /(^|[:@/])HOST([:@/]|$)|(^|[:@/])PASSWORD([:@/]|$)/i.test(redisUrl);
+const hasLocalRedisInProduction = isProduction && /(localhost|127\.0\.0\.1|0\.0\.0\.0)/i.test(redisUrl);
+const hasUsableRedisUrl = !!redisUrl && !hasPlaceholderRedisUrl && !hasLocalRedisInProduction;
 const connectionUrl = hasUsableRedisUrl ? redisUrl : "redis://127.0.0.1:6379";
 
 if (!hasUsableRedisUrl) {
-  console.warn("[Redis] REDIS_URL is missing or placeholder. Redis will stay disabled until a real URL is configured.");
+  if (hasLocalRedisInProduction) {
+    console.warn("[Redis] REDIS_URL points to localhost in production. Redis will stay disabled until an external Redis URL is configured.");
+  } else {
+    console.warn("[Redis] REDIS_URL is missing or placeholder. Redis will stay disabled until a real URL is configured.");
+  }
 }
 
 export const redis = new IORedis(connectionUrl, {
