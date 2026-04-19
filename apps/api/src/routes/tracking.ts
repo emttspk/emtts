@@ -13,6 +13,7 @@ import type { AuthedRequest } from "../middleware/auth.js";
 import { ensureStorageDirs, outputsDir, uploadsDir } from "../storage/paths.js";
 import { trackingQueue } from "../queue/queue.js";
 import { ensureRedisConnection, getRedisConnection } from "../queue/redis.js";
+import { redisEnabled } from "../lib/redis.js";
 import { parseOrdersFromFile } from "../parse/orders.js";
 import { parseTrackingNumbersFromFile } from "../parse/tracking.js";
 import { validateTrackingId } from "../validation/trackingId.js";
@@ -551,10 +552,15 @@ export async function handleTrackingBulk(req: Request, res: Response) {
       );
     }
   } catch (e) {
-    if (bulkLockKey) {
-      const currentLockValue = await getRedisConnection().get(bulkLockKey);
-      if (currentLockValue === job.id) {
-        await getRedisConnection().del(bulkLockKey);
+    // Safely clean up Redis locks only if Redis is available
+    if (bulkLockKey && redisEnabled) {
+      try {
+        const currentLockValue = await getRedisConnection().get(bulkLockKey);
+        if (currentLockValue === job.id) {
+          await getRedisConnection().del(bulkLockKey);
+        }
+      } catch (redisErr) {
+        console.warn(`[TrackingUpload] Failed to clean up Redis lock for job ${job.id}: ${redisErr instanceof Error ? redisErr.message : String(redisErr)}`);
       }
     }
     if (reservedTracking) {

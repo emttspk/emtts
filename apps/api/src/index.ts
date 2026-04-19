@@ -124,18 +124,22 @@ validateEnvironment();
 // runMigrations() is now handled in package.json start script
 // NOTE: Ensure database connection BUT DO NOT BLOCK startup
 // This will initialize in the background while the server starts
-const initialDatabaseReady = hasUsableDatabaseUrl()
-  ? ensureDatabaseConnection()
-      .then(() => true)
-      .catch(err => {
-        console.error("[DB] Failed to establish initial connection:", err instanceof Error ? err.message : String(err));
-        return false;
-      })
-  : Promise.resolve(false);
+async function initializeDatabaseSafely(): Promise<boolean> {
+  if (!hasUsableDatabaseUrl()) {
+    console.warn("[DB] Skipping initial database connection because DATABASE_URL is missing or invalid.");
+    return false;
+  }
 
-if (!hasUsableDatabaseUrl()) {
-  console.warn("[DB] Skipping initial database connection because DATABASE_URL is missing or invalid.");
+  try {
+    return await ensureDatabaseConnection();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[DB] Connection error: ${message}`);
+    return false;
+  }
 }
+
+const initialDatabaseReady = initializeDatabaseSafely();
 
 // Global crash protection
 process.on("uncaughtException", (err) => {
