@@ -5,7 +5,7 @@ const isProduction = process.env.NODE_ENV === "production";
 const hasPlaceholderRedisUrl = /(^|[:@/])HOST([:@/]|$)|(^|[:@/])PASSWORD([:@/]|$)/i.test(redisUrl);
 const hasLocalRedisInProduction = isProduction && /(localhost|127\.0\.0\.1|0\.0\.0\.0)/i.test(redisUrl);
 const hasUsableRedisUrl = !!redisUrl && !hasPlaceholderRedisUrl && !hasLocalRedisInProduction;
-const connectionUrl = hasUsableRedisUrl ? redisUrl : "redis://127.0.0.1:6379";
+const connectionUrl = hasUsableRedisUrl ? redisUrl : "redis://redis.invalid:6379";
 
 if (!hasUsableRedisUrl) {
   if (hasLocalRedisInProduction) {
@@ -19,6 +19,9 @@ export const redis = new IORedis(connectionUrl, {
   maxRetriesPerRequest: null,
   connectTimeout: 10000,
   lazyConnect: true,
+  // Never run endless reconnect loops when Redis URL is missing or invalid.
+  retryStrategy: () => null,
+  enableOfflineQueue: false,
   tls: connectionUrl.startsWith("rediss://") ? {} : undefined,
 });
 

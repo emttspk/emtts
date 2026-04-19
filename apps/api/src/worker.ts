@@ -1144,23 +1144,31 @@ console.log(`Worker ready (queues: ${jobsQueueName}, ${trackingQueueName})`);
   }
 }
 
-const WORKER_RETRY_DELAY_MS = 5_000;
+const WORKER_RETRY_DELAY_MS = Number(process.env.WORKER_RETRY_DELAY_MS ?? "5000");
+const WORKER_STARTUP_RETRIES = Number(process.env.WORKER_STARTUP_RETRIES ?? "0");
 
 async function bootWorkerProcess() {
-  while (true) {
+  for (let attempt = 0; attempt <= WORKER_STARTUP_RETRIES; attempt += 1) {
     try {
       await startWorker();
       console.log("Worker started");
       return;
     } catch (err) {
       console.error("Worker startup error:", err instanceof Error ? err.message : String(err));
-      console.log(`[Worker] Retrying startup in ${WORKER_RETRY_DELAY_MS}ms`);
+      const hasMoreRetries = attempt < WORKER_STARTUP_RETRIES;
+      if (!hasMoreRetries) {
+        throw err;
+      }
+      console.log(`[Worker] Retrying startup in ${WORKER_RETRY_DELAY_MS}ms (attempt ${attempt + 1}/${WORKER_STARTUP_RETRIES})`);
       await new Promise((resolve) => setTimeout(resolve, WORKER_RETRY_DELAY_MS));
     }
   }
 }
 
-void bootWorkerProcess();
+void bootWorkerProcess().catch((err) => {
+  console.error("[Worker] Fatal startup failure:", err instanceof Error ? err.message : String(err));
+  process.exit(1);
+});
 
 function generateBarcodeBase64(text: string) {
   const canvas = createCanvas(400, 120);

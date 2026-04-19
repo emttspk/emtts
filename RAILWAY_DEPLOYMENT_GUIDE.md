@@ -5,9 +5,10 @@
 1. Remove Dockerfile-based deploys and use Railway default builder (Railpack/Nixpacks).
 2. Set build command to: `npm install --omit=dev && npm run build`
 3. API start command: `node apps/api/dist/index.js`
-4. Worker start command (separate Railway service): `npm run worker -w @labelgen/api`
+4. Worker start command (separate Railway service): `node apps/api/dist/worker.js`
 5. Set `REDIS_URL` to Railway Redis TLS format: `rediss://default:password@host:port`
-6. Do not install system Chromium via apt; use bundled `puppeteer` only.
+6. Python service start command: `python app.py` (service root: `python-service`)
+7. Do not install system Chromium via apt; use bundled `puppeteer` only.
 
 Do not omit `&&` between install and build commands.
 

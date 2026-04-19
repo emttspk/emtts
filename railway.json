@@ -13,6 +13,11 @@
       "deploy": {
         "startCommand": "node apps/api/dist/worker.js"
       }
+    },
+    "python": {
+      "deploy": {
+        "startCommand": "python python-service/app.py"
+      }
     }
   }
 }
