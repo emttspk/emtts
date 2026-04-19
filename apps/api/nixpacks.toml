@@ -2,12 +2,11 @@
 nixPkgs = ["nodejs_22", "pkg-config", "cairo", "pango", "libpng", "libjpeg", "giflib", "librsvg", "pixman", "python3", "gcc", "gnumake"]
 
 [phases.install]
-cmds = ["npm cache clean --force", "rm -rf node_modules", "npm install --include=optional --no-audit --build-from-source"]
+cmds = ["npm cache clean --force", "rm -rf node_modules", "npm install --include=optional --no-audit"]
 
 [phases.build]
-cmds = ["npm run prisma:generate", "npm rebuild canvas --build-from-source", "npm run build"]
+cmds = ["npm run prisma:generate", "npm run build"]
 
 [variables]
 PUPPETEER_SKIP_DOWNLOAD = "true"
 PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
-NPM_CONFIG_BUILD_FROM_SOURCE = "true"
