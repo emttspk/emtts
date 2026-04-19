@@ -171,8 +171,7 @@ app.use(express.json({ limit: "2mb" }));
 app.get("/", (req, res) => {
   return res.status(200).json({
     status: "ok",
-    service: "LabelGen API",
-    version: "running",
+    service: "labelgen-api",
   });
 });
 
@@ -401,7 +400,7 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 });
 
 // CRITICAL: Start server IMMEDIATELY without any blocking awaits
-const PORT = Number(process.env.PORT) || 8080;
+const PORT = Number(process.env.PORT || 3000);
 console.log(`PORT: ${PORT}`);
 
 // Listen FIRST - this must not be blocked by anything
