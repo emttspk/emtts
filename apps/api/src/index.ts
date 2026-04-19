@@ -174,10 +174,7 @@ app.use((req, _res, next) => {
 });
 
 app.get("/", (_req, res) => {
-  return res.status(200).json({
-    status: "ok",
-    message: "API running",
-  });
+  res.status(200).send("OK");
 });
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
@@ -396,7 +393,7 @@ router.use("/*", (_req, res) => {
 
 app.use("/api", router);
 app.use((_req, res) => {
-  res.status(404).json({ success: false, message: "Route not found" });
+  res.status(404).send("Not Found");
 });
 
 // Global Error Handler
@@ -409,16 +406,14 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 });
 
 // CRITICAL: Start server IMMEDIATELY without any blocking awaits
-const PORT = Number(process.env.PORT || 3000);
-console.log(`PORT: ${PORT}`);
-
-// Listen FIRST - this must not be blocked by anything
-const server = app.listen(PORT, "0.0.0.0");
-console.log(`API running on port ${PORT}`);
+const port = Number(process.env.PORT || 3000);
+const server = app.listen(port, "0.0.0.0", () => {
+  console.log("Server running");
+});
 
 server.on("error", (err: any) => {
   if (err?.code === "EADDRINUSE") {
-    console.error(`API port ${PORT} is already in use. Stop the other running API process and try again.`);
+    console.error(`API port ${port} is already in use. Stop the other running API process and try again.`);
     return;
   }
   console.error("API server error:", err);
