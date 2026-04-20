@@ -575,6 +575,7 @@ jobsRouter.get("/:jobId/download/labels", requireAuth, async (req, res) => {
   if (!relPath) return res.status(404).json({ success: false, message: "Labels file not found" });
 
   const absPath = resolveStoredPath(relPath);
+  console.log("DOWNLOAD PATH:", absPath);
   const allowedRoot = outputsDir();
   const relToRoot = path.relative(allowedRoot, absPath);
   if (relToRoot.startsWith("..") || path.isAbsolute(relToRoot)) {
@@ -621,6 +622,7 @@ jobsRouter.get("/:jobId/download/money-orders", requireAuth, async (req, res) =>
   if (!absPath) {
     return res.status(404).json({ success: false, message: "Money order file was not generated" });
   }
+  console.log("DOWNLOAD PATH:", absPath);
 
   const allowedRoot = outputsDir();
   const relToRoot = path.relative(allowedRoot, absPath);

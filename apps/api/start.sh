@@ -11,8 +11,7 @@ echo "[startup] Starting API server..."
 node dist/index.js &
 API_PID=$!
 
-# Forward termination signals to all child processes in this process group.
-trap "kill 0" INT TERM
+trap "kill 0" SIGINT SIGTERM
 
 # Keep the container alive while both processes are expected to run.
 wait $WORKER_PID $API_PID
