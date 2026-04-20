@@ -10,12 +10,18 @@
   "services": {
     "Api": {
       "deploy": {
-        "startCommand": "node apps/api/dist/index.js"
+        "startCommand": "sh apps/api/start.sh"
+      },
+      "variables": {
+        "STORAGE_PATH": "/app/storage"
       }
     },
     "Worker": {
       "deploy": {
-        "startCommand": "node apps/api/dist/worker.js"
+        "startCommand": "node -e \"console.log('[Worker] Worker co-located with API. This container is idle.'); setInterval(function(){}, 2147483647);\""
+      },
+      "variables": {
+        "STORAGE_PATH": "/app/storage"
       }
     },
     "Python": {
