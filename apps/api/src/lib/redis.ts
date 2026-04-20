@@ -19,9 +19,11 @@ export const redis = new IORedis(connectionUrl, {
   maxRetriesPerRequest: null,
   connectTimeout: 10000,
   lazyConnect: true,
-  // Never run endless reconnect loops when Redis URL is missing or invalid.
-  retryStrategy: () => null,
-  enableOfflineQueue: false,
+  // Reconnect only when a real Redis URL is configured.
+  // If Redis is intentionally disabled/misconfigured, do not spin forever.
+  retryStrategy: hasUsableRedisUrl ? (times) => Math.min(times * 200, 2000) : () => null,
+  // Prevent transient "Stream isn't writeable" failures while Redis reconnects.
+  enableOfflineQueue: hasUsableRedisUrl,
   tls: connectionUrl.startsWith("rediss://") ? {} : undefined,
 });
 
