@@ -590,7 +590,7 @@ jobsRouter.get("/:jobId/download/labels", requireAuth, async (req, res) => {
   return res.download(absPath, `labels-${jobId}.pdf`);
 });
 
-jobsRouter.get("/:jobId/download/money-orders", requireAuth, async (req, res) => {
+async function handleMoneyOrdersDownload(req: Request, res: Response) {
   const userId = (req as AuthedRequest).user!.id;
   const jobId = req.params.jobId;
   const owned = await prisma.labelJob.findFirst({ where: { id: jobId, userId } });
@@ -635,4 +635,8 @@ jobsRouter.get("/:jobId/download/money-orders", requireAuth, async (req, res) =>
   }
 
   return res.download(absPath, `money-orders-${jobId}.pdf`);
-});
+}
+
+jobsRouter.get("/:jobId/download/money-orders", requireAuth, handleMoneyOrdersDownload);
+// Backward-compatible alias to avoid 404s for clients still using singular route.
+jobsRouter.get("/:jobId/download/money-order", requireAuth, handleMoneyOrdersDownload);

@@ -342,10 +342,28 @@ def interpret_shipment(
         manual_pending_override=False,
     )
 
+    flow_status = interpret_tracking_flow(history, booking_office, delivery_office)
+
+    # Keep terminal decisions from the deterministic status engine,
+    # but do not overwrite in-flight lifecycle states with generic PENDING.
     final_status = str(status_patch.get("final_status") or "Pending")
     final_status_up = final_status.strip().upper()
-    status = "RETURN" if final_status_up == "RETURN" else final_status_up
-    pending_level = "Pending" if status == "PENDING" else None
+    if final_status_up == "DELIVERED":
+        status = "DELIVERED"
+    elif final_status_up == "RETURN":
+        status = "RETURN"
+    else:
+        status = str(flow_status or "PENDING").strip().upper()
+
+    pending_level = get_pending_level(latest_date, latest_time) if status in {
+        "BOOKED",
+        "IN_TRANSIT",
+        "AT_DELIVERY_OFFICE",
+        "OUT_FOR_DELIVERY",
+        "FAILED_DELIVERY",
+        "RETURN_IN_PROCESS",
+        "PENDING",
+    } else None
     complaint_eligible = bool(status_patch.get("complaint_enabled"))
 
     return {

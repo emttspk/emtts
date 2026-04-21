@@ -292,13 +292,23 @@ def _clean_html_text(value: str) -> str:
   return re.sub(r"\s+", " ", stripped).strip()
 
 
+def _safe_match_group(match: Any, index: int, default: str = "") -> str:
+  if match is None:
+    return default
+  try:
+    value = match.group(index)
+  except (IndexError, AttributeError):
+    return default
+  return str(value or default)
+
+
 def _extract_header_value_by_label(page_html: str, label: str) -> str:
   pattern = re.compile(
     rf"{re.escape(label)}\s*:?[\s\S]*?<span[^>]*class=['\"]TrackHeadingData['\"][^>]*>([\s\S]*?)</span>",
     flags=re.IGNORECASE,
   )
   match = pattern.search(page_html)
-  return _clean_html_text(match.group(1)) if match else ""
+  return _clean_html_text(_safe_match_group(match, 1)) if match else ""
 
 
 def _extract_inner_tracking_html(page_html: str) -> str:
@@ -314,7 +324,7 @@ def _extract_inner_tracking_html(page_html: str) -> str:
     match = re.search(pattern, page_html, flags=re.IGNORECASE)
     if not match:
       continue
-    raw = match.group(1)
+    raw = _safe_match_group(match, 1)
     try:
       decoded = json.loads(f'"{raw}"')
     except Exception:
@@ -372,13 +382,14 @@ def _extract_event_rows(tracking_html: str) -> list[dict[str, str]]:
 
   events: list[dict[str, str]] = []
   for idx, date_match in enumerate(date_matches):
-    current_date = _clean_html_text(date_match.group(1) or "") if date_match else ""
+    current_date = _clean_html_text(_safe_match_group(date_match, 1)) if date_match else ""
     seg_start = date_match.end() if date_match else 0
     seg_end = date_matches[idx + 1].start() if idx + 1 < len(date_matches) else len(snippet)
     segment = snippet[seg_start:seg_end]
 
     for row in tr_pattern.finditer(segment):
-      cells = [_clean_html_text(cell) for cell in td_pattern.findall(row.group(1) or "")]
+      row_html = _safe_match_group(row, 1)
+      cells = [_clean_html_text(cell) for cell in td_pattern.findall(row_html or "")]
       cells = [c for c in cells if c]
       if not cells:
         continue
@@ -437,15 +448,15 @@ def _extract_event_rows_regex_fallback(tracking_html: str) -> list[dict[str, str
 
   events: list[dict[str, str]] = []
   for idx, date_match in enumerate(date_matches):
-    current_date = _clean_html_text(date_match.group(1) or "")
+    current_date = _clean_html_text(_safe_match_group(date_match, 1))
     seg_start = date_match.end()
     seg_end = date_matches[idx + 1].start() if idx + 1 < len(date_matches) else len(tracking_html)
     segment = tracking_html[seg_start:seg_end]
 
     for row in row_pattern.finditer(segment):
-      time_token = _clean_html_text(row.group(1) or "").upper()
-      location_token = _clean_html_text(row.group(2) or "")
-      desc_token = _clean_html_text(row.group(3) or "")
+      time_token = _clean_html_text(_safe_match_group(row, 1)).upper()
+      location_token = _clean_html_text(_safe_match_group(row, 2))
+      desc_token = _clean_html_text(_safe_match_group(row, 3))
       desc_token = re.sub(r"\(BagID:.*?\)", "", desc_token, flags=re.IGNORECASE).strip()
       if not current_date or not time_token or not desc_token:
         continue
@@ -814,6 +825,19 @@ def _resolve_complaint_form_page(session: requests.Session) -> tuple[str, str]:
   return COMPLAINT_ENTRY_URL, root_html
 
 
+def _resolve_complaint_post_url(form_url: str, action: str | None) -> str:
+  action_text = str(action or "").strip()
+  if not action_text:
+    return form_url
+  candidate = urljoin(form_url, action_text)
+  lowered = candidate.lower()
+  # Pakistan Post occasionally points form action to Default_Test.aspx,
+  # which returns server-side 500 for complaint submit/postback.
+  if "default_test.aspx" in lowered:
+    return COMPLAINT_FORM_URL
+  return candidate
+
+
 def _inject_aspnet_state_fields(form: Any, payload: dict[str, str]) -> None:
   for name in ("__VIEWSTATE", "__EVENTVALIDATION", "__VIEWSTATEGENERATOR"):
     node = form.find("input", attrs={"name": name})
@@ -1004,7 +1028,7 @@ def _pick_problem_category(form: Any, payload: dict[str, str]) -> None:
 
 def _extract_complaint_number(html: str) -> str:
   hit = re.search(r"Complaint\s*(?:No|ID)\s*[:\-]?\s*([A-Z0-9\-]+)", html or "", flags=re.IGNORECASE)
-  return hit.group(1) if hit else ""
+  return _safe_match_group(hit, 1) if hit else ""
 
 
 def _extract_lbl_error_message_text(html: str) -> str:
@@ -1036,7 +1060,7 @@ def _extract_due_date_from_message(message: str) -> str:
   text = str(message or "")
   hit = re.search(r"Due\s*Date\s*(?:on)?\s*([0-3]?\d/[0-1]?\d/\d{4})", text, flags=re.IGNORECASE)
   if hit:
-    return hit.group(1)
+    return _safe_match_group(hit, 1)
   return ""
 
 
@@ -1410,7 +1434,7 @@ def submit_complaint(tracking_number, phone_number, details: dict[str, Any] | No
         current_payload["__EVENTTARGET"] = event_target
         current_payload["__EVENTARGUMENT"] = ""
         action_local = str(current_form.get("action") or "").strip()
-        post_url_local = urljoin(form_url, action_local) if action_local else form_url
+        post_url_local = _resolve_complaint_post_url(form_url, action_local)
         event_resp = session.post(
           post_url_local,
           data=current_payload,
@@ -1541,7 +1565,7 @@ def submit_complaint(tracking_number, phone_number, details: dict[str, Any] | No
       print("Payload:", payload)
 
       action = str(postback_form.get("action") or "").strip()
-      post_url = urljoin(form_url, action) if action else form_url
+      post_url = _resolve_complaint_post_url(form_url, action)
       submit_resp = session.post(
         post_url,
         data=payload,
@@ -2045,12 +2069,21 @@ async def track_one(tracking_number: str, response: Response, include_raw: bool 
 @app.post("/submit-complaint")
 async def submit_complaint_api(req: ComplaintRequest, response: Response):
   response.headers["Cache-Control"] = "no-store"
-  result = await anyio.to_thread.run_sync(
-    submit_complaint,
-    req.tracking_number,
-    req.phone,
-    req.model_dump(exclude={"tracking_number", "phone"}, exclude_none=True),
-  )
+  try:
+    result = await anyio.to_thread.run_sync(
+      submit_complaint,
+      req.tracking_number,
+      req.phone,
+      req.model_dump(exclude={"tracking_number", "phone"}, exclude_none=True),
+    )
+  except Exception as exc:
+    return {
+      "success": False,
+      "response_text": f"Complaint submission failed: {exc}",
+      "complaint_number": "",
+      "due_date": "",
+      "already_exists": False,
+    }
   complaint_number = str(result.get("complaint_number") or "").strip()
   due_date = str(result.get("due_date") or "").strip()
   return {

@@ -38,6 +38,22 @@ export default function Complaints() {
 
   const current = useMemo(() => shipments.find((s) => s.trackingNumber === selected) ?? null, [shipments, selected]);
 
+  function normalizeComplaintPhone(raw: string) {
+    const cleaned = String(raw || "").trim();
+    const plus923 = cleaned.match(/^\+923\d{9}$/);
+    if (plus923) {
+      return `0${cleaned.slice(3)}`;
+    }
+    const digitsOnly = cleaned.replace(/\D+/g, "");
+    if (/^03\d{9}$/.test(digitsOnly)) {
+      return digitsOnly;
+    }
+    if (/^923\d{9}$/.test(digitsOnly)) {
+      return `0${digitsOnly.slice(2)}`;
+    }
+    return "";
+  }
+
   return (
     <div className="space-y-6">
       <Card className="p-6">
@@ -67,7 +83,7 @@ export default function Complaints() {
             <label className="text-sm font-medium text-gray-700">Phone</label>
             <input
               className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm"
-              placeholder="03001234567"
+              placeholder="03001234567 or +923001234567"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
             />
@@ -110,9 +126,14 @@ export default function Complaints() {
               setError(null);
               polling.reset();
               try {
+                const normalizedPhone = normalizeComplaintPhone(phone);
+                if (!normalizedPhone) {
+                  setError("Invalid phone. Use 03XXXXXXXXX or +923XXXXXXXXX.");
+                  return;
+                }
                 const res = await api<{ jobId: string }>("/api/tracking/complaint", {
                   method: "POST",
-                  body: JSON.stringify({ tracking_number: selected, phone }),
+                  body: JSON.stringify({ tracking_number: selected, phone: normalizedPhone }),
                 });
                 polling.start(res.jobId);
               } catch (e) {

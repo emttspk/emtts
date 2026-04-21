@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["nodejs_22", "pkg-config", "cairo", "pango", "libpng", "libjpeg", "giflib", "librsvg", "pixman", "python311", "gcc", "gnumake"]
+nixPkgs = ["nodejs_22", "pkg-config", "cairo", "pango", "libpng", "libjpeg", "giflib", "librsvg", "pixman", "python311", "gcc", "gnumake", "chromium", "nss", "nspr", "atk", "cups", "dbus", "libdrm", "mesa", "libxkbcommon", "at-spi2-atk", "gtk3"]
 
 [phases.install]
 cmds = ["npm cache clean --force", "rm -rf node_modules apps/api/node_modules apps/web/node_modules", "npm install --include=optional --no-audit"]

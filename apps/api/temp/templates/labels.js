@@ -835,7 +835,7 @@ function fillBenchmarkSlot(htmlBody, slotIndex, order) {
     // Bottom tracking line
     out = replaceNth(out, /(<div class="field mono en" style="left:15\.56mm;top:198\.83mm;width:63\.64mm;font-size:2\.22mm;">)([^<]*)(<\/div>)/g, slotIndex, (_m, p1, _old, p3) => `${p1}${escapeHtml(tracking)}${p3}` +
         `<div class="field en" style="left:84.00mm;top:202.20mm;width:49.00mm;text-align:center;font-weight:900;font-size:2.45mm;line-height:1.1;">Free Bulk Dispatch &amp; Tracking</div>` +
-        `<div class="field en" style="left:84.00mm;top:205.00mm;width:49.00mm;text-align:center;font-weight:700;font-size:2.2mm;line-height:1.1;">www.bd.pk</div>`);
+        `<div class="field en" style="left:84.00mm;top:205.00mm;width:49.00mm;text-align:center;font-weight:700;font-size:2.2mm;line-height:1.1;">www.epost.pk</div>`);
     return out;
 }
 function moneyOrderHtmlFromBenchmark(orders) {

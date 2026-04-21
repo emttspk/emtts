@@ -1,12 +1,17 @@
 import puppeteer, { type Browser } from "puppeteer";
 
 export async function launchPuppeteerBrowser() {
-  console.log("Launching Puppeteer with bundled Chromium");
+  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
+  console.log(`Launching Puppeteer — executablePath: ${executablePath ?? "(puppeteer default)"}`);
   const browser = await puppeteer.launch({
     headless: true,
+    executablePath,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--single-process",
     ],
   });
   return browser;
