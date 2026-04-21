@@ -2,32 +2,11 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "npm install --include=optional --no-audit --no-fund && npx puppeteer browsers install chrome && npm run build && rm -rf dist && mkdir -p dist && cp -r apps/api/dist/. dist/"
+    "buildCommand": "npm install --include=optional --no-audit --no-fund && npx puppeteer browsers install chrome && npm run prisma:generate -w apps/api && npm run build -w apps/api && rm -rf dist && mkdir -p dist && cp -r apps/api/dist/. dist/ && if [ -d python-service ]; then PY_ROOT=python-service; else PY_ROOT=.; fi; python3 -m venv $PY_ROOT/.venv && $PY_ROOT/.venv/bin/python -m pip install --upgrade pip && $PY_ROOT/.venv/bin/python -m pip install --no-cache-dir -r $PY_ROOT/requirements.txt"
   },
   "deploy": {
+    "startCommand": "sh railway-start.sh",
     "releaseCommand": "npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma || echo '[release] prisma migrate deploy failed; continuing startup'"
   },
-  "services": {
-    "Api": {
-      "deploy": {
-        "startCommand": "sh apps/api/start.sh"
-      },
-      "variables": {
-        "STORAGE_PATH": "/app/storage"
-      }
-    },
-    "Worker": {
-      "deploy": {
-        "startCommand": "node -e \"console.log('[Worker] Worker co-located with API. This container is idle.'); setInterval(function(){}, 2147483647);\""
-      },
-      "variables": {
-        "STORAGE_PATH": "/app/storage"
-      }
-    },
-    "Python": {
-      "deploy": {
-        "startCommand": "python python-service/app.py"
-      }
-    }
-  }
+  "services": {}
 }
