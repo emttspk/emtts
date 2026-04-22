@@ -76,12 +76,17 @@ authRouter.post("/register", async (req, res) => {
 });
 
 authRouter.post("/login", async (req, res) => {
-  const body = z
-    .object({
-      email: z.string().trim().email(),
-      password: z.string().min(1),
-    })
-    .parse(req.body);
+  let body: { email: string; password: string };
+  try {
+    body = z
+      .object({
+        email: z.string().trim().email(),
+        password: z.string().min(1),
+      })
+      .parse(req.body);
+  } catch {
+    return res.status(400).json({ error: "email and password are required" });
+  }
 
   const email = normalizeEmail(body.email);
   console.log(`[AUTH] Login attempt for email: ${email}`);
