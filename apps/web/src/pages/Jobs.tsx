@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import Card from "../components/Card";
 import JobsTable from "../components/JobsTable";
 import EmptyState from "../components/EmptyState";
-import { api } from "../lib/api";
+import { api, triggerBrowserDownload } from "../lib/api";
 import type { LabelJob } from "../lib/types";
 
 export default function Jobs() {
@@ -12,10 +12,32 @@ export default function Jobs() {
   const [jobs, setJobs] = useState<LabelJob[]>([]);
   const [loading, setLoading] = useState(true);
   const timer = useRef<number | null>(null);
+  const seenStatuses = useRef<Map<string, LabelJob["status"]>>(new Map());
+  const initializedStatuses = useRef(false);
   const filter = params.get("filter") === "completed" ? "completed" : "all";
+
+  function autoDownload(job: LabelJob) {
+    console.log("[AUTO_DOWNLOAD_TRIGGERED]", job.id);
+    triggerBrowserDownload(`/api/jobs/${job.id}/download/labels`, `labels-${job.id}.pdf`);
+    if (job.includeMoneyOrders) {
+      window.setTimeout(() => {
+        triggerBrowserDownload(`/api/jobs/${job.id}/download/money-orders`, `money-orders-${job.id}.pdf`);
+      }, 600);
+    }
+  }
 
   async function load() {
     const data = await api<{ jobs: LabelJob[] }>("/api/jobs");
+    if (initializedStatuses.current) {
+      for (const job of data.jobs) {
+        const previousStatus = seenStatuses.current.get(job.id);
+        if (previousStatus && previousStatus !== "COMPLETED" && job.status === "COMPLETED") {
+          autoDownload(job);
+        }
+      }
+    }
+    seenStatuses.current = new Map(data.jobs.map((job) => [job.id, job.status]));
+    initializedStatuses.current = true;
     setJobs(data.jobs);
     setLoading(false);
     // Keep polling while any job is still in-progress

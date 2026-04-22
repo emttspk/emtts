@@ -3,7 +3,7 @@ import { ArrowUpDown, Download, Trash2 } from "lucide-react";
 import Card from "./Card";
 import StatusBadge from "./StatusBadge";
 import { cn } from "../lib/cn";
-import { api, downloadApiFileWithRetry } from "../lib/api";
+import { api, triggerBrowserDownload } from "../lib/api";
 import type { LabelJob } from "../lib/types";
 
 type SortKey = "id" | "file" | "rows" | "status" | "createdAt";
@@ -30,15 +30,7 @@ function DownloadButton(props: { jobId: string; kind: "labels" | "money-orders" 
     if (busy) return;
     setBusy(true);
     try {
-      const blob = await downloadApiFileWithRetry(`/api/jobs/${props.jobId}/download/${props.kind}`, props.kind === "money-orders" ? 6 : 1, 350);
-      const url = window.URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = `${props.kind}-${props.jobId}.pdf`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      window.URL.revokeObjectURL(url);
+      triggerBrowserDownload(`/api/jobs/${props.jobId}/download/${props.kind}`, `${props.kind}-${props.jobId}.pdf`);
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Download failed");
     } finally {

@@ -14,6 +14,29 @@ export function apiUrl(path: string) {
   return `${base}${path}`;
 }
 
+export function buildAuthenticatedApiUrl(path: string) {
+  const url = new URL(apiUrl(path), window.location.origin);
+  const token = getToken();
+  if (token) {
+    url.searchParams.set("token", token);
+  }
+  return url.toString();
+}
+
+export function triggerBrowserDownload(path: string, filename?: string) {
+  const anchor = document.createElement("a");
+  anchor.href = buildAuthenticatedApiUrl(path);
+  anchor.style.display = "none";
+  if (filename) {
+    anchor.download = filename;
+  }
+  document.body.appendChild(anchor);
+  anchor.click();
+  window.setTimeout(() => {
+    anchor.remove();
+  }, 0);
+}
+
 export async function api<T>(path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
   if (!headers.has("content-type") && init.body && typeof init.body === "string") {

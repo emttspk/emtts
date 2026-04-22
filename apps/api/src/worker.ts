@@ -770,6 +770,7 @@ const worker = new Worker(
       if (moneyOrderEligibleOrders.length > 0) {
         try {
           console.log(`[Worker] Generating Money Order PDF for job ${jobId}`);
+          console.log("[MO_TEMPLATE_USED]", "benchmark-mo-front-back");
           const printableOrders = moneyOrderEligibleOrders.flatMap((order) => {
             const trackingNumber = String(order.trackingNumber ?? "").trim();
             const allocatedRows = moneyOrdersByTracking.get(trackingNumber) ?? [];

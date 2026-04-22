@@ -4,7 +4,7 @@ import { useOutletContext } from "react-router-dom";
 import Card from "../components/Card";
 import SampleDownloadLink from "../components/SampleDownloadLink";
 import UploadDropzone from "../components/UploadDropzone";
-import { api, apiHealthCheck, downloadApiFileWithRetry, uploadFile } from "../lib/api";
+import { api, apiHealthCheck, triggerBrowserDownload, uploadFile } from "../lib/api";
 import type { LabelJob, MeResponse } from "../lib/types";
 import { useJobPolling } from "../lib/useJobPolling";
 import * as XLSX from "xlsx";
@@ -220,22 +220,8 @@ export default function Upload() {
     refreshJobs().catch(() => {});
   }, []);
 
-  async function downloadPdf(jobId: string, kind: "labels" | "money-orders") {
-    try {
-      const blob = await downloadApiFileWithRetry(`/api/jobs/${jobId}/download/${kind}`, kind === "money-orders" ? 6 : 1, 350);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${kind}-${jobId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(err);
-      setUiError(err instanceof Error ? err.message : "Failed to download file");
-    }
+  function downloadPdf(jobId: string, kind: "labels" | "money-orders") {
+    triggerBrowserDownload(`/api/jobs/${jobId}/download/${kind}`, `${kind}-${jobId}.pdf`);
   }
 
   const latest = useMemo(() => jobs[0] ?? null, [jobs]);
@@ -248,8 +234,11 @@ export default function Upload() {
     if (polling.jobId === lastAutoDownloadId.current) return;
 
     lastAutoDownloadId.current = polling.jobId;
+    console.log("[AUTO_DOWNLOAD_TRIGGERED]", polling.jobId);
     downloadPdf(polling.jobId, "labels");
-    if (activeJob?.includeMoneyOrders) setTimeout(() => downloadPdf(polling.jobId!, "money-orders"), 1000);
+    if (activeJob?.includeMoneyOrders) {
+      window.setTimeout(() => downloadPdf(polling.jobId!, "money-orders"), 600);
+    }
   }, [activeJob?.includeMoneyOrders, polling.jobId, polling.jobStatus]);
 
   const isReadyToGenerate = Boolean(file && carrierType && shipmentType && barcodeMode && outputMode);
