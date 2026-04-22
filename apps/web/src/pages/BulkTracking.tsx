@@ -608,9 +608,10 @@ function buildPrintMarkup(record: FinalTrackingRecord, detail: TrackingDetailDat
 }
 
 function normalizePkMobile(input: string): string {
-  const digits = String(input ?? "").replace(/\D+/g, "");
-  if (digits.length === 11 && digits.startsWith("03")) return digits;
-  if (digits.length === 10 && digits.startsWith("3")) return `0${digits}`;
+  const normalizedInput = String(input ?? "").trim().replace(/^\+92/, "0");
+  const digits = normalizedInput.replace(/\D+/g, "");
+  if (/^03[0-9]{9}$/.test(digits)) return digits;
+  if (/^3[0-9]{9}$/.test(digits)) return `0${digits}`;
   return "";
 }
 
@@ -656,6 +657,11 @@ function applyLocalStatusOverride(rawJson: string | null | undefined, status: st
     manual_pending_override: manualPendingOverride,
     complaint_eligible: manualPendingOverride ? true : raw.complaint_eligible,
   });
+}
+
+function isManualOverrideShipment(shipment: Shipment): boolean {
+  const raw = parseRaw(shipment.rawJson);
+  return Boolean(raw?.manual_override) && Boolean(String(raw?.manual_status ?? "").trim());
 }
 
 export default function BulkTracking() {
@@ -1082,7 +1088,7 @@ export default function BulkTracking() {
     const seen = backgroundSeenRef.current;
     for (const shipment of items) {
       const trackingNumber = String(shipment.trackingNumber ?? "").trim();
-      if (!trackingNumber || seen.has(trackingNumber) || hasFreshTrackingCache(shipment)) continue;
+      if (!trackingNumber || seen.has(trackingNumber) || hasFreshTrackingCache(shipment) || isManualOverrideShipment(shipment)) continue;
       seen.add(trackingNumber);
       queue.push(trackingNumber);
     }

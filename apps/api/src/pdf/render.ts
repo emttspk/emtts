@@ -22,15 +22,55 @@ export async function htmlToPdfBuffer(
   browser: Browser,
   format: "A4" | "4x6" | "envelope-9x4" = "A4",
 ) {
-  const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: "networkidle0" });
-  const pdf = await page.pdf({
-    format: format === "A4" ? "A4" : undefined,
-    width: format === "4x6" ? "4in" : format === "envelope-9x4" ? "9in" : undefined,
-    height: format === "4x6" ? "6in" : format === "envelope-9x4" ? "4in" : undefined,
-    printBackground: true,
-    preferCSSPageSize: format === "A4",
-  });
-  await page.close();
-  return pdf;
+  const renderOnce = async () => {
+    const page = await browser.newPage();
+    try {
+      await page.setContent(html, { waitUntil: "networkidle0" });
+      return await page.pdf({
+        format: format === "A4" ? "A4" : undefined,
+        width: format === "4x6" ? "4in" : format === "envelope-9x4" ? "9in" : undefined,
+        height: format === "4x6" ? "6in" : format === "envelope-9x4" ? "4in" : undefined,
+        printBackground: true,
+        preferCSSPageSize: format === "A4",
+      });
+    } finally {
+      await page.close();
+    }
+  };
+
+  try {
+    return await renderOnce();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err ?? "");
+    if (!message.toLowerCase().includes("frame was detached")) {
+      throw err;
+    }
+    console.warn("[PDF] Retrying render after detached frame...");
+    return await renderOnce();
+  }
+}
+
+export async function htmlToPdfBufferInFreshBrowser(
+  html: string,
+  format: "A4" | "4x6" | "envelope-9x4" = "A4",
+) {
+  const browser = await launchPuppeteerBrowser();
+  try {
+    const page = await browser.newPage();
+    try {
+      await page.setContent(html, { waitUntil: "domcontentloaded" });
+      await page.evaluate(() => document.body.innerHTML.length);
+      return await page.pdf({
+        format: format === "A4" ? "A4" : undefined,
+        width: format === "4x6" ? "4in" : format === "envelope-9x4" ? "9in" : undefined,
+        height: format === "4x6" ? "6in" : format === "envelope-9x4" ? "4in" : undefined,
+        printBackground: true,
+        preferCSSPageSize: format === "A4",
+      });
+    } finally {
+      await page.close();
+    }
+  } finally {
+    await browser.close();
+  }
 }

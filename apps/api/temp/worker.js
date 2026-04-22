@@ -501,8 +501,43 @@ const worker = new Worker(labelQueueName, async (bullJob) => {
                 }
                 else {
                     const backgrounds = await loadMoneyOrderBackgrounds().catch(() => null);
-                    const moneyPdfData = await htmlToPdfBuffer(moneyOrderHtml(printableOrders, { backgrounds: backgrounds ?? undefined }), browser);
-                    moneyPdf = Buffer.from(moneyPdfData);
+                    console.log("MoneyOrderData:", printableOrders);
+                    const renderMoneyOrderPdf = async () => {
+                        if (!browser) {
+                            throw new Error("Puppeteer browser is not available for money order PDF generation");
+                        }
+                        const moneyHtml = moneyOrderHtml(printableOrders, { backgrounds: backgrounds ?? undefined });
+                        if (!String(moneyHtml ?? "").trim()) {
+                            throw new Error("Money order HTML is empty");
+                        }
+                        try {
+                            const moneyPdfData = await htmlToPdfBuffer(moneyHtml, browser);
+                            return Buffer.from(moneyPdfData);
+                        }
+                        catch (err) {
+                            const message = err instanceof Error ? err.message : String(err ?? "");
+                            if (!message.toLowerCase().includes("frame was detached")) {
+                                throw err;
+                            }
+                            console.warn("[Worker] Detached frame during money-order render; relaunching browser for one retry...");
+                            const recoveryBrowser = await launchPuppeteerBrowser();
+                            try {
+                                const moneyPdfData = await htmlToPdfBuffer(moneyHtml, recoveryBrowser);
+                                return Buffer.from(moneyPdfData);
+                            }
+                            finally {
+                                await recoveryBrowser.close();
+                            }
+                        }
+                    };
+                    moneyPdf = await renderMoneyOrderPdf();
+                    if (moneyPdf.length < 1000) {
+                        console.error(`[Worker] Money order PDF too small (${moneyPdf.length} bytes), regenerating...`);
+                        moneyPdf = await renderMoneyOrderPdf();
+                    }
+                    if (moneyPdf.length < 1000) {
+                        throw new Error(`Money order PDF is too small after regeneration (${moneyPdf.length} bytes)`);
+                    }
                     console.log("Generating MO file...");
                     moneyPath = moneyOrdersOutputPath(jobId);
                     console.log("Output path:", moneyPath);
@@ -519,9 +554,8 @@ const worker = new Worker(labelQueueName, async (bullJob) => {
             }
             catch (moErr) {
                 console.error(`[Worker] Money order generation failed for job ${jobId}:`, moErr);
-                // Non-fatal: labels PDF is still valid
-                moneyPdf = null;
-                moneyPath = null;
+                const moMessage = moErr instanceof Error ? moErr.message : "Money order generation failed";
+                throw new Error(`Money order generation failed: ${moMessage}`);
             }
         }
         await prisma.labelJob.update({

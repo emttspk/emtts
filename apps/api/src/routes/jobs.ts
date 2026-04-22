@@ -12,7 +12,7 @@ import type { AuthedRequest } from "../middleware/auth.js";
 import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, resolveStoredPath, toStoredPath, uploadsDir, waitForStoredFile } from "../storage/paths.js";
 import { parseOrdersFromFile } from "../parse/orders.js";
 import { ensureRedisConnection } from "../queue/redis.js";
-import { consumeUnits, refundUnits } from "../usage/unitConsumption.js";
+import { consumeUnits, getLatestUnitSnapshot, refundUnits } from "../usage/unitConsumption.js";
 import { getQueue } from "../lib/queue.js";
 import { previewLabelHtml, renderLabelDocumentHtml, type LabelPrintMode } from "../templates/labels.js";
 import { prepareLabelOrders } from "../services/labelDocument.js";
@@ -140,6 +140,35 @@ async function deleteJobById(userId: string, jobId: string) {
   return true;
 }
 
+function resolveLabelsRelPath(jobId: string, relPath: string | null | undefined) {
+  if (relPath) {
+    const preferredAbsPath = resolveStoredPath(relPath);
+    if (existsSync(preferredAbsPath)) {
+      return toStoredPath(preferredAbsPath);
+    }
+  }
+
+  const generatedAbsPath = path.join(outputsDir(), `${jobId}-labels.pdf`);
+  if (existsSync(generatedAbsPath)) {
+    return toStoredPath(generatedAbsPath);
+  }
+
+  return relPath;
+}
+
+async function waitForResolvedLabelsRelPath(jobId: string, relPath: string | null | undefined, attempts = 20, delayMs = 500) {
+  let resolved = resolveLabelsRelPath(jobId, relPath);
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (resolved) {
+      const absPath = await waitForStoredFile(resolved, 1, delayMs);
+      if (absPath) return resolved;
+    }
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    resolved = resolveLabelsRelPath(jobId, resolved);
+  }
+  return resolved;
+}
+
 function resolveMoneyOrderRelPath(jobId: string, relPath: string | null | undefined) {
   if (relPath) {
     const preferredAbsPath = resolveStoredPath(relPath);
@@ -156,7 +185,7 @@ function resolveMoneyOrderRelPath(jobId: string, relPath: string | null | undefi
   return relPath;
 }
 
-async function waitForResolvedMoneyOrderRelPath(jobId: string, relPath: string | null | undefined, attempts = 6, delayMs = 250) {
+async function waitForResolvedMoneyOrderRelPath(jobId: string, relPath: string | null | undefined, attempts = 20, delayMs = 500) {
   let resolved = resolveMoneyOrderRelPath(jobId, relPath);
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     if (resolved) {
@@ -293,6 +322,9 @@ jobsRouter.post("/preview/labels", requireAuth, labelPreviewUploadMiddleware, as
 
 jobsRouter.get("/", requireAuth, async (req, res) => {
   const userId = (req as AuthedRequest).user!.id;
+  if (!userId) {
+    return res.json({ success: true, jobs: [] });
+  }
   try {
     const jobs = await prisma.labelJob.findMany({
       where: { userId },
@@ -307,6 +339,9 @@ jobsRouter.get("/", requireAuth, async (req, res) => {
 
 jobsRouter.post("/delete", requireAuth, async (req, res) => {
   const userId = (req as AuthedRequest).user!.id;
+  if (!userId) {
+    return res.status(400).json({ success: false, message: "Missing user context." });
+  }
   const jobIds = Array.isArray(req.body?.jobIds)
     ? req.body.jobIds.map((value: unknown) => String(value ?? "").trim()).filter(Boolean)
     : [];
@@ -353,6 +388,9 @@ jobsRouter.post("/delete", requireAuth, async (req, res) => {
 export async function handleLabelUpload(req: Request, res: Response) {
   await prisma.$connect();
   const userId = (req as AuthedRequest).user!.id;
+  if (!userId) {
+    return res.status(400).json({ success: false, error: "Missing user context", message: "Missing user context" });
+  }
   await ensureStorageDirs();
 
   const uploadedFile = req.file;
@@ -453,6 +491,11 @@ export async function handleLabelUpload(req: Request, res: Response) {
     }
 
     unitCount = actionRequests.length;
+    const latestUnits = await getLatestUnitSnapshot(userId);
+    if (latestUnits.remainingUnits < unitCount) {
+      throw new Error(`Insufficient Units. Latest database balance is ${latestUnits.remainingUnits}, required ${unitCount}.`);
+    }
+
     const consumeResult = await consumeUnits(userId, actionRequests);
     if (!consumeResult.ok) throw new Error((consumeResult as any).reason ?? "Unit consumption failed");
 
@@ -572,19 +615,24 @@ jobsRouter.get("/:jobId/download/labels", requireAuth, async (req, res) => {
     // Redis unavailable — use DB path
   }
 
-  if (!relPath) return res.status(404).json({ success: false, message: "Labels file not found" });
+  relPath = await waitForResolvedLabelsRelPath(jobId, relPath);
+  if (!relPath) {
+    return res.status(404).json({ success: false, message: "Labels file not found" });
+  }
 
-  const absPath = resolveStoredPath(relPath);
+  const absPath = await waitForStoredFile(relPath, 1, 500);
+  if (!absPath) {
+    return res.status(404).json({ success: false, message: "File not found on disk" });
+  }
   console.log("DOWNLOAD PATH:", absPath);
   const allowedRoot = outputsDir();
   const relToRoot = path.relative(allowedRoot, absPath);
   if (relToRoot.startsWith("..") || path.isAbsolute(relToRoot)) {
     return res.status(400).json({ success: false, message: "Invalid file path" });
   }
-  try {
-    await fs.access(absPath);
-  } catch {
-    return res.status(404).json({ success: false, message: "File not found on disk" });
+
+  if (owned.labelsPdfPath !== relPath) {
+    await prisma.labelJob.update({ where: { id: jobId }, data: { labelsPdfPath: relPath } }).catch(() => {});
   }
 
   return res.download(absPath, `labels-${jobId}.pdf`);

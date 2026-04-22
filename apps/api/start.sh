@@ -1,7 +1,6 @@
 #!/bin/sh
-# Combined startup: runs Worker in background then API in foreground.
-# Both processes share the same container filesystem, so generated files
-# written by the Worker are immediately accessible by the API.
+
+MODE="${1:-api}"
 
 STORAGE_ROOT="${STORAGE_PATH:-$(pwd)/storage}"
 
@@ -49,35 +48,49 @@ else
   fi
 fi
 
-echo "[startup] Starting BullMQ Worker..."
-node dist/worker.js &
-WORKER_PID=$!
+case "$MODE" in
+  combined)
+    echo "[startup] Starting BullMQ Worker..."
+    node dist/worker.js &
+    WORKER_PID=$!
 
-echo "[startup] Starting API server..."
-node dist/index.js &
+    echo "[startup] Starting API server..."
+    node dist/index.js &
+    API_PID=$!
 
-# Deployment touch (v3): keep runtime/start script changes inside /apps/api to satisfy Railway watch patterns.
-API_PID=$!
+    shutdown() {
+      kill "$WORKER_PID" "$API_PID" 2>/dev/null || true
+    }
 
-shutdown() {
-	kill "$WORKER_PID" "$API_PID" 2>/dev/null || true
-}
+    trap shutdown INT TERM EXIT
 
-trap shutdown INT TERM EXIT
+    while kill -0 "$WORKER_PID" 2>/dev/null && kill -0 "$API_PID" 2>/dev/null; do
+      sleep 2
+    done
 
-while kill -0 "$WORKER_PID" 2>/dev/null && kill -0 "$API_PID" 2>/dev/null; do
-	sleep 2
-done
+    if ! kill -0 "$WORKER_PID" 2>/dev/null; then
+      echo "[startup] Worker exited; stopping container"
+      wait "$WORKER_PID"
+      EXIT_CODE=$?
+    else
+      echo "[startup] API exited; stopping container"
+      wait "$API_PID"
+      EXIT_CODE=$?
+    fi
 
-if ! kill -0 "$WORKER_PID" 2>/dev/null; then
-	echo "[startup] Worker exited; stopping container"
-	wait "$WORKER_PID"
-	EXIT_CODE=$?
-else
-	echo "[startup] API exited; stopping container"
-	wait "$API_PID"
-	EXIT_CODE=$?
-fi
-
-shutdown
-exit "${EXIT_CODE:-1}"
+    shutdown
+    exit "${EXIT_CODE:-1}"
+    ;;
+  api)
+    echo "[startup] Starting API server only..."
+    exec node dist/index.js
+    ;;
+  worker)
+    echo "[startup] Starting BullMQ worker only..."
+    exec node dist/worker.js
+    ;;
+  *)
+    echo "[startup] Unknown mode '$MODE'"
+    exit 1
+    ;;
+esac

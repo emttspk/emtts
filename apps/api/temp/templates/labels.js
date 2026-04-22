@@ -608,8 +608,48 @@ export function envelopeHtml(orders, opts) {
     return `${template.head}${pages}${template.tail}`;
 }
 export function moneyOrderHtml(orders, opts) {
-    // Benchmark-driven rendering: reuse static benchmark HTML structure/styles verbatim.
-    return moneyOrderHtmlFromBenchmark(orders);
+        const cards = orders.map((o, index) => {
+                const moNumber = String(o.mo_number ?? "-").trim().toUpperCase() || "-";
+                const tracking = String(o.trackingNumber ?? o.TrackingID ?? "-").trim() || "-";
+                const amount = resolveMoneyOrderAmount(o);
+                const amountText = Number.isFinite(amount) ? amount.toFixed(2) : "0.00";
+                const issueDate = String(o.issueDate ?? "").trim() || formatIssueDate();
+                const receiverName = String(o.consigneeName ?? "-").trim() || "-";
+                const receiverAddress = normalizeAddressLines(o.consigneeAddress ?? "-") || "-";
+                const receiverPhone = String(o.consigneePhone ?? "-").trim() || "-";
+                const { senderName, senderAddress, senderPhone } = resolveMoneyOrderSenderFields(o);
+                return `
+            <section class="mo-card${index > 0 ? " page-break" : ""}">
+                <div class="mo-head">Pakistan Post Money Order</div>
+                <div class="mo-grid">
+                    <div><strong>MO Number:</strong> ${escapeHtml(moNumber)}</div>
+                    <div><strong>Date:</strong> ${escapeHtml(issueDate)}</div>
+                    <div><strong>Tracking ID:</strong> ${escapeHtml(tracking)}</div>
+                    <div><strong>Amount (Rs):</strong> ${escapeHtml(amountText)}</div>
+                    <div><strong>Receiver:</strong> ${escapeHtml(receiverName)}</div>
+                    <div><strong>Receiver Phone:</strong> ${escapeHtml(receiverPhone)}</div>
+                </div>
+                <div class="mo-block"><strong>Receiver Address</strong><br/>${escapeHtml(receiverAddress).replace(/\n/g, "<br/>")}</div>
+                <div class="mo-block"><strong>Sender</strong><br/>${escapeHtml(senderName)}<br/>${escapeHtml(senderAddress).replace(/\n/g, "<br/>")}<br/>${escapeHtml(senderPhone)}</div>
+            </section>
+        `;
+        }).join("");
+        return `<!doctype html>
+    <html>
+        <head>
+            <meta charset="utf-8" />
+            <style>
+                @page { size: A4; margin: 10mm; }
+                html, body { margin: 0; padding: 0; font-family: Arial, sans-serif; color: #111; }
+                .mo-card { border: 0.6mm solid #111; border-radius: 2mm; padding: 6mm; box-sizing: border-box; }
+                .page-break { page-break-before: always; }
+                .mo-head { font-size: 5mm; font-weight: 800; margin-bottom: 4mm; }
+                .mo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5mm 4mm; font-size: 3.3mm; margin-bottom: 4mm; }
+                .mo-block { border-top: 0.3mm solid #999; padding-top: 2.5mm; margin-top: 2.5mm; font-size: 3.2mm; line-height: 1.4; white-space: normal; }
+            </style>
+        </head>
+        <body>${cards}</body>
+    </html>`;
 }
 let benchmarkMoHtmlCache = null;
 function resolveBenchmarkMoTemplatePath() {

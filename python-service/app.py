@@ -601,8 +601,8 @@ def _parse_tracking_live_html(page_html: str, tracking_number: str) -> dict[str,
 
   booking_match = re.search(r"id=['\"]LblBookingOffice['\"][^>]*>([\s\S]*?)</span>", page_html, flags=re.IGNORECASE)
   delivery_match = re.search(r"id=['\"]LblDeliveryOffice['\"][^>]*>([\s\S]*?)</span>", page_html, flags=re.IGNORECASE)
-  booking_office = _clean_html_text(booking_match.group(1)) if booking_match else _extract_header_value_by_label(page_html, "Booking Office")
-  delivery_office = _clean_html_text(delivery_match.group(1)) if delivery_match else _extract_header_value_by_label(page_html, "Delivery Office")
+  booking_office = _clean_html_text(_safe_match_group(booking_match, 1)) if booking_match else _extract_header_value_by_label(page_html, "Booking Office")
+  delivery_office = _clean_html_text(_safe_match_group(delivery_match, 1)) if delivery_match else _extract_header_value_by_label(page_html, "Delivery Office")
   consignee_name = _extract_header_value_by_label(page_html, "Consignee Name")
   consignee_address = _extract_header_value_by_label(page_html, "Consignee Address")
   consignee_phone = _extract_header_value_by_label(page_html, "Consignee Phone")

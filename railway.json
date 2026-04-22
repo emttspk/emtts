@@ -6,7 +6,8 @@
   },
   "deploy": {
     "startCommand": "sh railway-start.sh",
-    "releaseCommand": "npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma || echo '[release] prisma migrate deploy failed; continuing startup'"
+    "releaseCommand": "npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma || echo '[release] prisma migrate deploy failed; continuing startup'",
+    "overlapSeconds": 0
   },
   "services": {}
 }

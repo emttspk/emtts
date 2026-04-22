@@ -6,6 +6,17 @@ export type UnitActionType = "label" | "tracking" | "money_order";
 
 type ConsumeResult = { ok: true; remainingUnits: number; idempotent?: boolean } | { ok: false; reason: string };
 
+export type UnitSnapshot = {
+  month: string;
+  labelLimit: number;
+  trackingLimit: number;
+  labelsGenerated: number;
+  labelsQueued: number;
+  trackingGenerated: number;
+  trackingQueued: number;
+  remainingUnits: number;
+};
+
 let usageLogsReady = false;
 
 function isClosedConnectionError(error: unknown) {
@@ -43,6 +54,46 @@ async function ensureUsageLogsTable() {
     CREATE UNIQUE INDEX IF NOT EXISTS usage_logs_unique_request ON usage_logs(user_id, action_type, request_key)
   `;
   usageLogsReady = true;
+}
+
+export async function getLatestUnitSnapshot(userId: string): Promise<UnitSnapshot> {
+  await prisma.$connect();
+  const month = monthKeyUTC();
+
+  return withReconnectRetry(async () => {
+    const [subscription, user, usage] = await Promise.all([
+      prisma.subscription.findFirst({
+        where: { userId, status: "ACTIVE" },
+        include: { plan: true },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { extraLabelCredits: true, extraTrackingCredits: true },
+      }),
+      prisma.usageMonthly.findUnique({ where: { userId_month: { userId, month } } }),
+    ]);
+
+    const labelsGenerated = usage?.labelsGenerated ?? 0;
+    const labelsQueued = usage?.labelsQueued ?? 0;
+    const trackingGenerated = usage?.trackingGenerated ?? 0;
+    const trackingQueued = usage?.trackingQueued ?? 0;
+    const labelLimit = (subscription?.plan?.monthlyLabelLimit ?? 0) + (user?.extraLabelCredits ?? 0);
+    const trackingLimit =
+      (subscription?.plan?.monthlyTrackingLimit ?? subscription?.plan?.monthlyLabelLimit ?? 0) +
+      (user?.extraTrackingCredits ?? 0);
+
+    return {
+      month,
+      labelLimit,
+      trackingLimit,
+      labelsGenerated,
+      labelsQueued,
+      trackingGenerated,
+      trackingQueued,
+      remainingUnits: Math.max(0, labelLimit - (labelsGenerated + labelsQueued)),
+    };
+  });
 }
 
 export async function consumeUnit(userId: string, actionType: UnitActionType, requestKey: string): Promise<ConsumeResult> {

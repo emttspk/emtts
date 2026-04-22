@@ -10,14 +10,14 @@ import path from "node:path";
 import { Prisma } from "@prisma/client";
 import { env } from "./config.js";
 import { prisma } from "./lib/prisma.js";
-import { redis } from "./lib/redis.js";
+import { redis, redisEnabled } from "./lib/redis.js";
 import { getQueue, jobsQueueName } from "./lib/queue.js";
 import { trackingQueue, trackingQueueName } from "./queue/queue.js";
 import { ensureRedisConnection } from "./queue/redis.js";
 import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, toStoredPath, uploadsDir, waitForStoredFile } from "./storage/paths.js";
 import { parseOrdersFromBuffer } from "./parse/orders.js";
 import { moneyOrderHtml, renderLabelDocumentHtml, type LabelOrder } from "./templates/labels.js";
-import { htmlToPdfBuffer, launchPuppeteerBrowser } from "./pdf/render.js";
+import { htmlToPdfBuffer, htmlToPdfBufferInFreshBrowser, launchPuppeteerBrowser } from "./pdf/render.js";
 import { finalizeQueuedToGenerated, finalizeQueuedTrackingToGenerated, releaseQueuedLabels, releaseQueuedTracking } from "./usage/limits.js";
 import { loadMoneyOrderBackgrounds } from "./money-order/backgrounds.js";
 import { prepareLabelOrders } from "./services/labelDocument.js";
@@ -62,6 +62,11 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: s
 }
 
 const JOB_TIMEOUT_MS = 60_000;
+const WORKER_SINGLETON_LOCK_KEY = "worker:singleton:label-generator";
+const WORKER_SINGLETON_LOCK_TTL_SECONDS = 60;
+const WORKER_SINGLETON_WAIT_MS = Number(process.env.WORKER_SINGLETON_WAIT_MS ?? 120_000);
+let workerSingletonLockValue: string | null = null;
+let workerSingletonHeartbeat: NodeJS.Timeout | null = null;
 
 async function safeJob<T>(processJob: () => Promise<T>) {
   return Promise.race([
@@ -88,6 +93,73 @@ async function launchWorkerBrowser() {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[Worker] Puppeteer launch failed: ${message}`);
     throw error;
+  }
+}
+
+async function acquireWorkerSingletonLock() {
+  if (!redisEnabled) {
+    console.warn("[Worker] Redis singleton lock skipped because Redis is disabled.");
+    return;
+  }
+
+  const lockValue = `${process.pid}:${Date.now()}`;
+  const deadline = Date.now() + WORKER_SINGLETON_WAIT_MS;
+  while (true) {
+    const acquired = await redis.set(
+      WORKER_SINGLETON_LOCK_KEY,
+      lockValue,
+      "EX",
+      WORKER_SINGLETON_LOCK_TTL_SECONDS,
+      "NX",
+    );
+    if (acquired === "OK") {
+      break;
+    }
+    if (Date.now() >= deadline) {
+      throw new Error("Timed out waiting for the active worker instance to release the singleton lock");
+    }
+    console.log("[Worker] Waiting for active worker instance to release singleton lock...");
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+
+  workerSingletonLockValue = lockValue;
+  workerSingletonHeartbeat = setInterval(async () => {
+    if (!workerSingletonLockValue) {
+      return;
+    }
+    try {
+      const currentValue = await redis.get(WORKER_SINGLETON_LOCK_KEY);
+      if (currentValue !== workerSingletonLockValue) {
+        throw new Error("Worker singleton lock lost");
+      }
+      await redis.expire(WORKER_SINGLETON_LOCK_KEY, WORKER_SINGLETON_LOCK_TTL_SECONDS);
+    } catch (error) {
+      console.error("[Worker] Singleton lock heartbeat failed:", error);
+      process.exit(1);
+    }
+  }, Math.max(1, Math.floor((WORKER_SINGLETON_LOCK_TTL_SECONDS * 1000) / 2)));
+}
+
+async function releaseWorkerSingletonLock() {
+  if (workerSingletonHeartbeat) {
+    clearInterval(workerSingletonHeartbeat);
+    workerSingletonHeartbeat = null;
+  }
+
+  if (!redisEnabled || !workerSingletonLockValue) {
+    workerSingletonLockValue = null;
+    return;
+  }
+
+  try {
+    const currentValue = await redis.get(WORKER_SINGLETON_LOCK_KEY);
+    if (currentValue === workerSingletonLockValue) {
+      await redis.del(WORKER_SINGLETON_LOCK_KEY);
+    }
+  } catch (error) {
+    console.warn("[Worker] Failed to release singleton lock:", error);
+  } finally {
+    workerSingletonLockValue = null;
   }
 }
 
@@ -366,9 +438,8 @@ async function startWorker() {
     await prisma.$connect();
     console.log("[Worker] Waiting for Redis connection (REDIS_URL)...");
     await ensureRedisConnection();
-    console.log("Worker started");
-    console.log("🚀 Worker started and listening for jobs...");
-    console.log("[Worker] Worker started");
+    console.log("[Worker] Redis connection ready");
+    console.log("[Worker] Listening for jobs...");
     console.log(`[Worker] Redis connected: ${sanitizeRedisUrl(process.env.REDIS_URL)}`);
     console.log(`[Worker] Upload directory: ${uploadsDir()}`);
 
@@ -719,11 +790,34 @@ const worker = new Worker(
             moneyPath = null;
           } else {
           const backgrounds = await loadMoneyOrderBackgrounds().catch(() => null);
-          const moneyPdfData = await htmlToPdfBuffer(
-            moneyOrderHtml(printableOrders, { backgrounds: backgrounds ?? undefined }),
-            browser,
-          );
-          moneyPdf = Buffer.from(moneyPdfData);
+          console.log("MoneyOrderData:", printableOrders);
+          const renderMoneyOrderPdf = async () => {
+            const moneyHtml = moneyOrderHtml(printableOrders, { backgrounds: backgrounds ?? undefined });
+            if (!String(moneyHtml ?? "").trim() || moneyHtml.length < 500) {
+              throw new Error("EMPTY_HTML_BLOCKED");
+            }
+            try {
+              const moneyPdfData = await htmlToPdfBufferInFreshBrowser(moneyHtml, "A4");
+              return Buffer.from(moneyPdfData);
+            } catch (err) {
+              const message = err instanceof Error ? err.message : String(err ?? "");
+              if (!message.toLowerCase().includes("detached")) {
+                throw err;
+              }
+              console.warn("[Worker] Detached frame during money-order render; relaunching browser for one retry...");
+              const moneyPdfData = await htmlToPdfBufferInFreshBrowser(moneyHtml, "A4");
+              return Buffer.from(moneyPdfData);
+            }
+          };
+
+          moneyPdf = await renderMoneyOrderPdf();
+          if (moneyPdf.length < 20_000) {
+            console.error(`[Worker] Money order PDF too small (${moneyPdf.length} bytes), regenerating...`);
+            moneyPdf = await renderMoneyOrderPdf();
+          }
+          if (moneyPdf.length < 20_000) {
+            throw new Error(`Money order PDF is too small after regeneration (${moneyPdf.length} bytes)`);
+          }
           console.log("Generating MO file...");
           moneyPath = moneyOrdersOutputPath(jobId);
           console.log("Output path:", moneyPath);
@@ -806,7 +900,7 @@ worker.on("error", (err) => {
 });
 
 // eslint-disable-next-line no-console
-console.log(`Worker started. Connecting to Redis at ${sanitizeRedisUrl(process.env.REDIS_URL)} (REDIS_URL)...`);
+console.log(`[Worker] Connecting to Redis at ${sanitizeRedisUrl(process.env.REDIS_URL)} (REDIS_URL)...`);
 
 const trackingWorker = new Worker(
   trackingQueueName,
@@ -1150,10 +1244,12 @@ const WORKER_STARTUP_RETRIES = Number(process.env.WORKER_STARTUP_RETRIES ?? "0")
 async function bootWorkerProcess() {
   for (let attempt = 0; attempt <= WORKER_STARTUP_RETRIES; attempt += 1) {
     try {
+      await acquireWorkerSingletonLock();
       await startWorker();
       console.log("Worker started");
       return;
     } catch (err) {
+      await releaseWorkerSingletonLock();
       console.error("Worker startup error:", err instanceof Error ? err.message : String(err));
       const hasMoreRetries = attempt < WORKER_STARTUP_RETRIES;
       if (!hasMoreRetries) {
@@ -1163,6 +1259,12 @@ async function bootWorkerProcess() {
       await new Promise((resolve) => setTimeout(resolve, WORKER_RETRY_DELAY_MS));
     }
   }
+}
+
+for (const signal of ["SIGINT", "SIGTERM", "beforeExit"] as const) {
+  process.once(signal, () => {
+    void releaseWorkerSingletonLock();
+  });
 }
 
 void bootWorkerProcess().catch((err) => {
