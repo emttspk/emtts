@@ -138,10 +138,13 @@ export async function consumeUnits(
       const totalQueuedUnits = pendingRequests.length;
       const trackingQueuedUnits = pendingRequests.filter((r) => r.actionType === "tracking").length;
 
+      const usageBefore = await tx.usageMonthly.findUnique({ where: { userId_month: { userId, month } } });
+      const dbUsedBefore = (usageBefore?.labelsGenerated ?? 0) + (usageBefore?.labelsQueued ?? 0);
+      const dbUnits = Math.max(0, totalUnits - dbUsedBefore);
+      console.log("[UNITS_RUNTIME]", { userId, dbUnits, requiredUnits: totalQueuedUnits });
+
       if (pendingRequests.length === 0) {
-        const usage =
-          (await tx.usageMonthly.findUnique({ where: { userId_month: { userId, month } } })) ??
-          ({ labelsGenerated: 0, labelsQueued: 0 } as const);
+        const usage = usageBefore ?? ({ labelsGenerated: 0, labelsQueued: 0 } as const);
         const remaining = Math.max(0, totalUnits - ((usage.labelsGenerated ?? 0) + (usage.labelsQueued ?? 0)));
         return { ok: true, remainingUnits: remaining, idempotent: true };
       }
