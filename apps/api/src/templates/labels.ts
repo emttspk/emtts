@@ -720,13 +720,27 @@ let benchmarkMoHtmlCache: string | null = null;
 
 function resolveBenchmarkMoTemplatePath() {
   const candidates = [
+    // Primary: committed templates directory — always present in the deployed container
+    path.resolve(process.cwd(), "apps", "api", "templates", "mo-sample-two-records.html"),
+    // Fallback A: root-level templates dir (some Railway service layouts)
+    path.resolve(process.cwd(), "templates", "mo-sample-two-records.html"),
+    // Fallback B: co-located with dist artefacts
+    path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "templates", "mo-sample-two-records.html"),
+    // Legacy paths (runtime-generated, not in git — kept for local dev)
     path.resolve(process.cwd(), "storage", "outputs", "mo-sample-two-records.html"),
     path.resolve(process.cwd(), "apps", "api", "storage", "outputs", "mo-sample-two-records.html"),
   ];
   for (const p of candidates) {
-    if (fs.existsSync(p)) return p;
+    try {
+      if (fs.existsSync(p)) {
+        console.log("[MO_TEMPLATE_RESOLVED]", p);
+        return p;
+      }
+    } catch {
+      // skip inaccessible paths
+    }
   }
-  console.error("Benchmark template not found: mo-sample-two-records.html");
+  console.error("Benchmark template not found: mo-sample-two-records.html — checked paths:", candidates);
   return null;
 }
 
@@ -734,8 +748,9 @@ function loadBenchmarkMoHtml() {
   if (benchmarkMoHtmlCache) return benchmarkMoHtmlCache;
   const inputPath = resolveBenchmarkMoTemplatePath();
   if (!inputPath) {
-    benchmarkMoHtmlCache = "<!doctype html><html><head><meta charset=\"utf-8\"></head><body><div class=\"sheet\"></div><div class=\"sheet\"></div></body></html>";
-    return benchmarkMoHtmlCache;
+    // Do NOT cache the failure — let the next call retry the file system.
+    // Throw so the worker knows this is a hard failure, not an empty PDF issue.
+    throw new Error("BENCHMARK_TEMPLATE_MISSING: mo-sample-two-records.html not found. Ensure apps/api/templates/ is committed and deployed.");
   }
   benchmarkMoHtmlCache = fs.readFileSync(inputPath, "utf8");
   return benchmarkMoHtmlCache;

@@ -10,6 +10,9 @@ coverage
 apps/api/storage
 outputs/
 
+# Explicitly keep committed templates (must reach the deployed container)
+!apps/api/templates/
+
 # Runtime logs
 *.log
 *.err.log
