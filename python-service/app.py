@@ -826,10 +826,11 @@ def _resolve_complaint_form_page(session: requests.Session) -> tuple[str, str]:
 
 
 def _resolve_complaint_post_url(form_url: str, action: str | None) -> str:
+  normalized_form_url = COMPLAINT_FORM_URL if "default_test.aspx" in str(form_url or "").strip().lower() else form_url
   action_text = str(action or "").strip()
   if not action_text:
-    return form_url
-  candidate = urljoin(form_url, action_text)
+    return normalized_form_url
+  candidate = urljoin(normalized_form_url, action_text)
   lowered = candidate.lower()
   # Pakistan Post occasionally points form action to Default_Test.aspx,
   # which returns server-side 500 for complaint submit/postback.
