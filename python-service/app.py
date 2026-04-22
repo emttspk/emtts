@@ -1371,7 +1371,7 @@ def submit_complaint(tracking_number, phone_number, details: dict[str, Any] | No
       payload["__EVENTARGUMENT"] = ""
 
       action = str(form.get("action") or "").strip()
-      post_url = urljoin(form_url, action) if action else form_url
+      post_url = _resolve_complaint_post_url(form_url, action)
       postback_resp = session.post(
         post_url,
         data=payload,
