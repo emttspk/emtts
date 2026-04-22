@@ -1233,6 +1233,17 @@ trackingWorker.on("error", (err) => {
 
 console.log(`Worker ready (queues: ${jobsQueueName}, ${trackingQueueName})`);
 
+    // CRITICAL: Actually start the workers to process jobs from Redis
+    console.log("[Worker] Starting worker process for label jobs...");
+    void worker.run().catch((err) => {
+      console.error("[Worker] Label worker process error:", err);
+    });
+
+    console.log("[Worker] Starting worker process for tracking jobs...");
+    void trackingWorker.run().catch((err) => {
+      console.error("[Worker] Tracking worker process error:", err);
+    });
+
   } catch (err) {
     console.error("❌ Worker initialization failed:", err instanceof Error ? err.message : String(err));
     throw err;
