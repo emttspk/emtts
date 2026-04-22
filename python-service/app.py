@@ -1570,7 +1570,9 @@ def submit_complaint(tracking_number, phone_number, details: dict[str, Any] | No
         payload[f"{button_name}.x"] = "0"
         payload[f"{button_name}.y"] = "0"
 
-      print("Payload:", payload)
+      print("[ComplaintAPI] Submit URL:", post_url)
+      print("[ComplaintAPI] Session cookies:", dict(session.cookies.get_dict()))
+      print("[ComplaintAPI] Payload:", payload)
 
       action = str(postback_form.get("action") or "").strip()
       post_url = _resolve_complaint_post_url(form_url, action)

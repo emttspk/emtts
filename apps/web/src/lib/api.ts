@@ -24,17 +24,9 @@ export function buildAuthenticatedApiUrl(path: string) {
 }
 
 export function triggerBrowserDownload(path: string, filename?: string) {
-  const anchor = document.createElement("a");
-  anchor.href = buildAuthenticatedApiUrl(path);
-  anchor.style.display = "none";
-  if (filename) {
-    anchor.download = filename;
-  }
-  document.body.appendChild(anchor);
-  anchor.click();
-  window.setTimeout(() => {
-    anchor.remove();
-  }, 0);
+  void filename;
+  const downloadUrl = buildAuthenticatedApiUrl(path);
+  window.location.assign(downloadUrl);
 }
 
 export async function api<T>(path: string, init: RequestInit = {}) {

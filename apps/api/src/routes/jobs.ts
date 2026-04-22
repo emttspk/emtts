@@ -636,8 +636,8 @@ jobsRouter.get("/:jobId/download/labels", requireAuth, async (req, res) => {
   }
 
   res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", `attachment; filename=\"labels-${jobId}.pdf\"`);
-  return res.download(absPath, `labels-${jobId}.pdf`);
+  res.setHeader("Content-Disposition", "attachment; filename=labels.pdf");
+  return res.download(absPath, "labels.pdf");
 });
 
 async function handleMoneyOrdersDownload(req: Request, res: Response) {

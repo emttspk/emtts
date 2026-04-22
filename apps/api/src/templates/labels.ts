@@ -164,6 +164,10 @@ function amountToWords(value: number) {
   return parts.join(" ").replace(/\s+/g, " ").trim();
 }
 
+function expectedAmountWords(value: number) {
+  return `${amountToWords(value)} Only`;
+}
+
 function resolveTracking(o: LabelOrder, autoGenerateTracking: boolean) {
   const precomputed = String(o.trackingNumber ?? o.TrackingID ?? "").trim();
   if (precomputed) return precomputed;
@@ -238,16 +242,11 @@ function getLabelAmountSummary(order: Pick<LabelOrder, "carrierType" | "shipment
 function resolveMoneyOrderAmount(order: Pick<LabelOrder, "CollectAmount" | "shipmentType" | "shipmenttype"> & Record<string, unknown>) {
   const explicitMoAmount = toNum(order.amountRs ?? order.amount ?? 0);
   if (explicitMoAmount > 0) {
-    const shipmentType = String(order.shipmentType ?? order.shipmenttype ?? "").trim().toUpperCase();
-    if (shipmentType === "VPL" || shipmentType === "VPP") {
-      return deriveNetCommissionFromGross(explicitMoAmount, shipmentType).netAmount;
-    }
     return explicitMoAmount;
   }
 
   const declaredGrossAmount = toNum(order.CollectAmount);
-  const shipmentType = String(order.shipmentType ?? order.shipmenttype ?? "").trim().toUpperCase();
-  return deriveNetCommissionFromGross(declaredGrossAmount, shipmentType).netAmount;
+  return declaredGrossAmount;
 }
 
 function renderBoxAmountBlock(summary: LabelAmountSummary) {
@@ -875,7 +874,7 @@ function expandBenchmarkOrders(orders: OrderRecord[]): OrderRecord[] {
         ...(order as any),
         amount: String(explicitMoAmount),
         amountRs: explicitMoAmount,
-        amountWords: `${amountToWords(explicitMoAmount)} Rupees Only`,
+        amountWords: expectedAmountWords(explicitMoAmount),
       });
       continue;
     }
@@ -889,7 +888,7 @@ function expandBenchmarkOrders(orders: OrderRecord[]): OrderRecord[] {
         ...(order as any),
         amount: String(resolvedMoAmount),
         amountRs: resolvedMoAmount,
-        amountWords: `${amountToWords(resolvedMoAmount)} Rupees Only`,
+        amountWords: expectedAmountWords(resolvedMoAmount),
       });
       continue;
     }
@@ -912,7 +911,7 @@ function expandBenchmarkOrders(orders: OrderRecord[]): OrderRecord[] {
         mo_number: splitMo,
         mo_barcodeBase64: generateMoBarcodeBase64(moBarcodeValue),
         amountRs: line.moAmount,
-        amountWords: `${amountToWords(line.moAmount)} Rupees Only`,
+        amountWords: expectedAmountWords(line.moAmount),
       });
     }
   }
@@ -971,7 +970,12 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
   const amountDisplay = `${amountMo.toFixed(2)}`;
   const issueDate = toDisplayDate((order as any)?.issueDate ?? "");
   const dispatchDate = issueDate;
-  const amountWords = String((order as any)?.amountWords ?? "").trim() || `${amountToWords(amountMo)} Rupees Only`;
+  const providedAmountWords = String((order as any)?.amountWords ?? "").trim();
+  const expectedWords = expectedAmountWords(amountMo);
+  if (providedAmountWords && providedAmountWords !== expectedWords) {
+    console.error(`[MO_WORDS_MISMATCH] mo=${moNumber} amount=${amountMo} provided="${providedAmountWords}" expected="${expectedWords}"`);
+  }
+  const amountWords = expectedWords;
   const consigneeName = String((order as any)?.consigneeName ?? "-").trim() || "-";
   const consigneeAddress = normalizeAddressLines((order as any)?.consigneeAddress ?? "-") || "-";
   const consigneePhone = String((order as any)?.consigneePhone ?? "-").trim() || "-";

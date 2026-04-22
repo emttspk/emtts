@@ -5,7 +5,7 @@ export const MONEY_ORDER_SPLIT_LIMIT = 20_000;
 const allowedTrackingPrefixes = [TRACKING_PREFIX] as const;
 
 const trackingIdPattern = /^VPL\d{8,9}$/;
-const moneyOrderNumberPattern = /^MOS(?:\d{8}|\d{9}|\d{11})$/;
+const moneyOrderNumberPattern = /^MOS(?:\d{8}|\d{11})$/;
 
 export type StrictTrackingValidation = { ok: true; value: string } | { ok: false; reason: string };
 
