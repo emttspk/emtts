@@ -1267,6 +1267,118 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
       });
     }
   }
+  if (!shipment) {
+    try {
+      const live = await pythonTrackOne(trackingNumber, { includeRaw: true });
+      const liveStatus = String(live?.status ?? "").trim().toUpperCase();
+      complaintAllowed = liveStatus.startsWith("PENDING") || live?.complaint_eligible === true;
+      const liveRaw = (live?.raw && typeof live.raw === "object") ? (live.raw as Record<string, unknown>) : {};
+      const liveTracking = ((liveRaw as any)?.tracking && typeof (liveRaw as any).tracking === "object")
+        ? ((liveRaw as any).tracking as Record<string, unknown>)
+        : {};
+
+      const senderName = pick(
+        body.sender_name,
+        (liveRaw as any)?.sender_name,
+        (liveRaw as any)?.senderName,
+        (liveTracking as any)?.sender_name,
+        "Unknown Sender",
+      );
+      const senderAddress = pick(
+        body.sender_address,
+        (liveRaw as any)?.sender_address,
+        (liveRaw as any)?.senderAddress,
+        (liveTracking as any)?.sender_address,
+        "-",
+      );
+      const senderCity = pick(
+        body.sender_city_value,
+        (liveRaw as any)?.booking_city,
+        (liveTracking as any)?.booking_office,
+        (liveRaw as any)?.booking_office,
+        "Pakistan Post",
+      );
+      const receiverName = pick(
+        body.receiver_name,
+        (liveRaw as any)?.consignee_name,
+        (liveRaw as any)?.receiver_name,
+        (liveTracking as any)?.consignee_name,
+        "-",
+      );
+      const receiverAddress = pick(
+        body.receiver_address,
+        (liveRaw as any)?.consignee_address,
+        (liveRaw as any)?.receiver_address,
+        (liveTracking as any)?.consignee_address,
+        "-",
+      );
+      const receiverCity = pick(
+        body.receiver_city_value,
+        (liveRaw as any)?.receiver_city,
+        (liveRaw as any)?.consigneeCity,
+        (liveTracking as any)?.delivery_office,
+        "-",
+      );
+      const recipientDistrict = pick(body.recipient_district);
+      const recipientTehsil = pick(body.recipient_tehsil);
+      const recipientLocation = pick(body.recipient_location);
+      const bookingDate = pick(
+        (liveRaw as any)?.booking_date,
+        (liveTracking as any)?.booking_date,
+        new Date().toISOString().slice(0, 10),
+      );
+      const liveServiceType = (() => {
+        const upper = trackingNumber.toUpperCase();
+        const map: Record<string, string> = {
+          UMS: "UMS",
+          UMO: "MOS",
+          FMO: "FMO",
+          EMS: "EMS",
+          MOS: "MOS",
+          VPP: "VPP",
+          VPL: "VPL",
+          COD: "COD",
+          RL: "RGL",
+          PR: "PAR",
+        };
+        return map[upper.slice(0, 3)] ?? map[upper.slice(0, 2)] ?? "VPL";
+      })();
+      const serviceType = pick(body.service_type, liveServiceType);
+
+      complaintContext = {
+        complainant_name: senderName,
+        sender_name: senderName,
+        sender_address: senderAddress,
+        sender_city: senderCity,
+        sender_contact: normalizedPhone,
+        booking_office: pick(body.booking_office, senderCity, "Pakistan Post"),
+        receiver_name: receiverName,
+        receiver_address: receiverAddress,
+        receiver_city: receiverCity,
+        delivery_city: receiverCity,
+        mapped_city: pick(body.recipient_city_value, receiverCity),
+        upload_name: senderName,
+        upload_address: senderAddress,
+        upload_consignee_name: receiverName,
+        upload_consignee_address: receiverAddress,
+        upload_consignee_city: receiverCity,
+        profile_name: senderName,
+        booking_date: bookingDate,
+        service_type: serviceType,
+        complaint_reason: pick(body.complaint_reason, remarks, "Pending Delivery"),
+        remarks,
+        complaint_text: remarks,
+        reply_mode: body.prefer_reply_mode ?? "POST",
+        reply_email: pick(body.reply_email),
+        recipient_city: pick(body.recipient_city_value, receiverCity),
+        recipient_district: recipientDistrict,
+        recipient_tehsil: recipientTehsil,
+        recipient_location: recipientLocation,
+      };
+    } catch (liveErr) {
+      console.error(`[ComplaintAPI] Live tracking bootstrap failed for ${trackingNumber}:`, liveErr instanceof Error ? liveErr.message : liveErr);
+    }
+  }
   if (!complaintAllowed) {
     return res.status(403).json({
       success: false,
