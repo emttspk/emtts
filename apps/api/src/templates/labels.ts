@@ -242,10 +242,15 @@ function getLabelAmountSummary(order: Pick<LabelOrder, "carrierType" | "shipment
 function resolveMoneyOrderAmount(order: Pick<LabelOrder, "CollectAmount" | "shipmentType" | "shipmenttype"> & Record<string, unknown>) {
   const explicitMoAmount = toNum(order.amountRs ?? order.amount ?? 0);
   if (explicitMoAmount > 0) {
+    // Explicit MO amount rows are already normalized amounts; do not re-derive.
     return explicitMoAmount;
   }
 
   const declaredGrossAmount = toNum(order.CollectAmount);
+  const shipmentType = String(order.shipmentType ?? order.shipmenttype ?? "").trim().toUpperCase();
+  if (shipmentType === "VPL" || shipmentType === "VPP") {
+    return deriveNetCommissionFromGross(declaredGrossAmount, shipmentType).netAmount;
+  }
   return declaredGrossAmount;
 }
 

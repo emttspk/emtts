@@ -31,9 +31,7 @@ export async function htmlToPdfBuffer(
         width: format === "4x6" ? "4in" : format === "envelope-9x4" ? "9in" : undefined,
         height: format === "4x6" ? "6in" : format === "envelope-9x4" ? "4in" : undefined,
         printBackground: true,
-        margin: format === "A4" ? { top: "0mm", bottom: "0mm", left: "0mm", right: "0mm" } : undefined,
-        scale: format === "A4" ? 0.85 : 1,
-        preferCSSPageSize: format === "A4" ? true : undefined,
+        preferCSSPageSize: format === "A4",
       });
     } finally {
       await page.close();
@@ -67,9 +65,7 @@ export async function htmlToPdfBufferInFreshBrowser(
         width: format === "4x6" ? "4in" : format === "envelope-9x4" ? "9in" : undefined,
         height: format === "4x6" ? "6in" : format === "envelope-9x4" ? "4in" : undefined,
         printBackground: true,
-        margin: format === "A4" ? { top: "0mm", bottom: "0mm", left: "0mm", right: "0mm" } : undefined,
-        scale: format === "A4" ? 0.85 : 1,
-        preferCSSPageSize: format === "A4" ? true : undefined,
+        preferCSSPageSize: format === "A4",
       });
     } finally {
       await page.close();
