@@ -9,6 +9,7 @@ import {
   moneyOrderBreakdown,
   shouldApplyPakistanPostValuePayableRules,
   shouldShowValuePayableAmount,
+  validateMoneyOrderNumber,
 } from "../validation/trackingId.js";
 
 export type LabelOrder = OrderRecord & {
@@ -166,6 +167,24 @@ function amountToWords(value: number) {
 
 function expectedAmountWords(value: number) {
   return `${amountToWords(value)} Only`;
+}
+
+function strictMoneyOrderNumber(value: unknown) {
+  const raw = String(value ?? "").trim().toUpperCase().replace(/\s+/g, "");
+  const validated = validateMoneyOrderNumber(raw);
+  if (validated.ok) return validated.value;
+
+  const suffixStripped = raw.replace(/-S\d+$/i, "");
+  const digits = suffixStripped.startsWith("MOS")
+    ? suffixStripped.slice(3).replace(/\D/g, "")
+    : suffixStripped.replace(/\D/g, "");
+  if (digits.length < 8) return "-";
+
+  const yy = digits.slice(0, 2);
+  const mm = digits.slice(2, 4);
+  const seq = digits.slice(-4);
+  const coerced = `MOS${yy}${mm}${seq}`;
+  return validateMoneyOrderNumber(coerced).ok ? coerced : "-";
 }
 
 function resolveTracking(o: LabelOrder, autoGenerateTracking: boolean) {
@@ -837,16 +856,14 @@ function replaceNth(
 }
 
 function splitMoNumber(baseMo: string, index: number) {
-  if (index <= 0) return baseMo;
-  const trimmed = String(baseMo ?? "").trim().toUpperCase();
-  if (!trimmed || trimmed === "-") return "-";
-  const m = trimmed.match(/^(.*?)(\d{4})$/);
-  if (!m) return `${trimmed}-${index + 1}`;
-  const prefix = m[1] ?? "";
-  const suffix = Number.parseInt(m[2] ?? "0", 10);
-  if (!Number.isFinite(suffix)) return `${trimmed}-${index + 1}`;
-  const next = suffix + index;
-  if (next > 9999) return `${trimmed}-${index + 1}`;
+  const normalized = strictMoneyOrderNumber(baseMo);
+  if (normalized === "-") return "-";
+  if (index <= 0) return normalized;
+
+  const prefix = normalized.slice(0, 7);
+  const suffix = Number.parseInt(normalized.slice(-4), 10);
+  if (!Number.isFinite(suffix)) return normalized;
+  const next = ((suffix - 1 + index) % 9_999) + 1;
   return `${prefix}${String(next).padStart(4, "0")}`;
 }
 
@@ -872,11 +889,12 @@ function expandBenchmarkOrders(orders: OrderRecord[]): OrderRecord[] {
   const expanded: OrderRecord[] = [];
   const usedMoNumbers = new Set<string>();
   for (const order of orders) {
-    const explicitMoNumber = String((order as any)?.mo_number ?? "").trim().toUpperCase();
+    const explicitMoNumber = strictMoneyOrderNumber((order as any)?.mo_number);
     const explicitMoAmount = toNum((order as any)?.amountRs ?? (order as any)?.amount ?? 0);
-    if (explicitMoNumber && explicitMoAmount > 0) {
+    if (explicitMoNumber !== "-" && explicitMoAmount > 0) {
       expanded.push({
         ...(order as any),
+        mo_number: explicitMoNumber,
         amount: String(explicitMoAmount),
         amountRs: explicitMoAmount,
         amountWords: expectedAmountWords(explicitMoAmount),
@@ -903,10 +921,10 @@ function expandBenchmarkOrders(orders: OrderRecord[]): OrderRecord[] {
       const line = lines[i]!;
       let splitMo = splitMoNumber(baseMo, i);
       if (splitMo !== "-") {
-        let suffix = i + 1;
-        while (usedMoNumbers.has(splitMo)) {
-          splitMo = `${baseMo}-S${suffix}`;
-          suffix += 1;
+        let attempts = 0;
+        while (usedMoNumbers.has(splitMo) && attempts < 9_999) {
+          splitMo = splitMoNumber(splitMo, 1);
+          attempts += 1;
         }
         usedMoNumbers.add(splitMo);
       }
@@ -968,7 +986,7 @@ function clearBenchmarkSlot(htmlBody: string, slotIndex: number) {
 function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRecord) {
   if (!order) return clearBenchmarkSlot(htmlBody, slotIndex);
 
-  const moNumber = String((order as any)?.mo_number ?? "-").trim().toUpperCase() || "-";
+  const moNumber = strictMoneyOrderNumber((order as any)?.mo_number);
   const generatedTrackingId = String((order as any)?.barcodeValue ?? "").trim();
   const tracking = String((order as any)?.trackingNumber ?? (order as any)?.TrackingID ?? generatedTrackingId).trim() || "-";
   const amountMo = resolveMoneyOrderAmount(order as any);
@@ -1266,7 +1284,7 @@ function moneyOrderDuplexHtml(orders: OrderRecord[], bg: { frontBg?: string; bac
 }
 
 function frontFields(o: OrderRecord) {
-  const moNumber = String((o as any).mo_number ?? "").trim().toUpperCase() || "-";
+  const moNumber = strictMoneyOrderNumber((o as any).mo_number);
   const generatedTrackingId = String((o as any).barcodeValue ?? "").trim();
   const tracking = String((o as any).trackingNumber ?? o.TrackingID ?? generatedTrackingId).trim() || "-";
   const amountRaw = resolveMoneyOrderAmount(o as any);
@@ -1274,7 +1292,7 @@ function frontFields(o: OrderRecord) {
   const showMoText = moNumber !== "-";
   const moBarcode = String((o as any).mo_barcodeBase64 ?? "").trim();
   const issueDate = String((o as any).issueDate ?? "").trim() || formatIssueDate();
-  const amountWords = String((o as any).amountWords ?? "").trim() || `${amountToWords(amountRaw)} Rupees Only`;
+  const amountWords = String((o as any).amountWords ?? "").trim() || expectedAmountWords(amountRaw);
   const consigneeName = String((o as any).consigneeName ?? "").trim() || "-";
   const consigneeAddress = normalizeAddressLines((o as any).consigneeAddress ?? "") || "-";
   const consigneePhone = String((o as any).consigneePhone ?? "").trim() || "-";

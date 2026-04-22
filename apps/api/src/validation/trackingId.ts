@@ -5,7 +5,7 @@ export const MONEY_ORDER_SPLIT_LIMIT = 20_000;
 const allowedTrackingPrefixes = [TRACKING_PREFIX] as const;
 
 const trackingIdPattern = /^VPL\d{8,9}$/;
-const moneyOrderNumberPattern = /^MOS(?:\d{8}|\d{11})$/;
+const moneyOrderNumberPattern = /^MOS\d{8}$/;
 
 export type StrictTrackingValidation = { ok: true; value: string } | { ok: false; reason: string };
 
@@ -87,23 +87,19 @@ export function buildTrackingId(sequence: number, value?: string | Date) {
 }
 
 export function buildMoneyOrderNumber(sequence: number, value?: string | Date) {
+  if (!Number.isInteger(sequence) || sequence <= 0 || sequence > 9_999) {
+    throw new Error("Money order sequence must be between 1 and 9999 for MOSYYMMXXXX format.");
+  }
   const date = value instanceof Date ? value : value ? new Date(value) : new Date();
   const year = String(date.getFullYear()).slice(-2);
   const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const dateCode = sequence > 9_999 ? `${year}${month}${day}` : `${year}${month}`;
-  return `${MONEY_ORDER_PREFIX}${dateCode}${formatIdentifierSequence(sequence)}`;
+  return `${MONEY_ORDER_PREFIX}${year}${month}${String(sequence).padStart(4, "0")}`;
 }
 
 export function parseIdentifierSequence(value: string) {
   const normalized = String(value ?? "").trim().toUpperCase();
-  const suffix = normalized.slice(-5);
-  const parsed = Number.parseInt(suffix, 10);
-  if (Number.isFinite(parsed)) {
-    return parsed;
-  }
-  const fallback = Number.parseInt(normalized.slice(-4), 10);
-  return Number.isFinite(fallback) ? fallback : null;
+  const parsed = Number.parseInt(normalized.slice(-4), 10);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 export function isValidTrackingId(value: unknown): boolean {
@@ -137,7 +133,7 @@ export function validateMoneyOrderNumber(value: unknown): StrictTrackingValidati
   if (!moneyOrderNumberPattern.test(compact)) {
     return {
       ok: false,
-      reason: "money order number must match MOSYYMM0001 format; after 9999, format switches to MOSYYMMDD00000",
+      reason: "money order number must match MOSYYMM0001 format (exactly 11 characters)",
     };
   }
 
@@ -170,11 +166,15 @@ export function moneyOrderBreakdown(total: number, shipmentType?: unknown): Mone
   const chargeCommission = shipmentType == null || shipmentType === ""
     ? true
     : shouldChargeMoneyOrderCommission(shipmentType);
-  return splitBlocks(total).map((blockMoAmount, index) => {
-    const moAmount = Math.max(0, blockMoAmount);
-    const commission = chargeCommission ? commissionFor(moAmount) : 0;
-    const grossAmount = moAmount + commission;
-    const netAmount = moAmount;
+  return splitBlocks(total).map((blockGrossAmount, index) => {
+    const grossAmount = Math.max(0, blockGrossAmount);
+    const commission = chargeCommission
+      ? grossAmount <= 10_075
+        ? 75
+        : 100
+      : 0;
+    const netAmount = Math.max(0, grossAmount - commission);
+    const moAmount = netAmount;
     return {
       segmentIndex: index,
       grossAmount,
