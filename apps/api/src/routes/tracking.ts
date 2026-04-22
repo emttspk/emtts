@@ -925,8 +925,9 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
     return res.status(400).json({ success: false, message: "Article number is required." });
   }
   const normalizedPhone = body.phone.replace(/\D+/g, "");
-  if (!/^03\d{9}$/.test(normalizedPhone)) {
-    return res.status(400).json({ success: false, message: "Mobile must be in 03XXXXXXXXX format." });
+  // Accept Pakistani phone formats: 03XXXXXXXXX (11 digits), 923XXXXXXXXX (12 digits), or +923XXXXXXXXX
+  if (!/^(03\d{9}|923\d{9}|\d{10,})$/.test(normalizedPhone)) {
+    return res.status(400).json({ success: false, message: "Please provide a valid phone number (e.g., 03XX XXX XXXX or +92 3XX XXX XXXX)." });
   }
   const remarks = String(body.complaint_text ?? "").trim();
   if (!remarks) {
