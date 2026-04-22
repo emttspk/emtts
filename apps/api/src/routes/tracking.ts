@@ -924,10 +924,23 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
   if (!trackingNumber) {
     return res.status(400).json({ success: false, message: "Article number is required." });
   }
-  const normalizedPhone = body.phone.replace(/\D+/g, "");
-  // Accept Pakistani phone formats: 03XXXXXXXXX (11 digits), 923XXXXXXXXX (12 digits), or +923XXXXXXXXX
-  if (!/^(03\d{9}|923\d{9}|\d{10,})$/.test(normalizedPhone)) {
-    return res.status(400).json({ success: false, message: "Please provide a valid phone number (e.g., 03XX XXX XXXX or +92 3XX XXX XXXX)." });
+  const inputPhone = String(body.phone ?? "").trim();
+  const digitsOnlyPhone = inputPhone.replace(/\D+/g, "");
+  const normalizedPhone = (() => {
+    if (/^923\d{9}$/.test(digitsOnlyPhone)) return `0${digitsOnlyPhone.slice(2)}`;
+    if (/^03\d{9}$/.test(digitsOnlyPhone)) return digitsOnlyPhone;
+    if (/^3\d{9}$/.test(digitsOnlyPhone)) return `0${digitsOnlyPhone}`;
+    if (digitsOnlyPhone.length >= 11) {
+      const idx = digitsOnlyPhone.lastIndexOf("03");
+      if (idx >= 0 && digitsOnlyPhone.length >= idx + 11) {
+        const candidate = digitsOnlyPhone.slice(idx, idx + 11);
+        if (/^03\d{9}$/.test(candidate)) return candidate;
+      }
+    }
+    return digitsOnlyPhone;
+  })();
+  if (!normalizedPhone || normalizedPhone.length < 10) {
+    return res.status(400).json({ success: false, message: "Please provide a valid phone number (03XXXXXXXXX or 923XXXXXXXXX)." });
   }
   const remarks = String(body.complaint_text ?? "").trim();
   if (!remarks) {
@@ -968,8 +981,27 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
       const d = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]), 0, 0, 0, 0).getTime();
       return Number.isFinite(d) ? d : null;
     }
+    const dash = value.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (dash) {
+      const d = new Date(Number(dash[3]), Number(dash[2]) - 1, Number(dash[1]), 0, 0, 0, 0).getTime();
+      return Number.isFinite(d) ? d : null;
+    }
     const parsed = new Date(value).getTime();
     return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  const toDdMmYyyy = (input: string) => {
+    const value = String(input ?? "").trim();
+    if (!value) return "";
+    const slash = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (slash) return `${String(Number(slash[1])).padStart(2, "0")}-${String(Number(slash[2])).padStart(2, "0")}-${slash[3]}`;
+    const dash = value.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (dash) return `${String(Number(dash[1])).padStart(2, "0")}-${String(Number(dash[2])).padStart(2, "0")}-${dash[3]}`;
+    const iso = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (iso) return `${String(Number(iso[3])).padStart(2, "0")}-${String(Number(iso[2])).padStart(2, "0")}-${iso[1]}`;
+    const parsed = new Date(value);
+    if (!Number.isFinite(parsed.getTime())) return value;
+    return `${String(parsed.getDate()).padStart(2, "0")}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${parsed.getFullYear()}`;
   };
 
   const parseStoredComplaintLifecycle = (textBlob: string, complaintStatus?: string | null) => {
@@ -1225,8 +1257,11 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
       return res.status(409).json({
         success: false,
         message: `Complaint already registered. Complaint ID: ${existing.id || "-"} Due Date: ${existing.dueDate || "-"}`,
+        complaintId: existing.id || "",
+        dueDate: toDdMmYyyy(existing.dueDate || ""),
+        trackingId: trackingNumber,
         complaint_id: existing.id || "",
-        due_date: existing.dueDate || "",
+        due_date: toDdMmYyyy(existing.dueDate || ""),
         tracking_id: trackingNumber,
         status: "FILED",
       });
@@ -1307,8 +1342,9 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
     if (!submitSuccess) return "";
     const d = new Date();
     d.setDate(d.getDate() + 7);
-    return d.toISOString().slice(0, 10);
+    return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
   })();
+  const normalizedDueDate = toDdMmYyyy(dueDate);
 
   const fallbackId = submitSuccess && !complaintNumber
     ? `CMP-${Date.now().toString().slice(-6)}`
@@ -1320,7 +1356,7 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
   const status = requiredFieldError ? "ERROR" : (alreadyExists ? "DUPLICATE" : ((submitSuccess || Boolean(complaintId)) ? "FILED" : "ERROR"));
   const userNote = body.complaint_text?.trim() ? `User complaint:\n${body.complaint_text.trim()}\n\n` : "";
   const structuredText = complaintId
-    ? `COMPLAINT_ID: ${complaintId} | DUE_DATE: ${dueDate}\n${userNote}Response:\n${resp.response_text}`
+    ? `COMPLAINT_ID: ${complaintId} | DUE_DATE: ${normalizedDueDate}\n${userNote}Response:\n${resp.response_text}`
     : `${userNote}Response:\n${resp.response_text}`;
 
   await prisma.shipment.upsert({
@@ -1332,12 +1368,15 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
   console.log(`Tracking: ${trackingNumber}`);
   console.log(`Message: ${responseMessage}`);
   console.log(`Parsed Complaint ID: ${complaintId || "-"}`);
-  console.log(`Due Date: ${dueDate || "-"}`);
+  console.log(`Due Date: ${normalizedDueDate || "-"}`);
 
   return res.json({
     success: status !== "ERROR",
+    complaintId: complaintId,
+    dueDate: normalizedDueDate,
+    trackingId: trackingNumber,
     complaint_id: complaintId,
-    due_date: dueDate,
+    due_date: normalizedDueDate,
     tracking_id: trackingNumber,
     status,
     message: requiredFieldError

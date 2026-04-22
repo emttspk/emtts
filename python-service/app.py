@@ -1058,14 +1058,20 @@ def _extract_lbl_error_message_text(html: str) -> str:
 
 def _extract_due_date_from_message(message: str) -> str:
   text = str(message or "")
-  hit = re.search(r"Due\s*Date\s*(?:on)?\s*([0-3]?\d/[0-1]?\d/\d{4})", text, flags=re.IGNORECASE)
+  hit = re.search(r"Due\s*Date\s*(?:on)?\s*([0-3]?\d/[0-1]?\d/\d{4}|[0-3]?\d-[0-1]?\d-\d{4}|\d{4}-\d{1,2}-\d{1,2})", text, flags=re.IGNORECASE)
   if hit:
-    return _safe_match_group(hit, 1)
+    raw = _safe_match_group(hit, 1)
+    for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d"):
+      try:
+        return datetime.strptime(raw, fmt).strftime("%d-%m-%Y")
+      except Exception:
+        continue
+    return raw
   return ""
 
 
 def _default_due_date(days: int = 7) -> str:
-  return (datetime.now() + timedelta(days=days)).strftime("%d/%m/%Y")
+  return (datetime.now() + timedelta(days=days)).strftime("%d-%m-%Y")
 
 
 def _is_retryable_complaint_error(exc: Exception) -> bool:
@@ -1085,6 +1091,8 @@ def _pick_non_empty(*values: Any) -> str:
 
 def _normalize_mobile(input_value: str, fallback: str = "") -> str:
   digits = re.sub(r"\D+", "", str(input_value or ""))
+  if len(digits) == 12 and digits.startswith("923"):
+    return f"0{digits[2:]}"
   if len(digits) == 11 and digits.startswith("03"):
     return digits
   if len(digits) == 10 and digits.startswith("3"):
@@ -1313,7 +1321,7 @@ def submit_complaint(tracking_number, phone_number, details: dict[str, Any] | No
   if not re.fullmatch(r"03\d{9}", complainant_phone or ""):
     return {
       "success": False,
-      "response_text": "Complaint submission failed due to invalid mobile number. Use 03XXXXXXXXX format.",
+      "response_text": "Complaint submission failed due to invalid mobile number. Use 03XXXXXXXXX or 923XXXXXXXXX format.",
       "complaint_number": "",
       "due_date": "",
       "already_exists": False,

@@ -572,6 +572,7 @@ function buildPrintMarkup(record: FinalTrackingRecord, detail: TrackingDetailDat
 
   return `
     <section class="print-doc print-container">
+      <div class="print-branding print-branding-top"><strong>FREE BULK DISPATCH AND TRACKING</strong></div>
       <div class="print-panel no-break">
         <div class="print-title">Bulk Dispatch Tracking Print</div>
         <div class="print-subtitle">${escapePrintHtml(record.shipment.trackingNumber)}</div>
@@ -608,8 +609,8 @@ function buildPrintMarkup(record: FinalTrackingRecord, detail: TrackingDetailDat
 }
 
 function normalizePkMobile(input: string): string {
-  const normalizedInput = String(input ?? "").trim().replace(/^\+92/, "0");
-  const digits = normalizedInput.replace(/\D+/g, "");
+  const digits = String(input ?? "").trim().replace(/\D+/g, "");
+  if (/^923[0-9]{9}$/.test(digits)) return `0${digits.slice(2)}`;
   if (/^03[0-9]{9}$/.test(digits)) return digits;
   if (/^3[0-9]{9}$/.test(digits)) return `0${digits}`;
   return "";
@@ -2153,6 +2154,7 @@ export default function BulkTracking() {
             <div>
               <div className="text-xl font-medium text-gray-900">Bulk Tracking</div>
               <div className="mt-1 text-sm text-gray-600">Upload CSV/XLS/XLSX using the strict shared sample structure.</div>
+              <div className="mt-2 text-sm font-bold text-gray-900">FREE BULK DISPATCH AND TRACKING</div>
             </div>
             <SampleDownloadLink />
           </div>

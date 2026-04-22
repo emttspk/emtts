@@ -635,6 +635,8 @@ jobsRouter.get("/:jobId/download/labels", requireAuth, async (req, res) => {
     await prisma.labelJob.update({ where: { id: jobId }, data: { labelsPdfPath: relPath } }).catch(() => {});
   }
 
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename=\"labels-${jobId}.pdf\"`);
   return res.download(absPath, `labels-${jobId}.pdf`);
 });
 
@@ -682,6 +684,8 @@ async function handleMoneyOrdersDownload(req: Request, res: Response) {
     await prisma.labelJob.update({ where: { id: jobId }, data: { moneyOrderPdfPath: relPath } }).catch(() => {});
   }
 
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename=\"money-orders-${jobId}.pdf\"`);
   return res.download(absPath, `money-orders-${jobId}.pdf`);
 }
 

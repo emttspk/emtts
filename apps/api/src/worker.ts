@@ -450,6 +450,7 @@ const worker = new Worker(
   async (bullJob) => {
     const processJob = async () => {
     console.log("🔥 JOB RECEIVED");
+    console.log("PROCESSING JOB", bullJob.id);
     console.log("Processing job:", bullJob.id);
     console.log(`[Worker] Processing job ${String(bullJob.id ?? "unknown")}`);
     await prisma.$connect();
@@ -849,6 +850,7 @@ const worker = new Worker(
       });
 
       await finalizeQueuedToGenerated(job.userId, job.unitCount || job.recordCount);
+      console.log("JOB COMPLETED", bullJob.id);
       console.log("Job completed:", bullJob.id);
       console.log(`[Worker] Job completed ${jobId}`);
       console.log(`[Worker] Job ${jobId} completed successfully`);
@@ -887,6 +889,7 @@ console.log("Job processing started");
 
 worker.on("completed", (job) => {
   // eslint-disable-next-line no-console
+  console.log("JOB COMPLETED", job.id);
   console.log("Job completed:", job.id);
 });
 
@@ -907,6 +910,7 @@ const trackingWorker = new Worker(
   trackingQueueName,
   async (bullJob) => {
     console.log("🔥 JOB RECEIVED");
+    console.log("PROCESSING JOB", bullJob.id);
     const data = bullJob.data as
       | { jobId: string; kind: "BULK_TRACK"; trackingNumbers: string[]; lockKey?: string | null }
       | { jobId: string; kind: "COMPLAINT"; trackingNumber: string; phone: string; complaintText?: string };

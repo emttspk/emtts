@@ -5,7 +5,7 @@ export const MONEY_ORDER_SPLIT_LIMIT = 20_000;
 const allowedTrackingPrefixes = [TRACKING_PREFIX] as const;
 
 const trackingIdPattern = /^VPL\d{8,9}$/;
-const moneyOrderNumberPattern = /^MOS\d{8,9}$/;
+const moneyOrderNumberPattern = /^MOS(?:\d{8}|\d{9}|\d{11})$/;
 
 export type StrictTrackingValidation = { ok: true; value: string } | { ok: false; reason: string };
 
@@ -87,7 +87,12 @@ export function buildTrackingId(sequence: number, value?: string | Date) {
 }
 
 export function buildMoneyOrderNumber(sequence: number, value?: string | Date) {
-  return `${MONEY_ORDER_PREFIX}${formatIdentifierDateCode(value)}${formatIdentifierSequence(sequence)}`;
+  const date = value instanceof Date ? value : value ? new Date(value) : new Date();
+  const year = String(date.getFullYear()).slice(-2);
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const dateCode = sequence > 9_999 ? `${year}${month}${day}` : `${year}${month}`;
+  return `${MONEY_ORDER_PREFIX}${dateCode}${formatIdentifierSequence(sequence)}`;
 }
 
 export function parseIdentifierSequence(value: string) {
@@ -132,7 +137,7 @@ export function validateMoneyOrderNumber(value: unknown): StrictTrackingValidati
   if (!moneyOrderNumberPattern.test(compact)) {
     return {
       ok: false,
-      reason: "money order number must match MOSYYMM0001 format, with 12 characters allowed only after sequence overflow",
+      reason: "money order number must match MOSYYMM0001 format; after 9999, format switches to MOSYYMMDD00000",
     };
   }
 

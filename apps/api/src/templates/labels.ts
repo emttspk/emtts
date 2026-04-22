@@ -76,17 +76,42 @@ function formatWeightInGrams(value: unknown) {
 function formatIssueDate(value = new Date()) {
   const day = String(value.getDate()).padStart(2, "0");
   const month = String(value.getMonth() + 1).padStart(2, "0");
-  const year = String(value.getFullYear()).slice(-2);
+  const year = String(value.getFullYear());
   return `${day}-${month}-${year}`;
 }
 
-function resolveDispatchDate(value: unknown) {
-  const parsed = new Date(String(value ?? new Date()));
-  if (Number.isNaN(parsed.getTime())) {
-    const fallback = new Date();
-    return `${fallback.getFullYear()}-${String(fallback.getMonth() + 1).padStart(2, "0")}-${String(fallback.getDate()).padStart(2, "0")}`;
+function toDisplayDate(value: unknown) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return formatIssueDate();
+
+  const ddmmyyyy = raw.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (ddmmyyyy) {
+    return `${String(Number(ddmmyyyy[1])).padStart(2, "0")}-${String(Number(ddmmyyyy[2])).padStart(2, "0")}-${ddmmyyyy[3]}`;
   }
-  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
+
+  const ddmmyy = raw.match(/^(\d{1,2})-(\d{1,2})-(\d{2})$/);
+  if (ddmmyy) {
+    const year = Number(ddmmyy[3]) >= 70 ? `19${ddmmyy[3]}` : `20${ddmmyy[3]}`;
+    return `${String(Number(ddmmyy[1])).padStart(2, "0")}-${String(Number(ddmmyy[2])).padStart(2, "0")}-${year}`;
+  }
+
+  const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (iso) {
+    return `${String(Number(iso[3])).padStart(2, "0")}-${String(Number(iso[2])).padStart(2, "0")}-${iso[1]}`;
+  }
+
+  const slash = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slash) {
+    return `${String(Number(slash[1])).padStart(2, "0")}-${String(Number(slash[2])).padStart(2, "0")}-${slash[3]}`;
+  }
+
+  const parsed = new Date(raw);
+  if (Number.isFinite(parsed.getTime())) return formatIssueDate(parsed);
+  return formatIssueDate();
+}
+
+function resolveDispatchDate(value: unknown) {
+  return toDisplayDate(value ?? new Date());
 }
 
 function resolveMoneyOrderSenderFields(order: OrderRecord) {
@@ -944,7 +969,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
   const tracking = String((order as any)?.trackingNumber ?? (order as any)?.TrackingID ?? generatedTrackingId).trim() || "-";
   const amountMo = resolveMoneyOrderAmount(order as any);
   const amountDisplay = `${amountMo.toFixed(2)}`;
-  const issueDate = String((order as any)?.issueDate ?? "").trim() || formatIssueDate();
+  const issueDate = toDisplayDate((order as any)?.issueDate ?? "");
   const dispatchDate = issueDate;
   const amountWords = String((order as any)?.amountWords ?? "").trim() || `${amountToWords(amountMo)} Rupees Only`;
   const consigneeName = String((order as any)?.consigneeName ?? "-").trim() || "-";
