@@ -724,9 +724,11 @@ export function processTracking(rawData: unknown, opts?: { explicitMo?: string |
   );
   const hasValidTrackingResult = steps.length > 0;
   const deliveredCycleReady = trackingLifecycle.completed && trackingLifecycle.delivered && !trackingLifecycle.returned;
+  const deliveredStatusReady = finalStatus === "DELIVERED";
   const moneyOrderLinkEligible = hasValidTrackingResult
     && systemMoTokens.length > 0
     && codDecisionScope
+    && deliveredStatusReady
     && deliveredCycleReady;
   const moIssuedOut = moneyOrderLinkEligible ? (systemMoTokens[0] ?? "-") : "-";
 

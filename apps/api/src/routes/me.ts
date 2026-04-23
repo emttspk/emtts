@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import { monthKeyUTC } from "../usage/month.js";
+import { COMPLAINT_UNIT_COST, getComplaintAllowance } from "../usage/unitConsumption.js";
 
 export const meRouter = Router();
 
@@ -46,6 +47,7 @@ meRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
   const labelsQueued = usage.labelsQueued ?? 0;
   const trackingGenerated = usage.trackingGenerated ?? 0;
   const trackingQueued = usage.trackingQueued ?? 0;
+  const complaintAllowance = await getComplaintAllowance(userId);
 
   const remainingUnits = Math.max(0, labelLimit - ((usage.labelsGenerated ?? 0) + labelsQueued));
   const periodEnd = subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd) : null;
@@ -76,6 +78,9 @@ meRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
       labelsRemaining: remainingUnits,
       trackingRemaining: Math.max(0, trackingLimit - (trackingGenerated + trackingQueued)),
       unitsRemaining: remainingUnits,
+      complaintUnitCost: COMPLAINT_UNIT_COST,
+      complaintDailyLimit: complaintAllowance.dailyLimit,
+      complaintDailyRemaining: complaintAllowance.dailyRemaining,
       extraLabelCredits: user.extraLabelCredits ?? 0,
       extraTrackingCredits: user.extraTrackingCredits ?? 0,
     },

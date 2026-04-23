@@ -18,7 +18,7 @@ import { parseOrdersFromFile } from "../parse/orders.js";
 import { parseTrackingNumbersFromFile } from "../parse/tracking.js";
 import { validateTrackingId } from "../validation/trackingId.js";
 import { finalizeQueuedTrackingToGenerated, releaseQueuedTracking } from "../usage/limits.js";
-import { consumeUnits, refundUnits, refundUnitsByAmount } from "../usage/unitConsumption.js";
+import { COMPLAINT_UNIT_COST, consumeUnits, getComplaintAllowance, recordUnitsUsed, refundUnits } from "../usage/unitConsumption.js";
 import {
   pythonTrackOne,
   pythonTrackBulk,
@@ -1407,11 +1407,18 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
     });
   }
 
-  // Submit complaint once; response message is the source of truth.
-  // Consume units for complaint
-  const consumeResult = await consumeUnits(userId, [{ actionType: "tracking", requestKey: `complaint:${trackingNumber}:${Date.now()}` }]);
-  if (!consumeResult.ok) {
-    return res.status(402).json({ success: false, message: (consumeResult as any).reason ?? "Unit consumption failed" });
+  const complaintAllowance = await getComplaintAllowance(userId);
+  if (complaintAllowance.dailyRemaining <= 0) {
+    return res.status(429).json({
+      success: false,
+      message: `Daily complaint limit reached for ${complaintAllowance.planName ?? "your plan"}.`,
+    });
+  }
+  if (complaintAllowance.remainingUnits < COMPLAINT_UNIT_COST || complaintAllowance.trackingRemaining < COMPLAINT_UNIT_COST) {
+    return res.status(402).json({
+      success: false,
+      message: "Insufficient units for complaint submission.",
+    });
   }
 
   let resp: {
@@ -1431,8 +1438,6 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : "Connection reset by remote server";
     console.error(`[ComplaintAPI] Tracking=${trackingNumber} failed: ${errMsg}`);
-    // Refund units on failure
-    await refundUnitsByAmount(userId, 1);
     return res.json({
       success: false,
       status: "ERROR",
@@ -1446,21 +1451,6 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
 
   // Check if complaint was successful
   const complaintSuccess = resp.status === "SUCCESS" || (resp.success && (resp.complaint_number || resp.already_exists));
-  if (!complaintSuccess) {
-    // Create refund request if refund_required
-    if (resp.refund_required) {
-      await prisma.refundRequest.create({
-        data: {
-          userId,
-          trackingId: trackingNumber,
-          units: 1,
-          reason: resp.reason || "Complaint submission failed",
-        },
-      });
-    }
-    // Refund units
-    await refundUnitsByAmount(userId, 1);
-  }
   const responseMessage = String(resp.response_text ?? "").trim();
   const msgLower = responseMessage.toLowerCase();
   const requiredFieldError = (msgLower.includes("required") || msgLower.includes("validation")) && !msgLower.includes("submitted successfully");
@@ -1487,6 +1477,24 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
     ? (complaintIdRaw.toUpperCase().startsWith("CMP-") ? complaintIdRaw.toUpperCase() : `CMP-${complaintIdRaw}`)
     : fallbackId;
   const status = requiredFieldError ? "ERROR" : (alreadyExists ? "DUPLICATE" : ((submitSuccess || Boolean(complaintId)) ? "FILED" : "ERROR"));
+  if (status === "FILED") {
+    const requestKey = `complaint:${trackingNumber}:${complaintId || normalizedDueDate || "filed"}`;
+    const chargeResult = await recordUnitsUsed(userId, [{
+      actionType: "complaint",
+      requestKey,
+      unitsUsed: COMPLAINT_UNIT_COST,
+    }]);
+    if (!chargeResult.ok) {
+      return res.status(402).json({
+        success: false,
+        status: "ERROR",
+        tracking_id: trackingNumber,
+        complaint_id: complaintId,
+        due_date: normalizedDueDate,
+        message: chargeResult.reason,
+      });
+    }
+  }
   const userNote = body.complaint_text?.trim() ? `User complaint:\n${body.complaint_text.trim()}\n\n` : "";
   const structuredText = complaintId
     ? `COMPLAINT_ID: ${complaintId} | DUE_DATE: ${normalizedDueDate}\n${userNote}Response:\n${resp.response_text}`

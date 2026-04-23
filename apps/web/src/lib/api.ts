@@ -23,10 +23,48 @@ export function buildAuthenticatedApiUrl(path: string) {
   return url.toString();
 }
 
-export function triggerBrowserDownload(path: string, filename?: string) {
-  void filename;
-  const downloadUrl = buildAuthenticatedApiUrl(path);
-  window.location.assign(downloadUrl);
+function getFilenameFromContentDisposition(header: string | null, fallback?: string) {
+  const encoded = header?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded);
+    } catch {
+      return fallback ?? "download";
+    }
+  }
+
+  const plain = header?.match(/filename="?([^";]+)"?/i)?.[1]?.trim();
+  return plain || fallback || "download";
+}
+
+export async function triggerBrowserDownload(path: string, filename?: string) {
+  const token = getToken();
+  const url = apiUrl(path);
+
+  try {
+    const res = await fetch(url, {
+      headers: token ? { authorization: `Bearer ${token}` } : undefined,
+    });
+    if (!res.ok) {
+      throw new Error(`Download failed with status ${res.status}`);
+    }
+
+    const blob = await res.blob();
+    const objectUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = getFilenameFromContentDisposition(res.headers.get("content-disposition"), filename);
+    link.rel = "noopener";
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000);
+    return;
+  } catch {
+    const fallbackUrl = buildAuthenticatedApiUrl(path);
+    window.open(fallbackUrl, "_blank", "noopener");
+  }
 }
 
 export async function api<T>(path: string, init: RequestInit = {}) {
