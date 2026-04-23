@@ -183,9 +183,6 @@ process.on("unhandledRejection", (err) => {
 });
 
 const app = express();
-const allowedOrigins = new Set(
-  [env.WEB_ORIGIN, "https://web-production-32a53b.up.railway.app"].map((origin) => origin.trim()).filter(Boolean),
-);
 
 app.use(
   helmet({
@@ -197,13 +194,7 @@ app.use(
 );
 app.use(
   cors({
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.has(origin)) {
-        callback(null, true);
-        return;
-      }
-      callback(new Error("Not allowed by CORS"));
-    },
+    origin: true,
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Authorization", "Content-Type"],
     exposedHeaders: ["Content-Disposition"],

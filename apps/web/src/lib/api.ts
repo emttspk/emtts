@@ -1,10 +1,15 @@
 import { getToken } from "./auth";
 
-const base = (import.meta.env.VITE_API_URL as string | undefined)?.trim() ?? "";
+const base = (
+  (import.meta.env.VITE_API_URL as string | undefined)?.trim()
+  || (import.meta.env.VITE_API_BASE as string | undefined)?.trim()
+  || ""
+);
 
 // Log API configuration for debugging
 console.log(`[API] Base URL configured: "${base}" (empty means same-origin requests to /api)`);
 console.log(`[API] VITE_API_URL: "${import.meta.env.VITE_API_URL ?? "undefined"}"`);
+console.log(`[API] VITE_API_BASE: "${import.meta.env.VITE_API_BASE ?? "undefined"}`);
 
 function networkErrorMessage(url: string) {
   return `Failed to reach API endpoint ${url}. Verify the API server is running and reachable.`;
@@ -163,7 +168,7 @@ export async function apiHealthCheck(timeoutMs = 2000) {
   } catch (e) {
     const errorMsg = e instanceof Error ? e.message : "Unknown error";
     console.error(`[HEALTH] API check failed: ${errorMsg}`);
-    throw new Error("API is offline or unreachable. Verify VITE_API_URL is set correctly.");
+    throw new Error("API is offline or unreachable. Verify VITE_API_URL or VITE_API_BASE is set correctly.");
   } finally {
     window.clearTimeout(timeout);
   }
@@ -173,7 +178,9 @@ export async function apiHealthCheck(timeoutMs = 2000) {
 export function debugApiConfig() {
   const url = apiUrl("/api/auth/login");
   console.group("[DEBUG] API Configuration");
-  console.log(`VITE_API_URL: "${base}"`);
+  console.log(`VITE_API_URL: "${import.meta.env.VITE_API_URL ?? "undefined"}"`);
+  console.log(`VITE_API_BASE: "${import.meta.env.VITE_API_BASE ?? "undefined"}"`);
+  console.log(`Resolved base: "${base}"`);
   console.log(`Sample URL: ${url}`);
   console.log(`Current Origin: ${window.location.origin}`);
   console.log(`API accessible: ${url.startsWith("http") ? "Yes (different origin)" : "No (same origin)"}`);
