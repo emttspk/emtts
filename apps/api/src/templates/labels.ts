@@ -287,7 +287,6 @@ function renderBoxAmountBlock(summary: LabelAmountSummary) {
     <div class="money">
       <div class="money-row"><span class="money-label">Money Order</span><span class="money-value">Rs. ${escapeHtml(formatRs(summary.moAmount))}</span></div>
       <div class="money-row"><span class="money-label">MO Commission</span><span class="money-value">Rs. ${escapeHtml(formatRs(summary.commission))}</span></div>
-      <div class="money-row"><span class="money-label">VPL Amount</span><span class="money-value">Rs. ${escapeHtml(formatRs(summary.grossAmount))}</span></div>
     </div>
   `;
 }
@@ -551,12 +550,12 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
     const senderCity = String(o.senderCity ?? "");
     const weight = formatWeightInGrams(o.Weight);
     const dispatchDateLine = `Dispatch Date: ${resolveDispatchDate((o as any)?.issueDate)}`;
-    const prefixBadgeText = amountSummary.appliesPakistanPostRules ? `${shipmentLabel} Rs.${amountSummary.grossAmount}` : shipmentLabel;
+    const prefixBadgeText = amountSummary.appliesPakistanPostRules ? `${shipmentLabel} Rs.${amountSummary.moAmount}` : shipmentLabel;
     const formatRs = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
     const amountMarkup = amountSummary.appliesPakistanPostRules
       ? amountSummary.showCalculation
-        ? `<div class="fl-amount-box"><div class="fl-amount-row"><span>MO Amount</span><span>Rs.${escapeHtml(formatRs(amountSummary.moAmount))}</span></div><div class="fl-amount-row"><span>MO Commission</span><span>Rs.${escapeHtml(formatRs(amountSummary.commission))}</span></div><div class="fl-amount-row"><span>Gross Amount</span><span>Rs.${escapeHtml(formatRs(amountSummary.grossAmount))}</span></div></div>`
-        : `<div class="fl-amount-box"><div class="fl-amount-row"><span>Gross Amount</span><span>Rs.${escapeHtml(formatRs(amountSummary.grossAmount))}</span></div></div>`
+        ? `<div class="fl-amount-box"><div class="fl-amount-row"><span>MO Amount</span><span>Rs.${escapeHtml(formatRs(amountSummary.moAmount))}</span></div><div class="fl-amount-row"><span>MO Commission</span><span>Rs.${escapeHtml(formatRs(amountSummary.commission))}</span></div></div>`
+        : `<div class="fl-amount-box"><div class="fl-amount-row"><span>MO Amount</span><span>Rs.${escapeHtml(formatRs(amountSummary.moAmount))}</span></div></div>`
       : "";
 
     return `
@@ -702,8 +701,8 @@ export function envelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking
     const amountSecondaryLabel = "MO Commission";
     const amountSecondaryValue = amountSummary.showCalculation ? `${formatRs(amountSummary.commission)}` : "";
     const amountSecondaryClass = amountSummary.showCalculation ? "" : "is-hidden";
-    const amountTotalLabel = "VPL Amount";
-    const amountTotalValue = amountSummary.showCalculation ? `${formatRs(amountSummary.grossAmount)}` : "";
+    const amountTotalLabel = "MO Amount";
+    const amountTotalValue = amountSummary.showCalculation ? `${formatRs(amountSummary.moAmount)}` : "";
     const amountTotalClass = amountSummary.showCalculation ? "" : "is-hidden";
 
     const prefixText = amountSummary.showCalculation
@@ -726,7 +725,7 @@ export function envelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking
       "{sender_contact}": escapeHtml(senderContact),
       "{sender_contact_class}": senderContact ? "" : "is-hidden",
       "{sender_address}": escapeHtml(senderAddress),
-      "{gross_amount}": escapeHtml(formatRs(amountSummary.grossAmount)),
+      "{gross_amount}": escapeHtml(formatRs(amountSummary.moAmount)),
       "{mo_commission}": escapeHtml(formatRs(amountSummary.commission)),
       "{total_amount}": escapeHtml(formatRs(amountSummary.grossAmount)),
       "{amount_primary_label}": escapeHtml(amountPrimaryLabel),

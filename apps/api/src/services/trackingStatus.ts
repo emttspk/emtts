@@ -9,6 +9,15 @@ type TrackingEvent = {
   dt: Date | null;
 };
 
+type TrackingLifecycle = {
+  booked: boolean;
+  inTransit: boolean;
+  outForDelivery: boolean;
+  delivered: boolean;
+  returned: boolean;
+  completed: boolean;
+};
+
 function extractTrackingSteps(rawData: unknown): string[] {
   if (!rawData || typeof rawData !== "object") return [];
   const raw = rawData as Record<string, unknown>;
@@ -469,6 +478,32 @@ function deriveTrackingCategory(systemStatus: string): string {
   return "ACTIVE";
 }
 
+function deriveTrackingLifecycle(steps: string[], events: TrackingEvent[]): TrackingLifecycle {
+  const normalized = [
+    ...steps.map((step) => normalizeStepText(step)),
+    ...events.map((event) => normalizeStepText(event.detail)),
+  ].filter(Boolean);
+
+  const has = (patterns: string[]) => normalized.some((line) => patterns.some((pattern) => line.includes(pattern)));
+
+  const booked = has(["booked", "booking office", "received at dmo", "received at booking dmo"]);
+  const inTransit = has(["dispatch", "dispatched", "in transit", "arrival", "arrived", "received at dmo"]);
+  const outForDelivery = has(["sent out for delivery", "out for delivery"]);
+  const returned = has(["return", "returned", "undelivered", "refused", "delivered to sender"]);
+  const delivered = has(["delivered to addressee", "delivered at delivery office"])
+    && !has(["delivered to sender"]);
+  const completed = booked && inTransit && outForDelivery && (delivered || returned);
+
+  return {
+    booked,
+    inTransit,
+    outForDelivery,
+    delivered,
+    returned,
+    completed,
+  };
+}
+
 export function getFinalStatus(trackingSteps: string[]): "DELIVERED" | "RETURN" | "PENDING" | "-" {
   if (!Array.isArray(trackingSteps) || trackingSteps.length === 0) return "-";
 
@@ -497,6 +532,8 @@ export type ProcessTrackingResult = {
   complaintEligible: boolean;
   inactivityHours: number | null;
   normalizedStepStatus: "DELIVERED" | "PENDING" | "BOOKED" | "UNKNOWN";
+  trackingLifecycle: TrackingLifecycle;
+  moneyOrderLinkEligible: boolean;
   moIssued: string | "-";
   trackingMo: string | "-";
   systemMo: string | "-";
@@ -676,6 +713,7 @@ export function processTracking(rawData: unknown, opts?: { explicitMo?: string |
   }
 
   const trackingCategory = deriveTrackingCategory(systemStatus);
+  const trackingLifecycle = deriveTrackingLifecycle(steps, events);
   const firstDateRaw = String(trackingNode.first_date ?? topLevel.first_date ?? "").trim();
   const firstDate = firstDateRaw ? new Date(firstDateRaw) : null;
   const daysPassed = firstDate && !Number.isNaN(firstDate.getTime())
@@ -684,14 +722,13 @@ export function processTracking(rawData: unknown, opts?: { explicitMo?: string |
   const manualPendingOverride = Boolean(
     trackingNode.manual_pending_override ?? topLevel.manual_pending_override,
   );
-  const mosNumber = (() => {
-    if (tnStartsWithMos(opts?.trackingNumber)) return String(opts?.trackingNumber).trim().toUpperCase();
-    if (sectionMos) return sectionMos;
-    if (fullPageMos) return fullPageMos;
-    if (trackingMo !== "-") return trackingMo;
-    if (systemMo !== "-") return systemMo;
-    return "-";
-  })();
+  const hasValidTrackingResult = steps.length > 0;
+  const deliveredCycleReady = trackingLifecycle.completed && trackingLifecycle.delivered && !trackingLifecycle.returned;
+  const moneyOrderLinkEligible = hasValidTrackingResult
+    && systemMoTokens.length > 0
+    && codDecisionScope
+    && deliveredCycleReady;
+  const moIssuedOut = moneyOrderLinkEligible ? (systemMoTokens[0] ?? "-") : "-";
 
   // Keep detailed system status for dashboard truth, while `status` remains canonical tri-state.
   const systemStatusOut = steps.length === 0 ? "PENDING" : systemStatus;
@@ -705,7 +742,7 @@ export function processTracking(rawData: unknown, opts?: { explicitMo?: string |
   );
   const descriptiveEvents = events.filter((ev) => String(ev.detail ?? "").trim().length > 0).length;
   const fullTrackingCaptured = fullTrackingCapturedFlag && descriptiveEvents >= 1;
-  const mosDetectedAudit = mosNumber !== "-";
+  const mosDetectedAudit = moIssuedOut !== "-";
   const moIssuedUpdated = mosDetectedAudit;
   const codLogicApplied = isCodArticle || collectedAmount > 0;
   const amountLoaded = collectedAmount > 0 || hasCollectedAmountField(rawData);
@@ -726,17 +763,15 @@ export function processTracking(rawData: unknown, opts?: { explicitMo?: string |
     complaintEligible,
     inactivityHours,
     normalizedStepStatus,
-    moIssued: mosNumber !== "-" ? mosNumber : moMatched ? trackingMo : "-",
+    trackingLifecycle,
+    moneyOrderLinkEligible,
+    moIssued: moIssuedOut,
     trackingMo,
     systemMo,
     moMatch: moMatched ? "YES" : "NO",
     resolvedDeliveryOffice,
     trackingSteps: steps,
   };
-}
-
-function tnStartsWithMos(trackingNumber?: string | null): boolean {
-  return String(trackingNumber ?? "").trim().toUpperCase().startsWith("MOS");
 }
 
 export function canonicalShipmentStatus(status?: string | null, moIssued?: string | null): string {

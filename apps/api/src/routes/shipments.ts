@@ -152,6 +152,12 @@ function normalizeManualStatus(input: unknown): "DELIVERED" | "PENDING" | "RETUR
   return null;
 }
 
+function resolveMoForDisplay(explicitSystemMo: string | null, processed: ReturnType<typeof processTracking>): string | null {
+  if (!explicitSystemMo) return null;
+  if (!processed.moneyOrderLinkEligible) return null;
+  return explicitSystemMo;
+}
+
 function resolvePersistedStatus(raw: Record<string, unknown>, computedStatus: unknown): "DELIVERED" | "PENDING" | "RETURN" {
   if (Boolean((raw as any).manual_override)) {
     const manual = normalizeManualStatus((raw as any).manual_status);
@@ -425,7 +431,7 @@ shipmentsRouter.get("/", async (req, res) => {
     const manualStatus = normalizeManualStatus((raw as any).manual_status);
     const manualOverrideActive = Boolean((raw as any).manual_override) && Boolean(manualStatus);
     const statusForRaw = manualOverrideActive ? canonicalStatus : processed.systemStatus;
-    const moIssued = explicitSystemMo;
+    const moIssued = resolveMoForDisplay(explicitSystemMo, processed);
     const moValue = explicitSystemMo ? fromDb?.value ?? null : null;
     const mergedRaw = JSON.stringify({
       ...raw,
@@ -436,8 +442,8 @@ shipmentsRouter.get("/", async (req, res) => {
       resolved_delivery_office: processed.resolvedDeliveryOffice,
       tracking_category: processed.trackingCategory,
       complaint_eligible: canonicalStatus === "PENDING" ? true : processed.complaintEligible,
-      MOS_Number: moIssued,
-      mos_number: moIssued,
+      MOS_Number: moIssued ?? "-",
+      mos_number: moIssued ?? "-",
       moIssuedNumber: moIssued ?? undefined,
       moIssuedValue: moValue ?? undefined,
       trackingMo: processed.trackingMo,
@@ -675,7 +681,7 @@ shipmentsRouter.get("/:id", async (req, res) => {
   const manualStatus = normalizeManualStatus((raw as any).manual_status);
   const manualOverrideActive = Boolean((raw as any).manual_override) && Boolean(manualStatus);
   const statusForRaw = manualOverrideActive ? canonicalStatus : processed.systemStatus;
-  const moIssued = explicitSystemMo;
+  const moIssued = resolveMoForDisplay(explicitSystemMo, processed);
   const moValue = explicitSystemMo ? fromDb?.value ?? null : null;
   return res.json({
     success: true,
@@ -691,8 +697,8 @@ shipmentsRouter.get("/:id", async (req, res) => {
         resolved_delivery_office: processed.resolvedDeliveryOffice,
         tracking_category: processed.trackingCategory,
         complaint_eligible: canonicalStatus === "PENDING" ? true : processed.complaintEligible,
-        MOS_Number: moIssued,
-        mos_number: moIssued,
+        MOS_Number: moIssued ?? "-",
+        mos_number: moIssued ?? "-",
         moIssuedNumber: moIssued ?? undefined,
         moIssuedValue: moValue ?? undefined,
         trackingMo: processed.trackingMo,
@@ -939,6 +945,7 @@ shipmentsRouter.post("/refresh-pending", async (req, res) => {
       );
       const lastEvent = processed.trackingSteps.length > 0 ? processed.trackingSteps[processed.trackingSteps.length - 1] : "-";
       console.log(`[TrackingStatus] ${trackingNumber} | System MOS: ${processed.systemMo} | Tracking MOS: ${processed.trackingMo} | Match: ${processed.moMatch} | Last Event: ${lastEvent} | Final Status: ${processed.systemStatus}`);
+      const moIssued = resolveMoForDisplay(explicitSystemMo, processed);
       const mergedRaw: Record<string, unknown> = {
         ...raw,
         TrackingID: String(raw?.TrackingID ?? trackingNumber).trim(),
@@ -953,13 +960,13 @@ shipmentsRouter.post("/refresh-pending", async (req, res) => {
         System_Status: processed.systemStatus,
         tracking_category: processed.trackingCategory,
         complaint_eligible: processed.complaintEligible,
-        MOS_Number: explicitSystemMo ?? undefined,
-        mos_number: explicitSystemMo ?? undefined,
+        MOS_Number: moIssued ?? "-",
+        mos_number: moIssued ?? "-",
         trackingMo: processed.trackingMo,
         systemMo: processed.systemMo,
         moMatch: processed.moMatch,
-        moIssuedNumber: explicitSystemMo ?? undefined,
-        moIssuedValue: explicitSystemMo ? moValue ?? undefined : undefined,
+        moIssuedNumber: moIssued ?? undefined,
+        moIssuedValue: moIssued ? moValue ?? undefined : undefined,
       };
 
       const normalized = resolvePersistedStatus(raw, processed.status);

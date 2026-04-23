@@ -83,6 +83,26 @@ function resolvePersistedStatus(raw: Record<string, unknown>, computedStatus: un
   return "PENDING";
 }
 
+async function getDbMoForTracking(userId: string, trackingNumber: string): Promise<string | null> {
+  const normalized = String(trackingNumber ?? "").trim().toUpperCase();
+  if (!normalized) return null;
+  try {
+    const rows = await prisma.$queryRaw<Array<{ mo_number: string }>>`
+      SELECT mo_number
+      FROM money_orders
+      WHERE user_id = ${userId}
+        AND COALESCE(NULLIF(TRIM(tracking_id), ''), tracking_number) = ${normalized}
+      ORDER BY segment_index ASC, mo_number ASC
+    `;
+    const numbers = rows
+      .map((row) => String(row.mo_number ?? "").trim().toUpperCase())
+      .filter(Boolean);
+    return numbers.length > 0 ? numbers.join(", ") : null;
+  } catch {
+    return null;
+  }
+}
+
 function normalizeOffice(value: string): string {
   return String(value ?? "")
     .toUpperCase()
@@ -243,8 +263,9 @@ async function runInlineTracking(jobId: string, userId: string) {
           tracking: r.raw ?? null,
           collected_amount: collectedAmount,
         };
+        const explicitMo = await getDbMoForTracking(userId, r.tracking_number);
         const processed = processTracking(enrichedRaw, {
-          explicitMo: (preserved as any)?.moIssuedNumber ?? null,
+          explicitMo,
           trackingNumber: r.tracking_number,
         });
         const lastEvent = processed.trackingSteps.length > 0 ? processed.trackingSteps[processed.trackingSteps.length - 1] : "-";
@@ -272,8 +293,8 @@ async function runInlineTracking(jobId: string, userId: string) {
           system_status: manualOverrideActive ? persistedStatus : processed.systemStatus,
           System_Status: manualOverrideActive ? persistedStatus : processed.systemStatus,
           final_status: persistedStatus,
-          MOS_Number: processed.moIssued !== "-" ? processed.moIssued : undefined,
-          mos_number: processed.moIssued !== "-" ? processed.moIssued : undefined,
+          MOS_Number: processed.moIssued !== "-" ? processed.moIssued : "-",
+          mos_number: processed.moIssued !== "-" ? processed.moIssued : "-",
           moIssuedNumber: processed.moIssued !== "-" ? processed.moIssued : undefined,
         });
         try {
@@ -653,7 +674,7 @@ trackingRouter.get("/track/:trackingNumber", requireAuth, async (req, res) => {
   try {
     const result = await pythonTrackOne(trackingNumber, { includeRaw: true });
     const raw = (result.raw && typeof result.raw === "object" ? result.raw : {}) as Record<string, unknown>;
-    const explicitMo = String((raw as any)?.moIssuedNumber ?? (raw as any)?.mo_issued_number ?? "").trim() || null;
+    const explicitMo = await getDbMoForTracking(userId, result.tracking_number);
     const processed = processTracking(raw, { explicitMo, trackingNumber: result.tracking_number });
 
     let existing: { rawJson: string | null } | null = null;
@@ -704,8 +725,8 @@ trackingRouter.get("/track/:trackingNumber", requireAuth, async (req, res) => {
       system_status: manualOverrideActive ? persistedStatus : processed.systemStatus,
       System_Status: manualOverrideActive ? persistedStatus : processed.systemStatus,
       final_status: persistedStatus,
-      MOS_Number: processed.moIssued !== "-" ? processed.moIssued : undefined,
-      mos_number: processed.moIssued !== "-" ? processed.moIssued : undefined,
+      MOS_Number: processed.moIssued !== "-" ? processed.moIssued : "-",
+      mos_number: processed.moIssued !== "-" ? processed.moIssued : "-",
       moIssuedNumber: processed.moIssued !== "-" ? processed.moIssued : undefined,
     });
 
@@ -1060,7 +1081,7 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
     } catch {
       raw = {};
     }
-    const explicitMo = String((raw as any)?.moIssuedNumber ?? "").trim() || null;
+    const explicitMo = await getDbMoForTracking(userId, shipment.trackingNumber);
     const processed = processTracking(raw, { explicitMo, trackingNumber: shipment.trackingNumber });
     const manualPendingOverride = Boolean((raw as any)?.manual_pending_override);
     const pendingStatus = String(processed.systemStatus ?? processed.status ?? "").trim().toUpperCase().startsWith("PENDING");

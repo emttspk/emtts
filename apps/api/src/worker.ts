@@ -1071,6 +1071,12 @@ const trackingWorker = new Worker(
             });
             const lastEvent = processed.trackingSteps.length > 0 ? processed.trackingSteps[processed.trackingSteps.length - 1] : "-";
             console.log(`[TrackingStatus] ${r.tracking_number} | System MOS: ${processed.systemMo} | Tracking MOS: ${processed.trackingMo} | Match: ${processed.moMatch} | Last Event: ${lastEvent} | Final Status: ${processed.systemStatus}`);
+            const manualStatusRaw = String((preserved as any)?.manual_status ?? "").trim().toUpperCase();
+            const manualStatus = manualStatusRaw === "RETURNED" ? "RETURN" : manualStatusRaw;
+            const manualOverrideActive = Boolean((preserved as any)?.manual_override) && ["DELIVERED", "PENDING", "RETURN"].includes(manualStatus);
+            const persistedStatus = manualOverrideActive
+              ? (manualStatus as "DELIVERED" | "PENDING" | "RETURN")
+              : processed.status;
             const mergedRaw = JSON.stringify({
               ...preserved,
               TrackingID: String((preserved as any).TrackingID ?? r.tracking_number).trim(),
@@ -1085,11 +1091,12 @@ const trackingWorker = new Worker(
               mo_issued_number: (r.raw as any)?.mo_issued_number ?? undefined,
               resolved_delivery_office: processed.resolvedDeliveryOffice,
               tracking_category: processed.trackingCategory,
-              complaint_eligible: processed.complaintEligible,
-              system_status: processed.systemStatus,
-              System_Status: processed.systemStatus,
-              MOS_Number: processed.moIssued !== "-" ? processed.moIssued : undefined,
-              mos_number: processed.moIssued !== "-" ? processed.moIssued : undefined,
+              complaint_eligible: persistedStatus === "PENDING" ? true : processed.complaintEligible,
+              final_status: persistedStatus,
+              system_status: manualOverrideActive ? persistedStatus : processed.systemStatus,
+              System_Status: manualOverrideActive ? persistedStatus : processed.systemStatus,
+              MOS_Number: processed.moIssued !== "-" ? processed.moIssued : "-",
+              mos_number: processed.moIssued !== "-" ? processed.moIssued : "-",
               moIssuedNumber: processed.moIssued !== "-" ? processed.moIssued : undefined,
             });
             try {
@@ -1119,7 +1126,7 @@ const trackingWorker = new Worker(
               create: {
                 userId: job.userId,
                 trackingNumber: r.tracking_number,
-                status: processed.status,
+                status: persistedStatus,
                 city: processed.resolvedDeliveryOffice !== "-" ? processed.resolvedDeliveryOffice : (r.city ?? null),
                 latestDate: r.latest_date ?? null,
                 latestTime: r.latest_time ?? null,
@@ -1127,7 +1134,7 @@ const trackingWorker = new Worker(
                 rawJson: mergedRaw,
               },
               update: {
-                status: processed.status,
+                status: persistedStatus,
                 city: processed.resolvedDeliveryOffice !== "-" ? processed.resolvedDeliveryOffice : (r.city ?? null),
                 latestDate: r.latest_date ?? null,
                 latestTime: r.latest_time ?? null,
