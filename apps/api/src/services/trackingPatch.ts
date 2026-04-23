@@ -468,8 +468,14 @@ function isReturnFinalText(lastEvent: Event | null): boolean {
 
 function normalizePatchedFinalStatus(value: unknown): PatchedTrackingMeta["final_status"] {
   const normalized = lower(value);
-  if (normalized.includes("delivered")) return "Delivered";
   if (normalized.includes("return")) return "Return";
+  if (normalized.includes("delivered")) return "Delivered";
+  return "Pending";
+}
+
+function finalStatusFromCycleInterpretation(value: TrackingCycleInterpretation["final_status"]): PatchedTrackingMeta["final_status"] {
+  if (value === "RETURNED") return "Return";
+  if (value === "DELIVERED" || value === "DELIVERED WITH PAYMENT") return "Delivered";
   return "Pending";
 }
 
@@ -609,6 +615,11 @@ export function applyTrackingPatchLayer(
   const sortedEvents = processEvents(response.events);
   // Final UI override: keep oldest event at the top.
   const displayEvents = [...sortedEvents];
+  const cycleInterpretation = interpretTrackingCycles({
+    trackingNumber: response.tracking_number,
+    events: displayEvents,
+    raw: response.raw,
+  });
   let meta = deriveMeta(sortedEvents, Boolean(opts?.manualPendingOverride));
 
   if (!meta.audit.ok) {
@@ -630,7 +641,7 @@ export function applyTrackingPatchLayer(
 
   const manualPendingOverride = Boolean(opts?.manualPendingOverride);
   const lastEvent = displayEvents[displayEvents.length - 1] ?? null;
-  meta.final_status = normalizePatchedFinalStatus((response as any)?.final_status ?? response.meta?.final_status ?? response.status);
+  meta.final_status = finalStatusFromCycleInterpretation(cycleInterpretation.final_status);
 
   const sourceCycle = Number((response as any)?.current_cycle ?? response.meta?.current_cycle ?? 0);
   if (Number.isFinite(sourceCycle) && sourceCycle > 0) {
@@ -660,12 +671,6 @@ export function applyTrackingPatchLayer(
   );
   console.log(`RAW_STATUS = "${statusBeforePatch}"`);
   console.log(`COMPUTED_STATUS = "${meta.final_status}"`);
-
-  const cycleInterpretation = interpretTrackingCycles({
-    trackingNumber: response.tracking_number,
-    events: displayEvents,
-    raw: response.raw,
-  });
 
   meta.cycle_description = `${meta.final_status} (Loop ${Math.max(1, meta.current_cycle)})`;
 

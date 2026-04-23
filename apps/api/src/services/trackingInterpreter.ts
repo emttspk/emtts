@@ -98,6 +98,29 @@ function isCodScope(trackingNumber: string, raw: unknown): boolean {
     const n = Number((m ? m[0] : rawAmount).replace(/,/g, ""));
     if (Number.isFinite(n) && n > 0) return true;
   }
+
+  const moCandidates = [
+    nested.money_order_number,
+    nested.money_order_no,
+    nested.moneyOrderNumber,
+    nested.mo_issued_number,
+    nested.mos_number,
+    nested.mos_id,
+    nested.latest_mos_id,
+    top.money_order_number,
+    top.money_order_no,
+    top.moneyOrderNumber,
+    top.mo_issued_number,
+    top.mos_number,
+    top.mos_id,
+    top.latest_mos_id,
+  ].map((value) => text(value).toUpperCase());
+
+  if (moCandidates.some((value) => value.startsWith("MOS"))) return true;
+
+  const latestStatus = lower(nested.latest_status ?? top.latest_status);
+  if (latestStatus.includes("money order") || latestStatus.includes("mos")) return true;
+
   return false;
 }
 
@@ -123,6 +146,13 @@ function normalizeEventType(description: string): NormalizedEventType {
   if (/\bmos\b/.test(t) && /dispatch|dispatched/.test(t)) return "MOS_DISPATCH";
   if (/\bmos\b/.test(t) && /delivered/.test(t) && !/undelivered/.test(t)) return "MOS_DELIVERED";
 
+  if (
+    (t.includes("return dispatch") || t.includes("returned to sender") || t.includes("return to sender"))
+    || (t.includes("dispatch") && t.includes("return"))
+  ) {
+    return "RETURN_DISPATCH";
+  }
+
   if (t.includes("undelivered") || t.includes("refused") || t.includes("not found") || t.includes("deposit")) {
     return "UNDELIVERED";
   }
@@ -133,17 +163,8 @@ function normalizeEventType(description: string): NormalizedEventType {
 
   if (t.includes("delivered") && !t.includes("undelivered")) return "DELIVERED";
 
-  // Note: "returned to sender" and "return to sender" are caught by RETURN_DISPATCH below.
-
   if (t.includes("booked at") || t === "booked" || t.includes("booking")) return "BOOKED";
   if (t.includes("received at dmo")) return "RECEIVED_AT_DMO";
-
-  if (
-    (t.includes("return dispatch") || t.includes("returned to sender") || t.includes("return to sender"))
-    || (t.includes("dispatch") && t.includes("return"))
-  ) {
-    return "RETURN_DISPATCH";
-  }
 
   if (t.includes("money order") && t.includes("issued")) return "MONEY_ORDER_ISSUED";
 
@@ -387,9 +408,8 @@ function determineCycleInterpretation(input: {
 
   // Cycle 2: undelivered -> return dispatch -> back to booking side -> delivered at booking side.
   if (
-    state.hasUndelivered
+    (state.hasUndelivered || state.hasReturnDispatch)
     && state.hasReturnDispatch
-    && state.hasReturnReceivedAtBookingDmo
     && state.hasDeliveredAtBookingOfficeAfterReturn
   ) {
     return {
