@@ -159,10 +159,8 @@ function resolveMoForDisplay(explicitSystemMo: string | null, processed: ReturnT
 }
 
 function resolvePersistedStatus(raw: Record<string, unknown>, computedStatus: unknown): "DELIVERED" | "PENDING" | "RETURN" {
-  if (Boolean((raw as any).manual_override)) {
-    const manual = normalizeManualStatus((raw as any).manual_status);
-    if (manual) return manual;
-  }
+  const manual = normalizeManualStatus((raw as any).manual_status);
+  if (manual) return manual;
   const computed = canonicalShipmentStatus(String(computedStatus ?? "").trim(), null);
   if (computed === "DELIVERED") return "DELIVERED";
   if (computed === "RETURN") return "RETURN";

@@ -73,10 +73,8 @@ function normalizeManualStatus(input: unknown): "DELIVERED" | "PENDING" | "RETUR
 }
 
 function resolvePersistedStatus(raw: Record<string, unknown>, computedStatus: unknown): "DELIVERED" | "PENDING" | "RETURN" {
-  if (Boolean((raw as any).manual_override)) {
-    const manual = normalizeManualStatus((raw as any).manual_status);
-    if (manual) return manual;
-  }
+  const manual = normalizeManualStatus((raw as any).manual_status);
+  if (manual) return manual;
   const upper = String(computedStatus ?? "").trim().toUpperCase();
   if (upper === "DELIVERED") return "DELIVERED";
   if (upper === "RETURN" || upper === "RETURNED" || upper === "RETURN_IN_PROCESS") return "RETURN";

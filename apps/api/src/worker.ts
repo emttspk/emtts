@@ -1073,7 +1073,7 @@ const trackingWorker = new Worker(
             console.log(`[TrackingStatus] ${r.tracking_number} | System MOS: ${processed.systemMo} | Tracking MOS: ${processed.trackingMo} | Match: ${processed.moMatch} | Last Event: ${lastEvent} | Final Status: ${processed.systemStatus}`);
             const manualStatusRaw = String((preserved as any)?.manual_status ?? "").trim().toUpperCase();
             const manualStatus = manualStatusRaw === "RETURNED" ? "RETURN" : manualStatusRaw;
-            const manualOverrideActive = Boolean((preserved as any)?.manual_override) && ["DELIVERED", "PENDING", "RETURN"].includes(manualStatus);
+            const manualOverrideActive = ["DELIVERED", "PENDING", "RETURN"].includes(manualStatus);
             const persistedStatus = manualOverrideActive
               ? (manualStatus as "DELIVERED" | "PENDING" | "RETURN")
               : processed.status;
