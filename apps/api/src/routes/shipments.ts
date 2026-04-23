@@ -77,11 +77,16 @@ async function ensureMoneyOrderTables() {
 
 async function getMoneyOrderMap(userId: string, trackingNumbers: string[]) {
   await ensureMoneyOrderTables();
-  if (trackingNumbers.length === 0) return new Map<string, MoneyOrderSummary>();
+  const uniqueTracking = Array.from(new Set(trackingNumbers.map((v) => String(v ?? "").trim()).filter(Boolean)));
+  if (uniqueTracking.length === 0) return new Map<string, MoneyOrderSummary>();
   const rows = await prisma.$queryRaw<MoneyOrderRow[]>`
-    SELECT mo_number, tracking_number, segment_index, amount
+    SELECT mo_number,
+           COALESCE(NULLIF(TRIM(tracking_id), ''), tracking_number) AS tracking_number,
+           segment_index,
+           amount
     FROM money_orders
-    WHERE user_id = ${userId} AND tracking_number IN (${Prisma.join(trackingNumbers)})
+    WHERE user_id = ${userId}
+      AND COALESCE(NULLIF(TRIM(tracking_id), ''), tracking_number) IN (${Prisma.join(uniqueTracking)})
     ORDER BY tracking_number ASC, segment_index ASC, mo_number ASC
   `;
   const grouped = new Map<string, MoneyOrderSummary>();
@@ -405,7 +410,7 @@ shipmentsRouter.get("/", async (req, res) => {
     const fromDb = moMap.get(shipment.trackingNumber) ?? null;
     const raw = parseRaw(shipment.rawJson);
     const consignee = resolveConsigneeFields(raw);
-    const explicitSystemMo = fromDb?.numbers.join(", ") ?? null;
+    const explicitSystemMo = fromDb && fromDb.numbers.length > 0 ? fromDb.numbers.join(", ") : null;
     const processed = processTracking(raw, { explicitMo: explicitSystemMo, trackingNumber: shipment.trackingNumber });
     const preferredStatus = String(
       (raw as Record<string, unknown>).final_status
@@ -420,8 +425,8 @@ shipmentsRouter.get("/", async (req, res) => {
     const manualStatus = normalizeManualStatus((raw as any).manual_status);
     const manualOverrideActive = Boolean((raw as any).manual_override) && Boolean(manualStatus);
     const statusForRaw = manualOverrideActive ? canonicalStatus : processed.systemStatus;
-    const moIssued = processed.moIssued !== "-" ? processed.moIssued : null;
-    const moValue = moIssued && fromDb && fromDb.numbers.length > 0 ? fromDb.value : null;
+    const moIssued = explicitSystemMo;
+    const moValue = explicitSystemMo ? fromDb?.value ?? null : null;
     const mergedRaw = JSON.stringify({
       ...raw,
       collected_amount: normalizeCollectedAmount((raw as any)?.collected_amount ?? (raw as any)?.collect_amount ?? (raw as any)?.CollectAmount),
@@ -664,14 +669,14 @@ shipmentsRouter.get("/:id", async (req, res) => {
   const moMap = await getMoneyOrderMap(userId, [shipment.trackingNumber]);
   const fromDb = moMap.get(shipment.trackingNumber) ?? null;
   const raw = parseRaw(shipment.rawJson);
-  const explicitSystemMo = fromDb?.numbers.join(", ") ?? null;
+  const explicitSystemMo = fromDb && fromDb.numbers.length > 0 ? fromDb.numbers.join(", ") : null;
   const processed = processTracking(raw, { explicitMo: explicitSystemMo, trackingNumber: shipment.trackingNumber });
   const canonicalStatus = resolvePersistedStatus(raw, shipment.status ?? processed.status);
   const manualStatus = normalizeManualStatus((raw as any).manual_status);
   const manualOverrideActive = Boolean((raw as any).manual_override) && Boolean(manualStatus);
   const statusForRaw = manualOverrideActive ? canonicalStatus : processed.systemStatus;
-  const moIssued = processed.moIssued !== "-" ? processed.moIssued : null;
-  const moValue = moIssued && fromDb && fromDb.numbers.length > 0 ? fromDb.value : null;
+  const moIssued = explicitSystemMo;
+  const moValue = explicitSystemMo ? fromDb?.value ?? null : null;
   return res.json({
     success: true,
     shipment: {
@@ -917,8 +922,8 @@ shipmentsRouter.post("/refresh-pending", async (req, res) => {
     try {
       const raw = parseRaw(shipment.rawJson);
       const fromDbMo = moMap.get(trackingNumber) ?? null;
-      const explicitSystemMo = fromDbMo?.numbers.join(", ") ?? null;
-      const moValue = fromDbMo && fromDbMo.numbers.length > 0 ? fromDbMo.value : null;
+      const explicitSystemMo = fromDbMo && fromDbMo.numbers.length > 0 ? fromDbMo.numbers.join(", ") : null;
+      const moValue = explicitSystemMo ? fromDbMo?.value ?? null : null;
       const trackedRaw = tracked.raw ?? null;
       const collectedAmount = normalizeCollectedAmount(
         (raw as any)?.collected_amount ??
@@ -948,13 +953,13 @@ shipmentsRouter.post("/refresh-pending", async (req, res) => {
         System_Status: processed.systemStatus,
         tracking_category: processed.trackingCategory,
         complaint_eligible: processed.complaintEligible,
-        MOS_Number: processed.moIssued !== "-" ? processed.moIssued : undefined,
-        mos_number: processed.moIssued !== "-" ? processed.moIssued : undefined,
+        MOS_Number: explicitSystemMo ?? undefined,
+        mos_number: explicitSystemMo ?? undefined,
         trackingMo: processed.trackingMo,
         systemMo: processed.systemMo,
         moMatch: processed.moMatch,
-        moIssuedNumber: processed.moIssued !== "-" ? processed.moIssued : undefined,
-        moIssuedValue: processed.moIssued !== "-" ? moValue : undefined,
+        moIssuedNumber: explicitSystemMo ?? undefined,
+        moIssuedValue: explicitSystemMo ? moValue ?? undefined : undefined,
       };
 
       const normalized = resolvePersistedStatus(raw, processed.status);

@@ -296,12 +296,22 @@ type MoneyOrderRow = {
   segment_index: number;
 };
 
-async function allocateNextMoneyOrderNumber(issueDate: string, reservedNumbers: Set<string>) {
-  await ensureMoneyOrderTables();
+function isMoneyOrderUniqueViolation(error: unknown) {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error ?? "").toLowerCase();
+  return message.includes("mo_number") || message.includes("idx_money_orders_mo_number") || message.includes("duplicate key");
+}
+
+function moneyOrderLockKey(issueDate: string) {
+  const prefix = buildMoneyOrderNumber(1, issueDate).slice(0, 7);
+  return `money_orders:mos:${prefix}`;
+}
+
+async function allocateNextMoneyOrderNumber(executor: Prisma.TransactionClient, issueDate: string, reservedNumbers: Set<string>) {
+  await executor.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${moneyOrderLockKey(issueDate)}))`;
 
   let sequence = 1;
   const latestPrefix = `${buildMoneyOrderNumber(1, issueDate).slice(0, 7)}%`;
-  const latest = await prisma.$queryRaw<Array<{ mo_number: string }>>`
+  const latest = await executor.$queryRaw<Array<{ mo_number: string }>>`
     SELECT mo_number
     FROM money_orders
     WHERE mo_number LIKE ${latestPrefix}
@@ -315,7 +325,13 @@ async function allocateNextMoneyOrderNumber(issueDate: string, reservedNumbers: 
 
   while (true) {
     const moNumber = buildMoneyOrderNumber(sequence, issueDate);
-    if (!reservedNumbers.has(moNumber)) {
+    const exists = await executor.$queryRaw<Array<{ exists: number }>>`
+      SELECT 1::int AS exists
+      FROM money_orders
+      WHERE mo_number = ${moNumber}
+      LIMIT 1
+    `;
+    if (!reservedNumbers.has(moNumber) && exists.length === 0) {
       reservedNumbers.add(moNumber);
       return moNumber;
     }
@@ -345,64 +361,80 @@ async function ensureSystemMoneyOrders(
   const reservedNumbers = new Set<string>();
 
   for (const row of uniqueRows) {
-    const desiredLines = moneyOrderBreakdown(row.amount, row.shipmentType);
-    const existing = await prisma.$queryRaw<MoneyOrderRow[]>`
-      SELECT seq, tracking_number, tracking_id, mo_number, issue_date, amount, segment_index
-      FROM money_orders
-      WHERE user_id = ${userId} AND tracking_number = ${row.trackingNumber}
-      ORDER BY segment_index ASC, seq ASC
-    `;
+    await prisma.$transaction(async (tx) => {
+      const desiredLines = moneyOrderBreakdown(row.amount, row.shipmentType);
+      const existing = await tx.$queryRaw<MoneyOrderRow[]>`
+        SELECT seq, tracking_number, tracking_id, mo_number, issue_date, amount, segment_index
+        FROM money_orders
+        WHERE user_id = ${userId} AND tracking_number = ${row.trackingNumber}
+        ORDER BY segment_index ASC, seq ASC
+      `;
 
-    existing.forEach((currentRow) => {
-      const validatedMoNumber = validateMoneyOrderNumber(currentRow.mo_number);
-      if (validatedMoNumber.ok) {
-        reservedNumbers.add(validatedMoNumber.value);
+      existing.forEach((currentRow) => {
+        const validatedMoNumber = validateMoneyOrderNumber(currentRow.mo_number);
+        if (validatedMoNumber.ok) {
+          reservedNumbers.add(validatedMoNumber.value);
+        }
+      });
+
+      if (desiredLines.length === 0) {
+        if (existing.length > 0) {
+          await tx.$executeRaw`
+            DELETE FROM money_orders WHERE user_id = ${userId} AND tracking_number = ${row.trackingNumber}
+          `;
+        }
+        return;
+      }
+
+      for (const desiredLine of desiredLines) {
+        const currentRow = existing.find((item) => item.segment_index === desiredLine.segmentIndex) ?? null;
+        const validatedMoNumber = currentRow ? validateMoneyOrderNumber(currentRow.mo_number) : null;
+
+        if (currentRow && validatedMoNumber?.ok) {
+          await tx.$executeRaw`
+            UPDATE money_orders
+            SET tracking_id = ${row.trackingNumber},
+                issue_date = ${row.issueDate},
+                amount = ${desiredLine.moAmount},
+                updated_at = CURRENT_TIMESTAMP
+            WHERE seq = ${currentRow.seq}
+          `;
+          continue;
+        }
+
+        let attempts = 0;
+        while (attempts < 25) {
+          attempts += 1;
+          const moNumber = await allocateNextMoneyOrderNumber(tx, row.issueDate, reservedNumbers);
+          try {
+            await tx.$executeRaw`
+              INSERT INTO money_orders (id, user_id, tracking_number, mo_number, segment_index, tracking_id, issue_date, amount)
+              VALUES (${randomUUID()}, ${userId}, ${row.trackingNumber}, ${moNumber}, ${desiredLine.segmentIndex}, ${row.trackingNumber}, ${row.issueDate}, ${desiredLine.moAmount})
+              ON CONFLICT (user_id, tracking_number, segment_index)
+              DO UPDATE SET
+                tracking_id = EXCLUDED.tracking_id,
+                issue_date = EXCLUDED.issue_date,
+                amount = EXCLUDED.amount,
+                updated_at = CURRENT_TIMESTAMP
+            `;
+            break;
+          } catch (error) {
+            if (!isMoneyOrderUniqueViolation(error) || attempts >= 25) {
+              throw error;
+            }
+            reservedNumbers.delete(moNumber);
+          }
+        }
+      }
+
+      const staleRows = existing.filter((item) => item.segment_index >= desiredLines.length);
+      if (staleRows.length > 0) {
+        const staleSeqs = staleRows.map((item) => item.seq);
+        await tx.$executeRaw`
+          DELETE FROM money_orders WHERE seq IN (${Prisma.join(staleSeqs)})
+        `;
       }
     });
-
-    if (desiredLines.length === 0) {
-      if (existing.length > 0) {
-        await prisma.$executeRaw`
-          DELETE FROM money_orders WHERE user_id = ${userId} AND tracking_number = ${row.trackingNumber}
-        `;
-      }
-      continue;
-    }
-
-    for (const desiredLine of desiredLines) {
-      const currentRow = existing.find((item) => item.segment_index === desiredLine.segmentIndex) ?? null;
-      const validatedMoNumber = currentRow ? validateMoneyOrderNumber(currentRow.mo_number) : null;
-      const moNumber = validatedMoNumber?.ok
-        ? validatedMoNumber.value
-        : await allocateNextMoneyOrderNumber(row.issueDate, reservedNumbers);
-
-      if (currentRow) {
-        await prisma.$executeRaw`
-          UPDATE money_orders
-          SET mo_number = ${moNumber},
-              segment_index = ${desiredLine.segmentIndex},
-              tracking_id = ${row.trackingNumber},
-              issue_date = ${row.issueDate},
-              amount = ${desiredLine.moAmount},
-              updated_at = CURRENT_TIMESTAMP
-          WHERE seq = ${currentRow.seq}
-        `;
-        continue;
-      }
-
-      await prisma.$executeRaw`
-        INSERT INTO money_orders (id, user_id, tracking_number, mo_number, segment_index, tracking_id, issue_date, amount)
-        VALUES (${randomUUID()}, ${userId}, ${row.trackingNumber}, ${moNumber}, ${desiredLine.segmentIndex}, ${row.trackingNumber}, ${row.issueDate}, ${desiredLine.moAmount})
-      `;
-    }
-
-    const staleRows = existing.filter((item) => item.segment_index >= desiredLines.length);
-    if (staleRows.length > 0) {
-      const staleSeqs = staleRows.map((item) => item.seq);
-      await prisma.$executeRaw`
-        DELETE FROM money_orders WHERE seq IN (${Prisma.join(staleSeqs)})
-      `;
-    }
   }
 }
 
