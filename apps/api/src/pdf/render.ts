@@ -26,16 +26,30 @@ export async function htmlToPdfBuffer(
     const page = await browser.newPage();
     try {
       await page.setContent(html, { waitUntil: "networkidle0" });
+      const pdfOptions = format === "envelope-9x4"
+        ? {
+            width: "9in",
+            height: "4in",
+            printBackground: true,
+            margin: {
+              top: "0mm",
+              bottom: "0mm",
+              left: "0mm",
+              right: "0mm",
+            },
+          }
+        : {
+            format: "A4" as const,
+            printBackground: true,
+            margin: {
+              top: "0mm",
+              bottom: "0mm",
+              left: "0mm",
+              right: "0mm",
+            },
+          };
       return await page.pdf({
-        format: "A4",
-        printBackground: true,
-        scale: 1,
-        margin: {
-          top: "0mm",
-          bottom: "0mm",
-          left: "0mm",
-          right: "0mm",
-        },
+        ...pdfOptions,
       });
     } finally {
       await page.close();
@@ -66,8 +80,8 @@ export async function htmlToPdfBufferInFreshBrowser(
       await page.evaluate(() => document.body.innerHTML.length);
       return await page.pdf({
         format: "A4",
+        landscape: true,
         printBackground: true,
-        scale: 1,
         margin: {
           top: "0mm",
           bottom: "0mm",

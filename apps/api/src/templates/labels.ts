@@ -288,7 +288,10 @@ function resolveMoneyOrderAmount(order: Pick<LabelOrder, "CollectAmount" | "ship
 
   const explicitMoAmount = toNum(order.amountRs ?? order.amount ?? 0);
   if (explicitMoAmount > 0) {
-    // Explicit MO amount rows are already normalized amounts; do not re-derive.
+    const explicitCommission = resolveMoneyOrderCommission(order);
+    if (explicitCommission > 0) {
+      return Math.max(0, explicitMoAmount - explicitCommission);
+    }
     return explicitMoAmount;
   }
 

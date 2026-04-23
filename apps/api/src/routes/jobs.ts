@@ -42,6 +42,11 @@ function toNum(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function hasCnic(value: unknown) {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  return digits.length === 13;
+}
+
 function moneyOrderUnitsForAmount(total: number) {
   const normalized = Math.max(0, Math.floor(total));
   return Math.max(1, Math.ceil(normalized / 20000));
@@ -468,6 +473,30 @@ export async function handleLabelUpload(req: Request, res: Response) {
       const hasMoneyOrderAmount = orders.some((order) => toNum((order as any)?.CollectAmount ?? (order as any)?.amount ?? 0) > 0);
       if (!hasMoneyOrderAmount) {
         effectiveGenerateMoneyOrder = false;
+      }
+    }
+
+    if (effectiveGenerateMoneyOrder) {
+      const hasVplShipment = orders.some((order) => {
+        const rowType = String((order as any)?.shipmentType ?? (order as any)?.shipmenttype ?? shipmentType ?? "").trim().toUpperCase();
+        return rowType === "VPL";
+      });
+
+      if (hasVplShipment) {
+        const profileCnic = req.body?.cnic;
+        const hasProfileCnic = hasCnic(profileCnic);
+        const hasOrderCnic = orders.some((order) => hasCnic(
+          (order as any)?.cnic
+            ?? (order as any)?.CNIC
+            ?? (order as any)?.shipper_cnic
+            ?? (order as any)?.shipperCnic
+            ?? (order as any)?.sender_cnic
+            ?? (order as any)?.senderCnic,
+        ));
+
+        if (!hasProfileCnic && !hasOrderCnic) {
+          throw new Error("CNIC required for Value Payable shipment");
+        }
       }
     }
 
