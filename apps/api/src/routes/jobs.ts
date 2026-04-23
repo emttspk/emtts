@@ -485,16 +485,7 @@ export async function handleLabelUpload(req: Request, res: Response) {
       if (hasVplShipment) {
         const profileCnic = req.body?.cnic;
         const hasProfileCnic = hasCnic(profileCnic);
-        const hasOrderCnic = orders.some((order) => hasCnic(
-          (order as any)?.cnic
-            ?? (order as any)?.CNIC
-            ?? (order as any)?.shipper_cnic
-            ?? (order as any)?.shipperCnic
-            ?? (order as any)?.sender_cnic
-            ?? (order as any)?.senderCnic,
-        ));
-
-        if (!hasProfileCnic && !hasOrderCnic) {
+        if (!hasProfileCnic) {
           throw new Error("CNIC required for Value Payable shipment");
         }
       }
