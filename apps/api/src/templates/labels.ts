@@ -892,9 +892,9 @@ function splitMoNumber(baseMo: string, index: number) {
   return `${prefix}${String(next).padStart(4, "0")}`;
 }
 
-function generateMoBarcodeBase64(text: string) {
+function generateMoBarcodeBase64(moNumber: string) {
   try {
-    const value = String(text ?? "").trim();
+    const value = strictMoneyOrderNumber(moNumber);
     if (!value || value === "-") return "";
     const canvas = createCanvas(308, 90);
     JsBarcode(canvas, value, {
@@ -920,6 +920,7 @@ function expandBenchmarkOrders(orders: OrderRecord[]): OrderRecord[] {
       expanded.push({
         ...(order as any),
         mo_number: explicitMoNumber,
+        mo_barcodeBase64: generateMoBarcodeBase64(explicitMoNumber),
         amount: String(explicitMoAmount),
         amountRs: explicitMoAmount,
         amountWords: expectedAmountWords(explicitMoAmount),
@@ -932,8 +933,11 @@ function expandBenchmarkOrders(orders: OrderRecord[]): OrderRecord[] {
 
     if (lines.length <= 1) {
       const resolvedMoAmount = lines[0]?.moAmount ?? moAmount;
+      const resolvedMoNumber = strictMoneyOrderNumber((order as any)?.mo_number);
       expanded.push({
         ...(order as any),
+        mo_number: resolvedMoNumber !== "-" ? resolvedMoNumber : (order as any)?.mo_number,
+        mo_barcodeBase64: resolvedMoNumber !== "-" ? generateMoBarcodeBase64(resolvedMoNumber) : "",
         amount: String(resolvedMoAmount),
         amountRs: resolvedMoAmount,
         amountWords: expectedAmountWords(resolvedMoAmount),

@@ -22,16 +22,20 @@ export async function htmlToPdfBuffer(
   browser: Browser,
   format: "A4" | "4x6" | "envelope-9x4" = "A4",
 ) {
-  const isMoneyOrderPdf = format === "A4";
   const renderOnce = async () => {
     const page = await browser.newPage();
     try {
       await page.setContent(html, { waitUntil: "networkidle0" });
       return await page.pdf({
         format: "A4",
-        printBackground: isMoneyOrderPdf ? false : true,
-        preferCSSPageSize: isMoneyOrderPdf,
-        scale: isMoneyOrderPdf ? 0.85 : 1,
+        printBackground: true,
+        scale: 1,
+        margin: {
+          top: "0mm",
+          bottom: "0mm",
+          left: "0mm",
+          right: "0mm",
+        },
       });
     } finally {
       await page.close();
@@ -55,7 +59,6 @@ export async function htmlToPdfBufferInFreshBrowser(
   format: "A4" | "4x6" | "envelope-9x4" = "A4",
 ) {
   const browser = await launchPuppeteerBrowser();
-  const isMoneyOrderPdf = format === "A4";
   try {
     const page = await browser.newPage();
     try {
@@ -63,9 +66,14 @@ export async function htmlToPdfBufferInFreshBrowser(
       await page.evaluate(() => document.body.innerHTML.length);
       return await page.pdf({
         format: "A4",
-        printBackground: isMoneyOrderPdf ? false : true,
-        preferCSSPageSize: isMoneyOrderPdf,
-        scale: isMoneyOrderPdf ? 0.85 : 1,
+        printBackground: true,
+        scale: 1,
+        margin: {
+          top: "0mm",
+          bottom: "0mm",
+          left: "0mm",
+          right: "0mm",
+        },
       });
     } finally {
       await page.close();
