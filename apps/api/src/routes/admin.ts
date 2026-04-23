@@ -61,6 +61,7 @@ adminRouter.get("/users", async (_req, res) => {
       const trackingLimit = (subscription?.plan.monthlyTrackingLimit ?? subscription?.plan.monthlyLabelLimit ?? 0) + (user.extraTrackingCredits ?? 0);
       const consumedUnits = (usage.labelsGenerated ?? 0) + (usage.labelsQueued ?? 0);
       const consumedTracking = (usage.trackingGenerated ?? 0) + (usage.trackingQueued ?? 0);
+      const remainingUnits = Math.max(0, labelLimit - consumedUnits);
 
       return {
         id: user.id,
@@ -93,8 +94,11 @@ adminRouter.get("/users", async (_req, res) => {
         balances: {
           labelLimit,
           trackingLimit,
-          labelsRemaining: Math.max(0, labelLimit - consumedUnits),
+          labelsRemaining: remainingUnits,
           trackingRemaining: Math.max(0, trackingLimit - consumedTracking),
+          total_units: labelLimit,
+          used_units: consumedUnits,
+          remaining_units: remainingUnits,
         },
       };
     }),

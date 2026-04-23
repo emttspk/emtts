@@ -2,8 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
-import { monthKeyUTC } from "../usage/month.js";
-import { COMPLAINT_UNIT_COST, getComplaintAllowance } from "../usage/unitConsumption.js";
+import { COMPLAINT_UNIT_COST, getComplaintAllowance, getLatestUnitSnapshot } from "../usage/unitConsumption.js";
 
 export const meRouter = Router();
 
@@ -36,20 +35,23 @@ meRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
     orderBy: { createdAt: "desc" },
   });
 
-  const month = monthKeyUTC();
-  const usage =
-    (await prisma.usageMonthly.findUnique({
-      where: { userId_month: { userId, month } },
-    })) ?? { month, labelsGenerated: 0, labelsQueued: 0, trackingGenerated: 0, trackingQueued: 0 };
+  const snapshot = await getLatestUnitSnapshot(userId);
+  const month = snapshot.month;
+  const usage = {
+    labelsGenerated: snapshot.labelsGenerated,
+    labelsQueued: snapshot.labelsQueued,
+    trackingGenerated: snapshot.trackingGenerated,
+    trackingQueued: snapshot.trackingQueued,
+  };
 
-  const labelLimit = (subscription?.plan.monthlyLabelLimit ?? 0) + (user.extraLabelCredits ?? 0);
-  const trackingLimit = (subscription?.plan.monthlyTrackingLimit ?? subscription?.plan.monthlyLabelLimit ?? 0) + (user.extraTrackingCredits ?? 0);
-  const labelsQueued = usage.labelsQueued ?? 0;
-  const trackingGenerated = usage.trackingGenerated ?? 0;
-  const trackingQueued = usage.trackingQueued ?? 0;
+  const labelLimit = snapshot.labelLimit;
+  const trackingLimit = snapshot.trackingLimit;
+  const labelsQueued = snapshot.labelsQueued;
+  const trackingGenerated = snapshot.trackingGenerated;
+  const trackingQueued = snapshot.trackingQueued;
   const complaintAllowance = await getComplaintAllowance(userId);
-
-  const remainingUnits = Math.max(0, labelLimit - ((usage.labelsGenerated ?? 0) + labelsQueued));
+  const usedUnits = (usage.labelsGenerated ?? 0) + labelsQueued;
+  const remainingUnits = snapshot.remainingUnits;
   const periodEnd = subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd) : null;
   const isExpired = !periodEnd || periodEnd.getTime() < Date.now();
   const isNearExpiry = Boolean(periodEnd && periodEnd.getTime() - Date.now() <= 3 * 24 * 60 * 60 * 1000 && !isExpired);
@@ -78,6 +80,8 @@ meRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
       labelsRemaining: remainingUnits,
       trackingRemaining: Math.max(0, trackingLimit - (trackingGenerated + trackingQueued)),
       unitsRemaining: remainingUnits,
+      total_units: labelLimit,
+      used_units: usedUnits,
       complaintUnitCost: COMPLAINT_UNIT_COST,
       complaintDailyLimit: complaintAllowance.dailyLimit,
       complaintDailyRemaining: complaintAllowance.dailyRemaining,

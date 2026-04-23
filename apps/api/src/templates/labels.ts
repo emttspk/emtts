@@ -41,6 +41,17 @@ function toNum(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function resolveMoneyOrderCommission(order: Record<string, unknown>) {
+  return toNum(
+    order.mo_commission ??
+      order.moCommission ??
+      order.commission ??
+      order.MOCommission ??
+      order.Commission ??
+      0,
+  );
+}
+
 function deriveNetCommissionFromGross(grossAmount: number, shipmentType: unknown) {
   const normalizedShipment = String(shipmentType ?? "").trim().toUpperCase();
   const gross = Math.max(0, Math.floor(grossAmount));
@@ -259,13 +270,28 @@ function getLabelAmountSummary(order: Pick<LabelOrder, "carrierType" | "shipment
 }
 
 function resolveMoneyOrderAmount(order: Pick<LabelOrder, "CollectAmount" | "shipmentType" | "shipmenttype"> & Record<string, unknown>) {
+  const declaredGrossAmount = toNum(
+    order.CollectAmount ?? order.collect_amount ?? order.collected_amount ?? order.collectAmount ?? 0,
+  );
+  if (declaredGrossAmount > 0) {
+    const explicitCommission = resolveMoneyOrderCommission(order);
+    if (explicitCommission > 0) {
+      return Math.max(0, declaredGrossAmount - explicitCommission);
+    }
+
+    const shipmentType = String(order.shipmentType ?? order.shipmenttype ?? "").trim().toUpperCase();
+    if (shipmentType === "VPL" || shipmentType === "VPP") {
+      return deriveNetCommissionFromGross(declaredGrossAmount, shipmentType).netAmount;
+    }
+    return declaredGrossAmount;
+  }
+
   const explicitMoAmount = toNum(order.amountRs ?? order.amount ?? 0);
   if (explicitMoAmount > 0) {
     // Explicit MO amount rows are already normalized amounts; do not re-derive.
     return explicitMoAmount;
   }
 
-  const declaredGrossAmount = toNum(order.CollectAmount);
   const shipmentType = String(order.shipmentType ?? order.shipmenttype ?? "").trim().toUpperCase();
   if (shipmentType === "VPL" || shipmentType === "VPP") {
     return deriveNetCommissionFromGross(declaredGrossAmount, shipmentType).netAmount;

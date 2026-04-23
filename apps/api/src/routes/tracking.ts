@@ -270,7 +270,7 @@ async function runInlineTracking(jobId: string, userId: string) {
         console.log(`[TrackingStatus] ${r.tracking_number} | System MOS: ${processed.systemMo} | Tracking MOS: ${processed.trackingMo} | Match: ${processed.moMatch} | Last Event: ${lastEvent} | Final Status: ${processed.systemStatus}`);
 
         const persistedStatus = resolvePersistedStatus(preserved, processed.status ?? processed.systemStatus);
-        const manualOverrideActive = Boolean((preserved as any).manual_override) && Boolean(normalizeManualStatus((preserved as any).manual_status));
+        const manualOverrideActive = Boolean(normalizeManualStatus((preserved as any).manual_status));
         const mergedRaw = JSON.stringify({
           ...preserved,
           TrackingID: String((preserved as any).TrackingID ?? r.tracking_number).trim(),
@@ -703,7 +703,7 @@ trackingRouter.get("/track/:trackingNumber", requireAuth, async (req, res) => {
     );
 
     const persistedStatus = resolvePersistedStatus(preserved, processed.status ?? processed.systemStatus);
-    const manualOverrideActive = Boolean((preserved as any).manual_override) && Boolean(normalizeManualStatus((preserved as any).manual_status));
+    const manualOverrideActive = Boolean(normalizeManualStatus((preserved as any).manual_status));
     const mergedRaw = JSON.stringify({
       ...preserved,
       TrackingID: String((preserved as any).TrackingID ?? result.tracking_number).trim(),
