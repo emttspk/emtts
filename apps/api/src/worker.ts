@@ -406,23 +406,31 @@ async function ensureSystemMoneyOrders(
         while (attempts < 25) {
           attempts += 1;
           const moNumber = await allocateNextMoneyOrderNumber(tx, row.issueDate, reservedNumbers);
-          try {
-            await tx.$executeRaw`
-              INSERT INTO money_orders (id, user_id, tracking_number, mo_number, segment_index, tracking_id, issue_date, amount)
-              VALUES (${randomUUID()}, ${userId}, ${row.trackingNumber}, ${moNumber}, ${desiredLine.segmentIndex}, ${row.trackingNumber}, ${row.issueDate}, ${desiredLine.moAmount})
-              ON CONFLICT (user_id, tracking_number, segment_index)
-              DO UPDATE SET
-                tracking_id = EXCLUDED.tracking_id,
-                issue_date = EXCLUDED.issue_date,
-                amount = EXCLUDED.amount,
-                updated_at = CURRENT_TIMESTAMP
-            `;
+          const inserted = await tx.$executeRaw`
+            INSERT INTO money_orders (id, user_id, tracking_number, mo_number, segment_index, tracking_id, issue_date, amount)
+            VALUES (${randomUUID()}, ${userId}, ${row.trackingNumber}, ${moNumber}, ${desiredLine.segmentIndex}, ${row.trackingNumber}, ${row.issueDate}, ${desiredLine.moAmount})
+            ON CONFLICT DO NOTHING
+          `;
+
+          if (Number(inserted ?? 0) > 0) {
             break;
-          } catch (error) {
-            if (!isMoneyOrderUniqueViolation(error) || attempts >= 25) {
-              throw error;
-            }
-            reservedNumbers.delete(moNumber);
+          }
+
+          const alreadyLinked = await tx.$queryRaw<Array<{ seq: number }>>`
+            SELECT seq
+            FROM money_orders
+            WHERE user_id = ${userId}
+              AND tracking_number = ${row.trackingNumber}
+              AND segment_index = ${desiredLine.segmentIndex}
+            LIMIT 1
+          `;
+          if (alreadyLinked.length > 0) {
+            break;
+          }
+
+          reservedNumbers.delete(moNumber);
+          if (attempts >= 25) {
+            throw new Error("Unable to allocate unique money order number after 25 attempts");
           }
         }
       }
