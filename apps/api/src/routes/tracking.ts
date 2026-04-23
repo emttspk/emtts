@@ -1408,13 +1408,7 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
   }
 
   const complaintAllowance = await getComplaintAllowance(userId);
-  if (complaintAllowance.dailyRemaining <= 0) {
-    return res.status(429).json({
-      success: false,
-      message: `Daily complaint limit reached for ${complaintAllowance.planName ?? "your plan"}.`,
-    });
-  }
-  if (complaintAllowance.remainingUnits < COMPLAINT_UNIT_COST || complaintAllowance.trackingRemaining < COMPLAINT_UNIT_COST) {
+  if (complaintAllowance.remainingUnits < COMPLAINT_UNIT_COST) {
     return res.status(402).json({
       success: false,
       message: "Insufficient units for complaint submission.",

@@ -1291,7 +1291,7 @@ function frontFields(o: OrderRecord) {
   const showMoText = moNumber !== "-";
   const moBarcode = String((o as any).mo_barcodeBase64 ?? "").trim();
   const issueDate = String((o as any).issueDate ?? "").trim() || formatIssueDate();
-  const amountWords = String((o as any).amountWords ?? "").trim() || expectedAmountWords(amountRaw);
+  const amountWords = expectedAmountWords(amountRaw);
   const consigneeName = String((o as any).consigneeName ?? "").trim() || "-";
   const consigneeAddress = normalizeAddressLines((o as any).consigneeAddress ?? "") || "-";
   const consigneePhone = String((o as any).consigneePhone ?? "").trim() || "-";

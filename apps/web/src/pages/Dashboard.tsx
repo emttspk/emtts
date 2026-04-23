@@ -183,13 +183,8 @@ export default function Dashboard() {
     return { values, max };
   }, [stats.graphData]);
 
-  const trackingLimitBase = me?.balances?.trackingLimit ?? me?.subscription?.plan?.monthlyTrackingLimit ?? 0;
-  const trackingExtra = me?.balances?.extraTrackingCredits ?? 0;
-  const trackingTotalUnits = trackingLimitBase + trackingExtra;
-  const usedUnits = stats.trackingUsed ?? 0;
-  const remainingUnits = trackingTotalUnits > 0
-    ? Math.max(0, trackingTotalUnits - usedUnits)
-    : (me?.balances?.unitsRemaining ?? me?.activePackage?.unitsRemaining ?? me?.balances?.trackingRemaining ?? 0);
+  const usedUnits = (me?.usage?.labelsGenerated ?? 0) + (me?.usage?.labelsQueued ?? 0);
+  const remainingUnits = me?.balances?.unitsRemaining ?? me?.activePackage?.unitsRemaining ?? 0;
   const expiryDate = me?.activePackage?.expiresAt ?? me?.subscription?.currentPeriodEnd;
   const expiryDateObj = expiryDate ? new Date(expiryDate) : null;
   const daysToExpiry = expiryDateObj ? Math.ceil((expiryDateObj.getTime() - Date.now()) / (24 * 60 * 60 * 1000)) : null;

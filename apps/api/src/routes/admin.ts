@@ -58,8 +58,9 @@ adminRouter.get("/users", async (_req, res) => {
         trackingQueued: 0,
       };
       const labelLimit = (subscription?.plan.monthlyLabelLimit ?? 0) + (user.extraLabelCredits ?? 0);
-      const trackingLimit = labelLimit;
-      const unitsUsed = (usage.labelsGenerated ?? 0) + (usage.labelsQueued ?? 0);
+      const trackingLimit = (subscription?.plan.monthlyTrackingLimit ?? subscription?.plan.monthlyLabelLimit ?? 0) + (user.extraTrackingCredits ?? 0);
+      const consumedUnits = (usage.labelsGenerated ?? 0) + (usage.labelsQueued ?? 0);
+      const consumedTracking = (usage.trackingGenerated ?? 0) + (usage.trackingQueued ?? 0);
 
       return {
         id: user.id,
@@ -92,8 +93,8 @@ adminRouter.get("/users", async (_req, res) => {
         balances: {
           labelLimit,
           trackingLimit,
-          labelsRemaining: Math.max(0, labelLimit - unitsUsed),
-          trackingRemaining: Math.max(0, labelLimit - unitsUsed),
+          labelsRemaining: Math.max(0, labelLimit - consumedUnits),
+          trackingRemaining: Math.max(0, trackingLimit - consumedTracking),
         },
       };
     }),

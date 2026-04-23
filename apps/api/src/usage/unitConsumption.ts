@@ -42,7 +42,7 @@ function getRequestUnits(request: UnitRequest) {
 }
 
 function isTrackingScopedAction(actionType: UnitActionType) {
-  return actionType === "tracking" || actionType === "complaint";
+  return actionType === "tracking";
 }
 
 function getComplaintDailyLimit(planName: string | null | undefined) {
