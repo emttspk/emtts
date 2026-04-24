@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 export default function Hero() {
   return (
-    <section className="relative overflow-hidden border-b border-gray-100 bg-white">
+    <section className="relative overflow-hidden border-b border-gray-100 bg-gradient-to-br from-white via-[#f0faf4] to-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(22,163,74,0.12),_transparent_34%)]" />
       <div className="pointer-events-none absolute -left-28 top-16 h-72 w-72 rounded-full bg-[#0B5D3B]/10 blur-3xl" />
       <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 rounded-full bg-[#16A34A]/20 blur-3xl" />

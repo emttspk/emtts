@@ -1,27 +1,33 @@
 const items = [
   {
+    icon: "🏷️",
     title: "Bulk Label Generation",
-    description: "Upload once and generate print-ready label documents with consistent output quality.",
+    description: "Upload Excel/CSV once and generate print-ready PDF labels in envelope, flyer, or box format.",
   },
   {
+    icon: "💸",
     title: "Money Order Support",
-    description: "Issue money order print files alongside shipment processing without disrupting flow.",
+    description: "Automatically generate money order PDFs alongside your VPL, VPP, and COD shipments.",
   },
   {
-    title: "Bulk Tracking",
-    description: "Track parcel status in batches and keep your operations dashboard updated.",
+    icon: "📦",
+    title: "Bulk Parcel Tracking",
+    description: "Submit tracking batches, store results, and monitor delivery progress from one dashboard.",
   },
   {
-    title: "Complaint Workflow",
-    description: "Manage complaint submissions from the same product environment.",
+    icon: "📩",
+    title: "Complaint Automation",
+    description: "Submit, track and manage Pakistan Post complaints directly from shipment records.",
   },
   {
-    title: "Production-safe Queue",
-    description: "Background jobs keep long-running operations stable and observable.",
+    icon: "⚙️",
+    title: "Queue-based Processing",
+    description: "Background workers handle large jobs safely. No timeouts, no data loss.",
   },
   {
-    title: "Pakistan Post Theme",
-    description: "A clean interface tuned for day-to-day operational clarity.",
+    icon: "📊",
+    title: "Live Usage Dashboard",
+    description: "See label credits, tracking usage, and plan status in real time.",
   },
 ];
 
@@ -36,9 +42,10 @@ export default function Features() {
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item) => (
-            <article key={item.title} className="rounded-2xl border border-gray-100 bg-gray-50 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-              <h3 className="text-base font-semibold text-gray-900">{item.title}</h3>
-              <p className="mt-2 text-sm text-gray-600">{item.description}</p>
+            <article key={item.title} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-[#0B5D3B]/20 hover:shadow-md">
+              <div className="text-2xl">{item.icon}</div>
+              <h3 className="mt-3 text-base font-semibold text-gray-900">{item.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-gray-500">{item.description}</p>
             </article>
           ))}
         </div>
