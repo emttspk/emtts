@@ -62,14 +62,14 @@ function Check({ ok }) {
 export default function Pricing() {
   return (
     <section id="pricing" className="border-b border-gray-100 bg-[#f0faf4]">
-      <div className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-6xl px-4 py-20 sm:px-6 lg:px-8">
         <div className="text-center">
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[#0B5D3B]">Pricing</div>
-          <h2 className="mt-2 text-3xl font-bold text-gray-900">Simple, transparent plans</h2>
-          <p className="mt-2 text-sm text-gray-500">Start free. Upgrade when your volume demands it.</p>
+          <h2 className="mt-4 text-4xl font-bold text-gray-900">Simple, transparent plans</h2>
+          <p className="mt-3 text-base text-gray-600">Start free. Upgrade when your volume demands it.</p>
         </div>
 
-        <div className="mt-10 grid gap-5 lg:grid-cols-3">
+        <div className="mt-16 grid gap-8 lg:grid-cols-3">
           {plans.map((plan) => {
             const isFree = plan.style === "free";
             const isHighlight = plan.style === "highlight";
@@ -77,12 +77,12 @@ export default function Pricing() {
             return (
               <article
                 key={plan.name}
-                className={`relative flex flex-col rounded-2xl border p-7 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${
+                className={`relative flex flex-col rounded-2xl border p-8 transition hover:-translate-y-1 ${
                   isHighlight
-                    ? "border-[#0B5D3B]/40 bg-[#0B5D3B] text-white"
+                    ? "border-[#0B5D3B]/40 bg-[#0B5D3B] text-white shadow-[0_20px_50px_rgba(11,93,59,0.25)] hover:shadow-[0_25px_60px_rgba(11,93,59,0.35)]"
                     : isFree
-                    ? "border-[#16A34A]/40 bg-white ring-2 ring-[#16A34A]/30"
-                    : "border-gray-100 bg-white"
+                    ? "border-[#16A34A]/40 bg-white ring-2 ring-[#16A34A]/30 shadow-lg hover:shadow-[0_15px_40px_rgba(22,163,74,0.15)]"
+                    : "border-gray-200 bg-white shadow-md hover:shadow-[0_15px_40px_rgba(0,0,0,0.1)]"
                 }`}
               >
                 {/* Badge */}

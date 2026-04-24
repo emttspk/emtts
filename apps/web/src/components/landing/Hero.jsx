@@ -8,7 +8,7 @@ export default function Hero() {
       <div className="pointer-events-none absolute -left-32 top-20 h-80 w-80 rounded-full bg-[#0B5D3B]/8 blur-3xl" />
       <div className="pointer-events-none absolute right-0 -top-10 h-72 w-72 rounded-full bg-[#16A34A]/15 blur-3xl" />
 
-      <div className="relative mx-auto w-full max-w-7xl px-4 pb-16 pt-14 sm:px-6 lg:px-8 lg:pb-24 lg:pt-20">
+      <div className="relative mx-auto w-full max-w-6xl px-4 pb-16 pt-14 sm:px-6 lg:px-8 lg:pb-24 lg:pt-20">
         <div className="grid items-center gap-12 lg:grid-cols-2">
 
           {/* LEFT — Copy */}
@@ -18,26 +18,26 @@ export default function Hero() {
               Pakistan Post Compatible
             </div>
 
-            <h1 className="mt-5 text-4xl font-black leading-tight tracking-tight text-gray-900 sm:text-5xl lg:text-[3.5rem]">
+            <h1 className="mt-6 text-4xl font-black leading-tight tracking-tight text-gray-900 sm:text-5xl lg:text-[3.5rem]">
               Ship Anywhere
               <span className="block text-[#0B5D3B]">in Pakistan.</span>
               <span className="block text-gray-900">Track Every Step.</span>
             </h1>
 
-            <p className="mt-5 max-w-xl text-base leading-relaxed text-gray-500 sm:text-lg">
+            <p className="mt-6 max-w-xl text-base leading-relaxed text-gray-600 sm:text-lg">
               Generate labels, create money orders, and track shipments in real time — all in one platform built for Pakistan Post.
             </p>
 
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-8 flex flex-col gap-4 sm:flex-row">
               <Link
                 to="/register"
-                className="inline-flex items-center justify-center rounded-xl bg-[#0B5D3B] px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-[#094E32] hover:shadow-lg"
+                className="inline-flex items-center justify-center rounded-xl bg-[#0B5D3B] px-8 py-3.5 text-sm font-semibold text-white shadow-lg transition hover:bg-[#094E32] hover:shadow-xl"
               >
                 Create Free Account
               </Link>
               <a
                 href="#workflow"
-                className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-[#0B5D3B] hover:text-[#0B5D3B]"
+                className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-8 py-3.5 text-sm font-semibold text-gray-700 shadow-md transition hover:border-[#0B5D3B] hover:text-[#0B5D3B] hover:shadow-lg"
               >
                 See How It Works
               </a>
@@ -63,7 +63,7 @@ export default function Hero() {
           {/* RIGHT — Dashboard preview */}
           <div className="relative mx-auto w-full max-w-md lg:max-w-none">
             {/* Main dashboard card */}
-            <div className="relative rounded-2xl border border-gray-200 bg-white p-5 shadow-xl">
+            <div className="relative rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_20px_50px_rgba(0,0,0,0.15)]">
               {/* Mock header bar */}
               <div className="flex items-center justify-between border-b border-gray-100 pb-3">
                 <div className="flex items-center gap-2">
@@ -108,7 +108,7 @@ export default function Hero() {
             </div>
 
             {/* Floating card — Label preview */}
-            <div className="absolute -left-6 -top-5 hidden rounded-xl border border-green-100 bg-white p-3 shadow-lg sm:block">
+            <div className="absolute -left-6 -top-5 hidden rounded-xl border border-green-100 bg-white p-4 shadow-[0_10px_30px_rgba(0,0,0,0.12)] sm:block hover:shadow-[0_15px_40px_rgba(0,0,0,0.16)] transition-shadow">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0B5D3B]/10 text-sm">🏷️</div>
                 <div>
@@ -119,7 +119,7 @@ export default function Hero() {
             </div>
 
             {/* Floating card — Money order */}
-            <div className="absolute -right-4 top-1/3 hidden rounded-xl border border-amber-100 bg-white p-3 shadow-lg sm:block">
+            <div className="absolute -right-4 top-1/3 hidden rounded-xl border border-amber-100 bg-white p-4 shadow-[0_10px_30px_rgba(0,0,0,0.12)] sm:block hover:shadow-[0_15px_40px_rgba(0,0,0,0.16)] transition-shadow">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-sm">💸</div>
                 <div>
@@ -130,7 +130,7 @@ export default function Hero() {
             </div>
 
             {/* Floating card — Tracking */}
-            <div className="absolute -bottom-4 right-8 hidden rounded-xl border border-blue-100 bg-white p-3 shadow-lg sm:block">
+            <div className="absolute -bottom-4 right-8 hidden rounded-xl border border-blue-100 bg-white p-4 shadow-[0_10px_30px_rgba(0,0,0,0.12)] sm:block hover:shadow-[0_15px_40px_rgba(0,0,0,0.16)] transition-shadow">
               <div className="flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-sm">📦</div>
                 <div>

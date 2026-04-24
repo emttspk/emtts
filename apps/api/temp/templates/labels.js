@@ -62,7 +62,8 @@ function resolveMoneyOrderSenderFields(order) {
     const senderName = String(order?.senderName ?? order.shipperName ?? "").trim() || "-";
     const senderAddress = normalizeAddressLines(order?.senderAddress ?? order.shipperAddress ?? "") || "-";
     const senderPhone = String(order?.senderPhone ?? order.shipperPhone ?? "").trim() || "-";
-    return { senderName, senderAddress, senderPhone };
+    const senderCnic = String(order?.senderCnic ?? order.shipperCnic ?? "").trim() || "-";
+    return { senderName, senderAddress, senderPhone, senderCnic };
 }
 function amountToWords(value) {
     const n = Math.max(0, Math.floor(value));
@@ -617,7 +618,7 @@ export function moneyOrderHtml(orders, opts) {
                 const receiverName = String(o.consigneeName ?? "-").trim() || "-";
                 const receiverAddress = normalizeAddressLines(o.consigneeAddress ?? "-") || "-";
                 const receiverPhone = String(o.consigneePhone ?? "-").trim() || "-";
-                const { senderName, senderAddress, senderPhone } = resolveMoneyOrderSenderFields(o);
+                const { senderName, senderAddress, senderPhone, senderCnic } = resolveMoneyOrderSenderFields(o);
                 return `
             <section class="mo-card${index > 0 ? " page-break" : ""}">
                 <div class="mo-head">Pakistan Post Money Order</div>
@@ -630,7 +631,7 @@ export function moneyOrderHtml(orders, opts) {
                     <div><strong>Receiver Phone:</strong> ${escapeHtml(receiverPhone)}</div>
                 </div>
                 <div class="mo-block"><strong>Receiver Address</strong><br/>${escapeHtml(receiverAddress).replace(/\n/g, "<br/>")}</div>
-                <div class="mo-block"><strong>Sender</strong><br/>${escapeHtml(senderName)}<br/>${escapeHtml(senderAddress).replace(/\n/g, "<br/>")}<br/>${escapeHtml(senderPhone)}</div>
+                <div class="mo-block"><strong>Sender</strong><br/>${escapeHtml(senderName)}<br/>${escapeHtml(senderAddress).replace(/\n/g, "<br/>")}<br/>${escapeHtml(senderPhone)}${senderCnic && senderCnic !== "-" ? "<br/><strong>CNIC:</strong> " + escapeHtml(senderCnic) : ""}</div>
             </section>
         `;
         }).join("");
