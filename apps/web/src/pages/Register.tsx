@@ -12,6 +12,17 @@ function validateContact(value: string): string | null {
   return null;
 }
 
+// CNIC: optional — accepts 35202-1234567-1 or 13 raw digits
+function validateCnic(value: string): string | null {
+  if (!value) return null;
+  const withDashes = /^\d{5}-\d{7}-\d$/;
+  const rawDigits = /^\d{13}$/;
+  if (!withDashes.test(value) && !rawDigits.test(value)) {
+    return "CNIC must be in format 35202-1234567-1 or 13 digits.";
+  }
+  return null;
+}
+
 export default function Register() {
   const nav = useNavigate();
   const [searchParams] = useSearchParams();
@@ -22,7 +33,9 @@ export default function Register() {
   const [address, setAddress] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [originCity, setOriginCity] = useState("");
+  const [cnic, setCnic] = useState("");
   const [contactErr, setContactErr] = useState<string | null>(null);
+  const [cnicErr, setCnicErr] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -50,6 +63,13 @@ export default function Register() {
           }
           setContactErr(null);
 
+          const cnicError = validateCnic(cnic.trim());
+          if (cnicError) {
+            setCnicErr(cnicError);
+            return;
+          }
+          setCnicErr(null);
+
           setLoading(true);
           try {
             const endpoint = "/api/auth/register";
@@ -64,8 +84,7 @@ export default function Register() {
                 companyName: companyName || null,
                 address: address || null,
                 contactNumber: contactNumber || null,
-                originCity: originCity || null,
-              }),
+                originCity: originCity || null,                cnic: cnic.trim() || null,              }),
             });
             console.log(`[REGISTER] Success, received token and user role: ${data.user.role}`);
             setSession(data.token, data.user.role);
@@ -166,7 +185,30 @@ export default function Register() {
             {contactErr ? (
               <p className="mt-1 text-xs font-medium text-red-600">{contactErr}</p>
             ) : (
-              <p className="mt-1 text-xs text-gray-400">Must start with 03, exactly 11 digits</p>
+              <p className="mt-1 text-xs text-gray-400">Format: 03XXXXXXXXX</p>
+            )}
+          </div>
+
+          {/* CNIC — optional */}
+          <div className="block text-sm">
+            <div className="mb-1 font-medium text-gray-700">
+              CNIC <span className="text-xs font-normal text-gray-400">(Optional)</span>
+            </div>
+            <input
+              className={cnicErr ? inputErrClass : inputClass}
+              value={cnic}
+              onChange={(e) => {
+                setCnic(e.target.value);
+                if (cnicErr) setCnicErr(validateCnic(e.target.value.trim()));
+              }}
+              type="text"
+              placeholder="35202-1234567-1"
+              maxLength={15}
+            />
+            {cnicErr ? (
+              <p className="mt-1 text-xs font-medium text-red-600">{cnicErr}</p>
+            ) : (
+              <p className="mt-1 text-xs text-gray-400">Format: 35202-1234567-1 or 13 digits</p>
             )}
           </div>
         </div>
