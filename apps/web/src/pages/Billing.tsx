@@ -43,14 +43,14 @@ export default function Billing() {
       <Card className="overflow-hidden p-8">
         <div className="grid gap-6 lg:grid-cols-[1.35fr_0.65fr] lg:items-center">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700">
+            <div className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-4 py-2 text-sm font-semibold text-brand">
               <Sparkles className="h-4 w-4" />
               Pricing & Billing
             </div>
             <div className="mt-5 text-4xl font-semibold text-slate-950">Choose a package built for dispatch teams.</div>
             <div className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Your current package, monthly capacity, and upgrade path are shown here in a cleaner billing surface.</div>
           </div>
-          <div className="rounded-[28px] border border-slate-200 bg-[linear-gradient(180deg,#0f172a,#1e293b)] p-6 text-white shadow-[0_24px_60px_rgba(15,23,42,0.22)]">
+          <div className="rounded-[28px] border border-slate-200 bg-[linear-gradient(180deg,#0f172a,#1e293b)] p-6 text-white shadow-card">
             <div className="text-xs uppercase tracking-[0.3em] text-slate-300">Active package</div>
             <div className="mt-3 text-3xl font-semibold">{me?.subscription?.plan?.name ?? "No active plan"}</div>
             <div className="mt-4 grid gap-3 text-sm text-slate-200">
@@ -67,7 +67,7 @@ export default function Billing() {
         {plans.map((plan, index) => {
           const highlight = me?.subscription?.plan?.id === plan.id || index === 1;
           return (
-            <Card key={plan.id} className={highlight ? "border-sky-200 shadow-[0_18px_50px_rgba(14,165,233,0.16)]" : undefined}>
+            <Card key={plan.id} className={highlight ? "border-brand/30 shadow-card" : undefined}>
               <div className="p-6">
                 <div className="flex items-start justify-between">
                   <div>
@@ -78,7 +78,7 @@ export default function Billing() {
                     </div>
                     <div className="mt-2 text-sm text-gray-600">{plan.monthlyLabelLimit.toLocaleString()} total units for labels, tracking, and money-order generation.</div>
                   </div>
-                  {highlight ? <span className="rounded-full bg-sky-600 px-3 py-1 text-xs font-medium text-white">Recommended</span> : null}
+                  {highlight ? <span className="rounded-full bg-brand px-3 py-1 text-xs font-medium text-white">Recommended</span> : null}
                 </div>
 
                 <div className="mt-5 space-y-2 text-sm text-gray-600">
@@ -96,7 +96,7 @@ export default function Billing() {
                   </div>
                 </div>
 
-                <button className="mt-6 w-full rounded-xl bg-slate-950 px-4 py-3 text-sm font-medium text-white shadow-md transition-all duration-200 ease-in-out hover:bg-slate-800" type="button">
+                <button className="mt-6 w-full rounded-xl bg-brand px-4 py-3 text-sm font-medium text-white shadow-md transition-all duration-200 ease-in-out hover:bg-brand-dark" type="button">
                   {me?.subscription?.plan?.id === plan.id ? `Current: ${plan.name}` : `Choose ${plan.name}`}
                 </button>
               </div>
@@ -107,4 +107,6 @@ export default function Billing() {
     </div>
   );
 }
+
+
 

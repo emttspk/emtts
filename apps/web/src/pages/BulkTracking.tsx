@@ -1980,10 +1980,10 @@ export default function BulkTracking() {
   return (
     <>
     <div className="app-container space-y-5 px-3">
-      <Card className="overflow-hidden p-8 shadow-[0_22px_55px_rgba(15,23,42,0.1)]">
+      <Card className="overflow-hidden p-8">
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700">
+            <div className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-4 py-2 text-sm font-semibold text-brand">
               Track Parcel
             </div>
             <div className="mt-5 text-4xl font-semibold text-slate-950">Monitor parcel movement with a premium live tracking workspace.</div>
@@ -2002,7 +2002,7 @@ export default function BulkTracking() {
         </div>
       </Card>
 
-      <Card className="border-slate-200 p-3 shadow-[0_16px_38px_rgba(15,23,42,0.08)]">
+      <Card className="border-slate-200 p-3">
         <div className="grid gap-3 sm:grid-cols-5">
           <button
             type="button"
@@ -2063,7 +2063,7 @@ export default function BulkTracking() {
       </Card>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Card className="border-slate-200 p-3 shadow-[0_16px_38px_rgba(15,23,42,0.08)]">
+        <Card className="border-slate-200 p-3">
           <div className="text-sm font-semibold text-slate-900">Status Distribution</div>
           <div className="mt-1 text-xs text-slate-500">Delivered · Pending · Returned · Delayed</div>
           <div className="mt-3 flex items-center gap-5">
@@ -2110,7 +2110,7 @@ export default function BulkTracking() {
             </div>
           </div>
         </Card>
-        <Card className="border-slate-200 p-3 shadow-[0_16px_38px_rgba(15,23,42,0.08)]">
+        <Card className="border-slate-200 p-3">
           <div className="text-sm font-semibold text-slate-900">Monthly Tracking Volume</div>
           <div className="mt-1 text-xs text-slate-500">Last 6 months (oldest → newest)</div>
           <div className="mt-4 flex h-32 items-end gap-2">
@@ -2132,15 +2132,15 @@ export default function BulkTracking() {
       </div>
 
       {uiState === "processing" && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-indigo-600 px-6 py-3 text-white shadow-lg transition-all duration-300">
-          <div className="mx-auto flex max-w-7xl items-center justify-between">
+        <div className="fixed top-0 left-0 right-0 z-50 bg-brand px-6 py-3 text-white shadow-lg transition-all duration-300">
+          <div className="mx-auto flex max-w-6xl items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="h-2 w-2 animate-pulse rounded-full bg-white" />
               <span className="font-medium">Tracking in progress...</span>
             </div>
             <div className="flex items-center gap-4">
               <div className="text-sm font-medium">{Math.round(progress)}%</div>
-              <div className="h-2 w-32 overflow-hidden rounded-full bg-indigo-800">
+              <div className="h-2 w-32 overflow-hidden rounded-full bg-brand/70">
                 <div className="h-full bg-white transition-all duration-300 ease-out" style={{ width: `${progress}%` }} />
               </div>
             </div>
@@ -2165,7 +2165,7 @@ export default function BulkTracking() {
             {...getRootProps()}
             className={cn(
               "relative rounded-xl border border-dashed bg-white p-8 transition-all duration-200 ease-in-out",
-              isDragActive ? "border-indigo-600 bg-indigo-50/40" : "border-gray-200 hover:border-gray-300",
+              isDragActive ? "border-brand bg-brand/10" : "border-gray-200 hover:border-gray-300",
             )}
           >
             <input {...getInputProps()} />
@@ -2176,7 +2176,7 @@ export default function BulkTracking() {
               <div className="mt-4 text-base font-medium text-gray-900">Drag & drop Excel/CSV</div>
               <div className="mt-1 text-sm text-gray-600">
                 or{" "}
-                <button type="button" className="font-medium text-indigo-600 hover:text-indigo-700" onClick={open}>
+                <button type="button" className="font-medium text-brand hover:text-brand" onClick={open}>
                   click to upload
                 </button>
               </div>
@@ -2189,7 +2189,7 @@ export default function BulkTracking() {
                 <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-100">
                   <div
                     className={`h-full rounded-full transition-all duration-200 ease-in-out ${
-                      error ? "bg-red-500" : uiState === "uploading" ? "bg-amber-500" : "bg-indigo-600"
+                      error ? "bg-red-500" : uiState === "uploading" ? "bg-amber-500" : "bg-brand"
                     }`}
                     style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
                   />
@@ -2242,7 +2242,7 @@ export default function BulkTracking() {
               Reset
             </button>
             <button
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-md hover:bg-indigo-700 disabled:opacity-50"
+              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white shadow-md hover:bg-brand-dark disabled:opacity-50"
               disabled={!file || polling.jobStatus === "PROCESSING" || polling.jobStatus === "QUEUED" || uiState === "uploading"}
               onClick={async () => {
                 if (!file) return;
@@ -2352,7 +2352,7 @@ export default function BulkTracking() {
         </Card>
       ) : null}
 
-      <Card className="overflow-hidden border-slate-200 bg-[linear-gradient(180deg,#ffffff,#f8fbff)] p-0 shadow-[0_22px_50px_rgba(15,23,42,0.08)]">
+      <Card className="overflow-hidden border-slate-200 bg-[linear-gradient(180deg,#ffffff,#f8fbff)] p-0">
         <div className="border-b border-slate-200 bg-white/80 px-6 py-5 backdrop-blur">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -2403,7 +2403,7 @@ export default function BulkTracking() {
             <button
               onClick={refreshAllPending}
               disabled={refreshingPending}
-              className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 shadow-sm hover:bg-indigo-100 disabled:opacity-60"
+              className="inline-flex items-center gap-1 rounded-lg border border-brand/30 bg-brand/10 px-3 py-1.5 text-xs font-medium text-brand shadow-sm hover:bg-brand/20 disabled:opacity-60"
             >
               <RefreshCw className={cn("h-3.5 w-3.5", refreshingPending && "animate-spin")} />
               Refresh All Pending
@@ -2419,14 +2419,14 @@ export default function BulkTracking() {
         {refreshSummary ? <div className="border-t border-slate-200 bg-slate-50 px-6 py-2 text-xs text-slate-700">{refreshSummary}</div> : null}
         </div>
         <div className="p-1.5 md:p-2">
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <table className="w-full table-auto text-[13px]">
               <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 backdrop-blur">
               <tr>
                 <th className="w-8 border-r border-slate-100 px-2 py-2">
                   <input
                     type="checkbox"
-                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                    className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
                     checked={paginatedShipments.length > 0 && paginatedShipments.every((s) => selectedIds.includes(s.shipment.id))}
                     onChange={(e) =>
                       setSelectedIds((prev) => {
@@ -2506,11 +2506,11 @@ export default function BulkTracking() {
                       : "bg-orange-50/30";
 
                 return (
-                  <tr key={s.id} className={cn("group h-[36px] border-b border-[#eee] transition-colors hover:bg-sky-50/70", rowTone)}>
+                  <tr key={s.id} className={cn("group h-[36px] border-b border-[#eee] transition-colors hover:bg-brand/10", rowTone)}>
                     <td className="border-r border-slate-100 px-2 py-1.5 align-middle">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                        className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
                         checked={selectedIds.includes(s.id)}
                         onChange={() =>
                           setSelectedIds((prev) =>
@@ -2530,7 +2530,7 @@ export default function BulkTracking() {
                         </span>
                       </div>
                     </td>
-                    <td className="border-r border-slate-100 px-2 py-1.5 align-middle font-mono text-xs font-bold text-slate-800 group-hover:text-indigo-600 overflow-hidden text-ellipsis whitespace-nowrap" title={s.trackingNumber}>
+                    <td className="border-r border-slate-100 px-2 py-1.5 align-middle font-mono text-xs font-bold text-slate-800 group-hover:text-brand overflow-hidden text-ellipsis whitespace-nowrap" title={s.trackingNumber}>
                       {s.trackingNumber}
                     </td>
                     <td className="border-r border-slate-100 px-2 py-1.5 align-middle">
@@ -2549,7 +2549,7 @@ export default function BulkTracking() {
                     <td className="border-r border-slate-100 px-2 py-1.5 align-middle">
                       <div className="flex items-center gap-1">
                         <select
-                            className="w-20 rounded border-slate-200 bg-white py-1 text-[10px] font-medium text-slate-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            className="w-20 rounded border-slate-200 bg-white py-1 text-[10px] font-medium text-slate-700 shadow-sm focus:border-brand focus:ring-brand"
                           value={actionValue}
                           onChange={(e) => updateStatus(s.trackingNumber, e.target.value.includes("RETURN") ? "RETURNED" : e.target.value)}
                         >
@@ -2562,7 +2562,7 @@ export default function BulkTracking() {
                         <button
                           type="button"
                           onClick={() => setSelectedTracking(row)}
-                          className="rounded border border-sky-200 bg-sky-50 p-1 text-sky-700 hover:bg-sky-100"
+                          className="rounded border border-brand/30 bg-brand/10 p-1 text-brand hover:bg-brand/20"
                           title="View details"
                         >
                           <Eye className="h-3.5 w-3.5" />
@@ -2627,7 +2627,7 @@ export default function BulkTracking() {
         </div>
       </Card>
 
-      <Card className="border-slate-200 p-6 shadow-[0_16px_38px_rgba(15,23,42,0.08)]">
+      <Card className="border-slate-200 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="text-lg font-semibold text-slate-900">Tracking Cycle Audit (100 Sample)</div>
@@ -2642,7 +2642,7 @@ export default function BulkTracking() {
               {auditLoading ? "Auditing..." : "Run Audit"}
             </button>
             <button
-              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
+              className="rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-dark disabled:opacity-60"
               onClick={saveCycleCorrections}
               disabled={savingCorrections || auditRows.length === 0}
             >
@@ -2903,9 +2903,9 @@ export default function BulkTracking() {
                 <div className="border-t border-slate-200 pt-2 mt-2">
                   <div className="text-xs font-semibold text-slate-800 mb-2">Remarks <span className="text-red-600">*</span></div>
                   <div className="flex gap-1 mb-1">
-                    <button type="button" onClick={() => { setComplaintTemplate("VALUE_PAYABLE"); setComplaintText(buildComplaintTemplate(complaintRecord, "VALUE_PAYABLE")); }} className={`rounded px-2 py-0.5 text-[10px] ${complaintTemplate === "VALUE_PAYABLE" ? "border border-indigo-300 bg-indigo-50 text-indigo-700" : "border border-slate-200 bg-white text-slate-600"}`}>Value Payable</button>
-                    <button type="button" onClick={() => { setComplaintTemplate("NORMAL"); setComplaintText(buildComplaintTemplate(complaintRecord, "NORMAL")); }} className={`rounded px-2 py-0.5 text-[10px] ${complaintTemplate === "NORMAL" ? "border border-indigo-300 bg-indigo-50 text-indigo-700" : "border border-slate-200 bg-white text-slate-600"}`}>Normal</button>
-                    <button type="button" onClick={() => { setComplaintTemplate("RETURN"); setComplaintText(buildComplaintTemplate(complaintRecord, "RETURN")); }} className={`rounded px-2 py-0.5 text-[10px] ${complaintTemplate === "RETURN" ? "border border-indigo-300 bg-indigo-50 text-indigo-700" : "border border-slate-200 bg-white text-slate-600"}`}>Return</button>
+                    <button type="button" onClick={() => { setComplaintTemplate("VALUE_PAYABLE"); setComplaintText(buildComplaintTemplate(complaintRecord, "VALUE_PAYABLE")); }} className={`rounded px-2 py-0.5 text-[10px] ${complaintTemplate === "VALUE_PAYABLE" ? "border border-brand/30 bg-brand/10 text-brand" : "border border-slate-200 bg-white text-slate-600"}`}>Value Payable</button>
+                    <button type="button" onClick={() => { setComplaintTemplate("NORMAL"); setComplaintText(buildComplaintTemplate(complaintRecord, "NORMAL")); }} className={`rounded px-2 py-0.5 text-[10px] ${complaintTemplate === "NORMAL" ? "border border-brand/30 bg-brand/10 text-brand" : "border border-slate-200 bg-white text-slate-600"}`}>Normal</button>
+                    <button type="button" onClick={() => { setComplaintTemplate("RETURN"); setComplaintText(buildComplaintTemplate(complaintRecord, "RETURN")); }} className={`rounded px-2 py-0.5 text-[10px] ${complaintTemplate === "RETURN" ? "border border-brand/30 bg-brand/10 text-brand" : "border border-slate-200 bg-white text-slate-600"}`}>Return</button>
                   </div>
                   <textarea value={complaintText} onChange={(e) => setComplaintText(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs font-mono resize-none h-16 ${complaintValidationState.Remarks ? "border-slate-200" : "border-red-300 bg-red-50"}`} placeholder="Required" />
                 </div>
@@ -3008,7 +3008,7 @@ export default function BulkTracking() {
                   type="button"
                   onClick={handleComplaintPreview}
                   disabled={submittingComplaint}
-                  className="rounded border border-indigo-300 bg-indigo-50 px-3 py-1 text-xs text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
+                  className="rounded border border-brand/30 bg-brand/10 px-3 py-1 text-xs text-brand hover:bg-brand/20 disabled:opacity-60"
                 >
                   Preview
                 </button>
@@ -3202,7 +3202,7 @@ export default function BulkTracking() {
                 <button
                   type="button"
                   onClick={() => setSelectedTracking(null)}
-                  className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
+                  className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-dark"
                 >
                   Close
                 </button>
@@ -3231,7 +3231,7 @@ export default function BulkTracking() {
                   {trackingDetailData.timeline.length > 0 ? (
                     trackingDetailData.timeline.map((item, idx) => (
                       <div key={`${item.date}-${item.time}-${idx}`} className="flex gap-3 rounded-xl border border-slate-200 p-3">
-                        <div className="mt-1 h-2.5 w-2.5 rounded-full bg-indigo-500" />
+                        <div className="mt-1 h-2.5 w-2.5 rounded-full bg-brand" />
                         <div className="min-w-0 flex-1">
                           <div className="text-xs font-semibold text-slate-800">{item.description || "Update"}</div>
                           <div className="mt-0.5 text-[11px] text-slate-500">{[item.date, item.time, item.location].filter(Boolean).join(" | ") || "No timestamp"}</div>
@@ -3253,3 +3253,6 @@ export default function BulkTracking() {
     </>
   );
 }
+
+
+

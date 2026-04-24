@@ -24,28 +24,25 @@ export default function Topbar(props: {
   const badge = useMemo(() => initials(props.userEmail), [props.userEmail]);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-white/70 bg-white/65 backdrop-blur-xl">
-      <div className="flex h-20 items-center justify-between gap-3 px-4 md:px-8">
+    <header className="sticky top-0 z-30 border-b border-emerald-100/70 bg-white/85 backdrop-blur-xl">
+      <div className="mx-auto flex h-20 w-full max-w-6xl items-center justify-between gap-3 px-6">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => props.setIsSidebarOpen(true)}
-            className="rounded-lg border bg-white px-2.5 py-2 text-gray-700 shadow-sm transition-all duration-200 ease-in-out hover:bg-gray-50 md:hidden"
-          >
+          <button onClick={() => props.setIsSidebarOpen(true)} className="btn-secondary px-2.5 py-2 md:hidden">
             <Menu className="h-5 w-5" />
           </button>
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">Operations</div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-brand/60">Operations</div>
             <div className="text-3xl font-semibold text-gray-900">{props.title}</div>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="rounded-lg border bg-white p-2 text-gray-700 shadow-sm transition-all duration-200 ease-in-out hover:bg-gray-50">
+          <button className="btn-secondary p-2">
             <Bell className="h-5 w-5" />
           </button>
 
           <button
-            className="rounded-lg border bg-white p-2 text-gray-700 shadow-sm transition-all duration-200 ease-in-out hover:bg-gray-50"
+            className="btn-secondary p-2"
             onClick={() => {
               clearSession();
               navigate("/login");
@@ -58,9 +55,9 @@ export default function Topbar(props: {
           <div className="relative">
             <button
               onClick={() => setOpen((v) => !v)}
-              className="flex items-center gap-2 rounded-lg border bg-white px-2 py-1.5 shadow-sm transition-all duration-200 ease-in-out hover:bg-gray-50"
+              className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-2 py-1.5 shadow-card transition-all duration-200 ease-in-out hover:shadow-cardHover"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-sm font-semibold text-white shadow-md">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-sm font-semibold text-white shadow-card">
                 {badge}
               </div>
               <div className="hidden text-left md:block">
@@ -71,7 +68,7 @@ export default function Topbar(props: {
             </button>
 
             {open ? (
-              <div className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border bg-white shadow-md">
+              <div className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border border-emerald-100 bg-white shadow-card">
                 <div className="px-4 py-3">
                   <div className="text-sm font-medium text-gray-900">Signed in</div>
                   <div className="mt-1 truncate text-sm text-gray-600">{props.userEmail ?? "—"}</div>

@@ -57,8 +57,8 @@ export default function AppShell() {
         <Topbar title={title} setIsSidebarOpen={setIsSidebarOpen} userEmail={me?.user.email} />
 
         <main className="relative flex-1 overflow-hidden">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,255,255,0.65),_transparent_26%)]" />
-          <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(11,93,59,0.12),_transparent_24%)]" />
+          <div className="mx-auto w-full max-w-6xl px-6 py-16">
             {loading ? (
               <div className="grid gap-4">
                 <Card className="p-6">

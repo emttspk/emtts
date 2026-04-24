@@ -129,7 +129,7 @@ export default function Admin() {
           ].map(([key, label]) => (
             <button
               key={key}
-              className={`rounded-lg px-4 py-2 text-sm font-medium ${section === key ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
+              className={`rounded-lg px-4 py-2 text-sm font-medium ${section === key ? "bg-brand text-white" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
               onClick={() => setSection(key as SectionKey)}
             >
               {label}
@@ -175,7 +175,7 @@ export default function Admin() {
             <input className="rounded-xl border bg-white px-3 py-2 text-sm shadow-sm" value={priceCents} onChange={(e) => setPriceCents(Number(e.target.value))} placeholder="Price (paisa)" type="number" />
             <input className="rounded-xl border bg-white px-3 py-2 text-sm shadow-sm" value={monthlyLabelLimit} onChange={(e) => { const v = Number(e.target.value); setMonthlyLabelLimit(v); setMonthlyTrackingLimit(v); }} placeholder="Units" type="number" />
             <input className="rounded-xl border bg-slate-100 px-3 py-2 text-sm shadow-sm" value={monthlyTrackingLimit} readOnly placeholder="Units (mirrored)" type="number" />
-            <button className="rounded-xl bg-slate-950 px-3 py-2 text-sm font-medium text-white shadow-md hover:bg-slate-800">Create</button>
+            <button className="rounded-xl bg-brand px-3 py-2 text-sm font-medium text-white shadow-md hover:bg-brand-dark">Create</button>
           </form>
           <div className="grid gap-4 border-t bg-white p-6 md:grid-cols-2">
             {plans.map((plan) => (
@@ -319,7 +319,7 @@ export default function Admin() {
                   <input className="rounded-xl border bg-white px-3 py-2 text-sm shadow-sm" value={draftFor(previewUser.id, previewUser.subscription?.plan.id).labelCredits} onChange={(e) => updateDraft(previewUser.id, { labelCredits: e.target.value }, previewUser.subscription?.plan.id)} placeholder="Units" type="number" />
                   <input className="rounded-xl border bg-slate-100 px-3 py-2 text-sm shadow-sm" value={draftFor(previewUser.id, previewUser.subscription?.plan.id).trackingCredits} onChange={(e) => updateDraft(previewUser.id, { trackingCredits: e.target.value }, previewUser.subscription?.plan.id)} placeholder="Units (mirror)" type="number" />
                 </div>
-                <button className="mt-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100" onClick={async () => { try { const units = Number(draftFor(previewUser.id, previewUser.subscription?.plan.id).labelCredits || 0); await api(`/api/admin/users/${previewUser.id}/credits`, { method: "POST", body: JSON.stringify({ labelCredits: units, trackingCredits: units }) }); updateDraft(previewUser.id, { labelCredits: "", trackingCredits: "" }, previewUser.subscription?.plan.id); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Failed to grant credits"); } }}>Apply Credit</button>
+                <button className="mt-3 rounded-xl border border-brand/30 bg-brand/10 px-4 py-2 text-sm font-medium text-brand hover:bg-brand/20" onClick={async () => { try { const units = Number(draftFor(previewUser.id, previewUser.subscription?.plan.id).labelCredits || 0); await api(`/api/admin/users/${previewUser.id}/credits`, { method: "POST", body: JSON.stringify({ labelCredits: units, trackingCredits: units }) }); updateDraft(previewUser.id, { labelCredits: "", trackingCredits: "" }, previewUser.subscription?.plan.id); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Failed to grant credits"); } }}>Apply Credit</button>
               </Card>
 
               <Card className="p-4">
@@ -327,7 +327,7 @@ export default function Admin() {
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button className="rounded-lg border bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50" onClick={async () => { try { await api(`/api/admin/users/${previewUser.id}/role`, { method: "POST", body: JSON.stringify({ role: previewUser.role === "ADMIN" ? "USER" : "ADMIN" }) }); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Failed"); } }}>{previewUser.role === "ADMIN" ? "Demote" : "Promote"}</button>
                   <button className={`rounded-lg px-3 py-2 text-xs font-medium ${previewUser.suspended ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : "border border-red-200 bg-red-50 text-red-700"}`} onClick={async () => { try { await api(`/api/admin/users/${previewUser.id}/${previewUser.suspended ? "unsuspend" : "suspend"}`, { method: "POST" }); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Failed"); } }}>{previewUser.suspended ? "Manual Approval (Activate)" : "Suspend Account"}</button>
-                  <button className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-700" onClick={async () => { try { const planId = draftFor(previewUser.id, previewUser.subscription?.plan.id).planId || previewUser.subscription?.plan.id; if (!planId) return; await api(`/api/admin/users/${previewUser.id}/subscription`, { method: "POST", body: JSON.stringify({ planId }) }); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Payment confirmation failed"); } }}>Manual Payment Confirmation</button>
+                  <button className="rounded-lg border border-brand/30 bg-brand/10 px-3 py-2 text-xs font-medium text-brand" onClick={async () => { try { const planId = draftFor(previewUser.id, previewUser.subscription?.plan.id).planId || previewUser.subscription?.plan.id; if (!planId) return; await api(`/api/admin/users/${previewUser.id}/subscription`, { method: "POST", body: JSON.stringify({ planId }) }); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Payment confirmation failed"); } }}>Manual Payment Confirmation</button>
                 </div>
               </Card>
             </div>
@@ -339,7 +339,7 @@ export default function Admin() {
                   <option value="">Select plan</option>
                   {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}</option>)}
                 </select>
-                <button className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800" onClick={async () => { try { const planId = draftFor(previewUser.id, previewUser.subscription?.plan.id).planId; if (!planId) return; await api(`/api/admin/users/${previewUser.id}/subscription`, { method: "POST", body: JSON.stringify({ planId }) }); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Failed"); } }}>Assign</button>
+                <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark" onClick={async () => { try { const planId = draftFor(previewUser.id, previewUser.subscription?.plan.id).planId; if (!planId) return; await api(`/api/admin/users/${previewUser.id}/subscription`, { method: "POST", body: JSON.stringify({ planId }) }); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Failed"); } }}>Assign</button>
               </div>
             </Card>
           </div>
@@ -348,3 +348,5 @@ export default function Admin() {
     </div>
   );
 }
+
+

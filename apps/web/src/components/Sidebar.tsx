@@ -34,7 +34,7 @@ export default function Sidebar(props: { isOpen: boolean; setIsOpen: (v: boolean
       className={({ isActive }) =>
         cn(
           "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ease-in-out",
-          isActive ? "bg-white/10 text-white" : "text-gray-300 hover:bg-white/5 hover:text-white",
+          isActive ? "bg-white text-brand shadow-card" : "text-emerald-50/80 hover:bg-white/10 hover:text-white",
         )
       }
       onClick={() => props.setIsOpen(false)}
@@ -53,7 +53,7 @@ export default function Sidebar(props: { isOpen: boolean; setIsOpen: (v: boolean
 
       <aside
         className={cn(
-          "fixed left-0 top-0 z-50 h-full border-r border-white/10 bg-[#0b1220] text-white",
+          "fixed left-0 top-0 z-50 h-full border-r border-emerald-900/40 bg-brand text-white",
           "transition-transform duration-200 ease-in-out md:translate-x-0",
           props.isOpen ? "translate-x-0" : "-translate-x-full",
           collapsed ? "w-64 md:w-16 lg:w-64" : "w-64",
@@ -61,12 +61,12 @@ export default function Sidebar(props: { isOpen: boolean; setIsOpen: (v: boolean
       >
         <div className="flex h-16 items-center justify-between px-4">
           <div className={cn("flex items-center gap-3", collapsed && "md:justify-center md:gap-0")}>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-sm font-semibold shadow-md">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-sm font-semibold text-brand shadow-card">
               BD
             </div>
             <div className={cn("leading-tight", collapsed && "md:hidden lg:block")}>
               <div className="text-sm font-semibold">Bulk Dispatch</div>
-              <div className="text-xs text-gray-400">Tracking system</div>
+              <div className="text-xs text-emerald-100/80">Tracking system</div>
             </div>
           </div>
           <button className="text-gray-300 hover:text-white md:hidden" onClick={() => props.setIsOpen(false)}>
@@ -86,8 +86,8 @@ export default function Sidebar(props: { isOpen: boolean; setIsOpen: (v: boolean
         <div className="mt-auto px-3 pb-4">
           <button
             title={collapsed ? "Logout" : undefined}
-            className={cn(
-              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-300 transition-all duration-200 ease-in-out hover:bg-white/5 hover:text-white",
+          className={cn(
+              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-emerald-50/80 transition-all duration-200 ease-in-out hover:bg-white/10 hover:text-white",
               collapsed && "md:justify-center lg:justify-start",
             )}
             onClick={() => {

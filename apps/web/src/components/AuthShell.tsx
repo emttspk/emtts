@@ -5,31 +5,28 @@ const perks = ["Bulk labels & envelopes", "Bulk tracking engine", "Complaint aut
 
 export default function AuthShell(props: { title: string; subtitle: string; children: React.ReactNode }) {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gray-50">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-indigo-50 via-gray-50 to-gray-50" />
-      <div
-        className="pointer-events-none absolute -top-24 left-1/2 h-[520px] w-[920px] -translate-x-1/2 rounded-full bg-indigo-100/60 blur-3xl"
-        aria-hidden
-      />
+    <div className="relative min-h-screen overflow-hidden bg-[linear-gradient(180deg,#f7fbf8,#edf5ef)]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(11,93,59,0.16),_transparent_35%)]" />
+      <div className="pointer-events-none absolute -top-28 left-1/2 h-[500px] w-[860px] -translate-x-1/2 rounded-full bg-brand/10 blur-3xl" aria-hidden />
 
-      <div className="relative mx-auto grid min-h-screen max-w-6xl items-center gap-10 px-4 py-12 md:grid-cols-2 md:px-8">
+      <div className="relative mx-auto grid min-h-screen w-full max-w-6xl items-center gap-12 px-6 py-16 md:grid-cols-2">
         <div className="hidden md:block">
           <Link to="/" className="inline-flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-sm font-semibold text-white shadow-md">BD</div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand text-sm font-semibold text-white shadow-card">PP</div>
             <div>
-              <div className="text-sm font-semibold text-gray-900">Bulk Dispatch &amp; Tracking</div>
-              <div className="text-xs text-gray-600">Dispatch operations, unified</div>
+              <div className="text-sm font-semibold text-slate-900">Pakistan Post Label Platform</div>
+              <div className="text-xs text-slate-600">Dispatch operations, unified</div>
             </div>
           </Link>
 
-          <h1 className="mt-8 text-3xl font-semibold tracking-tight text-gray-900">{props.title}</h1>
-          <p className="mt-3 max-w-md text-sm text-gray-600">{props.subtitle}</p>
+          <h1 className="mt-8 text-4xl font-semibold tracking-tight text-slate-950">{props.title}</h1>
+          <p className="mt-3 max-w-md text-sm text-slate-600">{props.subtitle}</p>
 
           <div className="mt-8 grid gap-3">
-            {perks.map((p) => (
-              <div key={p} className="flex items-center gap-2 text-sm text-gray-600">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                {p}
+            {perks.map((item) => (
+              <div key={item} className="flex items-center gap-2 text-sm text-slate-700">
+                <CheckCircle2 className="h-4 w-4 text-brand" />
+                {item}
               </div>
             ))}
           </div>
@@ -38,19 +35,19 @@ export default function AuthShell(props: { title: string; subtitle: string; chil
         <div className="mx-auto w-full max-w-md">
           <div className="md:hidden">
             <Link to="/" className="inline-flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-sm font-semibold text-white shadow-md">BD</div>
-              <div className="text-sm font-semibold text-gray-900">Bulk Dispatch &amp; Tracking</div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand text-sm font-semibold text-white shadow-card">PP</div>
+              <div className="text-sm font-semibold text-slate-900">Pakistan Post Label Platform</div>
             </Link>
-            <h1 className="mt-6 text-3xl font-semibold tracking-tight text-gray-900">{props.title}</h1>
-            <p className="mt-2 text-sm text-gray-600">{props.subtitle}</p>
+            <h1 className="mt-6 text-3xl font-semibold tracking-tight text-slate-900">{props.title}</h1>
+            <p className="mt-2 text-sm text-slate-600">{props.subtitle}</p>
           </div>
 
-          <div className="mt-8 rounded-xl border bg-white p-6 shadow-sm">{props.children}</div>
+          <div className="ui-card mt-8 p-6">{props.children}</div>
 
-          <div className="mt-6 flex items-center justify-center gap-4 text-xs text-gray-600">
-            <span>© {new Date().getFullYear()} Bulk Dispatch &amp; Tracking System</span>
-            <span className="h-1 w-1 rounded-full bg-gray-300" />
-            <Link to="/" className="hover:text-gray-900">
+          <div className="mt-6 flex items-center justify-center gap-4 text-xs text-slate-600">
+            <span>© {new Date().getFullYear()} Pakistan Post Label Platform</span>
+            <span className="h-1 w-1 rounded-full bg-slate-300" />
+            <Link to="/" className="hover:text-brand">
               Home
             </Link>
           </div>
@@ -59,4 +56,3 @@ export default function AuthShell(props: { title: string; subtitle: string; chil
     </div>
   );
 }
-

@@ -7,9 +7,10 @@
 @layer base {
   :root {
     color-scheme: light;
-    --bg: #f5f7fb;
+    --bg: #f4f8f5;
     --text-strong: #0f172a;
     --text-muted: #52607a;
+    --brand: #0b5d3b;
   }
 
   html {
@@ -18,9 +19,9 @@
 
   body {
     background:
-      radial-gradient(circle at top left, rgba(170, 196, 255, 0.35), transparent 28%),
-      radial-gradient(circle at top right, rgba(251, 191, 36, 0.18), transparent 22%),
-      linear-gradient(180deg, #f7f9fc 0%, #eef3fb 100%);
+      radial-gradient(circle at top left, rgba(11, 93, 59, 0.14), transparent 30%),
+      radial-gradient(circle at top right, rgba(11, 93, 59, 0.08), transparent 24%),
+      linear-gradient(180deg, #f7fbf8 0%, #edf5ef 100%);
     color: var(--text-strong);
     @apply antialiased;
   }
@@ -41,6 +42,28 @@
   h6 {
     font-family: "Space Grotesk", "Plus Jakarta Sans", ui-sans-serif, sans-serif;
     letter-spacing: -0.03em;
+  }
+}
+
+@layer components {
+  .ui-page {
+    @apply mx-auto w-full max-w-6xl px-6 py-16;
+  }
+
+  .ui-card {
+    @apply rounded-xl border border-emerald-100/80 bg-white shadow-card transition-shadow duration-300 hover:shadow-cardHover;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-card transition-all duration-200 hover:bg-brand-dark hover:shadow-cardHover disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-xl border border-brand/30 bg-white px-5 py-3 text-sm font-semibold text-brand shadow-sm transition-all duration-200 hover:border-brand hover:shadow-card;
+  }
+
+  .field-input {
+    @apply w-full rounded-xl border border-emerald-100 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 placeholder:text-slate-400;
   }
 }
 

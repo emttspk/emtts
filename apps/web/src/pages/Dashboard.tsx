@@ -42,7 +42,7 @@ function AnalyticsGraph({ stats }: { stats: DashboardStats }) {
   const max = Math.max(...distribution.map((s) => s.value), 1);
 
   return (
-    <Card className="overflow-hidden border-slate-200/80 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.10)]">
+    <Card className="overflow-hidden p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="text-lg font-medium text-gray-900">Analytics Overview</div>
@@ -193,10 +193,10 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <Card className="overflow-hidden border-slate-200/80 p-8 shadow-[0_28px_80px_rgba(15,23,42,0.10)]">
+      <Card className="overflow-hidden p-8">
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700">
+            <div className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-4 py-2 text-sm font-semibold text-brand">
               <LineChart className="h-4 w-4" />
               Live Operations View
             </div>
@@ -207,22 +207,22 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Card className="border-slate-200/80 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+            <Card className="p-5">
               <div className="flex items-center justify-between"><div className="text-sm font-medium text-slate-600">Remaining Units</div><Wallet className="h-4 w-4 text-slate-500" /></div>
               <div className="mt-3 text-3xl font-semibold text-slate-950">{remainingUnits.toLocaleString()}</div>
               <div className="mt-2 text-xs text-slate-600">Combined unit balance across label, money-order, and tracking actions.</div>
             </Card>
-            <Card className="border-slate-200/80 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+            <Card className="p-5">
               <div className="flex items-center justify-between"><div className="text-sm font-medium text-slate-600">Used Units</div><BarChart2 className="h-4 w-4 text-slate-500" /></div>
               <div className="mt-3 text-3xl font-semibold text-slate-950">{usedUnits.toLocaleString()}</div>
               <div className="mt-2 text-xs text-slate-600">Tracked shipments this month (computed from final tracking data).</div>
             </Card>
-            <Card className="border-slate-200/80 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+            <Card className="p-5">
               <div className="flex items-center justify-between"><div className="text-sm font-medium text-slate-600">Tracking Actions</div><RadioTower className="h-4 w-4 text-slate-500" /></div>
               <div className="mt-3 text-3xl font-semibold text-slate-950">{usedUnits.toLocaleString()}</div>
               <div className="mt-1 text-xs text-slate-500">Used this month {usedUnits.toLocaleString()}.</div>
             </Card>
-            <Card className="border-slate-200/80 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+            <Card className="p-5">
               <div className="flex items-center justify-between"><div className="text-sm font-medium text-slate-600">Active Package Details</div><Package2 className="h-4 w-4 text-slate-500" /></div>
               <div className="mt-3 text-2xl font-semibold text-slate-950">{me?.subscription?.plan?.name ?? "No active plan"}</div>
               <div className="mt-2 text-xs text-slate-600">Units Remaining: <span className="font-semibold text-slate-800">{remainingUnits.toLocaleString()}</span></div>
@@ -232,14 +232,14 @@ export default function Dashboard() {
               <div className={`mt-1 inline-flex rounded-full px-2 py-1 text-[11px] font-semibold ${expired ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>
                 Status: {expired ? "Expired" : "Active"}
               </div>
-              <Link to="/billing" className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700">
+              <Link to="/billing" className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-dark">
                 Update Package
               </Link>
             </Card>
-            <Card className="border-slate-200/80 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+            <Card className="p-5">
               <div className="flex items-center justify-between"><div className="text-sm font-medium text-slate-600">Billing</div><CreditCard className="h-4 w-4 text-slate-500" /></div>
               <div className="mt-3 text-2xl font-semibold text-slate-950">{formatPKR.format(Math.round((me?.subscription?.plan?.priceCents ?? 0) / 100)).replace("PKR", "Rs.")}</div>
-              <div className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-sky-700">Open pricing <ArrowRight className="h-4 w-4" /></div>
+              <div className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-brand">Open pricing <ArrowRight className="h-4 w-4" /></div>
             </Card>
           </div>
         </div>
@@ -253,7 +253,7 @@ export default function Dashboard() {
 
       <div className="grid gap-6 xl:grid-cols-[1.55fr_0.85fr]">
         <AnalyticsGraph stats={stats} />
-        <Card className="border-slate-200/80 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.10)]">
+        <Card className="p-6">
           <div className="text-lg font-medium text-slate-950">Monthly Tracking Volume</div>
           <div className="mt-1 text-sm text-slate-600">Last 6 months (old to new).</div>
           <div className="mt-5 flex items-end gap-2">
@@ -262,7 +262,7 @@ export default function Dashboard() {
               return (
                 <div key={item.key} className="flex flex-1 flex-col items-center gap-1">
                   <div className="text-[11px] font-medium text-slate-700">{item.value}</div>
-                  <div className="w-full rounded-t-md bg-gradient-to-t from-indigo-600 to-sky-400" style={{ height: `${h}px` }} />
+                  <div className="w-full rounded-t-md bg-gradient-to-t from-brand to-emerald-400" style={{ height: `${h}px` }} />
                   <div className="text-[10px] text-slate-500">{item.label}</div>
                 </div>
               );
@@ -274,7 +274,7 @@ export default function Dashboard() {
 
       <div className="grid gap-4 md:grid-cols-5">
         {statusCards.map((card) => (
-          <Card key={card.label} className={`border-slate-200/80 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.09)] ${card.bg}`}>
+          <Card key={card.label} className={`p-6 ${card.bg}`}>
             <div className="text-sm font-medium text-gray-900">{card.label}</div>
             <div className="mt-2 text-4xl font-semibold">{card.value.toLocaleString()}</div>
             <div className={`mt-1 text-xs font-medium ${card.tone}`}>{formatPKR.format(card.amount).replace("PKR", "Rs.")}</div>
@@ -282,10 +282,12 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <Card className="border-slate-200/80 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.09)]">
+      <Card className="p-6">
         <div className="text-lg font-medium text-gray-900">Generate Labels &amp; Money Orders</div>
         <div className="mt-1 text-sm text-gray-600">Open Track Parcel, Generate Labels, and View Jobs from the left navigation tabs for a focused dashboard workspace.</div>
       </Card>
     </div>
   );
 }
+
+
