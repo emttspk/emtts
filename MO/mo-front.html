@@ -18,6 +18,7 @@
       - sender_name: shipperName
       - sender_address: shipperAddress
       - sender_city: senderCity
+      - sender_cnic: senderCnic or cnic
       - receiver_name: consigneeName
       - receiver_address: consigneeAddress
       - receiver_city: receiverCity
@@ -86,7 +87,7 @@
 
           <div class="field field-line f-sender-name text-strong">{{mo1.sender_name}}</div>
           <div class="field field-line f-sender-address text-regular">{{mo1.sender_address}}</div>
-          <div class="field field-line f-sender-city text-regular">{{mo1.sender_city}}</div>
+          <div class="field field-line f-sender-city text-regular">{{mo1.sender_city}} CNIC: {{mo1.sender_cnic}}</div>
 
           <div class="field field-line f-commission text-mono">{{mo1.commission}}</div>
           <div class="field field-line f-total text-mono">{{mo1.total}}</div>
@@ -156,7 +157,7 @@
 
           <div class="field field-line f-sender-name text-strong">{{mo2.sender_name}}</div>
           <div class="field field-line f-sender-address text-regular">{{mo2.sender_address}}</div>
-          <div class="field field-line f-sender-city text-regular">{{mo2.sender_city}}</div>
+          <div class="field field-line f-sender-city text-regular">{{mo2.sender_city}} CNIC: {{mo2.sender_cnic}}</div>
 
           <div class="field field-line f-commission text-mono">{{mo2.commission}}</div>
           <div class="field field-line f-total text-mono">{{mo2.total}}</div>

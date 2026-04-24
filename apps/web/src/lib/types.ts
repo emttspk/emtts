@@ -67,6 +67,7 @@ export type UserProfile = {
   companyName?: string | null;
   address?: string | null;
   contactNumber?: string | null;
+  cnic?: string | null;
   originCity?: string | null;
   extraLabelCredits?: number;
   extraTrackingCredits?: number;

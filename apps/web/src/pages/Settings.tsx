@@ -14,6 +14,7 @@ export default function Settings() {
   const [companyName, setCompanyName] = useState(me?.user.companyName ?? "");
   const [address, setAddress] = useState(me?.user.address ?? "");
   const [contactNumber, setContactNumber] = useState(me?.user.contactNumber ?? "");
+  const [cnic, setCnic] = useState((me?.user as { cnic?: string | null } | null)?.cnic ?? "");
   const [originCity, setOriginCity] = useState(me?.user.originCity ?? "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -24,10 +25,26 @@ export default function Settings() {
     setSaving(true);
     setError(null);
     setSaved(false);
+
+    const cnicTrimmed = cnic.trim();
+    const cnicPattern = /^\d{5}-\d{7}-\d$/;
+    const cnicDigitsPattern = /^\d{13}$/;
+    if (cnicTrimmed && !cnicPattern.test(cnicTrimmed) && !cnicDigitsPattern.test(cnicTrimmed)) {
+      setError("CNIC must be 35202-1234567-1 or 13 digits.");
+      setSaving(false);
+      return;
+    }
+
     try {
       await api("/api/me", {
         method: "PATCH",
-        body: JSON.stringify({ companyName: companyName || null, address: address || null, contactNumber: contactNumber || null, originCity: originCity || null }),
+        body: JSON.stringify({
+          companyName: companyName || null,
+          address: address || null,
+          contactNumber: contactNumber || null,
+          cnic: cnicTrimmed || null,
+          originCity: originCity || null,
+        }),
       });
       await refreshMe();
       setSaved(true);
@@ -131,6 +148,19 @@ export default function Settings() {
                 placeholder="e.g. 0300-1234567"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700" htmlFor="cnic">CNIC (Optional)</label>
+            <input
+              id="cnic"
+              type="text"
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              value={cnic}
+              onChange={(e) => setCnic(e.target.value)}
+              maxLength={15}
+              placeholder="35202-1234567-1 or 3520212345671"
+            />
           </div>
 
           {error ? <div className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div> : null}
