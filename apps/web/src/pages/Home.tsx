@@ -4,6 +4,7 @@ import FeatureStrip from "../components/landing/FeatureStrip";
 import ProcessTimeline from "../components/landing/ProcessTimeline";
 import FeaturesGrid from "../components/landing/FeaturesGrid";
 import ProductPreview from "../components/landing/ProductPreview";
+import TrackingTypes from "../components/landing/TrackingTypes";
 import Pricing from "../components/landing/Pricing";
 import Footer from "../components/landing/Footer";
 
@@ -16,6 +17,7 @@ export default function Home() {
         <FeatureStrip />
         <ProcessTimeline />
         <FeaturesGrid />
+        <TrackingTypes />
         <ProductPreview />
         <Pricing />
       </main>

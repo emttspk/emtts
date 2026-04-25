@@ -26,7 +26,7 @@ export default function AppShell() {
 
   const title = useMemo(() => {
     const hit = titleMap.find((t) => loc.pathname.startsWith(t.prefix));
-    return hit?.title ?? "Bulk Dispatch & Tracking System";
+    return hit?.title ?? "Epost.pk";
   }, [loc.pathname]);
 
   useEffect(() => {
@@ -79,3 +79,4 @@ export default function AppShell() {
     </div>
   );
 }
+

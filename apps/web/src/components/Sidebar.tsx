@@ -65,8 +65,8 @@ export default function Sidebar(props: { isOpen: boolean; setIsOpen: (v: boolean
               BD
             </div>
             <div className={cn("leading-tight", collapsed && "md:hidden lg:block")}>
-              <div className="text-sm font-semibold">Bulk Dispatch</div>
-              <div className="text-xs text-emerald-100/80">Tracking system</div>
+              <div className="text-sm font-semibold">Epost.pk</div>
+              <div className="text-xs text-emerald-100/80">Booking, Labels, MO, Tracking & Complaints</div>
             </div>
           </div>
           <button className="text-gray-300 hover:text-white md:hidden" onClick={() => props.setIsOpen(false)}>
@@ -103,4 +103,5 @@ export default function Sidebar(props: { isOpen: boolean; setIsOpen: (v: boolean
     </>
   );
 }
+
 

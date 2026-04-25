@@ -469,7 +469,7 @@ export default function Upload() {
                     onChange={() => setCarrierType("pakistan_post")}
                     className="h-4 w-4 border-gray-300 text-brand focus:ring-brand"
                   />
-                  Pakistan Post
+                  Epost.pk
                 </label>
                 <label className="flex items-center gap-2">
                   <input
@@ -486,7 +486,7 @@ export default function Upload() {
 
             <div>
               <div className="font-medium text-gray-900">2) Category</div>
-              <div className="mt-2 text-sm text-gray-600">Available across carriers. Pakistan Post uses this selection to preset shipment options.</div>
+              <div className="mt-2 text-sm text-gray-600">Available across carriers. Epost.pk uses this selection to preset shipment options.</div>
               <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
                 {[
                   { id: "general_post", label: "General" },
@@ -786,5 +786,6 @@ export default function Upload() {
     </div>
   );
 }
+
 
 

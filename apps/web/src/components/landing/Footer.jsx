@@ -3,8 +3,9 @@ export default function Footer() {
     <footer id="help" className="bg-[#0F172A]">
       <div className="mx-auto grid w-full max-w-7xl gap-8 px-6 py-20 md:grid-cols-3">
         <div>
-          <div className="text-sm font-bold text-white">Pakistan Post Partner Platform</div>
-          <p className="mt-2 text-xs text-slate-300">Premium SaaS-style dispatch automation for labels, tracking, and money orders.</p>
+          <div className="text-sm font-bold text-white">Epost.pk</div>
+          <p className="mt-2 text-xs text-slate-300">Booking, Free Labels, Money Order, Tracking & Complaint System.</p>
+          <p className="mt-2 text-xs text-emerald-200">www.Epost.pk</p>
         </div>
         <div>
           <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Product</div>

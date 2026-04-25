@@ -574,7 +574,7 @@ function buildPrintMarkup(record: FinalTrackingRecord, detail: TrackingDetailDat
     <section class="print-doc print-container">
       <div class="print-branding print-branding-top"><strong>FREE BULK DISPATCH AND TRACKING</strong></div>
       <div class="print-panel no-break">
-        <div class="print-title">Bulk Dispatch Tracking Print</div>
+        <div class="print-title">Epost.pk Tracking Print</div>
         <div class="print-subtitle">${escapePrintHtml(record.shipment.trackingNumber)}</div>
         <div class="print-meta-grid">
           <div class="print-meta-card"><div class="print-meta-label">Tracking</div><div class="print-meta-value">${escapePrintHtml(record.shipment.trackingNumber)}</div></div>
@@ -3253,6 +3253,7 @@ export default function BulkTracking() {
     </>
   );
 }
+
 
 
 

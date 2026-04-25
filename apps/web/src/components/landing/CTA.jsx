@@ -8,7 +8,7 @@ export default function CTA() {
       <div className="ui-page relative text-center">
         <h2 className="text-4xl font-bold text-white">Ready to streamline your dispatch?</h2>
         <p className="mx-auto mt-4 max-w-xl text-base text-emerald-100">
-          Generate labels, track parcels, and manage operations from one Pakistan Post workspace.
+          Booking, Free Labels, Money Order, Tracking & Complaint System on Epost.pk.
         </p>
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
           <Link to="/register" className="btn-secondary border-white/40 bg-white text-brand">
@@ -22,3 +22,4 @@ export default function CTA() {
     </section>
   );
 }
+

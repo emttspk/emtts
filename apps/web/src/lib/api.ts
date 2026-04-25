@@ -6,17 +6,33 @@ const base = (
   || ""
 );
 
+function resolveBaseUrl() {
+  const trimmed = base.replace(/\/+$/, "");
+  if (!trimmed) return "";
+  if (typeof window === "undefined") return trimmed;
+
+  const host = window.location.hostname;
+  const runningLocal = /^(localhost|127\.0\.0\.1)$/i.test(host);
+  const envPointsLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(trimmed);
+
+  // Prevent deployed frontend from trying to call localhost API.
+  if (!runningLocal && envPointsLocal) return "";
+  return trimmed;
+}
+
+const resolvedBase = resolveBaseUrl();
+
 // Log API configuration for debugging
-console.log(`[API] Base URL configured: "${base}" (empty means same-origin requests to /api)`);
+console.log(`[API] Base URL configured: "${resolvedBase}" (empty means same-origin requests to /api)`);
 console.log(`[API] VITE_API_URL: "${import.meta.env.VITE_API_URL ?? "undefined"}"`);
-console.log(`[API] VITE_API_BASE: "${import.meta.env.VITE_API_BASE ?? "undefined"}`);
+console.log(`[API] VITE_API_BASE: "${import.meta.env.VITE_API_BASE ?? "undefined"}"`);
 
 function networkErrorMessage(url: string) {
   return `Failed to reach API endpoint ${url}. Verify the API server is running and reachable.`;
 }
 
 export function apiUrl(path: string) {
-  return `${base}${path}`;
+  return `${resolvedBase}${path}`;
 }
 
 export function buildAuthenticatedApiUrl(path: string) {
@@ -180,12 +196,12 @@ export function debugApiConfig() {
   console.group("[DEBUG] API Configuration");
   console.log(`VITE_API_URL: "${import.meta.env.VITE_API_URL ?? "undefined"}"`);
   console.log(`VITE_API_BASE: "${import.meta.env.VITE_API_BASE ?? "undefined"}"`);
-  console.log(`Resolved base: "${base}"`);
+  console.log(`Resolved base: "${resolvedBase}"`);
   console.log(`Sample URL: ${url}`);
   console.log(`Current Origin: ${window.location.origin}`);
   console.log(`API accessible: ${url.startsWith("http") ? "Yes (different origin)" : "No (same origin)"}`);
   console.groupEnd();
-  return { base, sampleUrl: url, origin: window.location.origin };
+  return { base: resolvedBase, sampleUrl: url, origin: window.location.origin };
 }
 
 export async function downloadApiFile(path: string) {

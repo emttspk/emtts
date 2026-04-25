@@ -14,8 +14,8 @@ export default function AuthShell(props: { title: string; subtitle: string; chil
           <Link to="/" className="inline-flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand text-sm font-semibold text-white shadow-card">PP</div>
             <div>
-              <div className="text-sm font-semibold text-slate-900">Pakistan Post Label Platform</div>
-              <div className="text-xs text-slate-600">Dispatch operations, unified</div>
+              <div className="text-sm font-semibold text-slate-900">Epost.pk</div>
+              <div className="text-xs text-slate-600">Booking, Free Labels, Money Order, Tracking & Complaint System</div>
             </div>
           </Link>
 
@@ -36,7 +36,7 @@ export default function AuthShell(props: { title: string; subtitle: string; chil
           <div className="md:hidden">
             <Link to="/" className="inline-flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand text-sm font-semibold text-white shadow-card">PP</div>
-              <div className="text-sm font-semibold text-slate-900">Pakistan Post Label Platform</div>
+              <div className="text-sm font-semibold text-slate-900">Epost.pk</div>
             </Link>
             <h1 className="mt-6 text-3xl font-semibold tracking-tight text-slate-900">{props.title}</h1>
             <p className="mt-2 text-sm text-slate-600">{props.subtitle}</p>
@@ -45,7 +45,7 @@ export default function AuthShell(props: { title: string; subtitle: string; chil
           <div className="ui-card mt-8 p-6">{props.children}</div>
 
           <div className="mt-6 flex items-center justify-center gap-4 text-xs text-slate-600">
-            <span>© {new Date().getFullYear()} Pakistan Post Label Platform</span>
+            <span>© {new Date().getFullYear()} Epost.pk</span>
             <span className="h-1 w-1 rounded-full bg-slate-300" />
             <Link to="/" className="hover:text-brand">
               Home
@@ -56,4 +56,5 @@ export default function AuthShell(props: { title: string; subtitle: string; chil
     </div>
   );
 }
+
 

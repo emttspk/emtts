@@ -55,46 +55,38 @@ export default function Complaints() {
   }
 
   return (
-    <div className="space-y-6">
-      <Card className="p-6">
-        <div className="text-xl font-medium text-gray-900">Complaint Automation</div>
-        <div className="mt-1 text-sm text-gray-600">Select a shipment and submit a complaint through the automation engine.</div>
+    <div className="space-y-8">
+      <Card className="p-8">
+        <div className="inline-flex rounded-2xl border border-brand/30 bg-brand/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand">
+          Epost.pk
+        </div>
+        <div className="mt-3 text-2xl font-semibold text-[#0F172A]">Complaint Automation</div>
+        <div className="mt-1 text-sm text-slate-600">Submit and manage complaint workflows from one dashboard.</div>
 
         {error ? <div className="mt-3 text-sm text-red-600">{error}</div> : null}
 
-        <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <div className="mt-6 grid gap-4 md:grid-cols-3">
           <div className="md:col-span-2">
-            <label className="text-sm font-medium text-gray-700">Shipment</label>
-            <select
-              className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm"
-              value={selected}
-              onChange={(e) => setSelected(e.target.value)}
-              disabled={loading}
-            >
-              <option value="">Select tracking number…</option>
+            <label className="text-sm font-medium text-slate-700">Shipment</label>
+            <select className="field-input mt-1" value={selected} onChange={(e) => setSelected(e.target.value)} disabled={loading}>
+              <option value="">Select tracking number...</option>
               {shipments.map((s) => (
                 <option key={s.id} value={s.trackingNumber}>
-                  {s.trackingNumber} {s.status ? `— ${s.status}` : ""}
+                  {s.trackingNumber} {s.status ? `- ${s.status}` : ""}
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-700">Phone</label>
-            <input
-              className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm"
-              placeholder="03001234567 or +923001234567"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
+            <label className="text-sm font-medium text-slate-700">Phone</label>
+            <input className="field-input mt-1" placeholder="03001234567 or +923001234567" value={phone} onChange={(e) => setPhone(e.target.value)} />
           </div>
         </div>
 
         {current ? (
-          <div className="mt-4 rounded-lg border bg-gray-50 px-4 py-3 text-sm text-gray-700">
+          <div className="mt-5 rounded-2xl border border-[#E5E7EB] bg-[#F8FAF9] px-4 py-3 text-sm text-slate-700 shadow-xl">
             <div>
-              <span className="font-medium">Status:</span> {current.status ?? "—"} •{" "}
-              <span className="font-medium">Complaint:</span> {current.complaintStatus ?? "—"}
+              <span className="font-medium">Status:</span> {current.status ?? "-"} � <span className="font-medium">Complaint:</span> {current.complaintStatus ?? "-"}
             </div>
             {current.city ? (
               <div className="mt-1">
@@ -104,9 +96,9 @@ export default function Complaints() {
           </div>
         ) : null}
 
-        <div className="mt-5 flex flex-wrap gap-2">
+        <div className="mt-5 flex flex-wrap gap-3">
           <button
-            className="rounded-lg border bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+            className="btn-secondary"
             onClick={async () => {
               setError(null);
               try {
@@ -120,7 +112,7 @@ export default function Complaints() {
           </button>
 
           <button
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-md hover:bg-indigo-700 disabled:opacity-50"
+            className="btn-primary disabled:opacity-50"
             disabled={!selected || !phone || polling.jobStatus === "PROCESSING" || polling.jobStatus === "QUEUED"}
             onClick={async () => {
               setError(null);
@@ -146,37 +138,37 @@ export default function Complaints() {
         </div>
 
         {polling.jobStatus ? (
-          <div className="mt-4 text-sm text-gray-700">
+          <div className="mt-4 text-sm text-slate-700">
             Job status: <span className="font-medium">{polling.jobStatus}</span>
-            {polling.jobError ? <span className="text-red-600"> • {polling.jobError}</span> : null}
+            {polling.jobError ? <span className="text-red-600"> � {polling.jobError}</span> : null}
           </div>
         ) : null}
       </Card>
 
-      <Card className="p-6">
-        <div className="text-lg font-medium text-gray-900">Recent Shipments</div>
-        <div className="mt-3 overflow-x-auto rounded-xl border bg-white">
+      <Card className="p-8">
+        <div className="text-lg font-medium text-[#0F172A]">Recent Shipments</div>
+        <div className="mt-4 overflow-x-auto rounded-2xl border border-[#E5E7EB] bg-white shadow-xl">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-50">
+            <thead className="bg-[#F8FAF9]">
               <tr>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-gray-500 whitespace-nowrap">Tracking</th>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-gray-500 whitespace-nowrap">Status</th>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-gray-500 whitespace-nowrap">Complaint</th>
-                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-gray-500 whitespace-nowrap">Updated</th>
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-slate-500 whitespace-nowrap">Tracking</th>
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-slate-500 whitespace-nowrap">Status</th>
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-slate-500 whitespace-nowrap">Complaint</th>
+                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-slate-500 whitespace-nowrap">Updated</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-[#E5E7EB]">
               {shipments.map((s) => (
                 <tr key={s.id}>
-                  <td className="px-3 py-2 font-mono text-xs text-gray-800 whitespace-nowrap">{s.trackingNumber}</td>
-                  <td className="px-3 py-2 text-gray-800 whitespace-nowrap">{s.status ?? "—"}</td>
-                  <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{s.complaintStatus ?? "—"}</td>
-                  <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{new Date(s.updatedAt).toLocaleString()}</td>
+                  <td className="px-3 py-2 font-mono text-xs text-slate-800 whitespace-nowrap">{s.trackingNumber}</td>
+                  <td className="px-3 py-2 text-slate-800 whitespace-nowrap">{s.status ?? "-"}</td>
+                  <td className="px-3 py-2 text-slate-700 whitespace-nowrap">{s.complaintStatus ?? "-"}</td>
+                  <td className="px-3 py-2 text-slate-700 whitespace-nowrap">{new Date(s.updatedAt).toLocaleString()}</td>
                 </tr>
               ))}
               {shipments.length === 0 ? (
                 <tr>
-                  <td className="px-3 py-6 text-sm text-gray-600" colSpan={4}>
+                  <td className="px-3 py-6 text-sm text-slate-600" colSpan={4}>
                     No shipments yet. Run Bulk Tracking first.
                   </td>
                 </tr>
@@ -188,4 +180,3 @@ export default function Complaints() {
     </div>
   );
 }
-
