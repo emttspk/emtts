@@ -33,13 +33,13 @@ export default function Sidebar(props: { isOpen: boolean; setIsOpen: (v: boolean
       title={collapsed ? p.label : undefined}
       className={({ isActive }) =>
         cn(
-          "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ease-in-out",
+          "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-300 ease-in-out",
           isActive ? "bg-white text-brand shadow-card" : "text-emerald-50/80 hover:bg-white/10 hover:text-white",
         )
       }
       onClick={() => props.setIsOpen(false)}
     >
-      <p.icon className="h-5 w-5 flex-none opacity-90 transition-transform duration-200 ease-in-out group-hover:scale-105" />
+      <p.icon className="h-5 w-5 flex-none opacity-90 transition-transform duration-300 ease-in-out group-hover:scale-105" />
       <span className={cn("truncate", collapsed && "hidden lg:inline")}>{p.label}</span>
     </NavLink>
   );
@@ -54,14 +54,14 @@ export default function Sidebar(props: { isOpen: boolean; setIsOpen: (v: boolean
       <aside
         className={cn(
           "fixed left-0 top-0 z-50 h-full border-r border-emerald-900/40 bg-brand text-white",
-          "transition-transform duration-200 ease-in-out md:translate-x-0",
+          "transition-transform duration-300 ease-in-out md:translate-x-0",
           props.isOpen ? "translate-x-0" : "-translate-x-full",
           collapsed ? "w-64 md:w-16 lg:w-64" : "w-64",
         )}
       >
         <div className="flex h-16 items-center justify-between px-4">
           <div className={cn("flex items-center gap-3", collapsed && "md:justify-center md:gap-0")}>
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-sm font-semibold text-brand shadow-card">
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white text-sm font-semibold text-brand shadow-card">
               BD
             </div>
             <div className={cn("leading-tight", collapsed && "md:hidden lg:block")}>
@@ -87,7 +87,7 @@ export default function Sidebar(props: { isOpen: boolean; setIsOpen: (v: boolean
           <button
             title={collapsed ? "Logout" : undefined}
           className={cn(
-              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-emerald-50/80 transition-all duration-200 ease-in-out hover:bg-white/10 hover:text-white",
+              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-emerald-50/80 transition-all duration-300 ease-in-out hover:bg-white/10 hover:text-white",
               collapsed && "md:justify-center lg:justify-start",
             )}
             onClick={() => {
@@ -103,3 +103,4 @@ export default function Sidebar(props: { isOpen: boolean; setIsOpen: (v: boolean
     </>
   );
 }
+

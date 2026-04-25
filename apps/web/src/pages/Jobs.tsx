@@ -63,24 +63,24 @@ export default function Jobs() {
   if (!loading && visibleJobs.length === 0) return <EmptyState onUploadClick={() => nav("/upload")} />;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <Card className="p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="text-xl font-semibold text-slate-950">Jobs</div>
             <div className="mt-1 text-sm text-slate-600">Downloads are now part of the same jobs workflow. Switch between all activity and ready files here.</div>
           </div>
-          <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+          <div className="inline-flex rounded-2xl border border-[#E5E7EB] bg-[#F8FAF9] p-1 shadow-lg">
             <button
               type="button"
-              className={`rounded-2xl px-4 py-2 text-sm font-medium transition ${filter === "all" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600"}`}
+              className={`rounded-2xl px-4 py-2 text-sm font-medium transition ${filter === "all" ? "bg-white text-slate-950 shadow-lg" : "text-slate-600"}`}
               onClick={() => setParams({ filter: "all" })}
             >
               All Jobs ({jobs.length})
             </button>
             <button
               type="button"
-              className={`rounded-2xl px-4 py-2 text-sm font-medium transition ${filter === "completed" ? "bg-white text-slate-950 shadow-sm" : "text-slate-600"}`}
+              className={`rounded-2xl px-4 py-2 text-sm font-medium transition ${filter === "completed" ? "bg-white text-slate-950 shadow-lg" : "text-slate-600"}`}
               onClick={() => setParams({ filter: "completed" })}
             >
               Ready Downloads ({completedCount})
@@ -93,4 +93,5 @@ export default function Jobs() {
     </div>
   );
 }
+
 

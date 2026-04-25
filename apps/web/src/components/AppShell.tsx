@@ -58,7 +58,7 @@ export default function AppShell() {
 
         <main className="relative flex-1 overflow-hidden">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(11,93,59,0.12),_transparent_24%)]" />
-          <div className="mx-auto w-full max-w-6xl px-6 py-16">
+          <div className="mx-auto w-full max-w-7xl px-6 py-20">
             {loading ? (
               <div className="grid gap-4">
                 <Card className="p-6">

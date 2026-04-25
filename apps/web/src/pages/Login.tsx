@@ -15,7 +15,7 @@ export default function Login() {
     <AuthShell title="Sign in" subtitle="Access your workspace to upload orders and download A4-ready PDFs.">
       <div className="text-xl font-semibold text-slate-900">Welcome back</div>
       <div className="mt-1 text-sm text-slate-600">Use the account you created during onboarding.</div>
-      {err ? <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">{err}</div> : null}
+      {err ? <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">{err}</div> : null}
 
       <form
         className="mt-5 space-y-4"
@@ -64,7 +64,7 @@ export default function Login() {
           <span className="text-slate-500">No self-service password reset yet</span>
         </div>
 
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
           If login keeps failing, either your email is not registered in this local database or the password is incorrect. Use{" "}
           <Link to={`/register${email ? `?email=${encodeURIComponent(email)}` : ""}`} className="font-semibold text-amber-950 underline decoration-amber-400 underline-offset-2">
             Create account
@@ -75,3 +75,4 @@ export default function Login() {
     </AuthShell>
   );
 }
+

@@ -39,7 +39,7 @@ export default function Billing() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <Card className="overflow-hidden p-8">
         <div className="grid gap-6 lg:grid-cols-[1.35fr_0.65fr] lg:items-center">
           <div>
@@ -50,7 +50,7 @@ export default function Billing() {
             <div className="mt-5 text-4xl font-semibold text-slate-950">Choose a package built for dispatch teams.</div>
             <div className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Your current package, monthly capacity, and upgrade path are shown here in a cleaner billing surface.</div>
           </div>
-          <div className="rounded-[28px] border border-slate-200 bg-[linear-gradient(180deg,#0f172a,#1e293b)] p-6 text-white shadow-card">
+          <div className="rounded-2xl border border-[#E5E7EB] bg-[linear-gradient(180deg,#0f172a,#1e293b)] p-6 text-white shadow-card">
             <div className="text-xs uppercase tracking-[0.3em] text-slate-300">Active package</div>
             <div className="mt-3 text-3xl font-semibold">{me?.subscription?.plan?.name ?? "No active plan"}</div>
             <div className="mt-4 grid gap-3 text-sm text-slate-200">
@@ -96,7 +96,7 @@ export default function Billing() {
                   </div>
                 </div>
 
-                <button className="mt-6 w-full rounded-xl bg-brand px-4 py-3 text-sm font-medium text-white shadow-md transition-all duration-200 ease-in-out hover:bg-brand-dark" type="button">
+                <button className="mt-6 w-full rounded-2xl bg-brand px-4 py-3 text-sm font-medium text-white shadow-lg transition-all duration-300 ease-in-out hover:bg-brand-dark" type="button">
                   {me?.subscription?.plan?.id === plan.id ? `Current: ${plan.name}` : `Choose ${plan.name}`}
                 </button>
               </div>
@@ -107,6 +107,7 @@ export default function Billing() {
     </div>
   );
 }
+
 
 
 

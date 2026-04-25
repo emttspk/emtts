@@ -25,7 +25,7 @@ export default function Topbar(props: {
 
   return (
     <header className="sticky top-0 z-30 border-b border-emerald-100/70 bg-white/85 backdrop-blur-xl">
-      <div className="mx-auto flex h-20 w-full max-w-6xl items-center justify-between gap-3 px-6">
+      <div className="mx-auto flex h-20 w-full max-w-7xl items-center justify-between gap-3 px-6">
         <div className="flex items-center gap-3">
           <button onClick={() => props.setIsSidebarOpen(true)} className="btn-secondary px-2.5 py-2 md:hidden">
             <Menu className="h-5 w-5" />
@@ -55,7 +55,7 @@ export default function Topbar(props: {
           <div className="relative">
             <button
               onClick={() => setOpen((v) => !v)}
-              className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-2 py-1.5 shadow-card transition-all duration-200 ease-in-out hover:shadow-cardHover"
+              className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-white px-2 py-1.5 shadow-card transition-all duration-300 ease-in-out hover:shadow-cardHover"
             >
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-sm font-semibold text-white shadow-card">
                 {badge}
@@ -68,7 +68,7 @@ export default function Topbar(props: {
             </button>
 
             {open ? (
-              <div className="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border border-emerald-100 bg-white shadow-card">
+              <div className="absolute right-0 mt-2 w-56 overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-card">
                 <div className="px-4 py-3">
                   <div className="text-sm font-medium text-gray-900">Signed in</div>
                   <div className="mt-1 truncate text-sm text-gray-600">{props.userEmail ?? "—"}</div>
@@ -77,7 +77,7 @@ export default function Topbar(props: {
                 <button
                   className={cn(
                     "flex w-full items-center gap-2 px-4 py-2 text-left text-sm font-medium text-red-600",
-                    "transition-all duration-200 ease-in-out hover:bg-gray-50",
+                    "transition-all duration-300 ease-in-out hover:bg-gray-50",
                   )}
                   onClick={() => {
                     clearSession();
@@ -95,3 +95,4 @@ export default function Topbar(props: {
     </header>
   );
 }
+

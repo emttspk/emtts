@@ -9,10 +9,10 @@ export default function AuthShell(props: { title: string; subtitle: string; chil
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(11,93,59,0.16),_transparent_35%)]" />
       <div className="pointer-events-none absolute -top-28 left-1/2 h-[500px] w-[860px] -translate-x-1/2 rounded-full bg-brand/10 blur-3xl" aria-hidden />
 
-      <div className="relative mx-auto grid min-h-screen w-full max-w-6xl items-center gap-12 px-6 py-16 md:grid-cols-2">
+      <div className="relative mx-auto grid min-h-screen w-full max-w-7xl items-center gap-12 px-6 py-20 md:grid-cols-2">
         <div className="hidden md:block">
           <Link to="/" className="inline-flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand text-sm font-semibold text-white shadow-card">PP</div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand text-sm font-semibold text-white shadow-card">PP</div>
             <div>
               <div className="text-sm font-semibold text-slate-900">Pakistan Post Label Platform</div>
               <div className="text-xs text-slate-600">Dispatch operations, unified</div>
@@ -35,7 +35,7 @@ export default function AuthShell(props: { title: string; subtitle: string; chil
         <div className="mx-auto w-full max-w-md">
           <div className="md:hidden">
             <Link to="/" className="inline-flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand text-sm font-semibold text-white shadow-card">PP</div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand text-sm font-semibold text-white shadow-card">PP</div>
               <div className="text-sm font-semibold text-slate-900">Pakistan Post Label Platform</div>
             </Link>
             <h1 className="mt-6 text-3xl font-semibold tracking-tight text-slate-900">{props.title}</h1>
@@ -56,3 +56,4 @@ export default function AuthShell(props: { title: string; subtitle: string; chil
     </div>
   );
 }
+

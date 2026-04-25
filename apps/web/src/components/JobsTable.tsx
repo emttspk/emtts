@@ -43,7 +43,7 @@ function DownloadButton(props: { jobId: string; kind: "labels" | "money-orders" 
       type="button"
       onClick={handleDownload}
       disabled={busy}
-      className="inline-flex items-center gap-2 rounded-lg border bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm transition-all duration-200 ease-in-out hover:bg-gray-50 hover:text-gray-900"
+      className="inline-flex items-center gap-2 rounded-2xl border bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-lg transition-all duration-300 ease-in-out hover:bg-[#F8FAF9] hover:text-gray-900"
     >
       <Download className="h-4 w-4" />
       {busy ? "Preparing..." : label}
@@ -127,7 +127,7 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
           </div>
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-2xl border bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-lg hover:bg-[#F8FAF9] disabled:opacity-50"
             onClick={() => submitDeletion(0)}
             disabled={selectedIds.length === 0 || submitting}
           >
@@ -136,7 +136,7 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
           </button>
           <button
             type="button"
-            className="rounded-lg border bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
+            className="rounded-2xl border bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-lg hover:bg-[#F8FAF9] disabled:opacity-50"
             onClick={() => submitDeletion(7)}
             disabled={selectedIds.length === 0 || submitting}
           >
@@ -151,7 +151,7 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
             type="checkbox"
             checked={allSelected}
             onChange={(event) => toggleAll(event.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+            className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
           />
           Select All
         </label>
@@ -176,14 +176,14 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
               const created = new Date(job.createdAt).toLocaleString();
               const canDelete = job.status !== "QUEUED" && job.status !== "PROCESSING";
               return (
-                <tr key={job.id} className="transition-colors hover:bg-gray-50/60">
+                <tr key={job.id} className="transition-colors hover:bg-[#F8FAF9]/60">
                   <td className="px-5 py-3 text-sm text-gray-600">
                     <input
                       type="checkbox"
                       checked={selectedIds.includes(job.id)}
                       onChange={(event) => toggleJob(job.id, event.target.checked)}
                       disabled={!canDelete}
-                      className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600 disabled:opacity-40"
+                      className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand disabled:opacity-40"
                     />
                   </td>
                   <td className="px-5 py-3 text-sm font-mono text-gray-600">{job.id}</td>
@@ -217,3 +217,4 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
     </Card>
   );
 }
+

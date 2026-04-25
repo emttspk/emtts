@@ -80,7 +80,7 @@ export default function Settings() {
         </div>
 
         <button
-          className="mt-6 rounded-lg border bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all duration-200 ease-in-out hover:bg-gray-50"
+          className="mt-6 rounded-2xl border bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-lg transition-all duration-300 ease-in-out hover:bg-gray-50"
           onClick={() => {
             clearSession();
             nav("/login");
@@ -102,7 +102,7 @@ export default function Settings() {
             <input
               id="companyName"
               type="text"
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="mt-1 block w-full rounded-2xl border border-gray-300 px-3 py-2 text-sm shadow-lg focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
               maxLength={120}
@@ -115,7 +115,7 @@ export default function Settings() {
             <input
               id="address"
               type="text"
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="mt-1 block w-full rounded-2xl border border-gray-300 px-3 py-2 text-sm shadow-lg focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               maxLength={300}
@@ -129,7 +129,7 @@ export default function Settings() {
               <input
                 id="originCity"
                 type="text"
-                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="mt-1 block w-full rounded-2xl border border-gray-300 px-3 py-2 text-sm shadow-lg focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"
                 value={originCity}
                 onChange={(e) => setOriginCity(e.target.value)}
                 maxLength={80}
@@ -141,7 +141,7 @@ export default function Settings() {
               <input
                 id="contactNumber"
                 type="text"
-                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="mt-1 block w-full rounded-2xl border border-gray-300 px-3 py-2 text-sm shadow-lg focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"
                 value={contactNumber}
                 onChange={(e) => setContactNumber(e.target.value)}
                 maxLength={30}
@@ -155,7 +155,7 @@ export default function Settings() {
             <input
               id="cnic"
               type="text"
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="mt-1 block w-full rounded-2xl border border-gray-300 px-3 py-2 text-sm shadow-lg focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/10"
               value={cnic}
               onChange={(e) => setCnic(e.target.value)}
               maxLength={15}
@@ -163,14 +163,14 @@ export default function Settings() {
             />
           </div>
 
-          {error ? <div className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div> : null}
-          {saved ? <div className="rounded-lg bg-emerald-50 px-4 py-2 text-sm text-emerald-700">Profile saved successfully.</div> : null}
+          {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div> : null}
+          {saved ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">Profile saved successfully.</div> : null}
 
           <div className="flex justify-end">
             <button
               type="submit"
               disabled={saving}
-              className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white shadow-sm transition-all duration-200 ease-in-out hover:bg-indigo-700 disabled:opacity-50"
+              className="rounded-2xl bg-brand px-5 py-2 text-sm font-medium text-white shadow-lg transition-all duration-300 ease-in-out hover:bg-brand-dark disabled:opacity-50"
             >
               {saving ? "Saving…" : "Save Profile"}
             </button>
@@ -180,4 +180,6 @@ export default function Settings() {
     </div>
   );
 }
+
+
 

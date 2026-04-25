@@ -2002,7 +2002,7 @@ export default function BulkTracking() {
         </div>
       </Card>
 
-      <Card className="border-slate-200 p-3">
+      <Card className="border-[#E5E7EB] p-3">
         <div className="grid gap-3 sm:grid-cols-5">
           <button
             type="button"
@@ -2010,7 +2010,7 @@ export default function BulkTracking() {
               setStatusFilter("ALL");
               setPage(1);
             }}
-            className="rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:shadow-sm"
+            className="rounded-2xl border border-[#E5E7EB] bg-white p-3 text-left transition hover:shadow-lg"
           >
             <div className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">Total</div>
             <div className="mt-2 text-2xl font-semibold text-slate-900">{summaryStats.total.toLocaleString()}</div>
@@ -2021,7 +2021,7 @@ export default function BulkTracking() {
               setStatusFilter("DELIVERED");
               setPage(1);
             }}
-            className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-left transition hover:shadow-sm"
+            className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-left transition hover:shadow-lg"
           >
             <div className="text-xs font-medium uppercase tracking-[0.12em] text-emerald-700">Delivered</div>
             <div className="mt-2 text-2xl font-semibold text-emerald-800">{summaryStats.delivered.toLocaleString()}</div>
@@ -2032,7 +2032,7 @@ export default function BulkTracking() {
               setStatusFilter("PENDING");
               setPage(1);
             }}
-            className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-left transition hover:shadow-sm"
+            className="rounded-2xl border border-orange-200 bg-orange-50 p-3 text-left transition hover:shadow-lg"
           >
             <div className="text-xs font-medium uppercase tracking-[0.12em] text-orange-700">Pending</div>
             <div className="mt-2 text-2xl font-semibold text-orange-800">{summaryStats.pending.toLocaleString()}</div>
@@ -2043,7 +2043,7 @@ export default function BulkTracking() {
               setStatusFilter("RETURNED");
               setPage(1);
             }}
-            className="rounded-xl border border-red-200 bg-red-50 p-3 text-left transition hover:shadow-sm"
+            className="rounded-2xl border border-red-200 bg-red-50 p-3 text-left transition hover:shadow-lg"
           >
             <div className="text-xs font-medium uppercase tracking-[0.12em] text-red-700">Returned</div>
             <div className="mt-2 text-2xl font-semibold text-red-800">{summaryStats.returned.toLocaleString()}</div>
@@ -2054,7 +2054,7 @@ export default function BulkTracking() {
               setStatusFilter("DELAYED");
               setPage(1);
             }}
-            className="rounded-xl border border-violet-200 bg-violet-50 p-3 text-left transition hover:shadow-sm"
+            className="rounded-2xl border border-violet-200 bg-violet-50 p-3 text-left transition hover:shadow-lg"
           >
             <div className="text-xs font-medium uppercase tracking-[0.12em] text-violet-700">Delayed</div>
             <div className="mt-2 text-2xl font-semibold text-violet-800">{summaryStats.delayed.toLocaleString()}</div>
@@ -2063,7 +2063,7 @@ export default function BulkTracking() {
       </Card>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Card className="border-slate-200 p-3">
+        <Card className="border-[#E5E7EB] p-3">
           <div className="text-sm font-semibold text-slate-900">Status Distribution</div>
           <div className="mt-1 text-xs text-slate-500">Delivered · Pending · Returned · Delayed</div>
           <div className="mt-3 flex items-center gap-5">
@@ -2104,13 +2104,13 @@ export default function BulkTracking() {
                   <span className="font-semibold text-slate-900">{arc.value}</span>
                 </div>
               ))}
-              <div className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] text-slate-700">
+              <div className="rounded-md border border-[#E5E7EB] bg-[#F8FAF9] px-2 py-1 text-[11px] text-slate-700">
                 {hoveredPie ? `${hoveredPie.label}: ${hoveredPie.value}` : "Hover a slice: Delivered / Pending / Returned / Delayed"}
               </div>
             </div>
           </div>
         </Card>
-        <Card className="border-slate-200 p-3">
+        <Card className="border-[#E5E7EB] p-3">
           <div className="text-sm font-semibold text-slate-900">Monthly Tracking Volume</div>
           <div className="mt-1 text-xs text-slate-500">Last 6 months (oldest → newest)</div>
           <div className="mt-4 flex h-32 items-end gap-2">
@@ -2120,7 +2120,7 @@ export default function BulkTracking() {
                 <div key={item.key} className="flex flex-1 flex-col items-center gap-1">
                   <div className="text-[10px] font-medium text-slate-700">{item.value > 0 ? item.value : ""}</div>
                   <div
-                    className="w-full rounded-t-md bg-gradient-to-t from-indigo-600 to-sky-400"
+                    className="w-full rounded-t-md bg-gradient-to-t from-brand to-emerald-400"
                     style={{ height: `${h}px` }}
                   />
                   <div className="text-[10px] font-medium text-slate-500">{item.label}</div>
@@ -2152,9 +2152,9 @@ export default function BulkTracking() {
         <div className="border-b px-6 py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-xl font-medium text-gray-900">Bulk Tracking</div>
+              <div className="text-xl font-medium text-[#0F172A]">Bulk Tracking</div>
               <div className="mt-1 text-sm text-gray-600">Upload CSV/XLS/XLSX using the strict shared sample structure.</div>
-              <div className="mt-2 text-sm font-bold text-gray-900">FREE BULK DISPATCH AND TRACKING</div>
+              <div className="mt-2 text-sm font-bold text-[#0F172A]">FREE BULK DISPATCH AND TRACKING</div>
             </div>
             <SampleDownloadLink />
           </div>
@@ -2164,16 +2164,16 @@ export default function BulkTracking() {
           <div
             {...getRootProps()}
             className={cn(
-              "relative rounded-xl border border-dashed bg-white p-8 transition-all duration-200 ease-in-out",
+              "relative rounded-2xl border border-dashed bg-white p-8 transition-all duration-300 ease-in-out",
               isDragActive ? "border-brand bg-brand/10" : "border-gray-200 hover:border-gray-300",
             )}
           >
             <input {...getInputProps()} />
             <div className="flex flex-col items-center text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-50">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50">
                 <UploadCloud className="h-6 w-6 text-gray-600" />
               </div>
-              <div className="mt-4 text-base font-medium text-gray-900">Drag & drop Excel/CSV</div>
+              <div className="mt-4 text-base font-medium text-[#0F172A]">Drag & drop Excel/CSV</div>
               <div className="mt-1 text-sm text-gray-600">
                 or{" "}
                 <button type="button" className="font-medium text-brand hover:text-brand" onClick={open}>
@@ -2184,11 +2184,11 @@ export default function BulkTracking() {
               <div className="mt-4 w-full max-w-xl text-xs text-gray-600">
                 <div className="flex items-center justify-between">
                   <span>{file ? file.name : "No file selected"}</span>
-                  <span className="font-medium text-gray-900">{statusLabel}</span>
+                  <span className="font-medium text-[#0F172A]">{statusLabel}</span>
                 </div>
                 <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-100">
                   <div
-                    className={`h-full rounded-full transition-all duration-200 ease-in-out ${
+                    className={`h-full rounded-full transition-all duration-300 ease-in-out ${
                       error ? "bg-red-500" : uiState === "uploading" ? "bg-amber-500" : "bg-brand"
                     }`}
                     style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
@@ -2218,12 +2218,12 @@ export default function BulkTracking() {
                 ) : null}
               </div>
             </div>
-            {isDragActive ? <div className="pointer-events-none absolute inset-2 rounded-lg ring-1 ring-indigo-600/40" /> : null}
+            {isDragActive ? <div className="pointer-events-none absolute inset-2 rounded-2xl ring-1 ring-brand/40" /> : null}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <button
-              className="rounded-lg border bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+              className="rounded-2xl border bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-lg hover:bg-gray-50"
               onClick={() => {
                 submitTrackingRef.current = false;
                 setFile(null);
@@ -2242,7 +2242,7 @@ export default function BulkTracking() {
               Reset
             </button>
             <button
-              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white shadow-md hover:bg-brand-dark disabled:opacity-50"
+              className="rounded-2xl bg-brand px-4 py-2 text-sm font-medium text-white shadow-md hover:bg-brand-dark disabled:opacity-50"
               disabled={!file || polling.jobStatus === "PROCESSING" || polling.jobStatus === "QUEUED" || uiState === "uploading"}
               onClick={async () => {
                 if (!file) return;
@@ -2293,7 +2293,7 @@ export default function BulkTracking() {
         <Card className="p-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <div className="text-lg font-medium text-gray-900">Results</div>
+              <div className="text-lg font-medium text-[#0F172A]">Results</div>
               <div className="mt-1 text-sm text-gray-600">{stats.total.toLocaleString()} shipments</div>
             </div>
             <div className="text-xs text-gray-600">
@@ -2303,7 +2303,7 @@ export default function BulkTracking() {
             </div>
           </div>
 
-          <div className="mt-4 overflow-x-auto rounded-xl border bg-white">
+          <div className="mt-4 overflow-x-auto rounded-2xl border bg-white">
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
@@ -2352,8 +2352,8 @@ export default function BulkTracking() {
         </Card>
       ) : null}
 
-      <Card className="overflow-hidden border-slate-200 bg-[linear-gradient(180deg,#ffffff,#f8fbff)] p-0">
-        <div className="border-b border-slate-200 bg-white/80 px-6 py-5 backdrop-blur">
+      <Card className="overflow-hidden border-[#E5E7EB] bg-[linear-gradient(180deg,#ffffff,#f8fbff)] p-0">
+        <div className="border-b border-[#E5E7EB] bg-white/80 px-6 py-5 backdrop-blur">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-xl font-semibold tracking-tight text-slate-900">All Tracked Shipments</div>
@@ -2363,7 +2363,7 @@ export default function BulkTracking() {
             <label className="text-xs font-medium text-slate-600">
               Records:
               <select
-                className="ml-2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
+                className="ml-2 rounded-2xl border border-[#E5E7EB] bg-white px-2 py-1 text-xs"
                 value={pageSize}
                 onChange={(e) => {
                   setPageSize(Number(e.target.value) as 20 | 50 | 100);
@@ -2378,7 +2378,7 @@ export default function BulkTracking() {
             <label className="text-xs font-medium text-slate-600">
               Filter:
               <select
-                className="ml-2 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
+                className="ml-2 rounded-2xl border border-[#E5E7EB] bg-white px-2 py-1 text-xs"
                 value={statusFilter}
                 onChange={(e) => {
                   setStatusFilter(e.target.value as StatusCardFilter);
@@ -2395,7 +2395,7 @@ export default function BulkTracking() {
             {selectedIds.length > 0 && (
               <button
                 onClick={deleteSelected}
-                className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 shadow-sm hover:bg-red-100"
+                className="rounded-2xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 shadow-lg hover:bg-red-100"
               >
                 Delete {selectedIds.length}
               </button>
@@ -2403,25 +2403,25 @@ export default function BulkTracking() {
             <button
               onClick={refreshAllPending}
               disabled={refreshingPending}
-              className="inline-flex items-center gap-1 rounded-lg border border-brand/30 bg-brand/10 px-3 py-1.5 text-xs font-medium text-brand shadow-sm hover:bg-brand/20 disabled:opacity-60"
+              className="inline-flex items-center gap-1 rounded-2xl border border-brand/30 bg-brand/10 px-3 py-1.5 text-xs font-medium text-brand shadow-lg hover:bg-brand/20 disabled:opacity-60"
             >
               <RefreshCw className={cn("h-3.5 w-3.5", refreshingPending && "animate-spin")} />
               Refresh All Pending
             </button>
             <button
               onClick={refreshShipments}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+              className="rounded-2xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-lg hover:bg-[#F8FAF9]"
             >
               Refresh
             </button>
           </div>
         </div>
-        {refreshSummary ? <div className="border-t border-slate-200 bg-slate-50 px-6 py-2 text-xs text-slate-700">{refreshSummary}</div> : null}
+        {refreshSummary ? <div className="border-t border-[#E5E7EB] bg-[#F8FAF9] px-6 py-2 text-xs text-slate-700">{refreshSummary}</div> : null}
         </div>
         <div className="p-1.5 md:p-2">
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <div className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
             <table className="w-full table-auto text-[13px]">
-              <thead className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/95 backdrop-blur">
+              <thead className="sticky top-0 z-10 border-b border-[#E5E7EB] bg-[#F8FAF9]/95 backdrop-blur">
               <tr>
                 <th className="w-8 border-r border-slate-100 px-2 py-2">
                   <input
@@ -2549,7 +2549,7 @@ export default function BulkTracking() {
                     <td className="border-r border-slate-100 px-2 py-1.5 align-middle">
                       <div className="flex items-center gap-1">
                         <select
-                            className="w-20 rounded border-slate-200 bg-white py-1 text-[10px] font-medium text-slate-700 shadow-sm focus:border-brand focus:ring-brand"
+                            className="w-20 rounded border-[#E5E7EB] bg-white py-1 text-[10px] font-medium text-slate-700 shadow-lg focus:border-brand focus:ring-brand"
                           value={actionValue}
                           onChange={(e) => updateStatus(s.trackingNumber, e.target.value.includes("RETURN") ? "RETURNED" : e.target.value)}
                         >
@@ -2580,7 +2580,7 @@ export default function BulkTracking() {
                           disabled={!isComplaintEnabled}
                           onClick={() => openComplaintModal(row)}
                           className={cn(
-                            "rounded px-2.5 py-1 text-xs font-medium shadow-sm ring-1 ring-inset transition-all",
+                            "rounded px-2.5 py-1 text-xs font-medium shadow-lg ring-1 ring-inset transition-all",
                             isComplaintEnabled
                               ? "bg-red-50 text-red-700 ring-red-600/10 hover:bg-red-100 hover:text-red-800"
                               : "cursor-not-allowed bg-gray-50 text-gray-400 ring-gray-200"
@@ -2609,14 +2609,14 @@ export default function BulkTracking() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                className="rounded border border-slate-200 bg-white px-2 py-1 disabled:opacity-50"
+                className="rounded border border-[#E5E7EB] bg-white px-2 py-1 disabled:opacity-50"
                 disabled={page <= 1}
                 onClick={() => setPage((prev) => Math.max(1, prev - 1))}
               >
                 Previous
               </button>
               <button
-                className="rounded border border-slate-200 bg-white px-2 py-1 disabled:opacity-50"
+                className="rounded border border-[#E5E7EB] bg-white px-2 py-1 disabled:opacity-50"
                 disabled={page >= totalPages}
                 onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
               >
@@ -2627,7 +2627,7 @@ export default function BulkTracking() {
         </div>
       </Card>
 
-      <Card className="border-slate-200 p-6">
+      <Card className="border-[#E5E7EB] p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="text-lg font-semibold text-slate-900">Tracking Cycle Audit (100 Sample)</div>
@@ -2635,28 +2635,28 @@ export default function BulkTracking() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              className="rounded-2xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-[#F8FAF9] disabled:opacity-60"
               onClick={runCycleAudit}
               disabled={auditLoading}
             >
               {auditLoading ? "Auditing..." : "Run Audit"}
             </button>
             <button
-              className="rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-dark disabled:opacity-60"
+              className="rounded-2xl bg-brand px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-dark disabled:opacity-60"
               onClick={saveCycleCorrections}
               disabled={savingCorrections || auditRows.length === 0}
             >
               {savingCorrections ? "Saving..." : "Save Corrections & Reprocess"}
             </button>
             <button
-              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              className="rounded-2xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-[#F8FAF9] disabled:opacity-60"
               onClick={exportAuditToCSV}
               disabled={auditRows.length === 0}
             >
               Export CSV
             </button>
             <button
-              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              className="rounded-2xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-[#F8FAF9] disabled:opacity-60"
               onClick={() => importFileInputRef.current?.click()}
               disabled={importingCSV}
             >
@@ -2678,12 +2678,12 @@ export default function BulkTracking() {
             />
           </div>
         </div>
-        {auditSummary ? <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{auditSummary}</div> : null}
-        {auditError ? <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{auditError}</div> : null}
+        {auditSummary ? <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{auditSummary}</div> : null}
+        {auditError ? <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{auditError}</div> : null}
         {auditRows.length > 0 ? (
-          <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+          <div className="mt-4 overflow-x-auto rounded-2xl border border-[#E5E7EB] bg-white">
             <table className="min-w-[1200px] text-xs">
-              <thead className="bg-slate-50">
+              <thead className="bg-[#F8FAF9]">
                 <tr>
                   <th className="px-3 py-2 text-left font-semibold text-slate-600">Tracking</th>
                   <th className="px-3 py-2 text-left font-semibold text-slate-600">Current</th>
@@ -2710,7 +2710,7 @@ export default function BulkTracking() {
                       <td className="px-3 py-2">
                         <div className="grid gap-1">
                           <select
-                            className="rounded border border-slate-200 bg-white px-2 py-1"
+                            className="rounded border border-[#E5E7EB] bg-white px-2 py-1"
                             value={draft.expected_status}
                             onChange={(e) => updateAuditDraft(row.tracking_number, { expected_status: e.target.value as CycleAuditDraft["expected_status"] }, row)}
                           >
@@ -2720,7 +2720,7 @@ export default function BulkTracking() {
                             <option value="DELIVERED WITH PAYMENT">DELIVERED WITH PAYMENT</option>
                           </select>
                           <select
-                            className="rounded border border-slate-200 bg-white px-2 py-1"
+                            className="rounded border border-[#E5E7EB] bg-white px-2 py-1"
                             value={draft.cycle_detected}
                             onChange={(e) => updateAuditDraft(row.tracking_number, { cycle_detected: e.target.value as CycleAuditDraft["cycle_detected"] }, row)}
                           >
@@ -2730,13 +2730,13 @@ export default function BulkTracking() {
                             <option value="Cycle Unknown">Cycle Unknown</option>
                           </select>
                           <input
-                            className="rounded border border-slate-200 bg-white px-2 py-1"
+                            className="rounded border border-[#E5E7EB] bg-white px-2 py-1"
                             value={draft.missing_steps}
                             onChange={(e) => updateAuditDraft(row.tracking_number, { missing_steps: e.target.value }, row)}
                             placeholder="Missing steps (semicolon separated)"
                           />
                           <input
-                            className="rounded border border-slate-200 bg-white px-2 py-1"
+                            className="rounded border border-[#E5E7EB] bg-white px-2 py-1"
                             value={draft.reason}
                             onChange={(e) => updateAuditDraft(row.tracking_number, { reason: e.target.value }, row)}
                             placeholder="Correction reason"
@@ -2762,15 +2762,15 @@ export default function BulkTracking() {
 
       {complaintRecord ? (
         <div className="modal-wrapper bg-slate-950/50 p-2 z-40">
-          <div className="modal-content w-full max-w-4xl rounded-lg bg-white shadow-2xl max-h-[95vh] flex flex-col overflow-hidden">
-            <div className="modal-header flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
+          <div className="modal-content w-full max-w-4xl rounded-2xl bg-white shadow-2xl max-h-[95vh] flex flex-col overflow-hidden">
+            <div className="modal-header flex items-start justify-between gap-3 border-b border-[#E5E7EB] px-4 py-3">
               <div>
                 <div className="text-base font-semibold text-slate-900">File Complaint</div>
                 <div className="text-xs text-slate-500">Tracking: {complaintRecord.shipment.trackingNumber}</div>
               </div>
               <button
                 type="button"
-                className="rounded border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                className="rounded border border-[#E5E7EB] px-2 py-1 text-xs text-slate-600 hover:bg-[#F8FAF9]"
                 onClick={() => setComplaintRecord(null)}
               >
                 Close
@@ -2782,15 +2782,15 @@ export default function BulkTracking() {
                 <div className="grid grid-cols-4 gap-2">
                   <label>
                     <div className="text-[10px] font-medium text-slate-600 mb-0.5">Article No</div>
-                    <input value={complaintRecord.shipment.trackingNumber} readOnly className="w-full rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs" />
+                    <input value={complaintRecord.shipment.trackingNumber} readOnly className="w-full rounded border border-[#E5E7EB] bg-[#F8FAF9] px-2 py-1 text-xs" />
                   </label>
                   <label>
                     <div className="text-[10px] font-medium text-slate-600 mb-0.5">Service Type</div>
-                    <input value={detectServiceType(complaintRecord.shipment.trackingNumber)} readOnly className="w-full rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs" />
+                    <input value={detectServiceType(complaintRecord.shipment.trackingNumber)} readOnly className="w-full rounded border border-[#E5E7EB] bg-[#F8FAF9] px-2 py-1 text-xs" />
                   </label>
                   <label>
                     <div className="text-[10px] font-medium text-slate-600 mb-0.5">Complaint Reason</div>
-                    <select value={complaintReason} onChange={(e) => setComplaintReason(e.target.value)} className="w-full rounded border border-slate-200 bg-white px-2 py-1 text-xs">
+                    <select value={complaintReason} onChange={(e) => setComplaintReason(e.target.value)} className="w-full rounded border border-[#E5E7EB] bg-white px-2 py-1 text-xs">
                       <option value="Pending Delivery">Pending Delivery</option>
                       <option value="Return Not Received">Return Not Received</option>
                       <option value="Money Order Not Received">Money Order Not Received</option>
@@ -2799,22 +2799,22 @@ export default function BulkTracking() {
                   </label>
                   <label>
                     <div className="text-[10px] font-medium text-slate-600 mb-0.5">Booking Date</div>
-                    <input value={formatLastDate(complaintRecord.shipment)} readOnly className="w-full rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs" />
+                    <input value={formatLastDate(complaintRecord.shipment)} readOnly className="w-full rounded border border-[#E5E7EB] bg-[#F8FAF9] px-2 py-1 text-xs" />
                   </label>
                 </div>
 
                 <div className="grid grid-cols-4 gap-2">
                   <label>
                     <div className="text-[10px] font-medium text-slate-600 mb-0.5">Complainant Name</div>
-                    <input value={complainantNameInput} onChange={(e) => setComplainantNameInput(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.SenderName ? "border-slate-200" : "border-red-300 bg-red-50"}`} />
+                    <input value={complainantNameInput} onChange={(e) => setComplainantNameInput(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.SenderName ? "border-[#E5E7EB]" : "border-red-300 bg-red-50"}`} />
                   </label>
                   <label>
                     <div className="text-[10px] font-medium text-slate-600 mb-0.5">Mobile</div>
-                    <input value={complaintPhone} onChange={(e) => setComplaintPhone(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.Mobile ? "border-slate-200" : "border-red-300 bg-red-50"}`} placeholder="03XXXXXXXXX" />
+                    <input value={complaintPhone} onChange={(e) => setComplaintPhone(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.Mobile ? "border-[#E5E7EB]" : "border-red-300 bg-red-50"}`} placeholder="03XXXXXXXXX" />
                   </label>
                   <label>
                     <div className="text-[10px] font-medium text-slate-600 mb-0.5">Reply Mode</div>
-                    <select value={replyMode} onChange={(e) => setReplyMode((e.target.value as "POST" | "EMAIL" | "SMS"))} className="w-full rounded border border-slate-200 bg-white px-2 py-1 text-xs">
+                    <select value={replyMode} onChange={(e) => setReplyMode((e.target.value as "POST" | "EMAIL" | "SMS"))} className="w-full rounded border border-[#E5E7EB] bg-white px-2 py-1 text-xs">
                       <option value="POST">Post</option>
                       <option value="EMAIL">Email</option>
                       <option value="SMS">SMS</option>
@@ -2822,11 +2822,11 @@ export default function BulkTracking() {
                   </label>
                   <label>
                     <div className="text-[10px] font-medium text-slate-600 mb-0.5">Booking Office</div>
-                    <input value={senderCitySearch || getUnifiedFields(complaintRecord.shipment.rawJson).senderCity || "-"} readOnly className="w-full rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs" />
+                    <input value={senderCitySearch || getUnifiedFields(complaintRecord.shipment.rawJson).senderCity || "-"} readOnly className="w-full rounded border border-[#E5E7EB] bg-[#F8FAF9] px-2 py-1 text-xs" />
                   </label>
                 </div>
 
-                <div className="border-t border-slate-200 pt-2 mt-2">
+                <div className="border-t border-[#E5E7EB] pt-2 mt-2">
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-xs font-semibold text-slate-800">Sender Detail</div>
                   </div>
@@ -2837,22 +2837,22 @@ export default function BulkTracking() {
                         value={senderNameInput}
                         readOnly={senderNameIsLocked}
                         onChange={senderNameIsLocked ? undefined : (e) => setSenderNameInput(e.target.value)}
-                        className={`w-full rounded border px-2 py-1 text-xs ${senderNameIsLocked ? "bg-slate-100 border-slate-200 text-slate-600 cursor-not-allowed" : complaintValidationState.SenderName === false ? "border-red-300 bg-red-50" : "border-slate-200 bg-white"}`}
+                        className={`w-full rounded border px-2 py-1 text-xs ${senderNameIsLocked ? "bg-slate-100 border-[#E5E7EB] text-slate-600 cursor-not-allowed" : complaintValidationState.SenderName === false ? "border-red-300 bg-red-50" : "border-[#E5E7EB] bg-white"}`}
                       />
                     </label>
                     <label>
                       <div className="text-[10px] font-medium text-slate-600 mb-0.5">Address</div>
-                      <input value={senderAddressInput} onChange={(e) => setSenderAddressInput(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.SenderAddress === false ? "border-red-300 bg-red-50" : "border-slate-200 bg-white"}`} placeholder="Required" />
+                      <input value={senderAddressInput} onChange={(e) => setSenderAddressInput(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.SenderAddress === false ? "border-red-300 bg-red-50" : "border-[#E5E7EB] bg-white"}`} placeholder="Required" />
                     </label>
                     <label>
                       <div className="text-[10px] font-medium text-slate-600 mb-0.5">City</div>
                       {senderCityIsLocked ? (
-                        <input value={senderCityValue} readOnly className="w-full rounded border border-slate-200 bg-slate-100 px-2 py-1 text-xs cursor-not-allowed text-slate-600" />
+                        <input value={senderCityValue} readOnly className="w-full rounded border border-[#E5E7EB] bg-slate-100 px-2 py-1 text-xs cursor-not-allowed text-slate-600" />
                       ) : (
                         <>
-                          <input value={senderCitySearch} onChange={(e) => setSenderCitySearch(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.SenderCity === false ? "border-red-300 bg-red-50" : "border-slate-200 bg-white"}`} placeholder="Search (≥3)" />
+                          <input value={senderCitySearch} onChange={(e) => setSenderCitySearch(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.SenderCity === false ? "border-red-300 bg-red-50" : "border-[#E5E7EB] bg-white"}`} placeholder="Search (≥3)" />
                           {senderCitySearch.trim().length >= 3 && senderCitySearchResults.length > 0 ? (
-                            <select value={senderCityValue} onChange={(e) => { setSenderCityValue(e.target.value); setSenderCitySearch(e.target.value); }} className="mt-0.5 w-full rounded border border-slate-200 bg-white px-2 py-1 text-xs">
+                            <select value={senderCityValue} onChange={(e) => { setSenderCityValue(e.target.value); setSenderCitySearch(e.target.value); }} className="mt-0.5 w-full rounded border border-[#E5E7EB] bg-white px-2 py-1 text-xs">
                               <option value="">Select</option>
                               {senderCitySearchResults.map((city) => <option key={`sender-${city}`} value={city}>{city}</option>)}
                             </select>
@@ -2863,7 +2863,7 @@ export default function BulkTracking() {
                   </div>
                 </div>
 
-                <div className="border-t border-slate-200 pt-2 mt-2">
+                <div className="border-t border-[#E5E7EB] pt-2 mt-2">
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-xs font-semibold text-slate-800">Addressee Detail</div>
                   </div>
@@ -2874,22 +2874,22 @@ export default function BulkTracking() {
                         value={receiverNameInput}
                         readOnly={receiverNameIsLocked}
                         onChange={receiverNameIsLocked ? undefined : (e) => setReceiverNameInput(e.target.value)}
-                        className={`w-full rounded border px-2 py-1 text-xs ${receiverNameIsLocked ? "bg-slate-100 border-slate-200 text-slate-600 cursor-not-allowed" : complaintValidationState.ReceiverName === false ? "border-red-300 bg-red-50" : "border-slate-200 bg-white"}`}
+                        className={`w-full rounded border px-2 py-1 text-xs ${receiverNameIsLocked ? "bg-slate-100 border-[#E5E7EB] text-slate-600 cursor-not-allowed" : complaintValidationState.ReceiverName === false ? "border-red-300 bg-red-50" : "border-[#E5E7EB] bg-white"}`}
                       />
                     </label>
                     <label>
                       <div className="text-[10px] font-medium text-slate-600 mb-0.5">Address</div>
-                      <input value={receiverAddressInput} onChange={(e) => setReceiverAddressInput(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.ReceiverAddress === false ? "border-red-300 bg-red-50" : "border-slate-200 bg-white"}`} placeholder="Required" />
+                      <input value={receiverAddressInput} onChange={(e) => setReceiverAddressInput(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.ReceiverAddress === false ? "border-red-300 bg-red-50" : "border-[#E5E7EB] bg-white"}`} placeholder="Required" />
                     </label>
                     <label>
                       <div className="text-[10px] font-medium text-slate-600 mb-0.5">City</div>
                       {receiverCityIsLocked ? (
-                        <input value={receiverCityValue} readOnly className="w-full rounded border border-slate-200 bg-slate-100 px-2 py-1 text-xs cursor-not-allowed text-slate-600" />
+                        <input value={receiverCityValue} readOnly className="w-full rounded border border-[#E5E7EB] bg-slate-100 px-2 py-1 text-xs cursor-not-allowed text-slate-600" />
                       ) : (
                         <>
-                          <input value={receiverCitySearch} onChange={(e) => setReceiverCitySearch(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.ReceiverCity === false ? "border-red-300 bg-red-50" : "border-slate-200 bg-white"}`} placeholder="Search (≥3)" />
+                          <input value={receiverCitySearch} onChange={(e) => setReceiverCitySearch(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.ReceiverCity === false ? "border-red-300 bg-red-50" : "border-[#E5E7EB] bg-white"}`} placeholder="Search (≥3)" />
                           {receiverCitySearch.trim().length >= 3 && receiverCitySearchResults.length > 0 ? (
-                            <select value={receiverCityValue} onChange={(e) => { setReceiverCityValue(e.target.value); setReceiverCitySearch(e.target.value); }} className="mt-0.5 w-full rounded border border-slate-200 bg-white px-2 py-1 text-xs">
+                            <select value={receiverCityValue} onChange={(e) => { setReceiverCityValue(e.target.value); setReceiverCitySearch(e.target.value); }} className="mt-0.5 w-full rounded border border-[#E5E7EB] bg-white px-2 py-1 text-xs">
                               <option value="">Select</option>
                               {receiverCitySearchResults.map((city) => <option key={`receiver-${city}`} value={city}>{city}</option>)}
                             </select>
@@ -2900,17 +2900,17 @@ export default function BulkTracking() {
                   </div>
                 </div>
 
-                <div className="border-t border-slate-200 pt-2 mt-2">
+                <div className="border-t border-[#E5E7EB] pt-2 mt-2">
                   <div className="text-xs font-semibold text-slate-800 mb-2">Remarks <span className="text-red-600">*</span></div>
                   <div className="flex gap-1 mb-1">
-                    <button type="button" onClick={() => { setComplaintTemplate("VALUE_PAYABLE"); setComplaintText(buildComplaintTemplate(complaintRecord, "VALUE_PAYABLE")); }} className={`rounded px-2 py-0.5 text-[10px] ${complaintTemplate === "VALUE_PAYABLE" ? "border border-brand/30 bg-brand/10 text-brand" : "border border-slate-200 bg-white text-slate-600"}`}>Value Payable</button>
-                    <button type="button" onClick={() => { setComplaintTemplate("NORMAL"); setComplaintText(buildComplaintTemplate(complaintRecord, "NORMAL")); }} className={`rounded px-2 py-0.5 text-[10px] ${complaintTemplate === "NORMAL" ? "border border-brand/30 bg-brand/10 text-brand" : "border border-slate-200 bg-white text-slate-600"}`}>Normal</button>
-                    <button type="button" onClick={() => { setComplaintTemplate("RETURN"); setComplaintText(buildComplaintTemplate(complaintRecord, "RETURN")); }} className={`rounded px-2 py-0.5 text-[10px] ${complaintTemplate === "RETURN" ? "border border-brand/30 bg-brand/10 text-brand" : "border border-slate-200 bg-white text-slate-600"}`}>Return</button>
+                    <button type="button" onClick={() => { setComplaintTemplate("VALUE_PAYABLE"); setComplaintText(buildComplaintTemplate(complaintRecord, "VALUE_PAYABLE")); }} className={`rounded px-2 py-0.5 text-[10px] ${complaintTemplate === "VALUE_PAYABLE" ? "border border-brand/30 bg-brand/10 text-brand" : "border border-[#E5E7EB] bg-white text-slate-600"}`}>Value Payable</button>
+                    <button type="button" onClick={() => { setComplaintTemplate("NORMAL"); setComplaintText(buildComplaintTemplate(complaintRecord, "NORMAL")); }} className={`rounded px-2 py-0.5 text-[10px] ${complaintTemplate === "NORMAL" ? "border border-brand/30 bg-brand/10 text-brand" : "border border-[#E5E7EB] bg-white text-slate-600"}`}>Normal</button>
+                    <button type="button" onClick={() => { setComplaintTemplate("RETURN"); setComplaintText(buildComplaintTemplate(complaintRecord, "RETURN")); }} className={`rounded px-2 py-0.5 text-[10px] ${complaintTemplate === "RETURN" ? "border border-brand/30 bg-brand/10 text-brand" : "border border-[#E5E7EB] bg-white text-slate-600"}`}>Return</button>
                   </div>
-                  <textarea value={complaintText} onChange={(e) => setComplaintText(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs font-mono resize-none h-16 ${complaintValidationState.Remarks ? "border-slate-200" : "border-red-300 bg-red-50"}`} placeholder="Required" />
+                  <textarea value={complaintText} onChange={(e) => setComplaintText(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs font-mono resize-none h-16 ${complaintValidationState.Remarks ? "border-[#E5E7EB]" : "border-red-300 bg-red-50"}`} placeholder="Required" />
                 </div>
 
-                <div className="border-t border-slate-200 pt-2 mt-2">
+                <div className="border-t border-[#E5E7EB] pt-2 mt-2">
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-xs font-semibold text-slate-800">District / Tehsil / Location</div>
                     {complaintSelectionLocked && (
@@ -2922,8 +2922,8 @@ export default function BulkTracking() {
                       value={selectedDistrict}
                       onChange={(e) => { setSelectedDistrict(e.target.value); setSelectedTehsil(""); setSelectedLocation(""); }}
                       className={`rounded border px-2 py-1 text-xs ${
-                        complaintSelectionLocked ? "bg-slate-100 border-slate-200 text-slate-600 cursor-not-allowed" :
-                        complaintValidationState.District === false ? "border-red-300 bg-red-50" : "border-slate-200 bg-white"
+                        complaintSelectionLocked ? "bg-slate-100 border-[#E5E7EB] text-slate-600 cursor-not-allowed" :
+                        complaintValidationState.District === false ? "border-red-300 bg-red-50" : "border-[#E5E7EB] bg-white"
                       }`}
                       disabled={complaintSelectionLocked}
                     >
@@ -2934,8 +2934,8 @@ export default function BulkTracking() {
                       value={selectedTehsil}
                       onChange={(e) => { setSelectedTehsil(e.target.value); setSelectedLocation(""); }}
                       className={`rounded border px-2 py-1 text-xs ${
-                        complaintSelectionLocked ? "bg-slate-100 border-slate-200 text-slate-600 cursor-not-allowed" :
-                        complaintValidationState.Tehsil === false ? "border-red-300 bg-red-50" : "border-slate-200 bg-white"
+                        complaintSelectionLocked ? "bg-slate-100 border-[#E5E7EB] text-slate-600 cursor-not-allowed" :
+                        complaintValidationState.Tehsil === false ? "border-red-300 bg-red-50" : "border-[#E5E7EB] bg-white"
                       }`}
                       disabled={complaintSelectionLocked || !selectedDistrict}
                     >
@@ -2946,8 +2946,8 @@ export default function BulkTracking() {
                       value={selectedLocation}
                       onChange={(e) => setSelectedLocation(e.target.value)}
                       className={`rounded border px-2 py-1 text-xs ${
-                        complaintSelectionLocked ? "bg-slate-100 border-slate-200 text-slate-600 cursor-not-allowed" :
-                        complaintValidationState.Location === false ? "border-red-300 bg-red-50" : "border-slate-200 bg-white"
+                        complaintSelectionLocked ? "bg-slate-100 border-[#E5E7EB] text-slate-600 cursor-not-allowed" :
+                        complaintValidationState.Location === false ? "border-red-300 bg-red-50" : "border-[#E5E7EB] bg-white"
                       }`}
                       disabled={complaintSelectionLocked || !selectedDistrict || !selectedTehsil}
                     >
@@ -2963,9 +2963,9 @@ export default function BulkTracking() {
                   ) : (
                     <div className="text-[11px] text-amber-700 bg-amber-50 rounded px-2 py-1 mb-2">Select district → tehsil → location to complete the complaint</div>
                   )}
-                  <input type="text" value={officeSearchQuery} onChange={(e) => setOfficeSearchQuery(e.target.value)} placeholder="Or search location (≥3 chars)" className="w-full rounded border border-slate-200 bg-white px-2 py-1 text-xs mb-1" autoComplete="off" />
+                  <input type="text" value={officeSearchQuery} onChange={(e) => setOfficeSearchQuery(e.target.value)} placeholder="Or search location (≥3 chars)" className="w-full rounded border border-[#E5E7EB] bg-white px-2 py-1 text-xs mb-1" autoComplete="off" />
                   {officeSearchResults.length > 0 && !complaintSelectionLocked ? (
-                    <div className="max-h-24 overflow-y-auto rounded border border-slate-200 bg-white shadow-sm">
+                    <div className="max-h-24 overflow-y-auto rounded border border-[#E5E7EB] bg-white shadow-lg">
                       {officeSearchResults.slice(0, 8).map((res, i) => (
                         <button key={`${res.location}-${i}`} type="button" onMouseDown={(e) => { e.preventDefault(); setSelectedDistrict(res.district); setSelectedTehsil(res.tehsil); setSelectedLocation(res.location); setOfficeSearchQuery(res.location); setOfficeSearchResults([]); setComplaintSelectionLocked(true); }} className="block w-full text-left px-2 py-1 text-xs hover:bg-slate-100 border-b border-slate-100 last:border-b-0">
                           <span className="font-medium text-slate-800">{res.location}</span> <span className="text-slate-500">({res.tehsil})</span>
@@ -2976,16 +2976,16 @@ export default function BulkTracking() {
                 </div>
 
                 {replyMode === "EMAIL" ? (
-                  <div className="border-t border-slate-200 pt-2 mt-2">
+                  <div className="border-t border-[#E5E7EB] pt-2 mt-2">
                     <label className="text-xs font-medium text-slate-700">
                       <div className="text-[10px] font-medium text-slate-600 mb-0.5">Email</div>
-                      <input value={complaintEmail} onChange={(e) => setComplaintEmail(e.target.value)} className="w-full rounded border border-slate-200 bg-white px-2 py-1 text-xs" placeholder="For email reply" />
+                      <input value={complaintEmail} onChange={(e) => setComplaintEmail(e.target.value)} className="w-full rounded border border-[#E5E7EB] bg-white px-2 py-1 text-xs" placeholder="For email reply" />
                     </label>
                   </div>
                 ) : null}
 
                 {complaintSubmitResult?.complaintNumber ? (
-                  <div className="border-t border-slate-200 pt-2 mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-2 text-xs text-emerald-800">
+                  <div className="border-t border-[#E5E7EB] pt-2 mt-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-2 py-2 text-xs text-emerald-800">
                     <div className="font-semibold">✓ Complaint Registered</div>
                     <div>ID: {complaintSubmitResult.complaintNumber}</div>
                     <div>Due: {complaintSubmitResult.dueDate || "-"}</div>
@@ -2994,10 +2994,10 @@ export default function BulkTracking() {
               </div>
             </div>
 
-            <div className="sticky bottom-0 border-t border-slate-200 bg-white px-4 py-2 flex items-center justify-between gap-2">
+            <div className="sticky bottom-0 border-t border-[#E5E7EB] bg-white px-4 py-2 flex items-center justify-between gap-2">
               <button
                 type="button"
-                className="rounded border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                className="rounded border border-[#E5E7EB] bg-white px-3 py-1 text-xs text-slate-700 hover:bg-[#F8FAF9]"
                 onClick={() => setComplaintRecord(null)}
                 disabled={submittingComplaint}
               >
@@ -3029,12 +3029,12 @@ export default function BulkTracking() {
 
       {complaintPreviewVisible && complaintRecord ? (
         <div className="modal-wrapper bg-slate-950/50 p-2 z-50">
-          <div className="modal-content w-full max-w-3xl rounded-lg bg-white shadow-2xl max-h-[95vh] flex flex-col overflow-hidden">
-            <div className="modal-header border-b border-slate-200 px-4 py-2 flex items-center justify-between">
+          <div className="modal-content w-full max-w-3xl rounded-2xl bg-white shadow-2xl max-h-[95vh] flex flex-col overflow-hidden">
+            <div className="modal-header border-b border-[#E5E7EB] px-4 py-2 flex items-center justify-between">
               <div className="text-sm font-semibold text-slate-900">Preview & Confirm Submission</div>
               <button
                 type="button"
-                className="rounded border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                className="rounded border border-[#E5E7EB] px-2 py-1 text-xs text-slate-600 hover:bg-[#F8FAF9]"
                 onClick={() => setComplaintPreviewVisible(false)}
               >
                 Close
@@ -3044,53 +3044,53 @@ export default function BulkTracking() {
             <div className="flex-1 overflow-y-auto p-3">
               <div className="grid gap-2">
                 <div className="grid grid-cols-4 gap-2">
-                  <div className={`rounded border p-2 text-xs ${complaintValidationState.ArticleNo ? "border-slate-200" : "border-red-300 bg-red-50"}`}>
+                  <div className={`rounded border p-2 text-xs ${complaintValidationState.ArticleNo ? "border-[#E5E7EB]" : "border-red-300 bg-red-50"}`}>
                     <div className="text-[10px] font-medium text-slate-500">Article No</div>
                     <div className={`mt-0.5 font-semibold text-sm ${complaintValidationState.ArticleNo ? "text-slate-900" : "text-red-900"}`}>
                       {complaintRecord.shipment.trackingNumber || "MISSING"}
                     </div>
                   </div>
-                  <div className={`rounded border p-2 text-xs ${complaintValidationState.SenderName ? "border-slate-200" : "border-red-300 bg-red-50"}`}>
+                  <div className={`rounded border p-2 text-xs ${complaintValidationState.SenderName ? "border-[#E5E7EB]" : "border-red-300 bg-red-50"}`}>
                     <div className="text-[10px] font-medium text-slate-500">Service Type</div>
                     <div className={`mt-0.5 font-semibold text-sm ${complaintValidationState.SenderName ? "text-slate-900" : "text-red-900"}`}>
                       {detectServiceType(complaintRecord.shipment.trackingNumber)}
                     </div>
                   </div>
-                  <div className={`rounded border p-2 text-xs ${complaintValidationState.Mobile ? "border-slate-200" : "border-red-300 bg-red-50"}`}>
+                  <div className={`rounded border p-2 text-xs ${complaintValidationState.Mobile ? "border-[#E5E7EB]" : "border-red-300 bg-red-50"}`}>
                     <div className="text-[10px] font-medium text-slate-500">Mobile</div>
                     <div className={`mt-0.5 font-semibold text-sm ${complaintValidationState.Mobile ? "text-slate-900" : "text-red-900"}`}>
                       {complaintPhone.trim() || "MISSING"}
                     </div>
                   </div>
-                  <div className="rounded border border-slate-200 p-2 text-xs">
+                  <div className="rounded border border-[#E5E7EB] p-2 text-xs">
                     <div className="text-[10px] font-medium text-slate-500">Reply Mode</div>
                     <div className="mt-0.5 font-semibold text-sm text-slate-900">{replyMode}</div>
                   </div>
                 </div>
 
-                <div className={`rounded border p-2 text-xs ${complaintValidationState.SenderName ? "border-slate-200" : "border-red-300 bg-red-50"}`}>
+                <div className={`rounded border p-2 text-xs ${complaintValidationState.SenderName ? "border-[#E5E7EB]" : "border-red-300 bg-red-50"}`}>
                   <div className="text-[10px] font-medium text-slate-500 mb-0.5">Complainant Name</div>
                   <div className={`font-semibold text-sm ${complaintValidationState.SenderName ? "text-slate-900" : "text-red-900"}`}>
                     {senderNameInput.trim() || "MISSING"}
                   </div>
                 </div>
 
-                <div className="border-t border-slate-200 pt-2 mt-2">
+                <div className="border-t border-[#E5E7EB] pt-2 mt-2">
                   <div className="text-xs font-semibold text-slate-800 mb-1">Sender Detail</div>
                   <div className="grid grid-cols-3 gap-2">
-                    <div className={`rounded border p-2 text-xs ${complaintValidationState.SenderName ? "border-slate-200" : "border-red-300 bg-red-50"}`}>
+                    <div className={`rounded border p-2 text-xs ${complaintValidationState.SenderName ? "border-[#E5E7EB]" : "border-red-300 bg-red-50"}`}>
                       <div className="text-[10px] font-medium text-slate-500">Name</div>
                       <div className={`mt-0.5 font-semibold text-sm ${complaintValidationState.SenderName ? "text-slate-900" : "text-red-900"}`}>
                         {senderNameInput.trim() || "MISSING"}
                       </div>
                     </div>
-                    <div className={`rounded border p-2 text-xs ${complaintValidationState.SenderCity ? "border-slate-200" : "border-red-300 bg-red-50"}`}>
+                    <div className={`rounded border p-2 text-xs ${complaintValidationState.SenderCity ? "border-[#E5E7EB]" : "border-red-300 bg-red-50"}`}>
                       <div className="text-[10px] font-medium text-slate-500">Address</div>
                       <div className={`mt-0.5 font-semibold text-sm ${complaintValidationState.SenderAddress ? "text-slate-900" : "text-red-900"}`}>
                         {senderAddressInput.trim() || "MISSING"}
                       </div>
                     </div>
-                    <div className="rounded border border-slate-200 p-2 text-xs">
+                    <div className="rounded border border-[#E5E7EB] p-2 text-xs">
                       <div className="text-[10px] font-medium text-slate-500">City</div>
                       <div className={`mt-0.5 font-semibold text-sm ${complaintValidationState.SenderCity ? "text-slate-900" : "text-red-900"}`}>
                         {senderCityValue.trim() || "MISSING"}
@@ -3099,22 +3099,22 @@ export default function BulkTracking() {
                   </div>
                 </div>
 
-                <div className="border-t border-slate-200 pt-2 mt-2">
+                <div className="border-t border-[#E5E7EB] pt-2 mt-2">
                   <div className="text-xs font-semibold text-slate-800 mb-1">Addressee Detail</div>
                   <div className="grid grid-cols-3 gap-2">
-                    <div className={`rounded border p-2 text-xs ${complaintValidationState.ReceiverName ? "border-slate-200" : "border-red-300 bg-red-50"}`}>
+                    <div className={`rounded border p-2 text-xs ${complaintValidationState.ReceiverName ? "border-[#E5E7EB]" : "border-red-300 bg-red-50"}`}>
                       <div className="text-[10px] font-medium text-slate-500">Name</div>
                       <div className={`mt-0.5 font-semibold text-sm ${complaintValidationState.ReceiverName ? "text-slate-900" : "text-red-900"}`}>
                         {receiverNameInput.trim() || "MISSING"}
                       </div>
                     </div>
-                    <div className={`rounded border p-2 text-xs ${complaintValidationState.ReceiverCity ? "border-slate-200" : "border-red-300 bg-red-50"}`}>
+                    <div className={`rounded border p-2 text-xs ${complaintValidationState.ReceiverCity ? "border-[#E5E7EB]" : "border-red-300 bg-red-50"}`}>
                       <div className="text-[10px] font-medium text-slate-500">Address</div>
                       <div className={`mt-0.5 font-semibold text-sm ${complaintValidationState.ReceiverAddress ? "text-slate-900" : "text-red-900"}`}>
                         {receiverAddressInput.trim() || "MISSING"}
                       </div>
                     </div>
-                    <div className="rounded border border-slate-200 p-2 text-xs">
+                    <div className="rounded border border-[#E5E7EB] p-2 text-xs">
                       <div className="text-[10px] font-medium text-slate-500">City</div>
                       <div className={`mt-0.5 font-semibold text-sm ${complaintValidationState.ReceiverCity ? "text-slate-900" : "text-red-900"}`}>
                         {receiverCityValue.trim() || "MISSING"}
@@ -3123,9 +3123,9 @@ export default function BulkTracking() {
                   </div>
                 </div>
 
-                <div className="border-t border-slate-200 pt-2 mt-2">
+                <div className="border-t border-[#E5E7EB] pt-2 mt-2">
                   <div className="text-xs font-semibold text-slate-800 mb-1">Remarks <span className="text-red-600">*</span></div>
-                  <div className={`rounded border p-2 text-xs ${complaintValidationState.Remarks ? "border-slate-200 bg-slate-50" : "border-red-300 bg-red-50"}`}>
+                  <div className={`rounded border p-2 text-xs ${complaintValidationState.Remarks ? "border-[#E5E7EB] bg-[#F8FAF9]" : "border-red-300 bg-red-50"}`}>
                     <div className="font-mono text-xs whitespace-pre-wrap max-h-12 overflow-hidden">
                       <span className={complaintValidationState.Remarks ? "text-slate-700" : "text-red-900"}>
                         {complaintText.trim() || "MISSING - MANDATORY FOR SUBMISSION"}
@@ -3134,18 +3134,18 @@ export default function BulkTracking() {
                   </div>
                 </div>
 
-                <div className="border-t border-slate-200 pt-2 mt-2">
+                <div className="border-t border-[#E5E7EB] pt-2 mt-2">
                   <div className="text-xs font-semibold text-slate-800 mb-1">Location (District/Tehsil)</div>
                   <div className="grid grid-cols-3 gap-2 text-xs">
-                    <div className="rounded border border-slate-200 p-2">
+                    <div className="rounded border border-[#E5E7EB] p-2">
                       <div className="text-[10px] font-medium text-slate-500 mb-0.5">District</div>
                       <div className="font-semibold text-sm text-slate-900">{selectedDistrict || "Not selected"}</div>
                     </div>
-                    <div className="rounded border border-slate-200 p-2">
+                    <div className="rounded border border-[#E5E7EB] p-2">
                       <div className="text-[10px] font-medium text-slate-500 mb-0.5">Tehsil</div>
                       <div className="font-semibold text-sm text-slate-900">{selectedTehsil || "Not selected"}</div>
                     </div>
-                    <div className="rounded border border-slate-200 p-2">
+                    <div className="rounded border border-[#E5E7EB] p-2">
                       <div className="text-[10px] font-medium text-slate-500 mb-0.5">Location</div>
                       <div className="font-semibold text-sm text-slate-900">{selectedLocation || "Not selected"}</div>
                     </div>
@@ -3154,10 +3154,10 @@ export default function BulkTracking() {
               </div>
             </div>
 
-            <div className="sticky bottom-0 border-t border-slate-200 bg-white px-4 py-2 flex items-center justify-between gap-2">
+            <div className="sticky bottom-0 border-t border-[#E5E7EB] bg-white px-4 py-2 flex items-center justify-between gap-2">
               <button
                 type="button"
-                className="rounded border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                className="rounded border border-[#E5E7EB] bg-white px-3 py-1 text-xs text-slate-700 hover:bg-[#F8FAF9]"
                 onClick={() => setComplaintPreviewVisible(false)}
                 disabled={submittingComplaint}
               >
@@ -3188,21 +3188,21 @@ export default function BulkTracking() {
                 <button
                   type="button"
                   onClick={printShipmentPdf}
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  className="inline-flex items-center gap-1 rounded-2xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-[#F8FAF9]"
                 >
                   <Printer className="h-3.5 w-3.5" /> Print PDF
                 </button>
                 <button
                   type="button"
                   onClick={sendToCustomerWhatsapp}
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  className="inline-flex items-center gap-1 rounded-2xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-[#F8FAF9]"
                 >
                   Send to Customer
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectedTracking(null)}
-                  className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-dark"
+                  className="rounded-2xl bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-dark"
                 >
                   Close
                 </button>
@@ -3211,18 +3211,18 @@ export default function BulkTracking() {
 
             <div className="p-6">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <div className="rounded-xl border border-slate-200 p-3"><div className="text-[11px] text-slate-500">Tracking ID</div><div className="mt-1 font-mono text-sm font-semibold text-slate-900">{selectedTracking.shipment.trackingNumber}</div></div>
-                <div className="rounded-xl border border-slate-200 p-3"><div className="text-[11px] text-slate-500">Booking Date</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.bookingDate}</div></div>
-                <div className="rounded-xl border border-slate-200 p-3"><div className="text-[11px] text-slate-500">Last Update</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.lastUpdate}</div></div>
-                <div className="rounded-xl border border-slate-200 p-3"><div className="text-[11px] text-slate-500">Status</div><div className={cn("mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ring-1", statusBadgeClass(selectedTracking.final_status))}>{normalizeStatus(selectedTracking.final_status)}</div></div>
-                <div className="rounded-xl border border-slate-200 p-3"><div className="text-[11px] text-slate-500">City / Destination</div><div className="mt-1 text-sm font-semibold text-slate-900">{preferredCity(selectedTracking.shipment) || trackingDetailData.fields.consigneeCity || "-"}</div></div>
-                <div className="rounded-xl border border-slate-200 p-3"><div className="text-[11px] text-slate-500">MO Value</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.moValue != null ? `Rs ${trackingDetailData.moValue.toLocaleString()}` : "–"}</div></div>
-                <div className="rounded-xl border border-slate-200 p-3"><div className="text-[11px] text-slate-500">Booking City</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.bookingOffice}</div></div>
-                <div className="rounded-xl border border-slate-200 p-3"><div className="text-[11px] text-slate-500">Delivery City</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.deliveryOffice}</div></div>
-                <div className="rounded-xl border border-slate-200 p-3"><div className="text-[11px] text-slate-500">Consignee Name</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.consigneeName}</div></div>
-                <div className="rounded-xl border border-slate-200 p-3"><div className="text-[11px] text-slate-500">Consignee Address</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.consigneeAddress}</div></div>
-                <div className="rounded-xl border border-slate-200 p-3"><div className="text-[11px] text-slate-500">Consignee Phone</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.consigneePhone}</div></div>
-                <div className="rounded-xl border border-slate-200 p-3 sm:col-span-2"><div className="text-[11px] text-slate-500">MO Issued Number</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.moIssued ?? "–"}</div></div>
+                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Tracking ID</div><div className="mt-1 font-mono text-sm font-semibold text-slate-900">{selectedTracking.shipment.trackingNumber}</div></div>
+                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Booking Date</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.bookingDate}</div></div>
+                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Last Update</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.lastUpdate}</div></div>
+                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Status</div><div className={cn("mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ring-1", statusBadgeClass(selectedTracking.final_status))}>{normalizeStatus(selectedTracking.final_status)}</div></div>
+                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">City / Destination</div><div className="mt-1 text-sm font-semibold text-slate-900">{preferredCity(selectedTracking.shipment) || trackingDetailData.fields.consigneeCity || "-"}</div></div>
+                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">MO Value</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.moValue != null ? `Rs ${trackingDetailData.moValue.toLocaleString()}` : "–"}</div></div>
+                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Booking City</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.bookingOffice}</div></div>
+                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Delivery City</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.deliveryOffice}</div></div>
+                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Consignee Name</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.consigneeName}</div></div>
+                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Consignee Address</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.consigneeAddress}</div></div>
+                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Consignee Phone</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.consigneePhone}</div></div>
+                <div className="rounded-2xl border border-[#E5E7EB] p-3 sm:col-span-2"><div className="text-[11px] text-slate-500">MO Issued Number</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.moIssued ?? "–"}</div></div>
               </div>
 
               <div className="mt-6">
@@ -3230,7 +3230,7 @@ export default function BulkTracking() {
                 <div className="mt-3 space-y-3">
                   {trackingDetailData.timeline.length > 0 ? (
                     trackingDetailData.timeline.map((item, idx) => (
-                      <div key={`${item.date}-${item.time}-${idx}`} className="flex gap-3 rounded-xl border border-slate-200 p-3">
+                      <div key={`${item.date}-${item.time}-${idx}`} className="flex gap-3 rounded-2xl border border-[#E5E7EB] p-3">
                         <div className="mt-1 h-2.5 w-2.5 rounded-full bg-brand" />
                         <div className="min-w-0 flex-1">
                           <div className="text-xs font-semibold text-slate-800">{item.description || "Update"}</div>
@@ -3239,7 +3239,7 @@ export default function BulkTracking() {
                       </div>
                     ))
                   ) : (
-                    <div className="rounded-xl border border-slate-200 p-3 text-xs text-slate-500">No status history available.</div>
+                    <div className="rounded-2xl border border-[#E5E7EB] p-3 text-xs text-slate-500">No status history available.</div>
                   )}
                 </div>
               </div>
@@ -3253,6 +3253,8 @@ export default function BulkTracking() {
     </>
   );
 }
+
+
 
 
 

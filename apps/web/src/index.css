@@ -47,23 +47,23 @@
 
 @layer components {
   .ui-page {
-    @apply mx-auto w-full max-w-6xl px-6 py-16;
+    @apply mx-auto w-full max-w-7xl px-6 py-20;
   }
 
   .ui-card {
-    @apply rounded-xl border border-emerald-100/80 bg-white shadow-card transition-shadow duration-300 hover:shadow-cardHover;
+    @apply rounded-2xl border border-[#E5E7EB] bg-white shadow-lg transition-all duration-300 hover:shadow-xl;
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-card transition-all duration-200 hover:bg-brand-dark hover:shadow-cardHover disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex items-center justify-center rounded-2xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-lg transition-all duration-300 hover:bg-brand-dark hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-xl border border-brand/30 bg-white px-5 py-3 text-sm font-semibold text-brand shadow-sm transition-all duration-200 hover:border-brand hover:shadow-card;
+    @apply inline-flex items-center justify-center rounded-2xl border border-[#E5E7EB] bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-lg transition-all duration-300 hover:border-brand hover:shadow-xl;
   }
 
   .field-input {
-    @apply w-full rounded-xl border border-emerald-100 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 placeholder:text-slate-400;
+    @apply w-full rounded-2xl border border-[#E5E7EB] bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition-all duration-300 focus:border-brand focus:ring-4 focus:ring-brand/10 placeholder:text-slate-400;
   }
 }
 

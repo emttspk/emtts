@@ -51,7 +51,7 @@ function AnalyticsGraph({ stats }: { stats: DashboardStats }) {
         <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">{distribution.reduce((sum, d) => sum + d.value, 0)} shipments</div>
       </div>
       {distribution.some((d) => d.value > 0) ? (
-        <div className="mt-6 space-y-4 rounded-[22px] border border-slate-200 bg-[linear-gradient(180deg,#f8fbff,#eef4ff)] p-5">
+        <div className="mt-6 space-y-4 rounded-2xl border border-[#E5E7EB] bg-gradient-to-b from-white to-[#F8FAF9] p-5">
           {distribution.map((d) => {
             const width = Math.max(6, Math.round((d.value / max) * 100));
             return (
@@ -68,7 +68,7 @@ function AnalyticsGraph({ stats }: { stats: DashboardStats }) {
           })}
         </div>
       ) : (
-        <div className="mt-6 rounded-[22px] border border-dashed border-slate-300 bg-slate-50 p-8 text-sm text-slate-600">No shipment history is available yet. Status distribution will render after your first tracked batch.</div>
+        <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-[#F8FAF9] p-8 text-sm text-slate-600">No shipment history is available yet. Status distribution will render after your first tracked batch.</div>
       )}
     </Card>
   );
@@ -152,7 +152,7 @@ export default function Dashboard() {
   );
 
   const statusCards = [
-    { label: "Total", value: stats.total, amount: stats.totalAmount ?? 0, tone: "text-slate-700", bg: "bg-slate-50" },
+    { label: "Total", value: stats.total, amount: stats.totalAmount ?? 0, tone: "text-slate-700", bg: "bg-[#F8FAF9]" },
     { label: "Delivered", value: stats.delivered, amount: stats.deliveredAmount ?? 0, tone: "text-emerald-700", bg: "bg-emerald-50" },
     { label: "Pending", value: stats.pending, amount: stats.pendingAmount ?? 0, tone: "text-orange-700", bg: "bg-orange-50" },
     { label: "Returned", value: stats.returned, amount: stats.returnedAmount ?? 0, tone: "text-red-700", bg: "bg-red-50" },
@@ -196,13 +196,13 @@ export default function Dashboard() {
       <Card className="overflow-hidden p-8">
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-4 py-2 text-sm font-semibold text-brand">
+            <div className="inline-flex items-center gap-2 rounded-2xl border border-brand/30 bg-brand/10 px-4 py-2 text-sm font-semibold text-brand">
               <LineChart className="h-4 w-4" />
               Live Operations View
             </div>
             <div className="mt-5 text-4xl font-semibold text-slate-950">Track delivery momentum, remaining balance, and billing from one workspace.</div>
             <div className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Monitor shipment performance, available balance, and billing activity from a unified control panel. The dashboard now delivers structured insights, financial visibility, and quick actions, creating a centralized operational workspace. Use the navigation panel to access tracking, label generation, and job management efficiently.</div>
-            <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            <div className="mt-6 rounded-2xl border border-[#E5E7EB] bg-[#F8FAF9] px-4 py-3 text-sm text-slate-600">
               Monitor shipment performance, available balance, and billing activity from a unified control panel.
             </div>
           </div>
@@ -268,7 +268,7 @@ export default function Dashboard() {
               );
             })}
           </div>
-          <div className="mt-6 rounded-[20px] border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">Tracked this month: <span className="font-semibold text-slate-950">{(stats.trackingUsed ?? 0).toLocaleString()}</span></div>
+          <div className="mt-6 rounded-2xl border border-[#E5E7EB] bg-[#F8FAF9] p-4 text-sm text-slate-600">Tracked this month: <span className="font-semibold text-slate-950">{(stats.trackingUsed ?? 0).toLocaleString()}</span></div>
         </Card>
       </div>
 
@@ -289,5 +289,7 @@ export default function Dashboard() {
     </div>
   );
 }
+
+
 
 

@@ -112,7 +112,7 @@ export default function Admin() {
           <div>
             <div className="text-4xl font-semibold text-slate-950">Admin Control Room</div>
             <div className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Manage customers, plans, approvals, balances, and shipment operations from one premium admin workspace.</div>
-            {err ? <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">{err}</div> : null}
+            {err ? <div className="mt-4 rounded-2xl border border-red-200 shadow-lg bg-red-50 p-3 text-sm font-medium text-red-800">{err}</div> : null}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Card className="p-5"><div className="text-sm text-slate-500">Customers</div><div className="mt-2 text-3xl font-semibold text-slate-950">{totals.customers}</div></Card>
@@ -129,7 +129,7 @@ export default function Admin() {
           ].map(([key, label]) => (
             <button
               key={key}
-              className={`rounded-lg px-4 py-2 text-sm font-medium ${section === key ? "bg-brand text-white" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
+              className={`rounded-2xl px-4 py-2 text-sm font-medium ${section === key ? "bg-brand text-white" : "border border-[#E5E7EB] bg-white text-slate-700 hover:bg-[#F8FAF9]"}`}
               onClick={() => setSection(key as SectionKey)}
             >
               {label}
@@ -153,7 +153,7 @@ export default function Admin() {
               <div className="text-xl font-medium text-gray-900">Plans</div>
               <div className="mt-1 text-sm text-gray-600">Single-unit model: one action (label, tracking, MO generation) consumes one unit.</div>
             </div>
-            <button className="rounded-xl border bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50" onClick={() => refresh()}>Refresh</button>
+            <button className="rounded-2xl border bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-lg hover:bg-gray-50" onClick={() => refresh()}>Refresh</button>
           </div>
           <form
             className="grid gap-3 border-t bg-gray-50 px-6 py-4 sm:grid-cols-5"
@@ -171,11 +171,11 @@ export default function Admin() {
               }
             }}
           >
-            <input className="rounded-xl border bg-white px-3 py-2 text-sm shadow-sm" value={name} onChange={(e) => setName(e.target.value)} placeholder="Plan name" />
-            <input className="rounded-xl border bg-white px-3 py-2 text-sm shadow-sm" value={priceCents} onChange={(e) => setPriceCents(Number(e.target.value))} placeholder="Price (paisa)" type="number" />
-            <input className="rounded-xl border bg-white px-3 py-2 text-sm shadow-sm" value={monthlyLabelLimit} onChange={(e) => { const v = Number(e.target.value); setMonthlyLabelLimit(v); setMonthlyTrackingLimit(v); }} placeholder="Units" type="number" />
-            <input className="rounded-xl border bg-slate-100 px-3 py-2 text-sm shadow-sm" value={monthlyTrackingLimit} readOnly placeholder="Units (mirrored)" type="number" />
-            <button className="rounded-xl bg-brand px-3 py-2 text-sm font-medium text-white shadow-md hover:bg-brand-dark">Create</button>
+            <input className="rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg" value={name} onChange={(e) => setName(e.target.value)} placeholder="Plan name" />
+            <input className="rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg" value={priceCents} onChange={(e) => setPriceCents(Number(e.target.value))} placeholder="Price (paisa)" type="number" />
+            <input className="rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg" value={monthlyLabelLimit} onChange={(e) => { const v = Number(e.target.value); setMonthlyLabelLimit(v); setMonthlyTrackingLimit(v); }} placeholder="Units" type="number" />
+            <input className="rounded-2xl border bg-slate-100 px-3 py-2 text-sm shadow-lg" value={monthlyTrackingLimit} readOnly placeholder="Units (mirrored)" type="number" />
+            <button className="rounded-2xl bg-brand px-3 py-2 text-sm font-medium text-white shadow-lg hover:bg-brand-dark">Create</button>
           </form>
           <div className="grid gap-4 border-t bg-white p-6 md:grid-cols-2">
             {plans.map((plan) => (
@@ -203,7 +203,7 @@ export default function Admin() {
                     <div className="text-lg font-semibold text-slate-950">{user.email}</div>
                     <div className="mt-1 text-sm text-slate-600">{user.subscription?.plan?.name ?? "No plan"}</div>
                   </div>
-                  <button className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setPreviewUserId(user.id)}>Preview</button>
+                  <button className="rounded-2xl border border-[#E5E7EB] bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-[#F8FAF9]" onClick={() => setPreviewUserId(user.id)}>Preview</button>
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <Card className="p-4"><div className="text-xs text-slate-500">Status</div><div className="mt-1 text-lg font-semibold text-slate-900">{user.suspended ? "Suspended" : "Active"}</div></Card>
@@ -225,9 +225,9 @@ export default function Admin() {
             <div className="flex items-end gap-2">
               <label className="text-sm">
                 <div className="mb-1 font-medium text-gray-900">Month (UTC)</div>
-                <input className="rounded-xl border bg-white px-3 py-2 text-sm shadow-sm" value={month} onChange={(e) => setMonth(e.target.value)} />
+                <input className="rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg" value={month} onChange={(e) => setMonth(e.target.value)} />
               </label>
-              <button className="h-10 rounded-xl border bg-white px-3 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50" onClick={() => refresh()}>Refresh</button>
+              <button className="h-10 rounded-2xl border bg-white px-3 text-sm font-medium text-gray-700 shadow-lg hover:bg-gray-50" onClick={() => refresh()}>Refresh</button>
             </div>
           </div>
           <div className="mt-4 overflow-x-auto">
@@ -276,16 +276,16 @@ export default function Admin() {
                     <td className="px-4 py-3 text-gray-900">{shipment.user.email}</td>
                     <td className="px-4 py-3 font-mono text-xs text-gray-900">{shipment.trackingNumber}</td>
                     <td className="px-4 py-3">
-                      <select className="rounded-lg border bg-white px-2 py-1 text-xs" value={shipment.shipmentType ?? ""} onChange={(e) => setShipments((prev) => prev.map((item) => (item.id === shipment.id ? { ...item, shipmentType: e.target.value || null } : item)))}>
+                      <select className="rounded-2xl border bg-white px-2 py-1 text-xs" value={shipment.shipmentType ?? ""} onChange={(e) => setShipments((prev) => prev.map((item) => (item.id === shipment.id ? { ...item, shipmentType: e.target.value || null } : item)))}>
                         <option value="">-</option>
                         {["RL", "UMS", "VPL", "VPP", "PAR", "COD", "COURIER"].map((type) => <option key={type} value={type}>{type}</option>)}
                       </select>
                     </td>
-                    <td className="px-4 py-3"><input className="w-40 rounded-lg border bg-white px-2 py-1 text-xs" value={shipment.status ?? ""} onChange={(e) => setShipments((prev) => prev.map((item) => (item.id === shipment.id ? { ...item, status: e.target.value } : item)))} placeholder="Status" /></td>
-                    <td className="px-4 py-3"><input className="w-32 rounded-lg border bg-white px-2 py-1 text-xs" value={shipment.city ?? ""} onChange={(e) => setShipments((prev) => prev.map((item) => (item.id === shipment.id ? { ...item, city: e.target.value } : item)))} placeholder="City" /></td>
-                    <td className="px-4 py-3"><input className="w-40 rounded-lg border bg-white px-2 py-1 text-xs" value={shipment.adminCode ?? ""} onChange={(e) => setShipments((prev) => prev.map((item) => (item.id === shipment.id ? { ...item, adminCode: e.target.value } : item)))} placeholder="Code" /></td>
+                    <td className="px-4 py-3"><input className="w-40 rounded-2xl border bg-white px-2 py-1 text-xs" value={shipment.status ?? ""} onChange={(e) => setShipments((prev) => prev.map((item) => (item.id === shipment.id ? { ...item, status: e.target.value } : item)))} placeholder="Status" /></td>
+                    <td className="px-4 py-3"><input className="w-32 rounded-2xl border bg-white px-2 py-1 text-xs" value={shipment.city ?? ""} onChange={(e) => setShipments((prev) => prev.map((item) => (item.id === shipment.id ? { ...item, city: e.target.value } : item)))} placeholder="City" /></td>
+                    <td className="px-4 py-3"><input className="w-40 rounded-2xl border bg-white px-2 py-1 text-xs" value={shipment.adminCode ?? ""} onChange={(e) => setShipments((prev) => prev.map((item) => (item.id === shipment.id ? { ...item, adminCode: e.target.value } : item)))} placeholder="Code" /></td>
                     <td className="px-4 py-3 text-right">
-                      <button className="rounded-lg border bg-white px-2.5 py-1 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50" onClick={async () => { setErr(null); try { await api(`/api/admin/shipments/${shipment.id}`, { method: "PATCH", body: JSON.stringify({ shipmentType: shipment.shipmentType ?? null, status: shipment.status ?? null, city: shipment.city ?? null, adminCode: shipment.adminCode ?? null }) }); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Failed to update shipment"); } }}>Save</button>
+                      <button className="rounded-2xl border bg-white px-2.5 py-1 text-xs font-medium text-gray-700 shadow-lg hover:bg-gray-50" onClick={async () => { setErr(null); try { await api(`/api/admin/shipments/${shipment.id}`, { method: "PATCH", body: JSON.stringify({ shipmentType: shipment.shipmentType ?? null, status: shipment.status ?? null, city: shipment.city ?? null, adminCode: shipment.adminCode ?? null }) }); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Failed to update shipment"); } }}>Save</button>
                     </td>
                   </tr>
                 ))}
@@ -297,13 +297,13 @@ export default function Admin() {
 
       {previewUser ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-2xl font-semibold text-slate-950">Customer Preview</div>
                 <div className="mt-1 text-sm text-slate-600">{previewUser.email}</div>
               </div>
-              <button className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50" onClick={() => setPreviewUserId(null)}>Close</button>
+              <button className="rounded-2xl border border-[#E5E7EB] bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-[#F8FAF9]" onClick={() => setPreviewUserId(null)}>Close</button>
             </div>
 
             <div className="mt-5 grid gap-4 sm:grid-cols-3">
@@ -316,18 +316,18 @@ export default function Admin() {
               <Card className="p-4">
                 <div className="text-sm font-semibold text-slate-900">Give Extra Credit</div>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  <input className="rounded-xl border bg-white px-3 py-2 text-sm shadow-sm" value={draftFor(previewUser.id, previewUser.subscription?.plan.id).labelCredits} onChange={(e) => updateDraft(previewUser.id, { labelCredits: e.target.value }, previewUser.subscription?.plan.id)} placeholder="Units" type="number" />
-                  <input className="rounded-xl border bg-slate-100 px-3 py-2 text-sm shadow-sm" value={draftFor(previewUser.id, previewUser.subscription?.plan.id).trackingCredits} onChange={(e) => updateDraft(previewUser.id, { trackingCredits: e.target.value }, previewUser.subscription?.plan.id)} placeholder="Units (mirror)" type="number" />
+                  <input className="rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg" value={draftFor(previewUser.id, previewUser.subscription?.plan.id).labelCredits} onChange={(e) => updateDraft(previewUser.id, { labelCredits: e.target.value }, previewUser.subscription?.plan.id)} placeholder="Units" type="number" />
+                  <input className="rounded-2xl border bg-slate-100 px-3 py-2 text-sm shadow-lg" value={draftFor(previewUser.id, previewUser.subscription?.plan.id).trackingCredits} onChange={(e) => updateDraft(previewUser.id, { trackingCredits: e.target.value }, previewUser.subscription?.plan.id)} placeholder="Units (mirror)" type="number" />
                 </div>
-                <button className="mt-3 rounded-xl border border-brand/30 bg-brand/10 px-4 py-2 text-sm font-medium text-brand hover:bg-brand/20" onClick={async () => { try { const units = Number(draftFor(previewUser.id, previewUser.subscription?.plan.id).labelCredits || 0); await api(`/api/admin/users/${previewUser.id}/credits`, { method: "POST", body: JSON.stringify({ labelCredits: units, trackingCredits: units }) }); updateDraft(previewUser.id, { labelCredits: "", trackingCredits: "" }, previewUser.subscription?.plan.id); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Failed to grant credits"); } }}>Apply Credit</button>
+                <button className="mt-3 rounded-2xl border border-brand/30 bg-brand/10 px-4 py-2 text-sm font-medium text-brand hover:bg-brand/20" onClick={async () => { try { const units = Number(draftFor(previewUser.id, previewUser.subscription?.plan.id).labelCredits || 0); await api(`/api/admin/users/${previewUser.id}/credits`, { method: "POST", body: JSON.stringify({ labelCredits: units, trackingCredits: units }) }); updateDraft(previewUser.id, { labelCredits: "", trackingCredits: "" }, previewUser.subscription?.plan.id); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Failed to grant credits"); } }}>Apply Credit</button>
               </Card>
 
               <Card className="p-4">
                 <div className="text-sm font-semibold text-slate-900">Manual Controls</div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button className="rounded-lg border bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50" onClick={async () => { try { await api(`/api/admin/users/${previewUser.id}/role`, { method: "POST", body: JSON.stringify({ role: previewUser.role === "ADMIN" ? "USER" : "ADMIN" }) }); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Failed"); } }}>{previewUser.role === "ADMIN" ? "Demote" : "Promote"}</button>
-                  <button className={`rounded-lg px-3 py-2 text-xs font-medium ${previewUser.suspended ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : "border border-red-200 bg-red-50 text-red-700"}`} onClick={async () => { try { await api(`/api/admin/users/${previewUser.id}/${previewUser.suspended ? "unsuspend" : "suspend"}`, { method: "POST" }); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Failed"); } }}>{previewUser.suspended ? "Manual Approval (Activate)" : "Suspend Account"}</button>
-                  <button className="rounded-lg border border-brand/30 bg-brand/10 px-3 py-2 text-xs font-medium text-brand" onClick={async () => { try { const planId = draftFor(previewUser.id, previewUser.subscription?.plan.id).planId || previewUser.subscription?.plan.id; if (!planId) return; await api(`/api/admin/users/${previewUser.id}/subscription`, { method: "POST", body: JSON.stringify({ planId }) }); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Payment confirmation failed"); } }}>Manual Payment Confirmation</button>
+                  <button className="rounded-2xl border bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-[#F8FAF9]" onClick={async () => { try { await api(`/api/admin/users/${previewUser.id}/role`, { method: "POST", body: JSON.stringify({ role: previewUser.role === "ADMIN" ? "USER" : "ADMIN" }) }); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Failed"); } }}>{previewUser.role === "ADMIN" ? "Demote" : "Promote"}</button>
+                  <button className={`rounded-2xl px-3 py-2 text-xs font-medium ${previewUser.suspended ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : "border border-red-200 bg-red-50 text-red-700"}`} onClick={async () => { try { await api(`/api/admin/users/${previewUser.id}/${previewUser.suspended ? "unsuspend" : "suspend"}`, { method: "POST" }); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Failed"); } }}>{previewUser.suspended ? "Manual Approval (Activate)" : "Suspend Account"}</button>
+                  <button className="rounded-2xl border border-brand/30 bg-brand/10 px-3 py-2 text-xs font-medium text-brand" onClick={async () => { try { const planId = draftFor(previewUser.id, previewUser.subscription?.plan.id).planId || previewUser.subscription?.plan.id; if (!planId) return; await api(`/api/admin/users/${previewUser.id}/subscription`, { method: "POST", body: JSON.stringify({ planId }) }); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Payment confirmation failed"); } }}>Manual Payment Confirmation</button>
                 </div>
               </Card>
             </div>
@@ -335,11 +335,11 @@ export default function Admin() {
             <Card className="mt-4 p-4">
               <div className="text-sm font-semibold text-slate-900">Package Assignment</div>
               <div className="mt-3 flex gap-2">
-                <select className="w-full rounded-xl border bg-white px-3 py-2 text-sm shadow-sm" value={draftFor(previewUser.id, previewUser.subscription?.plan.id).planId} onChange={(e) => updateDraft(previewUser.id, { planId: e.target.value }, previewUser.subscription?.plan.id)}>
+                <select className="w-full rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg" value={draftFor(previewUser.id, previewUser.subscription?.plan.id).planId} onChange={(e) => updateDraft(previewUser.id, { planId: e.target.value }, previewUser.subscription?.plan.id)}>
                   <option value="">Select plan</option>
                   {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}</option>)}
                 </select>
-                <button className="rounded-xl bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark" onClick={async () => { try { const planId = draftFor(previewUser.id, previewUser.subscription?.plan.id).planId; if (!planId) return; await api(`/api/admin/users/${previewUser.id}/subscription`, { method: "POST", body: JSON.stringify({ planId }) }); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Failed"); } }}>Assign</button>
+                <button className="rounded-2xl bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark" onClick={async () => { try { const planId = draftFor(previewUser.id, previewUser.subscription?.plan.id).planId; if (!planId) return; await api(`/api/admin/users/${previewUser.id}/subscription`, { method: "POST", body: JSON.stringify({ planId }) }); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Failed"); } }}>Assign</button>
               </div>
             </Card>
           </div>
@@ -348,5 +348,7 @@ export default function Admin() {
     </div>
   );
 }
+
+
 
 
