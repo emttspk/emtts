@@ -3,10 +3,10 @@ import { Menu, X } from "lucide-react";
 import Button from "./Button";
 
 const links = [
-  { href: "#workflow", label: "Workflow" },
-  { href: "#products", label: "Products" },
+  { href: "#workflow", label: "Showcase" },
+  { href: "#tracking-types", label: "Tracking Types" },
   { href: "#pricing", label: "Pricing" },
-  { href: "#support", label: "Support" },
+  { href: "#trust", label: "Trust" },
 ];
 
 export default function Navbar() {

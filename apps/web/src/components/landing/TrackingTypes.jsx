@@ -11,7 +11,7 @@ const types = [
 
 export default function TrackingTypes() {
   return (
-    <section id="tracking" className="py-10 md:py-12">
+    <section id="tracking-types" className="py-10 md:py-12">
       <div className="ui-page">
         <SectionTitle kicker="Tracking Types" title="Supported Tracking References" subtitle="Premium tracking cards with route previews and status context." />
         <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
@@ -27,6 +27,10 @@ export default function TrackingTypes() {
                 <div className="mt-2 text-sm text-slate-600">{type.name}</div>
 
                 <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
+                  <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-500">
+                    <span>Delivery Status</span>
+                    <span className="inline-flex items-center gap-1 text-emerald-700"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" /> Active</span>
+                  </div>
                   <div className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
                     <span>{type.from}</span>
                     <span>{type.to}</span>
