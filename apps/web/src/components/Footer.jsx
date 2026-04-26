@@ -3,7 +3,7 @@ const columns = [
     title: "Products",
     links: [
       { label: "Book Parcel", href: "/upload" },
-      { label: "Labels", href: "#labels" },
+      { label: "Generate Label", href: "#labels" },
       { label: "Money Orders", href: "#money-orders" },
     ],
   },
@@ -13,14 +13,6 @@ const columns = [
       { label: "Help Center", href: "#support" },
       { label: "Contact", href: "#contact" },
       { label: "Complaint Assistance", href: "#complaints" },
-    ],
-  },
-  {
-    title: "Company",
-    links: [
-      { label: "About Platform", href: "/" },
-      { label: "Security", href: "#security" },
-      { label: "Terms", href: "#terms" },
     ],
   },
   {
@@ -52,11 +44,14 @@ const columns = [
 export default function Footer() {
   return (
     <footer id="support" className="border-t border-slate-200 bg-white text-slate-900">
-      <div className="mx-auto w-full max-w-[1240px] px-4 pb-8 pt-12 sm:px-6 lg:px-8">
-        <div className="mb-10 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">Epost.pk</div>
-            <h2 className="mt-2 font-display text-3xl font-extrabold tracking-[-0.03em] text-slate-900">Pakistan Post Operations Platform</h2>
+      <div className="mx-auto w-full max-w-[1240px] px-4 pb-8 pt-10 sm:px-6 lg:px-8">
+        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="inline-flex items-center gap-3">
+            <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#0f172a,#0b6b3a)] text-sm font-extrabold text-white shadow-[0_10px_30px_rgba(11,107,58,0.34)]">EP</div>
+            <div>
+              <div className="text-sm font-extrabold tracking-[0.02em] text-slate-900">Epost.pk</div>
+              <div className="text-xs text-slate-500">Pakistan Post Operations Platform</div>
+            </div>
           </div>
           <a
             href="/register"
@@ -66,7 +61,7 @@ export default function Footer() {
           </a>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
           {columns.map((group) => (
             <div key={group.title}>
               <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">{group.title}</h3>

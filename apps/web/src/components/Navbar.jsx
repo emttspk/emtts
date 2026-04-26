@@ -5,63 +5,69 @@ const navLinks = [
   { href: "/upload", label: "Book Parcel" },
   { href: "#labels", label: "Generate Label" },
   { href: "#money-orders", label: "Money Order" },
-  { href: "/tracking", label: "Tracking" },
   { href: "#complaints", label: "Complaints" },
   { href: "#contact", label: "Contact" },
 ];
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const pathname = typeof window !== "undefined" ? window.location.pathname : "";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white shadow-sm">
-      <div className="mx-auto flex h-[76px] w-full max-w-[1240px] items-center px-4 sm:px-6 lg:px-8">
-        <div className="flex min-w-0 items-center gap-3">
+    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
+      <div className="mx-auto grid h-[76px] w-full max-w-[1240px] grid-cols-[auto_1fr_auto] items-center gap-4 px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-3">
           <a
             href="/"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#0f172a,#0b6b3a)] text-sm font-extrabold text-white shadow-[0_10px_30px_rgba(11,107,58,0.35)]"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#0f172a,#0b6b3a)] text-sm font-extrabold text-white shadow-[0_10px_30px_rgba(11,107,58,0.34)]"
           >
             EP
           </a>
-          <div className="min-w-0 max-w-[260px] leading-tight">
+          <div className="leading-tight">
             <div className="whitespace-nowrap text-sm font-extrabold tracking-[0.02em] text-slate-900">Epost.pk</div>
             <div className="whitespace-nowrap text-[11px] font-medium text-slate-500">Pakistan Post Operations Platform</div>
           </div>
         </div>
 
-        <nav className="hidden flex-1 items-center justify-center px-6 lg:flex">
-          <div className="flex items-center gap-7 text-[13px] font-semibold text-slate-600">
+        <nav className="hidden justify-self-center lg:flex">
+          <div className="flex items-center gap-8 text-[15px] font-semibold text-slate-700">
             {navLinks.map((item) => (
-              <a key={item.label} href={item.href} className="whitespace-nowrap py-2 transition-colors duration-200 hover:text-slate-900">
+              <a
+                key={item.label}
+                href={item.href}
+                className={`whitespace-nowrap py-2 transition-colors duration-200 hover:text-[#0b6b3a] ${
+                  pathname === item.href ? "text-slate-950" : "text-slate-700"
+                }`}
+              >
                 {item.label}
               </a>
             ))}
           </div>
         </nav>
 
-        <div className="ml-auto hidden items-center gap-3 lg:flex">
+        <div className="hidden items-center justify-self-end gap-2.5 lg:flex">
           <a
             href="/tracking"
-            className="inline-flex items-center justify-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 transition-all duration-200 hover:border-emerald-300"
+            className="inline-flex h-10 items-center justify-center gap-1 rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors duration-200 hover:border-[#0b6b3a] hover:text-[#0b6b3a]"
           >
             <Search className="h-3.5 w-3.5" />
             Track
           </a>
           <a
             href="/login"
-            className="inline-flex items-center justify-center rounded-full border border-slate-300/80 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all duration-200 hover:border-slate-900 hover:text-slate-900"
+            className="inline-flex h-10 items-center justify-center rounded-full px-4 text-sm font-semibold text-slate-700 transition-colors duration-200 hover:text-slate-950"
           >
             Login
           </a>
           <a
             href="/register"
-            className="inline-flex items-center justify-center rounded-full bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-5 py-2 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(15,23,42,0.22)] transition-transform duration-200 hover:-translate-y-0.5"
+            className="inline-flex h-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(11,107,58,0.3)] transition-transform duration-200 hover:-translate-y-0.5"
           >
             Create Free Account
           </a>
         </div>
 
-        <div className="ml-auto lg:hidden">
+        <div className="justify-self-end lg:hidden">
           <button
             type="button"
             aria-label="Toggle navigation"
@@ -87,7 +93,7 @@ export default function Navbar() {
               </a>
             ))}
             <div className="mt-2 grid gap-2 sm:grid-cols-3">
-              <a href="/tracking" className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-center text-sm font-semibold text-emerald-800">
+              <a href="/tracking" className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-center text-sm font-semibold text-slate-700">
                 Track
               </a>
               <a href="/login" className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-center text-sm font-semibold text-slate-700">
