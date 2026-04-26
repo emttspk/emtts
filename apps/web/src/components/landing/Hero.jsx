@@ -15,13 +15,13 @@ const productLogos = ["BOOKING", "LABELS", "TRACKING", "MONEY ORDER", "COMPLAINT
 
 export default function Hero() {
   return (
-    <section className="relative overflow-hidden pt-8">
+    <section className="relative overflow-hidden pt-24 md:pt-32">
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(175deg,#ecfdf3_0%,#f8fcfa_45%,#eefaf4_100%)]" />
       <div className="pointer-events-none absolute inset-0 bg-hero-grid bg-[size:30px_30px] opacity-35" />
       <div className="pointer-events-none absolute -left-20 top-20 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl" />
       <div className="pointer-events-none absolute right-0 top-10 h-[34rem] w-[34rem] rounded-full bg-brand/15 blur-3xl" />
       <div className="ui-page relative">
-        <div className="grid items-center gap-14 lg:grid-cols-[0.95fr_1.05fr]">
+        <div className="grid items-start gap-12 lg:grid-cols-[1fr_0.92fr] lg:gap-10">
           <div>
             <div className="ui-kicker">
               <CheckCircle2 className="h-4 w-4" /> Epost.pk Premium Platform
@@ -71,10 +71,9 @@ export default function Hero() {
               ))}
             </div>
 
-            <div className="mt-10 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-8 grid gap-3 md:mt-10 md:grid-cols-3">
               {[
                 ["Booking", "Fast parcel intake and dispatch batching"],
-                ["Free Labels", "A4 and envelope print packs in one click"],
                 ["Money Order", "Auto-generated MOS references and values"],
                 ["Tracking", "Live route and delivery-state visibility"],
               ].map(([title, detail]) => (

@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { BarChart3, Package2, Route, WalletCards } from "lucide-react";
 import Card from "./Card";
 
-const STACK_ORDER_ROTATION = [-6, 0, 6, 3];
+const STACK_ORDER_ROTATION = [-4, 0, 4, -2];
 
 function useRotatingStack(length) {
   const [active, setActive] = useState(0);
@@ -22,19 +22,20 @@ function useRotatingStack(length) {
 function StackLayer({ children, order, total }) {
   const depth = total - order;
   const rotate = STACK_ORDER_ROTATION[order] ?? STACK_ORDER_ROTATION[STACK_ORDER_ROTATION.length - 1];
-  const scale = order === 0 ? 1 : Math.max(0.88, 0.96 - order * 0.03);
-  const y = order * 34;
+  const scale = order === 0 ? 1 : Math.max(0.9, 0.96 - order * 0.02);
+  const y = order * 40;
   const opacity = Math.max(0.3, 1 - order * 0.16);
 
   return (
     <motion.div
       className="absolute inset-x-0 top-0"
+      initial={{ y: 120, opacity: 0 }}
       animate={{ y, rotate, scale, opacity }}
       transition={{
         type: "spring",
-        damping: 22,
-        stiffness: 220,
-        mass: 0.8,
+        damping: 24,
+        stiffness: 210,
+        mass: 0.72,
       }}
       style={{ zIndex: depth }}
     >
@@ -67,7 +68,7 @@ export function HeroLabelPreview({ className = "" }) {
   }, [sampleTracking]);
 
   return (
-    <Card className={`group w-[20rem] p-5 transition-all duration-300 hover:shadow-xl hover:-translate-y-2 ${className}`}>
+    <Card className={`group w-[20rem] rounded-3xl border border-white/80 bg-white/95 p-4 shadow-xl transition-all duration-300 hover:shadow-2xl ${className}`}>
       <div className="flex items-center gap-2 text-sm font-semibold text-brand-ink">
         <Package2 className="h-4 w-4 text-brand transition-transform group-hover:scale-110" /> Label Preview
       </div>
@@ -90,6 +91,10 @@ export function HeroLabelPreview({ className = "" }) {
       <div className="mt-4 rounded-[24px] border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-4 shadow-lg">
         <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 px-3 py-2 shadow-inner">
           <svg ref={barcodeRef} className="h-[30px] w-full" role="img" aria-label="Code128 barcode" />
+        </div>
+
+        <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200">
+          <img src="/media/label-preview.png" alt="Real label preview" className="h-24 w-full object-cover" />
         </div>
 
         <div className="mt-4 grid gap-2 text-sm text-slate-600">
@@ -126,7 +131,7 @@ export function HeroTrackingPreview({ className = "" }) {
   ];
 
   return (
-    <Card className={`group w-[21rem] p-5 transition-all duration-300 hover:shadow-xl hover:-translate-y-2 ${className}`}>
+    <Card className={`group w-[21rem] rounded-3xl border border-white/80 bg-white/95 p-4 shadow-xl transition-all duration-300 hover:shadow-2xl ${className}`}>
       <div className="flex items-center gap-2 text-sm font-semibold text-brand-ink">
         <Route className="h-4 w-4 text-brand transition-transform group-hover:scale-110" /> Tracking Preview
       </div>
@@ -162,6 +167,10 @@ export function HeroTrackingPreview({ className = "" }) {
               In Transit
             </span>
           </div>
+        </div>
+
+        <div className="overflow-hidden rounded-2xl border border-slate-200">
+          <img src="/media/tracking-preview.png" alt="Tracking dashboard preview" className="h-20 w-full object-cover" />
         </div>
 
         <div className="space-y-2">
@@ -200,7 +209,7 @@ export function HeroMoneyOrderPreview({ className = "" }) {
   const issueDate = "26-03-26";
 
   return (
-    <Card className={`group w-[18rem] p-5 transition-all duration-300 hover:shadow-xl hover:-translate-y-2 ${className}`}>
+    <Card className={`group w-[18rem] rounded-3xl border border-white/80 bg-white/95 p-4 shadow-xl transition-all duration-300 hover:shadow-2xl ${className}`}>
       <div className="flex items-center gap-2 text-sm font-semibold text-brand-ink">
         <WalletCards className="h-4 w-4 text-brand transition-transform group-hover:scale-110" /> Money Order Preview
       </div>
@@ -237,6 +246,10 @@ export function HeroMoneyOrderPreview({ className = "" }) {
         <div className="mt-4 inline-flex items-center rounded-full bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-3 py-1 text-xs font-semibold shadow-md">
           Verified Payment Slip
         </div>
+
+        <div className="mt-3 overflow-hidden rounded-2xl border border-emerald-200">
+          <img src="/media/money-order-preview.png" alt="Money order preview" className="h-20 w-full object-cover" />
+        </div>
       </div>
     </Card>
   );
@@ -260,7 +273,7 @@ export function HeroDashboardPreview({ className = "" }) {
   ];
 
   return (
-    <Card className={`group w-[21rem] p-5 transition-all duration-300 hover:shadow-xl hover:-translate-y-2 ${className}`}>
+    <Card className={`group w-[21rem] rounded-3xl border border-white/80 bg-white/95 p-4 shadow-xl transition-all duration-300 hover:shadow-2xl ${className}`}>
       <div className="flex items-center justify-between">
         <div className="text-sm font-semibold text-brand-ink">
           <BarChart3 className="mr-2 inline h-4 w-4 text-brand transition-transform group-hover:scale-110" />
@@ -318,6 +331,10 @@ export function HeroDashboardPreview({ className = "" }) {
           ))}
         </div>
       </div>
+
+      <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200">
+        <img src="/media/dashboard-preview.png" alt="Dashboard preview" className="h-20 w-full object-cover" />
+      </div>
     </Card>
   );
 }
@@ -336,7 +353,7 @@ export function HeroPreviewStack() {
   );
 
   return (
-    <div className="relative mx-auto h-[35rem] w-[22rem] md:h-[37rem]">
+    <div className="relative mx-auto h-[31rem] w-[21rem] md:h-[33rem] md:w-[22rem]">
       {cards.map((card, index) => {
         const order = (index - active + cards.length) % cards.length;
         return (

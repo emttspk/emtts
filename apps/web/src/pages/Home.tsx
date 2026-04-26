@@ -2,12 +2,9 @@ import Navbar from "../components/landing/Navbar";
 import Hero from "../components/landing/Hero";
 import FeatureStrip from "../components/landing/FeatureStrip";
 import ProcessTimeline from "../components/landing/ProcessTimeline";
-import FeaturesGrid from "../components/landing/FeaturesGrid";
-import ProductPreview from "../components/landing/ProductPreview";
 import TrackingTypes from "../components/landing/TrackingTypes";
 import Pricing from "../components/landing/Pricing";
 import CTA from "../components/landing/CTA";
-import Footer from "../components/landing/Footer";
 
 export default function Home() {
   return (
@@ -17,13 +14,10 @@ export default function Home() {
         <Hero />
         <FeatureStrip />
         <ProcessTimeline />
-        <FeaturesGrid />
         <TrackingTypes />
-        <ProductPreview />
         <Pricing />
         <CTA />
       </main>
-      <Footer />
     </div>
   );
 }
