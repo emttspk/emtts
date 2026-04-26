@@ -12,22 +12,23 @@ const steps = [
 
 export default function ProcessTimeline() {
   return (
-    <section id="how-it-works" className="border-b border-[#E5E7EB] bg-[#F8FAF9]">
+    <section id="workflow" className="py-6">
       <div className="ui-page">
         <SectionTitle kicker="How It Works" title="Real Product Flow" subtitle="Upload Excel, generate outputs, track, and handle complaints in one system." />
-        <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <div className="relative mt-12 grid gap-5 xl:grid-cols-5">
+          <div className="pointer-events-none absolute left-10 right-10 top-14 hidden h-px bg-[linear-gradient(90deg,rgba(11,107,58,0.18),rgba(11,107,58,0.8),rgba(11,107,58,0.18))] xl:block" />
           {steps.map((step) => {
             const Icon = step.icon;
             return (
-              <Card key={step.title} className="p-5">
-                <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand/10 text-brand">
+              <Card key={step.title} className="relative p-6">
+                <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand/10 text-brand shadow-inner">
                   <Icon className="h-5 w-5" />
                 </div>
-                <div className="mt-4 text-xs font-semibold uppercase tracking-[0.14em] text-brand">{step.step}</div>
-                <h3 className="mt-2 text-lg font-bold text-[#0F172A]">{step.title}</h3>
-                <ul className="mt-3 space-y-2 text-xs text-slate-600">
+                <div className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-brand">{step.step}</div>
+                <h3 className="mt-2 text-xl font-bold text-brand-ink">{step.title}</h3>
+                <ul className="mt-4 space-y-2 text-xs text-slate-600">
                   {step.points.map((point) => (
-                    <li key={point} className="rounded-2xl border border-[#E5E7EB] bg-white px-3 py-2 shadow-xl">{point}</li>
+                    <li key={point} className="rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2 shadow-sm">{point}</li>
                   ))}
                 </ul>
               </Card>

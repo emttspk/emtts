@@ -13,17 +13,19 @@ const features = [
 
 export default function FeaturesGrid() {
   return (
-    <section id="tracking" className="border-b border-[#E5E7EB] bg-white">
+    <section id="products" className="py-6">
       <div className="ui-page">
         <SectionTitle kicker="Features" title="Everything in One Logistics Workspace" subtitle="No disconnected tools, no manual reconciliation." />
-        <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {features.map((feature) => {
             const Icon = feature.icon;
             return (
-              <Card key={feature.title} className="p-6">
-                <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand/10 text-brand"><Icon className="h-5 w-5" /></div>
-                <h3 className="mt-4 text-xl font-bold text-[#0F172A]">{feature.title}</h3>
-                <p className="mt-2 text-sm text-slate-600">{feature.desc}</p>
+              <Card key={feature.title} className="group relative overflow-hidden p-6">
+                <div className="absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,rgba(11,107,58,0),rgba(11,107,58,0.8),rgba(11,107,58,0))] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-brand/10 text-brand"><Icon className="h-5 w-5" /></div>
+                <h3 className="mt-5 text-[18px] font-bold text-brand-ink">{feature.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-slate-600">{feature.desc}</p>
+                <div className="mt-6 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Hover to inspect module</div>
               </Card>
             );
           })}

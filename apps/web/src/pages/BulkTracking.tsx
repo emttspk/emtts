@@ -1979,15 +1979,13 @@ export default function BulkTracking() {
 
   return (
     <>
-    <div className="app-container space-y-5 px-3">
-      <Card className="overflow-hidden p-8">
+    <div className="app-container space-y-6">
+      <Card className="overflow-hidden p-8 md:p-10">
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-4 py-2 text-sm font-semibold text-brand">
-              Track Parcel
-            </div>
-            <div className="mt-5 text-4xl font-semibold text-slate-950">Monitor parcel movement with a premium live tracking workspace.</div>
-            <div className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Upload your file once, process records in bulk, and manage shipment actions, complaints, and MO visibility from one screen.</div>
+            <div className="ui-kicker">Track Parcel</div>
+            <div className="mt-5 font-display text-4xl font-extrabold tracking-[-0.05em] text-slate-950 md:text-5xl">Monitor parcel movement with a premium live tracking workspace.</div>
+            <div className="mt-4 max-w-2xl text-base leading-8 text-slate-600">Upload once, process records in bulk, and manage shipment actions, complaint routing, and money-order visibility from one focused tracking surface.</div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Card className="p-5">
@@ -2002,7 +2000,7 @@ export default function BulkTracking() {
         </div>
       </Card>
 
-      <Card className="border-[#E5E7EB] p-3">
+      <Card className="p-3">
         <div className="grid gap-3 sm:grid-cols-5">
           <button
             type="button"
@@ -2010,7 +2008,7 @@ export default function BulkTracking() {
               setStatusFilter("ALL");
               setPage(1);
             }}
-            className="rounded-2xl border border-[#E5E7EB] bg-white p-3 text-left transition hover:shadow-lg"
+            className="rounded-[24px] border border-slate-200 bg-white p-4 text-left transition hover:-translate-y-1 hover:shadow-card"
           >
             <div className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">Total</div>
             <div className="mt-2 text-2xl font-semibold text-slate-900">{summaryStats.total.toLocaleString()}</div>
@@ -2021,7 +2019,7 @@ export default function BulkTracking() {
               setStatusFilter("DELIVERED");
               setPage(1);
             }}
-            className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-left transition hover:shadow-lg"
+            className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-left transition hover:-translate-y-1 hover:shadow-card"
           >
             <div className="text-xs font-medium uppercase tracking-[0.12em] text-emerald-700">Delivered</div>
             <div className="mt-2 text-2xl font-semibold text-emerald-800">{summaryStats.delivered.toLocaleString()}</div>
@@ -2032,7 +2030,7 @@ export default function BulkTracking() {
               setStatusFilter("PENDING");
               setPage(1);
             }}
-            className="rounded-2xl border border-orange-200 bg-orange-50 p-3 text-left transition hover:shadow-lg"
+            className="rounded-[24px] border border-orange-200 bg-orange-50 p-4 text-left transition hover:-translate-y-1 hover:shadow-card"
           >
             <div className="text-xs font-medium uppercase tracking-[0.12em] text-orange-700">Pending</div>
             <div className="mt-2 text-2xl font-semibold text-orange-800">{summaryStats.pending.toLocaleString()}</div>
@@ -2043,7 +2041,7 @@ export default function BulkTracking() {
               setStatusFilter("RETURNED");
               setPage(1);
             }}
-            className="rounded-2xl border border-red-200 bg-red-50 p-3 text-left transition hover:shadow-lg"
+            className="rounded-[24px] border border-red-200 bg-red-50 p-4 text-left transition hover:-translate-y-1 hover:shadow-card"
           >
             <div className="text-xs font-medium uppercase tracking-[0.12em] text-red-700">Returned</div>
             <div className="mt-2 text-2xl font-semibold text-red-800">{summaryStats.returned.toLocaleString()}</div>
@@ -2054,7 +2052,7 @@ export default function BulkTracking() {
               setStatusFilter("DELAYED");
               setPage(1);
             }}
-            className="rounded-2xl border border-violet-200 bg-violet-50 p-3 text-left transition hover:shadow-lg"
+            className="rounded-[24px] border border-violet-200 bg-violet-50 p-4 text-left transition hover:-translate-y-1 hover:shadow-card"
           >
             <div className="text-xs font-medium uppercase tracking-[0.12em] text-violet-700">Delayed</div>
             <div className="mt-2 text-2xl font-semibold text-violet-800">{summaryStats.delayed.toLocaleString()}</div>
@@ -2063,7 +2061,7 @@ export default function BulkTracking() {
       </Card>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Card className="border-[#E5E7EB] p-3">
+        <Card className="p-4">
           <div className="text-sm font-semibold text-slate-900">Status Distribution</div>
           <div className="mt-1 text-xs text-slate-500">Delivered · Pending · Returned · Delayed</div>
           <div className="mt-3 flex items-center gap-5">
@@ -2110,7 +2108,7 @@ export default function BulkTracking() {
             </div>
           </div>
         </Card>
-        <Card className="border-[#E5E7EB] p-3">
+        <Card className="p-4">
           <div className="text-sm font-semibold text-slate-900">Monthly Tracking Volume</div>
           <div className="mt-1 text-xs text-slate-500">Last 6 months (oldest → newest)</div>
           <div className="mt-4 flex h-32 items-end gap-2">
@@ -2164,13 +2162,13 @@ export default function BulkTracking() {
           <div
             {...getRootProps()}
             className={cn(
-              "relative rounded-2xl border border-dashed bg-white p-8 transition-all duration-300 ease-in-out",
+              "relative rounded-[28px] border border-dashed bg-white p-8 transition-all duration-300 ease-in-out",
               isDragActive ? "border-brand bg-brand/10" : "border-gray-200 hover:border-gray-300",
             )}
           >
             <input {...getInputProps()} />
             <div className="flex flex-col items-center text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50">
+              <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-gray-50">
                 <UploadCloud className="h-6 w-6 text-gray-600" />
               </div>
               <div className="mt-4 text-base font-medium text-[#0F172A]">Drag & drop Excel/CSV</div>
@@ -2223,7 +2221,7 @@ export default function BulkTracking() {
 
           <div className="flex flex-wrap items-center gap-2">
             <button
-              className="rounded-2xl border bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-lg hover:bg-gray-50"
+              className="btn-secondary text-sm"
               onClick={() => {
                 submitTrackingRef.current = false;
                 setFile(null);
@@ -2242,7 +2240,7 @@ export default function BulkTracking() {
               Reset
             </button>
             <button
-              className="rounded-2xl bg-brand px-4 py-2 text-sm font-medium text-white shadow-md hover:bg-brand-dark disabled:opacity-50"
+              className="btn-primary text-sm disabled:opacity-50"
               disabled={!file || polling.jobStatus === "PROCESSING" || polling.jobStatus === "QUEUED" || uiState === "uploading"}
               onClick={async () => {
                 if (!file) return;

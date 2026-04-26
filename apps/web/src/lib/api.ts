@@ -8,11 +8,17 @@ const base = (
 
 function resolveBaseUrl() {
   const trimmed = base.replace(/\/+$/, "");
-  if (!trimmed) return "";
   if (typeof window === "undefined") return trimmed;
 
   const host = window.location.hostname;
   const runningLocal = /^(localhost|127\.0\.0\.1)$/i.test(host);
+
+  // In local web runs, default to the API dev port when no explicit env is provided.
+  if (!trimmed) {
+    if (runningLocal && window.location.port !== "3000") return "http://127.0.0.1:3000";
+    return "";
+  }
+
   const envPointsLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(trimmed);
 
   // Prevent deployed frontend from trying to call localhost API.

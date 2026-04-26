@@ -6,6 +6,7 @@ import FeaturesGrid from "../components/landing/FeaturesGrid";
 import ProductPreview from "../components/landing/ProductPreview";
 import TrackingTypes from "../components/landing/TrackingTypes";
 import Pricing from "../components/landing/Pricing";
+import CTA from "../components/landing/CTA";
 import Footer from "../components/landing/Footer";
 
 export default function Home() {
@@ -20,6 +21,7 @@ export default function Home() {
         <TrackingTypes />
         <ProductPreview />
         <Pricing />
+        <CTA />
       </main>
       <Footer />
     </div>

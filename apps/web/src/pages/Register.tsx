@@ -42,12 +42,12 @@ export default function Register() {
 
   return (
     <AuthShell title="Create your account" subtitle="Free plan - 250 labels/month, tracking and money orders included.">
-      <div className="text-xl font-semibold text-slate-900">Get started for free</div>
-      <div className="mt-1 text-sm text-slate-500">No credit card required. Set up in minutes.</div>
-      {err ? <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">{err}</div> : null}
+      <div className="text-2xl font-semibold text-slate-900">Get started for free</div>
+      <div className="mt-2 text-sm leading-6 text-slate-500">No credit card required. Build your sender profile once and start shipping in minutes.</div>
+      {err ? <div className="mt-4 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-800">{err}</div> : null}
 
       <form
-        className="mt-5 space-y-4"
+        className="mt-6 space-y-5"
         onSubmit={async (e) => {
           e.preventDefault();
           setErr(null);
@@ -96,40 +96,40 @@ export default function Register() {
           }
         }}
       >
-        <div className="space-y-3 rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4">
+        <div className="space-y-3 rounded-[28px] border border-emerald-100 bg-emerald-50/50 p-5">
           <div className="text-xs font-semibold uppercase tracking-[0.14em] text-brand">Account</div>
           <label className="block text-sm">
-            <div className="mb-1 font-medium text-slate-700">Email *</div>
+            <div className="mb-2 font-medium text-slate-700">Email *</div>
             <input className="field-input" value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@company.com" required />
           </label>
           <label className="block text-sm">
-            <div className="mb-1 font-medium text-slate-700">Password *</div>
+            <div className="mb-2 font-medium text-slate-700">Password *</div>
             <input className="field-input" value={password} onChange={(e) => setPassword(e.target.value)} type="password" minLength={8} placeholder="At least 8 characters" required />
           </label>
         </div>
 
-        <div className="space-y-3 rounded-2xl border border-emerald-100 bg-white p-4 shadow-lg hover:shadow-xl">
+        <div className="space-y-3 rounded-[28px] border border-slate-200 bg-white p-5 shadow-card hover:shadow-cardHover">
           <div className="text-xs font-semibold uppercase tracking-[0.14em] text-brand">Sender Profile</div>
 
           <label className="block text-sm">
-            <div className="mb-1 font-medium text-slate-700">Company Name *</div>
+            <div className="mb-2 font-medium text-slate-700">Company Name *</div>
             <input className="field-input" value={companyName} onChange={(e) => setCompanyName(e.target.value)} type="text" placeholder="Hoja Seeds Ltd." maxLength={120} required />
           </label>
 
           <label className="block text-sm">
-            <div className="mb-1 font-medium text-slate-700">Address *</div>
+            <div className="mb-2 font-medium text-slate-700">Address *</div>
             <input className="field-input" value={address} onChange={(e) => setAddress(e.target.value)} type="text" placeholder="123 Business Street, Karachi" maxLength={300} required />
           </label>
 
           <label className="block text-sm">
-            <div className="mb-1 font-medium text-slate-700">City *</div>
+            <div className="mb-2 font-medium text-slate-700">City *</div>
             <input className="field-input" value={originCity} onChange={(e) => setOriginCity(e.target.value)} type="text" placeholder="Karachi" maxLength={80} required />
           </label>
 
           <div className="block text-sm">
             <div className="mb-1 font-medium text-slate-700">Contact No *</div>
             <input
-              className={contactErr ? "w-full rounded-2xl border border-red-400 bg-red-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-red-500 focus:ring-4 focus:ring-red-200" : "field-input"}
+              className={contactErr ? "w-full rounded-2xl border border-red-400 bg-red-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-red-500 focus:ring-4 focus:ring-red-200" : "field-input"}
               value={contactNumber}
               onChange={(e) => {
                 setContactNumber(e.target.value);
@@ -148,7 +148,7 @@ export default function Register() {
               CNIC <span className="text-xs font-normal text-slate-400">(Optional)</span>
             </div>
             <input
-              className={cnicErr ? "w-full rounded-2xl border border-red-400 bg-red-50 px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-red-500 focus:ring-4 focus:ring-red-200" : "field-input"}
+              className={cnicErr ? "w-full rounded-2xl border border-red-400 bg-red-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-red-500 focus:ring-4 focus:ring-red-200" : "field-input"}
               value={cnic}
               onChange={(e) => {
                 setCnic(e.target.value);

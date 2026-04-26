@@ -51,14 +51,15 @@ export default function AppShell() {
   }, [navigate]);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-brand-radial">
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} collapsed />
       <div className={cn("flex min-w-0 flex-1 flex-col", "md:pl-16 lg:pl-64")}>
         <Topbar title={title} setIsSidebarOpen={setIsSidebarOpen} userEmail={me?.user.email} />
 
         <main className="relative flex-1 overflow-hidden">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(11,93,59,0.12),_transparent_24%)]" />
-          <div className="mx-auto w-full max-w-7xl px-6 py-20">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(11,107,58,0.12),_transparent_24%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-hero-grid bg-[size:34px_34px] opacity-[0.18]" />
+          <div className="mx-auto w-full max-w-7xl px-6 py-10 md:px-8 xl:px-10">
             {loading ? (
               <div className="grid gap-4">
                 <Card className="p-6">

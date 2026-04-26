@@ -1,27 +1,34 @@
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import Button from "./Button";
+
+const links = [
+  { href: "#workflow", label: "Workflow" },
+  { href: "#products", label: "Products" },
+  { href: "#pricing", label: "Pricing" },
+  { href: "#support", label: "Support" },
+];
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/40 bg-white/70 backdrop-blur-xl">
-      <div className="mx-auto flex h-20 w-full max-w-7xl items-center justify-between px-6">
+    <header className="sticky top-4 z-40 px-4 md:px-6">
+      <div className="ui-glass mx-auto flex h-20 w-full max-w-7xl items-center justify-between px-5 md:px-6">
         <a href="#" className="inline-flex items-center gap-3">
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-brand text-sm font-bold text-white shadow-xl">EP</span>
+          <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand text-sm font-extrabold text-white shadow-glow">EP</span>
           <div className="leading-tight">
-            <div className="text-sm font-bold text-[#0F172A]">Epost.pk</div>
-            <div className="text-xs text-slate-500">Booking, Free Labels, Money Order, Tracking & Complaint System</div>
+            <div className="text-base font-bold text-brand-ink">Epost.pk</div>
+            <div className="hidden text-xs text-slate-500 sm:block">Official platform for labels, money orders, tracking and complaints</div>
           </div>
         </a>
 
-        <nav className="hidden items-center gap-7 text-sm font-medium text-slate-700 lg:flex">
-          <a href="#labels" className="hover:text-brand">Labels</a>
-          <a href="#money-orders" className="hover:text-brand">Money Orders</a>
-          <a href="#tracking" className="hover:text-brand">Tracking</a>
-          <a href="#pricing" className="hover:text-brand">Pricing</a>
-          <a href="#help" className="inline-flex items-center gap-1 hover:text-brand">Help Center <ChevronDown className="h-4 w-4" /></a>
+        <nav className="hidden items-center gap-7 text-sm font-semibold text-slate-600 lg:flex">
+          {links.map((link) => (
+            <a key={link.href} href={link.href} className="transition-colors hover:text-brand">
+              {link.label}
+            </a>
+          ))}
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
@@ -29,19 +36,19 @@ export default function Navbar() {
           <Button to="/register" className="px-6">Create Free Account</Button>
         </div>
 
-        <button type="button" onClick={() => setOpen((v) => !v)} className="btn-secondary px-3 py-2 lg:hidden">
-          Menu
+        <button type="button" onClick={() => setOpen((v) => !v)} className="btn-ghost px-3 py-2 lg:hidden" aria-label="Toggle navigation">
+          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </div>
 
       {open ? (
-        <div className="border-t border-[#E5E7EB] bg-white px-6 py-4 lg:hidden">
+        <div className="ui-glass mx-auto mt-3 w-full max-w-7xl px-6 py-4 lg:hidden">
           <div className="grid gap-2 text-sm font-medium text-slate-700">
-            <a href="#labels" className="rounded-2xl px-3 py-2 hover:bg-slate-50">Labels</a>
-            <a href="#money-orders" className="rounded-2xl px-3 py-2 hover:bg-slate-50">Money Orders</a>
-            <a href="#tracking" className="rounded-2xl px-3 py-2 hover:bg-slate-50">Tracking</a>
-            <a href="#pricing" className="rounded-2xl px-3 py-2 hover:bg-slate-50">Pricing</a>
-            <a href="#help" className="rounded-2xl px-3 py-2 hover:bg-slate-50">Help Center</a>
+            {links.map((link) => (
+              <a key={link.href} href={link.href} className="rounded-2xl px-3 py-2 hover:bg-slate-50">
+                {link.label}
+              </a>
+            ))}
             <Button to="/login" variant="secondary" className="mt-2">Login</Button>
             <Button to="/register">Create Free Account</Button>
           </div>

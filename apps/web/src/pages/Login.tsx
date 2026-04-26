@@ -13,12 +13,12 @@ export default function Login() {
 
   return (
     <AuthShell title="Sign in" subtitle="Access your workspace to upload orders and download A4-ready PDFs.">
-      <div className="text-xl font-semibold text-slate-900">Welcome back</div>
-      <div className="mt-1 text-sm text-slate-600">Use the account you created during onboarding.</div>
-      {err ? <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">{err}</div> : null}
+      <div className="text-2xl font-semibold text-slate-900">Welcome back</div>
+      <div className="mt-2 text-sm leading-6 text-slate-600">Use the account you created during onboarding to continue into the dispatch workspace.</div>
+      {err ? <div className="mt-4 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-800">{err}</div> : null}
 
       <form
-        className="mt-5 space-y-4"
+        className="mt-6 space-y-5"
         onSubmit={async (e) => {
           e.preventDefault();
           setErr(null);
@@ -45,11 +45,11 @@ export default function Login() {
         }}
       >
         <label className="block text-sm">
-          <div className="mb-1 font-medium text-slate-900">Email</div>
+          <div className="mb-2 font-medium text-slate-900">Email</div>
           <input className="field-input" value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@company.com" required />
         </label>
         <label className="block text-sm">
-          <div className="mb-1 font-medium text-slate-900">Password</div>
+          <div className="mb-2 font-medium text-slate-900">Password</div>
           <input className="field-input" value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="********" required />
         </label>
 
@@ -57,14 +57,14 @@ export default function Login() {
           {loading ? "Signing in..." : "Sign in"}
         </button>
 
-        <div className="flex items-center justify-between text-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
           <Link to={`/register${email ? `?email=${encodeURIComponent(email)}` : ""}`} className="font-medium text-brand transition-colors hover:text-brand-dark">
             Create account instead
           </Link>
           <span className="text-slate-500">No self-service password reset yet</span>
         </div>
 
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+        <div className="rounded-3xl border border-amber-200 bg-amber-50/90 p-4 text-sm leading-6 text-amber-900">
           If login keeps failing, either your email is not registered in this local database or the password is incorrect. Use{" "}
           <Link to={`/register${email ? `?email=${encodeURIComponent(email)}` : ""}`} className="font-semibold text-amber-950 underline decoration-amber-400 underline-offset-2">
             Create account

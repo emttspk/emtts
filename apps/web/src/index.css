@@ -7,23 +7,33 @@
 @layer base {
   :root {
     color-scheme: light;
-    --bg: #f4f8f5;
+    --bg: #f8fafc;
+    --surface: rgba(255, 255, 255, 0.82);
+    --surface-strong: #ffffff;
     --text-strong: #0f172a;
-    --text-muted: #52607a;
-    --brand: #0b5d3b;
+    --text-muted: #64748b;
+    --brand: #0b6b3a;
+    --brand-dark: #07552e;
+    --line: #e2e8f0;
   }
 
   html {
     font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+    background: var(--bg);
   }
 
   body {
     background:
-      radial-gradient(circle at top left, rgba(11, 93, 59, 0.14), transparent 30%),
-      radial-gradient(circle at top right, rgba(11, 93, 59, 0.08), transparent 24%),
-      linear-gradient(180deg, #f7fbf8 0%, #edf5ef 100%);
+      radial-gradient(circle at top left, rgba(11, 107, 58, 0.16), transparent 28%),
+      radial-gradient(circle at top right, rgba(15, 23, 42, 0.10), transparent 22%),
+      linear-gradient(180deg, #f8fafc 0%, #eef7f1 54%, #f8fafc 100%);
     color: var(--text-strong);
     @apply antialiased;
+  }
+
+  body,
+  #root {
+    min-height: 100vh;
   }
 
   a {
@@ -31,7 +41,7 @@
   }
 
   * {
-    @apply border-gray-200;
+    @apply border-slate-200;
   }
 
   h1,
@@ -47,23 +57,67 @@
 
 @layer components {
   .ui-page {
-    @apply mx-auto w-full max-w-7xl px-6 py-20;
+    @apply mx-auto w-full max-w-7xl px-6 py-16 md:px-8 md:py-20 xl:px-10;
   }
 
   .ui-card {
-    @apply rounded-2xl border border-[#E5E7EB] bg-white shadow-lg transition-all duration-300 hover:shadow-xl;
+    @apply rounded-[28px] border border-[color:var(--line)] bg-[color:var(--surface-strong)] shadow-card transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-cardHover;
+  }
+
+  .ui-glass {
+    @apply rounded-[28px] border border-white/60 bg-white/70 backdrop-blur-2xl shadow-glass;
+  }
+
+  .ui-panel {
+    @apply rounded-[32px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(255,255,255,0.88))] shadow-card;
+  }
+
+  .ui-section-title {
+    @apply font-display text-3xl font-extrabold tracking-[-0.04em] text-brand-ink md:text-4xl;
+  }
+
+  .ui-kicker {
+    @apply inline-flex items-center gap-2 rounded-full border border-brand/15 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-brand shadow-sm backdrop-blur;
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-2xl bg-brand px-5 py-3 text-sm font-semibold text-white shadow-lg transition-all duration-300 hover:bg-brand-dark hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex items-center justify-center rounded-full bg-brand px-6 py-3.5 text-base font-semibold text-white shadow-glow transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-2xl border border-[#E5E7EB] bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-lg transition-all duration-300 hover:border-brand hover:shadow-xl;
+    @apply inline-flex items-center justify-center rounded-full border border-slate-200 bg-white/90 px-6 py-3.5 text-base font-semibold text-slate-700 shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-card;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center rounded-full border border-white/50 bg-white/60 px-5 py-3 text-sm font-semibold text-slate-700 backdrop-blur-xl transition-all duration-300 hover:border-white hover:bg-white/80;
   }
 
   .field-input {
-    @apply w-full rounded-2xl border border-[#E5E7EB] bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition-all duration-300 focus:border-brand focus:ring-4 focus:ring-brand/10 placeholder:text-slate-400;
+    @apply w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition-all duration-300 focus:border-brand focus:ring-4 focus:ring-brand/10 placeholder:text-slate-400;
+  }
+
+  .ui-table {
+    @apply overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-card;
+  }
+
+  .ui-table table {
+    @apply min-w-full text-left text-sm;
+  }
+
+  .ui-table thead {
+    @apply bg-slate-50/80;
+  }
+
+  .ui-table th {
+    @apply px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500;
+  }
+
+  .ui-table td {
+    @apply px-4 py-3 text-slate-700;
+  }
+
+  .status-pill {
+    @apply inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold;
   }
 }
 

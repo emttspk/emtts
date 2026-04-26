@@ -107,12 +107,13 @@ export default function Admin() {
 
   return (
     <div className="space-y-6">
-      <Card className="overflow-hidden p-8">
+      <Card className="overflow-hidden p-8 md:p-10">
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
           <div>
-            <div className="text-4xl font-semibold text-slate-950">Admin Control Room</div>
-            <div className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Manage customers, plans, approvals, balances, and shipment operations from one premium admin workspace.</div>
-            {err ? <div className="mt-4 rounded-2xl border border-red-200 shadow-lg bg-red-50 p-3 text-sm font-medium text-red-800">{err}</div> : null}
+            <div className="ui-kicker">Admin control room</div>
+            <div className="mt-5 font-display text-4xl font-extrabold tracking-[-0.05em] text-slate-950 md:text-5xl">Premium oversight for plans, customers, usage, and shipment corrections.</div>
+            <div className="mt-4 max-w-2xl text-base leading-8 text-slate-600">Manage approvals, balances, plan assignment, and shipment overrides from one structured admin workspace.</div>
+            {err ? <div className="mt-4 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-800">{err}</div> : null}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Card className="p-5"><div className="text-sm text-slate-500">Customers</div><div className="mt-2 text-3xl font-semibold text-slate-950">{totals.customers}</div></Card>
@@ -129,7 +130,7 @@ export default function Admin() {
           ].map(([key, label]) => (
             <button
               key={key}
-              className={`rounded-2xl px-4 py-2 text-sm font-medium ${section === key ? "bg-brand text-white" : "border border-[#E5E7EB] bg-white text-slate-700 hover:bg-[#F8FAF9]"}`}
+              className={`rounded-full px-4 py-2.5 text-sm font-medium transition-all ${section === key ? "bg-brand text-white shadow-glow" : "border border-slate-200 bg-white text-slate-700 hover:-translate-y-0.5 hover:bg-slate-50"}`}
               onClick={() => setSection(key as SectionKey)}
             >
               {label}
@@ -156,7 +157,7 @@ export default function Admin() {
             <button className="rounded-2xl border bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-lg hover:bg-gray-50" onClick={() => refresh()}>Refresh</button>
           </div>
           <form
-            className="grid gap-3 border-t bg-gray-50 px-6 py-4 sm:grid-cols-5"
+            className="grid gap-3 border-t bg-slate-50 px-6 py-4 sm:grid-cols-5"
             onSubmit={async (e) => {
               e.preventDefault();
               setErr(null);
@@ -171,10 +172,10 @@ export default function Admin() {
               }
             }}
           >
-            <input className="rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg" value={name} onChange={(e) => setName(e.target.value)} placeholder="Plan name" />
-            <input className="rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg" value={priceCents} onChange={(e) => setPriceCents(Number(e.target.value))} placeholder="Price (paisa)" type="number" />
-            <input className="rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg" value={monthlyLabelLimit} onChange={(e) => { const v = Number(e.target.value); setMonthlyLabelLimit(v); setMonthlyTrackingLimit(v); }} placeholder="Units" type="number" />
-            <input className="rounded-2xl border bg-slate-100 px-3 py-2 text-sm shadow-lg" value={monthlyTrackingLimit} readOnly placeholder="Units (mirrored)" type="number" />
+            <input className="field-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Plan name" />
+            <input className="field-input" value={priceCents} onChange={(e) => setPriceCents(Number(e.target.value))} placeholder="Price (paisa)" type="number" />
+            <input className="field-input" value={monthlyLabelLimit} onChange={(e) => { const v = Number(e.target.value); setMonthlyLabelLimit(v); setMonthlyTrackingLimit(v); }} placeholder="Units" type="number" />
+            <input className="field-input bg-slate-100" value={monthlyTrackingLimit} readOnly placeholder="Units (mirrored)" type="number" />
             <button className="rounded-2xl bg-brand px-3 py-2 text-sm font-medium text-white shadow-lg hover:bg-brand-dark">Create</button>
           </form>
           <div className="grid gap-4 border-t bg-white p-6 md:grid-cols-2">
@@ -225,12 +226,12 @@ export default function Admin() {
             <div className="flex items-end gap-2">
               <label className="text-sm">
                 <div className="mb-1 font-medium text-gray-900">Month (UTC)</div>
-                <input className="rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg" value={month} onChange={(e) => setMonth(e.target.value)} />
+                <input className="field-input" value={month} onChange={(e) => setMonth(e.target.value)} />
               </label>
               <button className="h-10 rounded-2xl border bg-white px-3 text-sm font-medium text-gray-700 shadow-lg hover:bg-gray-50" onClick={() => refresh()}>Refresh</button>
             </div>
           </div>
-          <div className="mt-4 overflow-x-auto">
+          <div className="ui-table mt-4 overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
               <thead className="bg-gray-50">
                 <tr className="text-xs font-medium uppercase tracking-wide text-gray-500">
@@ -257,7 +258,7 @@ export default function Admin() {
             <div className="text-xl font-medium text-gray-900">Shipments</div>
             <div className="mt-1 text-sm text-gray-600">Override shipment metadata and admin code.</div>
           </div>
-          <div className="overflow-x-auto">
+          <div className="ui-table overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
               <thead className="bg-gray-50">
                 <tr className="text-xs font-medium uppercase tracking-wide text-gray-500">
@@ -276,14 +277,14 @@ export default function Admin() {
                     <td className="px-4 py-3 text-gray-900">{shipment.user.email}</td>
                     <td className="px-4 py-3 font-mono text-xs text-gray-900">{shipment.trackingNumber}</td>
                     <td className="px-4 py-3">
-                      <select className="rounded-2xl border bg-white px-2 py-1 text-xs" value={shipment.shipmentType ?? ""} onChange={(e) => setShipments((prev) => prev.map((item) => (item.id === shipment.id ? { ...item, shipmentType: e.target.value || null } : item)))}>
+                      <select className="rounded-2xl border border-slate-200 bg-white px-2 py-1.5 text-xs" value={shipment.shipmentType ?? ""} onChange={(e) => setShipments((prev) => prev.map((item) => (item.id === shipment.id ? { ...item, shipmentType: e.target.value || null } : item)))}>
                         <option value="">-</option>
                         {["RL", "UMS", "VPL", "VPP", "PAR", "COD", "COURIER"].map((type) => <option key={type} value={type}>{type}</option>)}
                       </select>
                     </td>
-                    <td className="px-4 py-3"><input className="w-40 rounded-2xl border bg-white px-2 py-1 text-xs" value={shipment.status ?? ""} onChange={(e) => setShipments((prev) => prev.map((item) => (item.id === shipment.id ? { ...item, status: e.target.value } : item)))} placeholder="Status" /></td>
-                    <td className="px-4 py-3"><input className="w-32 rounded-2xl border bg-white px-2 py-1 text-xs" value={shipment.city ?? ""} onChange={(e) => setShipments((prev) => prev.map((item) => (item.id === shipment.id ? { ...item, city: e.target.value } : item)))} placeholder="City" /></td>
-                    <td className="px-4 py-3"><input className="w-40 rounded-2xl border bg-white px-2 py-1 text-xs" value={shipment.adminCode ?? ""} onChange={(e) => setShipments((prev) => prev.map((item) => (item.id === shipment.id ? { ...item, adminCode: e.target.value } : item)))} placeholder="Code" /></td>
+                    <td className="px-4 py-3"><input className="w-40 rounded-2xl border border-slate-200 bg-white px-2 py-1.5 text-xs" value={shipment.status ?? ""} onChange={(e) => setShipments((prev) => prev.map((item) => (item.id === shipment.id ? { ...item, status: e.target.value } : item)))} placeholder="Status" /></td>
+                    <td className="px-4 py-3"><input className="w-32 rounded-2xl border border-slate-200 bg-white px-2 py-1.5 text-xs" value={shipment.city ?? ""} onChange={(e) => setShipments((prev) => prev.map((item) => (item.id === shipment.id ? { ...item, city: e.target.value } : item)))} placeholder="City" /></td>
+                    <td className="px-4 py-3"><input className="w-40 rounded-2xl border border-slate-200 bg-white px-2 py-1.5 text-xs" value={shipment.adminCode ?? ""} onChange={(e) => setShipments((prev) => prev.map((item) => (item.id === shipment.id ? { ...item, adminCode: e.target.value } : item)))} placeholder="Code" /></td>
                     <td className="px-4 py-3 text-right">
                       <button className="rounded-2xl border bg-white px-2.5 py-1 text-xs font-medium text-gray-700 shadow-lg hover:bg-gray-50" onClick={async () => { setErr(null); try { await api(`/api/admin/shipments/${shipment.id}`, { method: "PATCH", body: JSON.stringify({ shipmentType: shipment.shipmentType ?? null, status: shipment.status ?? null, city: shipment.city ?? null, adminCode: shipment.adminCode ?? null }) }); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Failed to update shipment"); } }}>Save</button>
                     </td>
@@ -297,7 +298,7 @@ export default function Admin() {
 
       {previewUser ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-[32px] border border-slate-200 bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-2xl font-semibold text-slate-950">Customer Preview</div>
