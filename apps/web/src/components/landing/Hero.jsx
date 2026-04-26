@@ -52,7 +52,7 @@ export default function Hero() {
   };
 
   return (
-    <section className="relative overflow-hidden pt-12 md:pt-14 lg:pt-16">
+    <section className="relative overflow-hidden pt-4 md:pt-5 lg:pt-6">
       <div className="pointer-events-none absolute inset-0 bg-white" />
       
       {/* Rotating Pakistan Landmarks Background */}
@@ -144,7 +144,7 @@ export default function Hero() {
             </div>
           </div>
 
-          <div className="relative lg:min-h-[42rem]">
+          <div className="relative lg:min-h-[36rem]">
             <div className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/60 p-2 shadow-[0_32px_96px_rgba(0,0,0,0.08)] backdrop-blur-xl md:p-3 animate-float">
               <div className="rounded-[28px] border border-slate-200/80 bg-gradient-to-br from-white/95 to-slate-50/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:p-5 backdrop-blur-sm">
                 <div className="flex items-center justify-between pb-4">

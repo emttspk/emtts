@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Search } from "lucide-react";
 import Button from "./Button";
 
 const links = [
-  { href: "/tracking", label: "Track Shipment" },
-  { href: "#workflow", label: "Labels" },
-  { href: "#pricing", label: "Money Orders" },
-  { href: "#tracking-types", label: "Pricing" },
-  { href: "#trust", label: "Support" },
+  { href: "/upload", label: "Book Parcel" },
+  { href: "#labels", label: "Generate Label" },
+  { href: "#money-orders", label: "Generate Money Order" },
+  { href: "/bulk-tracking", label: "Tracking" },
+  { href: "#complaints", label: "Complaint" },
+  { href: "#contact", label: "Contact" },
 ];
 
 export default function Navbar() {
@@ -35,6 +36,10 @@ export default function Navbar() {
         <div className="hidden items-center gap-3 lg:flex">
           <Button to="/login" variant="secondary" className="px-6">Login</Button>
           <Button to="/register" className="px-6">Create Free Account</Button>
+           <div className="hidden lg:block h-6 w-px bg-slate-200" />
+           <Button href="/bulk-tracking" variant="secondary" className="px-4 py-2 text-sm">
+             <Search className="h-4 w-4" /> Track
+           </Button>
         </div>
 
         <button type="button" onClick={() => setOpen((v) => !v)} className="btn-ghost px-3 py-2 lg:hidden" aria-label="Toggle navigation">
