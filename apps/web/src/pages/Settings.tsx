@@ -4,6 +4,7 @@ import Card from "../components/Card";
 import { clearSession } from "../lib/auth";
 import { api } from "../lib/api";
 import type { MeResponse } from "../lib/types";
+import { resolvePackageMeta, usagePercent } from "../lib/packageCatalog";
 
 type ShellCtx = { me: MeResponse | null; refreshMe: () => Promise<void> };
 
@@ -19,6 +20,11 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const activePlanName = me?.subscription?.plan?.name ?? me?.activePackage?.planName ?? "BUSINESS";
+  const packageMeta = resolvePackageMeta(activePlanName);
+  const remainingUnits = me?.balances?.unitsRemaining ?? me?.activePackage?.unitsRemaining ?? 0;
+  const unitLimit = me?.balances?.labelLimit ?? packageMeta.units;
+  const usedPercent = usagePercent(remainingUnits, unitLimit);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -61,6 +67,37 @@ export default function Settings() {
         <div className="ui-kicker">Profile settings</div>
         <div className="mt-5 font-display text-4xl font-extrabold tracking-[-0.05em] text-slate-950 md:text-5xl">Premium sender profile for labels, returns, and account control.</div>
         <div className="mt-4 max-w-2xl text-base leading-8 text-slate-600">Review account details and maintain the sender information used when your uploaded files do not provide return-address data.</div>
+
+        <div className="mt-7 grid gap-4 rounded-[28px] border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-5 md:grid-cols-3">
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">Subscription</div>
+            <div className="mt-2 text-xl font-semibold text-emerald-900">{packageMeta.displayName}</div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 md:col-span-2">
+            <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+              <span>Usage Meter</span>
+              <span>{usedPercent}% used</span>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
+              <div className="h-2 rounded-full bg-gradient-to-r from-brand to-emerald-500" style={{ width: `${usedPercent}%` }} />
+            </div>
+            <div className="mt-2 text-sm text-slate-600">
+              {Math.max(0, unitLimit - remainingUnits).toLocaleString()} used out of {unitLimit.toLocaleString()} units
+            </div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Plan Price</div>
+            <div className="mt-2 text-lg font-semibold text-slate-900">{packageMeta.priceText}</div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tracking Limit</div>
+            <div className="mt-2 text-lg font-semibold text-slate-900">{packageMeta.tracking.toLocaleString()}</div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Complaints</div>
+            <div className="mt-2 text-lg font-semibold text-slate-900">{packageMeta.complaints}</div>
+          </div>
+        </div>
       </Card>
 
       <div className="grid gap-6 xl:grid-cols-[0.72fr_1.28fr]">

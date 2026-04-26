@@ -5,6 +5,7 @@ import Card from "../components/Card";
 import { api } from "../lib/api";
 import type { MeResponse } from "../lib/types";
 import { computeStats, getFinalTrackingData } from "../lib/trackingData";
+import { resolvePackageMeta, usagePercent } from "../lib/packageCatalog";
 
 const formatPKR = new Intl.NumberFormat("en-PK", {
   style: "currency",
@@ -185,6 +186,10 @@ export default function Dashboard() {
 
   const usedUnits = (me?.usage?.labelsGenerated ?? 0) + (me?.usage?.labelsQueued ?? 0);
   const remainingUnits = me?.balances?.unitsRemaining ?? me?.activePackage?.unitsRemaining ?? 0;
+  const activePlanName = me?.subscription?.plan?.name ?? me?.activePackage?.planName ?? "BUSINESS";
+  const packageMeta = resolvePackageMeta(activePlanName);
+  const unitLimit = me?.balances?.labelLimit ?? packageMeta.units;
+  const usedPercent = usagePercent(remainingUnits, unitLimit);
   const expiryDate = me?.activePackage?.expiresAt ?? me?.subscription?.currentPeriodEnd;
   const expiryDateObj = expiryDate ? new Date(expiryDate) : null;
   const daysToExpiry = expiryDateObj ? Math.ceil((expiryDateObj.getTime() - Date.now()) / (24 * 60 * 60 * 1000)) : null;
@@ -225,16 +230,26 @@ export default function Dashboard() {
               <input className="w-full bg-transparent outline-none placeholder:text-slate-400" placeholder="Search activity, tracking IDs, or workspace context" />
             </label>
             <div className="mt-6 rounded-[28px] border border-slate-200 bg-slate-50/80 px-5 py-4 text-sm leading-7 text-slate-600">
-              Active package <span className="font-semibold text-slate-900">{me?.subscription?.plan?.name ?? "No active plan"}</span> with <span className="font-semibold text-slate-900">{remainingUnits.toLocaleString()}</span> units remaining.
+              Active package <span className="font-semibold text-slate-900">{packageMeta.displayName}</span> with <span className="font-semibold text-slate-900">{remainingUnits.toLocaleString()}</span> units remaining.
             </div>
           </div>
           <div className="rounded-[32px] bg-[linear-gradient(160deg,#0F172A,#162033)] p-6 text-white shadow-[0_30px_90px_rgba(15,23,42,0.24)]">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-xs uppercase tracking-[0.2em] text-slate-300">Package status</div>
-                <div className="mt-3 text-3xl font-semibold">{me?.subscription?.plan?.name ?? "No active plan"}</div>
+                <div className="mt-3 text-3xl font-semibold">{packageMeta.displayName}</div>
               </div>
               <Package2 className="h-5 w-5 text-emerald-300" />
+            </div>
+            <div className="mt-5 rounded-2xl bg-white/10 px-4 py-3">
+              <div className="flex items-center justify-between text-xs uppercase tracking-[0.16em] text-slate-300">
+                <span>Usage</span>
+                <span>{usedPercent}%</span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/20">
+                <div className="h-2 rounded-full bg-gradient-to-r from-emerald-300 to-cyan-300" style={{ width: `${usedPercent}%` }} />
+              </div>
+              <div className="mt-2 text-xs text-slate-200">{Math.max(0, unitLimit - remainingUnits).toLocaleString()} of {unitLimit.toLocaleString()} units consumed</div>
             </div>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               {metricCards.map((card) => {

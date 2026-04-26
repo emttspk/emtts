@@ -1,22 +1,25 @@
-import { ArrowRight, CheckCircle2, FileSpreadsheet, Package2, Radar, Route, ShieldCheck, WalletCards } from "lucide-react";
+import { CheckCircle2, ShieldCheck } from "lucide-react";
 import Button from "./Button";
-import Card from "./Card";
 import {
-  HeroLabelPreview,
-  HeroTrackingPreview,
-  HeroMoneyOrderPreview,
-  HeroDashboardPreview,
+  HeroPreviewStack,
 } from "./HeroPreviewComponents";
 
 const badges = ["Booking", "Free Labels", "Money Order", "Tracking", "Complaint System"];
-const excelColumns = ["Date", "Consignee", "Address", "Barcode", "MO"];
+const trustSignals = [
+  "Pakistan Post workflow ready",
+  "Code128 label output",
+  "Live shipment timeline",
+  "Money order reconciliation",
+];
+const productLogos = ["BOOKING", "LABELS", "TRACKING", "MONEY ORDER", "COMPLAINTS"];
 
 export default function Hero() {
   return (
     <section className="relative overflow-hidden pt-8">
-      <div className="pointer-events-none absolute inset-0 bg-hero-grid bg-[size:36px_36px] opacity-40" />
-      <div className="pointer-events-none absolute -left-20 top-24 h-72 w-72 rounded-full bg-brand/20 blur-3xl" />
-      <div className="pointer-events-none absolute right-0 top-8 h-[34rem] w-[34rem] rounded-full bg-slate-900/10 blur-3xl" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(175deg,#ecfdf3_0%,#f8fcfa_45%,#eefaf4_100%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-hero-grid bg-[size:30px_30px] opacity-35" />
+      <div className="pointer-events-none absolute -left-20 top-20 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl" />
+      <div className="pointer-events-none absolute right-0 top-10 h-[34rem] w-[34rem] rounded-full bg-brand/15 blur-3xl" />
       <div className="ui-page relative">
         <div className="grid items-center gap-14 lg:grid-cols-[0.95fr_1.05fr]">
           <div>
@@ -36,6 +39,28 @@ export default function Hero() {
             <div className="mt-10 flex flex-wrap gap-4">
               <Button to="/register">Create Free Account</Button>
               <Button href="#products" variant="secondary">Open Product Demo</Button>
+            </div>
+
+            <div className="mt-8 rounded-3xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur-xl">
+              <div className="flex flex-wrap items-center gap-3 text-sm text-slate-700">
+                {trustSignals.map((signal) => (
+                  <span key={signal} className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50/80 px-3 py-1.5 font-medium">
+                    <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                    {signal}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-3xl border border-white/80 bg-white/70 p-4 backdrop-blur-xl">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Product Suite</div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {productLogos.map((logo) => (
+                  <span key={logo} className="rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold tracking-[0.1em] text-white">
+                    {logo}
+                  </span>
+                ))}
+              </div>
             </div>
 
             <div className="mt-10 flex flex-wrap gap-3">
@@ -61,37 +86,10 @@ export default function Hero() {
             </div>
           </div>
 
-          <div className="relative min-h-[49rem]">
+          <div className="relative min-h-[40rem]">
             <div className="pointer-events-none absolute left-10 top-8 h-36 w-36 rounded-full bg-brand/20 blur-3xl" />
             <div className="pointer-events-none absolute right-0 top-16 h-48 w-48 rounded-full bg-slate-900/10 blur-3xl" />
-
-            <HeroDashboardPreview />
-
-            <Card className="absolute left-0 top-6 z-20 w-[19rem] animate-float p-5">
-              <div className="flex items-center justify-between text-sm font-semibold text-brand-ink">
-                <span className="inline-flex items-center gap-2"><FileSpreadsheet className="h-4 w-4 text-brand" /> Excel Upload Preview</span>
-                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs text-emerald-700">validated</span>
-              </div>
-              <div className="mt-4 rounded-[22px] border border-dashed border-brand/25 bg-brand/5 p-4">
-                <div className="rounded-2xl bg-white px-3 py-2 text-xs text-slate-600">Rows imported: 1,244 / 1,250</div>
-                <div className="mt-3 grid grid-cols-5 gap-1 text-[10px] font-semibold text-slate-500">
-                  {excelColumns.map((column) => (
-                    <div key={column} className="rounded bg-white px-1.5 py-1 text-center">{column}</div>
-                  ))}
-                </div>
-                <div className="mt-3 space-y-2 text-xs text-slate-600">
-                  <div className="flex items-center justify-between rounded-2xl bg-white px-3 py-2"><span>Validation</span><span className="font-semibold text-emerald-700">Passed</span></div>
-                  <div className="flex items-center justify-between rounded-2xl bg-white px-3 py-2"><span>Missing cities</span><span className="font-semibold text-amber-700">4</span></div>
-                  <div className="flex items-center justify-between rounded-2xl bg-white px-3 py-2"><span>MO rows</span><span className="font-semibold text-slate-900">312</span></div>
-                </div>
-              </div>
-            </Card>
-
-            <HeroLabelPreview />
-
-            <HeroTrackingPreview />
-
-            <HeroMoneyOrderPreview />
+            <HeroPreviewStack />
           </div>
         </div>
       </div>
