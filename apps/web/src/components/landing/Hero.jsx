@@ -1,5 +1,8 @@
-import { CheckCircle2, MapPin, PackageCheck, Route } from "lucide-react";
+import { CheckCircle2, MapPin, PackageCheck } from "lucide-react";
 import Button from "./Button";
+import LabelPreviewCard from "../previews/LabelPreviewCard";
+import MoneyOrderPreviewCard from "../previews/MoneyOrderPreviewCard";
+import TrackingPreviewCard from "../previews/TrackingPreviewCard";
 
 const highlights = ["Pakistan Post Ready", "Real Label + MO Output", "Live Tracking Surface"];
 
@@ -47,46 +50,91 @@ export default function Hero() {
 
             <div className="absolute left-0 right-0 top-8 z-10 mx-auto w-full max-w-[42rem] rounded-[34px] border border-white/80 bg-white p-2 shadow-[0_32px_80px_rgba(2,44,34,0.16)]">
               <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-2">
-                <img src="/media/dashboard-preview.png" alt="Dashboard preview" className="h-[15rem] w-full rounded-[20px] object-cover sm:h-[18rem] md:h-[20rem] lg:h-[22rem]" />
+                <div className="h-[15rem] w-full rounded-[20px] border border-slate-200 bg-white p-4 sm:h-[18rem] md:h-[20rem] lg:h-[22rem]">
+                  <div className="grid grid-cols-4 gap-2 text-[10px]">
+                    {[
+                      ["Labels", "12,840"],
+                      ["Tracking", "8,420"],
+                      ["Money Orders", "3,120"],
+                      ["Complaints", "27"],
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-xl border border-slate-200 bg-slate-50 px-2 py-2">
+                        <div className="text-slate-500">{label}</div>
+                        <div className="mt-1 text-xs font-semibold text-slate-900">{value}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-3 gap-3">
+                    <div className="col-span-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Dispatch Trend</div>
+                      <div className="mt-2 grid grid-cols-7 items-end gap-1.5">
+                        {[22, 38, 34, 48, 56, 52, 64].map((bar) => (
+                          <div key={bar} className="h-16 rounded bg-white p-1 shadow-inner">
+                            <div className="w-full rounded bg-gradient-to-t from-brand to-emerald-500" style={{ height: `${bar}%` }} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Recent Activity</div>
+                      <div className="mt-2 space-y-2">
+                        {[
+                          "Batch imported",
+                          "Labels generated",
+                          "Route updated",
+                          "MO issued",
+                        ].map((item) => (
+                          <div key={item} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] text-slate-700">
+                            {item}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
             <div className="absolute left-2 top-2 z-20 w-[46%] max-w-[14rem] animate-float rounded-3xl border border-white/80 bg-white p-2 shadow-2xl sm:left-6">
-              <img src="/media/label-preview.png" alt="Label preview" className="h-28 w-full rounded-2xl object-cover sm:h-32" />
-              <div className="px-2 pb-2 pt-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">Label Preview</div>
+              <LabelPreviewCard />
             </div>
 
             <div className="absolute right-2 top-16 z-30 w-[43%] max-w-[13rem] animate-float rounded-3xl border border-white/80 bg-white p-2 shadow-2xl [animation-delay:0.4s] sm:right-6">
-              <img src="/media/money-order-preview.png" alt="Money order preview" className="h-24 w-full rounded-2xl object-cover sm:h-28" />
-              <div className="px-2 pb-2 pt-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">Money Order</div>
+              <MoneyOrderPreviewCard />
             </div>
 
             <div className="absolute bottom-24 left-3 z-30 w-[52%] max-w-[16rem] animate-float rounded-3xl border border-white/80 bg-white p-3 shadow-2xl [animation-delay:0.2s] sm:left-8">
-              <div className="mb-2 flex items-center justify-between">
-                <div className="inline-flex items-center gap-2 text-xs font-semibold text-brand-ink"><Route className="h-3.5 w-3.5 text-brand" /> Tracking</div>
-                <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-semibold text-emerald-700">In Transit</span>
-              </div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">VPL26030700</div>
-              <div className="mt-1 text-[11px] text-slate-600">Lahore to Karachi</div>
-              <svg viewBox="0 0 160 42" className="mt-2 h-8 w-full">
-                <path d="M8 32 C30 5, 85 46, 152 10" stroke="#bbf7d0" strokeWidth="5" fill="none" />
-                <path d="M8 32 C30 5, 85 46, 112 23" stroke="#0b6b3a" strokeWidth="5" fill="none" strokeLinecap="round" />
-                <circle cx="8" cy="32" r="4" fill="#0b6b3a" />
-                <circle cx="112" cy="23" r="4" fill="#22c55e" />
-                <circle cx="152" cy="10" r="4" fill="#94a3b8" />
-              </svg>
-              <div className="mt-2 flex items-center justify-between text-[10px] font-medium text-slate-500">
-                <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> Lahore</span>
-                <span>Karachi</span>
-              </div>
+              <TrackingPreviewCard compact />
             </div>
 
             <div className="absolute bottom-4 right-3 z-20 w-[42%] max-w-[13rem] animate-float rounded-3xl border border-white/80 bg-white p-3 shadow-2xl [animation-delay:0.65s] sm:right-8">
               <div className="inline-flex items-center gap-2 text-xs font-semibold text-brand-ink"><PackageCheck className="h-3.5 w-3.5 text-brand" /> Shipment</div>
-              <div className="mt-2 text-[11px] font-semibold text-slate-900">COD77102033</div>
-              <div className="mt-1 text-[11px] text-slate-600">Payment verified</div>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-[10px]">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                  <div className="text-slate-500">Pending</div>
+                  <div className="font-semibold text-slate-900">47</div>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                  <div className="text-slate-500">Processed</div>
+                  <div className="font-semibold text-slate-900">312</div>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                  <div className="text-slate-500">MO Amount</div>
+                  <div className="font-semibold text-slate-900">Rs. 8,450</div>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                  <div className="text-slate-500">Pending Rs</div>
+                  <div className="font-semibold text-slate-900">Rs. 1,120</div>
+                </div>
+              </div>
+              <div className="mt-2 flex items-center justify-between text-[10px] text-slate-600">
+                <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> Completed Deliveries</span>
+                <span className="font-semibold text-emerald-700">265</span>
+              </div>
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-                <div className="h-2 w-3/4 rounded-full bg-gradient-to-r from-brand to-emerald-500" />
+                <div className="h-2 w-[82%] rounded-full bg-gradient-to-r from-brand to-emerald-500" />
               </div>
             </div>
           </div>
