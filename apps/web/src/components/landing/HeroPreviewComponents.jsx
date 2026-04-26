@@ -11,7 +11,7 @@ export function HeroLabelPreview() {
   const sender = "Epost Dispatch Hub";
   
   // Realistic barcode pattern (128B code for the tracking number)
-  const barcodePattern = "║ ╫╫║ ║╫╫ ║║╫ ║╫║║ ╫║║";
+  const barcodePattern = "|| ||| || ||| || ||| ||||";
 
   return (
     <Card className="group absolute left-8 top-64 z-30 w-[20rem] p-5 md:left-16 transition-all duration-300 hover:shadow-xl hover:-translate-y-2">
@@ -56,7 +56,7 @@ export function HeroLabelPreview() {
 
         {/* Status Badge */}
         <div className="mt-4 inline-flex items-center rounded-full bg-gradient-to-r from-emerald-50 to-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm">
-          ✓ Print ready
+          OK Print ready
         </div>
       </div>
     </Card>
@@ -119,7 +119,7 @@ export function HeroTrackingPreview() {
                   {event.location}
                 </div>
                 <div className="text-xs text-slate-500">
-                  {event.status} • {event.date}
+                  {event.status} - {event.date}
                 </div>
               </div>
             </div>
@@ -185,7 +185,7 @@ export function HeroMoneyOrderPreview() {
 
         {/* Ready Badge */}
         <div className="mt-4 inline-flex items-center rounded-full bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-3 py-1 text-xs font-semibold shadow-md">
-          ✓ Print-ready PDF
+          OK Print-ready PDF
         </div>
       </div>
     </Card>
@@ -204,9 +204,9 @@ export function HeroDashboardPreview() {
   ];
 
   const activities = [
-    { title: "Batch imported", detail: "1,244 rows processed", icon: "📥" },
-    { title: "Labels generated", detail: "312 MO records", icon: "🏷️" },
-    { title: "Route updated", detail: "1.2k shipments", icon: "📍" },
+    { title: "Batch imported", detail: "1,244 rows processed", icon: "IN" },
+    { title: "Labels generated", detail: "312 MO records", icon: "LB" },
+    { title: "Route updated", detail: "1.2k shipments", icon: "RT" },
   ];
 
   return (
@@ -223,7 +223,7 @@ export function HeroDashboardPreview() {
 
       {/* Stat Cards */}
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        {stats.map(([label, value]) => (
+        {stats.map(({ label, value }) => (
           <div
             key={label}
             className="rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-3 shadow-md transition-all hover:shadow-lg hover:-translate-y-1"
