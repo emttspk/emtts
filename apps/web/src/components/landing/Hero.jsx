@@ -1,4 +1,5 @@
-import { CheckCircle2, MapPin, PackageCheck } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CheckCircle2, PackageCheck } from "lucide-react";
 import Button from "./Button";
 import LabelPreviewCard from "../previews/LabelPreviewCard";
 import MoneyOrderPreviewCard from "../previews/MoneyOrderPreviewCard";
@@ -6,7 +7,59 @@ import TrackingPreviewCard from "../previews/TrackingPreviewCard";
 
 const highlights = ["Pakistan Post Ready", "Real Label + MO Output", "Live Tracking Surface"];
 
+const summaryItems = [
+  ["Total Labels", "312"],
+  ["Pending Tracking", "47"],
+  ["Money Order Total", "Rs. 8,450"],
+  ["Pending Amount", "Rs. 1,120"],
+];
+
 export default function Hero() {
+  const [activeCard, setActiveCard] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setActiveCard((current) => (current + 1) % 4);
+    }, 2000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const heroCards = [
+    {
+      key: "label",
+      className: "left-2 top-2 z-20 md:left-6 md:top-2 md:w-[46%] md:max-w-[14rem]",
+      content: <LabelPreviewCard />,
+    },
+    {
+      key: "money-order",
+      className: "right-2 top-2 z-30 md:right-6 md:top-16 md:w-[43%] md:max-w-[13rem]",
+      content: <MoneyOrderPreviewCard />,
+    },
+    {
+      key: "tracking",
+      className: "left-2 top-2 z-30 md:bottom-24 md:left-8 md:top-auto md:w-[52%] md:max-w-[16rem]",
+      content: <TrackingPreviewCard compact />,
+    },
+    {
+      key: "summary",
+      className: "right-2 top-2 z-20 md:bottom-4 md:right-8 md:top-auto md:w-[42%] md:max-w-[13rem]",
+      content: (
+        <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+          <div className="inline-flex items-center gap-2 text-xs font-semibold text-brand-ink"><PackageCheck className="h-3.5 w-3.5 text-brand" /> Shipment Summary</div>
+          <div className="mt-2 grid grid-cols-2 gap-2 text-[10px]">
+            {summaryItems.map(([label, value]) => (
+              <div key={label} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                <div className="text-slate-500">{label}</div>
+                <div className="font-semibold text-slate-900">{value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <section className="relative overflow-hidden pt-24 md:pt-28">
       <div className="pointer-events-none absolute inset-0 bg-white" />
@@ -31,8 +84,8 @@ export default function Hero() {
             </p>
 
             <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Button to="/register">Create Free Account</Button>
-              <Button href="#workflow" variant="secondary">View Product Showcase</Button>
+              <Button to="/register" className="w-full justify-center sm:w-auto">Create Free Account</Button>
+              <Button href="#workflow" variant="secondary" className="w-full justify-center sm:w-auto">View Product Showcase</Button>
             </div>
 
             <div className="mt-8 flex flex-wrap gap-2.5">
@@ -44,11 +97,11 @@ export default function Hero() {
             </div>
           </div>
 
-          <div className="relative min-h-[32rem] pb-2 sm:min-h-[36rem] lg:min-h-[41rem]">
+          <div className="relative overflow-hidden rounded-[34px] pb-2 md:min-h-[36rem] lg:min-h-[41rem]">
             <div className="pointer-events-none absolute -left-10 top-8 h-28 w-28 rounded-full bg-emerald-300/35 blur-2xl" />
             <div className="pointer-events-none absolute right-4 top-0 h-40 w-40 rounded-full bg-brand/25 blur-3xl" />
 
-            <div className="absolute left-0 right-0 top-8 z-10 mx-auto w-full max-w-[42rem] rounded-[34px] border border-white/80 bg-white p-2 shadow-[0_32px_80px_rgba(2,44,34,0.16)]">
+            <div className="relative z-10 mx-auto w-full max-w-[42rem] rounded-[34px] border border-white/80 bg-white p-2 shadow-[0_32px_80px_rgba(2,44,34,0.16)] md:absolute md:left-0 md:right-0 md:top-8">
               <div className="rounded-[28px] border border-slate-200 bg-slate-50 p-2">
                 <div className="h-[15rem] w-full rounded-[20px] border border-slate-200 bg-white p-4 sm:h-[18rem] md:h-[20rem] lg:h-[22rem]">
                   <div className="grid grid-cols-4 gap-2 text-[10px]">
@@ -97,45 +150,27 @@ export default function Hero() {
               </div>
             </div>
 
-            <div className="absolute left-2 top-2 z-20 w-[46%] max-w-[14rem] animate-float rounded-3xl border border-white/80 bg-white p-2 shadow-2xl sm:left-6">
-              <LabelPreviewCard />
-            </div>
+            <div className="relative z-20 mt-4 grid gap-3 md:mt-0 md:block">
+              {heroCards.map((card, index) => {
+                const isActive = index === activeCard;
 
-            <div className="absolute right-2 top-16 z-30 w-[43%] max-w-[13rem] animate-float rounded-3xl border border-white/80 bg-white p-2 shadow-2xl [animation-delay:0.4s] sm:right-6">
-              <MoneyOrderPreviewCard />
-            </div>
-
-            <div className="absolute bottom-24 left-3 z-30 w-[52%] max-w-[16rem] animate-float rounded-3xl border border-white/80 bg-white p-3 shadow-2xl [animation-delay:0.2s] sm:left-8">
-              <TrackingPreviewCard compact />
-            </div>
-
-            <div className="absolute bottom-4 right-3 z-20 w-[42%] max-w-[13rem] animate-float rounded-3xl border border-white/80 bg-white p-3 shadow-2xl [animation-delay:0.65s] sm:right-8">
-              <div className="inline-flex items-center gap-2 text-xs font-semibold text-brand-ink"><PackageCheck className="h-3.5 w-3.5 text-brand" /> Shipment</div>
-              <div className="mt-2 grid grid-cols-2 gap-2 text-[10px]">
-                <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
-                  <div className="text-slate-500">Pending</div>
-                  <div className="font-semibold text-slate-900">47</div>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
-                  <div className="text-slate-500">Processed</div>
-                  <div className="font-semibold text-slate-900">312</div>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
-                  <div className="text-slate-500">MO Amount</div>
-                  <div className="font-semibold text-slate-900">Rs. 8,450</div>
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
-                  <div className="text-slate-500">Pending Rs</div>
-                  <div className="font-semibold text-slate-900">Rs. 1,120</div>
-                </div>
-              </div>
-              <div className="mt-2 flex items-center justify-between text-[10px] text-slate-600">
-                <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> Completed Deliveries</span>
-                <span className="font-semibold text-emerald-700">265</span>
-              </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-                <div className="h-2 w-[82%] rounded-full bg-gradient-to-r from-brand to-emerald-500" />
-              </div>
+                return (
+                  <div
+                    key={card.key}
+                    data-hero-card={card.key}
+                    className={[
+                      "w-full rounded-3xl transition-all duration-700 ease-out md:absolute",
+                      card.className,
+                      isActive
+                        ? "translate-y-0 scale-100 opacity-100 md:shadow-[0_28px_65px_rgba(15,23,42,0.2)]"
+                        : "translate-y-2 scale-[0.97] opacity-70 md:translate-y-3 md:scale-[0.96]",
+                    ].join(" ")}
+                    style={{ willChange: "transform, opacity" }}
+                  >
+                    {card.content}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
