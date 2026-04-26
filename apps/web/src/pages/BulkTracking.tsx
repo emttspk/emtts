@@ -1033,11 +1033,11 @@ export default function BulkTracking() {
 
       // Build detailed summary
       const errorMsg = result.errors.length > 0 
-        ? `\n❌ Errors (${result.errors.length}): ${result.errors.slice(0, 3).map((e) => `Row ${e.rowIndex}: ${e.message}`).join("; ")}`
+        ? `\nErrors (${result.errors.length}): ${result.errors.slice(0, 3).map((e) => `Row ${e.rowIndex}: ${e.message}`).join("; ")}`
         : "";
       
       const warningMsg = result.warnings.length > 0
-        ? `\n⚠️  Warnings (${result.warnings.length}): ${result.warnings.slice(0, 3).map((w) => `Row ${w.rowIndex}: ${w.message}`).join("; ")}`
+        ? `\nWarnings (${result.warnings.length}): ${result.warnings.slice(0, 3).map((w) => `Row ${w.rowIndex}: ${w.message}`).join("; ")}`
         : "";
       
       const statusChanges = Object.entries(result.summary?.statusChanges ?? {})
@@ -1049,7 +1049,7 @@ export default function BulkTracking() {
         .join(", ");
 
       const summaryMsg = [
-        `✅ Import complete: ${result.validRows}/${result.totalRows} rows valid`,
+        `Import complete: ${result.validRows}/${result.totalRows} rows valid`,
         `Applied ${result.appliedCorrections} correction(s)`,
         `Reprocessed ${result.reprocessedRecords.length} record(s)`,
         statusChanges ? `Status changes: ${statusChanges}` : "",
@@ -1905,8 +1905,8 @@ export default function BulkTracking() {
       };
       const incompleteField = Object.entries(formSnapshot).find(([, value]) => !String(value ?? "").trim());
       if (incompleteField) {
-        console.error("FORM INCOMPLETE — BLOCK SUBMISSION", { missing: incompleteField[0], formSnapshot });
-        throw new Error(`FORM INCOMPLETE — BLOCK SUBMISSION (${incompleteField[0]})`);
+        console.error("FORM INCOMPLETE - BLOCK SUBMISSION", { missing: incompleteField[0], formSnapshot });
+        throw new Error(`FORM INCOMPLETE - BLOCK SUBMISSION (${incompleteField[0]})`);
       }
       console.log("Complaint Form Snapshot:", formSnapshot);
 
@@ -2063,7 +2063,7 @@ export default function BulkTracking() {
       <div className="grid gap-3 sm:grid-cols-2">
         <Card className="p-4">
           <div className="text-sm font-semibold text-slate-900">Status Distribution</div>
-          <div className="mt-1 text-xs text-slate-500">Delivered · Pending · Returned · Delayed</div>
+          <div className="mt-1 text-xs text-slate-500">Delivered | Pending | Returned | Delayed</div>
           <div className="mt-3 flex items-center gap-5">
             <svg viewBox="0 0 36 36" className="h-32 w-32 shrink-0">
               {pieSlices.arcs.map((arc) => {
@@ -2110,7 +2110,7 @@ export default function BulkTracking() {
         </Card>
         <Card className="p-4">
           <div className="text-sm font-semibold text-slate-900">Monthly Tracking Volume</div>
-          <div className="mt-1 text-xs text-slate-500">Last 6 months (oldest → newest)</div>
+          <div className="mt-1 text-xs text-slate-500">Last 6 months (oldest -&gt; newest)</div>
           <div className="mt-4 flex h-32 items-end gap-2">
             {monthlyBars.values.map((item) => {
               const h = Math.max(6, Math.round((item.value / monthlyBars.max) * 112));
@@ -2297,7 +2297,7 @@ export default function BulkTracking() {
             <div className="text-xs text-gray-600">
               {Object.entries(stats.by)
                 .map(([k, v]) => `${k}: ${v}`)
-                .join(" • ")}
+                .join(" | ")}
             </div>
           </div>
 
@@ -2542,7 +2542,7 @@ export default function BulkTracking() {
                       <td className="border-r border-slate-100 px-2 py-1.5 align-middle text-xs text-slate-600 overflow-hidden text-ellipsis whitespace-nowrap" title={preferredCity(s)}>{preferredCity(s)}</td>
                       <td className="border-r border-slate-100 px-2 py-1.5 align-middle text-xs font-semibold text-slate-700 overflow-hidden text-ellipsis whitespace-nowrap" title={moValue || undefined}>{moValue}</td>
                       <td className="border-r border-slate-100 px-2 py-1.5 align-middle text-xs font-medium text-slate-700 whitespace-nowrap">
-                      {issuedValue != null ? `Rs ${issuedValue.toLocaleString()}` : "–"}
+                      {issuedValue != null ? `Rs ${issuedValue.toLocaleString()}` : "-"}
                     </td>
                     <td className="border-r border-slate-100 px-2 py-1.5 align-middle">
                       <div className="flex items-center gap-1">
@@ -2603,7 +2603,7 @@ export default function BulkTracking() {
         </div>
           <div className="mt-4 flex items-center justify-between text-xs text-slate-600">
             <div>
-              Page {page} of {totalPages} • Showing {paginatedShipments.length} of {totalFilteredShipments} filtered • Total {totalShipments}
+              Page {page} of {totalPages} | Showing {paginatedShipments.length} of {totalFilteredShipments} filtered | Total {totalShipments}
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -2848,7 +2848,7 @@ export default function BulkTracking() {
                         <input value={senderCityValue} readOnly className="w-full rounded border border-[#E5E7EB] bg-slate-100 px-2 py-1 text-xs cursor-not-allowed text-slate-600" />
                       ) : (
                         <>
-                          <input value={senderCitySearch} onChange={(e) => setSenderCitySearch(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.SenderCity === false ? "border-red-300 bg-red-50" : "border-[#E5E7EB] bg-white"}`} placeholder="Search (≥3)" />
+                          <input value={senderCitySearch} onChange={(e) => setSenderCitySearch(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.SenderCity === false ? "border-red-300 bg-red-50" : "border-[#E5E7EB] bg-white"}`} placeholder="Search (>=3)" />
                           {senderCitySearch.trim().length >= 3 && senderCitySearchResults.length > 0 ? (
                             <select value={senderCityValue} onChange={(e) => { setSenderCityValue(e.target.value); setSenderCitySearch(e.target.value); }} className="mt-0.5 w-full rounded border border-[#E5E7EB] bg-white px-2 py-1 text-xs">
                               <option value="">Select</option>
@@ -2885,7 +2885,7 @@ export default function BulkTracking() {
                         <input value={receiverCityValue} readOnly className="w-full rounded border border-[#E5E7EB] bg-slate-100 px-2 py-1 text-xs cursor-not-allowed text-slate-600" />
                       ) : (
                         <>
-                          <input value={receiverCitySearch} onChange={(e) => setReceiverCitySearch(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.ReceiverCity === false ? "border-red-300 bg-red-50" : "border-[#E5E7EB] bg-white"}`} placeholder="Search (≥3)" />
+                          <input value={receiverCitySearch} onChange={(e) => setReceiverCitySearch(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.ReceiverCity === false ? "border-red-300 bg-red-50" : "border-[#E5E7EB] bg-white"}`} placeholder="Search (>=3)" />
                           {receiverCitySearch.trim().length >= 3 && receiverCitySearchResults.length > 0 ? (
                             <select value={receiverCityValue} onChange={(e) => { setReceiverCityValue(e.target.value); setReceiverCitySearch(e.target.value); }} className="mt-0.5 w-full rounded border border-[#E5E7EB] bg-white px-2 py-1 text-xs">
                               <option value="">Select</option>
@@ -2955,13 +2955,13 @@ export default function BulkTracking() {
                   </div>
                   {complaintSelectionLocked ? (
                     <div className="text-[11px] text-emerald-700 bg-emerald-50 rounded px-2 py-1 mb-2">
-                      ✓ {selectedDistrict} / {selectedTehsil} / {selectedLocation}
+                      OK {selectedDistrict} / {selectedTehsil} / {selectedLocation}
                       <button type="button" className="ml-2 text-slate-400 hover:text-slate-700 underline" onClick={() => setComplaintSelectionLocked(false)}>Change</button>
                     </div>
                   ) : (
-                    <div className="text-[11px] text-amber-700 bg-amber-50 rounded px-2 py-1 mb-2">Select district → tehsil → location to complete the complaint</div>
+                    <div className="text-[11px] text-amber-700 bg-amber-50 rounded px-2 py-1 mb-2">Select district -&gt; tehsil -&gt; location to complete the complaint</div>
                   )}
-                  <input type="text" value={officeSearchQuery} onChange={(e) => setOfficeSearchQuery(e.target.value)} placeholder="Or search location (≥3 chars)" className="w-full rounded border border-[#E5E7EB] bg-white px-2 py-1 text-xs mb-1" autoComplete="off" />
+                  <input type="text" value={officeSearchQuery} onChange={(e) => setOfficeSearchQuery(e.target.value)} placeholder="Or search location (&gt;=3 chars)" className="w-full rounded border border-[#E5E7EB] bg-white px-2 py-1 text-xs mb-1" autoComplete="off" />
                   {officeSearchResults.length > 0 && !complaintSelectionLocked ? (
                     <div className="max-h-24 overflow-y-auto rounded border border-[#E5E7EB] bg-white shadow-lg">
                       {officeSearchResults.slice(0, 8).map((res, i) => (
@@ -2984,7 +2984,7 @@ export default function BulkTracking() {
 
                 {complaintSubmitResult?.complaintNumber ? (
                   <div className="border-t border-[#E5E7EB] pt-2 mt-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-2 py-2 text-xs text-emerald-800">
-                    <div className="font-semibold">✓ Complaint Registered</div>
+                    <div className="font-semibold">Complaint Registered</div>
                     <div>ID: {complaintSubmitResult.complaintNumber}</div>
                     <div>Due: {complaintSubmitResult.dueDate || "-"}</div>
                   </div>
@@ -3214,13 +3214,13 @@ export default function BulkTracking() {
                 <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Last Update</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.lastUpdate}</div></div>
                 <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Status</div><div className={cn("mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ring-1", statusBadgeClass(selectedTracking.final_status))}>{normalizeStatus(selectedTracking.final_status)}</div></div>
                 <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">City / Destination</div><div className="mt-1 text-sm font-semibold text-slate-900">{preferredCity(selectedTracking.shipment) || trackingDetailData.fields.consigneeCity || "-"}</div></div>
-                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">MO Value</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.moValue != null ? `Rs ${trackingDetailData.moValue.toLocaleString()}` : "–"}</div></div>
+                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">MO Value</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.moValue != null ? `Rs ${trackingDetailData.moValue.toLocaleString()}` : "-"}</div></div>
                 <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Booking City</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.bookingOffice}</div></div>
                 <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Delivery City</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.deliveryOffice}</div></div>
                 <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Consignee Name</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.consigneeName}</div></div>
                 <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Consignee Address</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.consigneeAddress}</div></div>
                 <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Consignee Phone</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.consigneePhone}</div></div>
-                <div className="rounded-2xl border border-[#E5E7EB] p-3 sm:col-span-2"><div className="text-[11px] text-slate-500">MO Issued Number</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.moIssued ?? "–"}</div></div>
+                <div className="rounded-2xl border border-[#E5E7EB] p-3 sm:col-span-2"><div className="text-[11px] text-slate-500">MO Issued Number</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.moIssued ?? "-"}</div></div>
               </div>
 
               <div className="mt-6">

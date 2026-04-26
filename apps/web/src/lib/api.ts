@@ -2,7 +2,9 @@ import { getToken } from "./auth";
 
 const base = (
   (import.meta.env.VITE_API_URL as string | undefined)?.trim()
+  || (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim()
   || (import.meta.env.VITE_API_BASE as string | undefined)?.trim()
+  || (import.meta.env.VITE_BACKEND_URL as string | undefined)?.trim()
   || ""
 );
 
@@ -185,7 +187,7 @@ export async function apiHealthCheck(timeoutMs = 2000) {
       console.error(`[HEALTH] API returned error status`);
       throw new Error("API not healthy");
     }
-    console.log(`[HEALTH] API is healthy ✓`);
+    console.log(`[HEALTH] API is healthy`);
     return true;
   } catch (e) {
     const errorMsg = e instanceof Error ? e.message : "Unknown error";

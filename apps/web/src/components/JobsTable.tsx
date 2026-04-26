@@ -205,7 +205,7 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
                         {job.includeMoneyOrders ? <DownloadButton jobId={job.id} kind="money-orders" /> : null}
                       </div>
                     ) : (
-                      <span className="text-xs text-gray-400">—</span>
+                      <span className="text-xs text-gray-400">-</span>
                     )}
                   </td>
                 </tr>

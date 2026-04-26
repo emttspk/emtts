@@ -170,7 +170,7 @@ export default function Settings() {
 
           <div className="flex justify-end">
             <button type="submit" disabled={saving} className="btn-primary">
-              {saving ? "Saving…" : "Save Profile"}
+              {saving ? "Saving..." : "Save Profile"}
             </button>
           </div>
         </form>

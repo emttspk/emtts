@@ -82,7 +82,7 @@ export default function AuthShell(props: { title: string; subtitle: string; chil
           </div>
 
           <div className="mt-6 flex items-center justify-center gap-4 text-xs text-slate-600">
-            <span>© {new Date().getFullYear()} Epost.pk</span>
+            <span>(c) {new Date().getFullYear()} Epost.pk</span>
             <span className="h-1 w-1 rounded-full bg-slate-300" />
             <Link to="/" className="inline-flex items-center gap-1 hover:text-brand">
               Home <ArrowUpRight className="h-3.5 w-3.5" />

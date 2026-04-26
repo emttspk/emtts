@@ -82,7 +82,7 @@ export default function Topbar(props: {
               <div className="absolute right-0 mt-2 w-56 overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-card">
                 <div className="px-4 py-3">
                   <div className="text-sm font-medium text-gray-900">Signed in</div>
-                  <div className="mt-1 truncate text-sm text-gray-600">{props.userEmail ?? "—"}</div>
+                  <div className="mt-1 truncate text-sm text-gray-600">{props.userEmail ?? "-"}</div>
                 </div>
                 <div className="border-t" />
                 <button

@@ -54,7 +54,9 @@ export default function App() {
           <Route path="/jobs" element={<Jobs />} />
           <Route path="/downloads" element={<Navigate to="/jobs?filter=completed" replace />} />
           <Route path="/billing" element={<Billing />} />
+          <Route path="/pricing" element={<Billing />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/profile" element={<Settings />} />
           <Route
             path="/admin"
             element={

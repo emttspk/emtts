@@ -86,7 +86,7 @@ export default function Complaints() {
         {current ? (
           <div className="mt-5 rounded-2xl border border-[#E5E7EB] bg-[#F8FAF9] px-4 py-3 text-sm text-slate-700 shadow-xl">
             <div>
-              <span className="font-medium">Status:</span> {current.status ?? "-"} • <span className="font-medium">Complaint:</span> {current.complaintStatus ?? "-"}
+              <span className="font-medium">Status:</span> {current.status ?? "-"} | <span className="font-medium">Complaint:</span> {current.complaintStatus ?? "-"}
             </div>
             {current.city ? (
               <div className="mt-1">
@@ -140,7 +140,7 @@ export default function Complaints() {
         {polling.jobStatus ? (
           <div className="mt-4 text-sm text-slate-700">
             Job status: <span className="font-medium">{polling.jobStatus}</span>
-            {polling.jobError ? <span className="text-red-600"> • {polling.jobError}</span> : null}
+            {polling.jobError ? <span className="text-red-600"> | {polling.jobError}</span> : null}
           </div>
         ) : null}
       </Card>
