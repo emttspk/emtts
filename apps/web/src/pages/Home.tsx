@@ -1,5 +1,6 @@
-import Navbar from "../components/landing/Navbar";
-import Hero from "../components/landing/Hero";
+import Navbar from "../components/Navbar";
+import Hero from "../components/Hero";
+import Footer from "../components/Footer";
 import FeatureStrip from "../components/landing/FeatureStrip";
 import ProcessTimeline from "../components/landing/ProcessTimeline";
 import TrackingTypes from "../components/landing/TrackingTypes";
@@ -18,6 +19,7 @@ export default function Home() {
         <Pricing />
         <CTA />
       </main>
+      <Footer />
     </div>
   );
 }
