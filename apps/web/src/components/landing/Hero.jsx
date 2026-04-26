@@ -1,18 +1,12 @@
 import { useEffect, useState } from "react";
-import { BarChart3, CheckCircle2, CircleX, Clock3, PackageCheck, Route, Truck, Play, ArrowRight } from "lucide-react";
+import { CheckCircle2, PackageCheck, Route, Truck, Play, ArrowRight, Search } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import Button from "./Button";
 import LabelPreviewCard from "../previews/LabelPreviewCard";
 import MoneyOrderPreviewCard from "../previews/MoneyOrderPreviewCard";
 import TrackingPreviewCard from "../previews/TrackingPreviewCard";
 
 const trustPoints = ["No Credit Card", "Free Forever", "Setup in Minutes"];
-
-const stats = [
-  { label: "Shipment Analytics", value: "12,840", icon: BarChart3, tone: "text-brand" },
-  { label: "Delivered", value: "9,462", icon: CheckCircle2, tone: "text-emerald-600" },
-  { label: "In Transit", value: "2,971", icon: Clock3, tone: "text-amber-600" },
-  { label: "Failed", value: "407", icon: CircleX, tone: "text-rose-600" },
-];
 
 const recentShipments = [
   { tracking: "VPL26030700", route: "Lahore -> Karachi", status: "In Transit" },
@@ -40,6 +34,8 @@ const landmarks = [
 
 export default function Hero() {
   const [activeLandmark, setActiveLandmark] = useState(0);
+  const [trackingId, setTrackingId] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -47,6 +43,13 @@ export default function Hero() {
     }, 5000);
     return () => window.clearInterval(timer);
   }, []);
+
+  const handleTrackingSubmit = (e) => {
+    e.preventDefault();
+    if (trackingId.trim()) {
+      navigate(`/tracking?id=${encodeURIComponent(trackingId)}`);
+    }
+  };
 
   return (
     <section className="relative overflow-hidden pt-12 md:pt-14 lg:pt-16">
@@ -95,7 +98,27 @@ export default function Hero() {
               Generate Pakistan Post labels, create Money Orders, and track shipments in real-time - all in one place.
             </p>
 
-            <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
+            {/* Tracking Search Box */}
+            <form onSubmit={handleTrackingSubmit} className="mt-8 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="relative flex-1 sm:max-w-xs">
+                <input
+                  type="text"
+                  placeholder="Enter Tracking ID (VPL/RGL/IRL)"
+                  value={trackingId}
+                  onChange={(e) => setTrackingId(e.target.value)}
+                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 pl-4 text-sm font-medium text-slate-900 placeholder:text-slate-500 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all duration-200"
+                />
+              </div>
+              <button
+                type="submit"
+                className="btn-primary inline-flex items-center justify-center gap-2 whitespace-nowrap"
+              >
+                <Search className="h-4 w-4" />
+                Track Now
+              </button>
+            </form>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Button to="/register" className="w-full flex items-center justify-center gap-2 sm:w-auto">
                 Create Free Account
                 <ArrowRight className="h-4 w-4" />
@@ -126,37 +149,15 @@ export default function Hero() {
               <div className="rounded-[28px] border border-slate-200/80 bg-gradient-to-br from-white/95 to-slate-50/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:p-5 backdrop-blur-sm">
                 <div className="flex items-center justify-between pb-4">
                   <div>
-                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Live Operations Dashboard</div>
-                    <div className="mt-1 text-sm font-semibold text-slate-900">Shipment Command Center</div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Operations Dashboard</div>
+                    <div className="mt-1 text-sm font-semibold text-slate-900">Shipment Overview</div>
                   </div>
                   <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700 animate-pulse-soft">
                     <PackageCheck className="h-3.5 w-3.5" /> Live
                   </div>
                 </div>
 
-                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                  {stats.map((item, idx) => {
-                    const Icon = item.icon;
-
-                    return (
-                      <div
-                        key={item.label}
-                        className="rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm hover:shadow-md hover:bg-white transition-all duration-300 hover:scale-105 animate-fade"
-                        style={{
-                          animationDelay: `${idx * 0.1}s`,
-                        }}
-                      >
-                        <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
-                          <span>{item.label}</span>
-                          <Icon className={`h-3.5 w-3.5 ${item.tone}`} />
-                        </div>
-                        <div className="mt-2 text-lg font-bold text-slate-900">{item.value}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-3 grid gap-3 xl:grid-cols-[1.1fr_0.9fr]">
+                <div className="mt-3 grid gap-3 xl:grid-cols-2">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50/90 p-3">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500 mb-2">Recent Shipments</div>
                     <div className="mt-2 space-y-2">
@@ -247,29 +248,7 @@ export default function Hero() {
           </div>
         </div>
 
-        {/* Live Metrics Bar */}
-        <div className="mt-8 rounded-[28px] border border-slate-200 bg-white/90 p-6 shadow-card backdrop-blur md:mt-12">
-          <div className="text-center text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 mb-5">
-            Live Platform Metrics
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {trustMetrics.map((metric, idx) => (
-              <div
-                key={metric.label}
-                className="text-center animate-fade"
-                style={{
-                  animationDelay: `${idx * 0.15}s`,
-                }}
-              >
-                <div className="text-3xl font-extrabold tracking-[-0.03em] text-brand-ink">{metric.value}</div>
-                <div className="mt-1 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">{metric.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Partner & Trust Bar */}
+        {/* Trust Bar */}
         <div className="mt-6 rounded-[28px] border border-slate-200 bg-white/90 p-5 shadow-card backdrop-blur md:p-6">
           <div className="text-center text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 md:text-sm mb-4">
             Trusted by thousands across Pakistan
