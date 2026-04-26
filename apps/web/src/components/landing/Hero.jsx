@@ -1,4 +1,5 @@
-import { BarChart3, CheckCircle2, CircleX, Clock3, PackageCheck, Route, Truck } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BarChart3, CheckCircle2, CircleX, Clock3, PackageCheck, Route, Truck, Play, ArrowRight } from "lucide-react";
 import Button from "./Button";
 import LabelPreviewCard from "../previews/LabelPreviewCard";
 import MoneyOrderPreviewCard from "../previews/MoneyOrderPreviewCard";
@@ -23,28 +24,69 @@ const recentShipments = [
 const partners = ["Pakistan Post", "Leopards", "TCS", "M&P", "PostEx"];
 
 const trustMetrics = [
-  { value: "1M+", label: "Shipments" },
-  { value: "500K+", label: "Users" },
-  { value: "99.8%", label: "Success" },
+  { value: "1M+", label: "Labels Printed" },
+  { value: "500K+", label: "Deliveries" },
+  { value: "PKR 20M+", label: "Money Orders" },
+  { value: "99.8%", label: "Success Rate" },
+];
+
+const landmarks = [
+  { name: "Minar-e-Pakistan", svg: "M60,20 L70,50 L50,50 Z M65,30 L75,40 L55,40 Z" },
+  { name: "Faisal Mosque", svg: "M50,60 L60,20 L70,60 Z M55,55 L65,25 L55,25 M65,55 L75,25 L65,25" },
+  { name: "Badshahi Mosque", svg: "M40,60 L60,15 L80,60 Z M45,60 L55,20 L65,60 Z" },
+  { name: "Hiran Minar", svg: "M55,15 L65,50 L45,50 Z M60,25 L68,40 L52,40 Z" },
+  { name: "Mazar-e-Quaid", svg: "M50,25 L70,60 M70,25 L50,60 M50,42 L70,42 M60,25 L60,60" },
 ];
 
 export default function Hero() {
+  const [activeLandmark, setActiveLandmark] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setActiveLandmark((prev) => (prev + 1) % landmarks.length);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   return (
-    <section className="relative overflow-hidden pt-24 md:pt-28">
+    <section className="relative overflow-hidden pt-12 md:pt-14 lg:pt-16">
       <div className="pointer-events-none absolute inset-0 bg-white" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_14%,rgba(11,107,58,0.11),transparent_37%),radial-gradient(circle_at_88%_8%,rgba(16,185,129,0.14),transparent_34%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-hero-grid bg-[size:28px_28px] opacity-20" />
-      <div className="pointer-events-none absolute -left-20 top-16 h-52 w-52 rounded-full bg-emerald-300/25 blur-3xl" />
-      <div className="pointer-events-none absolute right-[-7rem] top-[-3rem] h-[24rem] w-[24rem] rounded-full bg-brand/20 blur-3xl" />
+      
+      {/* Rotating Pakistan Landmarks Background */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        {landmarks.map((landmark, idx) => (
+          <div
+            key={landmark.name}
+            className="absolute inset-0 transition-opacity duration-1000"
+            style={{
+              opacity: idx === activeLandmark ? 0.06 : 0,
+            }}
+          >
+            <svg
+              viewBox="0 0 120 80"
+              className="h-full w-full object-cover"
+              preserveAspectRatio="xMidYMid slice"
+            >
+              <path d={landmark.svg} fill="none" stroke="#0B6B3A" strokeWidth="2" opacity="0.7" />
+            </svg>
+          </div>
+        ))}
+      </div>
+
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_14%,rgba(11,107,58,0.12),transparent_38%),radial-gradient(circle_at_88%_8%,rgba(16,185,129,0.15),transparent_35%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-hero-grid bg-[size:28px_28px] opacity-18" />
+      <div className="pointer-events-none absolute -left-20 top-16 h-64 w-64 rounded-full bg-emerald-300/20 blur-3xl" />
+      <div className="pointer-events-none absolute right-[-7rem] top-[-3rem] h-[26rem] w-[26rem] rounded-full bg-brand/18 blur-3xl" />
+      <div className="pointer-events-none absolute left-1/3 -bottom-32 h-96 w-80 rounded-full bg-emerald-200/12 blur-3xl" />
 
       <div className="ui-page relative">
         <div className="grid items-center gap-10 pb-12 lg:grid-cols-[0.95fr_1.05fr] lg:gap-14 lg:pb-16">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-800">
-              <CheckCircle2 className="h-3.5 w-3.5" /> Trusted Shipping Surface
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-800">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Pakistan Post Official Partner
             </div>
 
-            <h1 className="mt-7 font-display text-[40px] font-extrabold leading-[0.95] tracking-[-0.05em] text-brand-ink sm:text-[52px] lg:text-[66px]">
+            <h1 className="mt-7 font-display text-[42px] font-extrabold leading-[0.96] tracking-[-0.05em] text-brand-ink sm:text-[56px] lg:text-[72px]">
               Ship Anywhere in Pakistan.
               <span className="mt-2 block text-emerald-600">Track Every Step.</span>
             </h1>
@@ -54,38 +96,56 @@ export default function Hero() {
             </p>
 
             <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Button to="/register" className="w-full justify-center sm:w-auto">Create Free Account</Button>
-              <Button href="#workflow" variant="secondary" className="w-full justify-center sm:w-auto">See How It Works</Button>
+              <Button to="/register" className="w-full flex items-center justify-center gap-2 sm:w-auto">
+                Create Free Account
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+              <Button href="#workflow" variant="secondary" className="w-full flex items-center justify-center gap-2 sm:w-auto">
+                <Play className="h-3.5 w-3.5" />
+                Watch Live Demo
+              </Button>
             </div>
 
-            <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2">
-              {trustPoints.map((point) => (
-                <span key={point} className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> {point}
-                </span>
-              ))}
+            <div className="mt-8 pt-8 border-t border-slate-200">
+              <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 mb-3">Trusted by bulk dispatchers</div>
+              <p className="text-sm text-slate-600 mb-4">
+                Government-backed delivery system with official Pakistan Post integration.
+              </p>
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                {trustPoints.map((point) => (
+                  <span key={point} className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> {point}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="relative lg:min-h-[38rem]">
-            <div className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/55 p-2 shadow-glass backdrop-blur-xl md:p-3">
-              <div className="rounded-[28px] border border-slate-200/80 bg-white/85 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:p-5">
+          <div className="relative lg:min-h-[42rem]">
+            <div className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/60 p-2 shadow-[0_32px_96px_rgba(0,0,0,0.08)] backdrop-blur-xl md:p-3 animate-float">
+              <div className="rounded-[28px] border border-slate-200/80 bg-gradient-to-br from-white/95 to-slate-50/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:p-5 backdrop-blur-sm">
                 <div className="flex items-center justify-between pb-4">
                   <div>
-                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Operations Dashboard</div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Live Operations Dashboard</div>
                     <div className="mt-1 text-sm font-semibold text-slate-900">Shipment Command Center</div>
                   </div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700 animate-pulse-soft">
                     <PackageCheck className="h-3.5 w-3.5" /> Live
                   </div>
                 </div>
 
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                  {stats.map((item) => {
+                  {stats.map((item, idx) => {
                     const Icon = item.icon;
 
                     return (
-                      <div key={item.label} className="rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm">
+                      <div
+                        key={item.label}
+                        className="rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm hover:shadow-md hover:bg-white transition-all duration-300 hover:scale-105 animate-fade"
+                        style={{
+                          animationDelay: `${idx * 0.1}s`,
+                        }}
+                      >
                         <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
                           <span>{item.label}</span>
                           <Icon className={`h-3.5 w-3.5 ${item.tone}`} />
@@ -98,10 +158,16 @@ export default function Hero() {
 
                 <div className="mt-3 grid gap-3 xl:grid-cols-[1.1fr_0.9fr]">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50/90 p-3">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">Recent Shipments</div>
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500 mb-2">Recent Shipments</div>
                     <div className="mt-2 space-y-2">
-                      {recentShipments.map((shipment) => (
-                        <div key={shipment.tracking} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-2.5 py-2">
+                      {recentShipments.map((shipment, idx) => (
+                        <div
+                          key={shipment.tracking}
+                          className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-2.5 py-2 hover:shadow-md transition-all duration-200 hover:scale-102"
+                          style={{
+                            animationDelay: `${idx * 0.15}s`,
+                          }}
+                        >
                           <div>
                             <div className="font-mono text-[11px] font-semibold text-slate-900">{shipment.tracking}</div>
                             <div className="text-[10px] text-slate-500">{shipment.route}</div>
@@ -113,25 +179,41 @@ export default function Hero() {
                   </div>
 
                   <div className="rounded-2xl border border-slate-200 bg-slate-50/90 p-3">
-                    <div className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500">
-                      <Route className="h-3.5 w-3.5 text-brand" /> Tracking Route Map
+                    <div className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-500 mb-2">
+                      <Route className="h-3.5 w-3.5 text-brand" /> Pakistan Route Map
                     </div>
                     <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
-                      <svg viewBox="0 0 300 112" className="h-24 w-full">
-                        <path d="M14 88 C64 30, 138 102, 286 22" stroke="#dcfce7" strokeWidth="8" fill="none" />
-                        <path d="M14 88 C64 30, 138 102, 208 58" stroke="#0b6b3a" strokeWidth="7" fill="none" strokeLinecap="round" />
-                        <circle cx="14" cy="88" r="7" fill="#0b6b3a" />
-                        <circle cx="208" cy="58" r="7" fill="#22c55e" />
-                        <circle cx="286" cy="22" r="7" fill="#94a3b8" />
+                      <svg viewBox="0 0 300 120" className="h-28 w-full">
+                        {/* Simplified Pakistan map route */}
+                        <path d="M40 100 Q90 40, 200 80" stroke="#dcfce7" strokeWidth="10" fill="none" />
+                        <path
+                          d="M40 100 Q90 40, 180 85"
+                          stroke="#0b6b3a"
+                          strokeWidth="8"
+                          fill="none"
+                          strokeLinecap="round"
+                          className="animate-tracking-pulse"
+                        />
+                        <circle cx="40" cy="100" r="6" fill="#0b6b3a" />
+                        <circle cx="180" cy="85" r="5" fill="#22c55e" className="animate-pulse" />
+                        <circle cx="200" cy="80" r="6" fill="#94a3b8" />
+
+                        {/* City markers */}
+                        <text x="35" y="115" fontSize="10" fill="#0f172a" fontWeight="bold">
+                          Lahore
+                        </text>
+                        <text x="170" y="105" fontSize="10" fill="#0f172a" fontWeight="bold">
+                          Karachi
+                        </text>
                       </svg>
 
                       <div className="mt-2 flex items-center justify-between text-[10px] font-semibold text-slate-500">
-                        <span>Lahore Dispatch</span>
-                        <span>Karachi Delivery</span>
+                        <span>Dispatch Hub</span>
+                        <span>Delivery Center</span>
                       </div>
 
                       <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-[10px] font-semibold text-amber-700">
-                        <Truck className="h-3.5 w-3.5" /> 2,971 parcels moving now
+                        <Truck className="h-3.5 w-3.5 animate-pulse" /> 2,971 parcels moving now
                       </div>
                     </div>
                   </div>
@@ -139,42 +221,70 @@ export default function Hero() {
               </div>
             </div>
 
-            <div className="pointer-events-none absolute -right-1 -top-4 hidden w-52 lg:block">
-              <LabelPreviewCard className="bg-white/95 shadow-[0_20px_45px_rgba(15,23,42,0.15)] backdrop-blur" />
+            {/* Floating Product Cards with Animations */}
+            <div className="pointer-events-none absolute -right-2 top-0 hidden w-56 lg:block animate-float" style={{ animationDelay: "0.2s" }}>
+              <LabelPreviewCard className="bg-white/98 shadow-[0_24px_64px_rgba(15,23,42,0.18)] backdrop-blur-md border border-white/80 hover:shadow-[0_32px_80px_rgba(15,23,42,0.22)] transition-all duration-300" />
             </div>
-            <div className="pointer-events-none absolute -left-8 top-[36%] hidden w-52 lg:block">
-              <MoneyOrderPreviewCard className="bg-white/95 shadow-[0_20px_45px_rgba(15,23,42,0.15)] backdrop-blur" />
+            <div className="pointer-events-none absolute -left-6 top-[40%] hidden w-56 lg:block animate-float" style={{ animationDelay: "0.4s" }}>
+              <MoneyOrderPreviewCard className="bg-white/98 shadow-[0_24px_64px_rgba(15,23,42,0.18)] backdrop-blur-md border border-white/80 hover:shadow-[0_32px_80px_rgba(15,23,42,0.22)] transition-all duration-300" />
             </div>
-            <div className="pointer-events-none absolute -bottom-8 right-14 hidden w-64 lg:block">
-              <TrackingPreviewCard compact className="bg-white/95 shadow-[0_20px_45px_rgba(15,23,42,0.16)] backdrop-blur" />
+            <div className="pointer-events-none absolute -bottom-12 right-12 hidden w-64 lg:block animate-float" style={{ animationDelay: "0.6s" }}>
+              <TrackingPreviewCard compact className="bg-white/98 shadow-[0_24px_64px_rgba(15,23,42,0.18)] backdrop-blur-md border border-white/80 hover:shadow-[0_32px_80px_rgba(15,23,42,0.22)] transition-all duration-300" />
             </div>
 
+            {/* Mobile Responsive Cards */}
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:hidden">
-              <LabelPreviewCard className="bg-white/95" />
-              <MoneyOrderPreviewCard className="bg-white/95" />
-              <TrackingPreviewCard compact className="bg-white/95 sm:col-span-2" />
+              <div className="animate-float" style={{ animationDelay: "0.2s" }}>
+                <LabelPreviewCard className="bg-white/98 shadow-sm hover:shadow-md transition-all" />
+              </div>
+              <div className="animate-float" style={{ animationDelay: "0.4s" }}>
+                <MoneyOrderPreviewCard className="bg-white/98 shadow-sm hover:shadow-md transition-all" />
+              </div>
+              <div className="sm:col-span-2 animate-float" style={{ animationDelay: "0.6s" }}>
+                <TrackingPreviewCard compact className="bg-white/98 shadow-sm hover:shadow-md transition-all" />
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="rounded-[28px] border border-slate-200 bg-white/85 p-5 shadow-card backdrop-blur md:p-6">
-          <div className="text-center text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 md:text-sm">
-            Trusted by thousands across Pakistan
+        {/* Live Metrics Bar */}
+        <div className="mt-8 rounded-[28px] border border-slate-200 bg-white/90 p-6 shadow-card backdrop-blur md:mt-12">
+          <div className="text-center text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 mb-5">
+            Live Platform Metrics
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5 md:gap-3">
-            {partners.map((partner) => (
-              <div key={partner} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.1em] text-slate-600 md:text-[11px]">
-                {partner}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {trustMetrics.map((metric, idx) => (
+              <div
+                key={metric.label}
+                className="text-center animate-fade"
+                style={{
+                  animationDelay: `${idx * 0.15}s`,
+                }}
+              >
+                <div className="text-3xl font-extrabold tracking-[-0.03em] text-brand-ink">{metric.value}</div>
+                <div className="mt-1 text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">{metric.label}</div>
               </div>
             ))}
           </div>
+        </div>
 
-          <div className="mt-5 grid gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 sm:grid-cols-3">
-            {trustMetrics.map((metric) => (
-              <div key={metric.label} className="text-center sm:text-left">
-                <div className="text-2xl font-extrabold tracking-[-0.03em] text-brand-ink">{metric.value}</div>
-                <div className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">{metric.label}</div>
+        {/* Partner & Trust Bar */}
+        <div className="mt-6 rounded-[28px] border border-slate-200 bg-white/90 p-5 shadow-card backdrop-blur md:p-6">
+          <div className="text-center text-xs font-semibold uppercase tracking-[0.12em] text-slate-500 md:text-sm mb-4">
+            Trusted by thousands across Pakistan
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5 md:gap-3">
+            {partners.map((partner, idx) => (
+              <div
+                key={partner}
+                className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.1em] text-slate-600 hover:shadow-md hover:bg-white transition-all duration-200 animate-fade md:text-[11px]"
+                style={{
+                  animationDelay: `${idx * 0.1}s`,
+                }}
+              >
+                {partner}
               </div>
             ))}
           </div>
