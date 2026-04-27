@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, Search, ShieldCheck, CircleCheckBig, PlayCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import labelImage from "../../../../images/label.png";
-import moneyOrderImage from "../../../../images/money order.png";
+import labelImage from "../assets/label.png";
+import moneyOrderImage from "../assets/money-order.png";
 
 const trustIndicators = ["No credit card", "Free forever plan", "Public tracking", "Official Pakistan Post partner"];
 const trustBar = [

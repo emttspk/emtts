@@ -1,8 +1,8 @@
 import Card from "./landing/Card";
 import SectionTitle from "./landing/SectionTitle";
-import labelImage from "../../../../images/label.png";
-import moneyOrderImage from "../../../../images/money order.png";
-import trackingImage from "../../../../temp-ui-shots/tracking.png";
+import labelImage from "../assets/label.png";
+import moneyOrderImage from "../assets/money-order.png";
+import trackingImage from "../assets/tracking.png";
 
 const showcaseCards = [
   {
