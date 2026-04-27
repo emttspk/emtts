@@ -4,6 +4,8 @@ import labelImage from "../assets/label.png";
 import moneyOrderImage from "../assets/money-order.png";
 import trackingImage from "../assets/tracking.png";
 import complaintImage from "../assets/complaint.png";
+import packageImage from "../assets/package.png";
+import deliveryMonitoringImage from "../assets/delivery-monitoring.png";
 
 const showcaseCards = [
   {
@@ -33,13 +35,13 @@ const showcaseCards = [
   {
     title: "Parcel Booking",
     description: "Book parcel batches fast with clean validation and production-grade dispatch controls.",
-    image: labelImage,
+    image: packageImage,
     alt: "Parcel booking preview",
   },
   {
     title: "Delivery Monitoring",
     description: "Track high-volume shipment health with operational insights across destinations and hubs.",
-    image: moneyOrderImage,
+    image: deliveryMonitoringImage,
     alt: "Delivery monitoring preview",
   },
 ];
@@ -61,9 +63,9 @@ export default function ProductShowcase() {
                   <span className="ml-2 text-xs font-semibold text-slate-600">Live Product Preview</span>
                 </div>
               </div>
-              <div className="overflow-hidden p-4">
-                <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f7fafc_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]">
-                  <img src={card.image} alt={card.alt} className="h-auto w-full object-contain transition-transform duration-500 group-hover:scale-[1.02]" />
+              <div className="min-h-[280px] overflow-hidden p-4">
+                <div className="relative h-full overflow-hidden rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f7fafc_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] flex items-center justify-center">
+                  <img src={card.image} alt={card.alt} className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-[1.02] max-h-[280px]" />
                 </div>
               </div>
               <div className="flex flex-1 flex-col px-5 pb-5">

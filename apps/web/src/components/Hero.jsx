@@ -161,13 +161,13 @@ export default function Hero() {
 	};
 
 	return (
-		<section className="relative overflow-hidden pb-6 pt-2 lg:pb-8">
+		<section className="relative overflow-hidden pb-8 pt-4 lg:pb-12 lg:pt-6">
 			<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(16,185,129,0.18),transparent_28%),radial-gradient(circle_at_80%_18%,rgba(11,107,58,0.16),transparent_24%),linear-gradient(135deg,#f7fbf8_0%,#edf7f2_36%,#eff5ff_100%)]" />
 			<div className="pointer-events-none absolute -right-16 top-10 h-[420px] w-[420px] rounded-full bg-emerald-200/30 blur-3xl" />
 			<div className="pointer-events-none absolute left-[-80px] top-[-60px] h-[360px] w-[360px] rounded-full bg-white/80 blur-3xl" />
 
 			<div className="relative mx-auto w-full max-w-[1240px] px-4 sm:px-6 lg:px-8">
-				<div className="grid items-center gap-8 lg:min-h-[580px] lg:grid-cols-2 lg:gap-10">
+				<div className="grid items-center gap-10 lg:min-h-[620px] lg:grid-cols-2 lg:gap-16">
 					<div className="max-w-[600px]">
 						<div className="inline-flex items-center gap-3 rounded-full border border-emerald-200/80 bg-white/85 px-3 py-2 shadow-[0_12px_24px_rgba(15,23,42,0.06)] backdrop-blur">
 							<div className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[linear-gradient(145deg,#0f172a,#0b6b3a)] text-[11px] font-extrabold text-white shadow-[0_8px_20px_rgba(11,107,58,0.28)]">EP</div>
@@ -181,12 +181,12 @@ export default function Hero() {
 							<ShieldCheck className="h-3.5 w-3.5" /> Trusted dispatch technology
 						</div>
 
-						<h1 className="mt-6 max-w-[600px] font-display text-[36px] font-black leading-[1.02] tracking-[-0.034em] text-slate-900 sm:text-[48px] lg:text-[64px]">
+						<h1 className="mt-7 max-w-[600px] font-display text-[40px] font-black leading-[1.1] tracking-[-0.035em] text-slate-900 sm:text-[52px] lg:text-[68px]">
 							Ship Smarter Across Pakistan
 							<span className="mt-1 block text-emerald-700">Labels, Money Orders &amp; Delivery Tracking</span>
 						</h1>
 
-						<p className="mt-5 max-w-[540px] text-base leading-7 text-slate-600 sm:text-[19px] sm:leading-8">
+						<p className="mt-6 max-w-[540px] text-[17px] leading-8 text-slate-600 sm:text-[20px] sm:leading-9">
 							Generate labels, create money orders, track parcels and resolve complaints from one powerful dispatch platform.
 						</p>
 
@@ -248,9 +248,9 @@ export default function Hero() {
 
 					</div>
 
-					<div className="relative flex min-h-[480px] items-center justify-center lg:justify-end">
+					<div className="relative flex min-h-[540px] items-center justify-center lg:justify-end">
 						<div className="pointer-events-none absolute inset-y-8 right-0 hidden w-[86%] rounded-[40px] bg-white/35 blur-xl lg:block" />
-						<div data-hero-stack="true" className="relative h-[460px] w-full max-w-[580px]">
+						<div data-hero-stack="true" className="relative h-[520px] w-full max-w-[640px]">
 							{rotatingCards.map((card, idx) => {
 								const order = (idx - activeCard + rotatingCards.length) % rotatingCards.length;
 								const isActive = order === 0;
@@ -262,7 +262,7 @@ export default function Hero() {
 									<article
 										key={card.title}
 										data-hero-card={card.title}
-										className="absolute left-1/2 top-0 h-[390px] w-[90%] -translate-x-1/2 overflow-hidden rounded-[24px] border border-white/70 bg-white/85 p-3 shadow-[0_38px_95px_rgba(15,23,42,0.22)] backdrop-blur-xl transition-all duration-700 ease-out"
+										className="absolute left-1/2 top-0 h-[440px] w-[92%] -translate-x-1/2 overflow-hidden rounded-[28px] border border-white/70 bg-white/88 p-4 shadow-[0_40px_120px_rgba(15,23,42,0.25)] backdrop-blur-xl transition-all duration-700 ease-out"
 										style={{ zIndex, opacity, transform: `translateX(-50%) translateY(${translateY}px) scale(${scale})` }}
 									>
 										<div className="flex h-full flex-col rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(243,247,255,0.92))] p-3">

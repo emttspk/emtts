@@ -1,6 +1,7 @@
 import Navbar from "../components/Navbar";
 import Hero from "../components/Hero";
 import Footer from "../components/Footer";
+import ProductShowcase from "../components/ProductShowcase";
 import FeatureStrip from "../components/landing/FeatureStrip";
 import ProcessTimeline from "../components/landing/ProcessTimeline";
 import Pricing from "../components/landing/Pricing";
@@ -13,6 +14,7 @@ export default function Home() {
       <main>
         <Hero />
         <FeatureStrip />
+        <ProductShowcase />
         <ProcessTimeline />
         <Pricing />
         <CTA />
