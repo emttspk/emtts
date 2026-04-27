@@ -15,7 +15,7 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/88 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl">
-      <div className="mx-auto grid h-[76px] w-full max-w-[1240px] grid-cols-[auto_1fr_auto] items-center gap-5 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-[76px] w-full max-w-[1240px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-3.5">
           <a
             href="/"
@@ -29,8 +29,8 @@ export default function Navbar() {
           </div>
         </div>
 
-        <nav className="hidden min-w-0 justify-self-center lg:flex">
-          <div className="flex items-center gap-8 whitespace-nowrap text-[15px] font-semibold text-slate-700 xl:gap-9">
+        <nav className="hidden min-w-0 flex-1 items-center justify-center px-4 lg:flex">
+          <div className="flex items-center gap-6 whitespace-nowrap text-[14px] font-semibold text-slate-700 xl:gap-8">
             {navLinks.map((item) => (
               <a
                 key={item.label}
@@ -45,29 +45,29 @@ export default function Navbar() {
           </div>
         </nav>
 
-        <div className="hidden items-center justify-self-end gap-2.5 whitespace-nowrap lg:flex">
+        <div className="hidden items-center justify-end gap-2 whitespace-nowrap lg:flex">
           <a
             href="/tracking"
-            className="inline-flex h-10 items-center justify-center gap-1 rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition-colors duration-200 hover:border-[#0b6b3a] hover:text-[#0b6b3a]"
+            className="inline-flex h-10 items-center justify-center gap-1 rounded-full border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors duration-200 hover:border-[#0b6b3a] hover:text-[#0b6b3a]"
           >
             <Search className="h-3.5 w-3.5" />
             Track
           </a>
           <a
             href="/login"
-            className="inline-flex h-10 items-center justify-center rounded-full px-4 text-sm font-semibold text-slate-700 transition-colors duration-200 hover:text-slate-950"
+            className="inline-flex h-10 items-center justify-center rounded-full px-3.5 text-sm font-semibold text-slate-700 transition-colors duration-200 hover:text-slate-950"
           >
             Login
           </a>
           <a
             href="/register"
-            className="inline-flex h-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(11,107,58,0.3)] transition-transform duration-200 hover:-translate-y-0.5"
+            className="inline-flex h-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-4.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(11,107,58,0.3)] transition-transform duration-200 hover:-translate-y-0.5"
           >
             Create Free Account
           </a>
         </div>
 
-        <div className="justify-self-end lg:hidden">
+        <div className="lg:hidden">
           <button
             type="button"
             aria-label="Toggle navigation"

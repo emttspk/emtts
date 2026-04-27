@@ -3,7 +3,6 @@ import { ArrowRight, Search, ShieldCheck, CircleCheckBig, PlayCircle } from "luc
 import { useNavigate } from "react-router-dom";
 import labelImage from "../../../../images/label.png";
 import moneyOrderImage from "../../../../images/money order.png";
-import trackingImage from "../../../../temp-ui-shots/tracking.png";
 
 const trustIndicators = ["No credit card", "Free forever plan", "Public tracking", "Official Pakistan Post partner"];
 const trustBar = [
@@ -17,22 +16,121 @@ const rotatingCards = [
 	{
 		title: "Label Preview",
 		description: "Official Pakistan Post dispatch label with barcode, value-payable amount, and full recipient details.",
+		type: "image",
 		image: labelImage,
 		alt: "Pakistan Post label preview",
 	},
 	{
 		title: "Money Order Preview",
 		description: "Official money order sender copy with reference barcode, amount, sender and receiver fields.",
+		type: "image",
 		image: moneyOrderImage,
 		alt: "Pakistan Post money order preview",
 	},
 	{
 		title: "Tracking Preview",
-		description: "Mapped from the local tracking asset currently available in the workspace.",
-		image: trackingImage,
-		alt: "Tracking preview asset",
+		description: "Pakistan route map with live status badges, ETA, and city-level movement.",
+		type: "tracking",
+	},
+	{
+		title: "Complaint Form",
+		description: "Smart complaint capture form with tracking reference, issue type, and SLA-friendly severity.",
+		type: "complaint",
+	},
+	{
+		title: "Dispatch Dashboard",
+		description: "Real-time operations metrics for parcels, delivery completion, complaints, and money orders.",
+		type: "dashboard",
 	},
 ];
+
+const layerGap = 18;
+
+function renderCardSurface(card) {
+	if (card.type === "image") {
+		return (
+			<div className="relative flex-1 overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+				<img src={card.image} alt={card.alt} className="h-full w-full rounded-[20px] object-contain bg-white p-2 shadow-sm" />
+			</div>
+		);
+	}
+
+	if (card.type === "tracking") {
+		return (
+			<div className="flex flex-1 flex-col rounded-[20px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f5f9ff_100%)] p-3">
+				<div className="mb-2 flex flex-wrap items-center gap-2">
+					<span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700">In Transit</span>
+					<span className="rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-semibold text-sky-700">On Route</span>
+					<span className="rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-700">ETA 27 Mar, 04:30 PM</span>
+				</div>
+				<div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+					<div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Pakistan Map Route</div>
+					<svg viewBox="0 0 320 160" className="mt-2 h-28 w-full">
+						<path d="M78 36 L146 84 L252 124" fill="none" stroke="#0b6b3a" strokeWidth="4" strokeLinecap="round" strokeDasharray="8 8" />
+						<circle cx="78" cy="36" r="9" fill="#0f172a" />
+						<circle cx="146" cy="84" r="9" fill="#0b6b3a" />
+						<circle cx="252" cy="124" r="9" fill="#1d4ed8" />
+						<text x="58" y="24" fontSize="12" fill="#0f172a" fontWeight="700">Lahore</text>
+						<text x="126" y="72" fontSize="12" fill="#0b6b3a" fontWeight="700">Multan</text>
+						<text x="228" y="152" fontSize="12" fill="#1d4ed8" fontWeight="700">Karachi</text>
+					</svg>
+				</div>
+				<div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-slate-700">
+					<div className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5"><span className="font-semibold">Tracking #:</span> VPL26030700</div>
+					<div className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5"><span className="font-semibold">Current:</span> Multan</div>
+					<div className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5"><span className="font-semibold">Destination:</span> Karachi</div>
+					<div className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5"><span className="font-semibold">ETA:</span> 27 Mar, 04:30 PM</div>
+				</div>
+			</div>
+		);
+	}
+
+	if (card.type === "complaint") {
+		return (
+			<div className="flex flex-1 flex-col rounded-[20px] border border-slate-200 bg-white p-3">
+				<div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Complaint Form Preview</div>
+				<div className="mt-2 space-y-2">
+					<div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">Tracking ID: VPL26030700</div>
+					<div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">Issue Type: Delay in transit</div>
+					<div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">Severity: Medium</div>
+					<div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">Notes: Parcel held at transit hub for 48 hours.</div>
+				</div>
+				<div className="mt-auto pt-3">
+					<button type="button" className="inline-flex h-9 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-4 text-xs font-semibold text-white">
+						Submit Complaint
+					</button>
+				</div>
+			</div>
+		);
+	}
+
+	return (
+		<div className="flex flex-1 flex-col rounded-[20px] border border-slate-200 bg-white p-3">
+			<div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">Dashboard Snapshot</div>
+			<div className="mt-2 grid grid-cols-2 gap-2">
+				<div className="rounded-xl border border-emerald-200 bg-emerald-50 p-2.5">
+					<div className="text-[10px] font-semibold uppercase text-emerald-700">Today's Parcels</div>
+					<div className="mt-1 text-lg font-bold text-emerald-900">1,248</div>
+				</div>
+				<div className="rounded-xl border border-sky-200 bg-sky-50 p-2.5">
+					<div className="text-[10px] font-semibold uppercase text-sky-700">Delivered</div>
+					<div className="mt-1 text-lg font-bold text-sky-900">1,102</div>
+				</div>
+				<div className="rounded-xl border border-amber-200 bg-amber-50 p-2.5">
+					<div className="text-[10px] font-semibold uppercase text-amber-700">Pending Complaints</div>
+					<div className="mt-1 text-lg font-bold text-amber-900">14</div>
+				</div>
+				<div className="rounded-xl border border-violet-200 bg-violet-50 p-2.5">
+					<div className="text-[10px] font-semibold uppercase text-violet-700">Money Orders</div>
+					<div className="mt-1 text-lg font-bold text-violet-900">372</div>
+				</div>
+			</div>
+			<div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-700">
+				Operations healthy. Delivery completion: <span className="font-semibold">88.3%</span>
+			</div>
+		</div>
+	);
+}
 
 export default function Hero() {
 	const [trackingId, setTrackingId] = useState("");
@@ -52,12 +150,6 @@ export default function Hero() {
 		if (!value) return;
 		navigate(`/tracking?id=${encodeURIComponent(value)}`);
 	};
-
-	const stackOffsets = [
-		"translate-x-0 translate-y-0 rotate-[-2.5deg] scale-100",
-		"translate-x-8 translate-y-6 rotate-[4deg] scale-[0.95]",
-		"translate-x-16 translate-y-12 rotate-[-5deg] scale-[0.9]",
-	];
 
 	return (
 		<section className="relative overflow-hidden pb-8 pt-4 lg:pb-10">
@@ -149,16 +241,20 @@ export default function Hero() {
 
 					<div className="relative flex min-h-[470px] items-center justify-center lg:justify-end">
 						<div className="pointer-events-none absolute inset-y-8 right-0 hidden w-[86%] rounded-[40px] bg-white/35 blur-xl lg:block" />
-						<div className="relative h-[420px] w-full max-w-[560px]">
+						<div data-hero-stack="true" className="relative h-[440px] w-full max-w-[560px]">
 							{rotatingCards.map((card, idx) => {
 								const order = (idx - activeCard + rotatingCards.length) % rotatingCards.length;
 								const isActive = order === 0;
+								const zIndex = rotatingCards.length - order;
+								const translateY = order * layerGap;
+								const scale = isActive ? 1 : 0.94;
+								const opacity = isActive ? 1 : Math.max(0.22, 0.86 - order * 0.16);
 								return (
 									<article
 										key={card.title}
-										className={`absolute left-1/2 top-0 h-[360px] w-[84%] -translate-x-1/2 overflow-hidden rounded-[30px] border border-white/60 bg-white/55 p-3 shadow-[0_35px_80px_rgba(15,23,42,0.16)] backdrop-blur-xl transition-all duration-700 ease-out ${stackOffsets[order]} ${
-											isActive ? "z-30 opacity-100" : order === 1 ? "z-20 opacity-80" : "z-10 opacity-60"
-										}`}
+										data-hero-card={card.title}
+										className="absolute left-1/2 top-0 h-[372px] w-[86%] -translate-x-1/2 overflow-hidden rounded-[24px] border border-white/70 bg-white/85 p-3 shadow-2xl backdrop-blur-xl transition-all duration-700 ease-out"
+										style={{ zIndex, opacity, transform: `translateX(-50%) translateY(${translateY}px) scale(${scale})` }}
 									>
 										<div className="flex h-full flex-col rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(243,247,255,0.92))] p-3">
 											<div className="mb-3 flex h-10 items-center rounded-2xl border border-slate-200 bg-white/90 px-3 shadow-sm">
@@ -167,9 +263,7 @@ export default function Hero() {
 												<span className="ml-1.5 h-2.5 w-2.5 rounded-full bg-emerald-400" />
 												<span className="ml-3 truncate text-xs font-semibold text-slate-600">{card.title}</span>
 											</div>
-											<div className="relative flex-1 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-												<img src={card.image} alt={card.alt} className="h-full w-full rounded-[22px] object-contain bg-white p-2 shadow-sm" />
-											</div>
+											{renderCardSurface(card)}
 											<div className="mt-3 flex items-start justify-between gap-3 px-1">
 												<div>
 													<div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Live Product Surface</div>
