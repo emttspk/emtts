@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import fs from "fs";
+import { createConnection } from "node:net";
 import { env } from "./config.js";
 import { ensureDatabaseConnection } from "./db.js";
 import { prisma } from "./lib/prisma.js";
@@ -100,6 +101,23 @@ function hasUsableDatabaseUrl() {
   return true;
 }
 
+async function isTcpEndpointReachable(host: string, port: number, timeoutMs = 800): Promise<boolean> {
+  return await new Promise((resolve) => {
+    const socket = createConnection({ host, port });
+
+    const finish = (reachable: boolean) => {
+      socket.removeAllListeners();
+      socket.destroy();
+      resolve(reachable);
+    };
+
+    socket.setTimeout(timeoutMs);
+    socket.once("connect", () => finish(true));
+    socket.once("timeout", () => finish(false));
+    socket.once("error", () => finish(false));
+  });
+}
+
 function validateEnvironment() {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -157,6 +175,23 @@ validateEnvironment();
 async function initializeDatabaseSafely(): Promise<boolean> {
   if (!hasUsableDatabaseUrl()) {
     console.warn("[DB] Skipping initial database connection because DATABASE_URL is missing or invalid.");
+    return false;
+  }
+
+  try {
+    const dbUrl = new URL(String(process.env.DATABASE_URL));
+    const dbHost = dbUrl.hostname;
+    const dbPort = Number(dbUrl.port || 5432);
+
+    if (!isProduction && isLocalHost(dbHost)) {
+      const isReachable = await isTcpEndpointReachable(dbHost, dbPort);
+      if (!isReachable) {
+        console.warn(`[DB] Skipping initial database connection because ${dbHost}:${dbPort} is not reachable in local development.`);
+        return false;
+      }
+    }
+  } catch {
+    console.warn("[DB] Skipping initial database connection because DATABASE_URL could not be parsed.");
     return false;
   }
 
