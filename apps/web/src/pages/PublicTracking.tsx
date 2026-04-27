@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { AlertCircle, ArrowRight, CheckCircle2, Clock, MapPin, RefreshCw, Search } from "lucide-react";
+import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Clock, MapPin, RefreshCw, Search } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
 const API_BASE =
   (import.meta.env.VITE_API_URL as string | undefined)?.trim() ||
-  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() ||
   "";
 
 function resolveApiBase() {
@@ -185,6 +184,7 @@ export default function PublicTracking() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<TrackingResult[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [activeCardIndex, setActiveCardIndex] = useState(0);
 
   const requestedIds = useMemo(() => {
     if (trackingId) return normalizeTrackingIds(trackingId);
@@ -196,6 +196,10 @@ export default function PublicTracking() {
   useEffect(() => {
     setInput(initialValue);
   }, [initialValue]);
+
+  useEffect(() => {
+    setActiveCardIndex(0);
+  }, [requestedIds.join(",")]);
 
   useEffect(() => {
     if (requestedIds.length === 0) {
@@ -247,11 +251,15 @@ export default function PublicTracking() {
     }
     setError(null);
     if (ids.length === 1) {
-      navigate(`/tracking/${encodeURIComponent(ids[0])}`);
+      navigate(`/tracking?ids=${encodeURIComponent(ids[0])}`);
       return;
     }
-    navigate(`/track?ids=${encodeURIComponent(ids.join(","))}`);
+    navigate(`/tracking?ids=${encodeURIComponent(ids.join(","))}`);
   }
+
+  const safeActiveIndex = Math.max(0, Math.min(activeCardIndex, Math.max(0, results.length - 1)));
+  const hasMultiple = results.length > 1;
+  const activeResult = results[safeActiveIndex] ?? null;
 
   return (
     <div className="min-h-screen bg-[#f7fbf8] text-slate-900">
@@ -294,9 +302,65 @@ export default function PublicTracking() {
 
         {results.length > 0 ? (
           <div className="mt-6 space-y-5">
-            {results.map((result) => (
-              <TrackingResultCard key={result.tracking_number} result={result} />
-            ))}
+            {hasMultiple ? (
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <div className="text-sm font-semibold text-slate-700">
+                    Card {safeActiveIndex + 1} of {results.length}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveCardIndex((prev) => Math.max(0, prev - 1))}
+                      disabled={safeActiveIndex === 0}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      aria-label="Previous tracking card"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveCardIndex((prev) => Math.min(results.length - 1, prev + 1))}
+                      disabled={safeActiveIndex >= results.length - 1}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      aria-label="Next tracking card"
+                    >
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="relative min-h-[520px]">
+                  {results.map((result, index) => {
+                    const isActive = index === safeActiveIndex;
+                    return (
+                      <div
+                        key={result.tracking_number}
+                        className={`transition-all duration-500 ${isActive ? "relative opacity-100" : "pointer-events-none absolute inset-0 opacity-0"}`}
+                        style={{ transform: isActive ? "rotateY(0deg)" : "rotateY(90deg)", transformOrigin: "center" }}
+                      >
+                        <TrackingResultCard result={result} />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {results.map((result, index) => (
+                    <button
+                      key={`${result.tracking_number}-dot`}
+                      type="button"
+                      onClick={() => setActiveCardIndex(index)}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold transition ${index === safeActiveIndex ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                    >
+                      {result.tracking_number}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              activeResult ? <TrackingResultCard key={activeResult.tracking_number} result={activeResult} /> : null
+            )}
 
             <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4">
               <div className="flex-1 text-sm text-slate-600">Need to file a complaint or manage your dispatches?</div>

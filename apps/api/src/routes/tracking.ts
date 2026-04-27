@@ -1004,29 +1004,6 @@ trackingRouter.get("/complaint/prefill/:trackingNumber", requireAuth, async (req
   });
 });
 
-trackingRouter.get("/:jobId", requireAuth, async (req, res) => {
-  const userId = (req as AuthedRequest).user!.id;
-  const job = await prisma.trackingJob.findFirst({ where: { id: req.params.jobId, userId } });
-  if (!job) return res.status(404).json({ success: false, message: "Not found" });
-
-  let result: unknown | null = null;
-  if (job.resultPath) {
-    const absPath = path.resolve(process.cwd(), job.resultPath);
-    const allowedRoot = outputsDir();
-    const relToRoot = path.relative(allowedRoot, absPath);
-    if (!relToRoot.startsWith("..") && !path.isAbsolute(relToRoot)) {
-      try {
-        const raw = await fs.readFile(absPath, "utf8");
-        result = JSON.parse(raw);
-      } catch {
-        result = null;
-      }
-    }
-  }
-
-  return res.json({ success: true, job, result });
-});
-
 /**
  * GET /api/tracking/public?ids=ID1,ID2
  * Public (no auth) endpoint: track one or many parcels and return structured results.
@@ -1120,6 +1097,29 @@ trackingRouter.get("/public/:trackingNumber", async (req: Request, res: Response
     const msg = e instanceof Error ? e.message : "Tracking fetch failed";
     return res.status(500).json({ success: false, error: msg });
   }
+});
+
+trackingRouter.get("/:jobId", requireAuth, async (req, res) => {
+  const userId = (req as AuthedRequest).user!.id;
+  const job = await prisma.trackingJob.findFirst({ where: { id: req.params.jobId, userId } });
+  if (!job) return res.status(404).json({ success: false, message: "Not found" });
+
+  let result: unknown | null = null;
+  if (job.resultPath) {
+    const absPath = path.resolve(process.cwd(), job.resultPath);
+    const allowedRoot = outputsDir();
+    const relToRoot = path.relative(allowedRoot, absPath);
+    if (!relToRoot.startsWith("..") && !path.isAbsolute(relToRoot)) {
+      try {
+        const raw = await fs.readFile(absPath, "utf8");
+        result = JSON.parse(raw);
+      } catch {
+        result = null;
+      }
+    }
+  }
+
+  return res.json({ success: true, job, result });
 });
 
 trackingRouter.post("/complaint", requireAuth, async (req, res) => {

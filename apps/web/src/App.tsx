@@ -37,7 +37,8 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/track" element={<PublicTracking />} />
+        <Route path="/track" element={<Navigate to="/tracking" replace />} />
+        <Route path="/tracking" element={<PublicTracking />} />
         <Route path="/tracking/:trackingId" element={<PublicTracking />} />
 
         <Route
@@ -48,7 +49,7 @@ export default function App() {
           }
         >
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/tracking" element={<BulkTracking />} />
+          <Route path="/tracking-workspace" element={<BulkTracking />} />
           <Route path="/complaints" element={<Complaints />} />
           <Route
             path="/upload"

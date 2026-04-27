@@ -16,7 +16,7 @@ import { cn } from "../lib/cn";
 const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/upload", label: "Generate label", icon: UploadCloud },
-  { to: "/tracking", label: "Track parcel", icon: PackageSearch },
+  { to: "/tracking-workspace", label: "Track parcel", icon: PackageSearch },
   { to: "/jobs", label: "View jobs", icon: Briefcase },
   { to: "/billing", label: "Pricing", icon: CreditCard },
   { to: "/settings", label: "Settings", icon: Settings },

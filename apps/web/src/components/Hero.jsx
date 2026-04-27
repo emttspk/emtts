@@ -163,11 +163,7 @@ export default function Hero() {
 			alert('Maximum 5 tracking IDs allowed');
 			return;
 		}
-		if (ids.length === 1) {
-			navigate(`/tracking/${encodeURIComponent(ids[0])}`);
-			return;
-		}
-		navigate(`/track?ids=${encodeURIComponent(ids.join(','))}`);
+		navigate(`/tracking?ids=${encodeURIComponent(ids.join(','))}`);
 	};
 
 	return (

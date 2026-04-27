@@ -202,7 +202,7 @@ export default function Dashboard() {
   const quickActions = [
     { title: "Upload Excel", to: "/upload", description: "Queue fresh label batches" },
     { title: "Generate Labels", to: "/jobs", description: "Open recent outputs and downloads" },
-    { title: "Track Shipment", to: "/tracking", description: "Review live movement and status" },
+    { title: "Track Shipment", to: "/tracking-workspace", description: "Review live movement and status" },
   ];
   const metricCards = [
     { label: "Labels", value: usedUnits.toLocaleString(), detail: "Queued and generated units", icon: Wallet },
@@ -223,7 +223,7 @@ export default function Dashboard() {
             <div className="mt-4 max-w-2xl text-base leading-8 text-slate-600">Monitor shipment momentum, remaining balance, and billing context from one polished operational workspace. Quick actions, recent activity, and status analytics stay visible without leaving the page.</div>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link to="/upload" className="btn-primary">Upload Excel</Link>
-              <Link to="/tracking" className="btn-secondary">Track Shipment</Link>
+              <Link to="/tracking-workspace" className="btn-secondary">Track Shipment</Link>
             </div>
             <label className="mt-6 flex max-w-xl items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
               <Search className="h-4 w-4 text-slate-400" />
