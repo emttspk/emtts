@@ -60,9 +60,13 @@ function statusIcon(status: string) {
 export default function PublicTracking() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [input, setInput] = useState(searchParams.get("id") ?? "");
+  const ids = searchParams.get("ids");
+  const id = searchParams.get("id");
+  const initialInput = (ids || id) ?? "";
+  const [input, setInput] = useState(initialInput);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TrackingResult | null>(null);
+  const [results, setResults] = useState<TrackingResult[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   async function doTrack(id: string) {
@@ -71,6 +75,7 @@ export default function PublicTracking() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setResults([]);
     try {
       const base = resolveApiBase();
       const url = `${base}/api/tracking/public/${encodeURIComponent(tn)}`;
@@ -89,21 +94,68 @@ export default function PublicTracking() {
     }
   }
 
+  async function doTrackMulti(idList: string[]) {
+    const normalized = idList.map(t => t.trim().toUpperCase()).filter(Boolean);
+    if (normalized.length === 0) return;
+    setLoading(true);
+    setError(null);
+    setResult(null);
+    setResults([]);
+    try {
+      const base = resolveApiBase();
+      const list: TrackingResult[] = [];
+      for (const tn of normalized) {
+        try {
+          const url = `${base}/api/tracking/public/${encodeURIComponent(tn)}`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = (await res.json()) as TrackingResult;
+          list.push(data);
+        } catch (e) {
+          list.push({
+            success: false,
+            tracking_number: tn,
+            status: "Error",
+            current_status: "Error",
+            events: [],
+            error: e instanceof Error ? e.message : "Failed",
+          });
+        }
+      }
+      setResults(list);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Tracking failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
-    const id = searchParams.get("id");
-    if (id) {
-      setInput(id);
+    if (ids) {
+      void doTrackMulti(ids.split(','));
+    } else if (id) {
       void doTrack(id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ids, id]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const tn = input.trim();
-    if (!tn) return;
-    navigate(`/track?id=${encodeURIComponent(tn)}`, { replace: true });
-    void doTrack(tn);
+    const value = input.trim();
+    if (!value) return;
+    const list = value.split(',').map(t => t.trim()).filter(Boolean);
+    if (list.length === 0) return;
+    if (list.length > 5) {
+      setError("Maximum 5 tracking IDs allowed");
+      return;
+    }
+    if (list.length === 1) {
+      navigate(`/track?id=${encodeURIComponent(list[0])}`, { replace: true });
+      void doTrack(list[0]);
+    } else {
+      navigate(`/track?ids=${encodeURIComponent(list.join(','))}`, { replace: true });
+      void doTrackMulti(list);
+    }
   }
 
   return (
@@ -120,7 +172,7 @@ export default function PublicTracking() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="e.g. VPL26030700"
+              placeholder="e.g. VPL26030700 or VPL26030700,PK123,PK456"
               className="h-12 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-900 outline-none transition-all focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100"
             />
             <button
@@ -141,7 +193,28 @@ export default function PublicTracking() {
           </div>
         )}
 
-        {/* Results */}
+        {/* Multi Results */}
+        {results.length > 0 && (
+          <div className="mt-6 space-y-4">
+            {results.length > 1 && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs">
+                <span className="font-semibold">Tracking {results.length} shipments:</span> {results.map(r => r.tracking_number).join(" | ")}
+              </div>
+            )}
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {results.map((r) => (
+                <div key={r.tracking_number} className="rounded-lg border border-slate-200 bg-white p-3 text-xs">
+                  <div className="font-mono font-bold text-slate-900">{r.tracking_number}</div>
+                  <div className={`mt-1 inline-block rounded px-2 py-0.5 text-xs font-semibold ${statusColor(r.status)}`}>{r.status}</div>
+                  {r.consignee_name && <div className="mt-1 text-slate-600">To: {r.consignee_name}</div>}
+                  {r.events.length > 0 && <div className="mt-1 text-slate-500">Last: {r.events[r.events.length - 1]?.description || "-"}</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Single Result */}
         {result && (
           <div className="mt-6 space-y-4">
             {/* Degraded warning */}

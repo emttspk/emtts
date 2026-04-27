@@ -157,7 +157,15 @@ export default function Hero() {
 		event.preventDefault();
 		const value = trackingId.trim();
 		if (!value) return;
-		navigate(`/track?id=${encodeURIComponent(value)}`);
+		// Parse comma-separated IDs (max 5)
+		const ids = value.split(',').map(id => id.trim()).filter(Boolean);
+		if (ids.length === 0) return;
+		if (ids.length > 5) {
+			alert('Maximum 5 tracking IDs allowed');
+			return;
+		}
+		// Navigate with all IDs
+		navigate(`/track?ids=${encodeURIComponent(ids.join(','))}`);
 	};
 
 	return (
@@ -200,7 +208,7 @@ export default function Hero() {
 									type="text"
 									value={trackingId}
 									onChange={(event) => setTrackingId(event.target.value)}
-									placeholder="Enter tracking ID (VPL/RGL/IRL)"
+									placeholder="Enter tracking ID or comma-separated (max 5)"
 									className="h-12 min-w-0 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
 								/>
 								<button
