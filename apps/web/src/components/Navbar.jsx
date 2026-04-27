@@ -45,16 +45,16 @@ export default function Navbar() {
           </div>
         </nav>
 
-        <div className="hidden items-center justify-end gap-2 whitespace-nowrap lg:flex">
+        <div className="hidden items-center justify-end gap-2.5 whitespace-nowrap lg:flex">
           <a
             href="/login"
-            className="inline-flex h-10 items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition-colors duration-200 hover:border-[#0b6b3a] hover:text-[#0b6b3a]"
+            className="inline-flex h-11 min-w-[150px] items-center justify-center rounded-full border border-slate-300 bg-white px-6 text-sm font-semibold tracking-[0.01em] text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#0b6b3a] hover:text-[#0b6b3a]"
           >
             Login
           </a>
           <a
             href="/register"
-            className="inline-flex h-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-4.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(11,107,58,0.3)] transition-transform duration-200 hover:-translate-y-0.5"
+            className="inline-flex h-11 min-w-[190px] items-center justify-center rounded-full bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-6 text-sm font-semibold tracking-[0.01em] text-white shadow-[0_12px_28px_rgba(11,107,58,0.3)] transition-transform duration-200 hover:-translate-y-0.5"
           >
             Create Free Account
           </a>
@@ -86,10 +86,10 @@ export default function Navbar() {
               </a>
             ))}
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              <a href="/login" className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-center text-sm font-semibold text-slate-700">
+              <a href="/login" className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-3 text-center text-sm font-semibold text-slate-700">
                 Login
               </a>
-              <a href="/register" className="rounded-xl bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-3 py-2 text-center text-sm font-semibold text-white">
+              <a href="/register" className="inline-flex h-11 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-3 text-center text-sm font-semibold text-white">
                 Create Free Account
               </a>
             </div>
