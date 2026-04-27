@@ -11,6 +11,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "dev": "concurrently \"npm --workspace=@labelgen/web run dev\" \"npm --workspace=@labelgen/api run dev\"",
     "dev:web": "npm run preview --workspace=@labelgen/web",
     "dev:api": "npm --workspace=@labelgen/api run dev",
     "worker": "npm run worker --workspace=@labelgen/api",
@@ -19,8 +20,9 @@
     "build:web": "npm run build --workspace=@labelgen/web",
     "start:web": "cd apps/web && npm run start",
     "start": "npm run start --workspace=@labelgen/api",
-    "build": "npm run build --workspace=apps/api",
-    "build:all": "npm run build"
+    "build": "npm run build --workspace=@labelgen/web && npm run build --workspace=@labelgen/api",
+    "build:all": "npm run build",
+    "preview": "npm run preview --workspace=@labelgen/web"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

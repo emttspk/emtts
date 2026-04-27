@@ -81,6 +81,14 @@ function renderCardSurface(card) {
 					<div className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5"><span className="font-semibold">Destination:</span> Karachi</div>
 					<div className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5"><span className="font-semibold">ETA:</span> 27 Mar, 04:30 PM</div>
 				</div>
+				<div className="mt-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+					<div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Barcode</div>
+					<div className="mt-1 flex h-10 items-end gap-[2px] rounded-lg bg-slate-50 px-2 py-1">
+						{[9, 16, 12, 18, 10, 20, 14, 18, 12, 16, 11, 19, 10, 17, 13, 15, 11, 21, 12, 17].map((bar, idx) => (
+							<span key={idx} className="w-[3px] rounded-sm bg-slate-900" style={{ height: `${bar}px` }} />
+						))}
+					</div>
+				</div>
 			</div>
 		);
 	}

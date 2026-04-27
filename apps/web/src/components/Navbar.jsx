@@ -54,12 +54,6 @@ export default function Navbar() {
             Track
           </a>
           <a
-            href="/login"
-            className="inline-flex h-10 items-center justify-center rounded-full px-3.5 text-sm font-semibold text-slate-700 transition-colors duration-200 hover:text-slate-950"
-          >
-            Login
-          </a>
-          <a
             href="/register"
             className="inline-flex h-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-4.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(11,107,58,0.3)] transition-transform duration-200 hover:-translate-y-0.5"
           >
@@ -95,9 +89,6 @@ export default function Navbar() {
             <div className="mt-2 grid gap-2 sm:grid-cols-3">
               <a href="/tracking" className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-center text-sm font-semibold text-slate-700">
                 Track
-              </a>
-              <a href="/login" className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-center text-sm font-semibold text-slate-700">
-                Login
               </a>
               <a href="/register" className="rounded-xl bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-3 py-2 text-center text-sm font-semibold text-white">
                 Create Free Account
