@@ -3,7 +3,6 @@ import Hero from "../components/Hero";
 import Footer from "../components/Footer";
 import FeatureStrip from "../components/landing/FeatureStrip";
 import ProcessTimeline from "../components/landing/ProcessTimeline";
-import TrackingTypes from "../components/landing/TrackingTypes";
 import Pricing from "../components/landing/Pricing";
 import CTA from "../components/landing/CTA";
 
@@ -15,7 +14,6 @@ export default function Home() {
         <Hero />
         <FeatureStrip />
         <ProcessTimeline />
-        <TrackingTypes />
         <Pricing />
         <CTA />
       </main>

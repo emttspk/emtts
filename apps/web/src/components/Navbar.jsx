@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Menu, X, Search } from "lucide-react";
+import { Menu, X } from "lucide-react";
 
 const navLinks = [
   { href: "/upload", label: "Book Parcel" },
@@ -47,11 +47,10 @@ export default function Navbar() {
 
         <div className="hidden items-center justify-end gap-2 whitespace-nowrap lg:flex">
           <a
-            href="/tracking"
-            className="inline-flex h-10 items-center justify-center gap-1 rounded-full border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors duration-200 hover:border-[#0b6b3a] hover:text-[#0b6b3a]"
+            href="/login"
+            className="inline-flex h-10 items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm transition-colors duration-200 hover:border-[#0b6b3a] hover:text-[#0b6b3a]"
           >
-            <Search className="h-3.5 w-3.5" />
-            Track
+            Login
           </a>
           <a
             href="/register"
@@ -86,9 +85,9 @@ export default function Navbar() {
                 {item.label}
               </a>
             ))}
-            <div className="mt-2 grid gap-2 sm:grid-cols-3">
-              <a href="/tracking" className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-center text-sm font-semibold text-slate-700">
-                Track
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <a href="/login" className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-center text-sm font-semibold text-slate-700">
+                Login
               </a>
               <a href="/register" className="rounded-xl bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-3 py-2 text-center text-sm font-semibold text-white">
                 Create Free Account

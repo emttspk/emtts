@@ -3,6 +3,7 @@ import SectionTitle from "./landing/SectionTitle";
 import labelImage from "../assets/label.png";
 import moneyOrderImage from "../assets/money-order.png";
 import trackingImage from "../assets/tracking.png";
+import complaintImage from "../assets/complaint.png";
 
 const showcaseCards = [
   {
@@ -26,7 +27,7 @@ const showcaseCards = [
   {
     title: "Complaints",
     description: "Capture and escalate delivery complaints with structured context and SLA-friendly inputs.",
-    image: trackingImage,
+    image: complaintImage,
     alt: "Complaints workflow preview",
   },
   {
@@ -60,10 +61,9 @@ export default function ProductShowcase() {
                   <span className="ml-2 text-xs font-semibold text-slate-600">Live Product Preview</span>
                 </div>
               </div>
-              <div className="h-[300px] overflow-hidden p-4">
-                <div className="relative h-full overflow-hidden rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f7fafc_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]">
-                  <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-gradient-to-b from-white/85 to-transparent" />
-                  <img src={card.image} alt={card.alt} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.05]" />
+              <div className="overflow-hidden p-4">
+                <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f7fafc_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]">
+                  <img src={card.image} alt={card.alt} className="h-auto w-full object-contain transition-transform duration-500 group-hover:scale-[1.02]" />
                 </div>
               </div>
               <div className="flex flex-1 flex-col px-5 pb-5">

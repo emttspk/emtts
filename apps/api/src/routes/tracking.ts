@@ -914,6 +914,51 @@ trackingRouter.get("/:jobId", requireAuth, async (req, res) => {
   return res.json({ success: true, job, result });
 });
 
+/**
+ * GET /api/tracking/public/:trackingNumber
+ * Public (no auth) endpoint: track a single parcel and return status + events.
+ */
+trackingRouter.get("/public/:trackingNumber", async (req: Request, res: Response) => {
+  const trackingNumber = String(req.params.trackingNumber ?? "").trim().toUpperCase();
+  if (!trackingNumber) return res.status(400).json({ success: false, error: "Invalid tracking number" });
+
+  try {
+    const result = await pythonTrackOne(trackingNumber, { includeRaw: true });
+    const raw = (result.raw && typeof result.raw === "object" ? result.raw : {}) as Record<string, unknown>;
+    const processed = processTracking(raw, { trackingNumber: result.tracking_number });
+    const statusAfterPatch = String((result as any)?.meta?.final_status ?? result.status ?? "Pending").trim();
+    const finalStatus = STRICT_FINAL_STATUSES.has(statusAfterPatch) ? statusAfterPatch : "Pending";
+
+    return res.json({
+      success: true,
+      tracking_number: result.tracking_number,
+      status: finalStatus,
+      current_status: finalStatus,
+      booking_office: (raw as any)?.booking_office ?? null,
+      delivery_office: (raw as any)?.delivery_office ?? null,
+      consignee_name: (raw as any)?.consignee_name ?? null,
+      consignee_address: (raw as any)?.consignee_address ?? null,
+      events: result.events ?? [],
+      meta: (result as any).meta ?? null,
+    });
+  } catch (e) {
+    if (e instanceof PythonServiceUnavailableError || e instanceof PythonServiceTimeoutError) {
+      return res.json({
+        success: true,
+        degraded: true,
+        warning: "Tracking service temporarily unavailable. Please try again shortly.",
+        tracking_number: trackingNumber,
+        status: "Pending",
+        current_status: "Pending",
+        events: [],
+        meta: { source: "degraded_mode" },
+      });
+    }
+    const msg = e instanceof Error ? e.message : "Tracking fetch failed";
+    return res.status(500).json({ success: false, error: msg });
+  }
+});
+
 trackingRouter.post("/complaint", requireAuth, async (req, res) => {
   const userId = (req as AuthedRequest).user!.id;
   const body = z

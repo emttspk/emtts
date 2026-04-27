@@ -8,6 +8,7 @@ import Card from "./components/Card";
 const Home = lazy(() => import("./pages/Home"));
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
+const PublicTracking = lazy(() => import("./pages/PublicTracking"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const BulkTracking = lazy(() => import("./pages/BulkTracking"));
 const Complaints = lazy(() => import("./pages/Complaints"));
@@ -36,6 +37,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/track" element={<PublicTracking />} />
 
         <Route
           element={
