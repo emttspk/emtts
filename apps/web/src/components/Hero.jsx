@@ -157,14 +157,16 @@ export default function Hero() {
 		event.preventDefault();
 		const value = trackingId.trim();
 		if (!value) return;
-		// Parse comma-separated IDs (max 5)
 		const ids = value.split(',').map(id => id.trim()).filter(Boolean);
 		if (ids.length === 0) return;
 		if (ids.length > 5) {
 			alert('Maximum 5 tracking IDs allowed');
 			return;
 		}
-		// Navigate with all IDs
+		if (ids.length === 1) {
+			navigate(`/tracking/${encodeURIComponent(ids[0])}`);
+			return;
+		}
 		navigate(`/track?ids=${encodeURIComponent(ids.join(','))}`);
 	};
 

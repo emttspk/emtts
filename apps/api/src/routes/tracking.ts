@@ -33,6 +33,35 @@ export const trackingRouter = Router();
 const inlineRunningJobs = new Set<string>();
 const STRICT_FINAL_STATUSES = new Set(["Delivered", "Pending", "Return"]);
 
+type PublicTrackingEvent = {
+  date: string;
+  time: string;
+  location: string;
+  description: string;
+};
+
+type PublicTrackingResponse = {
+  success: boolean;
+  degraded?: boolean;
+  warning?: string;
+  tracking_number: string;
+  status: "Delivered" | "Pending" | "Return";
+  current_status: "Delivered" | "Pending" | "Return";
+  booking_office: string | null;
+  delivery_office: string | null;
+  consignee_name: string | null;
+  consignee_address: string | null;
+  origin: string | null;
+  destination: string | null;
+  current_location: string | null;
+  estimated_delivery: string | null;
+  delivery_progress: number;
+  history: PublicTrackingEvent[];
+  events: PublicTrackingEvent[];
+  meta: Record<string, unknown> | null;
+  error?: string;
+};
+
 type ComplaintOfficeMatch = {
   district: string;
   tehsil: string;
@@ -46,6 +75,90 @@ function enforceFinalStatus(status: unknown): "Delivered" | "Pending" | "Return"
   if (upper === "DELIVERED") return "Delivered";
   if (upper === "RETURN" || upper === "RETURNED" || upper === "RETURN_IN_PROCESS") return "Return";
   return "Pending";
+}
+
+function normalizePublicTrackingIds(value: unknown): string[] {
+  return Array.from(
+    new Set(
+      String(value ?? "")
+        .split(",")
+        .map((entry) => entry.trim().toUpperCase())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function resolveDeliveryProgress(status: "Delivered" | "Pending" | "Return", events: PublicTrackingEvent[]) {
+  if (status === "Delivered" || status === "Return") return 100;
+  if (events.length >= 5) return 85;
+  if (events.length >= 3) return 65;
+  if (events.length >= 1) return 35;
+  return 10;
+}
+
+function buildPublicTrackingResponse(
+  result: {
+    tracking_number: string;
+    status: string;
+    events?: Array<{ date?: string | null; time?: string | null; location?: string | null; description?: string | null }>;
+    raw?: unknown;
+    meta?: Record<string, unknown> | null;
+  },
+  opts?: {
+    degraded?: boolean;
+    warning?: string;
+    fallbackTrackingNumber?: string;
+  },
+): PublicTrackingResponse {
+  const raw = (result.raw && typeof result.raw === "object" ? result.raw : {}) as Record<string, unknown>;
+  const trackingNode = (raw.tracking && typeof raw.tracking === "object" ? raw.tracking : raw) as Record<string, unknown>;
+  const events = Array.isArray(result.events)
+    ? result.events.map((event) => ({
+        date: String(event?.date ?? "").trim(),
+        time: String(event?.time ?? "").trim(),
+        location: String(event?.location ?? "").trim(),
+        description: String(event?.description ?? "").trim(),
+      }))
+    : [];
+  const finalStatus = enforceFinalStatus((result.meta as any)?.final_status ?? result.status);
+  const latestEvent = events.length > 0 ? events[events.length - 1] : null;
+  const origin = String(trackingNode.booking_office ?? raw.booking_office ?? "").trim() || null;
+  const destination = String(trackingNode.delivery_office ?? raw.delivery_office ?? "").trim() || null;
+  const currentLocation =
+    String(
+      latestEvent?.location ??
+      trackingNode.current_location ??
+      raw.current_location ??
+      trackingNode.current_office ??
+      raw.current_office ??
+      "",
+    ).trim() || destination || origin || null;
+
+  return {
+    success: true,
+    degraded: opts?.degraded,
+    warning: opts?.warning,
+    tracking_number: String(result.tracking_number ?? opts?.fallbackTrackingNumber ?? "").trim().toUpperCase(),
+    status: finalStatus,
+    current_status: finalStatus,
+    booking_office: origin,
+    delivery_office: destination,
+    consignee_name: String(trackingNode.consignee_name ?? raw.consignee_name ?? "").trim() || null,
+    consignee_address: String(trackingNode.consignee_address ?? raw.consignee_address ?? "").trim() || null,
+    origin,
+    destination,
+    current_location: currentLocation,
+    estimated_delivery: String(
+      (result.meta as any)?.estimated_delivery ??
+      trackingNode.estimated_delivery ??
+      raw.estimated_delivery ??
+      "",
+    ).trim() || null,
+    delivery_progress: resolveDeliveryProgress(finalStatus, events),
+    history: events,
+    events,
+    meta: (result.meta as Record<string, unknown> | null) ?? null,
+  };
 }
 
 function buildBulkLockKey(userId: string, trackingNumbers: string[]) {
@@ -915,6 +1028,67 @@ trackingRouter.get("/:jobId", requireAuth, async (req, res) => {
 });
 
 /**
+ * GET /api/tracking/public?ids=ID1,ID2
+ * Public (no auth) endpoint: track one or many parcels and return structured results.
+ */
+trackingRouter.get("/public", async (req: Request, res: Response) => {
+  const ids = normalizePublicTrackingIds(req.query.ids ?? req.query.id);
+  if (ids.length === 0) {
+    return res.status(400).json({ success: false, error: "Provide at least one tracking ID in ?ids=" });
+  }
+  if (ids.length > 5) {
+    return res.status(400).json({ success: false, error: "Maximum 5 tracking IDs allowed" });
+  }
+
+  const results = await Promise.all(
+    ids.map(async (trackingNumber) => {
+      try {
+        const result = await pythonTrackOne(trackingNumber, { includeRaw: true });
+        return buildPublicTrackingResponse(result);
+      } catch (error) {
+        if (error instanceof PythonServiceUnavailableError || error instanceof PythonServiceTimeoutError) {
+          return buildPublicTrackingResponse(
+            {
+              tracking_number: trackingNumber,
+              status: "Pending",
+              events: [],
+              meta: { source: "degraded_mode" },
+            },
+            {
+              degraded: true,
+              warning: "Tracking service temporarily unavailable. Please try again shortly.",
+              fallbackTrackingNumber: trackingNumber,
+            },
+          );
+        }
+
+        return {
+          success: false,
+          tracking_number: trackingNumber,
+          status: "Pending",
+          current_status: "Pending",
+          booking_office: null,
+          delivery_office: null,
+          consignee_name: null,
+          consignee_address: null,
+          origin: null,
+          destination: null,
+          current_location: null,
+          estimated_delivery: null,
+          delivery_progress: 0,
+          history: [],
+          events: [],
+          meta: null,
+          error: error instanceof Error ? error.message : "Tracking fetch failed",
+        };
+      }
+    }),
+  );
+
+  return res.json({ success: true, count: results.length, results });
+});
+
+/**
  * GET /api/tracking/public/:trackingNumber
  * Public (no auth) endpoint: track a single parcel and return status + events.
  */
@@ -924,35 +1098,24 @@ trackingRouter.get("/public/:trackingNumber", async (req: Request, res: Response
 
   try {
     const result = await pythonTrackOne(trackingNumber, { includeRaw: true });
-    const raw = (result.raw && typeof result.raw === "object" ? result.raw : {}) as Record<string, unknown>;
-    const processed = processTracking(raw, { trackingNumber: result.tracking_number });
-    const statusAfterPatch = String((result as any)?.meta?.final_status ?? result.status ?? "Pending").trim();
-    const finalStatus = STRICT_FINAL_STATUSES.has(statusAfterPatch) ? statusAfterPatch : "Pending";
-
-    return res.json({
-      success: true,
-      tracking_number: result.tracking_number,
-      status: finalStatus,
-      current_status: finalStatus,
-      booking_office: (raw as any)?.booking_office ?? null,
-      delivery_office: (raw as any)?.delivery_office ?? null,
-      consignee_name: (raw as any)?.consignee_name ?? null,
-      consignee_address: (raw as any)?.consignee_address ?? null,
-      events: result.events ?? [],
-      meta: (result as any).meta ?? null,
-    });
+    return res.json(buildPublicTrackingResponse(result));
   } catch (e) {
     if (e instanceof PythonServiceUnavailableError || e instanceof PythonServiceTimeoutError) {
-      return res.json({
-        success: true,
-        degraded: true,
-        warning: "Tracking service temporarily unavailable. Please try again shortly.",
-        tracking_number: trackingNumber,
-        status: "Pending",
-        current_status: "Pending",
-        events: [],
-        meta: { source: "degraded_mode" },
-      });
+      return res.json(
+        buildPublicTrackingResponse(
+          {
+            tracking_number: trackingNumber,
+            status: "Pending",
+            events: [],
+            meta: { source: "degraded_mode" },
+          },
+          {
+            degraded: true,
+            warning: "Tracking service temporarily unavailable. Please try again shortly.",
+            fallbackTrackingNumber: trackingNumber,
+          },
+        ),
+      );
     }
     const msg = e instanceof Error ? e.message : "Tracking fetch failed";
     return res.status(500).json({ success: false, error: msg });

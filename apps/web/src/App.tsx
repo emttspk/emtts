@@ -38,6 +38,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/track" element={<PublicTracking />} />
+        <Route path="/tracking/:trackingId" element={<PublicTracking />} />
 
         <Route
           element={

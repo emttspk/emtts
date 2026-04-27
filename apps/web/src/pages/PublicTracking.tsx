@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
-import { Search, MapPin, Package, CheckCircle2, Clock, ArrowRight, RefreshCw, AlertCircle } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { AlertCircle, ArrowRight, CheckCircle2, Clock, MapPin, RefreshCw, Search } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
@@ -37,10 +37,33 @@ type TrackingResult = {
   delivery_office?: string | null;
   consignee_name?: string | null;
   consignee_address?: string | null;
+  origin?: string | null;
+  destination?: string | null;
+  current_location?: string | null;
+  estimated_delivery?: string | null;
+  delivery_progress?: number;
+  history?: TrackingEvent[];
   events: TrackingEvent[];
   meta?: Record<string, unknown> | null;
   error?: string;
 };
+
+type TrackingCollectionResponse = {
+  success: boolean;
+  count: number;
+  results: TrackingResult[];
+};
+
+function normalizeTrackingIds(value: string) {
+  return Array.from(
+    new Set(
+      value
+        .split(",")
+        .map((entry) => entry.trim().toUpperCase())
+        .filter(Boolean),
+    ),
+  ).slice(0, 5);
+}
 
 function statusColor(status: string) {
   const s = (status ?? "").toLowerCase();
@@ -57,121 +80,192 @@ function statusIcon(status: string) {
   return <Clock className="h-5 w-5 text-amber-500" />;
 }
 
+function getDisplayProgress(result: TrackingResult) {
+  if (typeof result.delivery_progress === "number" && Number.isFinite(result.delivery_progress)) {
+    return Math.max(0, Math.min(100, result.delivery_progress));
+  }
+  const status = (result.status ?? "").toLowerCase();
+  if (status.includes("deliver") || status.includes("return")) return 100;
+  if ((result.history ?? result.events ?? []).length >= 3) return 65;
+  if ((result.history ?? result.events ?? []).length >= 1) return 35;
+  return 10;
+}
+
+function TrackingResultCard({ result }: { result: TrackingResult }) {
+  const timeline = result.history ?? result.events ?? [];
+  const progress = getDisplayProgress(result);
+
+  return (
+    <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-extrabold tracking-tight text-slate-900">Tracking Result</h2>
+          <p className="mt-1 font-mono text-sm font-semibold text-slate-600">Tracking ID: {result.tracking_number}</p>
+          {result.consignee_name ? (
+            <p className="mt-2 text-sm text-slate-500">
+              Consignee: <span className="font-semibold text-slate-700">{result.consignee_name}</span>
+            </p>
+          ) : null}
+          {result.consignee_address ? <p className="mt-1 text-xs text-slate-500">{result.consignee_address}</p> : null}
+        </div>
+        <div className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold ${statusColor(result.status)}`}>
+          {statusIcon(result.status)}
+          {result.status}
+        </div>
+      </div>
+
+      {result.degraded ? (
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <AlertCircle className="mb-1 inline h-4 w-4" /> {result.warning ?? "Tracking service temporarily unavailable."}
+        </div>
+      ) : null}
+
+      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Origin</div>
+          <div className="mt-2 text-sm font-semibold text-slate-800">{result.origin || result.booking_office || "-"}</div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Destination</div>
+          <div className="mt-2 text-sm font-semibold text-slate-800">{result.destination || result.delivery_office || "-"}</div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Current Location</div>
+          <div className="mt-2 text-sm font-semibold text-slate-800">{result.current_location || "-"}</div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Estimated Delivery</div>
+          <div className="mt-2 text-sm font-semibold text-slate-800">{result.estimated_delivery || "-"}</div>
+        </div>
+      </div>
+
+      <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Delivery Progress</div>
+          <div className="text-sm font-semibold text-slate-700">{progress}%</div>
+        </div>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
+          <div className="h-full rounded-full bg-[linear-gradient(135deg,#0f172a,#0b6b3a)]" style={{ width: `${progress}%` }} />
+        </div>
+      </div>
+
+      <div className="mt-5 rounded-2xl border border-slate-200 bg-white">
+        <div className="border-b border-slate-200 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">History</div>
+        {timeline.length > 0 ? (
+          <ol className="space-y-3 p-4">
+            {[...timeline].reverse().map((event, index) => (
+              <li key={`${result.tracking_number}-${event.date}-${event.time}-${index}`} className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-sm font-semibold text-slate-800">{event.description || "-"}</div>
+                  <div className="text-xs text-slate-400">{[event.date, event.time].filter(Boolean).join(" ") || "-"}</div>
+                </div>
+                <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                  <MapPin className="h-3 w-3" />
+                  {event.location || "-"}
+                </div>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <div className="px-4 py-5 text-sm text-slate-500">No tracking history recorded yet for this shipment.</div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export default function PublicTracking() {
+  const { trackingId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const ids = searchParams.get("ids");
-  const id = searchParams.get("id");
-  const initialInput = (ids || id) ?? "";
-  const [input, setInput] = useState(initialInput);
+  const idsParam = searchParams.get("ids");
+  const idParam = searchParams.get("id");
+  const initialValue = idsParam || trackingId || idParam || "";
+  const [input, setInput] = useState(initialValue);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<TrackingResult | null>(null);
   const [results, setResults] = useState<TrackingResult[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  async function doTrack(id: string) {
-    const tn = id.trim().toUpperCase();
-    if (!tn) return;
-    setLoading(true);
-    setError(null);
-    setResult(null);
-    setResults([]);
-    try {
-      const base = resolveApiBase();
-      const url = `${base}/api/tracking/public/${encodeURIComponent(tn)}`;
-      const res = await fetch(url);
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as Record<string, unknown>;
-        throw new Error((body.error as string | undefined) ?? `Server error ${res.status}`);
-      }
-      const data = (await res.json()) as TrackingResult;
-      if (!data.success) throw new Error(data.error ?? "Tracking failed");
-      setResult(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Tracking failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function doTrackMulti(idList: string[]) {
-    const normalized = idList.map(t => t.trim().toUpperCase()).filter(Boolean);
-    if (normalized.length === 0) return;
-    setLoading(true);
-    setError(null);
-    setResult(null);
-    setResults([]);
-    try {
-      const base = resolveApiBase();
-      const list: TrackingResult[] = [];
-      for (const tn of normalized) {
-        try {
-          const url = `${base}/api/tracking/public/${encodeURIComponent(tn)}`;
-          const res = await fetch(url);
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = (await res.json()) as TrackingResult;
-          list.push(data);
-        } catch (e) {
-          list.push({
-            success: false,
-            tracking_number: tn,
-            status: "Error",
-            current_status: "Error",
-            events: [],
-            error: e instanceof Error ? e.message : "Failed",
-          });
-        }
-      }
-      setResults(list);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Tracking failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const requestedIds = useMemo(() => {
+    if (trackingId) return normalizeTrackingIds(trackingId);
+    if (idsParam) return normalizeTrackingIds(idsParam);
+    if (idParam) return normalizeTrackingIds(idParam);
+    return [];
+  }, [idParam, idsParam, trackingId]);
 
   useEffect(() => {
-    if (ids) {
-      void doTrackMulti(ids.split(','));
-    } else if (id) {
-      void doTrack(id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ids, id]);
+    setInput(initialValue);
+  }, [initialValue]);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  useEffect(() => {
+    if (requestedIds.length === 0) {
+      setResults([]);
+      return;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const base = resolveApiBase();
+        const url = `${base}/api/tracking/public?ids=${encodeURIComponent(requestedIds.join(","))}`;
+        const res = await fetch(url, { signal: controller.signal });
+        const body = (await res.json().catch(() => ({}))) as Partial<TrackingCollectionResponse> & { error?: string };
+        if (!res.ok) throw new Error(body.error ?? `Server error ${res.status}`);
+        if (!body.success || !Array.isArray(body.results)) throw new Error("Tracking failed");
+        if (!active) return;
+        setResults(body.results);
+      } catch (err) {
+        if (!active) return;
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setResults([]);
+        setError(err instanceof Error ? err.message : "Tracking failed. Please try again.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    void load();
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [requestedIds]);
+
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
     const value = input.trim();
     if (!value) return;
-    const list = value.split(',').map(t => t.trim()).filter(Boolean);
-    if (list.length === 0) return;
-    if (list.length > 5) {
+    const ids = normalizeTrackingIds(value);
+    if (ids.length === 0) return;
+    if (value.split(",").map((entry) => entry.trim()).filter(Boolean).length > 5) {
       setError("Maximum 5 tracking IDs allowed");
       return;
     }
-    if (list.length === 1) {
-      navigate(`/track?id=${encodeURIComponent(list[0])}`, { replace: true });
-      void doTrack(list[0]);
-    } else {
-      navigate(`/track?ids=${encodeURIComponent(list.join(','))}`, { replace: true });
-      void doTrackMulti(list);
+    setError(null);
+    if (ids.length === 1) {
+      navigate(`/tracking/${encodeURIComponent(ids[0])}`);
+      return;
     }
+    navigate(`/track?ids=${encodeURIComponent(ids.join(","))}`);
   }
 
   return (
     <div className="min-h-screen bg-[#f7fbf8] text-slate-900">
       <Navbar />
-      <main className="mx-auto w-full max-w-[860px] px-4 py-10 sm:px-6">
-        {/* Search */}
+      <main className="mx-auto w-full max-w-[1080px] px-4 py-10 sm:px-6">
         <div className="rounded-[28px] border border-emerald-100 bg-white/95 p-6 shadow-[0_20px_50px_rgba(15,23,42,0.10)]">
           <div className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Parcel Tracking</div>
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Track Your Shipment</h1>
-          <p className="mt-1 text-sm text-slate-500">Enter a VPL, RGL, IRL, or COD tracking number — no login required.</p>
-          <form onSubmit={handleSubmit} className="mt-5 flex gap-2">
+          <p className="mt-1 text-sm text-slate-500">Enter one tracking ID or up to 5 comma-separated IDs to view parcel movement without login.</p>
+          <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-2 sm:flex-row">
             <input
               type="text"
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(event) => setInput(event.target.value)}
               placeholder="e.g. VPL26030700 or VPL26030700,PK123,PK456"
               className="h-12 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-900 outline-none transition-all focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100"
             />
@@ -181,125 +275,40 @@ export default function PublicTracking() {
               className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(15,23,42,0.22)] transition-all hover:-translate-y-0.5 disabled:opacity-60"
             >
               {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-              {loading ? "Tracking…" : "Track"}
+              {loading ? "Tracking..." : "Track"}
             </button>
           </form>
         </div>
 
-        {/* Error */}
-        {error && (
+        {error ? (
           <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             <AlertCircle className="mb-1 inline h-4 w-4" /> {error}
           </div>
-        )}
+        ) : null}
 
-        {/* Multi Results */}
-        {results.length > 0 && (
-          <div className="mt-6 space-y-4">
-            {results.length > 1 && (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs">
-                <span className="font-semibold">Tracking {results.length} shipments:</span> {results.map(r => r.tracking_number).join(" | ")}
-              </div>
-            )}
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              {results.map((r) => (
-                <div key={r.tracking_number} className="rounded-lg border border-slate-200 bg-white p-3 text-xs">
-                  <div className="font-mono font-bold text-slate-900">{r.tracking_number}</div>
-                  <div className={`mt-1 inline-block rounded px-2 py-0.5 text-xs font-semibold ${statusColor(r.status)}`}>{r.status}</div>
-                  {r.consignee_name && <div className="mt-1 text-slate-600">To: {r.consignee_name}</div>}
-                  {r.events.length > 0 && <div className="mt-1 text-slate-500">Last: {r.events[r.events.length - 1]?.description || "-"}</div>}
-                </div>
-              ))}
-            </div>
+        {requestedIds.length > 1 ? (
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+            <span className="font-semibold">Tracking IDs:</span> {requestedIds.join(", ")}
           </div>
-        )}
+        ) : null}
 
-        {/* Single Result */}
-        {result && (
-          <div className="mt-6 space-y-4">
-            {/* Degraded warning */}
-            {result.degraded && (
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                <AlertCircle className="mb-1 inline h-4 w-4" /> {result.warning ?? "Tracking service temporarily unavailable — showing cached data."}
-              </div>
-            )}
+        {results.length > 0 ? (
+          <div className="mt-6 space-y-5">
+            {results.map((result) => (
+              <TrackingResultCard key={result.tracking_number} result={result} />
+            ))}
 
-            {/* Status card */}
-            <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <div className="font-mono text-lg font-bold tracking-[0.08em] text-slate-900">{result.tracking_number}</div>
-                  {result.consignee_name && (
-                    <div className="mt-0.5 text-sm text-slate-500">Consignee: <span className="font-semibold text-slate-700">{result.consignee_name}</span></div>
-                  )}
-                  {result.consignee_address && (
-                    <div className="mt-0.5 text-xs text-slate-500">{result.consignee_address}</div>
-                  )}
-                </div>
-                <div className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold ${statusColor(result.status)}`}>
-                  {statusIcon(result.status)}
-                  {result.status}
-                </div>
-              </div>
-
-              {(result.booking_office || result.delivery_office) && (
-                <div className="mt-4 flex flex-wrap gap-3 text-sm">
-                  {result.booking_office && (
-                    <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-700">
-                      <MapPin className="h-4 w-4 text-slate-400" />
-                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">From:</span> {result.booking_office}
-                    </div>
-                  )}
-                  {result.delivery_office && (
-                    <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-700">
-                      <Package className="h-4 w-4 text-slate-400" />
-                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">To:</span> {result.delivery_office}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Events timeline */}
-            {result.events.length > 0 && (
-              <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
-                <div className="mb-4 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Delivery History</div>
-                <ol className="relative space-y-4 border-l border-slate-200 pl-5">
-                  {[...result.events].reverse().map((ev, idx) => (
-                    <li key={idx} className="relative">
-                      <span className="absolute -left-[22px] top-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-white bg-emerald-500 shadow-sm" />
-                      <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="text-sm font-semibold text-slate-800">{ev.description || "—"}</div>
-                          <div className="text-xs text-slate-400">{ev.date} {ev.time}</div>
-                        </div>
-                        {ev.location && (
-                          <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
-                            <MapPin className="h-3 w-3" /> {ev.location}
-                          </div>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            )}
-
-            {result.events.length === 0 && !result.degraded && (
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 text-center text-sm text-slate-500">
-                No tracking events recorded yet for <span className="font-semibold">{result.tracking_number}</span>.
-              </div>
-            )}
-
-            {/* CTA */}
             <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4">
               <div className="flex-1 text-sm text-slate-600">Need to file a complaint or manage your dispatches?</div>
-              <a href="/register" className="inline-flex items-center gap-1.5 rounded-full bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:-translate-y-0.5 transition-transform">
+              <a
+                href="/register"
+                className="inline-flex items-center gap-1.5 rounded-full bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-transform hover:-translate-y-0.5"
+              >
                 Create Free Account <ArrowRight className="h-3.5 w-3.5" />
               </a>
             </div>
           </div>
-        )}
+        ) : null}
       </main>
       <Footer />
     </div>
