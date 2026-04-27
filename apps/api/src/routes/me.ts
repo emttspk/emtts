@@ -22,6 +22,7 @@ meRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
       companyName: true,
       address: true,
       contactNumber: true,
+      cnic: true,
       originCity: true,
       extraLabelCredits: true,
       extraTrackingCredits: true,
@@ -102,6 +103,7 @@ const profileUpdateSchema = z.object({
   companyName: z.string().max(120).optional(),
   address: z.string().max(300).optional(),
   contactNumber: z.string().max(30).optional(),
+  cnic: z.string().max(15).nullable().optional(),
   originCity: z.string().max(80).optional(),
 });
 
@@ -111,7 +113,7 @@ meRouter.patch("/", requireAuth, async (req: AuthedRequest, res) => {
   const user = await prisma.user.update({
     where: { id: userId },
     data: body,
-    select: { id: true, email: true, role: true, createdAt: true, companyName: true, address: true, contactNumber: true, originCity: true },
+    select: { id: true, email: true, role: true, createdAt: true, companyName: true, address: true, contactNumber: true, cnic: true, originCity: true },
   });
   return res.json({ user });
 });

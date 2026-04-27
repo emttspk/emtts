@@ -17,6 +17,7 @@ model User {
   companyName     String?
   address         String?
   contactNumber   String?
+  cnic            String?
   originCity      String?
   extraLabelCredits    Int      @default(0)
   extraTrackingCredits Int      @default(0)

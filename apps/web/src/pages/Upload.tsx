@@ -43,7 +43,7 @@ function isValidTrackingId(input: unknown) {
 }
 
 export default function Upload() {
-  const { refreshMe } = useOutletContext<ShellCtx>();
+  const { me, refreshMe } = useOutletContext<ShellCtx>();
 
   const [file, setFile] = useState<File | null>(null);
   const [jobs, setJobs] = useState<LabelJob[]>([]);
@@ -369,6 +369,14 @@ export default function Upload() {
       const autoModeChecked = isAuto && Boolean(includeMoneyOrders && eligibleForMoneyOrder);
       if (autoModeChecked) {
         console.log("Auto Mode: Tracking + MO generated");
+
+          // Check CNIC for money order generation
+          if (includeMoneyOrders && eligibleForMoneyOrder) {
+            const hasCnic = me?.user?.cnic && /^\d{5}-\d{7}-\d$|^\d{13}$/.test(me.user.cnic);
+            if (!hasCnic) {
+              throw new Error("CNIC is required for money order generation. Please add your CNIC in Profile Settings.");
+            }
+          }
       }
 
         const data = (await uploadFile("/api/upload", uploadedFile, {

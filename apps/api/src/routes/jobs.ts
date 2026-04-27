@@ -479,14 +479,14 @@ export async function handleLabelUpload(req: Request, res: Response) {
     if (effectiveGenerateMoneyOrder) {
       const hasVplShipment = orders.some((order) => {
         const rowType = String((order as any)?.shipmentType ?? (order as any)?.shipmenttype ?? shipmentType ?? "").trim().toUpperCase();
-        return rowType === "VPL";
+        return rowType === "VPL" || rowType === "VPP" || rowType === "COD";
       });
 
       if (hasVplShipment) {
-        const profileCnic = req.body?.cnic;
-        const hasProfileCnic = hasCnic(profileCnic);
-        if (!hasProfileCnic) {
-          throw new Error("CNIC required for Value Payable shipment");
+        const userProfile = await withReconnectRetry(async () => prisma.user.findUnique({ where: { id: userId }, select: { cnic: true } }));
+        const userCnic = userProfile?.cnic;
+        if (!hasCnic(userCnic)) {
+          throw new Error("CNIC is required for money order generation. Please add your CNIC in Profile Settings.");
         }
       }
     }

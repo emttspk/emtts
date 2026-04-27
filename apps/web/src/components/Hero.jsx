@@ -49,9 +49,10 @@ const layerGap = 18;
 function renderCardSurface(card) {
 	if (card.type === "image") {
 		return (
-			<div className="relative flex-1 overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-				<div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-gradient-to-b from-white/80 to-transparent" />
-						<img src={card.image} alt={card.alt} className="h-full w-full rounded-[20px] object-contain shadow-sm" />
+			<div className="relative flex-1 overflow-hidden rounded-[20px] border border-slate-100 bg-[linear-gradient(135deg,#f8fafb_0%,#f0f4f8_100%)] shadow-[0_8px_16px_rgba(15,23,42,0.06),inset_0_1px_0_rgba(255,255,255,0.8)]">
+				<div className="flex h-full items-center justify-center p-3">
+					<img src={card.image} alt={card.alt} className="h-full max-h-[280px] w-full max-w-full object-contain" />
+				</div>
 			</div>
 		);
 	}

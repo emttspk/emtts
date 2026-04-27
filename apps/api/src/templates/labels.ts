@@ -130,7 +130,8 @@ function resolveMoneyOrderSenderFields(order: OrderRecord) {
   const senderName = String((order as any)?.senderName ?? order.shipperName ?? "").trim() || "-";
   const senderAddress = normalizeAddressLines((order as any)?.senderAddress ?? order.shipperAddress ?? "") || "-";
   const senderPhone = String((order as any)?.senderPhone ?? order.shipperPhone ?? "").trim() || "-";
-  return { senderName, senderAddress, senderPhone };
+  const senderCnic = String((order as any)?.senderCnic ?? (order as any)?.shipperCnic ?? (order as any)?.cnic ?? "").trim() || "-";
+  return { senderName, senderAddress, senderPhone, senderCnic };
 }
 
 function amountToWords(value: number) {
@@ -1034,7 +1035,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
   const consigneeName = String((order as any)?.consigneeName ?? "-").trim() || "-";
   const consigneeAddress = normalizeAddressLines((order as any)?.consigneeAddress ?? "-") || "-";
   const consigneePhone = String((order as any)?.consigneePhone ?? "-").trim() || "-";
-  const { senderName: shipperName, senderAddress: shipperAddress, senderPhone: shipperPhone } = resolveMoneyOrderSenderFields(order);
+  const { senderName: shipperName, senderAddress: shipperAddress, senderPhone: shipperPhone, senderCnic: shipperCnic } = resolveMoneyOrderSenderFields(order);
   const moBarcode = String((order as any)?.mo_barcodeBase64 ?? "").trim();
 
   let out = htmlBody;
