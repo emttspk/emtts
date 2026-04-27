@@ -3,65 +3,71 @@ import { Menu, X, Search } from "lucide-react";
 
 const navLinks = [
   { href: "/upload", label: "Book Parcel" },
-  { href: "#labels", label: "Labels" },
-  { href: "#money-orders", label: "Money Orders" },
-  { href: "/tracking", label: "Tracking" },
+  { href: "#labels", label: "Generate Label" },
+  { href: "#money-orders", label: "Money Order" },
   { href: "#complaints", label: "Complaints" },
   { href: "#contact", label: "Contact" },
 ];
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const pathname = typeof window !== "undefined" ? window.location.pathname : "";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/50 bg-white/65 backdrop-blur-2xl shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
-      <div className="mx-auto flex h-[88px] w-full max-w-[1240px] items-center px-4 sm:px-6 lg:px-8">
-        <div className="flex min-w-0 flex-[0_0_30%] items-center gap-3">
+    <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/88 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+      <div className="mx-auto flex h-[76px] w-full max-w-[1240px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        <div className="flex min-w-0 items-center gap-3.5">
           <a
             href="/"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#0f172a,#0b6b3a)] text-sm font-extrabold text-white shadow-[0_10px_30px_rgba(11,107,58,0.35)]"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#0f172a,#0b6b3a)] text-sm font-extrabold text-white shadow-[0_10px_30px_rgba(11,107,58,0.34)]"
           >
-            PP
+            EP
           </a>
           <div className="min-w-0 leading-tight">
-            <div className="truncate text-sm font-extrabold uppercase tracking-[0.08em] text-slate-900">P.Post Dispatch</div>
-            <div className="truncate text-[11px] font-medium text-slate-500">Official shipment workspace for Pakistan Post operations</div>
+            <div className="whitespace-nowrap text-[15px] font-extrabold tracking-[0.01em] text-slate-900">Epost.pk</div>
+            <div className="whitespace-nowrap text-[11px] font-medium text-slate-500">Pakistan Post Operations Platform</div>
           </div>
         </div>
 
-        <nav className="hidden flex-[0_0_40%] items-center justify-center lg:flex">
-          <div className="flex items-center gap-7 text-[13px] font-semibold text-slate-600">
+        <nav className="hidden min-w-0 flex-1 items-center justify-center px-4 lg:flex">
+          <div className="flex items-center gap-6 whitespace-nowrap text-[14px] font-semibold text-slate-700 xl:gap-8">
             {navLinks.map((item) => (
-              <a key={item.label} href={item.href} className="transition-colors duration-200 hover:text-slate-900">
+              <a
+                key={item.label}
+                href={item.href}
+                className={`whitespace-nowrap py-2 transition-colors duration-200 hover:text-[#0b6b3a] ${
+                  pathname === item.href ? "text-slate-950" : "text-slate-700"
+                }`}
+              >
                 {item.label}
               </a>
             ))}
           </div>
         </nav>
 
-        <div className="hidden flex-[0_0_30%] items-center justify-end gap-2.5 lg:flex">
+        <div className="hidden items-center justify-end gap-2 whitespace-nowrap lg:flex">
+          <a
+            href="/tracking"
+            className="inline-flex h-10 items-center justify-center gap-1 rounded-full border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors duration-200 hover:border-[#0b6b3a] hover:text-[#0b6b3a]"
+          >
+            <Search className="h-3.5 w-3.5" />
+            Track
+          </a>
           <a
             href="/login"
-            className="inline-flex items-center justify-center rounded-full border border-slate-300/80 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all duration-200 hover:border-slate-900 hover:text-slate-900"
+            className="inline-flex h-10 items-center justify-center rounded-full px-3.5 text-sm font-semibold text-slate-700 transition-colors duration-200 hover:text-slate-950"
           >
             Login
           </a>
           <a
             href="/register"
-            className="inline-flex items-center justify-center rounded-full bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-5 py-2 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(15,23,42,0.22)] transition-transform duration-200 hover:-translate-y-0.5"
+            className="inline-flex h-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-4.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(11,107,58,0.3)] transition-transform duration-200 hover:-translate-y-0.5"
           >
             Create Free Account
           </a>
-          <a
-            href="/tracking"
-            className="inline-flex items-center justify-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 transition-all duration-200 hover:border-emerald-300"
-          >
-            <Search className="h-4 w-4" />
-            Track
-          </a>
         </div>
 
-        <div className="ml-auto lg:hidden">
+        <div className="lg:hidden">
           <button
             type="button"
             aria-label="Toggle navigation"
@@ -87,14 +93,14 @@ export default function Navbar() {
               </a>
             ))}
             <div className="mt-2 grid gap-2 sm:grid-cols-3">
+              <a href="/tracking" className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-center text-sm font-semibold text-slate-700">
+                Track
+              </a>
               <a href="/login" className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-center text-sm font-semibold text-slate-700">
                 Login
               </a>
               <a href="/register" className="rounded-xl bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-3 py-2 text-center text-sm font-semibold text-white">
                 Create Free Account
-              </a>
-              <a href="/tracking" className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-center text-sm font-semibold text-emerald-800">
-                Track
               </a>
             </div>
           </div>
