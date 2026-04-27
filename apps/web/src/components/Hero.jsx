@@ -50,7 +50,8 @@ function renderCardSurface(card) {
 	if (card.type === "image") {
 		return (
 			<div className="relative flex-1 overflow-hidden rounded-[20px] border border-slate-200 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-				<img src={card.image} alt={card.alt} className="h-full w-full rounded-[20px] object-contain bg-white p-2 shadow-sm" />
+				<div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 bg-gradient-to-b from-white/80 to-transparent" />
+				<img src={card.image} alt={card.alt} className="h-full w-full rounded-[20px] object-cover shadow-sm" />
 			</div>
 		);
 	}
@@ -160,14 +161,14 @@ export default function Hero() {
 	};
 
 	return (
-		<section className="relative overflow-hidden pb-8 pt-4 lg:pb-10">
+		<section className="relative overflow-hidden pb-10 pt-6 lg:pb-12">
 			<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(16,185,129,0.18),transparent_28%),radial-gradient(circle_at_80%_18%,rgba(11,107,58,0.16),transparent_24%),linear-gradient(135deg,#f7fbf8_0%,#edf7f2_36%,#eff5ff_100%)]" />
 			<div className="pointer-events-none absolute -right-16 top-10 h-[420px] w-[420px] rounded-full bg-emerald-200/30 blur-3xl" />
 			<div className="pointer-events-none absolute left-[-80px] top-[-60px] h-[360px] w-[360px] rounded-full bg-white/80 blur-3xl" />
 
 			<div className="relative mx-auto w-full max-w-[1240px] px-4 sm:px-6 lg:px-8">
-				<div className="grid items-center gap-10 lg:min-h-[600px] lg:grid-cols-2 lg:gap-12">
-					<div className="max-w-[580px]">
+				<div className="grid items-center gap-12 lg:min-h-[640px] lg:grid-cols-2 lg:gap-14">
+					<div className="max-w-[600px]">
 						<div className="inline-flex items-center gap-3 rounded-full border border-emerald-200/80 bg-white/85 px-3 py-2 shadow-[0_12px_24px_rgba(15,23,42,0.06)] backdrop-blur">
 							<div className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[linear-gradient(145deg,#0f172a,#0b6b3a)] text-[11px] font-extrabold text-white shadow-[0_8px_20px_rgba(11,107,58,0.28)]">EP</div>
 							<div className="leading-tight">
@@ -180,21 +181,21 @@ export default function Hero() {
 							<ShieldCheck className="h-3.5 w-3.5" /> Trusted dispatch technology
 						</div>
 
-						<h1 className="mt-5 max-w-[580px] font-display text-[34px] font-extrabold leading-[1.03] tracking-[-0.032em] text-slate-900 sm:text-[44px] lg:text-[58px]">
+						<h1 className="mt-6 max-w-[600px] font-display text-[36px] font-black leading-[1.02] tracking-[-0.034em] text-slate-900 sm:text-[48px] lg:text-[64px]">
 							Ship Smarter Across Pakistan
 							<span className="mt-1 block text-emerald-700">Labels, Money Orders &amp; Delivery Tracking</span>
 						</h1>
 
-						<p className="mt-4 max-w-[520px] text-base leading-7 text-slate-600 sm:text-lg">
+						<p className="mt-5 max-w-[540px] text-base leading-7 text-slate-600 sm:text-[19px] sm:leading-8">
 							Generate labels, create money orders, track parcels and resolve complaints from one powerful dispatch platform.
 						</p>
 
 						<form
 							onSubmit={handleTrackingSubmit}
-							className="mt-5 rounded-3xl border border-slate-200 bg-white/92 p-4 shadow-[0_18px_34px_rgba(15,23,42,0.08)] backdrop-blur"
+							className="mt-6 rounded-[28px] border border-emerald-100 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(244,250,247,0.96))] p-4 shadow-[0_22px_42px_rgba(15,23,42,0.1)] backdrop-blur"
 						>
 							<div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tracking Search</div>
-							<div className="mt-3 grid grid-cols-[7fr_3fr] items-center gap-2">
+							<div className="mt-3 grid grid-cols-[7fr_3fr] items-center gap-2.5">
 								<input
 									type="text"
 									value={trackingId}
@@ -204,7 +205,7 @@ export default function Hero() {
 								/>
 								<button
 									type="submit"
-									className="inline-flex h-12 min-w-0 items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-5 text-sm font-semibold text-white shadow-[0_12px_30px_rgba(15,23,42,0.24)]"
+									className="inline-flex h-12 min-w-0 items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-5 text-sm font-semibold text-white shadow-[0_14px_34px_rgba(15,23,42,0.28)]"
 								>
 									<Search className="h-4 w-4" />
 									Track Now
@@ -219,17 +220,17 @@ export default function Hero() {
 							<p className="mt-2 text-xs text-slate-500">without login</p>
 						</form>
 
-						<div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+						<div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
 							<a
 								href="/register"
-								className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-6 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(15,23,42,0.24)] transition-transform duration-200 hover:-translate-y-0.5"
+								className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-6 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(15,23,42,0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(15,23,42,0.34)]"
 							>
 								Create Free Account
 								<ArrowRight className="h-4 w-4" />
 							</a>
 							<a
 								href="#workflow"
-								className="inline-flex h-12 items-center justify-center rounded-full border border-slate-300 bg-white px-6 text-sm font-semibold text-slate-700 transition-colors duration-200 hover:border-slate-800 hover:text-slate-900"
+								className="inline-flex h-12 items-center justify-center rounded-full border border-slate-300 bg-white px-6 text-sm font-semibold text-slate-700 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-800 hover:text-slate-900"
 							>
 								<PlayCircle className="mr-2 h-4 w-4" />
 								Watch Demo
@@ -247,9 +248,9 @@ export default function Hero() {
 
 					</div>
 
-					<div className="relative flex min-h-[470px] items-center justify-center lg:justify-end">
+					<div className="relative flex min-h-[520px] items-center justify-center lg:justify-end">
 						<div className="pointer-events-none absolute inset-y-8 right-0 hidden w-[86%] rounded-[40px] bg-white/35 blur-xl lg:block" />
-						<div data-hero-stack="true" className="relative h-[440px] w-full max-w-[560px]">
+						<div data-hero-stack="true" className="relative h-[500px] w-full max-w-[620px]">
 							{rotatingCards.map((card, idx) => {
 								const order = (idx - activeCard + rotatingCards.length) % rotatingCards.length;
 								const isActive = order === 0;
@@ -261,7 +262,7 @@ export default function Hero() {
 									<article
 										key={card.title}
 										data-hero-card={card.title}
-										className="absolute left-1/2 top-0 h-[372px] w-[86%] -translate-x-1/2 overflow-hidden rounded-[24px] border border-white/70 bg-white/85 p-3 shadow-2xl backdrop-blur-xl transition-all duration-700 ease-out"
+										className="absolute left-1/2 top-0 h-[420px] w-[88%] -translate-x-1/2 overflow-hidden rounded-[24px] border border-white/70 bg-white/85 p-3 shadow-[0_38px_95px_rgba(15,23,42,0.22)] backdrop-blur-xl transition-all duration-700 ease-out"
 										style={{ zIndex, opacity, transform: `translateX(-50%) translateY(${translateY}px) scale(${scale})` }}
 									>
 										<div className="flex h-full flex-col rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(243,247,255,0.92))] p-3">

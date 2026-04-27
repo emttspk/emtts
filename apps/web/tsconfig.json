@@ -6,6 +6,8 @@
     "module": "ES2022",
     "skipLibCheck": true,
     "moduleResolution": "Bundler",
+    "allowJs": true,
+    "checkJs": false,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
