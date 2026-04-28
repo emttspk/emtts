@@ -167,3 +167,39 @@ model RefundRequest {
   @@index([userId])
   @@index([status])
 }
+
+model MoneyOrderTemplate {
+  id            String                    @id @default(uuid())
+  name          String
+  backgroundUrl String?
+  version       Int                       @default(1)
+  isActive      Boolean                   @default(false)
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  fields        MoneyOrderTemplateField[]
+
+  @@index([isActive])
+}
+
+model MoneyOrderTemplateField {
+  id         String             @id @default(uuid())
+  templateId String
+  fieldKey   String
+  fieldType  String
+  x          Float
+  y          Float
+  width      Float
+  height     Float
+  fontSize   Int                @default(12)
+  fontWeight String             @default("normal")
+  rotation   Float              @default(0)
+  isLocked   Boolean            @default(false)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  template   MoneyOrderTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@index([fieldKey])
+}

@@ -16,6 +16,7 @@ const titleMap: Array<{ prefix: string; title: string }> = [
   { prefix: "/select-package", title: "Select Package" },
   { prefix: "/update-package", title: "Update Package" },
   { prefix: "/settings", title: "Settings" },
+  { prefix: "/admin/template-designer", title: "Template Designer" },
   { prefix: "/admin", title: "Admin" },
 ];
 
@@ -54,7 +55,7 @@ export default function AppShell() {
 
   return (
     <div className="flex min-h-screen bg-brand-radial">
-      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} collapsed />
+      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} collapsed userEmail={me?.user.email} />
       <div className={cn("flex min-w-0 flex-1 flex-col", "md:pl-16 lg:pl-64")}>
         <Topbar title={title} setIsSidebarOpen={setIsSidebarOpen} userEmail={me?.user.email} />
 

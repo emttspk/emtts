@@ -26,6 +26,7 @@ const envSchema = z.object({
   ADMIN_BOOTSTRAP_SECRET: z.string().min(16).optional(),
   MONEY_ORDER_FRONT_IMAGE_PATH: z.string().optional(),
   MONEY_ORDER_BACK_IMAGE_PATH: z.string().optional(),
+  ENABLE_TEMPLATE_DESIGNER: z.string().default("false"),
 });
 
 export const env = envSchema.parse(process.env);

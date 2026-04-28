@@ -4,6 +4,7 @@ import RequireAuth from "./components/RequireAuth";
 import RequireAdmin from "./components/RequireAdmin";
 import AppShell from "./components/AppShell";
 import Card from "./components/Card";
+import { TEMPLATE_DESIGNER_ENABLED } from "./lib/featureFlags";
 
 const Home = lazy(() => import("./pages/Home"));
 const Login = lazy(() => import("./pages/Login"));
@@ -20,6 +21,7 @@ const SelectPackage = lazy(() => import("./pages/SelectPackage"));
 const UpdatePackage = lazy(() => import("./pages/UpdatePackage"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Admin = lazy(() => import("./pages/Admin"));
+const TemplateDesigner = lazy(() => import("./pages/TemplateDesigner"));
 
 function Loading() {
   return (
@@ -73,6 +75,16 @@ export default function App() {
               </RequireAdmin>
             }
           />
+          {TEMPLATE_DESIGNER_ENABLED ? (
+            <Route
+              path="/admin/template-designer"
+              element={
+                <RequireAdmin>
+                  <TemplateDesigner />
+                </RequireAdmin>
+              }
+            />
+          ) : null}
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

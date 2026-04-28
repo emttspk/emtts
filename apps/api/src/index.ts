@@ -12,6 +12,7 @@ import { handleLabelUpload, jobsRouter, labelUploadMiddleware } from "./routes/j
 import { trackingRouter } from "./routes/tracking.js";
 import { shipmentsRouter } from "./routes/shipments.js";
 import { adminRouter } from "./routes/admin.js";
+import { adminTemplatesRouter } from "./routes/adminTemplates.js";
 import { subscriptionsRouter } from "./routes/subscriptions.js";
 import { plansRouter, ensureDefaultPlans } from "./routes/plans.js";
 import { ensureStorageDirs } from "./storage/paths.js";
@@ -494,6 +495,7 @@ router.get("/label", (_req, res) => {
   });
 });
 router.use("/shipments", ensureApiDatabaseConnection, shipmentsRouter);
+router.use("/admin/templates", ensureApiDatabaseConnection, adminTemplatesRouter);
 router.use("/admin", ensureApiDatabaseConnection, adminRouter);
 router.use("/subscriptions", ensureApiDatabaseConnection, subscriptionsRouter);
 router.use("/plans", plansRouter);

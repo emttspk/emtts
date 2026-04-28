@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { clearSession, getRole } from "../lib/auth";
 import { cn } from "../lib/cn";
+import { TEMPLATE_DESIGNER_ADMIN_EMAIL, TEMPLATE_DESIGNER_ENABLED } from "../lib/featureFlags";
 
 const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -22,10 +23,14 @@ const nav = [
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
-export default function Sidebar(props: { isOpen: boolean; setIsOpen: (v: boolean) => void; collapsed?: boolean }) {
+export default function Sidebar(props: { isOpen: boolean; setIsOpen: (v: boolean) => void; collapsed?: boolean; userEmail?: string }) {
   const navigate = useNavigate();
   const role = getRole();
   const collapsed = Boolean(props.collapsed);
+  const canUseTemplateDesigner =
+    role === "ADMIN" &&
+    TEMPLATE_DESIGNER_ENABLED &&
+    String(props.userEmail ?? "").trim().toLowerCase() === TEMPLATE_DESIGNER_ADMIN_EMAIL;
 
   const NavItem = (p: { to: string; label: string; icon: any }) => (
     <NavLink
@@ -88,6 +93,7 @@ export default function Sidebar(props: { isOpen: boolean; setIsOpen: (v: boolean
               <NavItem key={n.to} {...n} />
             ))}
             {role === "ADMIN" ? <NavItem to="/admin" label="Admin" icon={Shield} /> : null}
+            {canUseTemplateDesigner ? <NavItem to="/admin/template-designer" label="Template Designer" icon={Shield} /> : null}
           </div>
         </nav>
 
