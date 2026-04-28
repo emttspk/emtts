@@ -22,7 +22,9 @@
     "start": "npm run start --workspace=@labelgen/api",
     "build": "npm run build --workspace=@labelgen/web && npm run build --workspace=@labelgen/api",
     "build:all": "npm run build",
+    "lint": "npm run lint --workspace=@labelgen/web && npm run lint --workspace=@labelgen/api",
     "typecheck": "npm run typecheck --workspace=@labelgen/web && npm run typecheck --workspace=@labelgen/api",
+    "test": "npm run smoke:railway --workspace=@labelgen/api",
     "preview": "npm run preview --workspace=@labelgen/web"
   },
   "dependencies": {

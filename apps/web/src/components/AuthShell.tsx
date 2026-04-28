@@ -23,26 +23,24 @@ export default function AuthShell(props: AuthShellProps) {
           </Link>
         </div>
 
-        <div className="grid min-h-[calc(100vh-6.5rem)] overflow-hidden rounded-[34px] border border-white/70 bg-white/82 shadow-[0_34px_90px_rgba(15,23,42,0.14)] backdrop-blur md:grid-cols-[54fr_46fr]">
+        <div className="grid min-h-[calc(100vh-6.5rem)] overflow-hidden rounded-[34px] border border-white/70 bg-white/82 shadow-[0_34px_90px_rgba(15,23,42,0.14)] backdrop-blur md:grid-cols-[53fr_47fr]">
           <section className="relative hidden min-h-[640px] md:block">
-            <img src={letterBoxImage} alt="Pakistan Post logistics" className="h-full w-full object-cover object-center" />
+            <img src={letterBoxImage} alt="Pakistan Post logistics" className="h-full w-full object-cover object-[center_35%]" />
             <div className="absolute inset-0 bg-[linear-gradient(145deg,rgba(2,6,23,0.72),rgba(11,107,58,0.44),rgba(2,6,23,0.35))]" />
-            <div className="absolute inset-x-10 bottom-10 max-w-[500px]">
+            <div className="absolute inset-x-10 bottom-10 max-w-[460px]">
               <div className="inline-flex items-center rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-emerald-200">
                 Epost.pk Enterprise
               </div>
               <h1 className="mt-4 font-display text-4xl font-black leading-[1.05] tracking-[-0.04em] text-white">
                 {props.mode === "register" ? "Create Your Shipping Workspace" : "Sign In To Operations Cloud"}
               </h1>
-              <p className="mt-3 text-sm leading-6 text-slate-200">
-                Premium dispatch tooling for labels, money orders, tracking, and complaint operations.
-              </p>
+              <p className="mt-3 text-sm leading-6 text-slate-200">Premium dispatch tooling for labels, tracking, and operations.</p>
             </div>
           </section>
 
           <section className="flex items-center justify-center p-5 sm:p-8 lg:p-10">
-            <div className="w-full max-w-[460px] rounded-[30px] border border-slate-200/90 bg-white p-6 shadow-[0_20px_50px_rgba(15,23,42,0.12)] sm:p-8">
-              <div className="mb-6 flex items-center justify-between">
+            <div className="w-full max-w-[450px] rounded-[30px] border border-slate-200/90 bg-white p-6 shadow-[0_26px_60px_rgba(15,23,42,0.16)] sm:p-7">
+              <div className="mb-5 flex items-center justify-between">
                 <div className="inline-flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#0f172a,#0b6b3a)] text-sm font-extrabold text-white">EP</div>
                   <div>
@@ -57,8 +55,8 @@ export default function AuthShell(props: AuthShellProps) {
               </div>
 
               <h2 className="text-2xl font-bold tracking-[-0.02em] text-slate-950">{props.title}</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">{props.subtitle}</p>
-              <div className="mt-6">{props.children}</div>
+              <p className="mt-1.5 text-sm leading-6 text-slate-600">{props.subtitle}</p>
+              <div className="mt-5">{props.children}</div>
             </div>
           </section>
         </div>

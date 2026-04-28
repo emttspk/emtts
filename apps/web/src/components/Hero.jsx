@@ -69,8 +69,15 @@ export default function Hero() {
 	const [trackingId, setTrackingId] = useState("");
 	const [activeCard, setActiveCard] = useState(0);
 	const [isChanging, setIsChanging] = useState(false);
+	const [mounted, setMounted] = useState(false);
+	const [parallax, setParallax] = useState({ x: 0, y: 0 });
 	const navigate = useNavigate();
 	const orderedCards = useMemo(() => rotatingCards, []);
+
+	useEffect(() => {
+		const enter = window.setTimeout(() => setMounted(true), 40);
+		return () => window.clearTimeout(enter);
+	}, []);
 
 	useEffect(() => {
 		const timer = window.setInterval(() => {
@@ -84,6 +91,7 @@ export default function Hero() {
 	}, [orderedCards.length]);
 
 	const activeItem = orderedCards[activeCard];
+	const floatingOffset = Math.sin((activeCard + 1) * 0.85) * 5;
 
 	const stepCard = (direction) => {
 		setIsChanging(true);
@@ -109,13 +117,24 @@ export default function Hero() {
 		navigate(`/tracking?ids=${encodeURIComponent(ids.join(","))}`);
 	};
 
+	const handleParallaxMove = (event) => {
+		const rect = event.currentTarget.getBoundingClientRect();
+		const x = ((event.clientX - rect.left) / rect.width - 0.5) * 10;
+		const y = ((event.clientY - rect.top) / rect.height - 0.5) * 8;
+		setParallax({ x, y });
+	};
+
+	const resetParallax = () => setParallax({ x: 0, y: 0 });
+
 	return (
 		<section className="relative overflow-hidden bg-[radial-gradient(circle_at_12%_18%,rgba(16,185,129,0.18),transparent_31%),radial-gradient(circle_at_88%_18%,rgba(14,116,144,0.15),transparent_28%),linear-gradient(180deg,#f7fbf8_0%,#edf7f2_44%,#eef2ff_100%)]">
 			<div className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.42),transparent_45%,rgba(255,255,255,0.2)_100%)]" />
 
 			<div className="relative mx-auto w-full max-w-[1440px] px-6 lg:px-12">
-				<div className="grid min-h-[620px] items-center gap-10 overflow-hidden py-10 lg:h-[calc(100vh-76px)] lg:max-h-[760px] lg:grid-cols-[48fr_52fr] lg:gap-14 lg:py-6">
-					<div className="flex min-w-0 flex-col justify-center">
+				<div className="grid min-h-[620px] items-center gap-10 overflow-hidden py-10 lg:h-[calc(100vh-76px)] lg:max-h-[860px] lg:grid-cols-2 lg:gap-12 lg:py-6">
+					<div
+						className={`flex min-w-0 flex-col justify-center transition-all duration-700 ${mounted ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"}`}
+					>
 						<div className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-100 bg-white/90 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700 shadow-sm">
 							<span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
 							Enterprise Logistics Workspace
@@ -176,9 +195,22 @@ export default function Hero() {
 						</div>
 					</div>
 
-					<div className="relative hidden min-h-[500px] items-center justify-center overflow-hidden lg:flex">
-						<div className="pointer-events-none absolute inset-x-8 inset-y-10 rounded-[42px] bg-[linear-gradient(160deg,rgba(255,255,255,0.78),rgba(255,255,255,0.42))]" />
-						<div className="relative h-[520px] w-full max-w-[560px]">
+					<div
+						onMouseMove={handleParallaxMove}
+						onMouseLeave={resetParallax}
+						className={`relative hidden min-h-[500px] items-center justify-center overflow-hidden transition-all duration-700 lg:flex ${mounted ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"}`}
+					>
+						<div className="pointer-events-none absolute inset-x-8 inset-y-8 rounded-[42px] border border-white/70 bg-white/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] backdrop-blur-xl" />
+						<div
+							className="relative w-full max-w-[640px] overflow-hidden rounded-[34px] border border-white/75 bg-white/72 p-4 shadow-[0_28px_80px_rgba(15,23,42,0.25),0_8px_24px_rgba(15,23,42,0.12)] backdrop-blur-xl"
+							style={{
+								height: "min(80vh, 690px)",
+								transform: `translate3d(${parallax.x}px, ${parallax.y + floatingOffset}px, 0)`,
+								transition: "transform 280ms ease",
+							}}
+						>
+							<div className="pointer-events-none absolute inset-0 rounded-[30px] bg-[linear-gradient(140deg,rgba(255,255,255,0.58),rgba(255,255,255,0.16))]" />
+							<div className="relative h-full">
 							{orderedCards.map((card, idx) => {
 								const order = (idx - activeCard + orderedCards.length) % orderedCards.length;
 								if (order > 2) return null;
@@ -192,7 +224,7 @@ export default function Hero() {
 								return (
 									<article
 										key={card.title}
-										className="absolute left-1/2 top-8 w-[92%] max-w-[500px] overflow-hidden rounded-[30px] border border-white/80 bg-white/92 shadow-[0_26px_74px_rgba(15,23,42,0.22)] transition-all duration-700"
+										className="absolute left-1/2 top-8 w-[94%] max-w-[560px] overflow-hidden rounded-[30px] border border-white/80 bg-white/92 shadow-[0_26px_74px_rgba(15,23,42,0.22)] transition-all duration-700"
 										style={{
 											zIndex,
 											opacity,
@@ -213,7 +245,7 @@ export default function Hero() {
 												<AdaptiveImageRenderer
 													src={card.image}
 													alt={card.alt}
-													className="mx-auto w-full max-w-[420px]"
+													className="mx-auto w-full max-w-[460px]"
 													frameClassName="shadow-[0_10px_30px_rgba(15,23,42,0.1)]"
 													imageClassName={isChanging && order === 0 ? "scale-[0.98] opacity-80 transition" : "transition"}
 												/>
@@ -234,7 +266,7 @@ export default function Hero() {
 								);
 							})}
 
-							<div className="absolute bottom-8 left-1/2 flex -translate-x-1/2 items-center gap-2">
+							<div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2">
 								<button
 									type="button"
 									onClick={() => stepCard("prev")}
@@ -259,8 +291,9 @@ export default function Hero() {
 								</button>
 							</div>
 
-							<div className="absolute bottom-20 left-1/2 -translate-x-1/2 rounded-full border border-emerald-100 bg-white/92 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
+							<div className="absolute bottom-[4.5rem] left-1/2 -translate-x-1/2 rounded-full border border-emerald-100 bg-white/92 px-4 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
 								{activeItem?.title}
+							</div>
 							</div>
 						</div>
 					</div>

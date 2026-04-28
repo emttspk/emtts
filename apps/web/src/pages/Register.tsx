@@ -44,12 +44,12 @@ export default function Register() {
     <AuthShell
       mode="register"
       title="Create free account"
-      subtitle="Set up account and sender profile in one compact onboarding flow."
+      subtitle="Set up account and sender profile."
     >
       {err ? <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">{err}</div> : null}
 
       <form
-        className="space-y-4"
+        className="space-y-3.5"
         onSubmit={async (e) => {
           e.preventDefault();
           setErr(null);
@@ -102,11 +102,11 @@ export default function Register() {
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">Account</div>
           <label className="block text-sm">
             <div className="mb-2 font-medium text-slate-700">Email *</div>
-            <input className="field-input" value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@company.com" required />
+            <input className="field-input focus:ring-emerald-200" value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@company.com" required />
           </label>
           <label className="block text-sm">
             <div className="mb-2 font-medium text-slate-700">Password *</div>
-            <input className="field-input" value={password} onChange={(e) => setPassword(e.target.value)} type="password" minLength={8} placeholder="At least 8 characters" required />
+            <input className="field-input focus:ring-emerald-200" value={password} onChange={(e) => setPassword(e.target.value)} type="password" minLength={8} placeholder="At least 8 characters" required />
           </label>
         </div>
 
@@ -115,17 +115,17 @@ export default function Register() {
 
           <label className="block text-sm">
             <div className="mb-2 font-medium text-slate-700">Company Name *</div>
-            <input className="field-input" value={companyName} onChange={(e) => setCompanyName(e.target.value)} type="text" placeholder="Hoja Seeds Ltd." maxLength={120} required />
+            <input className="field-input focus:ring-emerald-200" value={companyName} onChange={(e) => setCompanyName(e.target.value)} type="text" placeholder="Hoja Seeds Ltd." maxLength={120} required />
           </label>
 
           <label className="block text-sm">
             <div className="mb-2 font-medium text-slate-700">Address *</div>
-            <input className="field-input" value={address} onChange={(e) => setAddress(e.target.value)} type="text" placeholder="123 Business Street, Karachi" maxLength={300} required />
+            <input className="field-input focus:ring-emerald-200" value={address} onChange={(e) => setAddress(e.target.value)} type="text" placeholder="123 Business Street, Karachi" maxLength={300} required />
           </label>
 
           <label className="block text-sm">
             <div className="mb-2 font-medium text-slate-700">City *</div>
-            <input className="field-input" value={originCity} onChange={(e) => setOriginCity(e.target.value)} type="text" placeholder="Karachi" maxLength={80} required />
+            <input className="field-input focus:ring-emerald-200" value={originCity} onChange={(e) => setOriginCity(e.target.value)} type="text" placeholder="Karachi" maxLength={80} required />
           </label>
 
           <div className="block text-sm">

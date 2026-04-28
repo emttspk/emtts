@@ -15,12 +15,12 @@ export default function Login() {
     <AuthShell
       mode="login"
       title="Sign in"
-      subtitle="Access your shipment workspace with labels, money orders, tracking, and complaints."
+      subtitle="Access your shipment workspace."
     >
       {err ? <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{err}</div> : null}
 
       <form
-        className="space-y-4"
+        className="space-y-3.5"
         onSubmit={async (e) => {
           e.preventDefault();
           setErr(null);
@@ -48,12 +48,12 @@ export default function Login() {
       >
         <label className="block text-sm">
           <div className="mb-2 font-medium text-slate-900">Email</div>
-          <input className="field-input" value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@company.com" required />
+          <input className="field-input focus:ring-emerald-200" value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@company.com" required />
         </label>
 
         <label className="block text-sm">
           <div className="mb-2 font-medium text-slate-900">Password</div>
-          <input className="field-input" value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="********" required />
+          <input className="field-input focus:ring-emerald-200" value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="********" required />
         </label>
 
         <button disabled={loading} className="btn-primary mt-1 w-full">

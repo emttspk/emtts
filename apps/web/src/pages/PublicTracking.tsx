@@ -53,6 +53,8 @@ type TrackingCollectionResponse = {
   results: TrackingResult[];
 };
 
+const STAGE_LABELS = ["Booked", "In Transit", "At Hub", "Out for Delivery", "Delivered"] as const;
+
 function normalizeTrackingIds(value: string) {
   return Array.from(
     new Set(
@@ -90,9 +92,30 @@ function getDisplayProgress(result: TrackingResult) {
   return 10;
 }
 
+function inferEventStage(description: string) {
+  const text = String(description ?? "").toLowerCase();
+  if (!text) return STAGE_LABELS[0];
+  if (text.includes("deliver")) return STAGE_LABELS[4];
+  if (text.includes("out for delivery")) return STAGE_LABELS[3];
+  if (text.includes("hub") || text.includes("dispatch") || text.includes("arrival")) return STAGE_LABELS[2];
+  if (text.includes("transit") || text.includes("in route") || text.includes("moving")) return STAGE_LABELS[1];
+  return STAGE_LABELS[0];
+}
+
+function stageIndexForStatus(status: string) {
+  const text = String(status ?? "").toLowerCase();
+  if (text.includes("deliver")) return 4;
+  if (text.includes("out for delivery")) return 3;
+  if (text.includes("hub") || text.includes("dispatch")) return 2;
+  if (text.includes("transit") || text.includes("pending")) return 1;
+  return 0;
+}
+
 function TrackingResultCard({ result }: { result: TrackingResult }) {
   const timeline = result.history ?? result.events ?? [];
+  const newestFirstTimeline = [...timeline].reverse();
   const progress = getDisplayProgress(result);
+  const activeStage = stageIndexForStatus(result.status);
 
   return (
     <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
@@ -150,21 +173,51 @@ function TrackingResultCard({ result }: { result: TrackingResult }) {
 
       <div className="mt-5 rounded-2xl border border-slate-200 bg-white">
         <div className="border-b border-slate-200 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">History</div>
-        {timeline.length > 0 ? (
-          <ol className="space-y-3 p-4">
-            {[...timeline].reverse().map((event, index) => (
-              <li key={`${result.tracking_number}-${event.date}-${event.time}-${index}`} className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-sm font-semibold text-slate-800">{event.description || "-"}</div>
-                  <div className="text-xs text-slate-400">{[event.date, event.time].filter(Boolean).join(" ") || "-"}</div>
-                </div>
-                <div className="mt-1 flex items-center gap-1 text-xs text-slate-500">
-                  <MapPin className="h-3 w-3" />
-                  {event.location || "-"}
-                </div>
-              </li>
-            ))}
-          </ol>
+        {newestFirstTimeline.length > 0 ? (
+          <div className="grid gap-4 p-4 lg:grid-cols-[200px_1fr]">
+            <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Shipment Stages</div>
+              <ol className="relative mt-3 space-y-2.5">
+                {STAGE_LABELS.map((stage, idx) => {
+                  const isDone = idx <= activeStage;
+                  return (
+                    <li key={`${result.tracking_number}-${stage}`} className="relative pl-6 text-xs font-semibold text-slate-600">
+                      {idx < STAGE_LABELS.length - 1 ? (
+                        <span className={`absolute left-[8px] top-4 h-7 w-[2px] ${idx < activeStage ? "bg-emerald-400" : "bg-slate-300"}`} />
+                      ) : null}
+                      <span className={`absolute left-0 top-1.5 h-4 w-4 rounded-full border ${isDone ? "border-emerald-500 bg-emerald-500 animate-pulse" : "border-slate-300 bg-white"}`} />
+                      <span className={`${isDone ? "text-slate-800" : "text-slate-500"}`}>{stage}</span>
+                    </li>
+                  );
+                })}
+              </ol>
+            </aside>
+
+            <ol className="relative space-y-3">
+              <div className="pointer-events-none absolute bottom-1 top-1 left-[7px] w-[2px] bg-gradient-to-b from-emerald-400 to-emerald-200" />
+              {newestFirstTimeline.map((event, index) => {
+                const stage = inferEventStage(event.description);
+                return (
+                  <li
+                    key={`${result.tracking_number}-${event.date}-${event.time}-${index}`}
+                    className="relative translate-y-0 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 opacity-100 transition-all duration-500"
+                    style={{ transitionDelay: `${Math.min(index * 60, 320)}ms` }}
+                  >
+                    <span className="absolute left-[-1px] top-4 h-4 w-4 rounded-full border-2 border-emerald-500 bg-white shadow-[0_0_0_4px_rgba(16,185,129,0.15)]" />
+                    <div className="ml-5 flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-sm font-semibold text-slate-800">{event.description || "-"}</div>
+                      <div className="text-xs text-slate-400">{[event.date, event.time].filter(Boolean).join(" ") || "-"}</div>
+                    </div>
+                    <div className="ml-5 mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                      <MapPin className="h-3 w-3" />
+                      <span>{event.location || "-"}</span>
+                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-700">{stage}</span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
         ) : (
           <div className="px-4 py-5 text-sm text-slate-500">No tracking history recorded yet for this shipment.</div>
         )}
