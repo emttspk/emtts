@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Card from "../components/Card";
 import { api } from "../lib/api";
+import { TEMPLATE_DESIGNER_ENABLED } from "../lib/featureFlags";
 
 type Plan = { id: string; name: string; priceCents: number; monthlyLabelLimit: number; monthlyTrackingLimit: number; createdAt: string };
 type AdminUser = {
@@ -48,6 +50,7 @@ const formatPKR = new Intl.NumberFormat("en-PK", {
 });
 
 export default function Admin() {
+  const navigate = useNavigate();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [usage, setUsage] = useState<UsageRow[]>([]);
@@ -144,6 +147,14 @@ export default function Admin() {
           <Card className="p-6"><div className="text-sm text-slate-500">Active Customers</div><div className="mt-2 text-3xl font-semibold text-slate-950">{users.filter((u) => !u.suspended).length}</div></Card>
           <Card className="p-6"><div className="text-sm text-slate-500">Suspended</div><div className="mt-2 text-3xl font-semibold text-slate-950">{users.filter((u) => u.suspended).length}</div></Card>
           <Card className="p-6"><div className="text-sm text-slate-500">Business Plan Users</div><div className="mt-2 text-3xl font-semibold text-slate-950">{users.filter((u) => (u.subscription?.plan?.name ?? "") === "Business Plan").length}</div></Card>
+          {TEMPLATE_DESIGNER_ENABLED ? (
+            <Card className="p-6 md:col-span-3">
+              <div className="text-sm text-slate-500">Admin Tools</div>
+              <div className="mt-2 text-lg font-semibold text-slate-950">Money Order Designer</div>
+              <div className="mt-1 text-sm text-slate-600">Create and manage isolated money order template layouts for internal preview mode.</div>
+              <button className="mt-4 rounded-2xl bg-brand px-4 py-2 text-sm font-medium text-white" onClick={() => navigate("/admin/template-designer")}>Open Money Order Designer</button>
+            </Card>
+          ) : null}
         </div>
       ) : null}
 

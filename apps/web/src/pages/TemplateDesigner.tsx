@@ -53,18 +53,18 @@ const DEFAULT_FIELD_KEYS = [
 ] as const;
 
 const PREVIEW_SAMPLE_DATA: Record<string, string> = {
-  sender_name: "Muhammad Ali",
+  sender_name: "Hoja Seeds",
   sender_cnic: "35202-1234567-1",
-  receiver_name: "Ayesha Khan",
-  receiver_address: "House 22, Street 4, G-11/3, Islamabad",
-  sender_address: "Shop 15, Saddar Bazar, Lahore",
-  tracking_id: "VPL26030700",
-  money_order_id: "MO24070001",
-  amount: "7500",
-  amount_words: "Seven Thousand Five Hundred Rupees Only",
-  date: new Date().toISOString().slice(0, 10),
-  barcode_tracking: "VPL26030700",
-  barcode_money_order: "MO24070001",
+  receiver_name: "Sajid Hussain",
+  receiver_address: "Bahawalpur",
+  sender_address: "",
+  tracking_id: "VPL26030759",
+  money_order_id: "MOS26040001",
+  amount: "800",
+  amount_words: "",
+  date: "",
+  barcode_tracking: "VPL26030759",
+  barcode_money_order: "MOS26040001",
 };
 
 function nextFieldKey(existingFields: MoneyOrderTemplateField[], preferred: string) {
@@ -155,6 +155,15 @@ export default function TemplateDesigner() {
     );
   }
 
+  async function duplicateTemplate(templateId: string) {
+    const result = await api<{ template: MoneyOrderTemplate }>(`/api/admin/templates/${templateId}/duplicate`, {
+      method: "POST",
+    });
+    setTemplates((previous) => [result.template, ...previous]);
+    setSelectedTemplateId(result.template.id);
+    setPreviewMode(false);
+  }
+
   async function removeTemplate(templateId: string) {
     await api(`/api/admin/templates/${templateId}`, { method: "DELETE" });
     setTemplates((previous) => previous.filter((template) => template.id !== templateId));
@@ -176,6 +185,15 @@ export default function TemplateDesigner() {
     const result = await api<{ template: MoneyOrderTemplate }>(`/api/admin/templates/${selectedTemplate.id}`, {
       method: "PUT",
       body: JSON.stringify({ backgroundUrl: upload.backgroundUrl }),
+    });
+    setTemplates((previous) => previous.map((template) => (template.id === selectedTemplate.id ? result.template : template)));
+  }
+
+  async function deleteBackground() {
+    if (!selectedTemplate) return;
+    const result = await api<{ template: MoneyOrderTemplate }>(`/api/admin/templates/${selectedTemplate.id}`, {
+      method: "PUT",
+      body: JSON.stringify({ backgroundUrl: null }),
     });
     setTemplates((previous) => previous.map((template) => (template.id === selectedTemplate.id ? result.template : template)));
   }
@@ -308,9 +326,14 @@ export default function TemplateDesigner() {
         selectedTemplateId={selectedTemplateId}
         onSelectTemplate={setSelectedTemplateId}
         onCreateTemplate={createTemplate}
+        onDuplicateTemplate={duplicateTemplate}
         onActivateTemplate={activateTemplate}
         onDeleteTemplate={removeTemplate}
         onRenameTemplate={renameTemplate}
+        onPreviewTemplate={(templateId) => {
+          setSelectedTemplateId(templateId);
+          setPreviewMode(true);
+        }}
       />
 
       <div className="space-y-4">
@@ -322,6 +345,7 @@ export default function TemplateDesigner() {
           onRefresh={refreshTemplates}
           onTogglePreview={() => setPreviewMode((current) => !current)}
           onUploadBackground={uploadBackground}
+          onDeleteBackground={deleteBackground}
         />
         <TemplateCanvas
           template={selectedTemplate}

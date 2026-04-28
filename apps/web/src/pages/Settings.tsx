@@ -5,6 +5,7 @@ import { clearSession } from "../lib/auth";
 import { api } from "../lib/api";
 import type { MeResponse } from "../lib/types";
 import { resolvePackageMeta, usagePercent } from "../lib/packageCatalog";
+import { TEMPLATE_DESIGNER_ADMIN_EMAIL, TEMPLATE_DESIGNER_ENABLED } from "../lib/featureFlags";
 
 type ShellCtx = { me: MeResponse | null; refreshMe: () => Promise<void> };
 
@@ -27,6 +28,10 @@ export default function Settings() {
   const usedPercent = usagePercent(remainingUnits, unitLimit);
   const billingStatus = me?.subscription?.status ?? me?.activePackage?.status ?? "-";
   const expiryDate = me?.activePackage?.expiresAt ?? me?.subscription?.currentPeriodEnd;
+  const canUseTemplateDesigner =
+    me?.user.role === "ADMIN" &&
+    TEMPLATE_DESIGNER_ENABLED &&
+    String(me?.user.email ?? "").trim().toLowerCase() === TEMPLATE_DESIGNER_ADMIN_EMAIL;
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -154,6 +159,16 @@ export default function Settings() {
 
           <form onSubmit={handleSave} className="mt-6 grid gap-4">
           <div>
+
+          {canUseTemplateDesigner ? (
+            <Card className="p-6">
+              <div className="text-xl font-medium text-gray-900">Admin tools</div>
+              <div className="mt-1 text-sm text-gray-600">Internal-only controls for advanced money order layout management.</div>
+              <div className="mt-4">
+                <button type="button" className="btn-primary" onClick={() => nav("/admin/template-designer")}>Open Money Order Designer</button>
+              </div>
+            </Card>
+          ) : null}
             <label className="block text-sm font-medium text-gray-700" htmlFor="companyName">Company / Sender Name</label>
             <input
               id="companyName"

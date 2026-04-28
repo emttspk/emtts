@@ -16,15 +16,17 @@ export default function TemplateSidebar(props: {
   selectedTemplateId: string | null;
   onSelectTemplate: (templateId: string) => void;
   onCreateTemplate: (name: string) => Promise<void>;
+  onDuplicateTemplate: (templateId: string) => Promise<void>;
   onActivateTemplate: (templateId: string) => Promise<void>;
   onDeleteTemplate: (templateId: string) => Promise<void>;
   onRenameTemplate: (templateId: string, name: string) => Promise<void>;
+  onPreviewTemplate: (templateId: string) => void;
 }) {
   const [newTemplateName, setNewTemplateName] = useState("Money Order Template");
 
   return (
     <Card className="h-fit p-4">
-      <div className="text-sm font-semibold uppercase tracking-wide text-slate-500">Templates</div>
+      <div className="text-sm font-semibold uppercase tracking-wide text-slate-500">Template Dashboard</div>
       <div className="mt-3 flex gap-2">
         <input
           className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
@@ -63,7 +65,26 @@ export default function TemplateSidebar(props: {
               ) : null}
             </div>
             <div className="mt-1 text-xs text-slate-500">v{template.version}</div>
+            <div className="mt-1 text-xs text-slate-500">Created: {new Date(template.createdAt).toLocaleDateString("en-PK")}</div>
             <div className="mt-3 flex flex-wrap gap-1">
+              <button
+                className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-700"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  props.onSelectTemplate(template.id);
+                }}
+              >
+                Edit
+              </button>
+              <button
+                className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-700"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void props.onDuplicateTemplate(template.id);
+                }}
+              >
+                Duplicate
+              </button>
               <button
                 className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-700"
                 onClick={(event) => {
@@ -83,6 +104,15 @@ export default function TemplateSidebar(props: {
                 }}
               >
                 Activate
+              </button>
+              <button
+                className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-700"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  props.onPreviewTemplate(template.id);
+                }}
+              >
+                Preview
               </button>
               <button
                 className="rounded-lg border border-red-200 px-2 py-1 text-[11px] font-medium text-red-700"

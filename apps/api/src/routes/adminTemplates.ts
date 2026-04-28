@@ -106,6 +106,54 @@ const templateInclude = {
   },
 };
 
+const DEFAULT_TEMPLATE_NAME = "Default Money Order Template";
+const DEFAULT_TEMPLATE_FIELDS = [
+  "sender_name",
+  "sender_cnic",
+  "receiver_name",
+  "receiver_address",
+  "sender_address",
+  "tracking_id",
+  "money_order_id",
+  "amount",
+  "amount_words",
+  "date",
+] as const;
+
+function inferFieldType(fieldKey: string): "text" | "date" | "amount" {
+  if (fieldKey === "date") return "date";
+  if (fieldKey === "amount") return "amount";
+  return "text";
+}
+
+async function ensureDefaultTemplate() {
+  const existing = await prisma.moneyOrderTemplate.count();
+  if (existing > 0) return;
+
+  await prisma.moneyOrderTemplate.create({
+    data: {
+      name: DEFAULT_TEMPLATE_NAME,
+      version: 1,
+      isActive: true,
+      backgroundUrl: null,
+      fields: {
+        create: DEFAULT_TEMPLATE_FIELDS.map((fieldKey, index) => ({
+          fieldKey,
+          fieldType: inferFieldType(fieldKey),
+          x: 40,
+          y: 40 + index * 42,
+          width: 320,
+          height: 34,
+          fontSize: 13,
+          fontWeight: "normal",
+          rotation: 0,
+          isLocked: false,
+        })),
+      },
+    },
+  });
+}
+
 async function requireTemplateDesignerAccess(req: AuthedRequest, res: any, next: any) {
   if (!isTemplateDesignerEnabled()) {
     return res.status(404).json({ error: "Not found" });
@@ -136,6 +184,8 @@ export const adminTemplatesRouter = Router();
 adminTemplatesRouter.use(requireAuth, requireAdmin, requireTemplateDesignerAccess);
 
 adminTemplatesRouter.get("/", async (_req, res) => {
+  await ensureDefaultTemplate();
+
   const templates = await prisma.moneyOrderTemplate.findMany({
     include: templateInclude,
     orderBy: [{ isActive: "desc" }, { updatedAt: "desc" }],
@@ -267,6 +317,43 @@ adminTemplatesRouter.post("/:id/activate", async (req, res) => {
   });
 
   return res.json({ template });
+});
+
+adminTemplatesRouter.post("/:id/duplicate", async (req, res) => {
+  const source = await prisma.moneyOrderTemplate.findUnique({
+    where: { id: req.params.id },
+    include: templateInclude,
+  });
+
+  if (!source) {
+    return res.status(404).json({ error: "Template not found" });
+  }
+
+  const template = await prisma.moneyOrderTemplate.create({
+    data: {
+      name: `${source.name} Copy`,
+      backgroundUrl: source.backgroundUrl,
+      version: source.version,
+      isActive: false,
+      fields: {
+        create: source.fields.map((field) => ({
+          fieldKey: field.fieldKey,
+          fieldType: field.fieldType,
+          x: field.x,
+          y: field.y,
+          width: field.width,
+          height: field.height,
+          fontSize: field.fontSize,
+          fontWeight: field.fontWeight,
+          rotation: field.rotation,
+          isLocked: field.isLocked,
+        })),
+      },
+    },
+    include: templateInclude,
+  });
+
+  return res.status(201).json({ template });
 });
 
 adminTemplatesRouter.post("/:id/fields", async (req, res) => {

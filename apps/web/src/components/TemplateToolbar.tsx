@@ -17,6 +17,7 @@ export default function TemplateToolbar(props: {
   previewMode: boolean;
   fieldKeys: readonly string[];
   onUploadBackground: (file: File) => Promise<void>;
+  onDeleteBackground: () => Promise<void>;
   onAddField: (fieldType: FieldType, fieldKey: string) => Promise<void>;
   onTogglePreview: () => void;
   onRefresh: () => Promise<void>;
@@ -25,7 +26,7 @@ export default function TemplateToolbar(props: {
     <Card className="p-4">
       <div className="flex flex-wrap items-center gap-2">
         <label className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700">
-          Upload background
+          {props.selectedTemplate?.backgroundUrl ? "Replace background" : "Upload background"}
           <input
             type="file"
             accept=".png,.jpg,.jpeg,.pdf"
@@ -39,6 +40,14 @@ export default function TemplateToolbar(props: {
             disabled={!props.selectedTemplate}
           />
         </label>
+
+        <button
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700"
+          onClick={() => void props.onDeleteBackground()}
+          disabled={!props.selectedTemplate?.backgroundUrl}
+        >
+          Delete background
+        </button>
 
         <button
           className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700"
