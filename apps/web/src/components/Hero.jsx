@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Search, ShieldCheck, CircleCheckBig, PlayCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import labelImage from "../assets/label.png";
 import moneyOrderImage from "../assets/money-order.png";
@@ -8,60 +8,52 @@ import complaintImage from "../assets/complaint.png";
 import packageImage from "../assets/package.png";
 import deliveryMonitoringImage from "../assets/delivery-monitoring.png";
 
-const trustIndicators = ["No credit card", "Free forever plan", "Public tracking", "Official Pakistan Post partner"];
-const trustBar = [
-	"Official Pakistan Post Partner",
-	"Secure Dispatch System",
-	"No Credit Card Required",
-	"Fast Setup",
-];
-
 const rotatingCards = [
 	{
-		title: "Label Preview",
-		description: "Official Pakistan Post dispatch label with barcode, value-payable amount, and full recipient details.",
+		title: "Labels",
+		description: "Generate official dispatch labels with barcodes and complete shipment fields.",
 		type: "image",
 		image: labelImage,
-		alt: "Pakistan Post label preview",
+		alt: "Label product preview",
 	},
 	{
-		title: "Money Order Preview",
-		description: "Official money order sender copy with reference barcode, amount, sender and receiver fields.",
+		title: "Money Orders",
+		description: "Create sender and receiver money-order documents from the same workflow.",
 		type: "image",
 		image: moneyOrderImage,
-		alt: "Pakistan Post money order preview",
+		alt: "Money order product preview",
 	},
 	{
-		title: "Tracking Preview",
-		description: "Pakistan route map with live status badges, ETA, and city-level movement.",
+		title: "Tracking",
+		description: "Track live parcel movement with status updates and route visibility.",
 		type: "image",
 		image: trackingImage,
-		alt: "Tracking preview",
+		alt: "Tracking product preview",
 	},
 	{
-		title: "Complaint Form",
-		description: "Smart complaint capture form with tracking reference, issue type, and SLA-friendly severity.",
+		title: "Complaints",
+		description: "Capture complaints with shipment context and operational follow-up states.",
 		type: "image",
 		image: complaintImage,
-		alt: "Complaint form preview",
+		alt: "Complaint product preview",
 	},
 	{
-		title: "Dispatch Dashboard",
-		description: "Real-time operations metrics for parcels, delivery completion, complaints, and money orders.",
+		title: "Delivery Monitoring",
+		description: "Monitor delivery progress and completion trends for active dispatch batches.",
 		type: "image",
 		image: deliveryMonitoringImage,
-		alt: "Dispatch dashboard preview",
+		alt: "Delivery monitoring product preview",
 	},
 	{
 		title: "Parcel Booking",
-		description: "Book parcel batches quickly with production-grade booking and manifest tooling.",
+		description: "Book parcel jobs quickly with bulk-ready booking and manifest support.",
 		type: "image",
 		image: packageImage,
-		alt: "Parcel booking preview",
+		alt: "Parcel booking product preview",
 	},
 ];
 
-const layerGap = 18;
+const layerGap = 20;
 
 function useImageOrientation(cards) {
 	const [orientationMap, setOrientationMap] = useState({});
@@ -93,13 +85,15 @@ function useImageOrientation(cards) {
 
 function renderCardSurface(card, orientation) {
 	const isVertical = orientation === "vertical";
-	const ratioClass = isVertical ? "aspect-[4/5]" : "aspect-[16/10]";
+	const frameClass = isVertical
+		? "h-[320px] w-[58%] max-w-[230px]"
+		: "h-[260px] w-[92%] max-w-[460px]";
 
 	return (
-		<div className="relative flex-1 overflow-hidden rounded-[22px] border border-white/75 bg-[linear-gradient(150deg,rgba(255,255,255,0.95),rgba(239,246,255,0.92))] shadow-[0_26px_70px_rgba(15,23,42,0.18),inset_0_1px_0_rgba(255,255,255,0.88)]">
-			<div className="absolute inset-0 bg-[radial-gradient(circle_at_24%_20%,rgba(16,185,129,0.16),transparent_55%),radial-gradient(circle_at_88%_82%,rgba(37,99,235,0.14),transparent_45%)]" />
-			<div className="relative flex h-full items-center justify-center p-4">
-				<div className={`w-full max-w-[410px] ${ratioClass} overflow-hidden rounded-[18px] border border-slate-200/75 bg-white/92 shadow-[0_12px_34px_rgba(15,23,42,0.12)]`}>
+		<div className="relative flex h-full items-center justify-center overflow-hidden rounded-[24px] border border-white/75 bg-[linear-gradient(150deg,rgba(255,255,255,0.96),rgba(239,246,255,0.93))] shadow-[0_24px_65px_rgba(15,23,42,0.18),inset_0_1px_0_rgba(255,255,255,0.86)]">
+			<div className="absolute inset-0 bg-[radial-gradient(circle_at_22%_14%,rgba(16,185,129,0.16),transparent_52%),radial-gradient(circle_at_86%_85%,rgba(37,99,235,0.14),transparent_48%)]" />
+			<div className="relative flex h-full w-full items-center justify-center px-4 py-5">
+				<div className={`${frameClass} overflow-hidden rounded-[18px] border border-slate-200/75 bg-white/95 shadow-[0_14px_36px_rgba(15,23,42,0.12)]`}>
 					<div className="flex h-full w-full items-center justify-center p-3">
 						<img src={card.image} alt={card.alt} className="h-full w-full object-contain object-center" />
 					</div>
@@ -112,16 +106,38 @@ function renderCardSurface(card, orientation) {
 export default function Hero() {
 	const [trackingId, setTrackingId] = useState("");
 	const [activeCard, setActiveCard] = useState(0);
+	const [isFlipping, setIsFlipping] = useState(false);
 	const navigate = useNavigate();
 	const orientationMap = useImageOrientation(rotatingCards);
 	const orderedCards = useMemo(() => rotatingCards, []);
 
 	useEffect(() => {
 		const timer = window.setInterval(() => {
-			setActiveCard((prev) => (prev + 1) % orderedCards.length);
-		}, 3000);
-		return () => window.clearInterval(timer);
+			setIsFlipping(true);
+			window.setTimeout(() => {
+				setActiveCard((prev) => (prev + 1) % orderedCards.length);
+				setIsFlipping(false);
+			}, 380);
+		}, 3600);
+		return () => {
+			window.clearInterval(timer);
+		};
 	}, [orderedCards.length]);
+
+	const activeTitle = orderedCards[activeCard]?.title;
+
+	const stepCard = (direction) => {
+		setIsFlipping(true);
+		window.setTimeout(() => {
+			setActiveCard((prev) => {
+				if (direction === "next") {
+					return (prev + 1) % orderedCards.length;
+				}
+				return (prev - 1 + orderedCards.length) % orderedCards.length;
+			});
+			setIsFlipping(false);
+		}, 250);
+	};
 
 	const handleTrackingSubmit = (event) => {
 		event.preventDefault();
@@ -137,41 +153,28 @@ export default function Hero() {
 	};
 
 	return (
-		<section className="relative overflow-hidden pb-4 pt-1 lg:pb-6 lg:pt-2">
+		<section className="relative overflow-hidden pb-6 pt-2 lg:pb-8 lg:pt-4">
 			<div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(16,185,129,0.18),transparent_28%),radial-gradient(circle_at_80%_18%,rgba(11,107,58,0.16),transparent_24%),linear-gradient(135deg,#f7fbf8_0%,#edf7f2_36%,#eff5ff_100%)]" />
 			<div className="pointer-events-none absolute -right-16 top-10 h-[420px] w-[420px] rounded-full bg-emerald-200/30 blur-3xl" />
 			<div className="pointer-events-none absolute left-[-80px] top-[-60px] h-[360px] w-[360px] rounded-full bg-white/80 blur-3xl" />
 
 			<div className="relative mx-auto w-full max-w-[1240px] px-4 sm:px-6 lg:px-8">
-				<div className="grid items-start gap-6 lg:min-h-[min(560px,calc(100vh-170px))] lg:grid-cols-2 lg:gap-10">
-					<div className="max-w-[600px]">
-						<div className="inline-flex items-center gap-3 rounded-full border border-emerald-200/80 bg-white/85 px-3 py-2 shadow-[0_12px_24px_rgba(15,23,42,0.06)] backdrop-blur">
-							<div className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[linear-gradient(145deg,#0f172a,#0b6b3a)] text-[11px] font-extrabold text-white shadow-[0_8px_20px_rgba(11,107,58,0.28)]">EP</div>
-							<div className="leading-tight">
-								<div className="text-xs font-extrabold tracking-[0.05em] text-slate-900">Epost.pk</div>
-								<div className="text-[10px] text-slate-500">Pakistan Post Operations Platform</div>
-							</div>
-						</div>
-
-						<div className="mt-3 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-800">
-							<ShieldCheck className="h-3.5 w-3.5" /> Trusted dispatch technology
-						</div>
-
-						<h1 className="mt-5 max-w-[600px] font-display text-[34px] font-black leading-[1.08] tracking-[-0.035em] text-slate-900 sm:text-[44px] lg:text-[56px]">
+				<div className="grid items-stretch gap-6 lg:min-h-[560px] lg:grid-cols-2 lg:gap-8">
+					<div className="flex h-full items-center">
+						<div className="w-full max-w-[620px]">
+						<h1 className="max-w-[600px] font-display text-[34px] font-black leading-[1.08] tracking-[-0.035em] text-slate-900 sm:text-[44px] lg:text-[56px]">
 							Ship Smarter Across Pakistan
 							<span className="mt-1 block text-emerald-700">Labels, Money Orders &amp; Delivery Tracking</span>
 						</h1>
 
-						<p className="mt-4 max-w-[540px] text-[15px] leading-7 text-slate-600 sm:text-[17px] sm:leading-8">
-							Generate labels, create money orders, track parcels and resolve complaints from one powerful dispatch platform.
-						</p>
+						<p className="mt-4 max-w-[540px] text-[15px] leading-7 text-slate-600 sm:text-[17px] sm:leading-8">Generate labels, create money orders, track parcels, and manage complaints from one clean operations surface.</p>
 
 						<form
 							onSubmit={handleTrackingSubmit}
-							className="mt-4 rounded-[26px] border border-emerald-100 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(244,250,247,0.96))] p-3.5 shadow-[0_18px_36px_rgba(15,23,42,0.1)] backdrop-blur"
+							className="mt-5 rounded-[24px] border border-emerald-100 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(244,250,247,0.96))] p-3.5 shadow-[0_18px_36px_rgba(15,23,42,0.1)] backdrop-blur"
 						>
 							<div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tracking Search</div>
-							<div className="mt-2.5 grid grid-cols-[7fr_3fr] items-center gap-2.5">
+							<div className="mt-2.5 grid grid-cols-1 items-center gap-2.5 sm:grid-cols-[7fr_3fr]">
 								<input
 									type="text"
 									value={trackingId}
@@ -187,16 +190,10 @@ export default function Hero() {
 									Track Now
 								</button>
 							</div>
-							<div className="mt-2.5 grid gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700 sm:grid-cols-2">
-								<div><span className="font-semibold">Status:</span> In Transit</div>
-								<div><span className="font-semibold">Current city:</span> Multan</div>
-								<div><span className="font-semibold">Destination:</span> Karachi</div>
-								<div><span className="font-semibold">Expected delivery:</span> 27 Mar, 04:30 PM</div>
-							</div>
 							<p className="mt-2 text-xs text-slate-500">without login</p>
 						</form>
 
-						<div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-center">
+						<div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:items-center">
 							<a
 								href="/register"
 								className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-6 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(15,23,42,0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_36px_rgba(15,23,42,0.34)]"
@@ -204,41 +201,28 @@ export default function Hero() {
 								Create Free Account
 								<ArrowRight className="h-4 w-4" />
 							</a>
-							<a
-								href="#workflow"
-								className="inline-flex h-11 items-center justify-center rounded-full border border-slate-300 bg-white px-6 text-sm font-semibold text-slate-700 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-800 hover:text-slate-900"
-							>
-								<PlayCircle className="mr-2 h-4 w-4" />
-								Watch Demo
-							</a>
+							<a href="/login" className="inline-flex h-11 items-center justify-center rounded-full border border-slate-300 bg-white px-6 text-sm font-semibold text-slate-700 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-800 hover:text-slate-900">Sign In</a>
 						</div>
-
-						<div className="mt-3 grid gap-1.5 text-sm text-slate-600">
-							{trustIndicators.map((item) => (
-								<div key={item} className="inline-flex items-center gap-2">
-									<CircleCheckBig className="h-4 w-4 text-emerald-600" />
-									<span>{item}</span>
-								</div>
-							))}
 						</div>
-
 					</div>
 
-					<div className="relative flex min-h-[460px] items-start justify-center lg:justify-end">
-						<div className="pointer-events-none absolute inset-y-3 right-0 hidden w-[90%] rounded-[40px] bg-white/35 blur-xl lg:block" />
-						<div data-hero-stack="true" className="relative h-[460px] w-full max-w-[650px]">
+					<div className="relative flex h-full min-h-[520px] items-center justify-center lg:justify-end">
+						<div className="pointer-events-none absolute inset-y-5 right-0 hidden w-[95%] rounded-[40px] bg-white/35 blur-xl lg:block" />
+						<div data-hero-stack="true" className="relative h-[500px] w-full max-w-[650px]">
 							{orderedCards.map((card, idx) => {
 								const order = (idx - activeCard + orderedCards.length) % orderedCards.length;
 								const isActive = order === 0;
 								const zIndex = orderedCards.length - order;
 								const translateY = order * layerGap;
-								const scale = isActive ? 1 : 0.95;
-								const opacity = isActive ? 1 : Math.max(0.22, 0.86 - order * 0.16);
+								const scale = isActive ? 1 : 0.965;
+								const opacity = isActive ? 1 : Math.max(0.24, 0.88 - order * 0.16);
+								const rotate = isActive && isFlipping ? "rotateY(180deg)" : "rotateY(0deg)";
+								const orientation = orientationMap[card.image];
 								return (
 									<article
 										key={card.title}
 										data-hero-card={card.title}
-										className="absolute left-1/2 top-0 h-[390px] w-[95%] -translate-x-1/2 overflow-hidden rounded-[30px] border border-white/75 bg-white/86 p-4 shadow-[0_38px_110px_rgba(15,23,42,0.24)] backdrop-blur-xl transition-all duration-700 ease-out"
+										className="absolute left-1/2 top-0 h-[420px] w-[95%] -translate-x-1/2 overflow-hidden rounded-[30px] border border-white/75 bg-white/84 p-4 shadow-[0_38px_110px_rgba(15,23,42,0.24)] backdrop-blur-xl transition-all duration-700 ease-out"
 										style={{ zIndex, opacity, transform: `translateX(-50%) translateY(${translateY}px) scale(${scale})` }}
 									>
 										<div className="flex h-full flex-col rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(243,247,255,0.92))] p-3">
@@ -248,15 +232,18 @@ export default function Hero() {
 												<span className="ml-1.5 h-2.5 w-2.5 rounded-full bg-emerald-400" />
 												<span className="ml-3 truncate text-xs font-semibold text-slate-600">{card.title}</span>
 											</div>
-											{renderCardSurface(card, orientationMap[card.image])}
-											<div className="mt-2.5 flex items-start justify-between gap-3 px-1">
-												<div>
-													<div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Live Product Surface</div>
-													<div className="mt-1 text-sm font-semibold text-slate-900">{card.title}</div>
-													<p className="mt-1 text-xs leading-5 text-slate-600 line-clamp-2">{card.description}</p>
-												</div>
-												<div className={`mt-1 rounded-full px-2.5 py-1 text-[10px] font-semibold ${isActive ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
-													{isActive ? "Active" : "Queued"}
+											<div className="relative h-full [perspective:1600px]">
+												<div className="relative h-full w-full transition-transform duration-500 [transform-style:preserve-3d]" style={{ transform: rotate }}>
+													<div className="absolute inset-0 [backface-visibility:hidden]">
+														{renderCardSurface(card, orientation)}
+													</div>
+													<div className="absolute inset-0 flex items-end [backface-visibility:hidden] [transform:rotateY(180deg)]">
+														<div className="w-full rounded-[22px] border border-emerald-100 bg-[linear-gradient(145deg,rgba(255,255,255,0.95),rgba(236,253,245,0.93))] p-4 shadow-[0_20px_50px_rgba(15,23,42,0.14)]">
+															<div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Live Product Surface</div>
+															<div className="mt-1 text-lg font-semibold text-slate-900">{card.title}</div>
+															<p className="mt-1 text-sm leading-6 text-slate-600">{card.description}</p>
+														</div>
+													</div>
 												</div>
 											</div>
 										</div>
@@ -264,24 +251,36 @@ export default function Hero() {
 								);
 							})}
 
-							<div className="absolute bottom-0 left-1/2 flex -translate-x-1/2 items-center justify-center gap-1.5">
+							<div className="absolute bottom-0 left-1/2 flex w-full max-w-[300px] -translate-x-1/2 items-center justify-center gap-2">
+								<button
+									type="button"
+									onClick={() => stepCard("prev")}
+									className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-sm transition hover:-translate-y-0.5"
+									aria-label="Show previous product"
+								>
+									<ArrowLeft className="h-4 w-4" />
+								</button>
 									{orderedCards.map((card, idx) => (
 										<span
 											key={card.title}
 											className={`h-1.5 rounded-full transition-all duration-300 ${idx === activeCard ? "w-6 bg-emerald-600" : "w-2 bg-slate-300"}`}
 										/>
 									))}
+								<button
+									type="button"
+									onClick={() => stepCard("next")}
+									className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-sm transition hover:-translate-y-0.5"
+									aria-label="Show next product"
+								>
+									<ArrowRight className="h-4 w-4" />
+								</button>
 								</div>
+
+							<div className="absolute bottom-10 left-1/2 -translate-x-1/2 rounded-full border border-emerald-100 bg-white/92 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700 shadow-sm">
+								{activeTitle}
+							</div>
 						</div>
 					</div>
-				</div>
-
-				<div className="mt-3 grid gap-2 rounded-[24px] border border-slate-200 bg-white/82 p-3.5 shadow-[0_18px_40px_rgba(15,23,42,0.08)] backdrop-blur sm:grid-cols-2 lg:grid-cols-4">
-					{trustBar.map((item) => (
-						<div key={item} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-slate-700">
-							{item}
-						</div>
-					))}
 				</div>
 			</div>
 		</section>

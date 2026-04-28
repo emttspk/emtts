@@ -13,6 +13,8 @@ const titleMap: Array<{ prefix: string; title: string }> = [
   { prefix: "/upload", title: "Generate Labels" },
   { prefix: "/jobs", title: "View Jobs" },
   { prefix: "/billing", title: "Pricing" },
+  { prefix: "/select-package", title: "Select Package" },
+  { prefix: "/update-package", title: "Update Package" },
   { prefix: "/settings", title: "Settings" },
   { prefix: "/admin", title: "Admin" },
 ];

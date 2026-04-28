@@ -25,6 +25,8 @@ export default function Settings() {
   const remainingUnits = me?.balances?.unitsRemaining ?? me?.activePackage?.unitsRemaining ?? 0;
   const unitLimit = me?.balances?.labelLimit ?? packageMeta.units;
   const usedPercent = usagePercent(remainingUnits, unitLimit);
+  const billingStatus = me?.subscription?.status ?? me?.activePackage?.status ?? "-";
+  const expiryDate = me?.activePackage?.expiresAt ?? me?.subscription?.currentPeriodEnd;
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -96,6 +98,21 @@ export default function Settings() {
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
             <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Complaints</div>
             <div className="mt-2 text-lg font-semibold text-slate-900">{packageMeta.complaints}</div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Billing Status</div>
+            <div className="mt-2 text-lg font-semibold text-slate-900">{billingStatus}</div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 md:col-span-2">
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Package Expiry</div>
+            <div className="mt-2 text-lg font-semibold text-slate-900">{expiryDate ? new Date(expiryDate).toLocaleDateString("en-PK") : "-"}</div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Package Actions</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" className="rounded-xl bg-brand px-3 py-2 text-xs font-semibold text-white" onClick={() => nav("/update-package")}>Update package</button>
+              <button type="button" className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700" onClick={() => nav("/select-package")}>Select package</button>
+            </div>
           </div>
         </div>
       </Card>

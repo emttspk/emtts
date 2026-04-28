@@ -16,6 +16,8 @@ const Upload = lazy(() => import("./pages/Upload"));
 const Jobs = lazy(() => import("./pages/Jobs"));
 const Downloads = lazy(() => import("./pages/Downloads"));
 const Billing = lazy(() => import("./pages/Billing"));
+const SelectPackage = lazy(() => import("./pages/SelectPackage"));
+const UpdatePackage = lazy(() => import("./pages/UpdatePackage"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Admin = lazy(() => import("./pages/Admin"));
 
@@ -59,6 +61,8 @@ export default function App() {
           <Route path="/downloads" element={<Navigate to="/jobs?filter=completed" replace />} />
           <Route path="/billing" element={<Billing />} />
           <Route path="/pricing" element={<Billing />} />
+          <Route path="/select-package" element={<SelectPackage />} />
+          <Route path="/update-package" element={<UpdatePackage />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/profile" element={<Settings />} />
           <Route
