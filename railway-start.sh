@@ -19,9 +19,17 @@ case "$SERVICE_NAME" in
     export PYTHONUNBUFFERED=1
     exec .venv/bin/python app.py
     ;;
-  *)
-    echo "[railway-start] Unknown service '$SERVICE_NAME'. Falling back to Api startup."
+  Postgres|Redis)
+    echo "[railway-start] '$SERVICE_NAME' is expected to be a managed data service. App startup skipped."
+    exec node deploy/worker-idle/idle.js
+    ;;
+  "")
+    echo "[railway-start] Service name missing. Defaulting to Api startup."
     export STORAGE_PATH="${STORAGE_PATH:-/app/storage}"
     exec sh apps/api/start.sh combined
+    ;;
+  *)
+    echo "[railway-start] Unknown service '$SERVICE_NAME'. Running idle process to avoid restart loops."
+    exec node deploy/worker-idle/idle.js
     ;;
 esac

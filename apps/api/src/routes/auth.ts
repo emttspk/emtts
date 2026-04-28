@@ -88,30 +88,36 @@ authRouter.post("/login", async (req, res) => {
     return res.status(400).json({ error: "email and password are required" });
   }
 
-  const email = normalizeEmail(body.email);
-  console.log(`[AUTH] Login attempt for email: ${email}`);
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) {
-    console.log(`[AUTH] Login failed: User not found for email: ${email}`);
-    return res.status(401).json({ error: "Invalid credentials" });
-  }
+  try {
+    const email = normalizeEmail(body.email);
+    console.log(`[AUTH] Login attempt for email: ${email}`);
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      console.log(`[AUTH] Login failed: User not found for email: ${email}`);
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
 
-  if (user.suspended) {
-    console.log(`[AUTH] Login failed: Suspended account for email: ${email}`);
-    return res.status(403).json({ error: "Account disabled" });
-  }
+    if (user.suspended) {
+      console.log(`[AUTH] Login failed: Suspended account for email: ${email}`);
+      return res.status(403).json({ error: "Account disabled" });
+    }
 
-  console.log(`[AUTH] User found for email: ${email}. Verifying password...`);
-  const ok = await verifyPassword(body.password, user.passwordHash);
-  if (!ok) {
-    console.log(`[AUTH] Login failed: Invalid password for email: ${email}`);
-    return res.status(401).json({ error: "Invalid credentials" });
-  }
+    console.log(`[AUTH] User found for email: ${email}. Verifying password...`);
+    const ok = await verifyPassword(body.password, user.passwordHash);
+    if (!ok) {
+      console.log(`[AUTH] Login failed: Invalid password for email: ${email}`);
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
 
-  console.log(`[AUTH] Login successful for email: ${email}`);
-  const token = signAccessToken({ sub: user.id, role: asAppRole(user.role) });
-  return res.json({
-    user: { id: user.id, email: user.email, role: user.role, createdAt: user.createdAt },
-    token,
-  });
+    console.log(`[AUTH] Login successful for email: ${email}`);
+    const token = signAccessToken({ sub: user.id, role: asAppRole(user.role) });
+    return res.json({
+      user: { id: user.id, email: user.email, role: user.role, createdAt: user.createdAt },
+      token,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[AUTH] Login database error:", message);
+    return res.status(503).json({ error: "Login temporarily unavailable. Please try again." });
+  }
 });

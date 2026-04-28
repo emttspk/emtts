@@ -12,14 +12,15 @@ const navLinks = [
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+  const ctaClass = "inline-flex h-10 items-center justify-center rounded-full px-5 text-sm font-semibold tracking-[0.01em]";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/88 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl">
-      <div className="mx-auto flex h-[76px] w-full max-w-[1240px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 shadow-[0_8px_26px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+      <div className="mx-auto flex h-[74px] w-full max-w-[1240px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-3.5">
           <a
             href="/"
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#0f172a,#0b6b3a)] text-sm font-extrabold text-white shadow-[0_10px_30px_rgba(11,107,58,0.34)]"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#0f172a,#0b6b3a)] text-sm font-extrabold text-white shadow-[0_10px_30px_rgba(11,107,58,0.34)]"
           >
             EP
           </a>
@@ -48,13 +49,13 @@ export default function Navbar() {
         <div className="hidden items-center justify-end gap-2.5 whitespace-nowrap lg:flex">
           <a
             href="/login"
-            className="inline-flex h-11 min-w-[150px] items-center justify-center rounded-full border border-slate-300 bg-white px-6 text-sm font-semibold tracking-[0.01em] text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#0b6b3a] hover:text-[#0b6b3a]"
+            className={`${ctaClass} min-w-[132px] border border-slate-300 bg-white text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#0b6b3a] hover:text-[#0b6b3a]`}
           >
             Login
           </a>
           <a
             href="/register"
-            className="inline-flex h-11 min-w-[190px] items-center justify-center rounded-full bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-6 text-sm font-semibold tracking-[0.01em] text-white shadow-[0_12px_28px_rgba(11,107,58,0.3)] transition-transform duration-200 hover:-translate-y-0.5"
+            className={`${ctaClass} min-w-[190px] bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] text-white shadow-[0_12px_28px_rgba(11,107,58,0.3)] transition-transform duration-200 hover:-translate-y-0.5`}
           >
             Create Free Account
           </a>
@@ -65,7 +66,7 @@ export default function Navbar() {
             type="button"
             aria-label="Toggle navigation"
             onClick={() => setOpen((v) => !v)}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700"
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -86,10 +87,10 @@ export default function Navbar() {
               </a>
             ))}
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              <a href="/login" className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-3 text-center text-sm font-semibold text-slate-700">
+              <a href="/login" className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-3 text-center text-sm font-semibold text-slate-700">
                 Login
               </a>
-              <a href="/register" className="inline-flex h-11 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-3 text-center text-sm font-semibold text-white">
+              <a href="/register" className="inline-flex h-10 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-3 text-center text-sm font-semibold text-white">
                 Create Free Account
               </a>
             </div>

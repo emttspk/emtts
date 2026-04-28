@@ -41,13 +41,15 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
 
   return (
-    <AuthShell title="Create your account" subtitle="Free plan - 250 labels/month, tracking and money orders included.">
-      <div className="text-2xl font-semibold text-slate-900">Get started for free</div>
-      <div className="mt-2 text-sm leading-6 text-slate-500">No credit card required. Build your sender profile once and start shipping in minutes.</div>
-      {err ? <div className="mt-4 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-800">{err}</div> : null}
+    <AuthShell
+      mode="register"
+      title="Create free account"
+      subtitle="Set up account and sender profile in one compact onboarding flow."
+    >
+      {err ? <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">{err}</div> : null}
 
       <form
-        className="mt-6 space-y-5"
+        className="space-y-4"
         onSubmit={async (e) => {
           e.preventDefault();
           setErr(null);
@@ -96,8 +98,8 @@ export default function Register() {
           }
         }}
       >
-        <div className="space-y-3 rounded-[28px] border border-emerald-100 bg-emerald-50/50 p-5">
-          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-brand">Account</div>
+        <div className="space-y-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">Account</div>
           <label className="block text-sm">
             <div className="mb-2 font-medium text-slate-700">Email *</div>
             <input className="field-input" value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@company.com" required />
@@ -108,8 +110,8 @@ export default function Register() {
           </label>
         </div>
 
-        <div className="space-y-3 rounded-[28px] border border-slate-200 bg-white p-5 shadow-card hover:shadow-cardHover">
-          <div className="text-xs font-semibold uppercase tracking-[0.14em] text-brand">Sender Profile</div>
+        <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">Sender Profile</div>
 
           <label className="block text-sm">
             <div className="mb-2 font-medium text-slate-700">Company Name *</div>
@@ -166,10 +168,12 @@ export default function Register() {
           {loading ? "Creating account..." : "Create Free Account"}
         </button>
 
-        <div className="text-center text-sm text-slate-500">
-          Already have an account?{" "}
+        <div className="flex items-center justify-between text-sm text-slate-500">
+          <Link to="/" className="font-medium transition hover:text-slate-700">
+            Home
+          </Link>
           <Link to={`/login${email ? `?email=${encodeURIComponent(email)}` : ""}`} className="font-semibold text-brand transition hover:text-brand-dark">
-            Sign in
+            Login
           </Link>
         </div>
       </form>

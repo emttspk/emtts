@@ -64,19 +64,18 @@ case "$MODE" in
 
     trap shutdown INT TERM EXIT
 
-    while kill -0 "$WORKER_PID" 2>/dev/null && kill -0 "$API_PID" 2>/dev/null; do
+    WORKER_REPORTED_DOWN=0
+    while kill -0 "$API_PID" 2>/dev/null; do
+      if [ "$WORKER_REPORTED_DOWN" -eq 0 ] && ! kill -0 "$WORKER_PID" 2>/dev/null; then
+        echo "[startup] Worker exited; API will continue running in degraded mode"
+        WORKER_REPORTED_DOWN=1
+      fi
       sleep 2
     done
 
-    if ! kill -0 "$WORKER_PID" 2>/dev/null; then
-      echo "[startup] Worker exited; stopping container"
-      wait "$WORKER_PID"
-      EXIT_CODE=$?
-    else
-      echo "[startup] API exited; stopping container"
-      wait "$API_PID"
-      EXIT_CODE=$?
-    fi
+    echo "[startup] API exited; stopping container"
+    wait "$API_PID"
+    EXIT_CODE=$?
 
     shutdown
     exit "${EXIT_CODE:-1}"
