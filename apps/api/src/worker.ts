@@ -571,6 +571,7 @@ const worker = new Worker(
           shipperAddress: String(user.address ?? "").trim(),
           shipperEmail: String(user.email ?? "").trim(),
           senderCity: String(user.originCity ?? "").trim(),
+          senderCnic: String(user.cnic ?? "").trim(),
         };
         const hasFullProfileShipper = Boolean(
           profileShipper.shipperName &&
@@ -591,6 +592,13 @@ const worker = new Worker(
           order.shipperAddress = profileShipper.shipperAddress;
           order.shipperEmail = profileShipper.shipperEmail;
           order.senderCity = profileShipper.senderCity;
+          order.senderCnic = profileShipper.senderCnic;
+          order.shipperCnic = profileShipper.senderCnic;
+        }
+
+        for (const order of orders) {
+          order.senderCnic = profileShipper.senderCnic;
+          order.shipperCnic = profileShipper.senderCnic;
         }
       }
 

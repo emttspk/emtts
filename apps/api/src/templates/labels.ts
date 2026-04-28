@@ -127,10 +127,11 @@ function resolveDispatchDate(value: unknown) {
 }
 
 function resolveMoneyOrderSenderFields(order: OrderRecord) {
-  const senderName = String((order as any)?.senderName ?? order.shipperName ?? "").trim() || "-";
+  const baseSenderName = String((order as any)?.senderName ?? order.shipperName ?? "").trim() || "-";
   const senderAddress = normalizeAddressLines((order as any)?.senderAddress ?? order.shipperAddress ?? "") || "-";
   const senderPhone = String((order as any)?.senderPhone ?? order.shipperPhone ?? "").trim() || "-";
   const senderCnic = String((order as any)?.senderCnic ?? (order as any)?.shipperCnic ?? (order as any)?.cnic ?? "").trim() || "-";
+  const senderName = senderCnic !== "-" ? `${baseSenderName} (${senderCnic})` : baseSenderName;
   return { senderName, senderAddress, senderPhone, senderCnic };
 }
 

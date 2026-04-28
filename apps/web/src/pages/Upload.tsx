@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Download } from "lucide-react";
-import { useOutletContext } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import Card from "../components/Card";
 import SampleDownloadLink from "../components/SampleDownloadLink";
 import UploadDropzone from "../components/UploadDropzone";
@@ -44,6 +44,7 @@ function isValidTrackingId(input: unknown) {
 
 export default function Upload() {
   const { me, refreshMe } = useOutletContext<ShellCtx>();
+  const navigate = useNavigate();
 
   const [file, setFile] = useState<File | null>(null);
   const [jobs, setJobs] = useState<LabelJob[]>([]);
@@ -65,6 +66,7 @@ export default function Upload() {
   const [trackAfterGenerate, setTrackAfterGenerate] = useState(false);
   const [showMoUnitNotice, setShowMoUnitNotice] = useState(false);
   const [showTrackUnitNotice, setShowTrackUnitNotice] = useState(false);
+  const [showCnicRequiredModal, setShowCnicRequiredModal] = useState(false);
 
   const lastAutoDownloadId = useRef<string | null>(null);
   const previewViewportRef = useRef<HTMLDivElement | null>(null);
@@ -366,20 +368,19 @@ export default function Upload() {
       }
 
       const isAuto = barcodeMode === "auto";
-      const autoModeChecked = isAuto && Boolean(includeMoneyOrders && eligibleForMoneyOrder);
-      if (autoModeChecked) {
-        console.log("Auto Mode: Tracking + MO generated");
-
-          // Check CNIC for money order generation
-          if (includeMoneyOrders && eligibleForMoneyOrder) {
-            const hasCnic = me?.user?.cnic && /^\d{5}-\d{7}-\d$|^\d{13}$/.test(me.user.cnic);
-            if (!hasCnic) {
-              throw new Error("CNIC is required for money order generation. Please add your CNIC in Profile Settings.");
-            }
-          }
+      const requiresMoneyOrderCnic = Boolean(includeMoneyOrders && eligibleForMoneyOrder);
+      if (requiresMoneyOrderCnic) {
+        const hasCnic = /^\d{5}-\d{7}-\d$|^\d{13}$/.test(String(me?.user?.cnic ?? ""));
+        if (!hasCnic) {
+          setShowCnicRequiredModal(true);
+          setUiState("idle");
+          setProgress(0);
+          if (progressTimer.current) window.clearInterval(progressTimer.current);
+          return;
+        }
       }
 
-        const data = (await uploadFile("/api/upload", uploadedFile, {
+      const data = (await uploadFile("/api/upload", uploadedFile, {
           barcodeMode: isAuto ? "auto" : "manual",
           autoGenerateTracking: String(isAuto),
           carrierType: carrierType ?? "",
@@ -791,6 +792,33 @@ export default function Upload() {
         </Card>
         </div>
       </div>
+      {showCnicRequiredModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-[0_30px_80px_rgba(15,23,42,0.28)]">
+            <div className="text-lg font-semibold text-slate-900">CNIC required</div>
+            <div className="mt-2 text-sm text-slate-600">CNIC is required before generating money order.</div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowCnicRequiredModal(false)}
+                className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCnicRequiredModal(false);
+                  navigate("/profile");
+                }}
+                className="rounded-2xl bg-brand px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-brand-dark"
+              >
+                Add CNIC
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

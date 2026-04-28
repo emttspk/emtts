@@ -18,6 +18,7 @@ authRouter.post("/register", async (req, res) => {
       companyName: z.string().max(120).nullable().optional(),
       address: z.string().max(300).nullable().optional(),
       contactNumber: z.string().max(30).nullable().optional(),
+      cnic: z.string().max(15).nullable().optional(),
       originCity: z.string().max(80).nullable().optional(),
     })
     .parse(req.body);
@@ -41,6 +42,7 @@ authRouter.post("/register", async (req, res) => {
         companyName: body.companyName,
         address: body.address,
         contactNumber: body.contactNumber,
+        cnic: body.cnic,
         originCity: body.originCity,
       },
       select: { id: true, email: true, role: true, createdAt: true },

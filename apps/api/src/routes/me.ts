@@ -100,19 +100,26 @@ meRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
 });
 
 const profileUpdateSchema = z.object({
-  companyName: z.string().max(120).optional(),
-  address: z.string().max(300).optional(),
-  contactNumber: z.string().max(30).optional(),
-  cnic: z.string().max(15).nullable().optional(),
-  originCity: z.string().max(80).optional(),
+  companyName: z.string().trim().max(120).nullable().optional(),
+  address: z.string().trim().max(300).nullable().optional(),
+  contactNumber: z.string().trim().max(30).nullable().optional(),
+  cnic: z.string().trim().max(15).nullable().optional(),
+  originCity: z.string().trim().max(80).nullable().optional(),
 });
 
 meRouter.patch("/", requireAuth, async (req: AuthedRequest, res) => {
   const userId = req.user!.id;
   const body = profileUpdateSchema.parse(req.body);
+  const normalizedBody = {
+    companyName: body.companyName && body.companyName.length > 0 ? body.companyName : null,
+    address: body.address && body.address.length > 0 ? body.address : null,
+    contactNumber: body.contactNumber && body.contactNumber.length > 0 ? body.contactNumber : null,
+    cnic: body.cnic && body.cnic.length > 0 ? body.cnic : null,
+    originCity: body.originCity && body.originCity.length > 0 ? body.originCity : null,
+  };
   const user = await prisma.user.update({
     where: { id: userId },
-    data: body,
+    data: normalizedBody,
     select: { id: true, email: true, role: true, createdAt: true, companyName: true, address: true, contactNumber: true, cnic: true, originCity: true },
   });
   return res.json({ user });

@@ -486,7 +486,7 @@ export async function handleLabelUpload(req: Request, res: Response) {
         const userProfile = await withReconnectRetry(async () => prisma.user.findUnique({ where: { id: userId }, select: { cnic: true } }));
         const userCnic = userProfile?.cnic;
         if (!hasCnic(userCnic)) {
-          throw new Error("CNIC is required for money order generation. Please add your CNIC in Profile Settings.");
+          throw new Error("CNIC is required before generating money order.");
         }
       }
     }

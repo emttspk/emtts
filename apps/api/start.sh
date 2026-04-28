@@ -3,11 +3,28 @@
 MODE="${1:-api}"
 
 STORAGE_ROOT="${STORAGE_PATH:-$(pwd)/storage}"
+PRISMA_SCHEMA_PATH="apps/api/prisma/schema.prisma"
 
 mkdir -p "$STORAGE_ROOT/uploads" "$STORAGE_ROOT/outputs"
 echo "[startup] Storage root: $STORAGE_ROOT"
 echo "[startup] Uploads dir: $STORAGE_ROOT/uploads"
 echo "[startup] Outputs dir: $STORAGE_ROOT/outputs"
+
+require_database_url() {
+  if [ -z "${DATABASE_URL:-}" ]; then
+    echo "[startup] ERROR: DATABASE_URL is missing"
+    exit 1
+  fi
+  echo "[startup] DATABASE_URL present"
+}
+
+run_prisma_startup() {
+  require_database_url
+  echo "[startup] Running prisma generate..."
+  npx prisma generate --schema "$PRISMA_SCHEMA_PATH" || exit 1
+  echo "[startup] Running prisma migrate deploy..."
+  npx prisma migrate deploy --schema "$PRISMA_SCHEMA_PATH" || exit 1
+}
 
 # Resolve a working Chromium binary for Puppeteer.
 # Priority:
@@ -50,6 +67,7 @@ fi
 
 case "$MODE" in
   combined)
+    run_prisma_startup
     echo "[startup] Starting BullMQ Worker..."
     node dist/worker.js &
     WORKER_PID=$!
@@ -81,10 +99,12 @@ case "$MODE" in
     exit "${EXIT_CODE:-1}"
     ;;
   api)
+    run_prisma_startup
     echo "[startup] Starting API server only..."
     exec node dist/index.js
     ;;
   worker)
+    require_database_url
     echo "[startup] Starting BullMQ worker only..."
     exec node dist/worker.js
     ;;
