@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 
-const API_BASE_URL = (process.env.API_BASE_URL || "").trim();
+const API_BASE_URL = (process.env.API_BASE_URL || "https://api-production-28491.up.railway.app").trim();
 const EMAIL = (process.env.SMOKE_EMAIL || "").trim();
 const PASSWORD = (process.env.SMOKE_PASSWORD || "").trim();
 const POLL_INTERVAL_MS = Number(process.env.SMOKE_POLL_INTERVAL_MS || 5000);
@@ -13,9 +13,31 @@ if (!API_BASE_URL) {
   console.error("Missing API_BASE_URL");
   process.exit(1);
 }
-if (!EMAIL || !PASSWORD) {
-  console.error("Missing SMOKE_EMAIL or SMOKE_PASSWORD");
-  process.exit(1);
+
+async function ensureCredentials() {
+  if (EMAIL && PASSWORD) {
+    return { email: EMAIL, password: PASSWORD };
+  }
+
+  const ts = Date.now();
+  const autoEmail = `smoke.auto.${ts}@example.com`;
+  const autoPassword = `Smoke@${ts}Aa!`;
+
+  await jsonFetch(`${API_BASE_URL}/api/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: autoEmail,
+      password: autoPassword,
+      companyName: "Smoke Auto",
+      address: "Smoke Street",
+      contactNumber: "03001234567",
+      originCity: "Lahore",
+      cnic: null,
+    }),
+  });
+
+  return { email: autoEmail, password: autoPassword };
 }
 
 function sleep(ms) {
@@ -38,11 +60,11 @@ async function jsonFetch(url, init = {}) {
   return body;
 }
 
-async function login() {
+async function login(creds) {
   const body = await jsonFetch(`${API_BASE_URL}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email: EMAIL, password: PASSWORD }),
+    body: JSON.stringify({ email: creds.email, password: creds.password }),
   });
 
   const token = String(body?.token || "").trim();
@@ -141,7 +163,8 @@ async function verifyPdfDownload(token, jobId) {
 }
 
 async function runSmokeOnce() {
-  const token = await login();
+  const creds = await ensureCredentials();
+  const token = await login(creds);
   const csvPath = await createTempCsv();
 
   try {
