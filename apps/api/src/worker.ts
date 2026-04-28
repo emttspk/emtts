@@ -1290,8 +1290,9 @@ console.log(`Worker ready (queues: ${jobsQueueName}, ${trackingQueueName})`);
   }
 }
 
-const WORKER_RETRY_DELAY_MS = Number(process.env.WORKER_RETRY_DELAY_MS ?? "5000");
-const WORKER_STARTUP_RETRIES = Number(process.env.WORKER_STARTUP_RETRIES ?? "0");
+const WORKER_RETRY_BASE_DELAY_MS = Number(process.env.WORKER_RETRY_DELAY_MS ?? "3000");
+const WORKER_STARTUP_RETRIES = Number(process.env.WORKER_STARTUP_RETRIES ?? "10");
+const WORKER_RETRY_MAX_DELAY_MS = 60_000;
 
 async function bootWorkerProcess() {
   for (let attempt = 0; attempt <= WORKER_STARTUP_RETRIES; attempt += 1) {
@@ -1307,8 +1308,10 @@ async function bootWorkerProcess() {
       if (!hasMoreRetries) {
         throw err;
       }
-      console.log(`[Worker] Retrying startup in ${WORKER_RETRY_DELAY_MS}ms (attempt ${attempt + 1}/${WORKER_STARTUP_RETRIES})`);
-      await new Promise((resolve) => setTimeout(resolve, WORKER_RETRY_DELAY_MS));
+      // Exponential backoff: 3s, 6s, 12s, 24s … capped at 60s
+      const delay = Math.min(WORKER_RETRY_BASE_DELAY_MS * Math.pow(2, attempt), WORKER_RETRY_MAX_DELAY_MS);
+      console.log(`[Worker] Retrying startup in ${delay}ms (attempt ${attempt + 1}/${WORKER_STARTUP_RETRIES})`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
 }

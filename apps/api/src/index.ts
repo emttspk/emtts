@@ -248,6 +248,48 @@ app.get("/", (_req, res) => {
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 
+app.get("/health/db", async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return res.json({ status: "ok", service: "db" });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return res.status(503).json({ status: "error", service: "db", message });
+  }
+});
+
+app.get("/health/redis", async (_req, res) => {
+  try {
+    const { redis: redisClient, redisEnabled: enabled } = await import("./lib/redis.js");
+    if (!enabled) {
+      return res.status(503).json({ status: "disabled", service: "redis", message: "REDIS_URL not configured" });
+    }
+    const pong = await redisClient.ping();
+    return res.json({ status: pong === "PONG" ? "ok" : "error", service: "redis" });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return res.status(503).json({ status: "error", service: "redis", message });
+  }
+});
+
+app.get("/health/worker", async (_req, res) => {
+  try {
+    const { redis: redisClient, redisEnabled: enabled } = await import("./lib/redis.js");
+    if (!enabled) {
+      return res.status(503).json({ status: "unknown", service: "worker", message: "Redis required to check worker status" });
+    }
+    // Worker writes a heartbeat key when it acquires its singleton lock
+    const lockValue = await redisClient.get("worker:singleton:label-generator");
+    if (lockValue) {
+      return res.json({ status: "ok", service: "worker" });
+    }
+    return res.status(503).json({ status: "offline", service: "worker", message: "Worker singleton lock not held" });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return res.status(503).json({ status: "error", service: "worker", message });
+  }
+});
+
 const router = express.Router();
 
 const ensureApiDatabaseConnection: express.RequestHandler = async (_req, res, next) => {
