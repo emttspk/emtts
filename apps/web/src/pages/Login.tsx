@@ -13,9 +13,9 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_14%_10%,rgba(16,185,129,0.18),transparent_30%),linear-gradient(140deg,#f6fbf8_0%,#edf7f2_42%,#f1f5f9_100%)] p-4 sm:p-6 md:p-10">
-      <div className="mx-auto grid min-h-[calc(100vh-2rem)] w-full max-w-[1320px] overflow-hidden rounded-[28px] border border-white/70 bg-white/72 shadow-[0_34px_90px_rgba(15,23,42,0.14)] backdrop-blur md:grid-cols-[1.18fr_0.82fr]">
-        <section className="relative hidden md:block">
-          <img src={letterBoxImage} alt="Pakistan Post letter box" className="h-full w-full object-cover" />
+      <div className="mx-auto grid min-h-[calc(100vh-2rem)] w-full max-w-[1320px] overflow-hidden rounded-3xl border border-white/70 bg-white/80 shadow-[0_34px_90px_rgba(15,23,42,0.14)] backdrop-blur md:grid-cols-[55fr_45fr]">
+        <section className="relative hidden max-h-[700px] md:block">
+          <img src={letterBoxImage} alt="Pakistan Post letter box" className="h-full w-full object-cover object-center" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
           <div className="absolute bottom-10 left-8 right-8">
             <div className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-300">Epost.pk</div>
