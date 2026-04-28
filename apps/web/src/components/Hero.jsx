@@ -66,7 +66,8 @@ function useImageOrientation(cards) {
 				const img = new Image();
 				img.onload = () => {
 					if (cancelled) return;
-					const next = img.naturalWidth >= img.naturalHeight ? "horizontal" : "vertical";
+					const ratio = img.naturalWidth / Math.max(1, img.naturalHeight);
+					const next = ratio > 1.1 ? "landscape" : ratio < 0.9 ? "portrait" : "square";
 					setOrientationMap((prev) => {
 						if (prev[card.image] === next) return prev;
 						return { ...prev, [card.image]: next };
@@ -84,16 +85,14 @@ function useImageOrientation(cards) {
 }
 
 function renderCardSurface(card, orientation) {
-	const isVertical = orientation === "vertical";
-	const frameClass = isVertical
-		? "h-[320px] w-[58%] max-w-[230px]"
-		: "h-[260px] w-[92%] max-w-[460px]";
+	const ratioClass = orientation === "portrait" ? "aspect-[4/6]" : orientation === "square" ? "aspect-square" : "aspect-[16/10]";
+	const frameWidthClass = orientation === "portrait" ? "max-w-[240px]" : orientation === "square" ? "max-w-[320px]" : "max-w-[460px]";
 
 	return (
 		<div className="relative flex h-full items-center justify-center overflow-hidden rounded-[24px] border border-white/75 bg-[linear-gradient(150deg,rgba(255,255,255,0.96),rgba(239,246,255,0.93))] shadow-[0_24px_65px_rgba(15,23,42,0.18),inset_0_1px_0_rgba(255,255,255,0.86)]">
 			<div className="absolute inset-0 bg-[radial-gradient(circle_at_22%_14%,rgba(16,185,129,0.16),transparent_52%),radial-gradient(circle_at_86%_85%,rgba(37,99,235,0.14),transparent_48%)]" />
 			<div className="relative flex h-full w-full items-center justify-center px-4 py-5">
-				<div className={`${frameClass} overflow-hidden rounded-[18px] border border-slate-200/75 bg-white/95 shadow-[0_14px_36px_rgba(15,23,42,0.12)]`}>
+				<div className={`w-full ${frameWidthClass} ${ratioClass} overflow-hidden rounded-[18px] border border-slate-200/75 bg-white/95 shadow-[0_14px_36px_rgba(15,23,42,0.12)]`}>
 					<div className="flex h-full w-full items-center justify-center p-3">
 						<img src={card.image} alt={card.alt} className="h-full w-full object-contain object-center" />
 					</div>
@@ -211,11 +210,13 @@ export default function Hero() {
 						<div data-hero-stack="true" className="relative h-[500px] w-full max-w-[650px]">
 							{orderedCards.map((card, idx) => {
 								const order = (idx - activeCard + orderedCards.length) % orderedCards.length;
+								if (order > 2) return null;
 								const isActive = order === 0;
 								const zIndex = orderedCards.length - order;
 								const translateY = order * layerGap;
-								const scale = isActive ? 1 : 0.965;
-								const opacity = isActive ? 1 : Math.max(0.24, 0.88 - order * 0.16);
+								const translateX = order * 8;
+								const scale = isActive ? 1 : 0.98 - order * 0.02;
+								const opacity = isActive ? 1 : 0.62 - order * 0.14;
 								const rotate = isActive && isFlipping ? "rotateY(180deg)" : "rotateY(0deg)";
 								const orientation = orientationMap[card.image];
 								return (
@@ -223,7 +224,7 @@ export default function Hero() {
 										key={card.title}
 										data-hero-card={card.title}
 										className="absolute left-1/2 top-0 h-[420px] w-[95%] -translate-x-1/2 overflow-hidden rounded-[30px] border border-white/75 bg-white/84 p-4 shadow-[0_38px_110px_rgba(15,23,42,0.24)] backdrop-blur-xl transition-all duration-700 ease-out"
-										style={{ zIndex, opacity, transform: `translateX(-50%) translateY(${translateY}px) scale(${scale})` }}
+										style={{ zIndex, opacity, transform: `translateX(calc(-50% + ${translateX}px)) translateY(${translateY}px) scale(${scale})` }}
 									>
 										<div className="flex h-full flex-col rounded-[24px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(243,247,255,0.92))] p-3">
 											<div className="mb-2.5 flex h-9 items-center rounded-2xl border border-slate-200 bg-white/90 px-3 shadow-sm">

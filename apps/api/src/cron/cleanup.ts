@@ -8,6 +8,12 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
 
+function isDatabaseUnavailable(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const maybeCode = (error as { code?: string }).code;
+  return maybeCode === "P1001";
+}
+
 async function deleteOldFiles(dir: string) {
   let entries: string[] = [];
   try {
@@ -151,7 +157,13 @@ async function runCleanup() {
 // Run daily at 02:00
 export function startCleanupCron() {
   cron.schedule("0 2 * * *", () => {
-    runCleanup().catch((err) => console.error("[Cleanup] Error:", err));
+    runCleanup().catch((err) => {
+      if (isDatabaseUnavailable(err)) {
+        console.warn("[Cleanup] Skipping run because database is temporarily unreachable.");
+        return;
+      }
+      console.error("[Cleanup] Error:", err);
+    });
   });
   console.log("[Cleanup] Cron job scheduled: daily at 02:00");
 }
