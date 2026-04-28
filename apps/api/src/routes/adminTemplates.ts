@@ -1,6 +1,7 @@
 import path from "node:path";
 import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
+import { pathToFileURL } from "node:url";
 import { Router } from "express";
 import multer from "multer";
 import { z } from "zod";
@@ -8,9 +9,14 @@ import { env } from "../config.js";
 import { requireAuth, requireAdmin, type AuthedRequest } from "../middleware/auth.js";
 import { prisma } from "../lib/prisma.js";
 import { uploadsDir } from "../storage/paths.js";
+import { launchPuppeteerBrowser } from "../pdf/render.js";
+import { moneyOrderHtml } from "../templates/labels.js";
+import { renderMoneyOrderTemplate } from "../templates/TemplateRenderer.js";
 
 const TEMPLATE_DESIGNER_ADMIN_EMAIL = "nazimsaeed@gmail.com";
 const TEMPLATE_UPLOAD_DIR = path.join(uploadsDir(), "templates");
+const DEFAULT_TEMPLATE_BACKGROUND_FILE = "default-mo-front-a5.jpg";
+const DEFAULT_TEMPLATE_BACKGROUND_URL = `/api/admin/templates/background/${DEFAULT_TEMPLATE_BACKGROUND_FILE}`;
 const SUPPORTED_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".pdf"]);
 const SUPPORTED_MIME_TYPES = new Set(["image/png", "image/jpeg", "application/pdf"]);
 
@@ -20,6 +26,68 @@ function isTemplateDesignerEnabled() {
 
 async function ensureTemplateUploadDir() {
   await fs.mkdir(TEMPLATE_UPLOAD_DIR, { recursive: true });
+}
+
+async function ensureDefaultTemplateBackgroundAsset() {
+  await ensureTemplateUploadDir();
+  const destinationPath = path.resolve(TEMPLATE_UPLOAD_DIR, DEFAULT_TEMPLATE_BACKGROUND_FILE);
+
+  try {
+    await fs.access(destinationPath);
+    return;
+  } catch {
+    // Create the default designer background from the best available source.
+  }
+
+  const candidates = [
+    path.resolve(process.cwd(), "images", "NEW MO F A5.jpg"),
+    path.resolve(process.cwd(), "images", "NEW MO F.png"),
+    path.resolve(process.cwd(), "MO", "MO Front.png"),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      await fs.access(candidate);
+      await fs.copyFile(candidate, destinationPath);
+      return;
+    } catch {
+      // Try the next candidate.
+    }
+  }
+}
+
+async function convertPdfFirstPageToPng(pdfFileName: string): Promise<string | null> {
+  const safePdfFileName = sanitizeFilename(pdfFileName);
+  const absPdfPath = path.resolve(TEMPLATE_UPLOAD_DIR, safePdfFileName);
+  const absTemplateDir = path.resolve(TEMPLATE_UPLOAD_DIR);
+
+  if (!absPdfPath.startsWith(absTemplateDir)) {
+    return null;
+  }
+
+  const pngFileName = `${randomUUID()}.png`;
+  const absPngPath = path.resolve(TEMPLATE_UPLOAD_DIR, pngFileName);
+  const pdfUrl = pathToFileURL(absPdfPath).toString();
+  const browser = await launchPuppeteerBrowser();
+
+  try {
+    const page = await browser.newPage();
+    try {
+      await page.setViewport({ width: 1240, height: 1754, deviceScaleFactor: 1.25 });
+      await page.goto(pdfUrl, { waitUntil: "networkidle0", timeout: 30_000 });
+      await page.screenshot({ path: absPngPath, type: "png", fullPage: false });
+    } finally {
+      await page.close();
+    }
+  } catch (error) {
+    console.error("[TemplateDesigner] Failed to convert PDF background to PNG preview:", error);
+    await fs.rm(absPngPath, { force: true }).catch(() => undefined);
+    return null;
+  } finally {
+    await browser.close().catch(() => undefined);
+  }
+
+  return pngFileName;
 }
 
 function sanitizeFilename(input: string) {
@@ -82,7 +150,11 @@ const fieldCreateSchema = z.object({
   width: z.number().positive(),
   height: z.number().positive(),
   fontSize: z.number().int().min(6).max(200).optional(),
+  fontFamily: z.string().min(1).max(80).optional(),
   fontWeight: z.enum(["normal", "bold"]).optional(),
+  fontStyle: z.enum(["normal", "italic"]).optional(),
+  textColor: z.string().regex(/^#(?:[0-9a-fA-F]{3}){1,2}$/).optional(),
+  textAlign: z.enum(["left", "center", "right"]).optional(),
   rotation: z.number().min(-360).max(360).optional(),
   isLocked: z.boolean().optional(),
 });
@@ -95,9 +167,17 @@ const fieldUpdateSchema = z.object({
   width: z.number().positive().optional(),
   height: z.number().positive().optional(),
   fontSize: z.number().int().min(6).max(200).optional(),
+  fontFamily: z.string().min(1).max(80).optional(),
   fontWeight: z.enum(["normal", "bold"]).optional(),
+  fontStyle: z.enum(["normal", "italic"]).optional(),
+  textColor: z.string().regex(/^#(?:[0-9a-fA-F]{3}){1,2}$/).optional(),
+  textAlign: z.enum(["left", "center", "right"]).optional(),
   rotation: z.number().min(-360).max(360).optional(),
   isLocked: z.boolean().optional(),
+});
+
+const previewSchema = z.object({
+  sampleData: z.record(z.union([z.string(), z.number(), z.null()])).optional(),
 });
 
 const templateInclude = {
@@ -127,15 +207,29 @@ function inferFieldType(fieldKey: string): "text" | "date" | "amount" {
 }
 
 async function ensureDefaultTemplate() {
+  await ensureDefaultTemplateBackgroundAsset();
   const existing = await prisma.moneyOrderTemplate.count();
-  if (existing > 0) return;
+  if (existing > 0) {
+    const activeTemplate = await prisma.moneyOrderTemplate.findFirst({
+      where: { isActive: true },
+      select: { id: true, backgroundUrl: true },
+    });
+
+    if (activeTemplate && !activeTemplate.backgroundUrl) {
+      await prisma.moneyOrderTemplate.update({
+        where: { id: activeTemplate.id },
+        data: { backgroundUrl: DEFAULT_TEMPLATE_BACKGROUND_URL },
+      });
+    }
+    return;
+  }
 
   await prisma.moneyOrderTemplate.create({
     data: {
       name: DEFAULT_TEMPLATE_NAME,
       version: 1,
       isActive: true,
-      backgroundUrl: null,
+      backgroundUrl: DEFAULT_TEMPLATE_BACKGROUND_URL,
       fields: {
         create: DEFAULT_TEMPLATE_FIELDS.map((fieldKey, index) => ({
           fieldKey,
@@ -145,7 +239,11 @@ async function ensureDefaultTemplate() {
           width: 320,
           height: 34,
           fontSize: 13,
+          fontFamily: "Arial",
           fontWeight: "normal",
+          fontStyle: "normal",
+          textColor: "#0f172a",
+          textAlign: "left",
           rotation: 0,
           isLocked: false,
         })),
@@ -224,20 +322,42 @@ adminTemplatesRouter.post("/upload", (req, res) => {
       return res.status(400).json({ error: message });
     }
 
-    const file = req.file;
-    if (!file) {
-      return res.status(400).json({ error: "File is required" });
-    }
+    const finalizeUpload = async () => {
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: "File is required" });
+      }
 
-    const fileName = sanitizeFilename(file.filename);
-    const backgroundUrl = `/api/admin/templates/background/${encodeURIComponent(fileName)}`;
+      const originalFileName = sanitizeFilename(file.filename);
+      const ext = path.extname(originalFileName).toLowerCase();
+      let responseFileName = originalFileName;
+      let sourcePdfUrl: string | null = null;
 
-    return res.status(201).json({
-      backgroundUrl,
-      fileName,
-      originalName: file.originalname,
-      size: file.size,
-      mimeType: file.mimetype,
+      if (ext === ".pdf") {
+        sourcePdfUrl = `/api/admin/templates/background/${encodeURIComponent(originalFileName)}`;
+        const convertedPngName = await convertPdfFirstPageToPng(originalFileName);
+        if (convertedPngName) {
+          responseFileName = convertedPngName;
+        }
+      }
+
+      const backgroundUrl = `/api/admin/templates/background/${encodeURIComponent(responseFileName)}`;
+
+      return res.status(201).json({
+        backgroundUrl,
+        fileName: responseFileName,
+        sourcePdfUrl,
+        originalName: file.originalname,
+        size: file.size,
+        mimeType: file.mimetype,
+      });
+    };
+
+    void finalizeUpload().catch((error) => {
+      const message = error instanceof Error ? error.message : "Upload finalization failed";
+      if (!res.headersSent) {
+        res.status(500).json({ error: message });
+      }
     });
   });
 });
@@ -344,7 +464,11 @@ adminTemplatesRouter.post("/:id/duplicate", async (req, res) => {
           width: field.width,
           height: field.height,
           fontSize: field.fontSize,
+          fontFamily: field.fontFamily,
           fontWeight: field.fontWeight,
+          fontStyle: field.fontStyle,
+          textColor: field.textColor,
+          textAlign: field.textAlign,
           rotation: field.rotation,
           isLocked: field.isLocked,
         })),
@@ -374,7 +498,11 @@ adminTemplatesRouter.post("/:id/fields", async (req, res) => {
       width: body.width,
       height: body.height,
       fontSize: body.fontSize ?? 12,
+      fontFamily: body.fontFamily ?? "Arial",
       fontWeight: body.fontWeight ?? "normal",
+      fontStyle: body.fontStyle ?? "normal",
+      textColor: body.textColor ?? "#0f172a",
+      textAlign: body.textAlign ?? "left",
       rotation: body.rotation ?? 0,
       isLocked: body.isLocked ?? false,
     },
@@ -397,4 +525,58 @@ adminTemplatesRouter.put("/fields/:id", async (req, res) => {
 adminTemplatesRouter.delete("/fields/:id", async (req, res) => {
   await prisma.moneyOrderTemplateField.delete({ where: { id: req.params.id } });
   return res.json({ success: true });
+});
+
+adminTemplatesRouter.post("/:id/preview", async (req, res) => {
+  const body = previewSchema.parse(req.body ?? {});
+  const now = new Date();
+
+  const defaultSampleData: Record<string, string | number | null> = {
+    sender_name: "Muhammad Ahmad",
+    sender_cnic: "3520212345671",
+    sender_address: "House 14, Street 9, Gulberg, Lahore",
+    receiver_name: "Ali Raza",
+    receiver_address: "Shop 22, Urdu Bazar, Karachi",
+    address: "Shop 22, Urdu Bazar, Karachi",
+    tracking_id: "VPL26039999",
+    money_order_id: "MO24079999",
+    amount: 425,
+    amount_words: "Four Hundred Twenty Five Rupees Only",
+    date: now.toISOString().slice(0, 10),
+  };
+
+  const sampleData = { ...defaultSampleData, ...(body.sampleData ?? {}) };
+  const renderedTemplate = await renderMoneyOrderTemplate(req.params.id, sampleData);
+  const amountValue = Number(sampleData.amount ?? 0) || 0;
+
+  const orderLikeRecord = {
+    sender_name: sampleData.sender_name,
+    senderName: sampleData.sender_name,
+    sender_cnic: sampleData.sender_cnic,
+    senderCnic: sampleData.sender_cnic,
+    sender_address: sampleData.sender_address,
+    shipperAddress: sampleData.sender_address,
+    receiver_name: sampleData.receiver_name,
+    consignee_name: sampleData.receiver_name,
+    receiver_address: sampleData.address ?? sampleData.receiver_address,
+    consignee_address: sampleData.address ?? sampleData.receiver_address,
+    tracking_id: sampleData.tracking_id,
+    trackingId: sampleData.tracking_id,
+    mo_number: sampleData.money_order_id,
+    moNumber: sampleData.money_order_id,
+    amount: amountValue,
+    amountRs: amountValue,
+    CollectAmount: amountValue,
+    amount_words: sampleData.amount_words,
+    issueDate: sampleData.date,
+    shipmentType: "VPL",
+  };
+
+  const html = moneyOrderHtml([orderLikeRecord as any]);
+
+  return res.json({
+    renderedTemplate,
+    html,
+    sampleData,
+  });
 });

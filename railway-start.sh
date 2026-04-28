@@ -10,8 +10,12 @@ case "$SERVICE_NAME" in
     exec sh apps/api/start.sh combined
     ;;
   Worker)
-    echo "[Worker] Standalone worker disabled. Queue processing runs inside the Api service container."
-    exec node deploy/worker-idle/idle.js
+    if [ -z "${DATABASE_URL:-}" ]; then
+      echo "[Worker] DATABASE_URL missing. Running idle process to avoid restart loop."
+      exec node deploy/worker-idle/idle.js
+    fi
+    export STORAGE_PATH="${STORAGE_PATH:-/app/storage}"
+    exec sh apps/api/start.sh worker
     ;;
   Python)
     cd python-service || exit 1

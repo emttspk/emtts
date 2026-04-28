@@ -192,7 +192,11 @@ model MoneyOrderTemplateField {
   width      Float
   height     Float
   fontSize   Int                @default(12)
+  fontFamily String             @default("Arial")
   fontWeight String             @default("normal")
+  fontStyle  String             @default("normal")
+  textColor  String             @default("#0f172a")
+  textAlign  String             @default("left")
   rotation   Float              @default(0)
   isLocked   Boolean            @default(false)
   createdAt  DateTime           @default(now())

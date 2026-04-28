@@ -6,6 +6,7 @@ import TemplateCanvas from "../components/TemplateCanvas";
 import TemplateSidebar from "../components/TemplateSidebar";
 import TemplateToolbar from "../components/TemplateToolbar";
 import TemplateLayers from "../components/TemplateLayers";
+import PreviewModal from "../components/PreviewModal";
 
 type FieldType = "text" | "barcode" | "box" | "date" | "amount";
 
@@ -19,7 +20,11 @@ type MoneyOrderTemplateField = {
   width: number;
   height: number;
   fontSize: number;
+  fontFamily: string;
   fontWeight: "normal" | "bold";
+  fontStyle: "normal" | "italic";
+  textColor: string;
+  textAlign: "left" | "center" | "right";
   rotation: number;
   isLocked: boolean;
   createdAt: string;
@@ -81,7 +86,9 @@ export default function TemplateDesigner() {
   const [templates, setTemplates] = useState<MoneyOrderTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
-  const [previewMode, setPreviewMode] = useState(false);
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState("");
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -161,7 +168,7 @@ export default function TemplateDesigner() {
     });
     setTemplates((previous) => [result.template, ...previous]);
     setSelectedTemplateId(result.template.id);
-    setPreviewMode(false);
+    setPreviewModalOpen(false);
   }
 
   async function removeTemplate(templateId: string) {
@@ -211,7 +218,11 @@ export default function TemplateDesigner() {
         width: fieldType === "barcode" ? 220 : 200,
         height: fieldType === "barcode" ? 70 : 40,
         fontSize: 14,
+        fontFamily: "Arial",
         fontWeight: "normal",
+        fontStyle: "normal",
+        textColor: "#0f172a",
+        textAlign: "left",
         rotation: 0,
         isLocked: false,
       }),
@@ -277,7 +288,11 @@ export default function TemplateDesigner() {
         width: field.width,
         height: field.height,
         fontSize: field.fontSize,
+        fontFamily: field.fontFamily,
         fontWeight: field.fontWeight,
+        fontStyle: field.fontStyle,
+        textColor: field.textColor,
+        textAlign: field.textAlign,
         rotation: field.rotation,
         isLocked: field.isLocked,
       }),
@@ -294,6 +309,28 @@ export default function TemplateDesigner() {
       ),
     );
     setSelectedFieldId(result.field.id);
+  }
+
+  async function openPreview(templateId?: string) {
+    const activeTemplateId = templateId ?? selectedTemplate?.id;
+    if (!activeTemplateId) return;
+
+    setPreviewModalOpen(true);
+    setPreviewLoading(true);
+
+    try {
+      const result = await api<{ html: string }>(`/api/admin/templates/${activeTemplateId}/preview`, {
+        method: "POST",
+        body: JSON.stringify({ sampleData: PREVIEW_SAMPLE_DATA }),
+      });
+      setPreviewHtml(result.html);
+    } catch (err) {
+      setPreviewHtml(`<html><body style="font-family:Arial;padding:16px"><h3>Preview failed</h3><p>${
+        err instanceof Error ? err.message : "Unknown preview error"
+      }</p></body></html>`);
+    } finally {
+      setPreviewLoading(false);
+    }
   }
 
   if (!TEMPLATE_DESIGNER_ENABLED) {
@@ -332,24 +369,25 @@ export default function TemplateDesigner() {
         onRenameTemplate={renameTemplate}
         onPreviewTemplate={(templateId) => {
           setSelectedTemplateId(templateId);
-          setPreviewMode(true);
+          void openPreview(templateId);
         }}
       />
 
       <div className="space-y-4">
         <TemplateToolbar
           selectedTemplate={selectedTemplate}
-          previewMode={previewMode}
+          selectedField={selectedField}
           fieldKeys={DEFAULT_FIELD_KEYS}
           onAddField={addField}
           onRefresh={refreshTemplates}
-          onTogglePreview={() => setPreviewMode((current) => !current)}
+          onUpdateField={updateField}
+          onOpenPreview={() => openPreview()}
           onUploadBackground={uploadBackground}
           onDeleteBackground={deleteBackground}
         />
         <TemplateCanvas
           template={selectedTemplate}
-          previewMode={previewMode}
+          previewMode={false}
           selectedFieldId={selectedFieldId}
           onSelectField={setSelectedFieldId}
           onUpdateField={updateField}
@@ -365,6 +403,13 @@ export default function TemplateDesigner() {
         onUpdateField={updateField}
         onDeleteField={deleteField}
         onDuplicateField={duplicateField}
+      />
+
+      <PreviewModal
+        open={previewModalOpen}
+        html={previewHtml}
+        loading={previewLoading}
+        onClose={() => setPreviewModalOpen(false)}
       />
     </div>
   );

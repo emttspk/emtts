@@ -104,7 +104,10 @@ case "$MODE" in
     exec node dist/index.js
     ;;
   worker)
-    require_database_url
+    if [ -z "${DATABASE_URL:-}" ]; then
+      echo "[startup] Worker mode: DATABASE_URL missing; starting idle process to avoid restart loop"
+      exec node deploy/worker-idle/idle.js
+    fi
     echo "[startup] Starting BullMQ worker only..."
     exec node dist/worker.js
     ;;

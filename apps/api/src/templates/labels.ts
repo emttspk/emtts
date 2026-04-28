@@ -790,8 +790,7 @@ export function moneyOrderHtml(
   orders: OrderRecord[],
   opts?: { backgrounds?: { frontDataUrl?: string; backDataUrl?: string } },
 ) {
-  void opts;
-  return moneyOrderHtmlFromBenchmark(orders);
+  return moneyOrderHtmlFromBenchmark(orders, opts?.backgrounds?.frontDataUrl);
 }
 
 let benchmarkMoHtmlCache: string | null = null;
@@ -860,6 +859,19 @@ function splitBenchmarkSheets(htmlBody: string) {
   const first = htmlBody.slice(positions[0], positions[1]).trim();
   const second = htmlBody.slice(positions[1], positions[2] ?? htmlBody.length).trim();
   return [first, second] as const;
+}
+
+function applyFrontBackgroundToBenchmarkHtml(htmlBody: string, frontDataUrl?: string) {
+  if (!frontDataUrl) return htmlBody;
+
+  const safeUrl = String(frontDataUrl).replace(/'/g, "%27");
+  let out = htmlBody;
+  const bgPattern = /(<div class="bg" style="background-image:url\(')([^']*)('\)"><\/div>)/g;
+
+  out = replaceNth(out, bgPattern, 0, (_m, p1, _old, p3) => `${p1}${safeUrl}${p3}`);
+  out = replaceNth(out, bgPattern, 1, (_m, p1, _old, p3) => `${p1}${safeUrl}${p3}`);
+
+  return out;
 }
 
 function compactHtmlFragment(fragment: string) {
@@ -1168,14 +1180,14 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
   return out;
 }
 
-function moneyOrderHtmlFromBenchmark(orders: OrderRecord[]) {
+function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataUrl?: string) {
   const expandedOrders = expandBenchmarkOrders(orders);
   const benchmarkHtml = loadBenchmarkMoHtml();
   const bodyMatch = benchmarkHtml.match(/([\s\S]*?<body>)([\s\S]*)(<\/body>[\s\S]*)/i);
   if (!bodyMatch) return benchmarkHtml;
 
   const head = bodyMatch[1];
-  const benchmarkBody = bodyMatch[2].trim();
+  const benchmarkBody = applyFrontBackgroundToBenchmarkHtml(bodyMatch[2].trim(), frontBackgroundDataUrl);
   const tail = bodyMatch[3];
   const headWithPrintGuard = head.replace(
     /<\/head>/i,

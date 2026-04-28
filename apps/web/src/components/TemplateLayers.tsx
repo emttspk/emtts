@@ -12,7 +12,11 @@ type MoneyOrderTemplateField = {
   width: number;
   height: number;
   fontSize: number;
+  fontFamily: string;
   fontWeight: "normal" | "bold";
+  fontStyle: "normal" | "italic";
+  textColor: string;
+  textAlign: "left" | "center" | "right";
   rotation: number;
   isLocked: boolean;
   createdAt: string;

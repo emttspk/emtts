@@ -1,6 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { env } from "../config.js";
+import { prisma } from "../lib/prisma.js";
+import { uploadsDir } from "../storage/paths.js";
 
 export type MoneyOrderBackgrounds = {
   frontDataUrl?: string;
@@ -8,16 +10,48 @@ export type MoneyOrderBackgrounds = {
 };
 
 export async function loadMoneyOrderBackgrounds(): Promise<MoneyOrderBackgrounds | null> {
+  const activeTemplateFrontDataUrl = await resolveActiveTemplateFrontDataUrl();
   const frontPath = (env.MONEY_ORDER_FRONT_IMAGE_PATH?.trim() || (await resolveDefaultPath("MO/MO Front.png"))) ?? "";
   const backPath = (env.MONEY_ORDER_BACK_IMAGE_PATH?.trim() || (await resolveDefaultPath("MO/MO Back.png"))) ?? "";
-  if (!frontPath && !backPath) return null;
+  if (!activeTemplateFrontDataUrl && !frontPath && !backPath) return null;
 
   const [front, back] = await Promise.all([
-    frontPath ? fileToDataUrl(frontPath) : Promise.resolve(undefined),
+    activeTemplateFrontDataUrl ? Promise.resolve(activeTemplateFrontDataUrl) : frontPath ? fileToDataUrl(frontPath) : Promise.resolve(undefined),
     backPath ? fileToDataUrl(backPath) : Promise.resolve(undefined),
   ]);
 
   return { frontDataUrl: front, backDataUrl: back };
+}
+
+async function resolveActiveTemplateFrontDataUrl() {
+  try {
+    const activeTemplate = await prisma.moneyOrderTemplate.findFirst({
+      where: { isActive: true },
+      select: { backgroundUrl: true },
+    });
+
+    const backgroundUrl = String(activeTemplate?.backgroundUrl ?? "").trim();
+    if (!backgroundUrl) return undefined;
+
+    if (backgroundUrl.startsWith("/api/admin/templates/background/")) {
+      const fileName = sanitizeFilename(decodeURIComponent(backgroundUrl.split("/").pop() ?? ""));
+      if (!fileName) return undefined;
+      const abs = path.resolve(uploadsDir(), "templates", fileName);
+      return fileToDataUrl(abs);
+    }
+
+    if (backgroundUrl.startsWith("http://") || backgroundUrl.startsWith("https://") || backgroundUrl.startsWith("data:")) {
+      return undefined;
+    }
+
+    return fileToDataUrl(backgroundUrl);
+  } catch {
+    return undefined;
+  }
+}
+
+function sanitizeFilename(input: string) {
+  return path.basename(input).replace(/[^a-zA-Z0-9._-]/g, "");
 }
 
 async function resolveDefaultPath(relativePath: string) {

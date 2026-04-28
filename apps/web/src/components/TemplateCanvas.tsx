@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { Layer, Rect, Stage, Text, Transformer } from "react-konva";
 import type Konva from "konva";
 import Card from "./Card";
+import { buildAuthenticatedApiUrl } from "../lib/api";
 
 type FieldType = "text" | "barcode" | "box" | "date" | "amount";
 
@@ -15,7 +16,11 @@ type MoneyOrderTemplateField = {
   width: number;
   height: number;
   fontSize: number;
+  fontFamily: string;
   fontWeight: "normal" | "bold";
+  fontStyle: "normal" | "italic";
+  textColor: string;
+  textAlign: "left" | "center" | "right";
   rotation: number;
   isLocked: boolean;
 };
@@ -57,7 +62,16 @@ export default function TemplateCanvas(props: {
   onSelectField: (fieldId: string | null) => void;
   onUpdateField: (fieldId: string, patch: Partial<MoneyOrderTemplateField>) => Promise<void>;
 }) {
-  const image = useImageElement(props.template?.backgroundUrl ?? null);
+  const canvasBackgroundUrl = useMemo(() => {
+    const url = props.template?.backgroundUrl ?? null;
+    if (!url) return null;
+    if (url.startsWith("/api/")) {
+      return buildAuthenticatedApiUrl(url);
+    }
+    return url;
+  }, [props.template?.backgroundUrl]);
+
+  const image = useImageElement(canvasBackgroundUrl);
   const transformerRef = useRef<Konva.Transformer | null>(null);
   const shapeRefs = useRef<Record<string, Konva.Rect | null>>({});
 
@@ -156,8 +170,18 @@ export default function TemplateCanvas(props: {
                 rotation={field.rotation}
                 text={fieldLabel(field, props.previewValues[field.fieldKey])}
                 fontSize={field.fontSize}
-                fontStyle={field.fontWeight === "bold" ? "bold" : "normal"}
-                fill={props.previewMode ? "#0f172a" : "#0f766e"}
+                fontFamily={field.fontFamily || "Arial"}
+                fontStyle={
+                  field.fontWeight === "bold" && field.fontStyle === "italic"
+                    ? "bold italic"
+                    : field.fontWeight === "bold"
+                      ? "bold"
+                      : field.fontStyle === "italic"
+                        ? "italic"
+                        : "normal"
+                }
+                fill={field.textColor || "#0f172a"}
+                align={field.textAlign || "left"}
                 listening={false}
               />
             ))}

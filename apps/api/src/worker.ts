@@ -474,6 +474,15 @@ async function startWorker() {
   try {
     console.log("🔥 Worker initialization started");
 
+    const dbUrl = String(process.env.DATABASE_URL ?? "").trim();
+    if (!dbUrl) {
+      console.error("[Worker] DATABASE_URL is missing. Worker will stay idle to avoid crash loops.");
+      setInterval(() => {
+        console.log("[Worker] Idle heartbeat: waiting for DATABASE_URL configuration.");
+      }, 60_000);
+      return;
+    }
+
     await ensureStorageDirs();
     await prisma.$connect();
     console.log("[Worker] Waiting for Redis connection (REDIS_URL)...");

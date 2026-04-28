@@ -11,7 +11,11 @@ export type RenderedTemplateField = {
   width: number;
   height: number;
   fontSize: number;
+  fontFamily: string;
   fontWeight: string;
+  fontStyle: string;
+  textColor: string;
+  textAlign: string;
   rotation: number;
   isLocked: boolean;
   value: string;
@@ -27,7 +31,10 @@ export type RenderedMoneyOrderTemplate = {
 };
 
 function normalizeFieldValue(fieldKey: string, data: TemplateRenderData): string {
-  const rawValue = data[fieldKey];
+  let rawValue = data[fieldKey];
+  if ((rawValue === null || rawValue === undefined || rawValue === "") && fieldKey === "receiver_address") {
+    rawValue = data.address;
+  }
   if (rawValue === null || rawValue === undefined) return "";
   return String(rawValue);
 }
@@ -61,7 +68,11 @@ export async function renderMoneyOrderTemplate(templateId: string, data: Templat
       width: field.width,
       height: field.height,
       fontSize: field.fontSize,
+      fontFamily: field.fontFamily,
       fontWeight: field.fontWeight,
+      fontStyle: field.fontStyle,
+      textColor: field.textColor,
+      textAlign: field.textAlign,
       rotation: field.rotation,
       isLocked: field.isLocked,
       value: normalizeFieldValue(field.fieldKey, data),
