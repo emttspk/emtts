@@ -2,6 +2,26 @@ import { prisma } from "../lib/prisma.js";
 
 export type TemplateRenderData = Record<string, string | number | null | undefined>;
 
+export const TEMPLATE_FALLBACK_BACKGROUND_URL = "/templates/mo-front-default.png";
+
+export async function getActiveMoneyOrderTemplate() {
+  try {
+    const active = await prisma.moneyOrderTemplate.findFirst({
+      where: { isActive: true },
+      include: { fields: { orderBy: { createdAt: "asc" } } },
+    });
+
+    if (!active) return null;
+
+    return {
+      ...active,
+      backgroundUrl: active.backgroundUrl ?? TEMPLATE_FALLBACK_BACKGROUND_URL,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export type RenderedTemplateField = {
   id: string;
   fieldKey: string;

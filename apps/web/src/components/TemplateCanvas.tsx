@@ -64,7 +64,7 @@ export default function TemplateCanvas(props: {
 }) {
   const canvasBackgroundUrl = useMemo(() => {
     const url = props.template?.backgroundUrl ?? null;
-    if (!url) return null;
+    if (!url) return "/templates/mo-front-default.png";
     if (url.startsWith("/api/")) {
       return buildAuthenticatedApiUrl(url);
     }

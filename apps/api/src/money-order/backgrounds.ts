@@ -11,7 +11,11 @@ export type MoneyOrderBackgrounds = {
 
 export async function loadMoneyOrderBackgrounds(): Promise<MoneyOrderBackgrounds | null> {
   const activeTemplateFrontDataUrl = await resolveActiveTemplateFrontDataUrl();
-  const frontPath = (env.MONEY_ORDER_FRONT_IMAGE_PATH?.trim() || (await resolveDefaultPath("MO/MO Front.png"))) ?? "";
+  const frontPath = (
+    env.MONEY_ORDER_FRONT_IMAGE_PATH?.trim() ||
+    (await resolveDefaultPath("images/NEW MO F A5.jpg")) ||
+    (await resolveDefaultPath("MO/MO Front.png"))
+  ) ?? "";
   const backPath = (env.MONEY_ORDER_BACK_IMAGE_PATH?.trim() || (await resolveDefaultPath("MO/MO Back.png"))) ?? "";
   if (!activeTemplateFrontDataUrl && !frontPath && !backPath) return null;
 

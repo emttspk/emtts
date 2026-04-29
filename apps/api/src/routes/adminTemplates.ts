@@ -404,7 +404,7 @@ adminTemplatesRouter.put("/:id", async (req, res) => {
     where: { id: req.params.id },
     data: {
       ...(body.name !== undefined ? { name: body.name } : {}),
-      ...(body.backgroundUrl !== undefined ? { backgroundUrl: body.backgroundUrl } : {}),
+      ...(body.backgroundUrl !== undefined ? { backgroundUrl: body.backgroundUrl ?? DEFAULT_TEMPLATE_BACKGROUND_URL } : {}),
       ...(body.version !== undefined ? { version: body.version } : {}),
       ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
     },
