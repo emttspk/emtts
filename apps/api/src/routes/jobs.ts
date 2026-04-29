@@ -415,8 +415,8 @@ export async function handleLabelUpload(req: Request, res: Response) {
   if (isDuplicate) {
     return res.status(409).json({
       success: false,
-      error: "This file name already exists. Rename file and upload again.",
-      message: "This file name already exists. Rename file and upload again."
+      error: "This file name already exists.",
+      message: "This file name already exists.",
     });
   }
 

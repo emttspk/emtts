@@ -1,12 +1,15 @@
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
+import { useOutletContext } from "react-router-dom";
 import { UploadCloud, AlertCircle, Eye, MapPin, PackageSearch, BadgeDollarSign, RefreshCw, Printer } from "lucide-react";
 import Card from "../components/Card";
+import SenderProfileSidecard from "../components/SenderProfileSidecard";
 import SampleDownloadLink from "../components/SampleDownloadLink";
 import { cn } from "../lib/cn";
 import { api, apiHealthCheck, uploadFile } from "../lib/api";
 import { useTrackingJobPolling } from "../lib/useTrackingJobPolling";
-import type { Shipment as BaseShipment, TrackResult } from "../lib/types";
+import { getRole } from "../lib/auth";
+import type { MeResponse, Shipment as BaseShipment, TrackResult } from "../lib/types";
 import {
   computeStats,
   filterFinalTrackingData,
@@ -22,6 +25,8 @@ type Shipment = BaseShipment & {
   createdAt: string;
   rawJson?: string | null;
 };
+
+type ShellCtx = { me: MeResponse | null; refreshMe: () => Promise<void> };
 
 type ShipmentStats = {
   total: number;
@@ -666,6 +671,8 @@ function isManualOverrideShipment(shipment: Shipment): boolean {
 }
 
 export default function BulkTracking() {
+  const { me } = useOutletContext<ShellCtx>();
+  const isAdmin = getRole() === "ADMIN";
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<TrackResult[] | null>(null);
@@ -1979,13 +1986,19 @@ export default function BulkTracking() {
 
   return (
     <>
-    <div className="app-container space-y-6">
+    <div className="app-container space-y-6 lg:pr-[340px]">
+      <div className="lg:hidden">
+        <SenderProfileSidecard me={me} />
+      </div>
+      <div className="hidden lg:block lg:fixed lg:right-6 lg:top-24 lg:z-20 lg:w-[320px]">
+        <SenderProfileSidecard me={me} className="shadow-xl" />
+      </div>
       <Card className="overflow-hidden p-8 md:p-10">
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
           <div>
             <div className="ui-kicker">Track Parcel</div>
-            <div className="mt-5 font-display text-4xl font-extrabold tracking-[-0.05em] text-slate-950 md:text-5xl">Monitor parcel movement with a premium live tracking workspace.</div>
-            <div className="mt-4 max-w-2xl text-base leading-8 text-slate-600">Upload once, process records in bulk, and manage shipment actions, complaint routing, and money-order visibility from one focused tracking surface.</div>
+            <div className="mt-5 font-display text-4xl font-extrabold tracking-[-0.05em] text-slate-950 md:text-5xl">Tracking workspace</div>
+            <div className="mt-4 max-w-2xl text-base leading-8 text-slate-600">Upload in bulk, review statuses, and manage complaint actions from a compact operational view.</div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Card className="p-5">
@@ -2152,7 +2165,6 @@ export default function BulkTracking() {
             <div>
               <div className="text-xl font-medium text-[#0F172A]">Bulk Tracking</div>
               <div className="mt-1 text-sm text-gray-600">Upload CSV/XLS/XLSX using the strict shared sample structure.</div>
-              <div className="mt-2 text-sm font-bold text-[#0F172A]">FREE BULK DISPATCH AND TRACKING</div>
             </div>
             <SampleDownloadLink />
           </div>
@@ -2355,7 +2367,7 @@ export default function BulkTracking() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-xl font-semibold tracking-tight text-slate-900">All Tracked Shipments</div>
-              <div className="mt-1 text-sm text-slate-600">Professional shipment workspace with status control, aging, and money-order details.</div>
+              <div className="mt-1 text-sm text-slate-600">Search, status, history, and money-order details.</div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
             <label className="text-xs font-medium text-slate-600">
@@ -2625,7 +2637,7 @@ export default function BulkTracking() {
         </div>
       </Card>
 
-      <Card className="border-[#E5E7EB] p-6">
+      {isAdmin ? <Card className="border-[#E5E7EB] p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="text-lg font-semibold text-slate-900">Tracking Cycle Audit (100 Sample)</div>
@@ -2756,7 +2768,7 @@ export default function BulkTracking() {
             </table>
           </div>
         ) : null}
-      </Card>
+      </Card> : null}
 
       {complaintRecord ? (
         <div className="modal-wrapper bg-slate-950/50 p-2 z-40">

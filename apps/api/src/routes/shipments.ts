@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
+import { requireAdmin } from "../middleware/auth.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { pythonTrackBulk, PythonServiceUnavailableError, PythonServiceTimeoutError } from "../services/trackingService.js";
 import { canonicalShipmentStatus, calculateStatusCards, isComplaintEnabled, processTracking } from "../services/trackingStatus.js";
@@ -44,6 +45,9 @@ async function ensureMoneyOrderTables() {
       tracking_id TEXT,
       issue_date TEXT,
       amount REAL NOT NULL DEFAULT 0,
+      mo_amount REAL NOT NULL DEFAULT 0,
+      commission REAL NOT NULL DEFAULT 0,
+      gross_amount REAL NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
@@ -62,6 +66,15 @@ async function ensureMoneyOrderTables() {
   }
   if (!hasColumn("amount")) {
     await prisma.$executeRaw`ALTER TABLE money_orders ADD COLUMN IF NOT EXISTS amount REAL NOT NULL DEFAULT 0`;
+  }
+  if (!hasColumn("mo_amount")) {
+    await prisma.$executeRaw`ALTER TABLE money_orders ADD COLUMN IF NOT EXISTS mo_amount REAL NOT NULL DEFAULT 0`;
+  }
+  if (!hasColumn("commission")) {
+    await prisma.$executeRaw`ALTER TABLE money_orders ADD COLUMN IF NOT EXISTS commission REAL NOT NULL DEFAULT 0`;
+  }
+  if (!hasColumn("gross_amount")) {
+    await prisma.$executeRaw`ALTER TABLE money_orders ADD COLUMN IF NOT EXISTS gross_amount REAL NOT NULL DEFAULT 0`;
   }
   if (!hasColumn("segment_index")) {
     await prisma.$executeRaw`ALTER TABLE money_orders ADD COLUMN IF NOT EXISTS segment_index INTEGER NOT NULL DEFAULT 0`;
@@ -464,7 +477,7 @@ shipmentsRouter.get("/", async (req, res) => {
   return res.json({ success: true, total, page, limit, shipments: enriched });
 });
 
-shipmentsRouter.get("/cycle-audit", async (req, res) => {
+shipmentsRouter.get("/cycle-audit", requireAdmin, async (req, res) => {
   const userId = (req as AuthedRequest).user!.id;
   const query = z
     .object({
@@ -516,7 +529,7 @@ shipmentsRouter.get("/cycle-audit", async (req, res) => {
   });
 });
 
-shipmentsRouter.post("/cycle-audit/corrections", async (req, res) => {
+shipmentsRouter.post("/cycle-audit/corrections", requireAdmin, async (req, res) => {
   const userId = (req as AuthedRequest).user!.id;
   const body = z
     .object({
@@ -593,7 +606,7 @@ shipmentsRouter.post("/cycle-audit/corrections", async (req, res) => {
   });
 });
 
-shipmentsRouter.post("/cycle-audit/reprocess", async (req, res) => {
+shipmentsRouter.post("/cycle-audit/reprocess", requireAdmin, async (req, res) => {
   const userId = (req as AuthedRequest).user!.id;
   const body = z
     .object({
@@ -635,7 +648,7 @@ shipmentsRouter.post("/cycle-audit/reprocess", async (req, res) => {
   });
 });
 
-shipmentsRouter.post("/cycle-audit/import", async (req, res) => {
+shipmentsRouter.post("/cycle-audit/import", requireAdmin, async (req, res) => {
   const body = z
     .object({
       csv_text: z.string().min(10),

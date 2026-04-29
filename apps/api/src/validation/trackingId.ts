@@ -165,15 +165,15 @@ export function moneyOrderBreakdown(total: number, shipmentType?: unknown): Mone
   const chargeCommission = shipmentType == null || shipmentType === ""
     ? true
     : shouldChargeMoneyOrderCommission(shipmentType);
-  return splitBlocks(total).map((blockGrossAmount, index) => {
-    const grossAmount = Math.max(0, blockGrossAmount);
+  return splitBlocks(total).map((blockMoAmount, index) => {
+    const moAmount = Math.max(0, blockMoAmount);
     const commission = chargeCommission
-      ? grossAmount <= 10_075
+      ? moAmount <= 10_000
         ? 75
         : 100
       : 0;
-    const netAmount = Math.max(0, grossAmount - commission);
-    const moAmount = netAmount;
+    const grossAmount = moAmount + commission;
+    const netAmount = moAmount;
     return {
       segmentIndex: index,
       grossAmount,

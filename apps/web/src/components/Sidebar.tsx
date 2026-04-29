@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Download,
   LayoutDashboard,
@@ -13,41 +13,45 @@ import {
 } from "lucide-react";
 import { clearSession, getRole } from "../lib/auth";
 import { cn } from "../lib/cn";
+import { APP_NAV_ITEMS, isRouteActive } from "../lib/navigation";
 
 const nav = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/generate-labels", label: "Generate Labels", icon: UploadCloud },
-  { to: "/generate-money-orders", label: "Generate Money Order", icon: Wallet },
-  { to: "/tracking", label: "Tracking", icon: Radar },
-  { to: "/download-labels", label: "Download Labels", icon: Download },
-  { to: "/packages", label: "Package", icon: Package },
-  { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, matchPrefixes: ["/dashboard"] },
+  { to: "/admin/generate-labels", label: "Generate Labels", icon: UploadCloud, matchPrefixes: ["/generate-labels", "/admin/generate-labels"] },
+  { to: "/admin/generate-money-orders", label: "Generate Money Order", icon: Wallet, matchPrefixes: ["/generate-money-orders", "/admin/generate-money-orders"] },
+  { to: "/tracking-workspace", label: "Tracking", icon: Radar, matchPrefixes: ["/tracking", "/tracking-workspace"] },
+  { to: "/jobs?filter=completed", label: "Download Labels", icon: Download, matchPrefixes: ["/download-labels", "/downloads", "/jobs"] },
+  { to: "/select-package", label: "Package", icon: Package, matchPrefixes: ["/packages", "/select-package", "/update-package"] },
+  { to: "/settings", label: "Settings", icon: Settings, matchPrefixes: ["/settings", "/profile"] },
 ];
 
 export default function Sidebar(props: { isOpen: boolean; setIsOpen: (v: boolean) => void; collapsed?: boolean; userEmail?: string }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const role = getRole();
   const collapsed = Boolean(props.collapsed);
 
-  const NavItem = (p: { to: string; label: string; icon: any }) => (
-    <NavLink
+  const NavItem = (p: { to: string; label: string; icon: any; matchPrefixes: string[] }) => {
+    const active = isRouteActive(location.pathname, { matchPrefixes: p.matchPrefixes });
+    return (
+    <Link
       to={p.to}
       title={collapsed ? p.label : undefined}
-      className={({ isActive }) =>
-        cn(
-          "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ease-out",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80 focus-visible:ring-offset-0",
-          isActive
-            ? "bg-white text-brand shadow-[0_10px_24px_rgba(15,23,42,0.2)]"
-            : "text-slate-100 hover:bg-white/10 hover:text-white",
-        )
-      }
+      className={cn(
+        "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 ease-out",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80 focus-visible:ring-offset-0",
+        active
+          ? "border-l-2 border-emerald-300 bg-[linear-gradient(90deg,rgba(255,255,255,0.18),rgba(255,255,255,0.08))] text-white shadow-[0_12px_28px_rgba(15,23,42,0.26)]"
+          : "text-slate-100/90 hover:bg-white/10 hover:text-white",
+      )}
       onClick={() => props.setIsOpen(false)}
     >
-      <p.icon className="h-5 w-5 flex-none opacity-90 transition-transform duration-200 ease-out group-hover:scale-105" />
+      <p.icon className={cn("h-5 w-5 flex-none transition-transform duration-200 ease-out group-hover:scale-105", active ? "opacity-100" : "opacity-90")} />
       <span className={cn("truncate", collapsed && "hidden lg:inline")}>{p.label}</span>
-    </NavLink>
-  );
+      {active ? <span className="absolute right-3 h-1.5 w-1.5 rounded-full bg-emerald-200" /> : null}
+    </Link>
+    );
+  };
 
   return (
     <>
@@ -84,7 +88,7 @@ export default function Sidebar(props: { isOpen: boolean; setIsOpen: (v: boolean
             {nav.map((n) => (
               <NavItem key={n.to} {...n} />
             ))}
-            {role === "ADMIN" ? <NavItem to="/admin" label="Admin" icon={Shield} /> : null}
+            {role === "ADMIN" ? <NavItem to="/admin" label="Admin" icon={Shield} matchPrefixes={APP_NAV_ITEMS.find((item) => item.label === "Admin")?.matchPrefixes ?? ["/admin"]} /> : null}
           </div>
         </nav>
 

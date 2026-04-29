@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Download } from "lucide-react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import Card from "../components/Card";
+import SenderProfileSidecard from "../components/SenderProfileSidecard";
 import SampleDownloadLink from "../components/SampleDownloadLink";
 import UploadDropzone from "../components/UploadDropzone";
 import { api, apiHealthCheck, triggerBrowserDownload, uploadFile } from "../lib/api";
@@ -728,6 +729,9 @@ export default function Upload() {
           </div>
 
           <div className="space-y-4">
+            <div className="lg:sticky lg:top-24">
+              <SenderProfileSidecard me={me} />
+            </div>
             <Card className="p-6">
               <div className="text-xl font-medium text-gray-900">CSV Format</div>
               <div className="mt-2 text-sm text-gray-600">Use the shared strict sample structure for Labels, Tracking, and Money Orders.</div>

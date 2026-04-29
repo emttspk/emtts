@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import Card from "../../components/Card";
+import SenderProfileSidecard from "../../components/SenderProfileSidecard";
 import MoneyOrderForm from "../../components/MoneyOrderForm";
 import UploadDropzone from "../../components/UploadDropzone";
 import SampleDownloadLink from "../../components/SampleDownloadLink";
@@ -298,16 +299,7 @@ export default function GenerateMoneyOrder() {
             {latestJob ? <div className="mt-3 text-xs font-medium text-slate-500">Job: {latestJob.id} | Status: {latestJob.status}</div> : null}
           </Card>
 
-          <Card className="p-6">
-            <div className="text-lg font-semibold text-slate-950">Sender Profile Source</div>
-            <div className="mt-3 space-y-2 text-sm text-slate-700">
-              <div>Name: <span className="font-semibold text-slate-950">{senderName || "-"}</span></div>
-              <div>Address: <span className="font-semibold text-slate-950">{senderAddress || "-"}</span></div>
-              <div>Mobile: <span className="font-semibold text-slate-950">{senderMobile || "-"}</span></div>
-              <div>CNIC: <span className="font-semibold text-slate-950">{senderCnic || "-"}</span></div>
-            </div>
-            <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">Money-order sender prints as: Name (CNIC)</div>
-          </Card>
+          <SenderProfileSidecard me={me} />
 
           <Card className="p-6">
             <div className="text-lg font-semibold text-slate-950">CSV Format</div>

@@ -6,24 +6,7 @@ import type { MeResponse } from "../lib/types";
 import { fetchMe } from "../lib/UserService";
 import Card from "./Card";
 import { cn } from "../lib/cn";
-
-const titleMap: Array<{ prefix: string; title: string }> = [
-  { prefix: "/dashboard", title: "Dashboard" },
-  { prefix: "/generate-labels", title: "Generate Labels" },
-  { prefix: "/admin/generate-labels", title: "Generate Labels" },
-  { prefix: "/generate-money-orders", title: "Generate Money Order" },
-  { prefix: "/admin/generate-money-orders", title: "Generate Money Order" },
-  { prefix: "/tracking", title: "Tracking" },
-  { prefix: "/tracking-workspace", title: "Tracking" },
-  { prefix: "/download-labels", title: "Download Labels" },
-  { prefix: "/jobs", title: "Download Labels" },
-  { prefix: "/packages", title: "Package" },
-  { prefix: "/select-package", title: "Package" },
-  { prefix: "/update-package", title: "Package" },
-  { prefix: "/settings", title: "Settings" },
-  { prefix: "/admin/template-designer", title: "Template Designer" },
-  { prefix: "/admin", title: "Admin" },
-];
+import { resolvePageTitle } from "../lib/navigation";
 
 export default function AppShell() {
   const loc = useLocation();
@@ -33,8 +16,7 @@ export default function AppShell() {
   const [loading, setLoading] = useState(true);
 
   const title = useMemo(() => {
-    const hit = titleMap.find((t) => loc.pathname.startsWith(t.prefix));
-    return hit?.title ?? "Epost.pk";
+    return resolvePageTitle(loc.pathname);
   }, [loc.pathname]);
 
   useEffect(() => {

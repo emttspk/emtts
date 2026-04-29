@@ -54,52 +54,28 @@ function resolveMoneyOrderCommission(order: Record<string, unknown>) {
 
 function deriveNetCommissionFromGross(grossAmount: number, shipmentType: unknown) {
   const normalizedShipment = String(shipmentType ?? "").trim().toUpperCase();
-  const gross = Math.max(0, Math.floor(grossAmount));
+  const moAmount = Math.max(0, Math.floor(grossAmount));
   
   // Phase 5: Envelope special calculation rules (separate from VPL/VPP)
   if (normalizedShipment === "ENVELOPE") {
-    const netIfEnv75 = gross - 75;
-    if (netIfEnv75 > 0 && netIfEnv75 <= 10_000) {
-      return { netAmount: netIfEnv75, commission: 75 };
-    }
-    const netIfEnv100 = gross - 100;
-    if (netIfEnv100 > 10_000) {
-      return { netAmount: netIfEnv100, commission: 100 };
-    }
-    const envelopeCommission = gross > 10_075 ? 100 : 75;
-    return { netAmount: Math.max(0, gross - envelopeCommission), commission: envelopeCommission };
+    const envelopeCommission = moAmount > 10_000 ? 100 : 75;
+    return { netAmount: moAmount, commission: envelopeCommission };
   }
   
   // Standard VPL/VPP calculation
   if (normalizedShipment === "VPL" || normalizedShipment === "VPP") {
-    const netIf75 = gross - 75;
-    if (netIf75 > 0 && netIf75 <= 10_000) {
-      return { netAmount: netIf75, commission: 75 };
-    }
-    const netIf100 = gross - 100;
-    if (netIf100 > 10_000) {
-      return { netAmount: netIf100, commission: 100 };
-    }
-    const fallbackCommission = gross > 10_075 ? 100 : 75;
-    return { netAmount: Math.max(0, gross - fallbackCommission), commission: fallbackCommission };
+    const commission = moAmount > 10_000 ? 100 : 75;
+    return { netAmount: moAmount, commission };
   }
 
   // COD uses standard VPL/VPP calculation
   if (normalizedShipment === "COD") {
-    const netIf75 = gross - 75;
-    if (netIf75 > 0 && netIf75 <= 10_000) {
-      return { netAmount: netIf75, commission: 75 };
-    }
-    const netIf100 = gross - 100;
-    if (netIf100 > 10_000) {
-      return { netAmount: netIf100, commission: 100 };
-    }
-    const fallbackCommission = gross > 10_075 ? 100 : 75;
-    return { netAmount: Math.max(0, gross - fallbackCommission), commission: fallbackCommission };
+    const commission = moAmount > 10_000 ? 100 : 75;
+    return { netAmount: moAmount, commission };
   }
 
   // All other types (parcel, document, etc.) - no commission
-  return { netAmount: gross, commission: 0 };
+  return { netAmount: moAmount, commission: 0 };
 }
 
 function formatWeightInGrams(value: unknown) {
@@ -274,21 +250,22 @@ type LabelAmountSummary = {
 function getLabelAmountSummary(order: Pick<LabelOrder, "carrierType" | "shipmentType" | "shipmenttype" | "CollectAmount">): LabelAmountSummary {
   const carrierType = order.carrierType === "courier" ? "courier" : "pakistan_post";
   const shipmentType = resolveOrderShipmentType(order);
-  const grossAmount = toNum(order.CollectAmount);
-  const appliesPakistanPostRules = shouldApplyPakistanPostValuePayableRules(carrierType, shipmentType) && grossAmount > 0;
+  const moAmountInput = toNum(order.CollectAmount);
+  const appliesPakistanPostRules = shouldApplyPakistanPostValuePayableRules(carrierType, shipmentType) && moAmountInput > 0;
   if (!appliesPakistanPostRules) {
     return {
       carrierType,
       shipmentType,
       appliesPakistanPostRules,
-      grossAmount,
+      grossAmount: moAmountInput,
       moAmount: 0,
       commission: 0,
       showCalculation: false,
     };
   }
 
-  const { netAmount, commission } = deriveNetCommissionFromGross(grossAmount, shipmentType);
+  const { netAmount, commission } = deriveNetCommissionFromGross(moAmountInput, shipmentType);
+  const grossAmount = netAmount + commission;
   return {
     carrierType,
     shipmentType,
@@ -301,38 +278,18 @@ function getLabelAmountSummary(order: Pick<LabelOrder, "carrierType" | "shipment
 }
 
 function resolveMoneyOrderAmount(order: Pick<LabelOrder, "CollectAmount" | "shipmentType" | "shipmenttype"> & Record<string, unknown>) {
-  const declaredGrossAmount = toNum(
+  const declaredMoAmount = toNum(
     order.CollectAmount ?? order.collect_amount ?? order.collected_amount ?? order.collectAmount ?? 0,
   );
-  if (declaredGrossAmount > 0) {
-    const explicitCommission = resolveMoneyOrderCommission(order);
-    if (explicitCommission > 0) {
-      return Math.max(0, declaredGrossAmount - explicitCommission);
-    }
-
-    const shipmentType = String(order.shipmentType ?? order.shipmenttype ?? "").trim().toUpperCase();
-    // Phase 4: Apply money order calculation for all eligible shipment types (VPL, VPP, COD)
-    if (shipmentType === "VPL" || shipmentType === "VPP" || shipmentType === "COD") {
-      return deriveNetCommissionFromGross(declaredGrossAmount, shipmentType).netAmount;
-    }
-    return declaredGrossAmount;
+  if (declaredMoAmount > 0) {
+    return declaredMoAmount;
   }
 
   const explicitMoAmount = toNum(order.amountRs ?? order.amount ?? 0);
   if (explicitMoAmount > 0) {
-    const explicitCommission = resolveMoneyOrderCommission(order);
-    if (explicitCommission > 0) {
-      return Math.max(0, explicitMoAmount - explicitCommission);
-    }
     return explicitMoAmount;
   }
-
-  const shipmentType = String(order.shipmentType ?? order.shipmenttype ?? "").trim().toUpperCase();
-  // Phase 4: Apply money order calculation for all eligible shipment types (VPL, VPP, COD)
-  if (shipmentType === "VPL" || shipmentType === "VPP" || shipmentType === "COD") {
-    return deriveNetCommissionFromGross(declaredGrossAmount, shipmentType).netAmount;
-  }
-  return declaredGrossAmount;
+  return declaredMoAmount;
 }
 
 function renderBoxAmountBlock(summary: LabelAmountSummary) {
@@ -341,14 +298,9 @@ function renderBoxAmountBlock(summary: LabelAmountSummary) {
   }
 
   const formatRs = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
-  if (!summary.showCalculation) {
-    return "";
-  }
-
   return `
     <div class="money">
-      <div class="money-row"><span class="money-label">Money Order</span><span class="money-value">Rs. ${escapeHtml(formatRs(summary.moAmount))}</span></div>
-      <div class="money-row"><span class="money-label">MO Commission</span><span class="money-value">Rs. ${escapeHtml(formatRs(summary.commission))}</span></div>
+      <div class="money-row"><span class="money-label">MO Amount</span><span class="money-value">Rs. ${escapeHtml(formatRs(summary.moAmount))}</span></div>
     </div>
   `;
 }
@@ -615,9 +567,7 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
     const prefixBadgeText = amountSummary.appliesPakistanPostRules ? `${shipmentLabel} Rs.${amountSummary.moAmount}` : shipmentLabel;
     const formatRs = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
     const amountMarkup = amountSummary.appliesPakistanPostRules
-      ? amountSummary.showCalculation
-        ? `<div class="fl-amount-box"><div class="fl-amount-row"><span>MO Amount</span><span>Rs.${escapeHtml(formatRs(amountSummary.moAmount))}</span></div><div class="fl-amount-row"><span>MO Commission</span><span>Rs.${escapeHtml(formatRs(amountSummary.commission))}</span></div></div>`
-        : `<div class="fl-amount-box"><div class="fl-amount-row"><span>MO Amount</span><span>Rs.${escapeHtml(formatRs(amountSummary.moAmount))}</span></div></div>`
+      ? `<div class="fl-amount-box"><div class="fl-amount-row"><span>MO Amount</span><span>Rs.${escapeHtml(formatRs(amountSummary.moAmount))}</span></div></div>`
       : "";
 
     return `

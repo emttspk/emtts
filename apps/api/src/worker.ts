@@ -248,6 +248,9 @@ async function ensureMoneyOrderTables() {
       tracking_id TEXT,
       issue_date TEXT,
       amount REAL NOT NULL DEFAULT 0,
+      mo_amount REAL NOT NULL DEFAULT 0,
+      commission REAL NOT NULL DEFAULT 0,
+      gross_amount REAL NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
@@ -266,6 +269,15 @@ async function ensureMoneyOrderTables() {
   }
   if (!hasColumn("amount")) {
     await prisma.$executeRaw`ALTER TABLE money_orders ADD COLUMN IF NOT EXISTS amount REAL NOT NULL DEFAULT 0`;
+  }
+  if (!hasColumn("mo_amount")) {
+    await prisma.$executeRaw`ALTER TABLE money_orders ADD COLUMN IF NOT EXISTS mo_amount REAL NOT NULL DEFAULT 0`;
+  }
+  if (!hasColumn("commission")) {
+    await prisma.$executeRaw`ALTER TABLE money_orders ADD COLUMN IF NOT EXISTS commission REAL NOT NULL DEFAULT 0`;
+  }
+  if (!hasColumn("gross_amount")) {
+    await prisma.$executeRaw`ALTER TABLE money_orders ADD COLUMN IF NOT EXISTS gross_amount REAL NOT NULL DEFAULT 0`;
   }
   if (!hasColumn("segment_index")) {
     await prisma.$executeRaw`ALTER TABLE money_orders ADD COLUMN IF NOT EXISTS segment_index INTEGER NOT NULL DEFAULT 0`;
@@ -300,6 +312,9 @@ type MoneyOrderRow = {
   mo_number: string;
   issue_date: string | null;
   amount: number | null;
+  mo_amount: number | null;
+  commission: number | null;
+  gross_amount: number | null;
   segment_index: number;
 };
 
@@ -342,6 +357,7 @@ async function allocateNextMoneyOrderNumber(executor: Prisma.TransactionClient, 
       reservedNumbers.add(moNumber);
       return moNumber;
     }
+    console.warn("MOS duplicate detected. New MOS generated.");
     sequence += 1;
   }
 }
@@ -371,7 +387,7 @@ async function ensureSystemMoneyOrders(
     await prisma.$transaction(async (tx) => {
       const desiredLines = moneyOrderBreakdown(row.amount, row.shipmentType);
       const existing = await tx.$queryRaw<MoneyOrderRow[]>`
-        SELECT seq, tracking_number, tracking_id, mo_number, issue_date, amount, segment_index
+        SELECT seq, tracking_number, tracking_id, mo_number, issue_date, amount, mo_amount, commission, gross_amount, segment_index
         FROM money_orders
         WHERE user_id = ${userId} AND tracking_number = ${row.trackingNumber}
         ORDER BY segment_index ASC, seq ASC
@@ -403,6 +419,9 @@ async function ensureSystemMoneyOrders(
             SET tracking_id = ${row.trackingNumber},
                 issue_date = ${row.issueDate},
                 amount = ${desiredLine.moAmount},
+              mo_amount = ${desiredLine.moAmount},
+              commission = ${desiredLine.commission},
+              gross_amount = ${desiredLine.grossAmount},
                 updated_at = CURRENT_TIMESTAMP
             WHERE seq = ${currentRow.seq}
           `;
@@ -414,8 +433,8 @@ async function ensureSystemMoneyOrders(
           attempts += 1;
           const moNumber = await allocateNextMoneyOrderNumber(tx, row.issueDate, reservedNumbers);
           const inserted = await tx.$executeRaw`
-            INSERT INTO money_orders (id, user_id, tracking_number, mo_number, segment_index, tracking_id, issue_date, amount)
-            VALUES (${randomUUID()}, ${userId}, ${row.trackingNumber}, ${moNumber}, ${desiredLine.segmentIndex}, ${row.trackingNumber}, ${row.issueDate}, ${desiredLine.moAmount})
+            INSERT INTO money_orders (id, user_id, tracking_number, mo_number, segment_index, tracking_id, issue_date, amount, mo_amount, commission, gross_amount)
+            VALUES (${randomUUID()}, ${userId}, ${row.trackingNumber}, ${moNumber}, ${desiredLine.segmentIndex}, ${row.trackingNumber}, ${row.issueDate}, ${desiredLine.moAmount}, ${desiredLine.moAmount}, ${desiredLine.commission}, ${desiredLine.grossAmount})
             ON CONFLICT DO NOTHING
           `;
 
@@ -436,6 +455,7 @@ async function ensureSystemMoneyOrders(
           }
 
           reservedNumbers.delete(moNumber);
+          console.warn("MOS duplicate detected. New MOS generated.");
           if (attempts >= 25) {
             throw new Error("Unable to allocate unique money order number after 25 attempts");
           }
@@ -459,7 +479,7 @@ async function getMoneyOrdersByTracking(userId: string, trackingNumbers: string[
   await ensureMoneyOrderTables();
 
   const rows = await prisma.$queryRaw<MoneyOrderRow[]>`
-    SELECT seq, tracking_number, tracking_id, mo_number, issue_date, amount, segment_index
+    SELECT seq, tracking_number, tracking_id, mo_number, issue_date, amount, mo_amount, commission, gross_amount, segment_index
     FROM money_orders
     WHERE user_id = ${userId} AND tracking_number IN (${Prisma.join(uniqueTracking)})
     ORDER BY tracking_number ASC, segment_index ASC, seq ASC
@@ -579,35 +599,39 @@ const worker = new Worker(
         throw new Error(`Upload parsing failed: ${parseMessage}`);
       }
 
-      // Phase 3: Detect and handle duplicate tracking IDs
+      // Replace duplicate manual tracking IDs (DB duplicates + in-file duplicates) with auto-generated IDs.
       const manualTrackingIds = orders
         .map((order, idx) => ({
           idx,
-          trackingId: String(order.TrackingID ?? "").trim(),
-          order
+          trackingId: String(order.TrackingID ?? "").trim().toUpperCase(),
+          order,
         }))
-        .filter(item => item.trackingId);
+        .filter((item) => item.trackingId);
 
       if (manualTrackingIds.length > 0) {
         const existingTrackings = await prisma.shipment.findMany({
           where: {
             userId: job.userId,
             trackingNumber: {
-              in: manualTrackingIds.map(item => item.trackingId)
-            }
+              in: manualTrackingIds.map((item) => item.trackingId),
+            },
           },
-          select: { trackingNumber: true }
+          select: { trackingNumber: true },
         }).catch(() => []);
 
-        const duplicateIds = new Set(existingTrackings.map(s => s.trackingNumber));
-        const duplicateRows = manualTrackingIds.filter(item => duplicateIds.has(item.trackingId));
+        const duplicateIds = new Set(existingTrackings.map((s) => String(s.trackingNumber ?? "").trim().toUpperCase()));
+        const seenInBatch = new Set<string>();
 
-        if (duplicateRows.length > 0) {
-          console.log(`[Worker] Found ${duplicateRows.length} duplicate tracking IDs. Auto-replacing with generated IDs.`);
-          duplicateRows.forEach(row => {
-            row.order.TrackingID = ""; // Clear to force auto-generation
-            console.log(`[Worker] Row ${row.idx + 2}: Replaced duplicate tracking ${row.trackingId} (will be auto-generated)`);
-          });
+        for (const row of manualTrackingIds) {
+          const key = row.trackingId;
+          const dbDuplicate = duplicateIds.has(key);
+          const batchDuplicate = seenInBatch.has(key);
+          if (dbDuplicate || batchDuplicate) {
+            row.order.TrackingID = "";
+            console.warn("Tracking ID already exists. New tracking ID assigned.");
+            continue;
+          }
+          seenInBatch.add(key);
         }
       }
 
