@@ -2,11 +2,10 @@ import { useEffect, useState } from "react";
 import { Check, Sparkles } from "lucide-react";
 import { useOutletContext } from "react-router-dom";
 import Card from "../components/Card";
-import { api } from "../lib/api";
+import { changePackage, fetchPlans, type Plan } from "../lib/PackageService";
 import type { MeResponse } from "../lib/types";
 
 type ShellCtx = { me: MeResponse | null; refreshMe: () => Promise<void> };
-type Plan = { id: string; name: string; priceCents: number; monthlyLabelLimit: number; monthlyTrackingLimit: number };
 
 const formatPKR = new Intl.NumberFormat("en-PK", {
   style: "currency",
@@ -29,6 +28,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
   const [success, setSuccess] = useState<string | null>(null);
   const remainingUnits = me?.balances?.unitsRemaining ?? me?.activePackage?.unitsRemaining ?? me?.balances?.labelsRemaining ?? 0;
   const totalUnits = me?.balances?.labelLimit ?? me?.subscription?.plan?.monthlyLabelLimit ?? 0;
+  const usedUnits = Math.max(0, totalUnits - remainingUnits);
   const expiryDate = me?.activePackage?.expiresAt ?? me?.subscription?.currentPeriodEnd;
   const expiryDateObj = expiryDate ? new Date(expiryDate) : null;
   const daysToExpiry = expiryDateObj ? Math.ceil((expiryDateObj.getTime() - Date.now()) / (24 * 60 * 60 * 1000)) : null;
@@ -47,14 +47,8 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
 
   useEffect(() => {
     setLoadingPlans(true);
-    api<{ plans: Plan[] }>("/api/plans")
-      .then((data) =>
-        setPlans(
-          data.plans.filter(
-            (plan) => !["Starter Plan", "Pro Plan"].includes(plan.name),
-          ),
-        ),
-      )
+    fetchPlans()
+      .then((data) => setPlans(data))
       .catch(() => setPlans([]))
       .finally(() => setLoadingPlans(false));
   }, []);
@@ -65,10 +59,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
     setError(null);
     setSuccess(null);
     try {
-      await api("/api/subscriptions/start", {
-        method: "POST",
-        body: JSON.stringify({ planId: plan.id }),
-      });
+      await changePackage(plan.id);
       await refreshMe();
       setSuccess(`Package changed to ${plan.name}.`);
     } catch (err) {
@@ -97,6 +88,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
             <div className="text-xs uppercase tracking-[0.3em] text-slate-300">Active package</div>
             <div className="mt-3 text-3xl font-semibold">{activePlanName}</div>
             <div className="mt-4 grid gap-3 text-sm text-slate-200">
+              <div className="flex items-center justify-between gap-4"><span>Used Units</span><span>{usedUnits.toLocaleString()}</span></div>
               <div className="flex items-center justify-between gap-4"><span>Remaining Units</span><span>{remainingUnits.toLocaleString()}</span></div>
               <div className="flex items-center justify-between gap-4"><span>Total Units</span><span>{totalUnits.toLocaleString()}</span></div>
               <div className="flex items-center justify-between gap-4"><span>Tracking Actions</span><span>{(me?.usage?.trackingGenerated ?? 0).toLocaleString()}</span></div>

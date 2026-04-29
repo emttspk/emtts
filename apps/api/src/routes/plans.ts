@@ -7,7 +7,8 @@ export async function ensureDefaultPlans() {
   try {
     const defaults = [
       { name: "Free Plan", priceCents: 0, monthlyLabelLimit: 250, monthlyTrackingLimit: 250 },
-      { name: "Business Plan", priceCents: 250000, monthlyLabelLimit: 2000, monthlyTrackingLimit: 2000 },
+      { name: "Standard Plan", priceCents: 99900, monthlyLabelLimit: 1000, monthlyTrackingLimit: 1000 },
+      { name: "Business Plan", priceCents: 250000, monthlyLabelLimit: 3000, monthlyTrackingLimit: 3000 },
     ] as const;
 
     for (const plan of defaults) {
@@ -45,7 +46,8 @@ plansRouter.get("/", async (_req, res, next) => {
       success: true,
       plans: [
         { id: "free", name: "Free Plan", priceCents: 0, monthlyLabelLimit: 250, monthlyTrackingLimit: 250, createdAt: new Date() },
-        { id: "business", name: "Business Plan", priceCents: 250000, monthlyLabelLimit: 2000, monthlyTrackingLimit: 2000, createdAt: new Date() }
+        { id: "standard", name: "Standard Plan", priceCents: 99900, monthlyLabelLimit: 1000, monthlyTrackingLimit: 1000, createdAt: new Date() },
+        { id: "business", name: "Business Plan", priceCents: 250000, monthlyLabelLimit: 3000, monthlyTrackingLimit: 3000, createdAt: new Date() }
       ],
       message: "Using default plans (database unavailable)"
     });

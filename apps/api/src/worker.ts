@@ -309,7 +309,7 @@ function isMoneyOrderUniqueViolation(error: unknown) {
 }
 
 function moneyOrderLockKey(issueDate: string) {
-  const prefix = buildMoneyOrderNumber(1, issueDate).slice(0, 7);
+  const prefix = buildMoneyOrderNumber(1, issueDate).slice(0, 5);
   return `money_orders:mos:${prefix}`;
 }
 
@@ -317,7 +317,7 @@ async function allocateNextMoneyOrderNumber(executor: Prisma.TransactionClient, 
   await executor.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${moneyOrderLockKey(issueDate)}))`;
 
   let sequence = 1;
-  const latestPrefix = `${buildMoneyOrderNumber(1, issueDate).slice(0, 7)}%`;
+  const latestPrefix = `${buildMoneyOrderNumber(1, issueDate).slice(0, 5)}%`;
   const latest = await executor.$queryRaw<Array<{ mo_number: string }>>`
     SELECT mo_number
     FROM money_orders

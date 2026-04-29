@@ -2,8 +2,8 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
-import { api } from "../lib/api";
 import type { MeResponse } from "../lib/types";
+import { fetchMe } from "../lib/UserService";
 import Card from "./Card";
 import { cn } from "../lib/cn";
 
@@ -40,7 +40,7 @@ export default function AppShell() {
   useEffect(() => {
     let ok = true;
     setLoading(true);
-    api<MeResponse>("/api/me")
+    fetchMe()
       .then((data) => {
         if (!ok) return;
         setMe(data);
@@ -67,7 +67,7 @@ export default function AppShell() {
         <main className="relative flex-1 overflow-hidden">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(11,107,58,0.12),_transparent_24%)]" />
           <div className="pointer-events-none absolute inset-0 bg-hero-grid bg-[size:34px_34px] opacity-[0.18]" />
-          <div className="mx-auto w-full max-w-7xl px-6 py-10 md:px-8 xl:px-10">
+          <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-5 md:px-8 md:py-8 xl:px-10">
             {loading ? (
               <div className="grid gap-4">
                 <Card className="p-6">
@@ -80,7 +80,7 @@ export default function AppShell() {
                 </Card>
               </div>
             ) : (
-              <Outlet context={{ me, refreshMe: async () => setMe(await api<MeResponse>("/api/me")) }} />
+              <Outlet context={{ me, refreshMe: async () => setMe(await fetchMe()) }} />
             )}
           </div>
         </main>

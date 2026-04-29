@@ -5,7 +5,7 @@ export const MONEY_ORDER_SPLIT_LIMIT = 20_000;
 const allowedTrackingPrefixes = [TRACKING_PREFIX] as const;
 
 const trackingIdPattern = /^VPL\d{8,9}$/;
-const moneyOrderNumberPattern = /^MOS\d{8}$/;
+const moneyOrderNumberPattern = /^MOS(0[1-9]|1[0-2])\d{6}$/;
 
 export type StrictTrackingValidation = { ok: true; value: string } | { ok: false; reason: string };
 
@@ -87,18 +87,17 @@ export function buildTrackingId(sequence: number, value?: string | Date) {
 }
 
 export function buildMoneyOrderNumber(sequence: number, value?: string | Date) {
-  if (!Number.isInteger(sequence) || sequence <= 0 || sequence > 9_999) {
-    throw new Error("Money order sequence must be between 1 and 9999 for MOSYYMMXXXX format.");
+  if (!Number.isInteger(sequence) || sequence <= 0 || sequence > 999_999) {
+    throw new Error("Money order sequence must be between 1 and 999999 for MOSMMXXXXXX format.");
   }
   const date = value instanceof Date ? value : value ? new Date(value) : new Date();
-  const year = String(date.getFullYear()).slice(-2);
   const month = String(date.getMonth() + 1).padStart(2, "0");
-  return `${MONEY_ORDER_PREFIX}${year}${month}${String(sequence).padStart(4, "0")}`;
+  return `${MONEY_ORDER_PREFIX}${month}${String(sequence).padStart(6, "0")}`;
 }
 
 export function parseIdentifierSequence(value: string) {
   const normalized = String(value ?? "").trim().toUpperCase();
-  const parsed = Number.parseInt(normalized.slice(-4), 10);
+  const parsed = Number.parseInt(normalized.slice(-6), 10);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
@@ -133,7 +132,7 @@ export function validateMoneyOrderNumber(value: unknown): StrictTrackingValidati
   if (!moneyOrderNumberPattern.test(compact)) {
     return {
       ok: false,
-      reason: "money order number must match MOSYYMM0001 format (exactly 11 characters)",
+      reason: "money order number must match MOSMMXXXXXX format (exactly 11 characters)",
     };
   }
 

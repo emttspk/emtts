@@ -39,7 +39,7 @@ export default function Sidebar(props: { isOpen: boolean; setIsOpen: (v: boolean
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80 focus-visible:ring-offset-0",
           isActive
             ? "bg-white text-brand shadow-[0_10px_24px_rgba(15,23,42,0.2)]"
-            : "text-slate-200 hover:bg-white/10 hover:text-white",
+            : "text-slate-100 hover:bg-white/10 hover:text-white",
         )
       }
       onClick={() => props.setIsOpen(false)}
@@ -70,8 +70,8 @@ export default function Sidebar(props: { isOpen: boolean; setIsOpen: (v: boolean
               EP
             </div>
             <div className={cn("leading-tight", collapsed && "md:hidden lg:block")}>
-              <div className="text-sm font-semibold">Epost.pk</div>
-              <div className="max-w-[170px] truncate text-[11px] text-slate-300">{props.userEmail ?? "Operations Workspace"}</div>
+              <div className="text-sm font-semibold text-white">Epost.pk</div>
+              <div className="max-w-[170px] truncate text-xs font-medium text-slate-200">{props.userEmail ?? "Operations Workspace"}</div>
             </div>
           </div>
           <button className="text-gray-300 hover:text-white md:hidden" onClick={() => props.setIsOpen(false)}>

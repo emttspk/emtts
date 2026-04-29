@@ -136,7 +136,15 @@ export default function Settings() {
             </div>
             <div className="flex items-center justify-between gap-4 rounded-2xl bg-slate-50/80 px-4 py-3">
               <div>Plan</div>
-              <div className="font-medium text-gray-900">{me?.subscription?.plan?.name ?? "-"}</div>
+              <div className="font-medium text-gray-900">{me?.subscription?.plan?.name ?? me?.activePackage?.planName ?? "-"}</div>
+            </div>
+            <div className="flex items-center justify-between gap-4 rounded-2xl bg-slate-50/80 px-4 py-3">
+              <div>Used Units</div>
+              <div className="font-medium text-gray-900">{Math.max(0, unitLimit - remainingUnits).toLocaleString()}</div>
+            </div>
+            <div className="flex items-center justify-between gap-4 rounded-2xl bg-slate-50/80 px-4 py-3">
+              <div>Remaining Units</div>
+              <div className="font-medium text-gray-900">{remainingUnits.toLocaleString()}</div>
             </div>
           </div>
 

@@ -26,13 +26,13 @@ export default function Topbar(props: {
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/60 bg-white/70 backdrop-blur-2xl">
-      <div className="mx-auto flex min-h-16 w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-6 py-3">
+      <div className="mx-auto flex min-h-16 w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-6">
         <div className="flex items-center gap-3">
           <button onClick={() => props.setIsSidebarOpen(true)} className="btn-secondary px-2.5 py-2 md:hidden">
             <Menu className="h-5 w-5" />
           </button>
           <div>
-            <div className="font-display text-2xl font-extrabold tracking-[-0.03em] text-gray-900">{props.title}</div>
+            <div className="font-display text-xl font-extrabold tracking-[-0.03em] text-gray-900 md:text-2xl">{props.title}</div>
           </div>
         </div>
 

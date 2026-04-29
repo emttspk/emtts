@@ -177,19 +177,19 @@ export default function GenerateLabels() {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <Card className="p-5">
-            <div className="text-base font-medium text-gray-900">Generate Labels</div>
-            <div className="mt-1 text-sm text-gray-600">Switch between file upload and manual entry. Manual mode supports up to 5 rows.</div>
-            <div className="mt-4 flex gap-2">
+            <div className="text-base font-semibold text-slate-950">Generate Labels</div>
+            <div className="mt-1 text-sm text-slate-600">Switch between file upload and manual entry. Manual mode supports up to 5 rows.</div>
+            <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1">
               <button
                 type="button"
-                className={`rounded-2xl border px-4 py-2 text-sm font-medium ${mode === "upload" ? "border-brand bg-brand/10 text-brand" : "border-slate-200 bg-white text-slate-700"}`}
+                className={`h-11 rounded-xl px-4 text-sm font-semibold transition-all duration-200 ${mode === "upload" ? "bg-white text-brand shadow" : "text-slate-700 hover:bg-white/70"}`}
                 onClick={() => setMode("upload")}
               >
                 Upload File
               </button>
               <button
                 type="button"
-                className={`rounded-2xl border px-4 py-2 text-sm font-medium ${mode === "manual" ? "border-brand bg-brand/10 text-brand" : "border-slate-200 bg-white text-slate-700"}`}
+                className={`h-11 rounded-xl px-4 text-sm font-semibold transition-all duration-200 ${mode === "manual" ? "bg-white text-brand shadow" : "text-slate-700 hover:bg-white/70"}`}
                 onClick={() => setMode("manual")}
               >
                 Manual Entry
@@ -210,8 +210,8 @@ export default function GenerateLabels() {
             />
           ) : (
             <Card className="p-5">
-              <div className="text-base font-medium text-gray-900">Manual Entry</div>
-              <div className="mt-1 text-xs text-gray-500">Rows: {rows.length}/{MAX_MANUAL_ROWS}</div>
+              <div className="text-base font-semibold text-slate-950">Manual Entry</div>
+              <div className="mt-1 text-xs font-medium text-slate-600">Rows: {rows.length}/{MAX_MANUAL_ROWS}</div>
               <div className="mt-4 space-y-3">
                 {rows.map((row, index) => (
                   <div key={`label-row-${index}`} className="grid gap-2 rounded-2xl border border-slate-200 p-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -224,7 +224,7 @@ export default function GenerateLabels() {
                     <input className="field-input" placeholder="COD Amount" value={row.codAmount} onChange={(event) => updateRow(index, { codAmount: event.target.value })} />
                     <input className="field-input" placeholder="Tracking ID (optional)" value={row.trackingId} onChange={(event) => updateRow(index, { trackingId: event.target.value })} />
                     <div className="sm:col-span-2 xl:col-span-4 flex justify-end">
-                      <button type="button" className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700" onClick={() => removeRow(index)}>
+                      <button type="button" className="rounded-xl border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50" onClick={() => removeRow(index)}>
                         Remove Row
                       </button>
                     </div>
@@ -235,7 +235,7 @@ export default function GenerateLabels() {
                 type="button"
                 onClick={() => canAddRow && setRows((previous) => [...previous, createEmptyLabelRow()])}
                 disabled={!canAddRow}
-                className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
+                className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all hover:border-brand/40 hover:text-brand disabled:opacity-50"
               >
                 Add Row
               </button>
@@ -245,8 +245,8 @@ export default function GenerateLabels() {
           <Card className="p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="text-xl font-medium text-gray-900">Generate</div>
-                <div className="mt-1 text-sm text-gray-600">Generates labels using existing upload and generation flow.</div>
+                <div className="text-xl font-semibold text-slate-950">Generate</div>
+                <div className="mt-1 text-sm text-slate-600">Generates labels using existing upload and generation flow.</div>
               </div>
               <div className="flex items-center gap-2">
                 <button

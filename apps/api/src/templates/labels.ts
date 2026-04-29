@@ -131,7 +131,7 @@ function resolveMoneyOrderSenderFields(order: OrderRecord) {
   const senderAddress = normalizeAddressLines((order as any)?.senderAddress ?? order.shipperAddress ?? "") || "-";
   const senderPhone = String((order as any)?.senderPhone ?? order.shipperPhone ?? "").trim() || "-";
   const senderCnic = String((order as any)?.senderCnic ?? (order as any)?.shipperCnic ?? (order as any)?.cnic ?? "").trim() || "-";
-  const senderName = senderCnic !== "-" ? `${baseSenderName} (${senderCnic})` : baseSenderName;
+  const senderName = baseSenderName !== "-" ? `${baseSenderName} (${senderCnic !== "-" ? senderCnic : "N/A"})` : baseSenderName;
   return { senderName, senderAddress, senderPhone, senderCnic };
 }
 
@@ -193,10 +193,10 @@ function strictMoneyOrderNumber(value: unknown) {
     : suffixStripped.replace(/\D/g, "");
   if (digits.length < 8) return "-";
 
-  const yy = digits.slice(0, 2);
-  const mm = digits.slice(2, 4);
-  const seq = digits.slice(-4);
-  const coerced = `MOS${yy}${mm}${seq}`;
+  const mm = digits.length >= 8 ? digits.slice(-8, -6) : "00";
+  const seq = digits.slice(-6);
+  const normalizedMonth = /^(0[1-9]|1[0-2])$/.test(mm) ? mm : String(new Date().getMonth() + 1).padStart(2, "0");
+  const coerced = `MOS${normalizedMonth}${seq}`;
   return validateMoneyOrderNumber(coerced).ok ? coerced : "-";
 }
 
@@ -902,11 +902,11 @@ function splitMoNumber(baseMo: string, index: number) {
   if (normalized === "-") return "-";
   if (index <= 0) return normalized;
 
-  const prefix = normalized.slice(0, 7);
-  const suffix = Number.parseInt(normalized.slice(-4), 10);
+  const prefix = normalized.slice(0, 5);
+  const suffix = Number.parseInt(normalized.slice(-6), 10);
   if (!Number.isFinite(suffix)) return normalized;
-  const next = ((suffix - 1 + index) % 9_999) + 1;
-  return `${prefix}${String(next).padStart(4, "0")}`;
+  const next = ((suffix - 1 + index) % 999_999) + 1;
+  return `${prefix}${String(next).padStart(6, "0")}`;
 }
 
 function generateMoBarcodeBase64(moNumber: string) {

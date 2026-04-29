@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import Card from "../../components/Card";
+import MoneyOrderForm from "../../components/MoneyOrderForm";
 import UploadDropzone from "../../components/UploadDropzone";
 import SampleDownloadLink from "../../components/SampleDownloadLink";
 import { api, apiHealthCheck, triggerBrowserDownload, uploadFile } from "../../lib/api";
@@ -41,12 +42,22 @@ function inferShipmentType(trackingId: string) {
   return "VPL";
 }
 
+function normalizeCnic(value: string) {
+  const compact = String(value ?? "").trim().replace(/\s+/g, "");
+  if (/^\d{5}-\d{7}-\d$/.test(compact)) return compact;
+  const digits = compact.replace(/\D/g, "");
+  if (digits.length === 13) {
+    return `${digits.slice(0, 5)}-${digits.slice(5, 12)}-${digits.slice(12)}`;
+  }
+  return "";
+}
+
 function toUploadRow(row: ManualMoneyOrderRow, me: MeResponse | null): UploadOrderRow {
   return {
-    shipperName: String(me?.user.companyName ?? "Admin Dispatch").trim() || "Admin Dispatch",
-    shipperPhone: String(me?.user.contactNumber ?? "03000000000").trim() || "03000000000",
-    shipperAddress: String(me?.user.address ?? "Pakistan").trim() || "Pakistan",
-    shipperEmail: String(me?.user.email ?? "admin@epost.pk").trim() || "admin@epost.pk",
+    shipperName: String(me?.user.companyName ?? "").trim(),
+    shipperPhone: String(me?.user.contactNumber ?? "").trim(),
+    shipperAddress: String(me?.user.address ?? "").trim(),
+    shipperEmail: String(me?.user.email ?? "").trim(),
     senderCity: String(me?.user.originCity ?? row.city ?? "").trim(),
     consigneeName: row.receiverName.trim(),
     consigneeEmail: "",
@@ -120,9 +131,21 @@ export default function GenerateMoneyOrder() {
   function validateRows() {
     for (let index = 0; index < rows.length; index += 1) {
       const row = rows[index];
-      if (!row.receiverName.trim() || !row.receiverAddress.trim() || !row.receiverMobile.trim() || !row.amount.trim() || !row.trackingId.trim() || !row.city.trim()) {
-        return `Row ${index + 1}: Receiver Name, Address, Mobile, Amount, Tracking ID, and City are required.`;
+      if (!row.receiverName.trim() || !row.receiverAddress.trim() || !row.receiverMobile.trim() || !row.amount.trim()) {
+        return `Row ${index + 1}: Receiver Name, Address, Mobile, and Amount are required.`;
       }
+    }
+    return null;
+  }
+
+  function validateSenderProfile() {
+    const senderName = String(me?.user.companyName ?? "").trim();
+    const senderAddress = String(me?.user.address ?? "").trim();
+    const senderMobile = String(me?.user.contactNumber ?? "").trim();
+    const senderCnic = normalizeCnic(String(me?.user.cnic ?? ""));
+    const senderCity = String(me?.user.originCity ?? "").trim();
+    if (!senderName || !senderAddress || !senderMobile || !senderCnic || !senderCity) {
+      return "Complete sender profile first (name, address, mobile, CNIC, and origin city) from Settings before generating money orders.";
     }
     return null;
   }
@@ -136,6 +159,8 @@ export default function GenerateMoneyOrder() {
 
     try {
       await apiHealthCheck();
+      const senderError = validateSenderProfile();
+      if (senderError) throw new Error(senderError);
 
       const sourceFile = (() => {
         if (mode === "upload") {
@@ -152,8 +177,8 @@ export default function GenerateMoneyOrder() {
       }
 
       const result = await uploadFile("/api/upload", sourceFile, {
-        barcodeMode: "manual",
-        autoGenerateTracking: "false",
+        barcodeMode: "auto",
+        autoGenerateTracking: "true",
         carrierType: "pakistan_post",
         shipmentType: "VPL",
         printMode: "box",
@@ -172,111 +197,122 @@ export default function GenerateMoneyOrder() {
     }
   }
 
+  const senderName = String(me?.user.companyName ?? "").trim();
+  const senderAddress = String(me?.user.address ?? "").trim();
+  const senderMobile = String(me?.user.contactNumber ?? "").trim();
+  const senderCnic = normalizeCnic(String(me?.user.cnic ?? ""));
+  const senderTitle = senderName ? `${senderName} (${senderCnic || "CNIC missing"})` : "Profile incomplete";
+  const readyToGenerate = uiState !== "uploading" && uiState !== "processing";
+  const canGenerate = readyToGenerate && (mode === "manual" || Boolean(file));
+
   return (
-    <div className="grid gap-6">
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
+    <div className="grid gap-6 lg:grid-cols-12">
+      <div className="space-y-4 lg:col-span-8">
+        <Card className="p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="text-base font-semibold text-slate-950">Generate Money Order</div>
+              <div className="mt-1 text-sm text-slate-600">Premium manual + upload flow with sender profile lock from your account.</div>
+            </div>
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">Sender: {senderTitle}</div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1">
+            <button
+              type="button"
+              className={`h-11 rounded-xl px-4 text-sm font-semibold transition-all duration-200 ${mode === "upload" ? "bg-white text-brand shadow" : "text-slate-700 hover:bg-white/70"}`}
+              onClick={() => setMode("upload")}
+            >
+              Upload File
+            </button>
+            <button
+              type="button"
+              className={`h-11 rounded-xl px-4 text-sm font-semibold transition-all duration-200 ${mode === "manual" ? "bg-white text-brand shadow" : "text-slate-700 hover:bg-white/70"}`}
+              onClick={() => setMode("manual")}
+            >
+              Manual Entry
+            </button>
+          </div>
+        </Card>
+
+        {mode === "upload" ? (
+          <UploadDropzone
+            title="Upload Orders File"
+            subtitle="CSV/XLS/XLSX supported with shared strict columns. Tracking ID can be empty; it will be generated automatically."
+            file={file}
+            onFileChange={setFile}
+            statusLabel={uiState === "processing" ? "Processing" : uiState === "completed" ? "Completed" : "Ready"}
+            progress={progress}
+            error={uiError}
+            busy={uiState === "uploading" || uiState === "processing"}
+          />
+        ) : (
           <Card className="p-5">
-            <div className="text-base font-medium text-gray-900">Generate Money Order</div>
-            <div className="mt-1 text-sm text-gray-600">Switch between file upload and manual entry. Manual mode supports up to 5 rows.</div>
-            <div className="mt-4 flex gap-2">
-              <button
-                type="button"
-                className={`rounded-2xl border px-4 py-2 text-sm font-medium ${mode === "upload" ? "border-brand bg-brand/10 text-brand" : "border-slate-200 bg-white text-slate-700"}`}
-                onClick={() => setMode("upload")}
-              >
-                Upload File
-              </button>
-              <button
-                type="button"
-                className={`rounded-2xl border px-4 py-2 text-sm font-medium ${mode === "manual" ? "border-brand bg-brand/10 text-brand" : "border-slate-200 bg-white text-slate-700"}`}
-                onClick={() => setMode("manual")}
-              >
-                Manual Entry
-              </button>
-            </div>
-          </Card>
-
-          {mode === "upload" ? (
-            <UploadDropzone
-              title="Upload Orders File"
-              subtitle="CSV/XLS/XLSX supported with shared strict columns."
-              file={file}
-              onFileChange={setFile}
-              statusLabel={uiState === "processing" ? "Processing" : uiState === "completed" ? "Completed" : "Ready"}
-              progress={progress}
-              error={uiError}
-              busy={uiState === "uploading" || uiState === "processing"}
+            <MoneyOrderForm
+              rows={rows}
+              maxRows={MAX_MANUAL_ROWS}
+              onChangeRow={updateRow}
+              onRemoveRow={removeRow}
+              onAddRow={() => rows.length < MAX_MANUAL_ROWS && setRows((previous) => [...previous, createEmptyRow()])}
             />
-          ) : (
-            <Card className="p-5">
-              <div className="text-base font-medium text-gray-900">Manual Entry</div>
-              <div className="mt-1 text-xs text-gray-500">Rows: {rows.length}/{MAX_MANUAL_ROWS}</div>
-              <div className="mt-4 space-y-3">
-                {rows.map((row, index) => (
-                  <div key={`mo-row-${index}`} className="grid gap-2 rounded-2xl border border-slate-200 p-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <input className="field-input" placeholder="Receiver Name" value={row.receiverName} onChange={(event) => updateRow(index, { receiverName: event.target.value })} />
-                    <input className="field-input" placeholder="Receiver Address" value={row.receiverAddress} onChange={(event) => updateRow(index, { receiverAddress: event.target.value })} />
-                    <input className="field-input" placeholder="Receiver Mobile" value={row.receiverMobile} onChange={(event) => updateRow(index, { receiverMobile: event.target.value })} />
-                    <input className="field-input" placeholder="Amount" value={row.amount} onChange={(event) => updateRow(index, { amount: event.target.value })} />
-                    <input className="field-input" placeholder="Tracking ID" value={row.trackingId} onChange={(event) => updateRow(index, { trackingId: event.target.value })} />
-                    <input className="field-input" placeholder="Article Number" value={row.articleNumber} onChange={(event) => updateRow(index, { articleNumber: event.target.value })} />
-                    <input className="field-input" placeholder="City" value={row.city} onChange={(event) => updateRow(index, { city: event.target.value })} />
-                    <div className="sm:col-span-2 xl:col-span-4 flex justify-end">
-                      <button type="button" className="rounded-xl border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700" onClick={() => removeRow(index)}>
-                        Remove Row
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+          </Card>
+        )}
+
+        <div className="sticky bottom-3 z-10 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur lg:hidden">
+          <button
+            type="button"
+            onClick={startGenerate}
+            disabled={!canGenerate}
+            className="w-full rounded-2xl bg-brand px-6 py-3.5 text-sm font-semibold text-white shadow-md transition-all hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Generate Money Order
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-4 lg:col-span-4">
+        <div className="space-y-4 lg:sticky lg:top-24">
+          <Card className="p-6">
+            <div className="text-lg font-semibold text-slate-950">Action Panel</div>
+            <div className="mt-1 text-sm text-slate-600">Uses existing upload pipeline and background worker.</div>
+            <div className="mt-4 hidden justify-end lg:flex">
               <button
                 type="button"
-                onClick={() => rows.length < MAX_MANUAL_ROWS && setRows((previous) => [...previous, createEmptyRow()])}
-                disabled={rows.length >= MAX_MANUAL_ROWS}
-                className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
+                onClick={startGenerate}
+                disabled={!canGenerate}
+                className="rounded-2xl bg-brand px-6 py-3 text-sm font-semibold text-white shadow-md transition-all hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Add Row
+                Generate Money Order
               </button>
-            </Card>
-          )}
-
-          <Card className="p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="text-xl font-medium text-gray-900">Generate</div>
-                <div className="mt-1 text-sm text-gray-600">Uses the existing upload pipeline and money order generation endpoint.</div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={startGenerate}
-                  disabled={(mode === "upload" && !file) || uiState === "uploading" || uiState === "processing"}
-                  className="rounded-2xl bg-brand px-6 py-3 text-sm font-semibold text-white shadow-md hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Generate Money Order
-                </button>
-                {latestJob?.status === "COMPLETED" ? (
-                  <button
-                    type="button"
-                    onClick={() => triggerBrowserDownload(`/api/jobs/${latestJob.id}/download/money-orders`, `money-orders-${latestJob.id}.pdf`)}
-                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700"
-                  >
-                    Download Result
-                  </button>
-                ) : null}
-              </div>
             </div>
-            {uiError ? <div className="mt-3 text-sm font-medium text-red-700">{uiError}</div> : null}
-            {latestJob ? <div className="mt-3 text-xs text-slate-500">Job: {latestJob.id} | Status: {latestJob.status}</div> : null}
+            {latestJob?.status === "COMPLETED" ? (
+              <button
+                type="button"
+                onClick={() => triggerBrowserDownload(`/api/jobs/${latestJob.id}/download/money-orders`, `money-orders-${latestJob.id}.pdf`)}
+                className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:border-brand/40"
+              >
+                Download Result
+              </button>
+            ) : null}
+            {uiError ? <div className="mt-3 text-sm font-semibold text-red-700">{uiError}</div> : null}
+            {latestJob ? <div className="mt-3 text-xs font-medium text-slate-500">Job: {latestJob.id} | Status: {latestJob.status}</div> : null}
           </Card>
-        </div>
 
-        <div className="space-y-4">
           <Card className="p-6">
-            <div className="text-xl font-medium text-gray-900">CSV Format</div>
-            <div className="mt-2 text-sm text-gray-600">Use the same strict sample structure for upload and manual conversion.</div>
-            <SampleDownloadLink className="mt-4 inline-flex items-center justify-center rounded-2xl bg-brand px-3 py-2 text-xs font-medium text-white shadow-lg hover:bg-brand-dark" />
+            <div className="text-lg font-semibold text-slate-950">Sender Profile Source</div>
+            <div className="mt-3 space-y-2 text-sm text-slate-700">
+              <div>Name: <span className="font-semibold text-slate-950">{senderName || "-"}</span></div>
+              <div>Address: <span className="font-semibold text-slate-950">{senderAddress || "-"}</span></div>
+              <div>Mobile: <span className="font-semibold text-slate-950">{senderMobile || "-"}</span></div>
+              <div>CNIC: <span className="font-semibold text-slate-950">{senderCnic || "-"}</span></div>
+            </div>
+            <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">Money-order sender prints as: Name (CNIC)</div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="text-lg font-semibold text-slate-950">CSV Format</div>
+            <div className="mt-2 text-sm text-slate-600">Use strict sample structure for upload and manual conversion.</div>
+            <SampleDownloadLink className="mt-4 inline-flex items-center justify-center rounded-2xl bg-brand px-3 py-2 text-xs font-semibold text-white shadow-lg hover:bg-brand-dark" />
           </Card>
         </div>
       </div>

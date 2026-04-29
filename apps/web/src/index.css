@@ -11,7 +11,7 @@
     --surface: rgba(255, 255, 255, 0.82);
     --surface-strong: #ffffff;
     --text-strong: #0f172a;
-    --text-muted: #64748b;
+    --text-muted: #475569;
     --brand: #0b6b3a;
     --brand-dark: #07552e;
     --line: #e2e8f0;
@@ -93,7 +93,7 @@
   }
 
   .field-input {
-    @apply w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition-all duration-300 focus:border-brand focus:ring-4 focus:ring-brand/10 placeholder:text-slate-400;
+    @apply w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-all duration-300 focus:border-brand focus:ring-4 focus:ring-brand/10 placeholder:text-slate-500;
   }
 
   .ui-table {
@@ -118,6 +118,31 @@
 
   .status-pill {
     @apply inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold;
+  }
+}
+
+@media (max-width: 768px) {
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost {
+    @apply min-h-[44px] px-4 py-2.5 text-sm;
+  }
+
+  .field-input {
+    @apply min-h-[44px] rounded-xl px-3 py-2.5 text-sm;
+  }
+
+  .ui-page {
+    @apply px-4 py-8;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    letter-spacing: -0.02em;
   }
 }
 
