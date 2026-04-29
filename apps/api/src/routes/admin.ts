@@ -6,8 +6,15 @@ import { monthKeyUTC } from "../usage/month.js";
 import { env } from "../config.js";
 import { labelQueue } from "../queue/queue.js";
 import { refundUnitsByAmount } from "../usage/unitConsumption.js";
+import { buildComplaintExportCsv, listComplaintAlerts, listComplaintRecords } from "../services/complaint.service.js";
+import { listComplaintAuditLogs, logComplaintAudit } from "../services/complaint-audit.service.js";
+import { runComplaintSync, startComplaintSyncSchedule } from "../services/complaint-sync.service.js";
+import { runComplaintBackupJob, startComplaintBackupJob } from "../jobs/complaint-backup.job.js";
 
 export const adminRouter = Router();
+
+startComplaintSyncSchedule();
+startComplaintBackupJob();
 
 adminRouter.post("/bootstrap", async (req, res) => {
   const secret = req.header("x-bootstrap-secret");
@@ -28,6 +35,53 @@ adminRouter.post("/bootstrap", async (req, res) => {
 });
 
 adminRouter.use(requireAuth, requireAdmin);
+
+adminRouter.get("/complaints", async (_req, res) => {
+  const complaints = await listComplaintRecords();
+  const alerts = await listComplaintAlerts(50);
+  res.json({ complaints, alerts });
+});
+
+adminRouter.get("/complaints/export", async (req, res) => {
+  const complaints = await listComplaintRecords();
+  const csv = buildComplaintExportCsv(complaints);
+  await logComplaintAudit({
+    actorEmail: String((req as any).user?.email ?? "system").trim() || "system",
+    action: "complaint_exported",
+    details: `rows:${complaints.length}`,
+  });
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="complaints-${new Date().toISOString().slice(0, 10)}.csv"`);
+  return res.send(csv);
+});
+
+adminRouter.post("/complaints/sync", async (req, res) => {
+  const body = z.object({ trackingIds: z.array(z.string().min(1).max(80)).optional() }).parse(req.body ?? {});
+  const actorEmail = String((req as any).user?.email ?? "system").trim() || "system";
+  const result = await runComplaintSync({ trackingIds: body.trackingIds, actorEmail });
+  return res.json({ success: true, count: result.length, result });
+});
+
+adminRouter.get("/complaints/alerts", async (_req, res) => {
+  const alerts = await listComplaintAlerts(300);
+  res.json({ success: true, alerts });
+});
+
+adminRouter.post("/complaints/backup", async (req, res) => {
+  const actorEmail = String((req as any).user?.email ?? "system").trim() || "system";
+  const result = await runComplaintBackupJob();
+  await logComplaintAudit({
+    actorEmail,
+    action: "complaint_updated",
+    details: `backup_stamp:${result.stamp};complaints:${result.complaintCount}`,
+  });
+  res.json({ success: true, result });
+});
+
+adminRouter.get("/complaint-audit", async (_req, res) => {
+  const logs = await listComplaintAuditLogs(300);
+  res.json({ success: true, logs });
+});
 
 adminRouter.get("/users", async (_req, res) => {
   const month = monthKeyUTC();

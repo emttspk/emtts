@@ -26,6 +26,7 @@ import {
   PythonServiceTimeoutError,
   PythonServiceUnavailableError,
 } from "../services/trackingService.js";
+import { logComplaintAudit } from "../services/complaint-audit.service.js";
 import { processTracking } from "../services/trackingStatus.js";
 import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "../services/trackingIntelligence.js";
 
@@ -973,6 +974,13 @@ trackingRouter.get("/complaint/prefill/:trackingNumber", requireAuth, async (req
 
   const raw: Record<string, unknown> = shipment?.rawJson ? JSON.parse(shipment.rawJson) : {};
   const tracking = (raw.tracking && typeof raw.tracking === "object" ? raw.tracking : raw) as Record<string, unknown>;
+  const cleanComplaintValue = (...values: unknown[]) => {
+    for (const value of values) {
+      const text = String(value ?? "").trim();
+      if (text && text !== "-") return text;
+    }
+    return "";
+  };
   const eventDeliveryOffice = extractDeliveryOfficeFromLastEvent(raw);
   const deliveryOffice = String(
     raw.resolved_delivery_office ??
@@ -981,6 +989,32 @@ trackingRouter.get("/complaint/prefill/:trackingNumber", requireAuth, async (req
     eventDeliveryOffice ??
     "",
   ).trim();
+  const addresseeName = cleanComplaintValue(
+    raw.consignee_name,
+    raw.consigneeName,
+    raw.receiver_name,
+    raw.receiverName,
+    tracking.consignee_name,
+    tracking.receiver_name,
+  );
+  const addresseeAddress = cleanComplaintValue(
+    raw.consignee_address,
+    raw.consigneeAddress,
+    raw.receiver_address,
+    raw.receiverAddress,
+    tracking.consignee_address,
+    tracking.receiver_address,
+    deliveryOffice,
+  );
+  const addresseeCity = cleanComplaintValue(
+    raw.receiver_city,
+    raw.receiverCity,
+    raw.consigneeCity,
+    raw.ConsigneeCity,
+    tracking.delivery_office,
+    tracking.delivery_city,
+    deliveryOffice,
+  );
 
   const rows = await readComplaintOfficeRows();
   const match = matchDeliveryOffice(deliveryOffice, rows);
@@ -996,6 +1030,9 @@ trackingRouter.get("/complaint/prefill/:trackingNumber", requireAuth, async (req
   return res.json({
     success: true,
     deliveryOffice,
+    addresseeName,
+    addresseeAddress,
+    addresseeCity,
     matched: match,
     districts,
     tehsils,
@@ -1700,7 +1737,7 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
   }
   const userNote = body.complaint_text?.trim() ? `User complaint:\n${body.complaint_text.trim()}\n\n` : "";
   const structuredText = complaintId
-    ? `COMPLAINT_ID: ${complaintId} | DUE_DATE: ${normalizedDueDate}\n${userNote}Response:\n${resp.response_text}`
+    ? `COMPLAINT_ID: ${complaintId} | DUE_DATE: ${normalizedDueDate} | COMPLAINT_STATE: ACTIVE\n${userNote}Response:\n${resp.response_text}`
     : `${userNote}Response:\n${resp.response_text}`;
 
   await prisma.shipment.upsert({
@@ -1708,6 +1745,16 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
     create: { userId, trackingNumber, complaintStatus: status, complaintText: structuredText },
     update: { complaintStatus: status, complaintText: structuredText },
   });
+
+  if (status === "FILED" && complaintId) {
+    await logComplaintAudit({
+      actorEmail: String((req as any).user?.email ?? body.reply_email ?? normalizedPhone ?? "system").trim() || "system",
+      action: "complaint_created",
+      trackingId: trackingNumber,
+      complaintId,
+      details: `due_date:${normalizedDueDate}`,
+    });
+  }
 
   console.log(`Tracking: ${trackingNumber}`);
   console.log(`Message: ${responseMessage}`);

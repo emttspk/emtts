@@ -3,7 +3,7 @@ import { useDropzone } from "react-dropzone";
 import { useOutletContext } from "react-router-dom";
 import { UploadCloud, AlertCircle, Eye, MapPin, PackageSearch, BadgeDollarSign, RefreshCw, Printer } from "lucide-react";
 import Card from "../components/Card";
-import SenderProfileSidecard from "../components/SenderProfileSidecard";
+import SenderProfileCard from "../components/SenderProfileCard";
 import SampleDownloadLink from "../components/SampleDownloadLink";
 import { cn } from "../lib/cn";
 import { api, apiHealthCheck, uploadFile } from "../lib/api";
@@ -69,6 +69,9 @@ type CycleAuditDraft = {
 
 type ComplaintPrefill = {
   deliveryOffice: string;
+  addresseeName?: string;
+  addresseeAddress?: string;
+  addresseeCity?: string;
   matched?: {
     district: string;
     tehsil: string;
@@ -133,6 +136,7 @@ type ComplaintLifecycle = {
   complaintId: string;
   dueDateText: string;
   dueDateTs: number | null;
+  state: string;
   message: string;
 };
 
@@ -172,17 +176,20 @@ function parseComplaintLifecycle(shipment: Shipment): ComplaintLifecycle {
   const dueFromMessage = textBlob.match(/Due\s*Date\s*(?:on)?\s*([0-3]?\d\/[0-1]?\d\/\d{4})/i)?.[1] ?? "";
   const dueDateText = String(dueStructured || dueFromMessage || "").trim();
   const dueDateTs = parseDueDateToTs(dueDateText);
+  const stateFromStructured = textBlob.match(/COMPLAINT_STATE\s*:\s*([^\n|]+)/i)?.[1] ?? "";
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const activeStatus = String(shipment.complaintStatus ?? "").toUpperCase() === "FILED";
   const active = Boolean(activeStatus && complaintId && dueDateTs != null && dueDateTs >= todayStart.getTime());
+  const state = String(stateFromStructured || (active ? "ACTIVE" : shipment.complaintStatus || "")).trim().toUpperCase() || "ACTIVE";
 
   return {
     active,
     complaintId,
     dueDateText,
     dueDateTs,
+    state,
     message: textBlob,
   };
 }
@@ -718,6 +725,7 @@ export default function BulkTracking() {
   const [complaintText, setComplaintText] = useState("");
   const [complaintTemplate, setComplaintTemplate] = useState<ComplaintTemplateKey>("NORMAL");
   const [complaintPrefill, setComplaintPrefill] = useState<ComplaintPrefill | null>(null);
+  const [complaintPrefillLoading, setComplaintPrefillLoading] = useState(false);
   const [complaintSubmitResult, setComplaintSubmitResult] = useState<{
     complaintNumber: string;
     dueDate: string;
@@ -1673,8 +1681,10 @@ export default function BulkTracking() {
     setComplaintSelectionLocked(false);
     setOfficeSearchQuery("");
     setOfficeSearchResults([]);
+    setComplaintPrefillLoading(true);
 
     if (fetchedComplaintRef.current.isFetched && fetchedComplaintRef.current.trackingId === trackingId) {
+      setComplaintPrefillLoading(false);
       return;
     }
 
@@ -1683,9 +1693,21 @@ export default function BulkTracking() {
         if (fetchedComplaintRef.current.trackingId !== trackingId) return;
         if (fetchedComplaintRef.current.isFetched) return;
         setComplaintPrefill(prefill);
+        const apiAddresseeName = _cleanDash(String(prefill.addresseeName ?? "").trim());
+        const apiAddresseeAddress = _cleanDash(String(prefill.addresseeAddress ?? "").trim());
+        const apiAddresseeCity = _cleanDash(String(prefill.addresseeCity ?? "").trim());
+        const finalAddresseeName = apiAddresseeName || trackingConsigneeName || uploadConsigneeName;
+        const finalAddresseeAddress = apiAddresseeAddress || trackingConsigneeAddress || uploadConsigneeAddress || deliveryOffice || eventBasedDeliveryOffice || deliveryDmo;
+        const finalAddresseeCity = apiAddresseeCity || uploadConsigneeCity || receiverCandidate || deliveryOffice || eventBasedDeliveryOffice || deliveryDmo || bookingCity;
+
+        setReceiverNameInput(finalAddresseeName);
+        setReceiverAddressInput(finalAddresseeAddress);
+        setReceiverCityValue(finalAddresseeCity);
+        setReceiverCitySearch(finalAddresseeCity);
         // Hierarchy selection: deterministic resolver with strict fallback.
         const hierarchyCandidates = [
-          uploadConsigneeCity,
+          finalAddresseeCity,
+          finalAddresseeAddress,
           receiverCandidate,
           receiverAddress,
           deliveryOffice,
@@ -1742,11 +1764,15 @@ export default function BulkTracking() {
           setReceiverAddressInput((prev) => (prev === deliveryOffice || prev === eventBasedDeliveryOffice || prev === deliveryDmo || prev === uploadConsigneeCity) ? receiverCityMatched : prev);
         }
         fetchedComplaintRef.current = { trackingId, isFetched: true };
+        setComplaintPrefillLoading(false);
       })
       .catch(() => {
         if (fetchedComplaintRef.current.trackingId !== trackingId) return;
         setComplaintPrefill({
           deliveryOffice: preferredCity(shipment),
+          addresseeName: trackingConsigneeName || uploadConsigneeName,
+          addresseeAddress: trackingConsigneeAddress || uploadConsigneeAddress || deliveryOffice || eventBasedDeliveryOffice || deliveryDmo,
+          addresseeCity: receiverCandidate,
           matched: null,
           districts: [],
           tehsils: [],
@@ -1758,6 +1784,7 @@ export default function BulkTracking() {
         setSelectedLocation("");
         setComplaintSelectionLocked(false);
         fetchedComplaintRef.current = { trackingId, isFetched: true };
+        setComplaintPrefillLoading(false);
       });
   }
 
@@ -1778,6 +1805,7 @@ export default function BulkTracking() {
   }, [complaintPrefill, selectedLocation, complaintSelectionLocked]);
 
   const complaintLocationSelected = selectedLocation.trim().length > 0;
+  const activeComplaintLifecycle = complaintRecord ? parseComplaintLifecycle(complaintRecord.shipment) : null;
 
   const complaintTextRequired = complaintText.trim().length === 0;
   const senderCitySelected = (senderCityValue.trim().length > 0) || (senderCitySearch.trim().length > 0);
@@ -1799,7 +1827,7 @@ export default function BulkTracking() {
     if (!clean(complaintText)) missing.push("remarks");
     return missing;
   })();
-  const complaintSubmitReady = complaintSubmitMissingFields.length === 0;
+  const complaintSubmitReady = !complaintPrefillLoading && complaintSubmitMissingFields.length === 0;
   const senderNameIsLocked = false;
   const receiverNameIsLocked = false;
   const senderCityIsLocked = false;
@@ -1855,7 +1883,7 @@ export default function BulkTracking() {
       return;
     }
     if (!receiverNameClean) {
-      alert("Receiver name is required.");
+      alert("Addressee name is required.");
       return;
     }
     if (!receiverAddressClean) {
@@ -1991,10 +2019,10 @@ export default function BulkTracking() {
     <>
     <div className="app-container space-y-6 lg:pr-[340px]">
       <div className="lg:hidden">
-        <SenderProfileSidecard me={me} />
+        <SenderProfileCard me={me} />
       </div>
-      <div className="hidden lg:block lg:fixed lg:right-6 lg:top-24 lg:z-20 lg:w-[320px]">
-        <SenderProfileSidecard me={me} className="shadow-xl" />
+      <div className="hidden lg:block lg:sticky lg:top-6 lg:float-right lg:ml-6 lg:w-[320px]">
+        <SenderProfileCard me={me} className="shadow-xl" />
       </div>
       <Card className="overflow-hidden p-8 md:p-10">
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
@@ -2584,10 +2612,21 @@ export default function BulkTracking() {
                     </td>
                     <td className="px-2 py-1.5 align-middle whitespace-nowrap">
                       {lifecycle.active ? (
-                        <div className="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] text-blue-800">
-                          <div className="font-semibold">Complaint ID: {lifecycle.complaintId}</div>
-                          <div>Due Date: {lifecycle.dueDateText || "-"}</div>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => openComplaintModal(row)}
+                          className="rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-left text-[11px] text-emerald-900 transition hover:bg-emerald-100"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div>
+                              <div className="font-semibold">Complaint ID: {lifecycle.complaintId}</div>
+                              <div>Due Date: {lifecycle.dueDateText || "-"}</div>
+                            </div>
+                            <span className="rounded-full border border-emerald-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
+                              {lifecycle.state || "ACTIVE"}
+                            </span>
+                          </div>
+                        </button>
                       ) : (
                         <button
                           disabled={!isComplaintEnabled}
@@ -2800,6 +2839,20 @@ export default function BulkTracking() {
 
             <div className="flex-1 overflow-y-auto p-4">
               <div className="grid gap-2">
+                <SenderProfileCard me={me} compact className="mb-2" />
+                {activeComplaintLifecycle?.complaintId ? (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs text-emerald-900">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="font-semibold">Complaint ID: {activeComplaintLifecycle.complaintId}</div>
+                        <div className="mt-1 text-emerald-800">Due Date: {activeComplaintLifecycle.dueDateText || "-"}</div>
+                      </div>
+                      <span className="rounded-full border border-emerald-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
+                        {activeComplaintLifecycle.state || "ACTIVE"}
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
                 <div className="grid grid-cols-4 gap-2">
                   <label>
                     <div className="text-[10px] font-medium text-slate-600 mb-0.5">Article No</div>
@@ -2887,6 +2940,7 @@ export default function BulkTracking() {
                 <div className="border-t border-[#E5E7EB] pt-2 mt-2">
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-xs font-semibold text-slate-800">Addressee Detail</div>
+                    {complaintPrefillLoading ? <div className="text-[10px] text-slate-400">Autofilling from article data...</div> : null}
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <label>
@@ -3036,11 +3090,11 @@ export default function BulkTracking() {
                 <button
                   type="button"
                   onClick={submitComplaintInstant}
-                  disabled={submittingComplaint || !complaintSubmitReady}
-                  title={complaintSubmitReady ? "Ready to submit" : `Missing: ${complaintSubmitMissingFields.join(", ")}`}
+                  disabled={submittingComplaint || !complaintSubmitReady || Boolean(activeComplaintLifecycle?.active)}
+                  title={activeComplaintLifecycle?.active ? "Complaint already active" : (complaintPrefillLoading ? "Waiting for addressee autofill" : (complaintSubmitReady ? "Ready to submit" : `Missing: ${complaintSubmitMissingFields.join(", ")}`))}
                   className="rounded border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
                 >
-                  {submittingComplaint ? "Submitting..." : "Submit"}
+                  {submittingComplaint ? "Submitting..." : (activeComplaintLifecycle?.active ? "Complaint Active" : (complaintPrefillLoading ? "Autofilling..." : "Submit"))}
                 </button>
               </div>
             </div>

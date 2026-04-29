@@ -58,12 +58,25 @@ BulkTracking.tsx  →  POST /api/tracking/complaint  →  Python /submit-complai
 
 ### Complaint Lifecycle
 1. User opens complaint modal from PENDING shipment row
-2. District/Tehsil/Delivery Office hierarchy is auto-matched from delivery office CSV
-3. On submit, Node API validates all required fields (rejects "-" as empty)
+2. Addressee name/address/city wait for complaint prefill and then map from API response with tracking-data fallback
+3. District/Tehsil/Delivery Office hierarchy is auto-matched from delivery office CSV
+4. On submit, Node API validates all required fields (rejects "-" as empty and blocks missing addressee name)
 4. Python service fills ASP.NET form with DDDistrict → DDTehsil → DDLocations postback chain
 5. Complaint ID (CMP-XXXXXX) and Due Date are parsed from response
-6. Stored in `shipment.complaintText` as `COMPLAINT_ID: xxx | DUE_DATE: dd-mm-yyyy`
-7. Row shows Complaint ID badge; button disabled while complaint is active
+6. Stored in `shipment.complaintText` as `COMPLAINT_ID: xxx | DUE_DATE: dd-mm-yyyy | COMPLAINT_STATE: ACTIVE`
+7. Row replaces the complaint button with a green complaint status card showing Complaint ID, Due Date, and current status
+
+### Admin Complaint Operations
+- Export CSV: `GET /api/admin/complaints/export`
+- Manual sync: `POST /api/admin/complaints/sync`
+- SLA alerts feed: `GET /api/admin/complaints/alerts`
+- Audit log feed: `GET /api/admin/complaint-audit`
+- Manual backup: `POST /api/admin/complaints/backup`
+
+### Complaint Sync And Alerts
+- Complaint sync runs every 6 hours and derives `OPEN`, `IN_PROCESS`, `RESOLVED`, `CLOSED` from the latest Pakistan Post tracking state plus complaint due date
+- SLA alerts are logged at due date minus 2 days, minus 1 day, and on the due date
+- Complaint backup runs every 12 hours and keeps the latest 30 complaint, label, and money-order snapshots
 
 ### Retry & Timeout Hardening
 - Timeout: 90 seconds per HTTP request to ep.gov.pk

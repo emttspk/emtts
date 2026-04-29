@@ -50,6 +50,36 @@
 
 ---
 
+## Complaint State Looks Stale
+
+**Symptom:** Complaint card shows old state or missing SLA alerts.
+
+**Action:**
+1. Run admin manual sync: `POST /api/admin/complaints/sync`
+2. Check alerts feed: `GET /api/admin/complaints/alerts`
+3. Review audit feed: `GET /api/admin/complaint-audit`
+
+Scheduled sync also runs every 6 hours automatically.
+
+---
+
+## Need Complaint Export CSV
+
+**Action:**
+- Admin can download the latest complaint export from `GET /api/admin/complaints/export`
+- Export columns: `trackingId`, `complaintId`, `dueDate`, `status`, `createdAt`, `updatedAt`
+
+---
+
+## Restore From Complaint Backup
+
+**Action:**
+1. Check `/backups/complaints/` for the latest snapshot
+2. Use `/backups/labels/` and `/backups/money-orders/` if related generated files also need recovery
+3. Snapshots are generated every 12 hours and the latest 30 are retained
+
+---
+
 ## Units Not Returned After Failed Complaint
 
 **Symptom:** Complaint failed but units were deducted.

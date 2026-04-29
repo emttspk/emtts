@@ -47,9 +47,32 @@ All of these must be non-empty and not "-" for the complaint to proceed:
 ## Autofill Logic
 The district/tehsil/location hierarchy is auto-resolved from `city/post office list.csv`:
 1. Delivery office from tracking events → matched against CSV
-2. Prefill endpoint (`/api/tracking/complaint/prefill/:tn`) returns matched district/tehsil/location
-3. Frontend uses `resolveComplaintHierarchyRow()` for fuzzy matching
-4. If no match, uses first available district/tehsil/location as fallback
+2. Prefill endpoint (`/api/tracking/complaint/prefill/:tn`) returns matched district/tehsil/location plus canonical `addresseeName`, `addresseeAddress`, and `addresseeCity`
+3. Frontend waits for complaint prefill to finish before enabling submit
+4. Addressee fields map in this order: API prefill → tracking raw dataset → upload dataset fallback
+5. If no hierarchy match is found, the first available district/tehsil/location is used as fallback
+
+## Complaint Status Card
+- Active complaints replace the row-level complaint button with a clickable green card
+- Card displays `Complaint ID`, `Due Date`, and a compact status badge
+- Clicking the card opens the complaint modal in detail mode and disables re-submission while the complaint is active
+
+## Sync, Alerts, And Audit
+- `POST /api/admin/complaints/sync` manually syncs complaint state
+- Scheduled sync runs every 6 hours
+- Derived states: `OPEN`, `IN_PROCESS`, `RESOLVED`, `CLOSED`
+- SLA alerts are stored in `complaint_notification_logs`
+- Admin audit entries are stored in `complaint_audit_logs`
+- CSV export endpoint: `GET /api/admin/complaints/export`
+- Audit feed endpoint: `GET /api/admin/complaint-audit`
+
+## Backup
+- Complaint backup runs every 12 hours
+- Snapshots are stored under:
+  - `/backups/complaints/`
+  - `/backups/labels/`
+  - `/backups/money-orders/`
+- Last 30 snapshots are retained per category
 
 ## Duplicate Handling
 - Before submission, `parseStoredComplaintLifecycle()` checks `shipment.complaintText` for an existing `COMPLAINT_ID` with a future `DUE_DATE`
