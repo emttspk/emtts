@@ -401,6 +401,25 @@ export async function handleLabelUpload(req: Request, res: Response) {
   const uploadedFile = req.file;
   if (!uploadedFile) return res.status(400).json({ success: false, error: "Missing file", message: "Missing file" });
 
+  // Phase 2: Check for duplicate filename per user (case-insensitive)
+  const normalizedFileName = uploadedFile.originalname.trim().toLowerCase();
+  const existingJobs = await prisma.labelJob.findMany({
+    where: { userId },
+    select: { originalFilename: true }
+  }).catch(() => []);
+  
+  const isDuplicate = existingJobs.some(job => 
+    job.originalFilename.trim().toLowerCase() === normalizedFileName
+  );
+
+  if (isDuplicate) {
+    return res.status(409).json({
+      success: false,
+      error: "This file name already exists. Rename file and upload again.",
+      message: "This file name already exists. Rename file and upload again."
+    });
+  }
+
   const ext = path.extname(uploadedFile.originalname).toLowerCase();
   const generateMoneyOrderRequested = String(req.body?.generateMoneyOrder ?? "false").toLowerCase() === "true";
   const autoGenerateTracking = String(req.body?.autoGenerateTracking ?? "false").toLowerCase() === "true";
@@ -608,6 +627,30 @@ export async function handleLabelUpload(req: Request, res: Response) {
 }
 
 jobsRouter.post("/upload", requireAuth, labelUploadMiddleware, handleLabelUpload);
+
+// Phase 3: Check for duplicate tracking IDs
+jobsRouter.post("/check-tracking-duplicate", requireAuth, async (req, res) => {
+  const userId = (req as AuthedRequest).user!.id;
+  const trackingId = String(req.body?.trackingId ?? "").trim();
+
+  if (!trackingId) {
+    return res.status(400).json({ success: false, error: "Missing trackingId" });
+  }
+
+  try {
+    const existing = await prisma.shipment.findFirst({
+      where: { userId, trackingNumber: trackingId },
+      select: { trackingNumber: true, createdAt: true }
+    });
+
+    if (existing) {
+      return res.json({ success: true, isDuplicate: true, existingTrackingId: trackingId });
+    }
+    return res.json({ success: true, isDuplicate: false });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: "Failed to check tracking ID" });
+  }
+});
 
 jobsRouter.get("/:jobId", requireAuth, async (req, res) => {
   const userId = (req as AuthedRequest).user!.id;

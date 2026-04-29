@@ -10,12 +10,8 @@ case "$SERVICE_NAME" in
     exec sh apps/api/start.sh combined
     ;;
   Worker)
-    if [ -z "${DATABASE_URL:-}" ]; then
-      echo "[Worker] DATABASE_URL missing. Running idle process to avoid restart loop."
-      exec node deploy/worker-idle/idle.js
-    fi
-    export STORAGE_PATH="${STORAGE_PATH:-/app/storage}"
-    exec sh apps/api/start.sh worker
+    echo "[Worker] Running idle mode. Queue processing is handled by Api combined mode to keep artifact files downloadable from the same container filesystem."
+    exec node deploy/worker-idle/idle.js
     ;;
   Python)
     cd python-service || exit 1

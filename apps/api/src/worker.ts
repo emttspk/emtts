@@ -578,7 +578,41 @@ const worker = new Worker(
         console.error(`[Worker] File parse failed for job ${jobId}: ${parseMessage}`);
         throw new Error(`Upload parsing failed: ${parseMessage}`);
       }
+
+      // Phase 3: Detect and handle duplicate tracking IDs
+      const manualTrackingIds = orders
+        .map((order, idx) => ({
+          idx,
+          trackingId: String(order.TrackingID ?? "").trim(),
+          order
+        }))
+        .filter(item => item.trackingId);
+
+      if (manualTrackingIds.length > 0) {
+        const existingTrackings = await prisma.shipment.findMany({
+          where: {
+            userId: job.userId,
+            trackingNumber: {
+              in: manualTrackingIds.map(item => item.trackingId)
+            }
+          },
+          select: { trackingNumber: true }
+        }).catch(() => []);
+
+        const duplicateIds = new Set(existingTrackings.map(s => s.trackingNumber));
+        const duplicateRows = manualTrackingIds.filter(item => duplicateIds.has(item.trackingId));
+
+        if (duplicateRows.length > 0) {
+          console.log(`[Worker] Found ${duplicateRows.length} duplicate tracking IDs. Auto-replacing with generated IDs.`);
+          duplicateRows.forEach(row => {
+            row.order.TrackingID = ""; // Clear to force auto-generation
+            console.log(`[Worker] Row ${row.idx + 2}: Replaced duplicate tracking ${row.trackingId} (will be auto-generated)`);
+          });
+        }
+      }
+
       let useProfileShipper = false;
+
       if (job.user) {
         const user = job.user as any;
         const profileShipper = {

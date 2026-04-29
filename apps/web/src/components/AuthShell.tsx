@@ -24,8 +24,8 @@ export default function AuthShell(props: AuthShellProps) {
         </div>
 
         <div className="grid min-h-[calc(100vh-6.5rem)] overflow-hidden rounded-[34px] border border-white/70 bg-white/82 shadow-[0_34px_90px_rgba(15,23,42,0.14)] backdrop-blur md:grid-cols-[53fr_47fr]">
-          <section className="relative hidden min-h-[640px] md:block">
-            <img src={letterBoxImage} alt="Pakistan Post logistics" className="h-full w-full object-cover object-[center_35%]" />
+          <section className="relative hidden min-h-[640px] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 md:block">
+            <img src={letterBoxImage} alt="Pakistan Post logistics" className="h-full w-full object-contain object-center" />
             <div className="absolute inset-0 bg-[linear-gradient(145deg,rgba(2,6,23,0.72),rgba(11,107,58,0.44),rgba(2,6,23,0.35))]" />
             <div className="absolute inset-x-10 bottom-10 max-w-[460px]">
               <div className="inline-flex items-center rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-emerald-200">

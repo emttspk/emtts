@@ -55,22 +55,51 @@ function resolveMoneyOrderCommission(order: Record<string, unknown>) {
 function deriveNetCommissionFromGross(grossAmount: number, shipmentType: unknown) {
   const normalizedShipment = String(shipmentType ?? "").trim().toUpperCase();
   const gross = Math.max(0, Math.floor(grossAmount));
-  if (!(normalizedShipment === "VPL" || normalizedShipment === "VPP")) {
-    return { netAmount: gross, commission: 0 };
+  
+  // Phase 5: Envelope special calculation rules (separate from VPL/VPP)
+  if (normalizedShipment === "ENVELOPE") {
+    const netIfEnv75 = gross - 75;
+    if (netIfEnv75 > 0 && netIfEnv75 <= 10_000) {
+      return { netAmount: netIfEnv75, commission: 75 };
+    }
+    const netIfEnv100 = gross - 100;
+    if (netIfEnv100 > 10_000) {
+      return { netAmount: netIfEnv100, commission: 100 };
+    }
+    const envelopeCommission = gross > 10_075 ? 100 : 75;
+    return { netAmount: Math.max(0, gross - envelopeCommission), commission: envelopeCommission };
+  }
+  
+  // Standard VPL/VPP calculation
+  if (normalizedShipment === "VPL" || normalizedShipment === "VPP") {
+    const netIf75 = gross - 75;
+    if (netIf75 > 0 && netIf75 <= 10_000) {
+      return { netAmount: netIf75, commission: 75 };
+    }
+    const netIf100 = gross - 100;
+    if (netIf100 > 10_000) {
+      return { netAmount: netIf100, commission: 100 };
+    }
+    const fallbackCommission = gross > 10_075 ? 100 : 75;
+    return { netAmount: Math.max(0, gross - fallbackCommission), commission: fallbackCommission };
   }
 
-  const netIf75 = gross - 75;
-  if (netIf75 > 0 && netIf75 <= 10_000) {
-    return { netAmount: netIf75, commission: 75 };
+  // COD uses standard VPL/VPP calculation
+  if (normalizedShipment === "COD") {
+    const netIf75 = gross - 75;
+    if (netIf75 > 0 && netIf75 <= 10_000) {
+      return { netAmount: netIf75, commission: 75 };
+    }
+    const netIf100 = gross - 100;
+    if (netIf100 > 10_000) {
+      return { netAmount: netIf100, commission: 100 };
+    }
+    const fallbackCommission = gross > 10_075 ? 100 : 75;
+    return { netAmount: Math.max(0, gross - fallbackCommission), commission: fallbackCommission };
   }
 
-  const netIf100 = gross - 100;
-  if (netIf100 > 10_000) {
-    return { netAmount: netIf100, commission: 100 };
-  }
-
-  const fallbackCommission = gross > 10_075 ? 100 : 75;
-  return { netAmount: Math.max(0, gross - fallbackCommission), commission: fallbackCommission };
+  // All other types (parcel, document, etc.) - no commission
+  return { netAmount: gross, commission: 0 };
 }
 
 function formatWeightInGrams(value: unknown) {
@@ -267,7 +296,7 @@ function getLabelAmountSummary(order: Pick<LabelOrder, "carrierType" | "shipment
     grossAmount,
     moAmount: netAmount,
     commission,
-    showCalculation: shipmentType === "VPL" || shipmentType === "VPP",
+    showCalculation: shipmentType === "VPL" || shipmentType === "VPP" || shipmentType === "COD",
   };
 }
 
@@ -282,7 +311,8 @@ function resolveMoneyOrderAmount(order: Pick<LabelOrder, "CollectAmount" | "ship
     }
 
     const shipmentType = String(order.shipmentType ?? order.shipmenttype ?? "").trim().toUpperCase();
-    if (shipmentType === "VPL" || shipmentType === "VPP") {
+    // Phase 4: Apply money order calculation for all eligible shipment types (VPL, VPP, COD)
+    if (shipmentType === "VPL" || shipmentType === "VPP" || shipmentType === "COD") {
       return deriveNetCommissionFromGross(declaredGrossAmount, shipmentType).netAmount;
     }
     return declaredGrossAmount;
@@ -298,7 +328,8 @@ function resolveMoneyOrderAmount(order: Pick<LabelOrder, "CollectAmount" | "ship
   }
 
   const shipmentType = String(order.shipmentType ?? order.shipmenttype ?? "").trim().toUpperCase();
-  if (shipmentType === "VPL" || shipmentType === "VPP") {
+  // Phase 4: Apply money order calculation for all eligible shipment types (VPL, VPP, COD)
+  if (shipmentType === "VPL" || shipmentType === "VPP" || shipmentType === "COD") {
     return deriveNetCommissionFromGross(declaredGrossAmount, shipmentType).netAmount;
   }
   return declaredGrossAmount;

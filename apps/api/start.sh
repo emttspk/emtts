@@ -104,6 +104,10 @@ case "$MODE" in
     exec node dist/index.js
     ;;
   worker)
+    if [ "${ALLOW_STANDALONE_WORKER:-false}" != "true" ]; then
+      echo "[startup] Worker mode disabled (ALLOW_STANDALONE_WORKER!=true); starting idle process"
+      exec node deploy/worker-idle/idle.js
+    fi
     if [ -z "${DATABASE_URL:-}" ]; then
       echo "[startup] Worker mode: DATABASE_URL missing; starting idle process to avoid restart loop"
       exec node deploy/worker-idle/idle.js
