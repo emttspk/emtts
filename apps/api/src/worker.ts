@@ -124,7 +124,9 @@ async function acquireWorkerSingletonLock() {
       break;
     }
     if (Date.now() >= deadline) {
-      throw new Error("Timed out waiting for the active worker instance to release the singleton lock");
+      console.warn("[Worker] Timed out waiting for singleton lock; continuing without lock to avoid startup loops.");
+      workerSingletonLockValue = null;
+      return;
     }
     console.log("[Worker] Waiting for active worker instance to release singleton lock...");
     await new Promise((resolve) => setTimeout(resolve, 2000));
