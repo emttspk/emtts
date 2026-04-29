@@ -72,7 +72,6 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: s
 const JOB_TIMEOUT_MS = 60_000;
 const WORKER_SINGLETON_LOCK_KEY = "worker:singleton:label-generator";
 const WORKER_SINGLETON_LOCK_TTL_SECONDS = 60;
-const WORKER_SINGLETON_WAIT_MS = Number(process.env.WORKER_SINGLETON_WAIT_MS ?? 120_000);
 let workerSingletonLockValue: string | null = null;
 let workerSingletonHeartbeat: NodeJS.Timeout | null = null;
 
@@ -111,7 +110,7 @@ async function acquireWorkerSingletonLock() {
   }
 
   const lockValue = `${process.pid}:${Date.now()}`;
-  const deadline = Date.now() + WORKER_SINGLETON_WAIT_MS;
+  let waitingLogged = false;
   while (true) {
     const acquired = await redis.set(
       WORKER_SINGLETON_LOCK_KEY,
@@ -123,12 +122,10 @@ async function acquireWorkerSingletonLock() {
     if (acquired === "OK") {
       break;
     }
-    if (Date.now() >= deadline) {
-      console.warn("[Worker] Timed out waiting for singleton lock; continuing without lock to avoid startup loops.");
-      workerSingletonLockValue = null;
-      return;
+    if (!waitingLogged) {
+      console.log("[Worker] Another worker instance is active; waiting for singleton lock release...");
+      waitingLogged = true;
     }
-    console.log("[Worker] Waiting for active worker instance to release singleton lock...");
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }
 
