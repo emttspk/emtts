@@ -1471,36 +1471,23 @@ def submit_complaint(tracking_number, phone_number, details: dict[str, Any] | No
         except Exception:
           pass
 
-      # Delivery office hierarchy is populated through AJAX web methods.
+      # Delivery office hierarchy requires ASP.NET postbacks on district and tehsil.
       district_set = _set_select_value_or_first(postback_form, payload, "DDDistrict", matched_geo["district"])
       if district_set:
-        district_value = str(payload.get("DDDistrict") or "").strip()
-        if district_value:
-          tehsil_options = _fetch_complaint_dependent_options(
-            session,
-            form_url,
-            "Default.aspx/GetTehsil",
-            "DistrictId",
-            district_value,
-          )
-          tehsil_value = _pick_option_value(tehsil_options, matched_geo["tehsil"], allow_first=True)
-          if tehsil_value:
-            payload["DDTehsil"] = tehsil_value
+        try:
+          postback_form, payload = _postback_event(postback_form, payload, "DDDistrict")
+          _apply_core_mapping(postback_form, payload)
+        except Exception:
+          pass
 
-        if str(payload.get("DDTehsil") or "").strip():
-          tehsil_value = str(payload.get("DDTehsil") or "").strip()
-          location_options = _fetch_complaint_dependent_options(
-            session,
-            form_url,
-            "Default.aspx/GetLocations",
-            "TehsilId",
-            tehsil_value,
-          )
-          location_value = _pick_option_value(location_options, matched_geo["location"], allow_first=True)
-          if location_value:
-            payload["DDLocations"] = location_value
+      tehsil_set = _set_select_value_or_first(postback_form, payload, "DDTehsil", matched_geo["tehsil"])
+      if tehsil_set:
+        try:
+          postback_form, payload = _postback_event(postback_form, payload, "DDTehsil")
+          _apply_core_mapping(postback_form, payload)
+        except Exception:
+          pass
 
-      # Ensure hierarchy fields are refreshed from AJAX endpoints if needed.
       if not str(payload.get("DDTehsil") or "").strip() and district_set:
         district_value = str(payload.get("DDDistrict") or "").strip()
         tehsil_options = _fetch_complaint_dependent_options(
