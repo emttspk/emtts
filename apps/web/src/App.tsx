@@ -5,6 +5,7 @@ import RequireAdmin from "./components/RequireAdmin";
 import AppShell from "./components/AppShell";
 import Card from "./components/Card";
 import { TEMPLATE_DESIGNER_ENABLED } from "./lib/featureFlags";
+import { getToken } from "./lib/auth";
 
 const Home = lazy(() => import("./pages/Home"));
 const Login = lazy(() => import("./pages/Login"));
@@ -36,6 +37,10 @@ function Loading() {
   );
 }
 
+function TrackingEntry() {
+  return getToken() ? <Navigate to="/tracking-workspace" replace /> : <PublicTracking />;
+}
+
 export default function App() {
   return (
     <Suspense fallback={<Loading />}>
@@ -44,7 +49,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/track" element={<Navigate to="/tracking" replace />} />
-        <Route path="/tracking" element={<PublicTracking />} />
+        <Route path="/tracking" element={<TrackingEntry />} />
         <Route path="/tracking/:trackingId" element={<PublicTracking />} />
 
         <Route
@@ -55,16 +60,21 @@ export default function App() {
           }
         >
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/tracking" element={<Navigate to="/tracking-workspace" replace />} />
           <Route path="/tracking-workspace" element={<BulkTracking />} />
           <Route path="/complaints" element={<Complaints />} />
+          <Route path="/generate-labels" element={<Navigate to="/admin/generate-labels" replace />} />
+          <Route path="/generate-money-orders" element={<Navigate to="/admin/generate-money-orders" replace />} />
           <Route
             path="/upload"
             element={<Upload />}
           />
           <Route path="/jobs" element={<Jobs />} />
+          <Route path="/download-labels" element={<Navigate to="/jobs?filter=completed" replace />} />
           <Route path="/downloads" element={<Navigate to="/jobs?filter=completed" replace />} />
           <Route path="/billing" element={<Billing />} />
           <Route path="/pricing" element={<Billing />} />
+          <Route path="/packages" element={<Navigate to="/select-package" replace />} />
           <Route path="/select-package" element={<SelectPackage />} />
           <Route path="/update-package" element={<UpdatePackage />} />
           <Route path="/settings" element={<Settings />} />

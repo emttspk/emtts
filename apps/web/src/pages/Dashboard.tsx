@@ -46,8 +46,8 @@ function AnalyticsGraph({ stats }: { stats: DashboardStats }) {
     <Card className="overflow-hidden p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="text-lg font-medium text-gray-900">Analytics Overview</div>
-          <div className="mt-1 text-sm text-slate-600">Real-time shipment status overview with visually optimized indicators to support faster and more informed operational decisions.</div>
+          <div className="text-lg font-medium text-gray-900">Tracking Overview</div>
+          <div className="mt-1 text-sm text-slate-600">Real-time shipment status distribution to support operational decisions.</div>
         </div>
         <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">{distribution.reduce((sum, d) => sum + d.value, 0)} shipments</div>
       </div>
@@ -200,19 +200,45 @@ export default function Dashboard() {
     [stats.graphData],
   );
   const quickActions = [
-    { title: "Upload Excel", to: "/upload", description: "Queue fresh label batches" },
-    { title: "Generate Labels", to: "/jobs", description: "Open recent outputs and downloads" },
-    { title: "Track Shipment", to: "/tracking-workspace", description: "Review live movement and status" },
+    { title: "Generate Labels", to: "/generate-labels", description: "Upload files or use manual entry" },
+    { title: "Generate Money Order", to: "/generate-money-orders", description: "Create money orders from upload or form" },
+    { title: "Download Labels", to: "/download-labels", description: "Open completed jobs and downloads" },
   ];
   const metricCards = [
-    { label: "Labels", value: usedUnits.toLocaleString(), detail: "Queued and generated units", icon: Wallet },
+    { label: "Labels Summary", value: usedUnits.toLocaleString(), detail: "Queued and generated units", icon: Wallet },
     { label: "Tracking", value: stats.trackingUsed.toLocaleString(), detail: "This month", icon: RadioTower },
-    { label: "Money Orders", value: formatPKR.format(stats.totalAmount).replace("PKR", "Rs."), detail: "Visible shipment amount", icon: CreditCard },
+    { label: "Money Orders Summary", value: formatPKR.format(stats.totalAmount).replace("PKR", "Rs."), detail: "Visible shipment amount", icon: CreditCard },
     { label: "Complaints", value: stats.pending.toLocaleString(), detail: "Pending shipments to watch", icon: Clock3 },
+  ];
+
+  const kpis = [
+    { label: "Total Shipments", value: stats.total.toLocaleString(), tone: "text-slate-900", icon: BarChart2 },
+    { label: "Delivered", value: stats.delivered.toLocaleString(), tone: "text-emerald-700", icon: LineChart },
+    { label: "Pending", value: stats.pending.toLocaleString(), tone: "text-orange-700", icon: Clock3 },
+    { label: "Returned", value: stats.returned.toLocaleString(), tone: "text-red-700", icon: Search },
   ];
 
   return (
     <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {kpis.map((kpi) => {
+          const Icon = kpi.icon;
+          return (
+            <Card key={kpi.label} className="h-full p-5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">{kpi.label}</div>
+                  <div className={`mt-3 text-3xl font-semibold ${kpi.tone}`}>{kpi.value}</div>
+                </div>
+                <div className="rounded-xl bg-slate-100 p-2.5 text-slate-600">
+                  <Icon className="h-4 w-4" />
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
       <Card className="overflow-hidden p-8 md:p-10">
         <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           <div>
@@ -236,14 +262,14 @@ export default function Dashboard() {
           <div className="rounded-[32px] bg-[linear-gradient(160deg,#0F172A,#162033)] p-6 text-white shadow-[0_30px_90px_rgba(15,23,42,0.24)]">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-xs uppercase tracking-[0.2em] text-slate-300">Package status</div>
+                <div className="text-xs uppercase tracking-[0.2em] text-slate-300">Package Status</div>
                 <div className="mt-3 text-3xl font-semibold">{packageMeta.displayName}</div>
               </div>
               <Package2 className="h-5 w-5 text-emerald-300" />
             </div>
             <div className="mt-5 rounded-2xl bg-white/10 px-4 py-3">
               <div className="flex items-center justify-between text-xs uppercase tracking-[0.16em] text-slate-300">
-                <span>Usage</span>
+                <span>Usage Metrics</span>
                 <span>{usedPercent}%</span>
               </div>
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/20">
@@ -305,8 +331,8 @@ export default function Dashboard() {
           </Card>
 
           <Card className="p-6">
-            <div className="text-lg font-medium text-slate-950">Recent Activity</div>
-            <div className="mt-1 text-sm text-slate-600">Latest tracked volume snapshots from your shipment history.</div>
+            <div className="text-lg font-medium text-slate-950">Recent Jobs</div>
+            <div className="mt-1 text-sm text-slate-600">Latest tracked shipment snapshots from your job history.</div>
             <div className="mt-5 space-y-4">
               {recentActivity.length > 0 ? recentActivity.map((item) => (
                 <div key={item.date} className="flex items-start gap-3">
@@ -336,7 +362,7 @@ export default function Dashboard() {
       </div>
 
       <Card className="p-6">
-        <div className="text-lg font-medium text-gray-900">History & Volume</div>
+        <div className="text-lg font-medium text-gray-900">Usage Metrics</div>
         <div className="mt-1 text-sm text-gray-600">Six-month shipment volume trend for quick context.</div>
         <div className="mt-5 flex items-end gap-2">
           {monthlyBars.values.map((item) => {
