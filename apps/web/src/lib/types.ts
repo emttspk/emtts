@@ -93,6 +93,10 @@ export type MeResponse = {
     unitsRemaining?: number;
     extraLabelCredits: number;
     extraTrackingCredits: number;
+    complaintDailyLimit?: number;
+    complaintDailyUsed?: number;
+    complaintDailyRemaining?: number;
+    complaintMonthlyUsed?: number;
   };
   activePackage?: {
     planName: string | null;

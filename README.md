@@ -48,7 +48,44 @@ If you see "Failed to reach API endpoint":
   - Not external URLs; they cause P3005 errors and migration mismatches.
 - Startup logs will display which database host is being connected to for verification.
 
-## Notes
+## Complaint Flow (Pakistan Post ep.gov.pk)
+Pakistan Post complaints are filed against PENDING shipments via automated ASP.NET form submission.
+
+### Architecture
+```
+BulkTracking.tsx  →  POST /api/tracking/complaint  →  Python /submit-complaint  →  ep.gov.pk
+```
+
+### Complaint Lifecycle
+1. User opens complaint modal from PENDING shipment row
+2. District/Tehsil/Delivery Office hierarchy is auto-matched from delivery office CSV
+3. On submit, Node API validates all required fields (rejects "-" as empty)
+4. Python service fills ASP.NET form with DDDistrict → DDTehsil → DDLocations postback chain
+5. Complaint ID (CMP-XXXXXX) and Due Date are parsed from response
+6. Stored in `shipment.complaintText` as `COMPLAINT_ID: xxx | DUE_DATE: dd-mm-yyyy`
+7. Row shows Complaint ID badge; button disabled while complaint is active
+
+### Retry & Timeout Hardening
+- Timeout: 90 seconds per HTTP request to ep.gov.pk
+- Retries: 3 attempts with backoff 2s / 4s / 8s
+- Retryable errors: `ConnectionReset`, `ReadTimeout`, `ConnectionError`, `ProtocolError`
+
+### Duplicate Detection
+- If same tracking already has `complaintStatus = "FILED"` with a future due date, API returns 409
+- Frontend shows "Complaint already active" alert with existing ID/due date
+
+### Counters
+- Today's complaint count and monthly total are visible in the complaint modal header
+- Sourced from `usage_logs` table, exposed via `/api/me` balances
+
+### Docs
+- [docs/complaints.md](docs/complaints.md) — Full lifecycle and duplicate handling
+- [docs/system-map.md](docs/system-map.md) — Module dependency map
+- [docs/package-usage.md](docs/package-usage.md) — Complaint quota tracking
+- [docs/help-complaint-recovery.md](docs/help-complaint-recovery.md) — Recovery procedures
+- [docs/help-complaint-timeouts.md](docs/help-complaint-timeouts.md) — Timeout troubleshooting
+
+
 - Upload limit: max 5000 records per file (CSV/XLSX).
 - Monthly label limits are enforced by subscription plan.
 - PDFs are written locally under `apps/api/storage/outputs` (swap for S3 in production).

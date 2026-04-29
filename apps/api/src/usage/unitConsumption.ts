@@ -30,6 +30,7 @@ export type ComplaintAllowance = {
   dailyLimit: number;
   dailyUsed: number;
   dailyRemaining: number;
+  monthlyUsed: number;
   unitsPerComplaint: number;
   remainingUnits: number;
   trackingRemaining: number;
@@ -138,7 +139,7 @@ export async function getComplaintAllowance(userId: string): Promise<ComplaintAl
 
   return withReconnectRetry(async () => {
     const month = monthKeyUTC();
-    const [subscription, user, usage, complaintCountRows] = await Promise.all([
+    const [subscription, user, usage, complaintCountRows, complaintMonthlyCountRows] = await Promise.all([
       prisma.subscription.findFirst({
         where: { userId, status: "ACTIVE" },
         include: { plan: true },
@@ -157,6 +158,14 @@ export async function getComplaintAllowance(userId: string): Promise<ComplaintAl
           AND status = 'CONSUMED'
           AND DATE(created_at::timestamp) = DATE(NOW() AT TIME ZONE 'UTC')
       `,
+      prisma.$queryRaw<Array<{ count: number }>>`
+        SELECT COUNT(*)::int AS count
+        FROM usage_logs
+        WHERE user_id = ${userId}
+          AND action_type = 'complaint'
+          AND status = 'CONSUMED'
+          AND TO_CHAR(created_at::timestamp AT TIME ZONE 'UTC', 'YYYY-MM') = TO_CHAR(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
+      `,
     ]);
 
     const labelLimit = (subscription?.plan?.monthlyLabelLimit ?? 0) + (user?.extraLabelCredits ?? 0);
@@ -171,12 +180,14 @@ export async function getComplaintAllowance(userId: string): Promise<ComplaintAl
     const trackingRemaining = Math.max(0, trackingLimit - (trackingGenerated + trackingQueued));
     const dailyLimit = getComplaintDailyLimit(subscription?.plan?.name ?? null);
     const dailyUsed = complaintCountRows[0]?.count ?? 0;
+    const monthlyUsed = (complaintMonthlyCountRows[0]?.count ?? 0) as number;
 
     return {
       planName: subscription?.plan?.name ?? null,
       dailyLimit,
       dailyUsed,
       dailyRemaining: Math.max(0, dailyLimit - dailyUsed),
+      monthlyUsed,
       unitsPerComplaint: COMPLAINT_UNIT_COST,
       remainingUnits,
       trackingRemaining,

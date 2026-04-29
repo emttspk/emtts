@@ -1977,6 +1977,9 @@ export default function BulkTracking() {
           : (res.message || "Complaint submission failed"));
       alert(alertMessage);
       await refreshShipments();
+      if (status === "SUCCESS" || status === "DUPLICATE") {
+        setComplaintRecord(null);
+      }
     } catch (e) {
       alert(e instanceof Error ? e.message : "Complaint submission failed");
     } finally {
@@ -2777,6 +2780,14 @@ export default function BulkTracking() {
               <div>
                 <div className="text-base font-semibold text-slate-900">File Complaint</div>
                 <div className="text-xs text-slate-500">Tracking: {complaintRecord.shipment.trackingNumber}</div>
+                {(me?.balances?.complaintDailyLimit != null) && (
+                  <div className="mt-1 flex items-center gap-3 text-[10px] text-slate-500">
+                    <span>Today: <span className="font-semibold text-slate-700">{me.balances.complaintDailyUsed ?? 0}</span> used / <span className="font-semibold text-green-700">{me.balances.complaintDailyRemaining ?? 0}</span> remaining (limit {me.balances.complaintDailyLimit})</span>
+                    {me.balances.complaintMonthlyUsed != null && (
+                      <span>This month: <span className="font-semibold text-slate-700">{me.balances.complaintMonthlyUsed}</span> total</span>
+                    )}
+                  </div>
+                )}
               </div>
               <button
                 type="button"

@@ -62,7 +62,9 @@ TRACK_RESPONSE_KEYWORDS = (
 
 COMPLAINT_ENTRY_URL = "https://ep.gov.pk/complaints.asp"
 COMPLAINT_FORM_URL = "https://ep.gov.pk/Complaint.aspx"
-COMPLAINT_FORM_TIMEOUT_SECONDS = 30
+COMPLAINT_FORM_TIMEOUT_SECONDS = 90
+COMPLAINT_MAX_RETRIES = 3
+COMPLAINT_RETRY_DELAYS = [2, 4, 8]
 
 
 def _normalize_location_name(value: str) -> str:
@@ -1075,10 +1077,10 @@ def _default_due_date(days: int = 7) -> str:
 
 
 def _is_retryable_complaint_error(exc: Exception) -> bool:
-  if isinstance(exc, (ConnectionResetError, ProtocolError, requests.exceptions.ConnectionError)):
+  if isinstance(exc, (ConnectionResetError, ProtocolError, requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout)):
     return True
   message = str(exc or "").lower()
-  return "10054" in message or "connection reset" in message or "forcibly closed" in message
+  return "10054" in message or "connection reset" in message or "forcibly closed" in message or "read timeout" in message or "timed out" in message
 
 
 def _pick_non_empty(*values: Any) -> str:
@@ -1627,8 +1629,9 @@ def submit_complaint(tracking_number, phone_number, details: dict[str, Any] | No
       }
     except Exception as exc:
       if _is_retryable_complaint_error(exc) and attempt < max_attempts:
-        print(f"[ComplaintAPI] Tracking={tn} Attempt={attempt} failed: {exc}. Retrying with new session.")
-        time.sleep(1 if attempt == 1 else 2)
+        delay = COMPLAINT_RETRY_DELAYS[attempt - 1] if attempt - 1 < len(COMPLAINT_RETRY_DELAYS) else COMPLAINT_RETRY_DELAYS[-1]
+        print(f"[ComplaintAPI] Tracking={tn} Attempt={attempt} failed: {exc}. Retrying in {delay}s with new session.")
+        time.sleep(delay)
         continue
       if _is_retryable_complaint_error(exc):
         print(f"[ComplaintAPI] failed: ConnectionResetError | Tracking={tn}")

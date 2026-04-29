@@ -1455,10 +1455,13 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
       recipient_location: recipientLocation,
     };
 
+    const _isMeaningless = (v: string) => !v.trim() || v.trim() === "-";
     const missingRequired = [
       !trackingNumber.trim() ? "ArticleNo" : "",
-      !complaintContext.sender_name.trim() ? "SenderName" : "",
-      !complaintContext.receiver_name.trim() ? "ReceiverName" : "",
+      _isMeaningless(complaintContext.sender_name) ? "SenderName" : "",
+      _isMeaningless(complaintContext.receiver_name) ? "ReceiverName" : "",
+      _isMeaningless(complaintContext.sender_address) ? "SenderAddress" : "",
+      _isMeaningless(complaintContext.receiver_address) ? "ReceiverAddress" : "",
       !complaintContext.sender_city.trim() ? "SenderCity" : "",
       !complaintContext.receiver_city.trim() ? "ReceiverCity" : "",
       !complaintContext.recipient_district.trim() ? "District" : "",
