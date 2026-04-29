@@ -7,31 +7,12 @@ import UploadDropzone from "../components/UploadDropzone";
 import { api, apiHealthCheck, triggerBrowserDownload, uploadFile } from "../lib/api";
 import type { LabelJob, MeResponse } from "../lib/types";
 import { useJobPolling } from "../lib/useJobPolling";
+import { getMissingOrderColumns, normalizeOrderColumnKey } from "../shared/orderColumns";
 import * as XLSX from "xlsx";
 
 type ShellCtx = { me: MeResponse | null; refreshMe: () => Promise<void> };
 
 type PreviewMode = "labels" | "envelope" | "flyer";
-
-const STRICT_UPLOAD_COLUMNS = [
-  "shipperName",
-  "shipperPhone",
-  "shipperAddress",
-  "shipperEmail",
-  "senderCity",
-  "consigneeName",
-  "consigneeEmail",
-  "consigneePhone",
-  "consigneeAddress",
-  "receiverCity",
-  "CollectAmount",
-  "ordered",
-  "ProductDescription",
-  "Weight",
-  "shipmenttype",
-  "numberOfPieces",
-  "TrackingID",
-] as const;
 
 function normalizeTrackingId(input: unknown) {
   return String(input ?? "").trim().toUpperCase().replace(/\s+/g, "");
@@ -332,9 +313,8 @@ export default function Upload() {
       const wb = XLSX.read(ab);
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { raw: false, defval: "" });
-      const normalize = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, "");
       const headers = Object.keys(rows[0] ?? {});
-      const normalizedHeaders = new Set(headers.map(normalize));
+      const normalizedHeaders = new Set(headers.map(normalizeOrderColumnKey));
       if (normalizedHeaders.has("bookingcity")) {
         normalizedHeaders.add("sendercity");
       }
@@ -347,7 +327,7 @@ export default function Upload() {
       if (normalizedHeaders.has("shipment_type")) {
         normalizedHeaders.add("shipmenttype");
       }
-      const missingHeaders = STRICT_UPLOAD_COLUMNS.filter((c) => !normalizedHeaders.has(normalize(c)));
+      const missingHeaders = getMissingOrderColumns(headers);
       if (missingHeaders.length > 0) {
         throw new Error(`Missing required columns: ${missingHeaders.join(", ")}`);
       }
@@ -355,8 +335,8 @@ export default function Upload() {
       for (let i = 0; i < rows.length; i += 1) {
         const row = rows[i] ?? {};
         const find = (name: string) => {
-          const n = normalize(name);
-          const key = Object.keys(row).find((k) => normalize(k) === n);
+          const n = normalizeOrderColumnKey(name);
+          const key = Object.keys(row).find((k) => normalizeOrderColumnKey(k) === n);
           return key ? row[key] : "";
         };
         const consigneeName = String(find("consigneeName") ?? "").trim();

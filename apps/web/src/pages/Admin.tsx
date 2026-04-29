@@ -147,6 +147,15 @@ export default function Admin() {
           <Card className="p-6"><div className="text-sm text-slate-500">Active Customers</div><div className="mt-2 text-3xl font-semibold text-slate-950">{users.filter((u) => !u.suspended).length}</div></Card>
           <Card className="p-6"><div className="text-sm text-slate-500">Suspended</div><div className="mt-2 text-3xl font-semibold text-slate-950">{users.filter((u) => u.suspended).length}</div></Card>
           <Card className="p-6"><div className="text-sm text-slate-500">Business Plan Users</div><div className="mt-2 text-3xl font-semibold text-slate-950">{users.filter((u) => (u.subscription?.plan?.name ?? "") === "Business Plan").length}</div></Card>
+          <Card className="p-6 md:col-span-3">
+            <div className="text-sm text-slate-500">Admin Generation</div>
+            <div className="mt-2 text-lg font-semibold text-slate-950">Generate labels and money orders from admin portal</div>
+            <div className="mt-1 text-sm text-slate-600">Use upload or manual entry mode from dedicated admin pages.</div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button className="rounded-2xl bg-brand px-4 py-2 text-sm font-medium text-white" onClick={() => navigate("/admin/generate-labels")}>Generate Labels</button>
+              <button className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700" onClick={() => navigate("/admin/generate-money-orders")}>Generate Money Order</button>
+            </div>
+          </Card>
           {TEMPLATE_DESIGNER_ENABLED ? (
             <Card className="p-6 md:col-span-3">
               <div className="text-sm text-slate-500">Admin Tools</div>

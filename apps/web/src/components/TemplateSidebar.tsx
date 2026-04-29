@@ -1,4 +1,3 @@
-import { useState } from "react";
 import Card from "./Card";
 
 type MoneyOrderTemplate = {
@@ -15,35 +14,13 @@ export default function TemplateSidebar(props: {
   templates: MoneyOrderTemplate[];
   selectedTemplateId: string | null;
   onSelectTemplate: (templateId: string) => void;
-  onCreateTemplate: (name: string) => Promise<void>;
-  onDuplicateTemplate: (templateId: string) => Promise<void>;
-  onActivateTemplate: (templateId: string) => Promise<void>;
-  onDeleteTemplate: (templateId: string) => Promise<void>;
   onRenameTemplate: (templateId: string, name: string) => Promise<void>;
   onPreviewTemplate: (templateId: string) => void;
 }) {
-  const [newTemplateName, setNewTemplateName] = useState("Money Order Template");
-
   return (
     <Card className="h-fit p-4">
       <div className="text-sm font-semibold uppercase tracking-wide text-slate-500">Template Dashboard</div>
-      <div className="mt-3 flex gap-2">
-        <input
-          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-          value={newTemplateName}
-          onChange={(event) => setNewTemplateName(event.target.value)}
-          placeholder="Template name"
-        />
-        <button
-          className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
-          onClick={() => {
-            if (!newTemplateName.trim()) return;
-            void props.onCreateTemplate(newTemplateName.trim());
-          }}
-        >
-          New
-        </button>
-      </div>
+      <div className="mt-2 text-xs text-slate-500">Designer opens the active template and saves edits directly to it.</div>
 
       <div className="mt-4 space-y-2">
         {props.templates.map((template) => (
@@ -80,15 +57,6 @@ export default function TemplateSidebar(props: {
                 className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-700"
                 onClick={(event) => {
                   event.stopPropagation();
-                  void props.onDuplicateTemplate(template.id);
-                }}
-              >
-                Duplicate
-              </button>
-              <button
-                className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-700"
-                onClick={(event) => {
-                  event.stopPropagation();
                   const name = window.prompt("Rename template", template.name);
                   if (!name || !name.trim()) return;
                   void props.onRenameTemplate(template.id, name.trim());
@@ -100,30 +68,10 @@ export default function TemplateSidebar(props: {
                 className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-700"
                 onClick={(event) => {
                   event.stopPropagation();
-                  void props.onActivateTemplate(template.id);
-                }}
-              >
-                Activate
-              </button>
-              <button
-                className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-700"
-                onClick={(event) => {
-                  event.stopPropagation();
                   props.onPreviewTemplate(template.id);
                 }}
               >
                 Preview
-              </button>
-              <button
-                className="rounded-lg border border-red-200 px-2 py-1 text-[11px] font-medium text-red-700"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  const confirmed = window.confirm("Delete this template and all fields?");
-                  if (!confirmed) return;
-                  void props.onDeleteTemplate(template.id);
-                }}
-              >
-                Delete
               </button>
             </div>
           </button>

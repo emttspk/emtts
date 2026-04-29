@@ -10,6 +10,8 @@ import { cn } from "../lib/cn";
 const titleMap: Array<{ prefix: string; title: string }> = [
   { prefix: "/dashboard", title: "Dashboard" },
   { prefix: "/tracking-workspace", title: "Track Parcel" },
+  { prefix: "/admin/generate-labels", title: "Generate Labels" },
+  { prefix: "/admin/generate-money-orders", title: "Generate Money Order" },
   { prefix: "/upload", title: "Generate Labels" },
   { prefix: "/jobs", title: "View Jobs" },
   { prefix: "/billing", title: "Pricing" },

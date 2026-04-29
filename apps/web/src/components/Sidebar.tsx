@@ -93,6 +93,8 @@ export default function Sidebar(props: { isOpen: boolean; setIsOpen: (v: boolean
               <NavItem key={n.to} {...n} />
             ))}
             {role === "ADMIN" ? <NavItem to="/admin" label="Admin" icon={Shield} /> : null}
+            {role === "ADMIN" ? <NavItem to="/admin/generate-labels" label="Generate labels" icon={UploadCloud} /> : null}
+            {role === "ADMIN" ? <NavItem to="/admin/generate-money-orders" label="Generate money order" icon={UploadCloud} /> : null}
             {canUseTemplateDesigner ? <NavItem to="/admin/template-designer" label="Money Order Designer" icon={Shield} /> : null}
           </div>
         </nav>

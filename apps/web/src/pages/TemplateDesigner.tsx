@@ -2,45 +2,21 @@ import { useEffect, useMemo, useState } from "react";
 import Card from "../components/Card";
 import { api, uploadFile } from "../lib/api";
 import { TEMPLATE_DESIGNER_ADMIN_EMAIL, TEMPLATE_DESIGNER_ENABLED } from "../lib/featureFlags";
+import {
+  createTemplateField,
+  deleteTemplateField,
+  getActiveAdminTemplate,
+  updateAdminTemplate,
+  updateTemplateField,
+  type MoneyOrderTemplate,
+  type MoneyOrderTemplateField,
+  type TemplateFieldType,
+} from "../lib/template.service";
 import TemplateCanvas from "../components/TemplateCanvas";
 import TemplateSidebar from "../components/TemplateSidebar";
 import TemplateToolbar from "../components/TemplateToolbar";
 import TemplateLayers from "../components/TemplateLayers";
 import PreviewModal from "../components/PreviewModal";
-
-type FieldType = "text" | "barcode" | "box" | "date" | "amount";
-
-type MoneyOrderTemplateField = {
-  id: string;
-  templateId: string;
-  fieldKey: string;
-  fieldType: FieldType;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  fontSize: number;
-  fontFamily: string;
-  fontWeight: "normal" | "bold";
-  fontStyle: "normal" | "italic";
-  textColor: string;
-  textAlign: "left" | "center" | "right";
-  rotation: number;
-  isLocked: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type MoneyOrderTemplate = {
-  id: string;
-  name: string;
-  backgroundUrl: string | null;
-  version: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  fields: MoneyOrderTemplateField[];
-};
 
 const DEFAULT_FIELD_KEYS = [
   "sender_name",
@@ -102,11 +78,23 @@ export default function TemplateDesigner() {
     [selectedFieldId, selectedTemplate],
   );
 
+  function syncWithActiveTemplate(items: MoneyOrderTemplate[]) {
+    const activeTemplate = items.find((template) => template.isActive) ?? items[0] ?? null;
+    const normalizedTemplates = activeTemplate ? [activeTemplate] : [];
+    setTemplates(normalizedTemplates);
+    setSelectedTemplateId(activeTemplate?.id ?? null);
+    return activeTemplate;
+  }
+
   async function refreshTemplates() {
-    const result = await api<{ templates: MoneyOrderTemplate[] }>("/api/admin/templates");
-    setTemplates(result.templates);
-    if (!selectedTemplateId && result.templates.length > 0) {
-      setSelectedTemplateId(result.templates[0].id);
+    const { templates: templateList } = await getActiveAdminTemplate();
+    const activeTemplate = syncWithActiveTemplate(templateList);
+    if (!activeTemplate) {
+      setSelectedFieldId(null);
+      return;
+    }
+    if (!activeTemplate.fields.some((field) => field.id === selectedFieldId)) {
+      setSelectedFieldId(activeTemplate.fields[0]?.id ?? null);
     }
   }
 
@@ -115,13 +103,13 @@ export default function TemplateDesigner() {
     setLoading(true);
     Promise.all([
       api<{ user: { email: string } }>("/api/me"),
-      api<{ templates: MoneyOrderTemplate[] }>("/api/admin/templates"),
+      getActiveAdminTemplate(),
     ])
       .then(([me, templateData]) => {
         if (!mounted) return;
         setMeEmail(me.user.email.toLowerCase());
-        setTemplates(templateData.templates);
-        setSelectedTemplateId((current) => current ?? templateData.templates[0]?.id ?? null);
+        const activeTemplate = syncWithActiveTemplate(templateData.templates);
+        setSelectedFieldId(activeTemplate?.fields[0]?.id ?? null);
       })
       .catch((err) => {
         if (!mounted) return;
@@ -137,95 +125,42 @@ export default function TemplateDesigner() {
     };
   }, []);
 
-  async function createTemplate(name: string) {
-    const result = await api<{ template: MoneyOrderTemplate }>("/api/admin/templates", {
-      method: "POST",
-      body: JSON.stringify({ name }),
-    });
-    setTemplates((previous) => [result.template, ...previous]);
-    setSelectedTemplateId(result.template.id);
-  }
-
-  async function activateTemplate(templateId: string) {
-    const result = await api<{ template: MoneyOrderTemplate }>(`/api/admin/templates/${templateId}/activate`, {
-      method: "POST",
-    });
-    setTemplates((previous) =>
-      previous.map((item) =>
-        item.id === result.template.id
-          ? result.template
-          : {
-              ...item,
-              isActive: false,
-            },
-      ),
-    );
-  }
-
-  async function duplicateTemplate(templateId: string) {
-    const result = await api<{ template: MoneyOrderTemplate }>(`/api/admin/templates/${templateId}/duplicate`, {
-      method: "POST",
-    });
-    setTemplates((previous) => [result.template, ...previous]);
-    setSelectedTemplateId(result.template.id);
-    setPreviewModalOpen(false);
-  }
-
-  async function removeTemplate(templateId: string) {
-    await api(`/api/admin/templates/${templateId}`, { method: "DELETE" });
-    setTemplates((previous) => previous.filter((template) => template.id !== templateId));
-    setSelectedTemplateId((current) => (current === templateId ? null : current));
-    setSelectedFieldId(null);
-  }
-
   async function renameTemplate(templateId: string, name: string) {
-    const result = await api<{ template: MoneyOrderTemplate }>(`/api/admin/templates/${templateId}`, {
-      method: "PUT",
-      body: JSON.stringify({ name }),
-    });
+    const result = await updateAdminTemplate(templateId, { name });
     setTemplates((previous) => previous.map((template) => (template.id === templateId ? result.template : template)));
   }
 
   async function uploadBackground(file: File) {
     if (!selectedTemplate) return;
     const upload = await uploadFile("/api/admin/templates/upload", file);
-    const result = await api<{ template: MoneyOrderTemplate }>(`/api/admin/templates/${selectedTemplate.id}`, {
-      method: "PUT",
-      body: JSON.stringify({ backgroundUrl: upload.backgroundUrl }),
-    });
+    const result = await updateAdminTemplate(selectedTemplate.id, { backgroundUrl: upload.backgroundUrl as string });
     setTemplates((previous) => previous.map((template) => (template.id === selectedTemplate.id ? result.template : template)));
   }
 
   async function deleteBackground() {
     if (!selectedTemplate) return;
-    const result = await api<{ template: MoneyOrderTemplate }>(`/api/admin/templates/${selectedTemplate.id}`, {
-      method: "PUT",
-      body: JSON.stringify({ backgroundUrl: null }),
-    });
+    const result = await updateAdminTemplate(selectedTemplate.id, { backgroundUrl: null });
     setTemplates((previous) => previous.map((template) => (template.id === selectedTemplate.id ? result.template : template)));
   }
 
-  async function addField(fieldType: FieldType, fieldKey: string) {
+  async function addField(fieldType: TemplateFieldType, fieldKey: string) {
     if (!selectedTemplate) return;
     const key = nextFieldKey(selectedTemplate.fields, fieldKey);
-    const result = await api<{ field: MoneyOrderTemplateField }>(`/api/admin/templates/${selectedTemplate.id}/fields`, {
-      method: "POST",
-      body: JSON.stringify({
-        fieldKey: key,
-        fieldType,
-        x: 80,
-        y: 80,
-        width: fieldType === "barcode" ? 220 : 200,
-        height: fieldType === "barcode" ? 70 : 40,
-        fontSize: 14,
-        fontFamily: "Arial",
-        fontWeight: "normal",
-        fontStyle: "normal",
-        textColor: "#0f172a",
-        textAlign: "left",
-        rotation: 0,
-        isLocked: false,
-      }),
+    const result = await createTemplateField(selectedTemplate.id, {
+      fieldKey: key,
+      fieldType,
+      x: 80,
+      y: 80,
+      width: fieldType === "barcode" ? 220 : 200,
+      height: fieldType === "barcode" ? 70 : 40,
+      fontSize: 14,
+      fontFamily: "Arial",
+      fontWeight: "normal",
+      fontStyle: "normal",
+      textColor: "#0f172a",
+      textAlign: "left",
+      rotation: 0,
+      isLocked: false,
     });
 
     setTemplates((previous) =>
@@ -243,10 +178,7 @@ export default function TemplateDesigner() {
 
   async function updateField(fieldId: string, patch: Partial<MoneyOrderTemplateField>) {
     if (!selectedTemplate) return;
-    const result = await api<{ field: MoneyOrderTemplateField }>(`/api/admin/templates/fields/${fieldId}`, {
-      method: "PUT",
-      body: JSON.stringify(patch),
-    });
+    const result = await updateTemplateField(fieldId, patch);
 
     setTemplates((previous) =>
       previous.map((template) =>
@@ -262,7 +194,7 @@ export default function TemplateDesigner() {
 
   async function deleteField(fieldId: string) {
     if (!selectedTemplate) return;
-    await api(`/api/admin/templates/fields/${fieldId}`, { method: "DELETE" });
+    await deleteTemplateField(fieldId);
     setTemplates((previous) =>
       previous.map((template) =>
         template.id === selectedTemplate.id
@@ -278,24 +210,21 @@ export default function TemplateDesigner() {
 
   async function duplicateField(field: MoneyOrderTemplateField) {
     if (!selectedTemplate) return;
-    const result = await api<{ field: MoneyOrderTemplateField }>(`/api/admin/templates/${selectedTemplate.id}/fields`, {
-      method: "POST",
-      body: JSON.stringify({
-        fieldKey: nextFieldKey(selectedTemplate.fields, field.fieldKey),
-        fieldType: field.fieldType,
-        x: field.x + 14,
-        y: field.y + 14,
-        width: field.width,
-        height: field.height,
-        fontSize: field.fontSize,
-        fontFamily: field.fontFamily,
-        fontWeight: field.fontWeight,
-        fontStyle: field.fontStyle,
-        textColor: field.textColor,
-        textAlign: field.textAlign,
-        rotation: field.rotation,
-        isLocked: field.isLocked,
-      }),
+    const result = await createTemplateField(selectedTemplate.id, {
+      fieldKey: nextFieldKey(selectedTemplate.fields, field.fieldKey),
+      fieldType: field.fieldType,
+      x: field.x + 14,
+      y: field.y + 14,
+      width: field.width,
+      height: field.height,
+      fontSize: field.fontSize,
+      fontFamily: field.fontFamily,
+      fontWeight: field.fontWeight,
+      fontStyle: field.fontStyle,
+      textColor: field.textColor,
+      textAlign: field.textAlign,
+      rotation: field.rotation,
+      isLocked: field.isLocked,
     });
 
     setTemplates((previous) =>
@@ -362,10 +291,6 @@ export default function TemplateDesigner() {
         templates={templates}
         selectedTemplateId={selectedTemplateId}
         onSelectTemplate={setSelectedTemplateId}
-        onCreateTemplate={createTemplate}
-        onDuplicateTemplate={duplicateTemplate}
-        onActivateTemplate={activateTemplate}
-        onDeleteTemplate={removeTemplate}
         onRenameTemplate={renameTemplate}
         onPreviewTemplate={(templateId) => {
           setSelectedTemplateId(templateId);

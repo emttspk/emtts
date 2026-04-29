@@ -22,6 +22,8 @@ const UpdatePackage = lazy(() => import("./pages/UpdatePackage"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Admin = lazy(() => import("./pages/Admin"));
 const TemplateDesigner = lazy(() => import("./pages/TemplateDesigner"));
+const GenerateLabels = lazy(() => import("./pages/GenerateLabels"));
+const GenerateMoneyOrder = lazy(() => import("./pages/admin/GenerateMoneyOrder"));
 
 function Loading() {
   return (
@@ -72,6 +74,22 @@ export default function App() {
             element={
               <RequireAdmin>
                 <Admin />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/admin/generate-labels"
+            element={
+              <RequireAdmin>
+                <GenerateLabels />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/admin/generate-money-orders"
+            element={
+              <RequireAdmin>
+                <GenerateMoneyOrder />
               </RequireAdmin>
             }
           />
