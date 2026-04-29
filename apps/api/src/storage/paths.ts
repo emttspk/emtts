@@ -1,5 +1,6 @@
 import path from "node:path";
 import fs from "node:fs/promises";
+import fsSync from "node:fs";
 import { fileURLToPath } from "node:url";
 import { env } from "../config.js";
 import { UPLOAD_DIR } from "../utils/paths.js";
@@ -18,7 +19,7 @@ export function uploadsDir() {
 }
 
 export function outputsDir() {
-  return path.join(storageRoot(), "outputs");
+  return path.join(storageRoot(), "generated");
 }
 
 export function moneyOrdersOutputPath(jobId: string) {
@@ -40,6 +41,8 @@ export function resolveStoredPath(storedPath: string) {
 
   const candidates = [
     path.resolve(storageRoot(), storedPath),
+    path.resolve(storageRoot(), "generated", path.basename(storedPath)),
+    path.resolve(storageRoot(), "outputs", path.basename(storedPath)),
     path.resolve(appRoot(), storedPath),
     path.resolve(process.cwd(), storedPath),
   ];
@@ -74,6 +77,12 @@ export async function waitForStoredFile(storedPath: string, attempts = 8, delayM
 }
 
 export async function ensureStorageDirs() {
+  if (!fsSync.existsSync(uploadsDir())) {
+    fsSync.mkdirSync(uploadsDir(), { recursive: true });
+  }
+  if (!fsSync.existsSync(outputsDir())) {
+    fsSync.mkdirSync(outputsDir(), { recursive: true });
+  }
   await fs.mkdir(uploadsDir(), { recursive: true });
   await fs.mkdir(outputsDir(), { recursive: true });
 }

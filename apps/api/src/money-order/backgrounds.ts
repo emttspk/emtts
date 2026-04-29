@@ -13,6 +13,7 @@ export async function loadMoneyOrderBackgrounds(): Promise<MoneyOrderBackgrounds
   const activeTemplateFrontDataUrl = await resolveActiveTemplateFrontDataUrl();
   const frontPath = (
     env.MONEY_ORDER_FRONT_IMAGE_PATH?.trim() ||
+    (await resolveDefaultPath("apps/web/public/templates/mo-front-default.png")) ||
     (await resolveDefaultPath("images/NEW MO F A5.jpg")) ||
     (await resolveDefaultPath("MO/MO Front.png"))
   ) ?? "";

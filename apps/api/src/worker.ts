@@ -1,6 +1,7 @@
 console.log("🔥 WORKER FILE LOADED");
 import { UnrecoverableError, Worker } from "bullmq";
 import fs from "node:fs/promises";
+import { existsSync, mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { createCanvas } from "canvas";
@@ -47,6 +48,13 @@ function sanitizeRedisUrl(input: string | undefined | null) {
   const value = String(input ?? "").trim();
   if (!value) return "(not set)";
   return value.replace(/:[^:@]*@/, ":****@");
+}
+
+function ensureGeneratedOutputDirSync() {
+  const dir = outputsDir();
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
 }
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
@@ -805,6 +813,8 @@ const worker = new Worker(
         console.log(`[Worker] Generating Labels PDF for job ${jobId}`);
         console.log("TEMPLATE:", printMode);
         console.log("TEMPLATE USED:", outputMode === "envelope" ? "label-envelope-9x4.html via envelopeHtml(labels.ts)" : outputMode === "flyer" ? "label-flyer-a4.html via flyerHtml(labels.ts)" : "label-box-a4.html via labelsHtml(labels.ts)");
+        ensureGeneratedOutputDirSync();
+        console.log(`[Worker] Labels generation starting. Output directory: ${outputsDir()}`);
         const html = renderLabelDocumentHtml(labelOrdersForRender, {
           autoGenerateTracking: doAutoGenerateTracking,
           includeMoneyOrders: moneyOrderEligibleOrders.length > 0,
@@ -814,10 +824,14 @@ const worker = new Worker(
         const pdfBuffer = Buffer.from(pdfData);
         labelsPdf = pdfBuffer;
         labelsPath = path.join(outputsDir(), `${jobId}-labels.pdf`);
+        console.log(`[Worker] Labels output file path: ${labelsPath}`);
         await fs.writeFile(labelsPath, pdfBuffer);
-        if (!(await waitForStoredFile(toStoredPath(labelsPath), 3, 100))) {
+        const labelsAbsPath = await waitForStoredFile(toStoredPath(labelsPath), 8, 250);
+        if (!labelsAbsPath) {
+          console.error(`[Worker] Labels file missing after write. Path: ${labelsPath}`);
           throw new Error("Labels PDF was not fully written to disk");
         }
+        console.log(`[Worker] Labels file persisted at: ${labelsAbsPath}`);
         console.log(`[Worker] Labels saved to ${labelsPath}`);
         console.log(`[Worker] PDF generated for job ${jobId}`);
       }
@@ -829,6 +843,8 @@ const worker = new Worker(
         try {
           console.log(`[Worker] Generating Money Order PDF for job ${jobId}`);
           console.log("[MO_TEMPLATE_USED]", "benchmark-mo-front-back");
+          ensureGeneratedOutputDirSync();
+          console.log(`[Worker] Money-order generation starting. Output directory: ${outputsDir()}`);
           const printableOrders = moneyOrderEligibleOrders.flatMap((order) => {
             const trackingNumber = String(order.trackingNumber ?? "").trim();
             const allocatedRows = moneyOrdersByTracking.get(trackingNumber) ?? [];
@@ -881,13 +897,15 @@ const worker = new Worker(
           moneyPath = moneyOrdersOutputPath(jobId);
           console.log("Output path:", moneyPath);
           await fs.writeFile(moneyPath, moneyPdf);
-          const moneyFileExists = Boolean(await waitForStoredFile(toStoredPath(moneyPath), 3, 100));
+          const moneyAbsPath = await waitForStoredFile(toStoredPath(moneyPath), 8, 250);
+          const moneyFileExists = Boolean(moneyAbsPath);
           console.log("File exists after generation:", moneyFileExists);
           if (!moneyPath || !moneyFileExists) {
             console.error("MO generation failed: file missing");
             console.error("MO FILE NOT FOUND:", moneyPath);
             throw new Error("Money order PDF was not fully written to disk");
           }
+          console.log(`[Worker] Money-order file persisted at: ${moneyAbsPath}`);
           console.log(`[Worker] Money Orders saved to ${moneyPath}`);
           }
         } catch (moErr) {

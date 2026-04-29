@@ -15,8 +15,7 @@ import { renderMoneyOrderTemplate } from "../templates/TemplateRenderer.js";
 
 const TEMPLATE_DESIGNER_ADMIN_EMAIL = "nazimsaeed@gmail.com";
 const TEMPLATE_UPLOAD_DIR = path.join(uploadsDir(), "templates");
-const DEFAULT_TEMPLATE_BACKGROUND_FILE = "default-mo-front-a5.jpg";
-const DEFAULT_TEMPLATE_BACKGROUND_URL = `/api/admin/templates/background/${DEFAULT_TEMPLATE_BACKGROUND_FILE}`;
+const DEFAULT_TEMPLATE_BACKGROUND_URL = "/templates/mo-front-default.png";
 const SUPPORTED_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".pdf"]);
 const SUPPORTED_MIME_TYPES = new Set(["image/png", "image/jpeg", "application/pdf"]);
 
@@ -29,31 +28,7 @@ async function ensureTemplateUploadDir() {
 }
 
 async function ensureDefaultTemplateBackgroundAsset() {
-  await ensureTemplateUploadDir();
-  const destinationPath = path.resolve(TEMPLATE_UPLOAD_DIR, DEFAULT_TEMPLATE_BACKGROUND_FILE);
-
-  try {
-    await fs.access(destinationPath);
-    return;
-  } catch {
-    // Create the default designer background from the best available source.
-  }
-
-  const candidates = [
-    path.resolve(process.cwd(), "images", "NEW MO F A5.jpg"),
-    path.resolve(process.cwd(), "images", "NEW MO F.png"),
-    path.resolve(process.cwd(), "MO", "MO Front.png"),
-  ];
-
-  for (const candidate of candidates) {
-    try {
-      await fs.access(candidate);
-      await fs.copyFile(candidate, destinationPath);
-      return;
-    } catch {
-      // Try the next candidate.
-    }
-  }
+  return;
 }
 
 async function convertPdfFirstPageToPng(pdfFileName: string): Promise<string | null> {

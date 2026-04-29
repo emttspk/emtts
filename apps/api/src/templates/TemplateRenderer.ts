@@ -77,7 +77,7 @@ export async function renderMoneyOrderTemplate(templateId: string, data: Templat
     id: template.id,
     name: template.name,
     version: template.version,
-    backgroundUrl: template.backgroundUrl,
+    backgroundUrl: template.backgroundUrl ?? TEMPLATE_FALLBACK_BACKGROUND_URL,
     isActive: template.isActive,
     fields: template.fields.map((field) => ({
       id: field.id,

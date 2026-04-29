@@ -640,13 +640,14 @@ jobsRouter.get("/:jobId/download/labels", requireAuth, async (req, res) => {
     return res.status(404).json({ success: false, message: "Labels file not found" });
   }
 
-  const absPath = await waitForStoredFile(relPath, 1, 500);
+  const absPath = await waitForStoredFile(relPath, 8, 500);
   if (!absPath) {
     return res.status(404).json({ success: false, message: "File not found on disk" });
   }
-  console.log("DOWNLOAD PATH:", absPath);
+  const resolvedAbsPath = path.resolve(absPath);
+  console.log("DOWNLOAD PATH:", resolvedAbsPath);
   const allowedRoot = outputsDir();
-  const relToRoot = path.relative(allowedRoot, absPath);
+  const relToRoot = path.relative(allowedRoot, resolvedAbsPath);
   if (relToRoot.startsWith("..") || path.isAbsolute(relToRoot)) {
     return res.status(400).json({ success: false, message: "Invalid file path" });
   }
@@ -657,7 +658,7 @@ jobsRouter.get("/:jobId/download/labels", requireAuth, async (req, res) => {
 
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", "attachment");
-  return res.download(absPath, "labels.pdf");
+  return res.download(resolvedAbsPath, "labels.pdf");
 });
 
 async function handleMoneyOrdersDownload(req: Request, res: Response) {
@@ -688,14 +689,15 @@ async function handleMoneyOrdersDownload(req: Request, res: Response) {
     return res.status(404).json({ success: false, message: "Money order file was not generated" });
   }
 
-  const absPath = await waitForStoredFile(relPath);
+  const absPath = await waitForStoredFile(relPath, 8, 500);
   if (!absPath) {
     return res.status(404).json({ success: false, message: "Money order file was not generated" });
   }
-  console.log("DOWNLOAD PATH:", absPath);
+  const resolvedAbsPath = path.resolve(absPath);
+  console.log("DOWNLOAD PATH:", resolvedAbsPath);
 
   const allowedRoot = outputsDir();
-  const relToRoot = path.relative(allowedRoot, absPath);
+  const relToRoot = path.relative(allowedRoot, resolvedAbsPath);
   if (relToRoot.startsWith("..") || path.isAbsolute(relToRoot)) {
     return res.status(400).json({ success: false, message: "Invalid file path" });
   }
@@ -706,7 +708,7 @@ async function handleMoneyOrdersDownload(req: Request, res: Response) {
 
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", "attachment");
-  return res.download(absPath, `money-orders-${jobId}.pdf`);
+  return res.download(resolvedAbsPath, `money-orders-${jobId}.pdf`);
 }
 
 jobsRouter.get("/:jobId/download/money-orders", requireAuth, handleMoneyOrdersDownload);
