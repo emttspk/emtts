@@ -135,23 +135,19 @@ export default function Hero() {
 					<div
 						className={`flex min-w-0 flex-col justify-center transition-all duration-700 ${mounted ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"}`}
 					>
-						<div className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700 shadow-sm">
-							<span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-							Enterprise Logistics Workspace
-						</div>
 
 					<h1 className="mt-4 max-w-[540px] font-display text-[2.4rem] font-black leading-[1.04] tracking-[-0.04em] text-slate-900 sm:text-5xl lg:text-[3.6rem]">
 						Pakistan Post
 						<span className="block bg-[linear-gradient(135deg,#0b6b3a,#0f4c81)] bg-clip-text text-transparent">Ops Cloud</span>
 					</h1>
 
-					<p className="mt-4 max-w-[500px] text-base leading-7 text-slate-600 sm:text-[1.05rem]">
+					<p className="mt-3 max-w-[480px] text-base leading-7 text-slate-600 sm:text-[1.05rem]">
 							Labels, money orders, tracking, and complaints in one premium operational surface.
 						</p>
 
 						<form
 							onSubmit={handleTrackingSubmit}
-							className="mt-6 w-full max-w-[580px] rounded-2xl border border-slate-200 bg-white p-2.5 shadow-[0_12px_36px_rgba(15,23,42,0.10)]"
+							className="mt-5 w-full max-w-[560px] rounded-2xl border border-slate-200 bg-white p-2.5 shadow-[0_12px_36px_rgba(15,23,42,0.10)]"
 						>
 							<div className="flex flex-col gap-2 sm:flex-row sm:items-center">
 								<input
@@ -171,7 +167,7 @@ export default function Hero() {
 							</div>
 						</form>
 
-						<div className="mt-5 flex flex-wrap items-center gap-3">
+						<div className="mt-4 flex flex-wrap items-center gap-3">
 							<a
 								href="/register"
 								className="inline-flex h-11 items-center gap-2 rounded-xl bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-6 text-sm font-bold text-white shadow-[0_10px_28px_rgba(11,107,58,0.34)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_36px_rgba(11,107,58,0.42)]"
@@ -185,13 +181,6 @@ export default function Hero() {
 							>
 								Login
 							</a>
-						</div>
-
-						<div className="mt-5 flex w-full max-w-[580px] items-center gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] text-[11px] font-semibold text-slate-700">
-							<span className="whitespace-nowrap rounded-full border border-slate-200 bg-white px-3 py-1">? 99.9% Uptime</span>
-							<span className="whitespace-nowrap rounded-full border border-slate-200 bg-white px-3 py-1">? Live Tracking</span>
-							<span className="whitespace-nowrap rounded-full border border-slate-200 bg-white px-3 py-1">? Secure Auth</span>
-							<span className="whitespace-nowrap rounded-full border border-slate-200 bg-white px-3 py-1">? Monitored Logs</span>
 						</div>
 					</div>
 

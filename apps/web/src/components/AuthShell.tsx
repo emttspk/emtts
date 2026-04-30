@@ -27,14 +27,10 @@ export default function AuthShell(props: AuthShellProps) {
           <section className="relative min-h-[180px] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 md:min-h-[640px]">
             <img src={letterBoxImage} alt="Pakistan Post logistics" className="h-full w-full object-cover object-center" />
             <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(2,6,23,0.30)_0%,rgba(2,6,23,0.52)_60%,rgba(2,6,23,0.88)_100%)]" />
-            <div className="absolute inset-x-10 bottom-10 max-w-[460px]">
-              <div className="inline-flex items-center rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-emerald-200">
-                Epost.pk Enterprise
-              </div>
-              <h1 className="mt-4 font-display text-[2.2rem] font-black leading-[1.08] tracking-[-0.04em] text-white sm:text-4xl">
-                {props.mode === "register" ? "Create Your Shipping Workspace" : "Sign In To Operations Cloud"}
+            <div className="absolute inset-x-8 bottom-8 max-w-[420px]">
+              <h1 className="font-display text-[2rem] font-black leading-[1.08] tracking-[-0.04em] text-white sm:text-[2.4rem]">
+                {props.mode === "register" ? "Create Your Account" : "Welcome Back"}
               </h1>
-              <p className="mt-3 text-sm leading-6 text-slate-100/90">Premium dispatch tooling for labels, tracking, and operations.</p>
             </div>
           </section>
 
