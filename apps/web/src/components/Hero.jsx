@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Search, ScanLine, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import dashbordCard from "../../../../images/dashbord.png";
 
 const SCANNER_ELEMENT_ID = "home-mobile-tracking-scanner";
-const HERO_VISUALS = [
+const LETTER_BOX_IMAGE = "/assets/letter_box.png";
+const HERO_CARDS = [
   "/assets/label.png",
   "/assets/money-order.png",
   "/assets/track.png",
-  "/assets/dashboard.png",
+  dashbordCard,
   "/assets/complaint.png",
   "/assets/package.png",
   "/assets/tracking.png",
@@ -20,24 +22,19 @@ function parseTrackingScan(decodedText) {
   if (/^https?:\/\//i.test(raw)) {
     try {
       const parsed = new URL(raw);
-      const fromParams =
+      const fromQuery =
         parsed.searchParams.get("tracking") ||
         parsed.searchParams.get("id") ||
         parsed.searchParams.get("ids") ||
         "";
-      if (fromParams) {
-        return fromParams.split(",")[0].trim();
-      }
+      if (fromQuery) return fromQuery.split(",")[0].trim();
     } catch {
-      // Fall through to token extraction.
+      // Continue with token parsing.
     }
   }
 
   const normalized = raw.replace(/[\n\r\t]+/g, " ").replace(/[,;]+/g, " ").trim();
-  const token = normalized
-    .split(/\s+/)
-    .find((item) => /^[A-Za-z0-9-]{8,}$/.test(item));
-
+  const token = normalized.split(/\s+/).find((item) => /^[A-Za-z0-9-]{8,}$/.test(item));
   return token || normalized;
 }
 
@@ -47,7 +44,7 @@ export default function Hero() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerError, setScannerError] = useState("");
   const [scanNotice, setScanNotice] = useState("");
-  const [activeVisual, setActiveVisual] = useState(0);
+  const [activeCard, setActiveCard] = useState(0);
 
   const scannerRef = useRef(null);
   const scanTimeoutRef = useRef(null);
@@ -55,8 +52,8 @@ export default function Hero() {
 
   useEffect(() => {
     const interval = window.setInterval(() => {
-      setActiveVisual((current) => (current + 1) % HERO_VISUALS.length);
-    }, 2800);
+      setActiveCard((current) => (current + 1) % HERO_CARDS.length);
+    }, 3000);
     return () => window.clearInterval(interval);
   }, []);
 
@@ -73,7 +70,7 @@ export default function Hero() {
       if (ids.length === 0) return;
       navigate(`/tracking?ids=${encodeURIComponent(ids.join(","))}`);
     },
-    [navigate]
+    [navigate],
   );
 
   const stopScanner = useCallback(async () => {
@@ -88,10 +85,11 @@ export default function Hero() {
     try {
       await scannerRef.current.clear();
     } catch {
-      // Scanner root can already be cleared.
+      // Scanner can already be cleared.
     }
 
     scannerRef.current = null;
+
     if (scanTimeoutRef.current) {
       window.clearTimeout(scanTimeoutRef.current);
       scanTimeoutRef.current = null;
@@ -145,11 +143,11 @@ export default function Hero() {
 
             didHandleScanRef.current = true;
             setTrackingId(parsedTracking);
-            setScanNotice("Barcode scanned. Submitting...");
+            setScanNotice("Scan successful. Opening tracking...");
             submitTracking(parsedTracking);
             closeScanner();
           },
-          () => {}
+          () => {},
         );
 
         scanTimeoutRef.current = window.setTimeout(() => {
@@ -158,7 +156,7 @@ export default function Hero() {
       } catch (error) {
         const message = String(error && error.message ? error.message : "");
         if (/permission|notallowed|denied/i.test(message)) {
-          setScannerError("Camera access denied. Allow permission and try again.");
+          setScannerError("Camera permission denied. Please allow access and retry.");
           return;
         }
         setScannerError("Camera scan unavailable on this device. Use manual tracking input.");
@@ -173,7 +171,7 @@ export default function Hero() {
     };
   }, [closeScanner, scannerOpen, stopScanner, submitTracking]);
 
-  const activeAnimation = ["flip", "fade", "slide"][activeVisual % 3];
+  const activeAnimation = ["flip", "fade", "rotate"][activeCard % 3];
 
   return (
     <section className="relative overflow-hidden bg-[radial-gradient(circle_at_10%_10%,rgba(14,116,144,0.18),transparent_35%),radial-gradient(circle_at_90%_0%,rgba(11,107,58,0.18),transparent_30%),linear-gradient(180deg,#f8fcff_0%,#eef7f2_55%,#eef3ff_100%)]">
@@ -189,16 +187,12 @@ export default function Hero() {
               management, and live delivery monitoring.
             </p>
 
-            <p className="mt-2 max-w-[680px] text-sm font-semibold leading-6 text-slate-600 sm:text-base">
-              Designed for ecommerce dispatch teams, resellers, and enterprise logistics operators.
-            </p>
-
             <form
               onSubmit={(event) => {
                 event.preventDefault();
                 submitTracking(trackingId);
               }}
-              className="mt-6 w-full max-w-[650px] rounded-2xl border border-slate-200/90 bg-white/85 p-2 shadow-[0_14px_40px_rgba(15,23,42,0.10)] backdrop-blur"
+              className="mt-6 w-full max-w-[650px] rounded-2xl border border-slate-200/90 bg-white/90 p-2 shadow-[0_14px_40px_rgba(15,23,42,0.10)] backdrop-blur"
             >
               <div className="flex flex-col gap-2 md:flex-row md:items-center">
                 <input
@@ -249,38 +243,37 @@ export default function Hero() {
           </div>
 
           <div className="order-last lg:order-none">
-            <div className="relative mx-auto h-[320px] w-full max-w-[540px] sm:h-[390px] md:h-[470px] lg:h-[560px] lg:max-w-[700px]">
+            <div className="relative mx-auto h-[330px] w-full max-w-[540px] md:h-[380px] lg:h-[430px]">
               <img
-                src="/assets/letter_box.png"
-                alt="Letter box frame"
-                className="pointer-events-none absolute inset-0 z-20 h-full w-full object-contain"
+                src={LETTER_BOX_IMAGE}
+                alt="Pakistan Post letter box"
+                className="h-full w-full object-contain"
               />
+              <div className="pointer-events-none absolute inset-[20%_16%_14%_16%] overflow-hidden rounded-2xl">
+                {HERO_CARDS.map((cardImage, index) => {
+                  const isActive = index === activeCard;
 
-              <div className="absolute inset-[15%_14%_17%_14%] z-10 overflow-hidden rounded-2xl bg-white/70">
-                {HERO_VISUALS.map((visual, index) => {
-                  const isActive = index === activeVisual;
-
-                  let transform = "translateX(42px) rotateY(90deg) scale(0.98)";
+                  let transform = "translateX(36px) rotateY(80deg) scale(0.98)";
                   if (activeAnimation === "fade") {
-                    transform = isActive ? "translateX(0) rotateY(0deg) scale(1)" : "translateX(0) rotateY(0deg) scale(0.96)";
+                    transform = isActive ? "translateX(0) rotateY(0deg) scale(1)" : "translateX(0) rotateY(0deg) scale(0.97)";
                   }
-                  if (activeAnimation === "slide") {
-                    transform = isActive ? "translateX(0) rotateY(0deg) scale(1)" : "translateX(56px) rotateY(0deg) scale(0.98)";
+                  if (activeAnimation === "rotate") {
+                    transform = isActive ? "translateX(0) rotate(0deg) scale(1)" : "translateX(24px) rotate(12deg) scale(0.97)";
                   }
                   if (activeAnimation === "flip") {
-                    transform = isActive ? "translateX(0) rotateY(0deg) scale(1)" : "translateX(26px) rotateY(90deg) scale(0.98)";
+                    transform = isActive ? "translateX(0) rotateY(0deg) scale(1)" : "translateX(24px) rotateY(88deg) scale(0.98)";
                   }
 
                   return (
                     <img
-                      key={visual}
-                      src={visual}
-                      alt="Operations module preview"
-                      className="absolute inset-0 h-full w-full object-contain p-3"
+                      key={cardImage}
+                      src={cardImage}
+                      alt="Operations module card"
+                      className="absolute inset-0 h-full w-full object-contain p-2"
                       style={{
                         opacity: isActive ? 1 : 0,
                         transform,
-                        transition: "opacity 680ms ease, transform 760ms ease",
+                        transition: "opacity 650ms ease, transform 760ms ease",
                         transformOrigin: "center",
                       }}
                     />

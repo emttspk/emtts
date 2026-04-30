@@ -56,7 +56,7 @@ export default function Login() {
           <input className="field-input focus:ring-emerald-200" value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="********" required />
         </label>
 
-        <button disabled={loading} className="btn-primary mt-1 w-full">
+        <button disabled={loading} className="btn-primary mt-1 w-full rounded-xl">
           {loading ? "Signing in..." : "Login"}
         </button>
 
@@ -72,4 +72,3 @@ export default function Login() {
     </AuthShell>
   );
 }
-

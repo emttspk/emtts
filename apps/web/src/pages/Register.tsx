@@ -164,7 +164,7 @@ export default function Register() {
           </div>
         </div>
 
-        <button disabled={loading} className="btn-primary w-full">
+        <button disabled={loading} className="btn-primary w-full rounded-xl">
           {loading ? "Creating account..." : "Create Free Account"}
         </button>
 
@@ -180,4 +180,3 @@ export default function Register() {
     </AuthShell>
   );
 }
-

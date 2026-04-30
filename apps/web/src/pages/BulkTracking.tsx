@@ -2017,13 +2017,12 @@ export default function BulkTracking() {
 
   return (
     <>
-    <div className="app-container space-y-6 lg:pr-[340px]">
-      <div className="lg:hidden">
-        <SenderProfileCard me={me} />
-      </div>
-      <div className="hidden lg:block lg:sticky lg:top-6 lg:float-right lg:ml-6 lg:w-[320px]">
-        <SenderProfileCard me={me} className="shadow-xl" />
-      </div>
+    <div className="app-container px-3 md:px-5 xl:px-6">
+      <div className="grid gap-6 xl:grid-cols-[4fr_1fr]">
+        <div className="min-w-0 space-y-6">
+          <div className="xl:hidden">
+            <SenderProfileCard me={me} />
+          </div>
       <Card className="overflow-hidden p-8 md:p-10">
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
           <div>
@@ -2393,8 +2392,8 @@ export default function BulkTracking() {
         </Card>
       ) : null}
 
-      <Card className="overflow-hidden border-[#E5E7EB] bg-[linear-gradient(180deg,#ffffff,#f8fbff)] p-0">
-        <div className="border-b border-[#E5E7EB] bg-white/80 px-6 py-5 backdrop-blur">
+      <Card className="overflow-hidden border-[#E5E7EB] bg-[linear-gradient(180deg,#ffffff,#f8fbff)] p-0 shadow-[0_22px_52px_rgba(15,23,42,0.12)]">
+        <div className="border-b border-[#E5E7EB] bg-white/85 px-4 py-4 backdrop-blur md:px-6 md:py-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-xl font-semibold tracking-tight text-slate-900">All Tracked Shipments</div>
@@ -2459,10 +2458,10 @@ export default function BulkTracking() {
         </div>
         {refreshSummary ? <div className="border-t border-[#E5E7EB] bg-[#F8FAF9] px-6 py-2 text-xs text-slate-700">{refreshSummary}</div> : null}
         </div>
-        <div className="p-1.5 md:p-2">
+        <div className="p-1 md:p-2">
           <div className="overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
             <table className="w-full table-auto text-[13px]">
-              <thead className="sticky top-0 z-10 border-b border-[#E5E7EB] bg-[#F8FAF9]/95 backdrop-blur">
+              <thead className="sticky top-0 z-10 border-b border-[#E5E7EB] bg-[#f1f7f8]/95 backdrop-blur">
               <tr>
                 <th className="w-8 border-r border-slate-100 px-2 py-2">
                   <input
@@ -2576,7 +2575,7 @@ export default function BulkTracking() {
                     </td>
                     <td className="border-r border-slate-100 px-2 py-1.5 align-middle">
                       <div className="flex flex-col">
-                        <span className={cn("inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ring-1 ring-inset", isWarning ? "bg-red-100 text-red-700 ring-red-200" : statusBadgeClass(displayStatus))}>
+                        <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset", isWarning ? "bg-red-100 text-red-700 ring-red-200" : statusBadgeClass(displayStatus))}>
                           {normalizeStatus(displayStatus)}
                         </span>
                           <span className="mt-0.5 text-[10px] text-slate-500">{days}d</span>
@@ -2811,6 +2810,14 @@ export default function BulkTracking() {
           </div>
         ) : null}
       </Card> : null}
+        </div>
+        <aside className="hidden xl:block">
+          <div className="sticky top-6">
+            <SenderProfileCard me={me} className="shadow-xl" />
+          </div>
+        </aside>
+      </div>
+    </div>
 
       {complaintRecord ? (
         <div className="modal-wrapper bg-slate-950/50 p-2 z-40">
@@ -3323,13 +3330,10 @@ export default function BulkTracking() {
         </div>
       ) : null}
 
-    </div>
       <div id="print-area" aria-hidden="true" />
     </>
   );
 }
-
-
 
 
 
