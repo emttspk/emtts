@@ -23,18 +23,18 @@ export default function AuthShell(props: AuthShellProps) {
           </Link>
         </div>
 
-        <div className="grid min-h-[calc(100vh-6.5rem)] overflow-hidden rounded-[34px] border border-white/70 bg-white/82 shadow-[0_34px_90px_rgba(15,23,42,0.14)] backdrop-blur md:grid-cols-[53fr_47fr]">
-          <section className="relative hidden min-h-[640px] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 md:block">
-            <img src={letterBoxImage} alt="Pakistan Post logistics" className="h-full w-full object-contain object-center" />
-            <div className="absolute inset-0 bg-[linear-gradient(145deg,rgba(2,6,23,0.72),rgba(11,107,58,0.44),rgba(2,6,23,0.35))]" />
+        <div className="grid min-h-[calc(100vh-6.5rem)] overflow-hidden rounded-[28px] border border-slate-200/60 bg-white shadow-[0_28px_80px_rgba(15,23,42,0.12)] md:grid-cols-[53fr_47fr]">
+          <section className="relative min-h-[180px] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 md:min-h-[640px]">
+            <img src={letterBoxImage} alt="Pakistan Post logistics" className="h-full w-full object-cover object-center" />
+            <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(2,6,23,0.30)_0%,rgba(2,6,23,0.52)_60%,rgba(2,6,23,0.88)_100%)]" />
             <div className="absolute inset-x-10 bottom-10 max-w-[460px]">
               <div className="inline-flex items-center rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-emerald-200">
                 Epost.pk Enterprise
               </div>
-              <h1 className="mt-4 font-display text-4xl font-black leading-[1.05] tracking-[-0.04em] text-white">
+              <h1 className="mt-4 font-display text-[2.2rem] font-black leading-[1.08] tracking-[-0.04em] text-white sm:text-4xl">
                 {props.mode === "register" ? "Create Your Shipping Workspace" : "Sign In To Operations Cloud"}
               </h1>
-              <p className="mt-3 text-sm leading-6 text-slate-200">Premium dispatch tooling for labels, tracking, and operations.</p>
+              <p className="mt-3 text-sm leading-6 text-slate-100/90">Premium dispatch tooling for labels, tracking, and operations.</p>
             </div>
           </section>
 
