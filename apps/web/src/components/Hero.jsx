@@ -12,6 +12,20 @@ export default function Hero() {
 	const scannerRef = useRef(null);
 	const navigate = useNavigate();
 
+	const parseTrackingFromScan = useCallback((decodedText) => {
+		const raw = String(decodedText || "").trim();
+		if (!raw) return "";
+
+		const normalized = raw
+			.replace(/[\n\r\t]+/g, " ")
+			.replace(/[,;]+/g, " ")
+			.trim();
+
+		const tokens = normalized.split(/\s+/).filter(Boolean);
+		const tokenMatch = tokens.find((token) => /^[A-Za-z0-9-]{6,}$/.test(token));
+		return tokenMatch || normalized;
+	}, []);
+
 	useEffect(() => {
 		const enter = window.setTimeout(() => setMounted(true), 40);
 		return () => window.clearTimeout(enter);
@@ -62,18 +76,32 @@ export default function Hero() {
 				const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID);
 				scannerRef.current = scanner;
 
+				let selectedCamera = { facingMode: "environment" };
+				const cameras = await Html5Qrcode.getCameras();
+				if (Array.isArray(cameras) && cameras.length > 0) {
+					const rearCamera = cameras.find((camera) => /back|rear|environment/i.test(camera.label || ""));
+					selectedCamera = { deviceId: { exact: (rearCamera || cameras[0]).id } };
+				}
+
 				await scanner.start(
-					{ facingMode: "environment" },
+					selectedCamera,
 					{ fps: 10, qrbox: { width: 260, height: 110 } },
 					(decodedText) => {
-						setTrackingId(decodedText);
-						submitTrackingValue(decodedText);
+						const parsedTracking = parseTrackingFromScan(decodedText);
+						if (!parsedTracking) return;
+						setTrackingId(parsedTracking);
+						submitTrackingValue(parsedTracking);
 						closeScanner();
 					},
 					() => {}
 				);
-			} catch {
-				setScannerError("Camera scan is unavailable. Please enter tracking ID manually.");
+			} catch (error) {
+				const message = String(error?.message || "");
+				if (/permission|denied|notallowed/i.test(message)) {
+					setScannerError("Camera permission denied. Please allow access or enter tracking ID manually.");
+					return;
+				}
+				setScannerError("Camera scan is unavailable on this device. Please enter tracking ID manually.");
 			}
 		};
 
@@ -83,7 +111,7 @@ export default function Hero() {
 			cancelled = true;
 			stopScanner();
 		};
-	}, [closeScanner, scannerOpen, stopScanner, submitTrackingValue]);
+	}, [closeScanner, parseTrackingFromScan, scannerOpen, stopScanner, submitTrackingValue]);
 
 	const handleTrackingSubmit = (event) => {
 		event.preventDefault();
@@ -100,14 +128,18 @@ export default function Hero() {
 						className={`flex min-w-0 flex-col justify-center transition-all duration-700 ${mounted ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"}`}
 					>
 
-					<h1 className="mt-4 max-w-[540px] font-display text-[2.4rem] font-black leading-[1.04] tracking-[-0.04em] text-slate-900 sm:text-5xl lg:text-[3.6rem]">
-						Pakistan Post
-						<span className="block bg-[linear-gradient(135deg,#0b6b3a,#0f4c81)] bg-clip-text text-transparent">Ops Cloud</span>
+					<h1 className="mt-4 max-w-[640px] font-display text-[2.4rem] font-black leading-[1.04] tracking-[-0.04em] text-slate-900 sm:text-5xl lg:text-[3.4rem]">
+						Pakistan Post Operations Cloud
 					</h1>
 
-					<p className="mt-3 max-w-[480px] text-base leading-7 text-slate-600 sm:text-[1.05rem]">
-							Labels, money orders, tracking, and complaints in one premium operational surface.
-						</p>
+					<p className="mt-3 max-w-[760px] text-base font-semibold leading-7 text-slate-700 sm:text-[1.05rem]">
+						Complete bulk dispatch software for labels, money orders, parcel tracking, customer complaints,
+						delivery monitoring, package management, and operational reporting.
+					</p>
+
+					<p className="mt-2 max-w-[620px] text-sm font-semibold leading-6 text-slate-600 sm:text-base">
+						Built for dispatchers, ecommerce sellers, and enterprise shipping teams.
+					</p>
 
 						<form
 							onSubmit={handleTrackingSubmit}
