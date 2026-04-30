@@ -2017,8 +2017,8 @@ export default function BulkTracking() {
 
   return (
     <>
-    <div className="app-container px-3 md:px-5 xl:px-6">
-      <div className="grid gap-6 xl:grid-cols-[4fr_1fr]">
+    <div className="w-full max-w-full px-3 md:px-5 xl:px-6">
+      <div className="grid gap-6 xl:grid-cols-[1fr_260px]">
         <div className="min-w-0 space-y-6">
           <div className="xl:hidden">
             <SenderProfileCard me={me} />

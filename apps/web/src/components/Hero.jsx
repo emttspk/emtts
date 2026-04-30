@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import dashbordCard from "../../../../images/dashbord.png";
 
 const SCANNER_ELEMENT_ID = "home-mobile-tracking-scanner";
-const LETTER_BOX_IMAGE = "/assets/letter_box.png";
 const HERO_CARDS = [
   "/assets/label.png",
   "/assets/money-order.png",
@@ -242,43 +241,70 @@ export default function Hero() {
             ) : null}
           </div>
 
-          <div className="order-last lg:order-none">
-            <div className="relative mx-auto h-[330px] w-full max-w-[540px] md:h-[380px] lg:h-[430px]">
-              <img
-                src={LETTER_BOX_IMAGE}
-                alt="Pakistan Post letter box"
-                className="h-full w-full object-contain"
-              />
-              <div className="pointer-events-none absolute inset-[20%_16%_14%_16%] overflow-hidden rounded-2xl">
-                {HERO_CARDS.map((cardImage, index) => {
-                  const isActive = index === activeCard;
+          <div className="order-first lg:order-none flex items-center justify-center">
+            <div
+              className="relative w-full max-w-full rounded-2xl bg-white/80 shadow-[0_24px_60px_rgba(15,23,42,0.16)] backdrop-blur-sm"
+              style={{
+                height: "420px",
+                maxWidth: "520px",
+                perspective: "900px",
+              }}
+            >
+              {/* Stacked depth rings for premium look */}
+              <div className="absolute inset-0 -z-10 translate-x-3 translate-y-3 rounded-2xl border border-slate-200 bg-white/50 shadow-sm" />
+              <div className="absolute inset-0 -z-20 translate-x-6 translate-y-6 rounded-2xl border border-slate-100 bg-white/30 shadow-sm" />
 
-                  let transform = "translateX(36px) rotateY(80deg) scale(0.98)";
-                  if (activeAnimation === "fade") {
-                    transform = isActive ? "translateX(0) rotateY(0deg) scale(1)" : "translateX(0) rotateY(0deg) scale(0.97)";
-                  }
-                  if (activeAnimation === "rotate") {
-                    transform = isActive ? "translateX(0) rotate(0deg) scale(1)" : "translateX(24px) rotate(12deg) scale(0.97)";
-                  }
-                  if (activeAnimation === "flip") {
-                    transform = isActive ? "translateX(0) rotateY(0deg) scale(1)" : "translateX(24px) rotateY(88deg) scale(0.98)";
-                  }
+              {HERO_CARDS.map((cardImage, index) => {
+                const isActive = index === activeCard;
 
-                  return (
-                    <img
-                      key={cardImage}
-                      src={cardImage}
-                      alt="Operations module card"
-                      className="absolute inset-0 h-full w-full object-contain p-2"
-                      style={{
-                        opacity: isActive ? 1 : 0,
-                        transform,
-                        transition: "opacity 650ms ease, transform 760ms ease",
-                        transformOrigin: "center",
-                      }}
-                    />
-                  );
-                })}
+                let transform = "translateX(40px) rotateY(90deg) scale(0.96)";
+                if (activeAnimation === "fade") {
+                  transform = isActive
+                    ? "translateX(0) rotateY(0deg) scale(1)"
+                    : "translateX(0) rotateY(0deg) scale(0.95)";
+                }
+                if (activeAnimation === "rotate") {
+                  transform = isActive
+                    ? "translateX(0) rotate(0deg) scale(1)"
+                    : "translateX(20px) rotate(14deg) scale(0.95)";
+                }
+                if (activeAnimation === "flip") {
+                  transform = isActive
+                    ? "translateX(0) rotateY(0deg) scale(1)"
+                    : "translateX(28px) rotateY(90deg) scale(0.96)";
+                }
+
+                return (
+                  <img
+                    key={cardImage}
+                    src={cardImage}
+                    alt="Operations module card"
+                    className="absolute inset-0 h-full w-full rounded-2xl object-contain p-6"
+                    style={{
+                      opacity: isActive ? 1 : 0,
+                      transform,
+                      transition: "opacity 600ms ease, transform 720ms ease",
+                      transformOrigin: "center left",
+                    }}
+                  />
+                );
+              })}
+
+              {/* Dot indicators */}
+              <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5">
+                {HERO_CARDS.map((_, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    aria-label={`Show card ${index + 1}`}
+                    onClick={() => setActiveCard(index)}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                      index === activeCard
+                        ? "w-5 bg-emerald-600"
+                        : "w-1.5 bg-slate-300 hover:bg-slate-400"
+                    }`}
+                  />
+                ))}
               </div>
             </div>
           </div>
