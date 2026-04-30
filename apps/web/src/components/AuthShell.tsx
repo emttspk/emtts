@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { ArrowUpRight, Home } from "lucide-react";
-import letterBoxImage from "../assets/letter_box.jpg";
+const letterBoxImage = "/assets/letter_box.png";
 
 type AuthShellProps = {
   title: string;
