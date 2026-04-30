@@ -54,7 +54,7 @@ const BILLING_PACKAGES = [
     shipmentLimit: "Labels/Units: 3,000",
     moneyOrderLimit: "Tracking: 3,000",
     trackingAccess: "Money Orders: Included",
-    complaintSupport: "Complaints: 10/day, 300/month (Admin: Unlimited)",
+    complaintSupport: "Complaints: 10/day, 300/month",
   },
 ];
 

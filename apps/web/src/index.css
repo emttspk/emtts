@@ -20,6 +20,7 @@
   html {
     font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
     background: var(--bg);
+    overflow-x: hidden;
   }
 
   body {
@@ -28,12 +29,15 @@
       radial-gradient(circle at top right, rgba(15, 23, 42, 0.10), transparent 22%),
       linear-gradient(180deg, #f8fafc 0%, #eef7f1 54%, #f8fafc 100%);
     color: var(--text-strong);
+    overflow-x: hidden;
     @apply antialiased;
   }
 
   body,
   #root {
     min-height: 100vh;
+    max-width: 100%;
+    overflow-x: hidden;
   }
 
   a {

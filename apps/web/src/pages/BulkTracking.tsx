@@ -131,11 +131,13 @@ function buildComplaintTemplate(record: FinalTrackingRecord, key: ComplaintTempl
 }
 
 type ComplaintLifecycle = {
+  exists: boolean;
   active: boolean;
   complaintId: string;
   dueDateText: string;
   dueDateTs: number | null;
   state: string;
+  stateLabel: string;
   message: string;
 };
 
@@ -176,26 +178,46 @@ function parseComplaintLifecycle(shipment: Shipment): ComplaintLifecycle {
   const dueDateText = String(dueStructured || dueFromMessage || "").trim();
   const dueDateTs = parseDueDateToTs(dueDateText);
   const stateFromStructured = textBlob.match(/COMPLAINT_STATE\s*:\s*([^\n|]+)/i)?.[1] ?? "";
+  const stateFromStatus = String(shipment.complaintStatus ?? "").trim();
+
+  const normalizeState = (raw: string) => {
+    const token = String(raw ?? "").trim().toUpperCase().replace(/[\-_]+/g, " ");
+    if (!token) return "ACTIVE";
+    if (["ACTIVE", "OPEN", "FILED"].includes(token)) return "ACTIVE";
+    if (["IN PROCESS", "INPROGRESS", "IN_PROGRESS", "PROCESSING", "PENDING", "DUPLICATE"].includes(token)) return "IN PROCESS";
+    if (["RESOLVED", "RESOLVE"].includes(token)) return "RESOLVED";
+    if (["CLOSED", "CLOSE"].includes(token)) return "CLOSED";
+    if (["REJECTED", "REJECT", "ERROR", "FAILED"].includes(token)) return "REJECTED";
+    return token;
+  };
+
+  const normalizedState = normalizeState(stateFromStructured || stateFromStatus);
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
-  const activeStatus = String(shipment.complaintStatus ?? "").toUpperCase() === "FILED";
-  const active = Boolean(activeStatus && complaintId && dueDateTs != null && dueDateTs >= todayStart.getTime());
-  const state = String(stateFromStructured || (active ? "ACTIVE" : shipment.complaintStatus || "")).trim().toUpperCase() || "ACTIVE";
+  const hasComplaint = Boolean(complaintId) || ["FILED", "DUPLICATE", "ACTIVE", "IN PROCESS", "RESOLVED", "CLOSED", "REJECTED"].includes(normalizeState(stateFromStatus));
+  const active = Boolean(
+    hasComplaint
+    && ["ACTIVE", "IN PROCESS"].includes(normalizedState)
+    && dueDateTs != null
+    && dueDateTs >= todayStart.getTime(),
+  );
 
   return {
+    exists: hasComplaint,
     active,
     complaintId,
     dueDateText,
     dueDateTs,
-    state,
+    state: normalizedState,
+    stateLabel: normalizedState,
     message: textBlob,
   };
 }
 
 function isComplaintInProcess(lifecycle: ComplaintLifecycle): boolean {
-  const state = String(lifecycle.state ?? "").trim().toLowerCase();
-  return lifecycle.active || state === "pending" || state === "processing" || state === "open";
+  const state = String(lifecycle.state ?? "").trim().toUpperCase();
+  return lifecycle.exists && (state === "ACTIVE" || state === "IN PROCESS" || lifecycle.active);
 }
 
 function normalizeOfficeSearch(val: string): string {
@@ -2072,7 +2094,7 @@ export default function BulkTracking() {
 
   return (
     <>
-    <div className="w-full max-w-none px-0 mx-0">
+    <div className="w-full max-w-full overflow-x-hidden px-0 mx-0">
       <div className="grid gap-6">
         <div className="min-w-0 w-full flex-1 space-y-6">
       <Card className="overflow-hidden p-8 md:p-10">
@@ -2663,14 +2685,29 @@ export default function BulkTracking() {
                       </div>
                     </td>
                     <td className="px-4 py-3.5 align-middle whitespace-nowrap">
-                      {complaintInProcess ? (
-                        <button
-                          type="button"
-                          disabled
-                          className="cursor-not-allowed rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-2 text-left text-[11px] font-semibold text-amber-800"
-                        >
-                          Complaint In Process
-                        </button>
+                      {lifecycle.exists ? (
+                        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-left text-[11px] text-emerald-900">
+                          <div className="font-semibold">Complaint ID: {lifecycle.complaintId}</div>
+                          <div className="mt-0.5">Due Date: {lifecycle.dueDateText || "-"}</div>
+                          <div className="mt-0.5">Status: {lifecycle.stateLabel}</div>
+                          {!complaintInProcess ? (
+                            <button
+                              type="button"
+                              onClick={() => openComplaintModal(row)}
+                              disabled={!isComplaintEnabled}
+                              className={cn(
+                                "mt-1 rounded px-2 py-1 text-[10px] font-semibold ring-1 ring-inset transition-all",
+                                isComplaintEnabled
+                                  ? "bg-white text-emerald-800 ring-emerald-300 hover:bg-emerald-100"
+                                  : "cursor-not-allowed bg-gray-50 text-gray-400 ring-gray-200"
+                              )}
+                            >
+                              New Complaint
+                            </button>
+                          ) : (
+                            <div className="mt-1 inline-flex rounded bg-amber-100 px-2 py-1 text-[10px] font-semibold text-amber-800">Complaint In Process</div>
+                          )}
+                        </div>
                       ) : (
                         <button
                           disabled={!isComplaintEnabled}
@@ -2861,7 +2898,7 @@ export default function BulkTracking() {
 
       {complaintRecord ? (
         <div className="modal-wrapper bg-slate-950/50 p-2 z-40">
-          <div ref={complaintModalRef} className="modal-content w-full max-w-5xl rounded-2xl bg-white shadow-2xl max-h-[92vh] flex flex-col overflow-hidden" role="dialog" aria-modal="true" aria-label="File Complaint">
+          <div ref={complaintModalRef} className="modal-content w-full max-w-5xl max-w-[calc(100vw-1rem)] rounded-2xl bg-white shadow-2xl max-h-[92vh] flex flex-col overflow-hidden" role="dialog" aria-modal="true" aria-label="File Complaint">
             <div className="modal-header flex items-start justify-between gap-3 border-b border-[#E5E7EB] px-4 py-3">
               <div>
                 <div className="text-base font-semibold text-slate-900">File Complaint</div>
@@ -2886,15 +2923,16 @@ export default function BulkTracking() {
 
             <div className="flex-1 overflow-y-auto p-4">
               <div className="grid gap-2">
-                {activeComplaintLifecycle?.complaintId ? (
+                {activeComplaintLifecycle?.exists ? (
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs text-emerald-900">
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <div className="font-semibold">Complaint ID: {activeComplaintLifecycle.complaintId}</div>
                         <div className="mt-1 text-emerald-800">Due Date: {activeComplaintLifecycle.dueDateText || "-"}</div>
+                        <div className="mt-1 text-emerald-800">Status: {activeComplaintLifecycle.stateLabel}</div>
                       </div>
                       <span className="rounded-full border border-emerald-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
-                        {activeComplaintLifecycle.state || "ACTIVE"}
+                        {activeComplaintLifecycle.stateLabel || "ACTIVE"}
                       </span>
                     </div>
                   </div>
@@ -3136,11 +3174,11 @@ export default function BulkTracking() {
                 <button
                   type="button"
                   onClick={submitComplaintInstant}
-                  disabled={submittingComplaint || !complaintSubmitReady || Boolean(activeComplaintLifecycle?.active)}
-                  title={activeComplaintLifecycle?.active ? "Complaint already active" : (complaintPrefillLoading ? "Waiting for addressee autofill" : (complaintSubmitReady ? "Ready to submit" : `Missing: ${complaintSubmitMissingFields.join(", ")}`))}
+                  disabled={submittingComplaint || !complaintSubmitReady || Boolean(activeComplaintLifecycle && isComplaintInProcess(activeComplaintLifecycle))}
+                  title={activeComplaintLifecycle && isComplaintInProcess(activeComplaintLifecycle) ? "Complaint already active or in process" : (complaintPrefillLoading ? "Waiting for addressee autofill" : (complaintSubmitReady ? "Ready to submit" : `Missing: ${complaintSubmitMissingFields.join(", ")}`))}
                   className="rounded border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
                 >
-                  {submittingComplaint ? "Submitting..." : (activeComplaintLifecycle?.active ? "Complaint Active" : (complaintPrefillLoading ? "Autofilling..." : "Submit"))}
+                  {submittingComplaint ? "Submitting..." : (activeComplaintLifecycle && isComplaintInProcess(activeComplaintLifecycle) ? "Complaint In Process" : (complaintPrefillLoading ? "Autofilling..." : "Submit"))}
                 </button>
               </div>
             </div>
@@ -3150,7 +3188,7 @@ export default function BulkTracking() {
 
       {complaintPreviewVisible && complaintRecord ? (
         <div className="modal-wrapper bg-slate-950/50 p-2 z-50">
-          <div className="modal-content w-full max-w-3xl rounded-2xl bg-white shadow-2xl max-h-[95vh] flex flex-col overflow-hidden">
+          <div className="modal-content w-full max-w-3xl max-w-[calc(100vw-1rem)] rounded-2xl bg-white shadow-2xl max-h-[95vh] flex flex-col overflow-hidden">
             <div className="modal-header border-b border-[#E5E7EB] px-4 py-2 flex items-center justify-between">
               <div className="text-sm font-semibold text-slate-900">Preview & Confirm Submission</div>
               <button
