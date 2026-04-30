@@ -1,11 +1,11 @@
 const showcaseCards = [
-  { title: "Label", image: "/assets/label.png", href: "/register" },
-  { title: "Money Orders", image: "/assets/money-order.png", href: "/register" },
-  { title: "Tracking", image: "/assets/tracking.png", href: "/tracking" },
-  { title: "Dashboard", image: "/assets/dashboard.png", href: "/dashboard" },
-  { title: "Complaints", image: "/assets/complaint.png", href: "/complaints" },
-  { title: "Package", image: "/assets/package.png", href: "/register" },
-  { title: "Delivery Monitoring", image: "/assets/tracking.png", href: "/tracking" },
+  { title: "Label", image: "/assets/label.png", href: "/register", orientation: "portrait" },
+  { title: "Money Orders", image: "/assets/money-order.png", href: "/register", orientation: "portrait" },
+  { title: "Tracking", image: "/assets/track.png", href: "/tracking", orientation: "landscape" },
+  { title: "Dashboard", image: "/assets/dashboard.png", href: "/dashboard", orientation: "landscape" },
+  { title: "Complaints", image: "/assets/complaint.png", href: "/complaints", orientation: "portrait" },
+  { title: "Package", image: "/assets/package.png", href: "/register", orientation: "portrait" },
+  { title: "Delivery Monitoring", image: "/assets/tracking.png", href: "/tracking", orientation: "landscape" },
 ];
 
 export default function ProductShowcase() {
@@ -19,18 +19,30 @@ export default function ProductShowcase() {
           <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-base">Seven core surfaces for Pakistan Post workflows.</p>
         </div>
 
-        <div className="mt-9 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <div className="mt-9 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
           {showcaseCards.map((card) => (
-            <a
-              href={card.href}
+            <article
               key={card.title}
-              className="group block overflow-hidden rounded-[22px] border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.08)] transition hover:-translate-y-1 hover:shadow-[0_16px_34px_rgba(15,23,42,0.12)]"
+              className="group overflow-hidden rounded-xl border border-slate-200/80 bg-white p-3 shadow-[0_8px_24px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_34px_rgba(15,23,42,0.12)]"
             >
-              <div className="aspect-[4/3] overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
-                <img src={card.image} alt={card.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" loading="lazy" />
+              <div className="h-[260px] overflow-hidden rounded-xl border border-slate-100 bg-slate-50 md:h-[320px]">
+                <img
+                  src={card.image}
+                  alt={card.title}
+                  loading="lazy"
+                  className={`h-full w-full transition duration-500 group-hover:scale-[1.02] ${card.orientation === "portrait" ? "object-contain p-2" : "object-cover"}`}
+                />
               </div>
-              <div className="px-1 pb-1 pt-3 text-base font-bold tracking-[-0.01em] text-slate-900">{card.title}</div>
-            </a>
+              <div className="px-1 pt-3">
+                <h3 className="text-base font-bold tracking-[-0.01em] text-slate-900">{card.title}</h3>
+                <a
+                  href={card.href}
+                  className="mt-3 inline-flex h-9 items-center justify-center rounded-lg bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-4 text-sm font-semibold text-white transition hover:brightness-105"
+                >
+                  Open
+                </a>
+              </div>
+            </article>
           ))}
         </div>
       </div>
