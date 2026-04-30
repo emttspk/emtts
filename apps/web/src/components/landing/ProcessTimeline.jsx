@@ -1,5 +1,5 @@
-import ProductShowcase from "../ProductShowcase";
+import OperationsModules from "../OperationsModules";
 
 export default function ProcessTimeline() {
-  return <ProductShowcase />;
+  return <OperationsModules />;
 }
