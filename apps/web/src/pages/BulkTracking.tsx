@@ -2018,11 +2018,8 @@ export default function BulkTracking() {
   return (
     <>
     <div className="w-full max-w-none px-0 mx-0">
-      <div className="grid gap-6 xl:grid-cols-[1fr_260px]">
+      <div className="grid gap-6">
         <div className="min-w-0 w-full flex-1 space-y-6">
-          <div className="xl:hidden">
-            <SenderProfileCard me={me} />
-          </div>
       <Card className="overflow-hidden p-8 md:p-10">
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
           <div>
@@ -2811,11 +2808,6 @@ export default function BulkTracking() {
         ) : null}
       </Card> : null}
         </div>
-        <aside className="hidden xl:block">
-          <div className="sticky top-6">
-            <SenderProfileCard me={me} className="shadow-xl" />
-          </div>
-        </aside>
       </div>
     </div>
 
