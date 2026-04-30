@@ -8,13 +8,35 @@ export default function Hero() {
 	const [trackingId, setTrackingId] = useState("");
 	const [scannerOpen, setScannerOpen] = useState(false);
 	const [scannerError, setScannerError] = useState("");
+	const [scanNotice, setScanNotice] = useState("");
 	const [mounted, setMounted] = useState(false);
+	const [activeHeroCard, setActiveHeroCard] = useState(0);
 	const scannerRef = useRef(null);
+	const scanTimeoutRef = useRef(null);
 	const navigate = useNavigate();
+
+	const heroCards = [
+		"/assets/label.png",
+		"/assets/money-order.png",
+		"/assets/track.png",
+		"/assets/dashboard.png",
+		"/assets/complaint.png",
+		"/assets/package.png",
+		"/assets/tracking.png",
+	];
 
 	const parseTrackingFromScan = useCallback((decodedText) => {
 		const raw = String(decodedText || "").trim();
 		if (!raw) return "";
+		if (/^https?:\/\//i.test(raw)) {
+			try {
+				const parsed = new URL(raw);
+				const fromQuery = parsed.searchParams.get("id") || parsed.searchParams.get("tracking") || parsed.searchParams.get("ids");
+				if (fromQuery) return fromQuery.split(",")[0].trim();
+			} catch {
+				// ignore URL parse error and continue token extraction
+			}
+		}
 
 		const normalized = raw
 			.replace(/[\n\r\t]+/g, " ")
@@ -22,7 +44,7 @@ export default function Hero() {
 			.trim();
 
 		const tokens = normalized.split(/\s+/).filter(Boolean);
-		const tokenMatch = tokens.find((token) => /^[A-Za-z0-9-]{6,}$/.test(token));
+		const tokenMatch = tokens.find((token) => /^[A-Za-z0-9-]{8,}$/.test(token));
 		return tokenMatch || normalized;
 	}, []);
 
@@ -30,6 +52,14 @@ export default function Hero() {
 		const enter = window.setTimeout(() => setMounted(true), 40);
 		return () => window.clearTimeout(enter);
 	}, []);
+
+	useEffect(() => {
+		const interval = window.setInterval(() => {
+			setActiveHeroCard((current) => (current + 1) % heroCards.length);
+		}, 3000);
+
+		return () => window.clearInterval(interval);
+	}, [heroCards.length]);
 
 	const submitTrackingValue = useCallback((rawValue) => {
 		const value = (rawValue || "").trim();
@@ -56,6 +86,10 @@ export default function Hero() {
 			// ignore clear errors during scanner teardown
 		}
 		scannerRef.current = null;
+		if (scanTimeoutRef.current) {
+			window.clearTimeout(scanTimeoutRef.current);
+			scanTimeoutRef.current = null;
+		}
 	}, []);
 
 	const closeScanner = useCallback(async () => {
@@ -70,6 +104,7 @@ export default function Hero() {
 		const startScanner = async () => {
 			try {
 				setScannerError("");
+				setScanNotice("");
 				const { Html5Qrcode } = await import("html5-qrcode");
 				if (cancelled) return;
 
@@ -88,13 +123,21 @@ export default function Hero() {
 					{ fps: 10, qrbox: { width: 260, height: 110 } },
 					(decodedText) => {
 						const parsedTracking = parseTrackingFromScan(decodedText);
-						if (!parsedTracking) return;
+						if (!parsedTracking || parsedTracking.length < 8) {
+							setScannerError("Invalid barcode. Try scanning again or enter tracking ID manually.");
+							return;
+						}
+						setScanNotice("Barcode scanned. Submitting tracking ID...");
 						setTrackingId(parsedTracking);
 						submitTrackingValue(parsedTracking);
 						closeScanner();
 					},
 					() => {}
 				);
+
+				scanTimeoutRef.current = window.setTimeout(() => {
+					setScannerError("Scan timeout. Please try again or enter tracking ID manually.");
+				}, 15000);
 			} catch (error) {
 				const message = String(error?.message || "");
 				if (/permission|denied|notallowed/i.test(message)) {
@@ -188,6 +231,7 @@ export default function Hero() {
 								</div>
 								<div id={SCANNER_ELEMENT_ID} className="overflow-hidden rounded-xl border border-slate-200" />
 								{scannerError ? <p className="mt-2 text-xs font-medium text-red-600">{scannerError}</p> : null}
+								{scanNotice ? <p className="mt-1 text-xs font-medium text-emerald-700">{scanNotice}</p> : null}
 							</div>
 						) : null}
 
@@ -209,9 +253,22 @@ export default function Hero() {
 					</div>
 
 					<div className={`relative flex min-h-[300px] items-center justify-center transition-all duration-700 lg:min-h-[520px] ${mounted ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"}`}>
-						<div className="relative w-full max-w-[660px] rounded-[30px] border border-white/70 bg-white/80 p-4 shadow-[0_24px_70px_rgba(15,23,42,0.18)] backdrop-blur-xl lg:p-6">
-							<div className="flex min-h-[300px] items-center justify-center overflow-hidden rounded-2xl border border-slate-100 bg-slate-50 lg:min-h-[460px]">
-								<img src="/assets/letter_box.png" alt="Letter Box" className="h-full w-full object-contain p-2 lg:p-4" />
+						<div className="relative h-[300px] w-full max-w-[600px] sm:h-[360px] md:h-[420px] md:w-[500px] lg:h-[500px] lg:w-[600px]">
+							<img src="/assets/letter_box.png" alt="Letter Box" className="pointer-events-none absolute inset-0 z-20 h-full w-full object-contain" />
+							<div className="absolute inset-[14%_16%_16%_16%] z-10 overflow-hidden rounded-xl bg-white/50">
+								{heroCards.map((image, index) => {
+									const isActive = index === activeHeroCard;
+									return (
+										<img
+											key={image}
+											src={image}
+											alt="Pakistan Post Product"
+											className={`absolute inset-0 h-full w-full object-contain p-2 transition-all duration-700 ${
+												isActive ? "opacity-100 [transform:rotateY(0deg)]" : "opacity-0 [transform:rotateY(90deg)]"
+											}`}
+										/>
+									);
+								})}
 							</div>
 						</div>
 					</div>
