@@ -3,7 +3,6 @@ import { useDropzone } from "react-dropzone";
 import { useOutletContext } from "react-router-dom";
 import { UploadCloud, AlertCircle, Eye, MapPin, PackageSearch, BadgeDollarSign, RefreshCw, Printer } from "lucide-react";
 import Card from "../components/Card";
-import SenderProfileCard from "../components/SenderProfileCard";
 import SampleDownloadLink from "../components/SampleDownloadLink";
 import { cn } from "../lib/cn";
 import { api, apiHealthCheck, uploadFile } from "../lib/api";
@@ -192,6 +191,11 @@ function parseComplaintLifecycle(shipment: Shipment): ComplaintLifecycle {
     state,
     message: textBlob,
   };
+}
+
+function isComplaintInProcess(lifecycle: ComplaintLifecycle): boolean {
+  const state = String(lifecycle.state ?? "").trim().toLowerCase();
+  return lifecycle.active || state === "pending" || state === "processing" || state === "open";
 }
 
 function normalizeOfficeSearch(val: string): string {
@@ -751,6 +755,8 @@ export default function BulkTracking() {
   const backgroundRunningRef = useRef(false);
   const submitTrackingRef = useRef(false);
   const fetchedComplaintRef = useRef<{ trackingId: string; isFetched: boolean }>({ trackingId: "", isFetched: false });
+  const complaintModalRef = useRef<HTMLDivElement | null>(null);
+  const complaintFirstInputRef = useRef<HTMLInputElement | null>(null);
 
   const polling = useTrackingJobPolling({
     onDone: (res) => {
@@ -1318,6 +1324,55 @@ export default function BulkTracking() {
     };
   }, [selectedTracking]);
 
+  useEffect(() => {
+    if (!complaintRecord) return;
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const focusTimer = window.setTimeout(() => {
+      complaintFirstInputRef.current?.focus();
+    }, 0);
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setComplaintRecord(null);
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+      const root = complaintModalRef.current;
+      if (!root) return;
+
+      const focusable = Array.from(
+        root.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => !el.hasAttribute("disabled") && el.tabIndex !== -1 && el.offsetParent !== null);
+
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = prevOverflow || "auto";
+    };
+  }, [complaintRecord]);
+
   const onDrop = useCallback((accepted: File[]) => {
     setFile(accepted[0] ?? null);
     setError(null);
@@ -1847,7 +1902,7 @@ export default function BulkTracking() {
       return;
     }
     const lifecycle = parseComplaintLifecycle(complaintRecord.shipment);
-    if (lifecycle.active) {
+    if (isComplaintInProcess(lifecycle)) {
       alert(`Complaint already active. Complaint ID: ${lifecycle.complaintId} | Due Date: ${lifecycle.dueDateText || "-"}`);
       return;
     }
@@ -2456,8 +2511,8 @@ export default function BulkTracking() {
         {refreshSummary ? <div className="border-t border-[#E5E7EB] bg-[#F8FAF9] px-6 py-2 text-xs text-slate-700">{refreshSummary}</div> : null}
         </div>
         <div className="p-0">
-          <div className="w-full min-w-full overflow-x-auto rounded-[24px] border border-[#E5E7EB] bg-white">
-            <table className="w-full min-w-[1280px] table-auto text-[15px] leading-6">
+          <div className="w-full min-w-full max-h-[72vh] overflow-x-auto overflow-y-auto rounded-[24px] border border-[#E5E7EB] bg-white">
+            <table className="w-full min-w-[1280px] table-fixed text-[15px] leading-6">
               <thead className="sticky top-0 z-10 border-b border-[#E5E7EB] bg-[#f1f7f8]/95 backdrop-blur">
               <tr>
                 <th className="w-10 border-r border-slate-100 px-4 py-3.5">
@@ -2513,7 +2568,8 @@ export default function BulkTracking() {
 
                 const statusUpper = normalizeStatus(displayStatus).toUpperCase();
                 const lifecycle = parseComplaintLifecycle(s);
-                const isComplaintEnabled = statusUpper === "PENDING" && !lifecycle.active;
+                const complaintInProcess = isComplaintInProcess(lifecycle);
+                const isComplaintEnabled = statusUpper === "PENDING" && !complaintInProcess;
 
                 const actionOptions = [
                   { label: "Pending", val: "PENDING" },
@@ -2607,21 +2663,13 @@ export default function BulkTracking() {
                       </div>
                     </td>
                     <td className="px-4 py-3.5 align-middle whitespace-nowrap">
-                      {lifecycle.active ? (
+                      {complaintInProcess ? (
                         <button
                           type="button"
-                          onClick={() => openComplaintModal(row)}
-                          className="rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-left text-[11px] text-emerald-900 transition hover:bg-emerald-100"
+                          disabled
+                          className="cursor-not-allowed rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-2 text-left text-[11px] font-semibold text-amber-800"
                         >
-                          <div className="flex items-center justify-between gap-2">
-                            <div>
-                              <div className="font-semibold">Complaint ID: {lifecycle.complaintId}</div>
-                              <div>Due Date: {lifecycle.dueDateText || "-"}</div>
-                            </div>
-                            <span className="rounded-full border border-emerald-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
-                              {lifecycle.state || "ACTIVE"}
-                            </span>
-                          </div>
+                          Complaint In Process
                         </button>
                       ) : (
                         <button
@@ -2813,7 +2861,7 @@ export default function BulkTracking() {
 
       {complaintRecord ? (
         <div className="modal-wrapper bg-slate-950/50 p-2 z-40">
-          <div className="modal-content w-full max-w-4xl rounded-2xl bg-white shadow-2xl max-h-[95vh] flex flex-col overflow-hidden">
+          <div ref={complaintModalRef} className="modal-content w-full max-w-5xl rounded-2xl bg-white shadow-2xl max-h-[92vh] flex flex-col overflow-hidden" role="dialog" aria-modal="true" aria-label="File Complaint">
             <div className="modal-header flex items-start justify-between gap-3 border-b border-[#E5E7EB] px-4 py-3">
               <div>
                 <div className="text-base font-semibold text-slate-900">File Complaint</div>
@@ -2838,7 +2886,6 @@ export default function BulkTracking() {
 
             <div className="flex-1 overflow-y-auto p-4">
               <div className="grid gap-2">
-                <SenderProfileCard me={me} compact className="mb-2" />
                 {activeComplaintLifecycle?.complaintId ? (
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs text-emerald-900">
                     <div className="flex items-center justify-between gap-3">
@@ -2879,7 +2926,7 @@ export default function BulkTracking() {
                 <div className="grid grid-cols-4 gap-2">
                   <label>
                     <div className="text-[10px] font-medium text-slate-600 mb-0.5">Complainant Name</div>
-                    <input value={complainantNameInput} onChange={(e) => setComplainantNameInput(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.SenderName ? "border-[#E5E7EB]" : "border-red-300 bg-red-50"}`} />
+                    <input ref={complaintFirstInputRef} value={complainantNameInput} onChange={(e) => setComplainantNameInput(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.SenderName ? "border-[#E5E7EB]" : "border-red-300 bg-red-50"}`} />
                   </label>
                   <label>
                     <div className="text-[10px] font-medium text-slate-600 mb-0.5">Mobile</div>
@@ -2981,7 +3028,7 @@ export default function BulkTracking() {
                     <button type="button" onClick={() => { setComplaintTemplate("NORMAL"); setComplaintText(buildComplaintTemplate(complaintRecord, "NORMAL")); }} className={`rounded px-2 py-0.5 text-[10px] ${complaintTemplate === "NORMAL" ? "border border-brand/30 bg-brand/10 text-brand" : "border border-[#E5E7EB] bg-white text-slate-600"}`}>Normal</button>
                     <button type="button" onClick={() => { setComplaintTemplate("RETURN"); setComplaintText(buildComplaintTemplate(complaintRecord, "RETURN")); }} className={`rounded px-2 py-0.5 text-[10px] ${complaintTemplate === "RETURN" ? "border border-brand/30 bg-brand/10 text-brand" : "border border-[#E5E7EB] bg-white text-slate-600"}`}>Return</button>
                   </div>
-                  <textarea value={complaintText} onChange={(e) => setComplaintText(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs font-mono resize-none h-16 ${complaintValidationState.Remarks ? "border-[#E5E7EB]" : "border-red-300 bg-red-50"}`} placeholder="Required" />
+                  <textarea rows={5} value={complaintText} onChange={(e) => setComplaintText(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs font-mono resize-y min-h-[120px] ${complaintValidationState.Remarks ? "border-[#E5E7EB]" : "border-red-300 bg-red-50"}`} placeholder="Required" />
                 </div>
 
                 <div className="border-t border-[#E5E7EB] pt-2 mt-2">
