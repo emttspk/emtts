@@ -8,13 +8,21 @@ import { labelQueue } from "../queue/queue.js";
 import { refundUnitsByAmount } from "../usage/unitConsumption.js";
 import { buildComplaintExportCsv, listComplaintAlerts, listComplaintRecords } from "../services/complaint.service.js";
 import { listComplaintAuditLogs, logComplaintAudit } from "../services/complaint-audit.service.js";
-import { runComplaintSync, startComplaintSyncSchedule } from "../services/complaint-sync.service.js";
+import { runComplaintSyncJob, startComplaintSyncJob } from "../jobs/complaint-sync.job.js";
 import { runComplaintBackupJob, startComplaintBackupJob } from "../jobs/complaint-backup.job.js";
+import { startComplaintWatcherJob } from "../jobs/complaint-watch.job.js";
+import { startComplaintSlaJob } from "../jobs/complaint-sla.job.js";
+import { runComplaintRetryJob, startComplaintRetryJob } from "../jobs/complaint-retry.job.js";
+import { getComplaintCircuitState } from "../services/complaint-circuit.service.js";
+import { processComplaintQueueById } from "../processors/complaint.processor.js";
 
 export const adminRouter = Router();
 
-startComplaintSyncSchedule();
+startComplaintSyncJob();
 startComplaintBackupJob();
+startComplaintWatcherJob();
+startComplaintSlaJob();
+startComplaintRetryJob();
 
 adminRouter.post("/bootstrap", async (req, res) => {
   const secret = req.header("x-bootstrap-secret");
@@ -58,8 +66,60 @@ adminRouter.get("/complaints/export", async (req, res) => {
 adminRouter.post("/complaints/sync", async (req, res) => {
   const body = z.object({ trackingIds: z.array(z.string().min(1).max(80)).optional() }).parse(req.body ?? {});
   const actorEmail = String((req as any).user?.email ?? "system").trim() || "system";
-  const result = await runComplaintSync({ trackingIds: body.trackingIds, actorEmail });
+  const result = await runComplaintSyncJob({ trackingIds: body.trackingIds, actorEmail });
   return res.json({ success: true, count: result.length, result });
+});
+
+adminRouter.get("/complaints/queue", async (_req, res) => {
+  const queue = await prisma.complaintQueue.findMany({
+    orderBy: { updatedAt: "desc" },
+    take: 300,
+  });
+  const circuit = await getComplaintCircuitState();
+  return res.json({ success: true, circuit, queue });
+});
+
+adminRouter.post("/complaints/retry", async (_req, res) => {
+  const result = await runComplaintRetryJob();
+  return res.json({ success: true, result });
+});
+
+adminRouter.post("/complaints/queue/:queueId/retry", async (req, res) => {
+  const queueId = String(req.params.queueId ?? "").trim();
+  if (!queueId) return res.status(400).json({ success: false, message: "Queue id is required" });
+
+  const result = await processComplaintQueueById(queueId);
+  return res.json({ success: Boolean((result as any)?.success), result });
+});
+
+adminRouter.post("/complaints/manual-override", async (req, res) => {
+  const body = z.object({
+    trackingId: z.string().min(1).max(80),
+    complaintId: z.string().min(1).max(80),
+    dueDate: z.string().min(1).max(40),
+    state: z.enum(["OPEN", "IN_PROCESS", "RESOLVED", "CLOSED", "ACTIVE"]).default("ACTIVE"),
+  }).parse(req.body ?? {});
+
+  const actorEmail = String((req as any).user?.email ?? "system").trim() || "system";
+  const text = `COMPLAINT_ID: ${body.complaintId} | DUE_DATE: ${body.dueDate} | COMPLAINT_STATE: ${body.state}\nResponse:\nManual override by admin`;
+
+  await prisma.shipment.updateMany({
+    where: { trackingNumber: body.trackingId },
+    data: {
+      complaintStatus: "FILED",
+      complaintText: text,
+    },
+  });
+
+  await logComplaintAudit({
+    actorEmail,
+    action: "complaint_updated",
+    trackingId: body.trackingId,
+    complaintId: body.complaintId,
+    details: `manual_override:true;state:${body.state};due:${body.dueDate}`,
+  });
+
+  return res.json({ success: true });
 });
 
 adminRouter.get("/complaints/alerts", async (_req, res) => {

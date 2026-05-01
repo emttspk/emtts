@@ -27,6 +27,7 @@ import {
   PythonServiceUnavailableError,
 } from "../services/trackingService.js";
 import { logComplaintAudit } from "../services/complaint-audit.service.js";
+import { enqueueComplaint, findActiveComplaintDuplicate, type ComplaintQueuePayload } from "../services/complaint-queue.service.js";
 import { processTracking } from "../services/trackingStatus.js";
 import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "../services/trackingIntelligence.js";
 
@@ -1181,6 +1182,13 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
       recipient_district: z.string().min(1).max(80).optional(),
       recipient_tehsil: z.string().min(1).max(80).optional(),
       recipient_location: z.string().min(1).max(120).optional(),
+      browser_session: z
+        .object({
+          cookies: z.string().max(20000).optional(),
+          viewstate: z.string().max(20000).optional(),
+          eventvalidation: z.string().max(20000).optional(),
+        })
+        .optional(),
     })
     .parse(req.body);
 
@@ -1533,6 +1541,21 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
         status: "FILED",
       });
     }
+
+    const duplicate = await findActiveComplaintDuplicate(userId, trackingNumber);
+    if (duplicate.duplicate) {
+      return res.status(409).json({
+        success: false,
+        message: `Complaint already active for tracking ${trackingNumber}`,
+        complaintId: duplicate.complaintId || "",
+        dueDate: duplicate.dueDate ? toDdMmYyyy(duplicate.dueDate.toISOString().slice(0, 10)) : "",
+        trackingId: trackingNumber,
+        complaint_id: duplicate.complaintId || "",
+        due_date: duplicate.dueDate ? toDdMmYyyy(duplicate.dueDate.toISOString().slice(0, 10)) : "",
+        tracking_id: trackingNumber,
+        duplicate: true,
+      });
+    }
   }
   if (!shipment) {
     try {
@@ -1661,117 +1684,75 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
     });
   }
 
-  let resp: {
-    success: boolean;
-    response_text: string;
-    complaint_number?: string;
-    due_date?: string;
-    already_exists?: boolean;
-    status?: string;
-    reason?: string;
-    consume_units?: boolean;
-    refund_required?: boolean;
+  const payload: ComplaintQueuePayload = {
+    tracking_number: trackingNumber,
+    phone: normalizedPhone,
+    complaint_text: remarks,
+    sender_name: body.sender_name,
+    sender_address: body.sender_address,
+    sender_city_value: body.sender_city_value,
+    receiver_name: body.receiver_name,
+    receiver_address: body.receiver_address,
+    receiver_city_value: body.receiver_city_value,
+    receiver_contact: normalizedPhone,
+    booking_date: complaintContext?.booking_date,
+    booking_office: body.booking_office,
+    complaint_reason: body.complaint_reason,
+    prefer_reply_mode: body.prefer_reply_mode,
+    reply_email: body.reply_email,
+    service_type: body.service_type,
+    recipient_city_value: body.recipient_city_value,
+    recipient_district: body.recipient_district,
+    recipient_tehsil: body.recipient_tehsil,
+    recipient_location: body.recipient_location,
   };
 
-  try {
-    resp = await pythonSubmitComplaint(trackingNumber, normalizedPhone, complaintContext ?? undefined);
-  } catch (error) {
-    const errMsg = error instanceof Error ? error.message : "Connection reset by remote server";
-    console.error(`[ComplaintAPI] Tracking=${trackingNumber} failed: ${errMsg}`);
-    return res.json({
-      success: false,
-      status: "ERROR",
-      tracking_id: trackingNumber,
-      complaint_id: "",
-      due_date: "",
-      message: "Connection reset by remote server",
-      error: "Connection reset by remote server",
-    });
-  }
-
-  // Check if complaint was successful
-  const complaintSuccess = resp.status === "SUCCESS" || (resp.success && (resp.complaint_number || resp.already_exists));
-  const responseMessage = String(resp.response_text ?? "").trim();
-  const msgLower = responseMessage.toLowerCase();
-  const requiredFieldError = (msgLower.includes("required") || msgLower.includes("validation")) && !msgLower.includes("submitted successfully");
-  const complaintNumber = String((resp as any).complaint_number ?? "").trim()
-    || (responseMessage.match(/Complaint\s*(?:ID|No)\s*[:\-]?\s*([A-Z0-9\-]+)/i)?.[1] ?? "");
-  const alreadyExists = /already\s+under\s+process/i.test(responseMessage) || /duplicate/i.test(responseMessage);
-  const submitSuccess = /you\s+complaint\s+has\s+been\s+submitted\s+successfully/i.test(responseMessage) || Boolean(complaintNumber);
-  const rawDueDate = String((resp as any).due_date ?? "").trim()
-    || (responseMessage.match(/Due\s*Date\s*(?:on)?\s*([0-3]?\d\/[0-1]?\d\/\d{4}|\d{4}-\d{1,2}-\d{1,2})/i)?.[1] ?? "");
-
-  const dueDate = rawDueDate || (() => {
-    if (!submitSuccess) return "";
-    const d = new Date();
-    d.setDate(d.getDate() + 7);
-    return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`;
-  })();
-  const normalizedDueDate = toDdMmYyyy(dueDate);
-
-  const fallbackId = submitSuccess && !complaintNumber
-    ? `CMP-${Date.now().toString().slice(-6)}`
-    : "";
-  const complaintIdRaw = complaintNumber || fallbackId;
-  const complaintId = complaintNumber
-    ? (complaintIdRaw.toUpperCase().startsWith("CMP-") ? complaintIdRaw.toUpperCase() : `CMP-${complaintIdRaw}`)
-    : fallbackId;
-  const status = requiredFieldError ? "ERROR" : (alreadyExists ? "DUPLICATE" : ((submitSuccess || Boolean(complaintId)) ? "FILED" : "ERROR"));
-  if (status === "FILED") {
-    const requestKey = `complaint:${trackingNumber}:${complaintId || normalizedDueDate || "filed"}`;
-    const chargeResult = await recordUnitsUsed(userId, [{
-      actionType: "complaint",
-      requestKey,
-      unitsUsed: COMPLAINT_UNIT_COST,
-    }]);
-    if (!chargeResult.ok) {
-      return res.status(402).json({
-        success: false,
-        status: "ERROR",
-        tracking_id: trackingNumber,
-        complaint_id: complaintId,
-        due_date: normalizedDueDate,
-        message: chargeResult.reason,
-      });
-    }
-  }
-  const userNote = body.complaint_text?.trim() ? `User complaint:\n${body.complaint_text.trim()}\n\n` : "";
-  const structuredText = complaintId
-    ? `COMPLAINT_ID: ${complaintId} | DUE_DATE: ${normalizedDueDate} | COMPLAINT_STATE: ACTIVE\n${userNote}Response:\n${resp.response_text}`
-    : `${userNote}Response:\n${resp.response_text}`;
-
-  await prisma.shipment.upsert({
-    where: { userId_trackingNumber: { userId, trackingNumber } },
-    create: { userId, trackingNumber, complaintStatus: status, complaintText: structuredText },
-    update: { complaintStatus: status, complaintText: structuredText },
+  const queueRow = await enqueueComplaint({
+    userId,
+    trackingId: trackingNumber,
+    payload,
+    browserSession: body.browser_session ?? null,
   });
 
-  if (status === "FILED" && complaintId) {
-    await logComplaintAudit({
-      actorEmail: String((req as any).user?.email ?? body.reply_email ?? normalizedPhone ?? "system").trim() || "system",
-      action: "complaint_created",
-      trackingId: trackingNumber,
-      complaintId,
-      details: `due_date:${normalizedDueDate}`,
-    });
-  }
+  const complaintJob = await prisma.trackingJob.create({
+    data: {
+      userId,
+      kind: "COMPLAINT",
+      status: "QUEUED",
+      recordCount: 1,
+      originalFilename: null,
+      uploadPath: null,
+    },
+    select: { id: true, status: true },
+  });
 
-  console.log(`Tracking: ${trackingNumber}`);
-  console.log(`Message: ${responseMessage}`);
-  console.log(`Parsed Complaint ID: ${complaintId || "-"}`);
-  console.log(`Due Date: ${normalizedDueDate || "-"}`);
+  await trackingQueue.add(
+    "process-complaint",
+    {
+      jobId: complaintJob.id,
+      kind: "COMPLAINT",
+      queueId: queueRow.id,
+      trackingNumber,
+      phone: normalizedPhone,
+      complaintText: remarks,
+    },
+    { jobId: complaintJob.id },
+  );
+
+  await logComplaintAudit({
+    actorEmail: String((req as any).user?.email ?? body.reply_email ?? normalizedPhone ?? "system").trim() || "system",
+    action: "complaint_updated",
+    trackingId: trackingNumber,
+    details: `queue_id:${queueRow.id};job_id:${complaintJob.id};status:queued`,
+  });
 
   return res.json({
-    success: status !== "ERROR",
-    complaintId: complaintId,
-    dueDate: normalizedDueDate,
+    success: true,
+    queued: true,
+    jobId: complaintJob.id,
     trackingId: trackingNumber,
-    complaint_id: complaintId,
-    due_date: normalizedDueDate,
     tracking_id: trackingNumber,
-    status,
-    message: requiredFieldError
-      ? "Complaint submission failed. Please check required fields."
-      : (complaintId ? `Complaint filed successfully. ID: ${complaintId}` : (responseMessage || "Complaint submission failed")),
+    status: "QUEUED",
+    message: "Complaint queued for worker processing.",
   });
 });

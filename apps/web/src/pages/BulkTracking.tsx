@@ -8,6 +8,7 @@ import SampleDownloadLink from "../components/SampleDownloadLink";
 import { cn } from "../lib/cn";
 import { api, apiHealthCheck, uploadFile } from "../lib/api";
 import { useTrackingJobPolling } from "../lib/useTrackingJobPolling";
+import { collectComplaintBrowserBootstrap } from "../components/ComplaintModal";
 import { getRole } from "../lib/auth";
 import type { MeResponse, Shipment as BaseShipment, TrackResult } from "../lib/types";
 import {
@@ -2181,6 +2182,7 @@ export default function BulkTracking() {
         recipient_district: selectedDistrict || "",
         recipient_tehsil: selectedTehsil || "",
         recipient_location: selectedLocation || "",
+        browser_session: collectComplaintBrowserBootstrap(),
       };
       console.log("Payload:", requestPayload);
 

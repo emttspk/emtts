@@ -41,6 +41,7 @@ import {
 } from "./services/trackingService.js";
 import { processTracking } from "./services/trackingStatus.js";
 import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "./services/trackingIntelligence.js";
+import { processComplaintQueueById } from "./processors/complaint.processor.js";
 
 const require = createRequire(import.meta.url);
 
@@ -1045,7 +1046,7 @@ const trackingWorker = new Worker(
     console.log("PROCESSING JOB", bullJob.id);
     const data = bullJob.data as
       | { jobId: string; kind: "BULK_TRACK"; trackingNumbers: string[]; lockKey?: string | null }
-      | { jobId: string; kind: "COMPLAINT"; trackingNumber: string; phone: string; complaintText?: string };
+      | { jobId: string; kind: "COMPLAINT"; queueId?: string; trackingNumber: string; phone: string; complaintText?: string };
 
     const job = await prisma.trackingJob.findUnique({ where: { id: data.jobId } });
     if (!job) return;
@@ -1269,41 +1270,38 @@ const trackingWorker = new Worker(
       }
 
       if (data.kind === "COMPLAINT") {
-        const resp = await pythonSubmitComplaint(data.trackingNumber, data.phone);
-        const text = resp.response_text ?? "";
-        const userNote = data.complaintText ? `User complaint:\n${data.complaintText}\n\n` : "";
-        const combinedText = `${userNote}Response:\n${text}`;
-
-        const complaintStatus = /Complaint\s*No/i.test(text)
-          ? "FILED"
-          : /already/i.test(text)
-            ? "FILED"
-            : "ERROR";
-
-        await prisma.shipment.upsert({
-          where: { userId_trackingNumber: { userId: job.userId, trackingNumber: data.trackingNumber } },
-          create: {
-            userId: job.userId,
-            trackingNumber: data.trackingNumber,
-            complaintStatus,
-            complaintText: combinedText,
-          },
-          update: {
-            complaintStatus,
-            complaintText: combinedText,
-          },
-        });
+        const result = data.queueId
+          ? await processComplaintQueueById(data.queueId)
+          : await (async () => {
+              const resp = await pythonSubmitComplaint(data.trackingNumber, data.phone);
+              const text = resp.response_text ?? "";
+              const complaintStatus = /Complaint\s*No/i.test(text)
+                ? "FILED"
+                : /already/i.test(text)
+                  ? "FILED"
+                  : "ERROR";
+              return {
+                success: complaintStatus === "FILED",
+                status: complaintStatus,
+                trackingId: data.trackingNumber,
+                responseText: text,
+              };
+            })();
 
         const outPath = path.join(outputsDir(), `${job.id}-complaint.json`);
-        await fs.writeFile(outPath, JSON.stringify({ trackingNumber: data.trackingNumber, complaintStatus, responseText: combinedText }, null, 2), "utf8");
+        await fs.writeFile(outPath, JSON.stringify(result, null, 2), "utf8");
 
         await prisma.trackingJob.update({
           where: { id: job.id },
-          data: { status: "COMPLETED", resultPath: path.relative(process.cwd(), outPath) },
+          data: {
+            status: result.success ? "COMPLETED" : "FAILED",
+            resultPath: path.relative(process.cwd(), outPath),
+            error: result.success ? null : ("message" in result ? String(result.message ?? "Complaint failed") : "Complaint failed"),
+          },
         });
 
-        console.log(`[TrackingWorker] Complaint job ${job.id} completed (${complaintStatus})`);
-        return { resultPath: path.relative(process.cwd(), outPath), complaintStatus };
+        console.log(`[TrackingWorker] Complaint job ${job.id} completed (${result.status})`);
+        return { resultPath: path.relative(process.cwd(), outPath), complaintStatus: result.status };
       }
     } catch (e) {
       const errorMessage =
