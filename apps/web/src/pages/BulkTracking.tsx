@@ -84,6 +84,7 @@ type ComplaintPrefill = {
 };
 
 type ComplaintTemplateKey = "VALUE_PAYABLE" | "NORMAL" | "RETURN";
+type ExtendedStatusFilter = StatusCardFilter | "COMPLAINT_ACTIVE" | "COMPLAINT_CLOSED";
 
 const TRACKING_CACHE_TTL_MS = 10 * 60 * 1000;
 const BACKGROUND_BATCH_SIZE = 100;
@@ -725,7 +726,7 @@ export default function BulkTracking() {
   const [selectedTracking, setSelectedTracking] = useState<FinalTrackingRecord | null>(null);
   const [shipmentStats, setShipmentStats] = useState<ShipmentStats | null>(null);
   const [pageSize, setPageSize] = useState<20 | 50 | 100>(20);
-  const [statusFilter, setStatusFilter] = useState<StatusCardFilter>("ALL");
+  const [statusFilter, setStatusFilter] = useState<ExtendedStatusFilter>("ALL");
   const [page, setPage] = useState(1);
   const [totalShipments, setTotalShipments] = useState(0);
   const [auditRows, setAuditRows] = useState<CycleAuditRecord[]>([]);
@@ -834,6 +835,17 @@ export default function BulkTracking() {
       if (interval) window.clearInterval(interval);
     };
   }, [uiState]);
+
+  useEffect(() => {
+    const prevBodyOverflowX = document.body.style.overflowX;
+    const prevHtmlOverflowX = document.documentElement.style.overflowX;
+    document.body.style.overflowX = "hidden";
+    document.documentElement.style.overflowX = "hidden";
+    return () => {
+      document.body.style.overflowX = prevBodyOverflowX;
+      document.documentElement.style.overflowX = prevHtmlOverflowX;
+    };
+  }, []);
 
   useEffect(() => {
     // Show live results during processing by filtering shipments updated after job start
@@ -1431,6 +1443,22 @@ export default function BulkTracking() {
 
   const finalTrackingData = useMemo(() => getFinalTrackingData(shipments), [shipments]);
   const summaryStats = useMemo(() => computeStats(finalTrackingData), [finalTrackingData]);
+  const complaintTotals = useMemo(() => {
+    let total = 0;
+    let active = 0;
+    let closed = 0;
+    for (const record of finalTrackingData) {
+      const lifecycle = parseComplaintLifecycle(record.shipment);
+      if (!lifecycle.exists) continue;
+      total += 1;
+      if (["ACTIVE", "IN PROCESS"].includes(lifecycle.state)) {
+        active += 1;
+      } else if (["RESOLVED", "CLOSED", "REJECTED"].includes(lifecycle.state)) {
+        closed += 1;
+      }
+    }
+    return { total, active, closed };
+  }, [finalTrackingData]);
 
   const complaintRows = complaintPrefill?.districtData ?? [];
   const complaintDistrictOptions = useMemo(
@@ -1521,8 +1549,26 @@ export default function BulkTracking() {
   }, [finalTrackingData]);
 
   const filteredShipments = useMemo(() => {
-    const filtered = filterFinalTrackingData(finalTrackingData, statusFilter);
-    return sortFinalTrackingData(filtered);
+    const baseFilter: StatusCardFilter = statusFilter === "COMPLAINT_ACTIVE" || statusFilter === "COMPLAINT_CLOSED"
+      ? "ALL"
+      : statusFilter;
+    const filtered = sortFinalTrackingData(filterFinalTrackingData(finalTrackingData, baseFilter));
+
+    if (statusFilter === "COMPLAINT_ACTIVE") {
+      return filtered.filter((record) => {
+        const lifecycle = parseComplaintLifecycle(record.shipment);
+        return lifecycle.exists && ["ACTIVE", "IN PROCESS"].includes(lifecycle.state);
+      });
+    }
+
+    if (statusFilter === "COMPLAINT_CLOSED") {
+      return filtered.filter((record) => {
+        const lifecycle = parseComplaintLifecycle(record.shipment);
+        return lifecycle.exists && ["RESOLVED", "CLOSED", "REJECTED"].includes(lifecycle.state);
+      });
+    }
+
+    return filtered;
   }, [finalTrackingData, statusFilter]);
 
   const totalFilteredShipments = filteredShipments.length;
@@ -2099,17 +2145,17 @@ export default function BulkTracking() {
       <div className="grid gap-6">
         <div className="min-w-0 w-full flex-1 space-y-6">
       <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-      <Card className="overflow-hidden border-0 bg-[linear-gradient(135deg,#0f172a_0%,#0b6b3a_60%,#134e2a_100%)] p-6 shadow-[0_24px_56px_rgba(11,107,58,0.28)] md:p-8">
+      <Card className="overflow-hidden border-0 bg-[linear-gradient(135deg,#0f172a_0%,#0b6b3a_58%,#1e7a4a_100%)] p-6 shadow-[0_24px_56px_rgba(11,107,58,0.28)] md:p-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
+          <div className="min-w-0">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-200 backdrop-blur-sm">
               <Activity className="h-3 w-3" />
               Live Tracking Workspace
             </div>
-            <div className="mt-3 font-display text-3xl font-extrabold tracking-[-0.04em] text-white md:text-4xl">Shipment Dashboard</div>
-            <div className="mt-2 max-w-lg text-sm leading-relaxed text-slate-300">Upload in bulk, review live statuses, and manage complaints from one unified workspace.</div>
+            <div className="mt-3 font-display text-3xl font-extrabold tracking-[-0.04em] text-white md:text-4xl">All Tracked Shipments</div>
+            <div className="mt-2 max-w-lg text-sm leading-relaxed text-slate-200">Real-time visibility into every shipment.</div>
           </div>
-          <div className="flex shrink-0 flex-wrap gap-3">
+          <div className="flex shrink-0 items-center gap-3">
             <div className="min-w-[130px] rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
               <div className="text-xs font-medium text-slate-300">Current File</div>
               <div className="mt-1 truncate text-sm font-semibold text-white">{file?.name ?? "No file selected"}</div>
@@ -2118,6 +2164,7 @@ export default function BulkTracking() {
               <div className="text-xs font-medium text-slate-300">Job State</div>
               <div className="mt-1 text-sm font-semibold text-white">{statusLabel}</div>
             </div>
+            <div className="hidden h-16 w-28 rounded-2xl border border-white/15 bg-[radial-gradient(circle_at_20%_30%,rgba(255,255,255,0.35),transparent_55%),radial-gradient(circle_at_80%_65%,rgba(16,185,129,0.5),transparent_60%)] sm:block" />
           </div>
         </div>
       </Card>
@@ -2129,7 +2176,7 @@ export default function BulkTracking() {
             { filter: "DELIVERED" as StatusCardFilter, label: "Delivered", value: summaryStats.delivered, icon: <CheckCircle2 className="h-5 w-5" />, color: "border-emerald-200 bg-emerald-50", iconBg: "bg-emerald-100 text-emerald-600", textColor: "text-emerald-900", subColor: "text-emerald-600" },
             { filter: "PENDING" as StatusCardFilter, label: "Pending", value: summaryStats.pending, icon: <Clock className="h-5 w-5" />, color: "border-orange-200 bg-orange-50", iconBg: "bg-orange-100 text-orange-600", textColor: "text-orange-900", subColor: "text-orange-600" },
             { filter: "RETURNED" as StatusCardFilter, label: "Returned", value: summaryStats.returned, icon: <ArrowUpRight className="h-5 w-5" />, color: "border-red-200 bg-red-50", iconBg: "bg-red-100 text-red-600", textColor: "text-red-900", subColor: "text-red-600" },
-            { filter: "DELAYED" as StatusCardFilter, label: "Delayed", value: summaryStats.delayed, icon: <TrendingUp className="h-5 w-5" />, color: "border-violet-200 bg-violet-50", iconBg: "bg-violet-100 text-violet-600", textColor: "text-violet-900", subColor: "text-violet-600" },
+            { filter: "COMPLAINT_ACTIVE" as ExtendedStatusFilter, label: "Complaints", value: complaintTotals.total, icon: <TrendingUp className="h-5 w-5" />, color: "border-violet-200 bg-violet-50", iconBg: "bg-violet-100 text-violet-600", textColor: "text-violet-900", subColor: "text-violet-600" },
           ].map((card, i) => (
             <motion.button
               key={card.filter}
@@ -2485,7 +2532,8 @@ export default function BulkTracking() {
                 <option value="PENDING">Pending</option>
                 <option value="DELIVERED">Delivered</option>
                 <option value="RETURNED">Returned</option>
-                <option value="DELAYED">Delayed</option>
+                <option value="COMPLAINT_ACTIVE">Complaint Active</option>
+                <option value="COMPLAINT_CLOSED">Complaint Closed</option>
               </select>
             </label>
             {selectedIds.length > 0 && (
@@ -2517,11 +2565,11 @@ export default function BulkTracking() {
         {refreshSummary ? <div className="border-t border-[#E5E7EB] bg-[#F8FAF9] px-6 py-2 text-xs text-slate-700">{refreshSummary}</div> : null}
         </div>
         <div className="p-0">
-          <div className="w-full min-w-full max-h-[72vh] overflow-x-auto overflow-y-auto rounded-[24px] border border-[#E5E7EB] bg-white">
-            <table className="w-full min-w-[1280px] table-fixed text-[15px] leading-6">
-              <thead className="sticky top-0 z-10 border-b border-[#E5E7EB] bg-[#f1f7f8]/95 backdrop-blur">
+          <div className="w-full max-h-[72vh] overflow-x-visible overflow-y-auto rounded-[20px] border border-slate-200 bg-white">
+            <table className="w-full table-fixed text-[13px] leading-5">
+              <thead className="sticky top-0 z-10 border-b border-slate-200 bg-[#f7fafc]/95 backdrop-blur">
               <tr>
-                <th className="w-10 border-r border-slate-100 px-4 py-3.5">
+                <th className="w-10 border-r border-slate-100 px-2 py-2.5">
                   <input
                     type="checkbox"
                     className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
@@ -2537,31 +2585,31 @@ export default function BulkTracking() {
                     }
                   />
                 </th>
-                <th className="border-r border-slate-100 px-4 py-3.5 text-left text-[12px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                <th className="w-16 border-r border-slate-100 px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
                   S.No
                 </th>
-                <th className="border-r border-slate-100 px-4 py-3.5 text-left text-[12px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                <th className="w-24 border-r border-slate-100 px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
                   Updated
                 </th>
-                <th className="border-r border-slate-100 px-4 py-3.5 text-left text-[12px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                <th className="w-40 border-r border-slate-100 px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
                   <span className="inline-flex items-center gap-1"><PackageSearch className="h-3 w-3" /> Tracking</span>
                 </th>
-                <th className="border-r border-slate-100 px-4 py-3.5 text-left text-[12px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                <th className="w-24 border-r border-slate-100 px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
                   Status
                 </th>
-                <th className="border-r border-slate-100 px-4 py-3.5 text-left text-[12px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                <th className="w-36 border-r border-slate-100 px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
                   <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> City</span>
                 </th>
-                <th className="border-r border-slate-100 px-4 py-3.5 text-left text-[12px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                <th className="w-36 border-r border-slate-100 px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
                   <span className="inline-flex items-center gap-1"><BadgeDollarSign className="h-3 w-3" /> Money Order No</span>
                 </th>
-                <th className="border-r border-slate-100 px-4 py-3.5 text-left text-[12px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                <th className="w-32 border-r border-slate-100 px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
                   Money Order Amount
                 </th>
-                <th className="border-r border-slate-100 px-4 py-3.5 text-left text-[12px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                <th className="w-36 border-r border-slate-100 px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
                   Action
                 </th>
-                <th className="px-4 py-3.5 text-left text-[12px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                <th className="w-[220px] px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
                   Complaint
                 </th>
               </tr>
@@ -2605,8 +2653,8 @@ export default function BulkTracking() {
                       : "bg-orange-50/30";
 
                 return (
-                  <tr key={s.id} className={cn("group min-h-[64px] border-b border-[#eee] transition-colors hover:bg-brand/10", rowTone)}>
-                    <td className="border-r border-slate-100 px-4 py-3.5 align-middle">
+                  <tr key={s.id} className={cn("group border-b border-slate-100 transition-colors hover:bg-brand/10", rowTone)}>
+                    <td className="border-r border-slate-100 px-2 py-2.5 align-middle">
                       <input
                         type="checkbox"
                         className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
@@ -2618,8 +2666,8 @@ export default function BulkTracking() {
                         }
                       />
                     </td>
-                    <td className="border-r border-slate-100 px-4 py-3.5 align-middle text-sm font-semibold text-slate-700">{(page - 1) * pageSize + index + 1}</td>
-                    <td className="border-r border-slate-100 px-4 py-3.5 align-middle">
+                    <td className="border-r border-slate-100 px-2 py-2.5 align-middle text-xs font-semibold text-slate-700">{(page - 1) * pageSize + index + 1}</td>
+                    <td className="border-r border-slate-100 px-2 py-2.5 align-middle whitespace-nowrap">
                       <div className="flex flex-col">
                         <span className="text-xs font-semibold text-slate-900">
                           {new Date(s.updatedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}
@@ -2629,10 +2677,10 @@ export default function BulkTracking() {
                         </span>
                       </div>
                     </td>
-                    <td className="border-r border-slate-100 px-4 py-3.5 align-middle font-mono text-sm font-bold text-slate-800 group-hover:text-brand overflow-hidden text-ellipsis whitespace-nowrap" title={s.trackingNumber}>
+                    <td className="border-r border-slate-100 px-2 py-2.5 align-middle font-mono text-xs font-bold text-slate-800 group-hover:text-brand truncate whitespace-nowrap" title={s.trackingNumber}>
                       {s.trackingNumber}
                     </td>
-                    <td className="border-r border-slate-100 px-4 py-3.5 align-middle">
+                    <td className="border-r border-slate-100 px-2 py-2.5 align-middle whitespace-nowrap">
                       <div className="flex flex-col">
                         <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset", isWarning ? "bg-red-100 text-red-700 ring-red-200" : statusBadgeClass(displayStatus))}>
                           {normalizeStatus(displayStatus)}
@@ -2640,15 +2688,15 @@ export default function BulkTracking() {
                           <span className="mt-0.5 text-[10px] text-slate-500">{days}d</span>
                       </div>
                     </td>
-                      <td className="border-r border-slate-100 px-4 py-3.5 align-middle text-sm text-slate-600 overflow-hidden text-ellipsis whitespace-nowrap" title={preferredCity(s)}>{preferredCity(s)}</td>
-                      <td className="border-r border-slate-100 px-4 py-3.5 align-middle text-sm font-semibold text-slate-700 overflow-hidden text-ellipsis whitespace-nowrap" title={moValue || undefined}>{moValue}</td>
-                      <td className="border-r border-slate-100 px-4 py-3.5 align-middle text-sm font-medium text-slate-700 whitespace-nowrap">
+                      <td className="border-r border-slate-100 px-2 py-2.5 align-middle text-xs text-slate-600 truncate whitespace-nowrap" title={preferredCity(s)}>{preferredCity(s)}</td>
+                      <td className="border-r border-slate-100 px-2 py-2.5 align-middle text-xs font-semibold text-slate-700 truncate whitespace-nowrap" title={moValue || undefined}>{moValue}</td>
+                      <td className="border-r border-slate-100 px-2 py-2.5 align-middle text-xs font-medium text-slate-700 whitespace-nowrap">
                       {issuedValue != null ? `Rs ${issuedValue.toLocaleString()}` : "-"}
                     </td>
-                    <td className="border-r border-slate-100 px-4 py-3.5 align-middle">
+                    <td className="border-r border-slate-100 px-2 py-2.5 align-middle">
                       <div className="flex items-center gap-1">
                         <select
-                            className="w-28 rounded border-[#E5E7EB] bg-white px-2 py-2 text-xs font-medium text-slate-700 shadow-lg focus:border-brand focus:ring-brand"
+                            className="w-24 rounded border-[#E5E7EB] bg-white px-2 py-1 text-[11px] font-medium text-slate-700 shadow-sm focus:border-brand focus:ring-brand"
                           value={actionValue}
                           onChange={(e) => updateStatus(s.trackingNumber, e.target.value.includes("RETURN") ? "RETURNED" : e.target.value)}
                         >
@@ -2668,7 +2716,7 @@ export default function BulkTracking() {
                         </button>
                       </div>
                     </td>
-                    <td className="px-4 py-3.5 align-middle whitespace-nowrap">
+                    <td className="px-2 py-2.5 align-middle">
                       {lifecycle.exists ? (() => {
                         const sl = lifecycle.stateLabel.toUpperCase();
                         const stateStyle = sl === "ACTIVE" ? "border-blue-200 bg-blue-50 text-blue-900"
@@ -2684,8 +2732,8 @@ export default function BulkTracking() {
                           : sl === "REJECTED" ? "text-red-600"
                           : "text-emerald-700";
                         return (
-                          <div className={cn("rounded-xl border px-2.5 py-2 text-left text-[11px]", stateStyle)}>
-                            <div className={cn("font-semibold", idBadge)}>{lifecycle.complaintId || "Complaint"}</div>
+                          <div className={cn("w-full max-w-[210px] rounded-lg border px-2 py-1.5 text-left text-[10px]", stateStyle)}>
+                            <div className={cn("truncate font-semibold", idBadge)} title={lifecycle.complaintId || "Complaint"}>{lifecycle.complaintId || "Complaint"}</div>
                             <div className="mt-0.5 opacity-75">Due: {lifecycle.dueDateText || "-"}</div>
                             <div className="mt-0.5">
                               <span className={cn("inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ring-1 ring-inset", stateStyle)}>
@@ -2698,7 +2746,7 @@ export default function BulkTracking() {
                                 onClick={() => openComplaintModal(row)}
                                 disabled={!isComplaintEnabled}
                                 className={cn(
-                                  "mt-1.5 rounded px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset transition-all",
+                                  "mt-1.5 inline-flex w-full items-center justify-center rounded px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset transition-all",
                                   isComplaintEnabled
                                     ? "bg-white text-emerald-800 ring-emerald-300 hover:bg-emerald-100"
                                     : "cursor-not-allowed bg-gray-50 text-gray-400 ring-gray-200"
@@ -2719,7 +2767,7 @@ export default function BulkTracking() {
                           disabled={!isComplaintEnabled}
                           onClick={() => openComplaintModal(row)}
                           className={cn(
-                            "inline-flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ring-1 ring-inset transition-all",
+                            "inline-flex w-full max-w-[210px] items-center justify-center gap-1 rounded-xl px-2 py-1 text-[11px] font-semibold shadow-sm ring-1 ring-inset transition-all",
                             isComplaintEnabled
                               ? "bg-red-50 text-red-700 ring-red-200 hover:bg-red-100"
                               : "cursor-not-allowed bg-gray-50 text-gray-400 ring-gray-200"
@@ -3363,7 +3411,7 @@ export default function BulkTracking() {
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 280 }}
-            className="fixed right-0 top-0 z-50 flex h-full w-full flex-col bg-white shadow-[−20px_0_60px_rgba(15,23,42,0.18)] sm:w-[420px] md:w-[480px]"
+            className="fixed right-0 top-0 z-50 flex h-full w-full flex-col bg-white shadow-[-20px_0_60px_rgba(15,23,42,0.18)] sm:w-[420px] md:w-[480px]"
           >
           <div id="tracking-popup-print-root" className="flex h-full flex-col">
             {/* Panel Header */}
