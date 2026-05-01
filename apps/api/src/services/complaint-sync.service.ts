@@ -21,9 +21,9 @@ function deriveComplaintState(input: { priorState: string; trackingState: string
     return input.priorState === "RESOLVED" || input.priorState === "CLOSED" ? "CLOSED" : "RESOLVED";
   }
   if (input.dueDateTs != null && input.dueDateTs <= input.now) {
-    return "OPEN";
+    return "PROCESSING";
   }
-  return "IN_PROCESS";
+  return "ACTIVE";
 }
 
 async function recordComplaintAlert(input: { trackingId: string; complaintId: string; dueDate: string; alertType: string }) {

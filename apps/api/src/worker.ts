@@ -526,9 +526,6 @@ const worker = new Worker(
   jobsQueueName,
   async (bullJob) => {
     const processJob = async () => {
-    console.log("🔥 JOB RECEIVED");
-    console.log("PROCESSING JOB", bullJob.id);
-    console.log("Processing job:", bullJob.id);
     console.log(`[Worker] Processing job ${String(bullJob.id ?? "unknown")}`);
     await prisma.$connect();
     const {
@@ -983,9 +980,6 @@ const worker = new Worker(
       });
 
       await finalizeQueuedToGenerated(job.userId, job.unitCount || job.recordCount);
-      console.log("JOB COMPLETED", bullJob.id);
-      console.log("Job completed:", bullJob.id);
-      console.log(`[Worker] Job completed ${jobId}`);
       console.log(`[Worker] Job ${jobId} completed successfully`);
 
       // MANDATORY: Return paths so the API can find the files
@@ -1042,8 +1036,7 @@ console.log(`[Worker] Connecting to Redis at ${sanitizeRedisUrl(process.env.REDI
 const trackingWorker = new Worker(
   trackingQueueName,
   async (bullJob) => {
-    console.log("🔥 JOB RECEIVED");
-    console.log("PROCESSING JOB", bullJob.id);
+    console.log(`[TrackingWorker] Processing BullMQ job ${String(bullJob.id ?? "unknown")}`);
     const data = bullJob.data as
       | { jobId: string; kind: "BULK_TRACK"; trackingNumbers: string[]; lockKey?: string | null }
       | { jobId: string; kind: "COMPLAINT"; queueId?: string; trackingNumber: string; phone: string; complaintText?: string };

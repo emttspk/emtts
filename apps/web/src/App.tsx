@@ -22,6 +22,7 @@ const SelectPackage = lazy(() => import("./pages/SelectPackage"));
 const UpdatePackage = lazy(() => import("./pages/UpdatePackage"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Admin = lazy(() => import("./pages/Admin"));
+const AdminComplaintMonitor = lazy(() => import("./pages/AdminComplaintMonitor"));
 const TemplateDesigner = lazy(() => import("./pages/TemplateDesigner"));
 const GenerateLabels = lazy(() => import("./pages/GenerateLabels"));
 const GenerateMoneyOrder = lazy(() => import("./pages/admin/GenerateMoneyOrder"));
@@ -92,6 +93,14 @@ export default function App() {
             element={
               <RequireAdmin>
                 <GenerateLabels />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/admin/complaint-monitor"
+            element={
+              <RequireAdmin>
+                <AdminComplaintMonitor />
               </RequireAdmin>
             }
           />

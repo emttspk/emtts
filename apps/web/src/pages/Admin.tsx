@@ -154,6 +154,7 @@ export default function Admin() {
             <div className="mt-4 flex flex-wrap gap-2">
               <button className="rounded-2xl bg-brand px-4 py-2 text-sm font-medium text-white" onClick={() => navigate("/admin/generate-labels")}>Generate Labels</button>
               <button className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700" onClick={() => navigate("/admin/generate-money-orders")}>Generate Money Order</button>
+              <button className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700" onClick={() => navigate("/admin/complaint-monitor")}>Complaint Monitor</button>
             </div>
           </Card>
           {TEMPLATE_DESIGNER_ENABLED ? (

@@ -144,6 +144,17 @@ type ComplaintLifecycle = {
   message: string;
 };
 
+type ComplaintQueueSnapshot = {
+  id: string;
+  trackingId: string;
+  complaintStatus: string;
+  complaintId: string | null;
+  dueDate: string | null;
+  nextRetryAt: string | null;
+  retryCount: number;
+  updatedAt: string;
+};
+
 function parseDueDateToTs(input: string): number | null {
   const value = String(input ?? "").trim();
   if (!value) return null;
@@ -221,6 +232,47 @@ function parseComplaintLifecycle(shipment: Shipment): ComplaintLifecycle {
 function isComplaintInProcess(lifecycle: ComplaintLifecycle): boolean {
   const state = String(lifecycle.state ?? "").trim().toUpperCase();
   return lifecycle.exists && (state === "ACTIVE" || state === "IN PROCESS" || lifecycle.active);
+}
+
+function normalizeQueueStatusLabel(raw: string | null | undefined): "QUEUED" | "PROCESSING" | "ACTIVE" | "RETRY PENDING" | "RESOLVED" | "MANUAL REVIEW" | "DUPLICATE" | "SUBMITTED" {
+  const token = String(raw ?? "").trim().toUpperCase().replace(/[\-_]+/g, " ");
+  if (!token) return "ACTIVE";
+  if (token === "RETRYING" || token === "RETRY PENDING") return "RETRY PENDING";
+  if (token === "QUEUED") return "QUEUED";
+  if (token === "PROCESSING") return "PROCESSING";
+  if (token === "MANUAL REVIEW") return "MANUAL REVIEW";
+  if (token === "DUPLICATE") return "DUPLICATE";
+  if (token === "SUBMITTED") return "SUBMITTED";
+  if (token === "RESOLVED" || token === "CLOSED") return "RESOLVED";
+  return "ACTIVE";
+}
+
+function complaintStateBadgeClass(stateLabel: string) {
+  const token = String(stateLabel ?? "").trim().toUpperCase();
+  if (token === "QUEUED") return "border-slate-200 bg-slate-50 text-slate-700";
+  if (token === "PROCESSING" || token === "IN PROCESS") return "border-blue-200 bg-blue-50 text-blue-800";
+  if (token === "RETRY PENDING") return "border-amber-200 bg-amber-50 text-amber-800";
+  if (token === "RESOLVED" || token === "CLOSED") return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  if (token === "MANUAL REVIEW") return "border-red-200 bg-red-50 text-red-800";
+  return "border-violet-200 bg-violet-50 text-violet-800";
+}
+
+function formatRetryCountdown(nextRetryAt: string | null | undefined, nowMs: number): string {
+  const target = nextRetryAt ? new Date(nextRetryAt).getTime() : 0;
+  if (!Number.isFinite(target) || target <= 0) return "Retry window pending";
+  const delta = Math.max(0, target - nowMs);
+  if (delta <= 0) return "Retry due now";
+  const minutes = Math.floor(delta / 60_000);
+  const seconds = Math.floor((delta % 60_000) / 1000);
+  if (minutes <= 0) return `Next retry in ${seconds}s`;
+  return `Next retry in ${minutes}m ${seconds}s`;
+}
+
+function friendlyComplaintMessage(raw: string | null | undefined): string {
+  const message = String(raw ?? "").trim();
+  if (!message) return "Complaint submission failed. Please try again.";
+  if (/^[\[{]/.test(message)) return "Complaint submission failed. Please try again.";
+  return message;
 }
 
 function normalizeOfficeSearch(val: string): string {
@@ -763,6 +815,9 @@ export default function BulkTracking() {
     trackingId: string;
     status: string;
   } | null>(null);
+  const [complaintSubmitNotice, setComplaintSubmitNotice] = useState<{ kind: "info" | "warning" | "error"; message: string } | null>(null);
+  const [complaintQueueByTracking, setComplaintQueueByTracking] = useState<Map<string, ComplaintQueueSnapshot>>(new Map());
+  const [retryCountdownNow, setRetryCountdownNow] = useState(Date.now());
   const [complaintSelectionMode, setComplaintSelectionMode] = useState<"district" | "tehsil" | "location">("location");
   const [complaintSelectionLocked, setComplaintSelectionLocked] = useState(false);
   const [officeSearchQuery, setOfficeSearchQuery] = useState("");
@@ -829,6 +884,11 @@ export default function BulkTracking() {
   }, []);
 
   useEffect(() => {
+    const timer = window.setInterval(() => setRetryCountdownNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     let interval: number;
     if (uiState === "processing") {
       // Refresh shipments every 1s to show live progress one by one
@@ -873,6 +933,25 @@ export default function BulkTracking() {
     setShipmentStats(data);
   }
 
+  async function refreshComplaintQueueSnapshot() {
+    if (!isAdmin) {
+      setComplaintQueueByTracking(new Map());
+      return;
+    }
+    try {
+      const data = await api<{ queue: ComplaintQueueSnapshot[] }>("/api/admin/complaints/monitor");
+      const map = new Map<string, ComplaintQueueSnapshot>();
+      for (const row of data.queue ?? []) {
+        const trackingId = String(row.trackingId ?? "").trim();
+        if (!trackingId || map.has(trackingId)) continue;
+        map.set(trackingId, row);
+      }
+      setComplaintQueueByTracking(map);
+    } catch {
+      // Monitor snapshots should not block tracking workspace operations.
+    }
+  }
+
   async function refreshShipments() {
     const hardLimit = 200;
     let currentPage = 1;
@@ -898,6 +977,7 @@ export default function BulkTracking() {
     setShipments(allRows);
     setTotalShipments(total || allRows.length);
     void refreshShipmentStats();
+    void refreshComplaintQueueSnapshot();
     enqueueBackgroundRefresh(allRows);
   }
 
@@ -1876,6 +1956,7 @@ export default function BulkTracking() {
     };
     setComplaintRecord(record);
     setComplaintSubmitResult(null);
+    setComplaintSubmitNotice(null);
     setComplaintPhone(phone);
     setComplaintEmail(email);
     setReplyMode("POST");
@@ -2064,7 +2145,10 @@ export default function BulkTracking() {
     }
     const lifecycle = parseComplaintLifecycle(complaintRecord.shipment);
     if (isComplaintInProcess(lifecycle)) {
-      alert(`Complaint already active. Complaint ID: ${lifecycle.complaintId} | Due Date: ${lifecycle.dueDateText || "-"}`);
+      setComplaintSubmitNotice({
+        kind: "warning",
+        message: `Complaint already exists for this shipment. Complaint ID: ${lifecycle.complaintId || "-"} | Due Date: ${lifecycle.dueDateText || "-"}`,
+      });
       return;
     }
     if (!complaintPhone.trim()) {
@@ -2135,6 +2219,7 @@ export default function BulkTracking() {
       return;
     }
     setSubmittingComplaint(true);
+    setComplaintSubmitNotice(null);
     try {
       window.localStorage.setItem(COMPLAINT_PHONE_STORAGE_KEY, normalizedPhone);
       if (complaintEmail.trim()) {
@@ -2215,18 +2300,33 @@ export default function BulkTracking() {
       }
 
       setComplaintSubmitResult({ complaintNumber, dueDate, trackingId, status });
-      const alertMessage = complaintNumber
-        ? `Complaint Registered\nTracking: ${trackingId}\nComplaint ID: ${complaintNumber}\nDue Date: ${dueDate}`
-        : (hasRefund 
-          ? "Request failed. Units will be refunded after admin approval."
-          : (res.message || "Complaint submission failed"));
-      alert(alertMessage);
+      if (status === "DUPLICATE") {
+        setComplaintSubmitNotice({
+          kind: "warning",
+          message: "Complaint Already Exists. Review Complaint ID and Due Date below.",
+        });
+      } else if (status === "SUCCESS") {
+        setComplaintSubmitNotice({
+          kind: "info",
+          message: `Complaint registered successfully for ${trackingId}.`,
+        });
+      } else {
+        setComplaintSubmitNotice({
+          kind: "error",
+          message: hasRefund
+            ? "Request failed. Units will be refunded after admin approval."
+            : friendlyComplaintMessage(res.message),
+        });
+      }
       await refreshShipments();
-      if (status === "SUCCESS" || status === "DUPLICATE") {
+      if (status === "SUCCESS") {
         setComplaintRecord(null);
       }
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Complaint submission failed");
+      setComplaintSubmitNotice({
+        kind: "error",
+        message: friendlyComplaintMessage(e instanceof Error ? e.message : "Complaint submission failed"),
+      });
     } finally {
       setSubmittingComplaint(false);
     }
@@ -2675,7 +2775,15 @@ export default function BulkTracking() {
 
                 const statusUpper = normalizeStatus(displayStatus).toUpperCase();
                 const lifecycle = parseComplaintLifecycle(s);
-                const complaintInProcess = isComplaintInProcess(lifecycle);
+                const queueSnapshot = complaintQueueByTracking.get(s.trackingNumber);
+                const queueState = normalizeQueueStatusLabel(queueSnapshot?.complaintStatus);
+                const lifecycleResolved = ["RESOLVED", "CLOSED", "REJECTED"].includes(lifecycle.state);
+                const complaintCardState = queueSnapshot
+                  ? (["SUBMITTED", "DUPLICATE"].includes(queueState)
+                    ? (lifecycleResolved ? "RESOLVED" : "ACTIVE")
+                    : queueState)
+                  : (lifecycleResolved ? "RESOLVED" : (lifecycle.exists ? lifecycle.stateLabel : ""));
+                const complaintInProcess = isComplaintInProcess(lifecycle) || ["QUEUED", "PROCESSING", "RETRY PENDING"].includes(complaintCardState);
                 const isComplaintEnabled = statusUpper === "PENDING" && !complaintInProcess;
 
                 const actionOptions = [
@@ -2770,29 +2878,26 @@ export default function BulkTracking() {
                       </div>
                     </td>
                     <td className="px-2 py-2.5 align-middle">
-                      {lifecycle.exists ? (() => {
-                        const sl = lifecycle.stateLabel.toUpperCase();
-                        const stateStyle = sl === "ACTIVE" ? "border-blue-200 bg-blue-50 text-blue-900"
-                          : sl === "IN PROCESS" ? "border-amber-200 bg-amber-50 text-amber-900"
-                          : sl === "RESOLVED" ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-                          : sl === "CLOSED" ? "border-slate-200 bg-slate-50 text-slate-700"
-                          : sl === "REJECTED" ? "border-red-200 bg-red-50 text-red-900"
-                          : "border-emerald-200 bg-emerald-50 text-emerald-900";
-                        const idBadge = sl === "ACTIVE" ? "text-blue-600"
-                          : sl === "IN PROCESS" ? "text-amber-700"
-                          : sl === "RESOLVED" ? "text-emerald-700"
-                          : sl === "CLOSED" ? "text-slate-500"
-                          : sl === "REJECTED" ? "text-red-600"
-                          : "text-emerald-700";
+                      {lifecycle.exists || queueSnapshot ? (() => {
+                        const stateStyle = complaintStateBadgeClass(complaintCardState);
+                        const complaintId = lifecycle.complaintId || queueSnapshot?.complaintId || "Complaint";
+                        const dueDate = lifecycle.dueDateText
+                          || (queueSnapshot?.dueDate ? new Date(queueSnapshot.dueDate).toLocaleDateString("en-GB") : "-");
+                        const retryHint = complaintCardState === "RETRY PENDING"
+                          ? formatRetryCountdown(queueSnapshot?.nextRetryAt, retryCountdownNow)
+                          : "";
                         return (
                           <div className={cn("w-full max-w-[210px] rounded-lg border px-2 py-1.5 text-left text-[10px]", stateStyle)}>
-                            <div className={cn("truncate font-semibold", idBadge)} title={lifecycle.complaintId || "Complaint"}>{lifecycle.complaintId || "Complaint"}</div>
-                            <div className="mt-0.5 opacity-75">Due: {lifecycle.dueDateText || "-"}</div>
+                            <div className="truncate font-semibold" title={complaintId}>{complaintId}</div>
+                            <div className="mt-0.5 opacity-80">Due: {dueDate}</div>
                             <div className="mt-0.5">
                               <span className={cn("inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ring-1 ring-inset", stateStyle)}>
-                                {lifecycle.stateLabel}
+                                {complaintCardState}
                               </span>
                             </div>
+                            {complaintCardState === "RETRY PENDING" ? (
+                              <div className="mt-1 text-[9px] font-semibold text-amber-700">{retryHint}</div>
+                            ) : null}
                             {!complaintInProcess ? (
                               <button
                                 type="button"
@@ -2810,7 +2915,7 @@ export default function BulkTracking() {
                             ) : (
                               <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
                                 <Clock className="h-2.5 w-2.5" />
-                                In Process
+                                {complaintCardState}
                               </div>
                             )}
                           </div>
@@ -3032,6 +3137,18 @@ export default function BulkTracking() {
 
             <div className="flex-1 overflow-y-auto p-4">
               <div className="grid gap-2">
+                {complaintSubmitNotice ? (
+                  <div className={cn(
+                    "rounded-2xl border px-3 py-2 text-xs",
+                    complaintSubmitNotice.kind === "error"
+                      ? "border-red-200 bg-red-50 text-red-800"
+                      : complaintSubmitNotice.kind === "warning"
+                        ? "border-amber-200 bg-amber-50 text-amber-800"
+                        : "border-blue-200 bg-blue-50 text-blue-800",
+                  )}>
+                    {complaintSubmitNotice.message}
+                  </div>
+                ) : null}
                 {activeComplaintLifecycle?.exists ? (
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs text-emerald-900">
                     <div className="flex items-center justify-between gap-3">
@@ -3252,11 +3369,17 @@ export default function BulkTracking() {
                   </div>
                 ) : null}
 
-                {complaintSubmitResult?.complaintNumber ? (
-                  <div className="border-t border-[#E5E7EB] pt-2 mt-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-2 py-2 text-xs text-emerald-800">
-                    <div className="font-semibold">Complaint Registered</div>
-                    <div>ID: {complaintSubmitResult.complaintNumber}</div>
-                    <div>Due: {complaintSubmitResult.dueDate || "-"}</div>
+                {complaintSubmitResult ? (
+                  <div className={cn(
+                    "border-t border-[#E5E7EB] pt-2 mt-2 rounded-2xl border px-2 py-2 text-xs",
+                    complaintSubmitResult.status === "DUPLICATE"
+                      ? "border-amber-200 bg-amber-50 text-amber-900"
+                      : "border-emerald-200 bg-emerald-50 text-emerald-800",
+                  )}>
+                    <div className="font-semibold">{complaintSubmitResult.status === "DUPLICATE" ? "Complaint Already Exists" : "Complaint Registered"}</div>
+                    <div>Complaint ID: {complaintSubmitResult.complaintNumber || "-"}</div>
+                    <div>Due Date: {complaintSubmitResult.dueDate || "-"}</div>
+                    <div>Current Status: {complaintSubmitResult.status === "DUPLICATE" ? (activeComplaintLifecycle?.stateLabel || "ACTIVE") : "ACTIVE"}</div>
                   </div>
                 ) : null}
               </div>

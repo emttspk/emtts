@@ -14,6 +14,10 @@ Browser complaint submit -> API validation -> ComplaintQueue insert -> worker qu
 ### Retry Logic
 Queue row stores retry count and next retry time. Schedule is 5, 15, 30, 60, 180 minutes with max 6 attempts.
 
+### Status Vocabulary
+Queue statuses are normalized to: queued, processing, submitted, duplicate, retry_pending, manual_review.
+Historical retrying rows are normalized to retry_pending in admin/API responses.
+
 ### Failure Handling
 Each failure stores last error, increments retry count, and moves to manual_review after max attempts.
 
@@ -75,7 +79,7 @@ All failures persist with lastError. Manual review backlog is queryable by admin
 
 ### Deployment Steps
 1. Start retry cron in admin bootstrap path.
-2. Verify queue rows transition from retrying to processing.
+2. Verify queue rows transition from retry_pending to processing.
 3. Confirm no duplicate BullMQ job IDs for same row.
 
 ### Rollback Steps
@@ -127,7 +131,7 @@ Per-tracking sync errors are isolated and do not stop batch.
 
 ### Deployment Steps
 1. Start complaint sync job scheduler.
-2. Validate state transitions and audit entries.
+2. Validate state transitions and audit entries (ACTIVE/PROCESSING/RESOLVED/CLOSED).
 
 ### Rollback Steps
 1. Stop sync scheduler startup.
@@ -255,3 +259,21 @@ Errors are logged and retried next day.
 ### Rollback Steps
 1. Stop SLA scheduler startup.
 2. Preserve existing alert history.
+
+## Phase 11: Admin Monitor + UI Stability
+### Purpose
+Expose complaint queue health in admin UI and polish duplicate/active/retry card behavior in tracking workspace.
+
+### File Paths
+- apps/api/src/routes/admin.ts
+- apps/web/src/pages/AdminComplaintMonitor.tsx
+- apps/web/src/pages/BulkTracking.tsx
+
+### Data Flow
+Admin monitor route aggregates queue counts + complaint states + circuit state and returns normalized queue rows.
+Bulk Tracking consumes monitor queue snapshot to render complaint state badges and retry_pending countdown.
+
+### Deployment Steps
+1. Deploy API monitor route and web route /admin/complaint-monitor together.
+2. Confirm retry_pending countdown appears for queued retry rows.
+3. Validate duplicate complaint response shows complaint card (ID, due date, status) without technical JSON alerts.

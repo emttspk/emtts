@@ -18,15 +18,17 @@ Explain worker-side complaint execution lifecycle with queue reliability control
 5. Processor checks circuit breaker state.
 6. If closed/half_open, processor calls pythonSubmitComplaint.
 7. Processor parses complaint id/due date and updates shipment + queue.
-8. Retry cron re-enqueues queued/retrying rows.
+8. Retry cron re-enqueues queued/retry_pending rows.
+9. Admin monitor (/api/admin/complaints/monitor) reports queue + circuit + complaint summary.
 
 ## Retry Logic
 - queue retryCount increments on failure.
 - nextRetryAt computed by fixed schedule.
+- retry status uses retry_pending (legacy retrying is normalized for reads).
 - after 6 attempts, queue row moves to manual_review.
 
 ## Failure Handling
-- Circuit open: queue remains queued/retrying and external submit is skipped.
+- Circuit open: queue remains queued/retry_pending and external submit is skipped.
 - Python/network errors: persist lastError and schedule retry.
 - Non-retryable repeated failures: manual_review.
 

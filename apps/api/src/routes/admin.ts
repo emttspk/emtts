@@ -15,6 +15,7 @@ import { startComplaintSlaJob } from "../jobs/complaint-sla.job.js";
 import { runComplaintRetryJob, startComplaintRetryJob } from "../jobs/complaint-retry.job.js";
 import { getComplaintCircuitState } from "../services/complaint-circuit.service.js";
 import { processComplaintQueueById } from "../processors/complaint.processor.js";
+import { normalizeComplaintQueueStatus } from "../services/complaint-queue.service.js";
 
 export const adminRouter = Router();
 
@@ -76,7 +77,77 @@ adminRouter.get("/complaints/queue", async (_req, res) => {
     take: 300,
   });
   const circuit = await getComplaintCircuitState();
-  return res.json({ success: true, circuit, queue });
+  const normalizedQueue = queue.map((row) => ({
+    ...row,
+    complaintStatus: normalizeComplaintQueueStatus(row.complaintStatus),
+  }));
+  return res.json({ success: true, circuit, queue: normalizedQueue });
+});
+
+adminRouter.get("/complaints/monitor", async (_req, res) => {
+  const [queueRows, circuit, complaints] = await Promise.all([
+    prisma.complaintQueue.findMany({
+      orderBy: { updatedAt: "desc" },
+      take: 500,
+    }),
+    getComplaintCircuitState(),
+    listComplaintRecords(),
+  ]);
+
+  const queue = queueRows.map((row) => ({
+    ...row,
+    complaintStatus: normalizeComplaintQueueStatus(row.complaintStatus),
+  }));
+
+  const now = Date.now();
+  const summary = {
+    queued: 0,
+    processing: 0,
+    retry_pending: 0,
+    manual_review: 0,
+    submitted: 0,
+    duplicate: 0,
+    open: 0,
+    resolved: 0,
+  };
+
+  for (const row of queue) {
+    const status = String(row.complaintStatus ?? "").trim().toLowerCase();
+    if (status === "queued") summary.queued += 1;
+    if (status === "processing") summary.processing += 1;
+    if (status === "retry_pending") summary.retry_pending += 1;
+    if (status === "manual_review") summary.manual_review += 1;
+    if (status === "submitted") summary.submitted += 1;
+    if (status === "duplicate") summary.duplicate += 1;
+  }
+
+  for (const complaint of complaints) {
+    const state = String(complaint.state ?? "").trim().toUpperCase().replace(/[\-_]+/g, " ");
+    if (["ACTIVE", "IN PROCESS", "OPEN", "PROCESSING"].includes(state)) {
+      summary.open += 1;
+    }
+    if (["RESOLVED", "CLOSED"].includes(state)) {
+      summary.resolved += 1;
+    }
+  }
+
+  const nextRetry = queue
+    .filter((row) => String(row.complaintStatus).toLowerCase() === "retry_pending" && row.nextRetryAt)
+    .map((row) => ({
+      id: row.id,
+      trackingId: row.trackingId,
+      nextRetryAt: row.nextRetryAt,
+      waitMs: Math.max(0, (row.nextRetryAt ? row.nextRetryAt.getTime() : now) - now),
+    }))
+    .sort((a, b) => a.waitMs - b.waitMs)[0] ?? null;
+
+  return res.json({
+    success: true,
+    circuit,
+    summary,
+    nextRetry,
+    queue,
+  });
 });
 
 adminRouter.post("/complaints/retry", async (_req, res) => {

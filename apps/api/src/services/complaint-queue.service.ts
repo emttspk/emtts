@@ -5,7 +5,17 @@ import { parseComplaintRecord } from "./complaint.service.js";
 export const COMPLAINT_RETRY_SCHEDULE_MINUTES = [5, 15, 30, 60, 180] as const;
 export const COMPLAINT_MAX_RETRIES = 6;
 
-const ACTIVE_QUEUE_STATUSES = ["queued", "processing", "retrying", "submitted", "manual_review"];
+export type ComplaintQueueStatus = "queued" | "processing" | "submitted" | "duplicate" | "retry_pending" | "manual_review" | "resolved" | "closed";
+
+const LEGACY_RETRY_STATUS = "retrying";
+const ACTIVE_QUEUE_STATUSES = ["queued", "processing", "retry_pending", "submitted", "manual_review", LEGACY_RETRY_STATUS] as const;
+
+export function normalizeComplaintQueueStatus(status: string | null | undefined): ComplaintQueueStatus | string {
+  const normalized = String(status ?? "").trim().toLowerCase();
+  if (!normalized) return "queued";
+  if (normalized === LEGACY_RETRY_STATUS) return "retry_pending";
+  return normalized;
+}
 
 export type ComplaintQueuePayload = {
   tracking_number: string;
@@ -129,7 +139,7 @@ export async function markComplaintQueueFailure(id: string, reason: string) {
   if (!row) return { status: "missing" as const, retryCount: 0 };
 
   const retryCount = Number(row.retryCount ?? 0) + 1;
-  const status = retryCount >= COMPLAINT_MAX_RETRIES ? "manual_review" : "retrying";
+  const status = retryCount >= COMPLAINT_MAX_RETRIES ? "manual_review" : "retry_pending";
   await prisma.complaintQueue.update({
     where: { id },
     data: {
@@ -146,7 +156,7 @@ export async function markComplaintQueueFailure(id: string, reason: string) {
 export async function getQueuedComplaintsForRetry(limit = 25) {
   return prisma.complaintQueue.findMany({
     where: {
-      complaintStatus: { in: ["queued", "retrying"] },
+      complaintStatus: { in: ["queued", "retry_pending", LEGACY_RETRY_STATUS] },
       OR: [
         { nextRetryAt: null },
         { nextRetryAt: { lte: new Date() } },
