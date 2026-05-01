@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { useOutletContext } from "react-router-dom";
-import { UploadCloud, AlertCircle, Eye, MapPin, PackageSearch, BadgeDollarSign, RefreshCw, Printer } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { UploadCloud, AlertCircle, Eye, MapPin, PackageSearch, BadgeDollarSign, RefreshCw, Printer, Package, CheckCircle2, Clock, TrendingUp, X, MessageSquare, Activity, ChevronRight, Truck, ArrowUpRight } from "lucide-react";
 import Card from "../components/Card";
 import SampleDownloadLink from "../components/SampleDownloadLink";
 import { cn } from "../lib/cn";
@@ -2097,85 +2098,60 @@ export default function BulkTracking() {
     <div className="w-full max-w-full overflow-x-hidden px-0 mx-0">
       <div className="grid gap-6">
         <div className="min-w-0 w-full flex-1 space-y-6">
-      <Card className="overflow-hidden p-8 md:p-10">
-        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+      <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+      <Card className="overflow-hidden border-0 bg-[linear-gradient(135deg,#0f172a_0%,#0b6b3a_60%,#134e2a_100%)] p-6 shadow-[0_24px_56px_rgba(11,107,58,0.28)] md:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="ui-kicker">Track Parcel</div>
-            <div className="mt-5 font-display text-4xl font-extrabold tracking-[-0.05em] text-slate-950 md:text-5xl">Tracking workspace</div>
-            <div className="mt-4 max-w-2xl text-base leading-8 text-slate-600">Upload in bulk, review statuses, and manage complaint actions from a compact operational view.</div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-200 backdrop-blur-sm">
+              <Activity className="h-3 w-3" />
+              Live Tracking Workspace
+            </div>
+            <div className="mt-3 font-display text-3xl font-extrabold tracking-[-0.04em] text-white md:text-4xl">Shipment Dashboard</div>
+            <div className="mt-2 max-w-lg text-sm leading-relaxed text-slate-300">Upload in bulk, review live statuses, and manage complaints from one unified workspace.</div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Card className="p-5">
-              <div className="text-sm text-slate-500">Current Upload</div>
-              <div className="mt-2 truncate text-lg font-semibold text-slate-900">{file?.name ?? "No file selected"}</div>
-            </Card>
-            <Card className="p-5">
-              <div className="text-sm text-slate-500">Job State</div>
-              <div className="mt-2 text-lg font-semibold text-slate-900">{statusLabel}</div>
-            </Card>
+          <div className="flex shrink-0 flex-wrap gap-3">
+            <div className="min-w-[130px] rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+              <div className="text-xs font-medium text-slate-300">Current File</div>
+              <div className="mt-1 truncate text-sm font-semibold text-white">{file?.name ?? "No file selected"}</div>
+            </div>
+            <div className="min-w-[110px] rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+              <div className="text-xs font-medium text-slate-300">Job State</div>
+              <div className="mt-1 text-sm font-semibold text-white">{statusLabel}</div>
+            </div>
           </div>
         </div>
       </Card>
+      </motion.div>
 
-      <Card className="p-3">
-        <div className="grid gap-3 sm:grid-cols-5">
-          <button
-            type="button"
-            onClick={() => {
-              setStatusFilter("ALL");
-              setPage(1);
-            }}
-            className="rounded-[24px] border border-slate-200 bg-white p-4 text-left transition hover:-translate-y-1 hover:shadow-card"
-          >
-            <div className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">Total</div>
-            <div className="mt-2 text-2xl font-semibold text-slate-900">{summaryStats.total.toLocaleString()}</div>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setStatusFilter("DELIVERED");
-              setPage(1);
-            }}
-            className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-4 text-left transition hover:-translate-y-1 hover:shadow-card"
-          >
-            <div className="text-xs font-medium uppercase tracking-[0.12em] text-emerald-700">Delivered</div>
-            <div className="mt-2 text-2xl font-semibold text-emerald-800">{summaryStats.delivered.toLocaleString()}</div>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setStatusFilter("PENDING");
-              setPage(1);
-            }}
-            className="rounded-[24px] border border-orange-200 bg-orange-50 p-4 text-left transition hover:-translate-y-1 hover:shadow-card"
-          >
-            <div className="text-xs font-medium uppercase tracking-[0.12em] text-orange-700">Pending</div>
-            <div className="mt-2 text-2xl font-semibold text-orange-800">{summaryStats.pending.toLocaleString()}</div>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setStatusFilter("RETURNED");
-              setPage(1);
-            }}
-            className="rounded-[24px] border border-red-200 bg-red-50 p-4 text-left transition hover:-translate-y-1 hover:shadow-card"
-          >
-            <div className="text-xs font-medium uppercase tracking-[0.12em] text-red-700">Returned</div>
-            <div className="mt-2 text-2xl font-semibold text-red-800">{summaryStats.returned.toLocaleString()}</div>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setStatusFilter("DELAYED");
-              setPage(1);
-            }}
-            className="rounded-[24px] border border-violet-200 bg-violet-50 p-4 text-left transition hover:-translate-y-1 hover:shadow-card"
-          >
-            <div className="text-xs font-medium uppercase tracking-[0.12em] text-violet-700">Delayed</div>
-            <div className="mt-2 text-2xl font-semibold text-violet-800">{summaryStats.delayed.toLocaleString()}</div>
-          </button>
-        </div>
-      </Card>
+      <div className="grid gap-3 sm:grid-cols-5">
+          {[
+            { filter: "ALL" as StatusCardFilter, label: "Total Shipments", value: summaryStats.total, icon: <Package className="h-5 w-5" />, color: "border-slate-200 bg-white", iconBg: "bg-slate-100 text-slate-600", textColor: "text-slate-900", subColor: "text-slate-500" },
+            { filter: "DELIVERED" as StatusCardFilter, label: "Delivered", value: summaryStats.delivered, icon: <CheckCircle2 className="h-5 w-5" />, color: "border-emerald-200 bg-emerald-50", iconBg: "bg-emerald-100 text-emerald-600", textColor: "text-emerald-900", subColor: "text-emerald-600" },
+            { filter: "PENDING" as StatusCardFilter, label: "Pending", value: summaryStats.pending, icon: <Clock className="h-5 w-5" />, color: "border-orange-200 bg-orange-50", iconBg: "bg-orange-100 text-orange-600", textColor: "text-orange-900", subColor: "text-orange-600" },
+            { filter: "RETURNED" as StatusCardFilter, label: "Returned", value: summaryStats.returned, icon: <ArrowUpRight className="h-5 w-5" />, color: "border-red-200 bg-red-50", iconBg: "bg-red-100 text-red-600", textColor: "text-red-900", subColor: "text-red-600" },
+            { filter: "DELAYED" as StatusCardFilter, label: "Delayed", value: summaryStats.delayed, icon: <TrendingUp className="h-5 w-5" />, color: "border-violet-200 bg-violet-50", iconBg: "bg-violet-100 text-violet-600", textColor: "text-violet-900", subColor: "text-violet-600" },
+          ].map((card, i) => (
+            <motion.button
+              key={card.filter}
+              type="button"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.32, delay: i * 0.06 }}
+              whileHover={{ y: -4, boxShadow: "0 16px 32px rgba(15,23,42,0.12)" }}
+              onClick={() => { setStatusFilter(card.filter); setPage(1); }}
+              className={cn("rounded-2xl border p-4 text-left transition-shadow duration-200", card.color)}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl", card.iconBg)}>
+                  {card.icon}
+                </div>
+                <ChevronRight className={cn("h-4 w-4 opacity-40 mt-1", card.subColor)} />
+              </div>
+              <div className={cn("mt-3 text-[11px] font-semibold uppercase tracking-[0.1em]", card.subColor)}>{card.label}</div>
+              <div className={cn("mt-1 text-2xl font-bold", card.textColor)}>{card.value.toLocaleString()}</div>
+            </motion.button>
+          ))}
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Card className="p-4">
@@ -2466,18 +2442,24 @@ export default function BulkTracking() {
         </Card>
       ) : null}
 
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}>
       <Card className="w-full overflow-hidden rounded-[24px] border-[#E5E7EB] bg-[linear-gradient(180deg,#ffffff,#f8fbff)] p-0 shadow-[0_22px_52px_rgba(15,23,42,0.12)]">
-        <div className="border-b border-[#E5E7EB] bg-white/85 px-4 py-4 backdrop-blur md:px-6 md:py-5">
+        <div className="border-b border-[#E5E7EB] bg-white/90 px-4 py-4 backdrop-blur-md md:px-6 md:py-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-xl font-semibold tracking-tight text-slate-900">All Tracked Shipments</div>
-              <div className="mt-1 text-sm text-slate-600">Search, status, history, and money-order details.</div>
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/10">
+                <Truck className="h-4 w-4 text-brand" />
+              </div>
+              <div>
+                <div className="text-base font-bold tracking-tight text-slate-900">All Tracked Shipments</div>
+                <div className="text-xs text-slate-500">Search, status, history, and money-order details.</div>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-            <label className="text-xs font-medium text-slate-600">
-              Records:
+            <label className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm">
+              <span>Records:</span>
               <select
-                className="ml-2 rounded-2xl border border-[#E5E7EB] bg-white px-2 py-1 text-xs"
+                className="border-0 bg-transparent text-xs font-semibold text-slate-700 outline-none"
                 value={pageSize}
                 onChange={(e) => {
                   setPageSize(Number(e.target.value) as 20 | 50 | 100);
@@ -2489,10 +2471,10 @@ export default function BulkTracking() {
                 <option value={100}>100</option>
               </select>
             </label>
-            <label className="text-xs font-medium text-slate-600">
-              Filter:
+            <label className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm">
+              <span>Status:</span>
               <select
-                className="ml-2 rounded-2xl border border-[#E5E7EB] bg-white px-2 py-1 text-xs"
+                className="border-0 bg-transparent text-xs font-semibold text-slate-700 outline-none"
                 value={statusFilter}
                 onChange={(e) => {
                   setStatusFilter(e.target.value as StatusCardFilter);
@@ -2509,23 +2491,25 @@ export default function BulkTracking() {
             {selectedIds.length > 0 && (
               <button
                 onClick={deleteSelected}
-                className="rounded-2xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 shadow-lg hover:bg-red-100"
+                className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 shadow-sm hover:bg-red-100 transition-colors"
               >
+                <X className="h-3 w-3" />
                 Delete {selectedIds.length}
               </button>
             )}
             <button
               onClick={refreshAllPending}
               disabled={refreshingPending}
-              className="inline-flex items-center gap-1 rounded-2xl border border-brand/30 bg-brand/10 px-3 py-1.5 text-xs font-medium text-brand shadow-lg hover:bg-brand/20 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-brand/30 bg-brand/10 px-3 py-1.5 text-xs font-semibold text-brand shadow-sm hover:bg-brand/20 transition-colors disabled:opacity-60"
             >
               <RefreshCw className={cn("h-3.5 w-3.5", refreshingPending && "animate-spin")} />
-              Refresh All Pending
+              Refresh Pending
             </button>
             <button
               onClick={refreshShipments}
-              className="rounded-2xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-lg hover:bg-[#F8FAF9]"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-[#F8FAF9] transition-colors"
             >
+              <RefreshCw className="h-3.5 w-3.5" />
               Refresh
             </button>
           </div>
@@ -2685,40 +2669,63 @@ export default function BulkTracking() {
                       </div>
                     </td>
                     <td className="px-4 py-3.5 align-middle whitespace-nowrap">
-                      {lifecycle.exists ? (
-                        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-left text-[11px] text-emerald-900">
-                          <div className="font-semibold">Complaint ID: {lifecycle.complaintId}</div>
-                          <div className="mt-0.5">Due Date: {lifecycle.dueDateText || "-"}</div>
-                          <div className="mt-0.5">Status: {lifecycle.stateLabel}</div>
-                          {!complaintInProcess ? (
-                            <button
-                              type="button"
-                              onClick={() => openComplaintModal(row)}
-                              disabled={!isComplaintEnabled}
-                              className={cn(
-                                "mt-1 rounded px-2 py-1 text-[10px] font-semibold ring-1 ring-inset transition-all",
-                                isComplaintEnabled
-                                  ? "bg-white text-emerald-800 ring-emerald-300 hover:bg-emerald-100"
-                                  : "cursor-not-allowed bg-gray-50 text-gray-400 ring-gray-200"
-                              )}
-                            >
-                              New Complaint
-                            </button>
-                          ) : (
-                            <div className="mt-1 inline-flex rounded bg-amber-100 px-2 py-1 text-[10px] font-semibold text-amber-800">Complaint In Process</div>
-                          )}
-                        </div>
-                      ) : (
+                      {lifecycle.exists ? (() => {
+                        const sl = lifecycle.stateLabel.toUpperCase();
+                        const stateStyle = sl === "ACTIVE" ? "border-blue-200 bg-blue-50 text-blue-900"
+                          : sl === "IN PROCESS" ? "border-amber-200 bg-amber-50 text-amber-900"
+                          : sl === "RESOLVED" ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                          : sl === "CLOSED" ? "border-slate-200 bg-slate-50 text-slate-700"
+                          : sl === "REJECTED" ? "border-red-200 bg-red-50 text-red-900"
+                          : "border-emerald-200 bg-emerald-50 text-emerald-900";
+                        const idBadge = sl === "ACTIVE" ? "text-blue-600"
+                          : sl === "IN PROCESS" ? "text-amber-700"
+                          : sl === "RESOLVED" ? "text-emerald-700"
+                          : sl === "CLOSED" ? "text-slate-500"
+                          : sl === "REJECTED" ? "text-red-600"
+                          : "text-emerald-700";
+                        return (
+                          <div className={cn("rounded-xl border px-2.5 py-2 text-left text-[11px]", stateStyle)}>
+                            <div className={cn("font-semibold", idBadge)}>{lifecycle.complaintId || "Complaint"}</div>
+                            <div className="mt-0.5 opacity-75">Due: {lifecycle.dueDateText || "-"}</div>
+                            <div className="mt-0.5">
+                              <span className={cn("inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ring-1 ring-inset", stateStyle)}>
+                                {lifecycle.stateLabel}
+                              </span>
+                            </div>
+                            {!complaintInProcess ? (
+                              <button
+                                type="button"
+                                onClick={() => openComplaintModal(row)}
+                                disabled={!isComplaintEnabled}
+                                className={cn(
+                                  "mt-1.5 rounded px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset transition-all",
+                                  isComplaintEnabled
+                                    ? "bg-white text-emerald-800 ring-emerald-300 hover:bg-emerald-100"
+                                    : "cursor-not-allowed bg-gray-50 text-gray-400 ring-gray-200"
+                                )}
+                              >
+                                New Complaint
+                              </button>
+                            ) : (
+                              <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
+                                <Clock className="h-2.5 w-2.5" />
+                                In Process
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })() : (
                         <button
                           disabled={!isComplaintEnabled}
                           onClick={() => openComplaintModal(row)}
                           className={cn(
-                            "rounded px-2.5 py-1 text-xs font-medium shadow-lg ring-1 ring-inset transition-all",
+                            "inline-flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-semibold shadow-sm ring-1 ring-inset transition-all",
                             isComplaintEnabled
-                              ? "bg-red-50 text-red-700 ring-red-600/10 hover:bg-red-100 hover:text-red-800"
+                              ? "bg-red-50 text-red-700 ring-red-200 hover:bg-red-100"
                               : "cursor-not-allowed bg-gray-50 text-gray-400 ring-gray-200"
                           )}
                         >
+                          <MessageSquare className="h-3 w-3" />
                           Complaint
                         </button>
                       )}
@@ -2736,29 +2743,30 @@ export default function BulkTracking() {
             </tbody>
           </table>
         </div>
-          <div className="mt-4 flex items-center justify-between text-xs text-slate-600">
-            <div>
-              Page {page} of {totalPages} | Showing {paginatedShipments.length} of {totalFilteredShipments} filtered | Total {totalShipments}
+          <div className="flex items-center justify-between border-t border-[#E5E7EB] px-4 py-3 text-xs text-slate-600">
+            <div className="text-slate-500">
+              Page <span className="font-semibold text-slate-700">{page}</span> of <span className="font-semibold text-slate-700">{totalPages}</span> &nbsp;·&nbsp; <span className="font-semibold text-slate-700">{paginatedShipments.length}</span> of <span className="font-semibold text-slate-700">{totalFilteredShipments}</span> filtered &nbsp;·&nbsp; <span className="font-semibold text-slate-700">{totalShipments}</span> total
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               <button
-                className="rounded border border-[#E5E7EB] bg-white px-2 py-1 disabled:opacity-50"
+                className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-1 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
                 disabled={page <= 1}
                 onClick={() => setPage((prev) => Math.max(1, prev - 1))}
               >
-                Previous
+                ← Previous
               </button>
               <button
-                className="rounded border border-[#E5E7EB] bg-white px-2 py-1 disabled:opacity-50"
+                className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-1 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
                 disabled={page >= totalPages}
                 onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
               >
-                Next
+                Next →
               </button>
             </div>
           </div>
         </div>
       </Card>
+      </motion.div>
 
       {isAdmin ? <Card className="border-[#E5E7EB] p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -3335,77 +3343,140 @@ export default function BulkTracking() {
         </div>
       ) : null}
 
+      <AnimatePresence>
       {selectedTracking && trackingDetailData ? (
-        <div className="modal-wrapper bg-slate-950/55 p-4">
-          <div id="tracking-popup-print-root" className="modal-content w-full max-w-4xl rounded-2xl bg-white shadow-2xl">
-            <div className="modal-header flex items-center justify-between border-b px-6 py-4">
-              <div>
-                <div className="text-lg font-semibold text-slate-900">Tracking Detail</div>
-                <div className="text-xs text-slate-500">{selectedTracking.shipment.trackingNumber}</div>
+        <>
+          {/* Backdrop */}
+          <motion.div
+            key="detail-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-sm"
+            onClick={() => setSelectedTracking(null)}
+          />
+          {/* Right-side panel (desktop) / bottom drawer (mobile) */}
+          <motion.div
+            key="detail-panel"
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 28, stiffness: 280 }}
+            className="fixed right-0 top-0 z-50 flex h-full w-full flex-col bg-white shadow-[−20px_0_60px_rgba(15,23,42,0.18)] sm:w-[420px] md:w-[480px]"
+          >
+          <div id="tracking-popup-print-root" className="flex h-full flex-col">
+            {/* Panel Header */}
+            <div className="modal-header flex items-center justify-between border-b border-[#E5E7EB] bg-white px-5 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/10">
+                  <PackageSearch className="h-4 w-4 text-brand" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-slate-900">Shipment Detail</div>
+                  <div className="font-mono text-xs text-slate-500">{selectedTracking.shipment.trackingNumber}</div>
+                </div>
               </div>
               <div className="no-print flex items-center gap-2">
                 <button
                   type="button"
                   onClick={printShipmentPdf}
-                  className="inline-flex items-center gap-1 rounded-2xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-[#F8FAF9]"
+                  className="inline-flex items-center gap-1 rounded-xl border border-[#E5E7EB] bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-[#F8FAF9] transition-colors"
                 >
-                  <Printer className="h-3.5 w-3.5" /> Print PDF
+                  <Printer className="h-3.5 w-3.5" /> Print
                 </button>
                 <button
                   type="button"
                   onClick={sendToCustomerWhatsapp}
-                  className="inline-flex items-center gap-1 rounded-2xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-[#F8FAF9]"
+                  className="inline-flex items-center gap-1 rounded-xl border border-[#E5E7EB] bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-[#F8FAF9] transition-colors"
                 >
-                  Send to Customer
+                  WhatsApp
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectedTracking(null)}
-                  className="rounded-2xl bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-dark"
+                  className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600 transition-colors"
+                  title="Close"
                 >
-                  Close
+                  <X className="h-4 w-4" />
                 </button>
               </div>
             </div>
 
-            <div className="p-6">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Tracking ID</div><div className="mt-1 font-mono text-sm font-semibold text-slate-900">{selectedTracking.shipment.trackingNumber}</div></div>
-                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Booking Date</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.bookingDate}</div></div>
-                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Last Update</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.lastUpdate}</div></div>
-                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Status</div><div className={cn("mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ring-1", statusBadgeClass(selectedTracking.final_status))}>{normalizeStatus(selectedTracking.final_status)}</div></div>
-                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">City / Destination</div><div className="mt-1 text-sm font-semibold text-slate-900">{preferredCity(selectedTracking.shipment) || trackingDetailData.fields.consigneeCity || "-"}</div></div>
-                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">MO Value</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.moValue != null ? `Rs ${trackingDetailData.moValue.toLocaleString()}` : "-"}</div></div>
-                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Booking City</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.bookingOffice}</div></div>
-                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Delivery City</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.deliveryOffice}</div></div>
-                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Consignee Name</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.consigneeName}</div></div>
-                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Consignee Address</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.consigneeAddress}</div></div>
-                <div className="rounded-2xl border border-[#E5E7EB] p-3"><div className="text-[11px] text-slate-500">Consignee Phone</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.consigneePhone}</div></div>
-                <div className="rounded-2xl border border-[#E5E7EB] p-3 sm:col-span-2"><div className="text-[11px] text-slate-500">MO Issued Number</div><div className="mt-1 text-sm font-semibold text-slate-900">{trackingDetailData.moIssued ?? "-"}</div></div>
+            <div className="flex-1 overflow-y-auto p-5">
+              {/* Status banner */}
+              <div className={cn("mb-4 flex items-center justify-between rounded-2xl px-4 py-3", statusBadgeClass(selectedTracking.final_status).replace("ring-1", "").replace("ring-inset", ""))}>
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-wider opacity-70">Current Status</div>
+                  <div className={cn("mt-0.5 text-base font-bold", statusBadgeClass(selectedTracking.final_status))}>{normalizeStatus(selectedTracking.final_status)}</div>
+                </div>
+                <div className={cn("inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 ring-inset", statusBadgeClass(selectedTracking.final_status))}>
+                  {normalizeStatus(selectedTracking.final_status)}
+                </div>
               </div>
 
-              <div className="mt-6">
-                <div className="text-sm font-semibold text-slate-900">Status History</div>
-                <div className="mt-3 space-y-3">
+              {/* Quick info grid */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Tracking ID</div><div className="mt-1 font-mono text-xs font-bold text-slate-900">{selectedTracking.shipment.trackingNumber}</div></div>
+                <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Booking Date</div><div className="mt-1 text-xs font-semibold text-slate-900">{trackingDetailData.bookingDate}</div></div>
+                <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Last Update</div><div className="mt-1 text-xs font-semibold text-slate-900">{trackingDetailData.lastUpdate}</div></div>
+                <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">MO Value</div><div className="mt-1 text-xs font-semibold text-emerald-700">{trackingDetailData.moValue != null ? `Rs ${trackingDetailData.moValue.toLocaleString()}` : "-"}</div></div>
+                <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Origin City</div><div className="mt-1 text-xs font-semibold text-slate-900">{trackingDetailData.bookingOffice}</div></div>
+                <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Delivery City</div><div className="mt-1 text-xs font-semibold text-slate-900">{trackingDetailData.deliveryOffice}</div></div>
+              </div>
+
+              {/* Consignee */}
+              <div className="mt-4 rounded-xl border border-[#E5E7EB] p-3">
+                <div className="text-xs font-bold text-slate-700">Consignee</div>
+                <div className="mt-2 space-y-1 text-xs text-slate-600">
+                  <div><span className="font-semibold text-slate-800">{trackingDetailData.consigneeName || "-"}</span></div>
+                  <div>{trackingDetailData.consigneeAddress || "-"}</div>
+                  {trackingDetailData.consigneePhone ? <div className="font-mono">{trackingDetailData.consigneePhone}</div> : null}
+                </div>
+              </div>
+
+              {/* MO Number */}
+              {trackingDetailData.moIssued ? (
+                <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">Money Order Number</div>
+                  <div className="mt-1 font-mono text-xs font-bold text-emerald-900">{trackingDetailData.moIssued}</div>
+                </div>
+              ) : null}
+
+              {/* Status Timeline */}
+              <div className="mt-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-brand" />
+                  <div className="text-sm font-bold text-slate-900">Status Timeline</div>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{trackingDetailData.timeline.length}</span>
+                </div>
+                <div className="relative space-y-0">
+                  <div className="pointer-events-none absolute bottom-2 left-[7px] top-2 w-[2px] bg-gradient-to-b from-brand/60 to-brand/10" />
                   {trackingDetailData.timeline.length > 0 ? (
                     trackingDetailData.timeline.map((item, idx) => (
-                      <div key={`${item.date}-${item.time}-${idx}`} className="flex gap-3 rounded-2xl border border-[#E5E7EB] p-3">
-                        <div className="mt-1 h-2.5 w-2.5 rounded-full bg-brand" />
-                        <div className="min-w-0 flex-1">
+                      <div key={`${item.date}-${item.time}-${idx}`} className="relative pl-6 pb-3 last:pb-0">
+                        <span className={cn("absolute left-0 top-1.5 h-3.5 w-3.5 rounded-full border-2 border-white shadow", idx === 0 ? "bg-brand" : "bg-slate-300")} />
+                        <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 shadow-sm">
                           <div className="text-xs font-semibold text-slate-800">{item.description || "Update"}</div>
-                          <div className="mt-0.5 text-[11px] text-slate-500">{[item.date, item.time, item.location].filter(Boolean).join(" | ") || "No timestamp"}</div>
+                          <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
+                            {item.date ? <span>{item.date}</span> : null}
+                            {item.time ? <span>{item.time}</span> : null}
+                            {item.location ? <span className="flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{item.location}</span> : null}
+                          </div>
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="rounded-2xl border border-[#E5E7EB] p-3 text-xs text-slate-500">No status history available.</div>
+                    <div className="rounded-xl border border-[#E5E7EB] p-3 text-xs text-slate-500">No status history available.</div>
                   )}
                 </div>
               </div>
             </div>
           </div>
-        </div>
+          </motion.div>
+        </>
       ) : null}
+      </AnimatePresence>
 
       <div id="print-area" aria-hidden="true" />
     </>
