@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { useOutletContext } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { UploadCloud, AlertCircle, Eye, MapPin, PackageSearch, BadgeDollarSign, RefreshCw, Printer, Package, CheckCircle2, Clock, TrendingUp, X, MessageSquare, Activity, ChevronRight, Truck, ArrowUpRight } from "lucide-react";
+import { UploadCloud, AlertCircle, Eye, MapPin, PackageSearch, BadgeDollarSign, RefreshCw, Printer, Package, CheckCircle2, Clock, TrendingUp, X, MessageSquare, Activity, ChevronRight, Truck, ArrowUpRight, Search } from "lucide-react";
 import Card from "../components/Card";
 import SampleDownloadLink from "../components/SampleDownloadLink";
 import { cn } from "../lib/cn";
@@ -727,6 +727,8 @@ export default function BulkTracking() {
   const [shipmentStats, setShipmentStats] = useState<ShipmentStats | null>(null);
   const [pageSize, setPageSize] = useState<20 | 50 | 100>(20);
   const [statusFilter, setStatusFilter] = useState<ExtendedStatusFilter>("ALL");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const [totalShipments, setTotalShipments] = useState(0);
   const [auditRows, setAuditRows] = useState<CycleAuditRecord[]>([]);
@@ -1562,14 +1564,103 @@ export default function BulkTracking() {
     }
 
     if (statusFilter === "COMPLAINT_CLOSED") {
-      return filtered.filter((record) => {
+      const complaintClosedRows = filtered.filter((record) => {
         const lifecycle = parseComplaintLifecycle(record.shipment);
         return lifecycle.exists && ["RESOLVED", "CLOSED", "REJECTED"].includes(lifecycle.state);
       });
+      if (!searchTerm.trim()) return complaintClosedRows;
+      const q = searchTerm.trim().toUpperCase();
+      return complaintClosedRows.filter((record) => {
+        const shipment = record.shipment;
+        const lifecycle = parseComplaintLifecycle(shipment);
+        const city = preferredCity(shipment);
+        const status = normalizeStatus(record.final_status);
+        const haystack = [
+          shipment.trackingNumber,
+          city,
+          status,
+          lifecycle.complaintId,
+          lifecycle.stateLabel,
+          lifecycle.dueDateText,
+        ].join(" ").toUpperCase();
+        return haystack.includes(q);
+      });
     }
 
-    return filtered;
-  }, [finalTrackingData, statusFilter]);
+    if (!searchTerm.trim()) return filtered;
+    const q = searchTerm.trim().toUpperCase();
+    return filtered.filter((record) => {
+      const shipment = record.shipment;
+      const lifecycle = parseComplaintLifecycle(shipment);
+      const city = preferredCity(shipment);
+      const status = normalizeStatus(record.final_status);
+      const moNumber = extractMoReference(shipment.rawJson, shipment.moIssued ?? null);
+      const haystack = [
+        shipment.trackingNumber,
+        city,
+        status,
+        moNumber,
+        lifecycle.complaintId,
+      ].join(" ").toUpperCase();
+      return haystack.includes(q);
+    });
+  }, [finalTrackingData, statusFilter, searchTerm]);
+
+  const applyTrackingSearch = useCallback(() => {
+    setSearchTerm(searchInput.trim());
+    setPage(1);
+  }, [searchInput]);
+
+  const exportFilteredTrackingCsv = useCallback(() => {
+    const escapeCsv = (val: unknown) => {
+      const s = String(val ?? "");
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+
+    const headers = [
+      "Tracking Number",
+      "Updated At",
+      "Status",
+      "City",
+      "Money Order No",
+      "Money Order Amount",
+      "Complaint ID",
+      "Complaint State",
+      "Complaint Due Date",
+    ];
+
+    const rows = filteredShipments.map((record) => {
+      const shipment = record.shipment;
+      const lifecycle = parseComplaintLifecycle(shipment);
+      const moNumber = extractMoReference(shipment.rawJson, shipment.moIssued ?? null);
+      const moAmount = extractMoValue(shipment.rawJson, shipment.moValue ?? null);
+      return [
+        shipment.trackingNumber,
+        new Date(shipment.updatedAt).toISOString(),
+        normalizeStatus(record.final_status),
+        preferredCity(shipment),
+        moNumber,
+        moAmount != null ? moAmount : "",
+        lifecycle.complaintId,
+        lifecycle.stateLabel,
+        lifecycle.dueDateText,
+      ];
+    });
+
+    const csv = [headers, ...rows]
+      .map((line) => line.map((cell) => escapeCsv(cell)).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `tracking-filtered-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [filteredShipments]);
 
   const totalFilteredShipments = filteredShipments.length;
   const totalPages = Math.max(1, Math.ceil(totalFilteredShipments / pageSize));
@@ -2200,74 +2291,7 @@ export default function BulkTracking() {
           ))}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Card className="p-4">
-          <div className="text-sm font-semibold text-slate-900">Status Distribution</div>
-          <div className="mt-1 text-xs text-slate-500">Delivered | Pending | Returned | Delayed</div>
-          <div className="mt-3 flex items-center gap-5">
-            <svg viewBox="0 0 36 36" className="h-32 w-32 shrink-0">
-              {pieSlices.arcs.map((arc) => {
-                if (arc.value <= 0) return null;
-                const start = arc.start * 360;
-                const end = arc.end * 360;
-                const largeArc = end - start > 180 ? 1 : 0;
-                const r = 15.915;
-                const startX = 18 + r * Math.cos((Math.PI / 180) * (start - 90));
-                const startY = 18 + r * Math.sin((Math.PI / 180) * (start - 90));
-                const endX = 18 + r * Math.cos((Math.PI / 180) * (end - 90));
-                const endY = 18 + r * Math.sin((Math.PI / 180) * (end - 90));
-                return (
-                  <path
-                    key={arc.label}
-                    d={`M 18 18 L ${startX} ${startY} A ${r} ${r} 0 ${largeArc} 1 ${endX} ${endY} Z`}
-                    fill={arc.color}
-                    className="cursor-pointer"
-                    onMouseEnter={() => setHoveredPieLabel(arc.label)}
-                    onMouseLeave={() => setHoveredPieLabel(null)}
-                  />
-                );
-              })}
-              <circle cx="18" cy="18" r="8" fill="white" />
-            </svg>
-            <div className="space-y-2 text-xs text-slate-700">
-              {pieSlices.arcs.map((arc) => (
-                <div
-                  key={arc.label}
-                  className="flex items-center gap-2"
-                  onMouseEnter={() => setHoveredPieLabel(arc.label)}
-                  onMouseLeave={() => setHoveredPieLabel(null)}
-                >
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: arc.color }} />
-                  <span className="font-medium">{arc.label}:</span>
-                  <span className="font-semibold text-slate-900">{arc.value}</span>
-                </div>
-              ))}
-              <div className="rounded-md border border-[#E5E7EB] bg-[#F8FAF9] px-2 py-1 text-[11px] text-slate-700">
-                {hoveredPie ? `${hoveredPie.label}: ${hoveredPie.value}` : "Hover a slice: Delivered / Pending / Returned / Delayed"}
-              </div>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="text-sm font-semibold text-slate-900">Monthly Tracking Volume</div>
-          <div className="mt-1 text-xs text-slate-500">Last 6 months (oldest -&gt; newest)</div>
-          <div className="mt-4 flex h-32 items-end gap-2">
-            {monthlyBars.values.map((item) => {
-              const h = Math.max(6, Math.round((item.value / monthlyBars.max) * 112));
-              return (
-                <div key={item.key} className="flex flex-1 flex-col items-center gap-1">
-                  <div className="text-[10px] font-medium text-slate-700">{item.value > 0 ? item.value : ""}</div>
-                  <div
-                    className="w-full rounded-t-md bg-gradient-to-t from-brand to-emerald-400"
-                    style={{ height: `${h}px` }}
-                  />
-                  <div className="text-[10px] font-medium text-slate-500">{item.label}</div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      </div>
+      {null}
 
       {uiState === "processing" && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-brand px-6 py-3 text-white shadow-lg transition-all duration-300">
@@ -2502,7 +2526,27 @@ export default function BulkTracking() {
                 <div className="text-xs text-slate-500">Search, status, history, and money-order details.</div>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:flex-wrap md:items-center">
+            <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto">
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") applyTrackingSearch();
+                }}
+                placeholder="Search tracking, city, status, complaint..."
+                className="w-full rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-brand sm:min-w-[280px]"
+              />
+              <button
+                type="button"
+                onClick={applyTrackingSearch}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-brand-dark transition-colors"
+              >
+                <Search className="h-3.5 w-3.5" />
+                Search
+              </button>
+            </div>
             <label className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm">
               <span>Records:</span>
               <select
@@ -2559,6 +2603,13 @@ export default function BulkTracking() {
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Refresh
+            </button>
+            <button
+              type="button"
+              onClick={exportFilteredTrackingCsv}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-[#F8FAF9] transition-colors"
+            >
+              Export
             </button>
           </div>
         </div>
