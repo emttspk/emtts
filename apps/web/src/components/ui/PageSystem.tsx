@@ -4,8 +4,16 @@ import Card from "../Card";
 
 type Classy = { className?: string; children: ReactNode };
 
+function normalizeShellClassName(className?: string) {
+  if (!className) return undefined;
+  return className
+    .split(/\s+/)
+    .filter((token) => token && !/^pt-/.test(token) && !/^mt-/.test(token) && !/^py-/.test(token) && !/^space-y-/.test(token))
+    .join(" ");
+}
+
 export function PageShell(props: Classy) {
-  return <div className={cn("w-full max-w-none px-4 pt-3 pb-4 text-slate-900", props.className)}>{props.children}</div>;
+  return <section className={cn("w-full min-w-0 text-slate-900", normalizeShellClassName(props.className))}>{props.children}</section>;
 }
 
 export function SurfaceCard(props: Classy) {

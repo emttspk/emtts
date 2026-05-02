@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Bell, ChevronDown, LogOut, Menu, Search } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { clearSession } from "../lib/auth";
 import { cn } from "../lib/cn";
@@ -16,6 +16,8 @@ function initials(email?: string) {
 export default function Topbar(props: {
   title: string;
   setIsSidebarOpen: (v: boolean) => void;
+  isSidebarCollapsed?: boolean;
+  setIsSidebarCollapsed?: (v: boolean) => void;
   userEmail?: string;
 }) {
   const navigate = useNavigate();
@@ -25,12 +27,21 @@ export default function Topbar(props: {
   const badge = useMemo(() => initials(props.userEmail), [props.userEmail]);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-white/60 bg-white/70 backdrop-blur-2xl">
-      <div className="flex min-h-14 w-full max-w-none flex-wrap items-center justify-between gap-3 px-4 py-2 md:px-6">
+    <header className="sticky top-0 z-30 h-[72px] shrink-0 border-b border-white/60 bg-white/80 backdrop-blur-2xl">
+      <div className="flex h-full w-full items-center justify-between gap-3 px-4 md:px-6">
         <div className="flex items-center gap-3">
           <button onClick={() => props.setIsSidebarOpen(true)} className="btn-secondary px-2.5 py-2 md:hidden">
             <Menu className="h-5 w-5" />
           </button>
+          {props.setIsSidebarCollapsed ? (
+            <button
+              onClick={() => props.setIsSidebarCollapsed?.(!props.isSidebarCollapsed)}
+              className="btn-secondary hidden p-2 lg:inline-flex"
+              title={props.isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {props.isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </button>
+          ) : null}
           <div>
             <div className="font-display text-xl font-extrabold tracking-[-0.03em] text-gray-900 md:text-2xl">{props.title}</div>
           </div>
