@@ -5,7 +5,7 @@ import Card from "../Card";
 type Classy = { className?: string; children: ReactNode };
 
 export function PageShell(props: Classy) {
-  return <div className={cn("w-full max-w-none px-4 py-4 text-slate-900", props.className)}>{props.children}</div>;
+  return <div className={cn("w-full max-w-none px-4 pt-3 pb-4 text-slate-900", props.className)}>{props.children}</div>;
 }
 
 export function SurfaceCard(props: Classy) {

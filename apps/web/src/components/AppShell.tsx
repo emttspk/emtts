@@ -49,7 +49,7 @@ export default function AppShell() {
         <main className="relative flex-1 overflow-x-hidden overflow-y-visible bg-[#0B1220]">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(16,185,129,0.14),_transparent_24%)]" />
           <div className="pointer-events-none absolute inset-0 bg-hero-grid bg-[size:34px_34px] opacity-[0.08]" />
-          <div className="w-full min-w-0 flex-1 max-w-none px-3 py-3 md:px-4 md:py-4">
+          <div className="w-full min-w-0 flex-1 max-w-none px-3 pt-0 pb-3 md:px-4 md:pt-0 md:pb-4">
             {loading ? (
               <div className="grid gap-4">
                 <Card className="p-6">
