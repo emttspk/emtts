@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, type ReactNode } from "react";
 import { useDropzone } from "react-dropzone";
 import { UploadCloud } from "lucide-react";
 import Card from "./Card";
@@ -7,6 +7,7 @@ import { cn } from "../lib/cn";
 export default function UploadDropzone(props: {
   title?: string;
   subtitle?: string;
+  headerAction?: ReactNode;
   file: File | null;
   onFileChange: (file: File | null) => void;
   statusLabel: string;
@@ -36,10 +37,15 @@ export default function UploadDropzone(props: {
   return (
     <Card>
       <div className="border-b px-6 py-4">
-        <div className="text-xl font-medium text-gray-900">{props.title ?? "Bulk Tracking"}</div>
-        <div className="mt-1 text-sm text-gray-600">
-          {props.subtitle ??
-            "Upload CSV/XLS/XLSX using the strict shared sample columns."}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="text-xl font-medium text-gray-900">{props.title ?? "Bulk Tracking"}</div>
+            <div className="mt-1 text-sm text-gray-600">
+              {props.subtitle ??
+                "Upload CSV/XLS/XLSX using the strict shared sample columns."}
+            </div>
+          </div>
+          {props.headerAction ? <div className="shrink-0">{props.headerAction}</div> : null}
         </div>
       </div>
 

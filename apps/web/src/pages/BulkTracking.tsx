@@ -2642,7 +2642,7 @@ export default function BulkTracking() {
       <div className="grid gap-3">
         <div className="min-w-0 w-full flex-1 space-y-3">
       <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-      <Card className="overflow-hidden border border-[#E5E7EB] bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_56%,#eefbf3_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.08)] md:p-5">
+      <Card className="w-full min-w-0 overflow-hidden border border-[#E5E7EB] bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_56%,#eefbf3_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.08)] md:p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="min-w-0">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
@@ -2921,7 +2921,7 @@ export default function BulkTracking() {
       ) : null}
 
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}>
-      <Card className="w-full overflow-hidden rounded-[24px] border border-[#E5E7EB] bg-white p-0 shadow-sm">
+      <Card className="w-full min-w-0 overflow-hidden rounded-[24px] border border-[#E5E7EB] bg-white p-0 shadow-sm">
         <div className="border-b border-[#E5E7EB] bg-white/90 px-4 py-3 backdrop-blur-md md:px-4 md:py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
