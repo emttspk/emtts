@@ -2604,12 +2604,12 @@ export default function BulkTracking() {
 
   return (
     <>
-    <div className="w-full max-w-full overflow-x-hidden px-0 mx-0">
+    <div className="w-full max-w-none overflow-x-hidden px-4 md:px-4 mx-0">
       {complaintToast ? (
         <div className="sticky top-3 z-30 mb-3 px-2 sm:px-0">
           <div
             className={cn(
-              "mx-auto flex w-full max-w-4xl items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm shadow-lg backdrop-blur",
+              "flex w-full max-w-none items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm shadow-lg backdrop-blur",
               complaintToast.kind === "error"
                 ? "border-red-200 bg-red-50 text-red-700"
                 : complaintToast.kind === "warning"
@@ -2649,7 +2649,7 @@ export default function BulkTracking() {
               Tracking Workspace
             </div>
             <div className="mt-2 font-display text-2xl font-extrabold tracking-[-0.03em] text-[#0F172A] md:text-3xl">All Tracked Shipments</div>
-            <div className="mt-1 max-w-lg text-sm leading-relaxed text-slate-600">Real-time visibility into every shipment.</div>
+            <div className="mt-1 text-sm leading-relaxed text-slate-600">Real-time visibility into every shipment.</div>
           </div>
           <div className="flex shrink-0 items-center gap-3">
             <div className="min-w-[130px] rounded-2xl border border-[#E5E7EB] bg-white p-3">
@@ -2700,7 +2700,7 @@ export default function BulkTracking() {
 
       {uiState === "processing" && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-brand px-6 py-3 text-white shadow-lg transition-all duration-300">
-          <div className="mx-auto flex max-w-6xl items-center justify-between">
+          <div className="flex w-full max-w-none items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="h-2 w-2 animate-pulse rounded-full bg-white" />
               <span className="font-medium">Tracking in progress...</span>
@@ -2748,7 +2748,7 @@ export default function BulkTracking() {
                 </button>
               </div>
 
-              <div className="mt-4 w-full max-w-xl text-xs text-gray-600">
+              <div className="mt-4 w-full text-xs text-gray-600">
                 <div className="flex items-center justify-between">
                   <span>{file ? file.name : "No file selected"}</span>
                   <span className="font-medium text-[#0F172A]">{statusLabel}</span>
@@ -2870,7 +2870,7 @@ export default function BulkTracking() {
             </div>
           </div>
 
-          <div className="mt-4 overflow-x-auto rounded-2xl border bg-white">
+          <div className="mt-4 overflow-x-hidden rounded-2xl border bg-white">
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
@@ -3022,7 +3022,7 @@ export default function BulkTracking() {
         {refreshSummary ? <div className="border-t border-[#E5E7EB] bg-[#F8FAF9] px-4 py-2 text-xs text-[#6B7280]">{refreshSummary}</div> : null}
         </div>
         <div className="p-0">
-          <div className="w-full max-h-[72vh] overflow-x-auto overflow-y-auto rounded-[20px] border border-[#E5E7EB] bg-white">
+          <div className="w-full max-h-[72vh] overflow-x-hidden overflow-y-auto rounded-[20px] border border-[#E5E7EB] bg-white">
             <table className="w-full table-fixed text-[12px] leading-4">
               <thead className="sticky top-0 z-10 border-b border-[#E5E7EB] bg-[#F8FAFC]">
               <tr>
@@ -3197,7 +3197,7 @@ export default function BulkTracking() {
                           ? formatProcessingElapsed(queueSnapshot?.updatedAt, retryCountdownNow)
                           : "";
                         return (
-                          <div className="w-full max-w-[210px] rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-2 text-left text-[10px] shadow-sm">
+                          <div className="w-full rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-2 text-left text-[10px] shadow-sm">
                             <div className="truncate font-semibold text-[#111827]" title={complaintId}>{complaintId}</div>
                             <div className="mt-0.5 text-[#6B7280]">Due: {dueDate}</div>
                             <div className="mt-0.5">
@@ -3238,7 +3238,7 @@ export default function BulkTracking() {
                           disabled={!isComplaintEnabled}
                           onClick={() => openComplaintModal(row)}
                           className={cn(
-                            "inline-flex w-full max-w-[210px] items-center justify-center gap-1 rounded-xl px-2 py-1 text-[11px] font-semibold shadow-sm ring-1 ring-inset transition-all",
+                            "inline-flex w-full items-center justify-center gap-1 rounded-xl px-2 py-1 text-[11px] font-semibold shadow-sm ring-1 ring-inset transition-all",
                             isComplaintEnabled
                               ? "bg-red-50 text-red-700 ring-red-200 hover:bg-red-100"
                               : "cursor-not-allowed bg-gray-50 text-gray-400 ring-gray-200"
@@ -3341,7 +3341,7 @@ export default function BulkTracking() {
         {auditSummary ? <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{auditSummary}</div> : null}
         {auditError ? <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{auditError}</div> : null}
         {auditRows.length > 0 ? (
-          <div className="mt-4 overflow-x-auto rounded-2xl border border-[#E5E7EB] bg-white">
+          <div className="mt-4 overflow-x-hidden rounded-2xl border border-[#E5E7EB] bg-white">
             <table className="min-w-[1200px] text-xs">
               <thead className="bg-[#F8FAF9]">
                 <tr>

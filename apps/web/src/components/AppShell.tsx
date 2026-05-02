@@ -43,13 +43,13 @@ export default function AppShell() {
   return (
     <div className="flex min-h-screen bg-[#0B1220] text-slate-100">
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} collapsed userEmail={me?.user.email} />
-      <div className={cn("flex min-w-0 flex-1 flex-col", "md:pl-16 lg:pl-64")}>
+      <div className={cn("flex min-w-0 flex-1 flex-col", "md:pl-[88px] lg:pl-64")}>
         <Topbar title={title} setIsSidebarOpen={setIsSidebarOpen} userEmail={me?.user.email} />
 
         <main className="relative flex-1 overflow-x-hidden overflow-y-visible bg-[#0B1220]">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(16,185,129,0.14),_transparent_24%)]" />
           <div className="pointer-events-none absolute inset-0 bg-hero-grid bg-[size:34px_34px] opacity-[0.08]" />
-          <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-5 md:px-8 md:py-8 xl:px-10">
+          <div className="w-full max-w-none px-4 py-6 md:px-4 md:py-8">
             {loading ? (
               <div className="grid gap-4">
                 <Card className="p-6">
