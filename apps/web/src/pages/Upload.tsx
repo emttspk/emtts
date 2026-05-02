@@ -420,15 +420,15 @@ export default function Upload() {
   }
 
   return (
-    <PageShell className="space-y-5">
+    <PageShell className="space-y-3">
       <div>
         <PageTitle>Generate Labels</PageTitle>
         <BodyText className="mt-1">Upload and configure labels workflow with consistent business layout.</BodyText>
       </div>
 
-    <div className="grid gap-6">
-      <div className="min-w-0 space-y-6">
-        <div className="grid gap-6 lg:grid-cols-3">
+    <div className="grid gap-4">
+      <div className="min-w-0 space-y-4">
+        <div className="grid gap-4 lg:grid-cols-3">
           <div className="space-y-4 lg:col-span-2">
         <UploadDropzone
           title="Upload Orders File"
@@ -454,7 +454,7 @@ export default function Upload() {
         <Card className="border-slate-200 bg-white p-5 shadow-sm">
           <CardTitle>Generate Label</CardTitle>
           <div className="mt-0.5 text-sm font-normal text-slate-500">All actions consume units based on usage.</div>
-          <div className="mt-4 space-y-5 text-sm text-gray-700">
+          <div className="mt-3 space-y-4 text-sm text-gray-700">
             <div>
               <div className="font-medium text-gray-900">1) Carrier Type</div>
               <div className="mt-2 flex flex-wrap gap-3">
@@ -735,7 +735,7 @@ export default function Upload() {
 
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="lg:sticky lg:top-24">
               <SenderProfileSidecard me={me} />
             </div>

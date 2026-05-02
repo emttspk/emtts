@@ -208,14 +208,14 @@ export default function GenerateMoneyOrder() {
   const canGenerate = readyToGenerate && (mode === "manual" || Boolean(file));
 
   return (
-    <PageShell className="space-y-5">
+    <PageShell className="space-y-3">
       <div>
         <PageTitle>Generate Money Order</PageTitle>
         <BodyText className="mt-1">Upload or manual entry workflow with sender profile validation.</BodyText>
       </div>
 
-    <div className="grid gap-6 lg:grid-cols-12">
-      <div className="space-y-4 lg:col-span-8">
+    <div className="grid gap-4 lg:grid-cols-12">
+      <div className="space-y-3 lg:col-span-8">
         <Card className="border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -278,8 +278,8 @@ export default function GenerateMoneyOrder() {
         </div>
       </div>
 
-      <div className="space-y-4 lg:col-span-4">
-        <div className="space-y-4 lg:sticky lg:top-24">
+      <div className="space-y-3 lg:col-span-4">
+        <div className="space-y-3 lg:sticky lg:top-24">
           <Card className="border-slate-200 bg-white p-6 shadow-sm">
             <CardTitle>Action Panel</CardTitle>
             <div className="mt-1 text-sm font-normal text-slate-500">Uses existing upload pipeline and background worker.</div>

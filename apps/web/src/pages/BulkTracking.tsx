@@ -2604,12 +2604,12 @@ export default function BulkTracking() {
   }
 
   return (
-    <PageShell className="space-y-4">
+    <PageShell className="space-y-2.5">
     <div>
       <PageTitle>Tracking</PageTitle>
       <BodyText className="mt-1">Monitor shipment status and submit complaints from one workspace.</BodyText>
     </div>
-    <div className="w-full max-w-none overflow-x-hidden px-0 mx-0">
+    <div className="w-full min-w-0 flex-1 max-w-none overflow-x-hidden px-0 mx-0">
       {complaintToast ? (
         <div className="sticky top-3 z-30 mb-3 px-2 sm:px-0">
           <div
@@ -2643,8 +2643,8 @@ export default function BulkTracking() {
       >
         Workspace
       </button>
-      <div className="grid gap-4">
-        <div className="min-w-0 w-full flex-1 space-y-4">
+      <div className="grid gap-3">
+        <div className="min-w-0 w-full flex-1 space-y-3">
       <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
       <Card className="overflow-hidden border border-[#E5E7EB] bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_56%,#eefbf3_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.08)] md:p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -2720,7 +2720,7 @@ export default function BulkTracking() {
         </div>
       )}
 
-      <Card>
+      <Card className="w-full min-w-0">
         <div id="tracking-workspace-section" />
         <div className="border-b px-4 py-3 md:px-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2732,11 +2732,11 @@ export default function BulkTracking() {
           </div>
         </div>
 
-        <div className="grid gap-3 p-4">
+        <div className="grid gap-2 p-3">
           <div
             {...getRootProps()}
             className={cn(
-              "relative rounded-[24px] border border-dashed bg-white p-5 transition-all duration-300 ease-in-out",
+              "relative w-full rounded-[24px] border border-dashed bg-white p-4 transition-all duration-300 ease-in-out",
               isDragActive ? "border-brand bg-brand/10" : "border-gray-200 hover:border-gray-300",
             )}
           >
@@ -3166,7 +3166,7 @@ export default function BulkTracking() {
                       <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle text-[11px] font-medium text-slate-700 whitespace-nowrap">
                       {issuedValue != null ? `Rs ${issuedValue.toLocaleString()}` : "-"}
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle">
+                    <td className="border-r border-[#E5E7EB] px-3 py-3.5 pr-4 align-middle">
                       <div className="flex items-center gap-1">
                         <select
                             className="w-20 rounded border-[#E5E7EB] bg-white px-2 py-1.5 text-[10px] font-medium text-slate-700 shadow-sm focus:border-brand focus:ring-brand"
@@ -3189,7 +3189,7 @@ export default function BulkTracking() {
                         </button>
                       </div>
                     </td>
-                    <td className="px-3 py-3.5 align-middle">
+                    <td className="px-3 py-3.5 pl-4 align-middle">
                       {hasComplaintId || lifecycle.exists || queueSnapshot ? (() => {
                         const stateStyle = complaintStateBadgeClass(complaintCardState);
                         const complaintId = lifecycle.complaintId || queueSnapshot?.complaintId || "Complaint";

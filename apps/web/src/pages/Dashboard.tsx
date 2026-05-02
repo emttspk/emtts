@@ -122,12 +122,12 @@ export default function Dashboard() {
   ];
 
   return (
-    <PageShell className="space-y-5">
+    <PageShell className="space-y-3">
       <div>
         <PageTitle>Dashboard</PageTitle>
         <BodyText className="mt-1">Business overview of package usage, shipment status, and quick actions.</BodyText>
       </div>
-      <div className="grid gap-4 xl:grid-cols-12">
+      <div className="grid gap-3 xl:grid-cols-12">
         <Card className="xl:col-span-4 border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -173,7 +173,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-3">
         {summaryCards.map((card) => {
           const Icon = card.icon;
           return (
@@ -188,7 +188,7 @@ export default function Dashboard() {
         })}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-12">
+      <div className="grid gap-3 xl:grid-cols-12">
         <Card className="xl:col-span-8 p-5">
           <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Shipment Status</div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
