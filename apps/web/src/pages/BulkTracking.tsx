@@ -3027,7 +3027,7 @@ export default function BulkTracking() {
         {refreshSummary ? <div className="border-t border-[#E5E7EB] bg-[#F8FAF9] px-4 py-2 text-xs text-[#6B7280]">{refreshSummary}</div> : null}
         </div>
         <div className="p-0">
-          <div className="w-full max-h-[72vh] overflow-x-auto overflow-y-auto rounded-[20px] border border-[#E5E7EB] bg-white">
+          <div className="w-full max-h-[72vh] overflow-y-auto overflow-x-auto md:overflow-x-hidden rounded-[20px] border border-[#E5E7EB] bg-white">
             <table className="w-full table-fixed text-[12px] leading-4">
               <thead className="sticky top-0 z-10 border-b border-[#E5E7EB] bg-[#F8FAFC]">
               <tr>
@@ -3166,8 +3166,8 @@ export default function BulkTracking() {
                       <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle text-[11px] font-medium text-slate-700 whitespace-nowrap">
                       {issuedValue != null ? `Rs ${issuedValue.toLocaleString()}` : "-"}
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-3 py-3.5 pr-4 align-middle">
-                      <div className="flex items-center gap-1">
+                    <td className="border-r border-[#E5E7EB] px-3 py-3.5 pr-4 align-middle min-w-[104px]">
+                      <div className="flex items-center gap-2">
                         <select
                             className="w-20 rounded border-[#E5E7EB] bg-white px-2 py-1.5 text-[10px] font-medium text-slate-700 shadow-sm focus:border-brand focus:ring-brand"
                           value={actionValue}
@@ -3189,7 +3189,7 @@ export default function BulkTracking() {
                         </button>
                       </div>
                     </td>
-                    <td className="px-3 py-3.5 pl-4 align-middle">
+                    <td className="px-3 py-3.5 pl-4 align-middle min-w-[132px]">
                       {hasComplaintId || lifecycle.exists || queueSnapshot ? (() => {
                         const stateStyle = complaintStateBadgeClass(complaintCardState);
                         const complaintId = lifecycle.complaintId || queueSnapshot?.complaintId || "Complaint";

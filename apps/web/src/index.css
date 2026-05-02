@@ -61,7 +61,7 @@
 
 @layer components {
   .ui-page {
-    @apply mx-auto w-full max-w-7xl px-6 py-16 md:px-8 md:py-20 xl:px-10;
+    @apply w-full max-w-none px-6 py-10 md:px-8 md:py-12 xl:px-10;
   }
 
   .ui-card {
@@ -137,7 +137,7 @@
   }
 
   .ui-page {
-    @apply px-4 py-8;
+    @apply px-4 py-6;
   }
 
   h1,
