@@ -194,7 +194,7 @@ function TrackingResultCard({ result }: { result: TrackingResult }) {
             </aside>
 
             <ol className="relative space-y-3">
-              <div className="pointer-events-none absolute bottom-1 top-1 left-[7px] w-[2px] bg-gradient-to-b from-emerald-400 to-emerald-200" />
+              <li aria-hidden="true" className="pointer-events-none absolute bottom-1 top-1 left-[7px] w-[2px] list-none bg-gradient-to-b from-emerald-400 to-emerald-200" />
               {newestFirstTimeline.map((event, index) => {
                 const stage = inferEventStage(event.description);
                 return (

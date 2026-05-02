@@ -123,8 +123,8 @@ export default function Dashboard() {
 
   return (
     <PageShell className="space-y-3">
-      <div className="grid gap-3 xl:grid-cols-12">
-        <Card className="xl:col-span-4 border-slate-200 bg-white p-5 shadow-sm">
+      <div className="grid min-w-0 w-full gap-3 overflow-hidden xl:grid-cols-12">
+        <Card className="min-w-0 w-full overflow-hidden xl:col-span-4 border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Current Package</div>
@@ -147,7 +147,7 @@ export default function Dashboard() {
           </Link>
         </Card>
 
-        <Card className="xl:col-span-4 border-slate-200 bg-white p-5 shadow-sm">
+        <Card className="min-w-0 w-full overflow-hidden xl:col-span-4 border-slate-200 bg-white p-5 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Remaining Units</div>
           <div className="mt-3 text-5xl font-extrabold tracking-[-0.03em] text-emerald-900">{remainingUnits.toLocaleString()}</div>
           <div className="mt-2 text-sm font-medium text-emerald-800">Formula: limit - used = remaining</div>
@@ -159,7 +159,7 @@ export default function Dashboard() {
           </div>
         </Card>
 
-        <Card className="xl:col-span-4 border-slate-200 bg-white p-5 shadow-sm">
+        <Card className="min-w-0 w-full overflow-hidden xl:col-span-4 border-slate-200 bg-white p-5 shadow-sm">
           <CardTitle className="uppercase tracking-[0.1em] text-slate-600">Quick Actions</CardTitle>
           <div className="mt-3 grid gap-2">
             <Link to="/generate-labels" className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 hover:border-brand/30">Generate Labels</Link>
@@ -169,11 +169,11 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid min-w-0 w-full gap-3 overflow-hidden md:grid-cols-3">
         {summaryCards.map((card) => {
           const Icon = card.icon;
           return (
-            <Card key={card.label} className="p-5">
+            <Card key={card.label} className="min-w-0 w-full overflow-hidden p-5">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-sm font-semibold text-slate-600">{card.label}</div>
                 <Icon className="h-4 w-4 text-brand" />
@@ -184,8 +184,8 @@ export default function Dashboard() {
         })}
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-12">
-        <Card className="xl:col-span-8 p-5">
+      <div className="grid min-w-0 w-full gap-3 overflow-hidden xl:grid-cols-12">
+        <Card className="min-w-0 w-full overflow-hidden xl:col-span-8 p-5">
           <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Shipment Status</div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-xl bg-slate-50 p-3">
@@ -210,7 +210,7 @@ export default function Dashboard() {
           </div>
         </Card>
 
-        <Card className="xl:col-span-4 p-5">
+        <Card className="min-w-0 w-full overflow-hidden xl:col-span-4 p-5">
           <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">6 Day Activity</div>
           <div className="mt-4 flex items-end gap-2">
             {activity.length > 0 ? activity.map((item) => {

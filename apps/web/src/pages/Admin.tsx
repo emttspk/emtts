@@ -111,7 +111,7 @@ export default function Admin() {
 
   return (
     <PageShell className="space-y-3">
-      <Card className="overflow-hidden border-slate-200 bg-white p-5 shadow-sm md:p-6">
+      <Card className="min-w-0 w-full overflow-hidden border-slate-200 bg-white p-5 shadow-sm md:p-6">
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
           <div>
             <CardTitle>Admin Control Room</CardTitle>
@@ -133,7 +133,7 @@ export default function Admin() {
           ].map(([key, label]) => (
             <button
               key={key}
-              className={`rounded-full px-4 py-2.5 text-sm font-medium transition-all ${section === key ? "bg-brand text-white shadow-glow" : "border border-slate-200 bg-white text-slate-700 hover:-translate-y-0.5 hover:bg-slate-50"}`}
+              className={`rounded-full px-4 py-2.5 text-sm font-medium transition-all ${section === key ? "bg-brand text-white shadow-glow" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
               onClick={() => setSection(key as SectionKey)}
             >
               {label}
@@ -143,11 +143,11 @@ export default function Admin() {
       </Card>
 
       {section === "overview" ? (
-        <div className="grid gap-5 md:grid-cols-3">
-          <Card className="p-6"><div className="text-sm text-slate-500">Active Customers</div><div className="mt-2 text-3xl font-semibold text-slate-950">{users.filter((u) => !u.suspended).length}</div></Card>
-          <Card className="p-6"><div className="text-sm text-slate-500">Suspended</div><div className="mt-2 text-3xl font-semibold text-slate-950">{users.filter((u) => u.suspended).length}</div></Card>
-          <Card className="p-6"><div className="text-sm text-slate-500">Business Plan Users</div><div className="mt-2 text-3xl font-semibold text-slate-950">{users.filter((u) => (u.subscription?.plan?.name ?? "") === "Business Plan").length}</div></Card>
-          <Card className="p-6 md:col-span-3">
+        <div className="grid min-w-0 w-full gap-5 overflow-hidden md:grid-cols-3">
+          <Card className="min-w-0 w-full overflow-hidden p-6"><div className="text-sm text-slate-500">Active Customers</div><div className="mt-2 text-3xl font-semibold text-slate-950">{users.filter((u) => !u.suspended).length}</div></Card>
+          <Card className="min-w-0 w-full overflow-hidden p-6"><div className="text-sm text-slate-500">Suspended</div><div className="mt-2 text-3xl font-semibold text-slate-950">{users.filter((u) => u.suspended).length}</div></Card>
+          <Card className="min-w-0 w-full overflow-hidden p-6"><div className="text-sm text-slate-500">Business Plan Users</div><div className="mt-2 text-3xl font-semibold text-slate-950">{users.filter((u) => (u.subscription?.plan?.name ?? "") === "Business Plan").length}</div></Card>
+          <Card className="min-w-0 w-full overflow-hidden p-6 md:col-span-3">
             <div className="text-sm text-slate-500">Admin Generation</div>
             <div className="mt-2 text-lg font-semibold text-slate-950">Generate labels and money orders from admin portal</div>
             <div className="mt-1 text-sm text-slate-600">Use upload or manual entry mode from dedicated admin pages.</div>
@@ -158,7 +158,7 @@ export default function Admin() {
             </div>
           </Card>
           {TEMPLATE_DESIGNER_ENABLED ? (
-            <Card className="p-6 md:col-span-3">
+            <Card className="min-w-0 w-full overflow-hidden p-6 md:col-span-3">
               <div className="text-sm text-slate-500">Admin Tools</div>
               <div className="mt-2 text-lg font-semibold text-slate-950">Money Order Designer</div>
               <div className="mt-1 text-sm text-slate-600">Create and manage isolated money order template layouts for internal preview mode.</div>
@@ -169,7 +169,7 @@ export default function Admin() {
       ) : null}
 
       {section === "plans" ? (
-        <Card className="overflow-hidden">
+        <Card className="min-w-0 w-full overflow-hidden">
           <div className="flex items-center justify-between px-6 py-5">
             <div>
               <div className="text-xl font-medium text-gray-900">Plans</div>
@@ -212,14 +212,14 @@ export default function Admin() {
       ) : null}
 
       {section === "customers" ? (
-        <div className="space-y-4">
+        <div className="min-w-0 w-full space-y-4 overflow-hidden">
           <div>
             <div className="text-xl font-semibold text-slate-950">Customers</div>
             <div className="mt-1 text-sm text-slate-600">Open a customer preview to manage status, balances, credits, suspension, and manual payment confirmation.</div>
           </div>
-          <div className="grid gap-5 xl:grid-cols-2">
+          <div className="grid min-w-0 w-full gap-5 overflow-hidden xl:grid-cols-2">
             {users.map((user) => (
-              <Card key={user.id} className="p-6">
+              <Card key={user.id} className="min-w-0 w-full overflow-hidden p-6">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="text-lg font-semibold text-slate-950">{user.email}</div>
@@ -243,7 +243,7 @@ export default function Admin() {
       ) : null}
 
       {section === "usage" ? (
-        <Card className="p-6">
+        <Card className="min-w-0 w-full overflow-hidden p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <div className="text-xl font-medium text-gray-900">Usage</div>
@@ -279,7 +279,7 @@ export default function Admin() {
       ) : null}
 
       {section === "shipments" ? (
-        <Card className="overflow-hidden">
+        <Card className="min-w-0 w-full overflow-hidden">
           <div className="border-b px-6 py-4">
             <div className="text-xl font-medium text-gray-900">Shipments</div>
             <div className="mt-1 text-sm text-gray-600">Override shipment metadata and admin code.</div>

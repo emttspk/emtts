@@ -585,8 +585,8 @@ export default function Upload() {
 
             <div>
               <div className="font-medium text-gray-900">5) Output Mode</div>
-              <div className="mt-3 grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div className="mt-3 grid min-w-0 grid-cols-2 gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                <div className="grid min-w-0 grid-cols-1 gap-2 border-r border-slate-200 p-3 sm:grid-cols-2">
                   {([
                     { id: "envelope-9x4" as const, label: "Envelope 9x4", desc: "Dedicated 9 x 4 layout with right-side compact amount/barcode" },
                     { id: "box" as const, label: "Box Shipment (4 per A4)", desc: "4.1 x 5.8 inch, 2 x 2 grid on A4" },
@@ -611,7 +611,7 @@ export default function Upload() {
                     </button>
                   ))}
                 </div>
-                <div className="self-start rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex min-w-0 flex-col p-3">
                   <div className="text-sm font-semibold text-slate-900">Preview</div>
                   <div className="mt-1 text-xs text-slate-600">
                     {previewMode === "labels"
@@ -625,7 +625,7 @@ export default function Upload() {
                       {previewMode === "envelope" ? `${previewSummary} record${previewSummary === 1 ? "" : "s"} in preview` : `${previewSummary} page${previewSummary === 1 ? "" : "s"} in preview`}
                     </div>
                   ) : null}
-                  <div className="mt-3 rounded-2xl border border-slate-300 bg-white p-2">
+                  <div className="mt-3 flex-1 rounded-2xl border border-slate-300 bg-white p-2">
                     {!outputMode ? (
                       <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-center text-sm text-slate-600">
                         Select an output mode to enable preview.
