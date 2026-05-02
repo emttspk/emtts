@@ -10,6 +10,7 @@ import type { LabelJob, MeResponse } from "../lib/types";
 import { useJobPolling } from "../lib/useJobPolling";
 import { getMissingOrderColumns, normalizeOrderColumnKey } from "../shared/orderColumns";
 import * as XLSX from "xlsx";
+import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
 
 type ShellCtx = { me: MeResponse | null; refreshMe: () => Promise<void> };
 
@@ -419,6 +420,12 @@ export default function Upload() {
   }
 
   return (
+    <PageShell className="space-y-5">
+      <div>
+        <PageTitle>Generate Labels</PageTitle>
+        <BodyText className="mt-1">Upload and configure labels workflow with consistent business layout.</BodyText>
+      </div>
+
     <div className="grid gap-6">
       <div className="min-w-0 space-y-6">
         <div className="grid gap-6 lg:grid-cols-3">
@@ -444,9 +451,9 @@ export default function Upload() {
           busy={uiState === "uploading" || uiState === "processing"}
         />
 
-        <Card className="p-5">
-          <div className="text-base font-medium text-gray-900">Generate Label</div>
-          <div className="mt-0.5 text-xs text-gray-500">All actions consume units based on usage.</div>
+        <Card className="border-slate-200 bg-white p-5 shadow-sm">
+          <CardTitle>Generate Label</CardTitle>
+          <div className="mt-0.5 text-sm font-normal text-slate-500">All actions consume units based on usage.</div>
           <div className="mt-4 space-y-5 text-sm text-gray-700">
             <div>
               <div className="font-medium text-gray-900">1) Carrier Type</div>
@@ -673,9 +680,9 @@ export default function Upload() {
         </Card>
 
         {eligibleForMoneyOrder ? (
-          <Card className="p-5">
-            <div className="text-base font-medium text-gray-900">Generate Money Order</div>
-            <div className="mt-0.5 text-xs text-gray-500">All actions consume units based on usage.</div>
+          <Card className="border-slate-200 bg-white p-5 shadow-sm">
+            <CardTitle>Generate Money Order</CardTitle>
+            <div className="mt-0.5 text-sm font-normal text-slate-500">All actions consume units based on usage.</div>
             <div className="mt-2 text-sm text-gray-600">
               VPL/VPP include commission. COD has no commission.
             </div>
@@ -701,9 +708,9 @@ export default function Upload() {
           </Card>
         ) : null}
 
-        <Card className="p-5">
-          <div className="text-base font-medium text-gray-900">Track Parcel</div>
-          <div className="mt-0.5 text-xs text-gray-500">All actions consume units based on usage.</div>
+        <Card className="border-slate-200 bg-white p-5 shadow-sm">
+          <CardTitle>Track Parcel</CardTitle>
+          <div className="mt-0.5 text-sm font-normal text-slate-500">All actions consume units based on usage.</div>
           <div className="mt-2 text-sm text-gray-600">Tracking enabled from uploaded file.</div>
           <label className="mt-4 flex items-center gap-2 text-sm text-gray-700">
             <input
@@ -732,8 +739,8 @@ export default function Upload() {
             <div className="lg:sticky lg:top-24">
               <SenderProfileSidecard me={me} />
             </div>
-            <Card className="p-6">
-              <div className="text-xl font-medium text-gray-900">CSV Format</div>
+            <Card className="border-slate-200 bg-white p-6 shadow-sm">
+              <CardTitle className="text-xl">CSV Format</CardTitle>
               <div className="mt-2 text-sm text-gray-600">Use the shared strict sample structure for Labels, Tracking, and Money Orders.</div>
               <SampleDownloadLink className="mt-4 inline-flex items-center justify-center rounded-2xl bg-brand px-3 py-2 text-xs font-medium text-white shadow-lg hover:bg-brand-dark" />
             </Card>
@@ -741,10 +748,10 @@ export default function Upload() {
         </div>
 
         <div>
-        <Card className="p-6">
+        <Card className="border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-xl font-medium text-gray-900">Generate Labels</div>
+              <CardTitle className="text-xl">Generate Labels</CardTitle>
               <div className="mt-1 text-sm text-gray-600">
                 Button is visible only when all required inputs are selected.
               </div>
@@ -804,6 +811,7 @@ export default function Upload() {
         </div>
       ) : null}
     </div>
+    </PageShell>
   );
 }
 

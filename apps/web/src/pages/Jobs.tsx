@@ -5,6 +5,7 @@ import JobsTable from "../components/JobsTable";
 import EmptyState from "../components/EmptyState";
 import { api, triggerBrowserDownload } from "../lib/api";
 import type { LabelJob } from "../lib/types";
+import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
 
 export default function Jobs() {
   const nav = useNavigate();
@@ -63,12 +64,17 @@ export default function Jobs() {
   if (!loading && visibleJobs.length === 0) return <EmptyState onUploadClick={() => nav("/upload")} />;
 
   return (
-    <div className="space-y-6">
-      <Card className="p-5">
+    <PageShell className="space-y-6">
+      <div>
+        <PageTitle>Download Labels</PageTitle>
+        <BodyText className="mt-1">Track all jobs and access completed downloadable outputs.</BodyText>
+      </div>
+
+      <Card className="border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="text-xl font-semibold text-slate-950">Jobs</div>
-            <div className="mt-1 text-sm text-slate-600">Downloads are now part of the same jobs workflow. Switch between all activity and ready files here.</div>
+            <CardTitle>Jobs</CardTitle>
+            <div className="mt-1 text-sm font-normal text-slate-500">Downloads are now part of the same jobs workflow. Switch between all activity and ready files here.</div>
           </div>
           <div className="inline-flex rounded-2xl border border-[#E5E7EB] bg-[#F8FAF9] p-1 shadow-lg">
             <button
@@ -90,7 +96,7 @@ export default function Jobs() {
       </Card>
 
       <JobsTable jobs={visibleJobs} title={filter === "completed" ? "Ready Downloads" : "All Jobs"} onJobsChanged={load} />
-    </div>
+    </PageShell>
   );
 }
 

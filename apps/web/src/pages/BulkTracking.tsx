@@ -18,6 +18,7 @@ import {
   type FinalTrackingRecord,
   type StatusCardFilter,
 } from "../lib/trackingData";
+import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
 
 type Shipment = BaseShipment & {
   shipmentType?: string | null;
@@ -2603,8 +2604,12 @@ export default function BulkTracking() {
   }
 
   return (
-    <>
-    <div className="w-full max-w-none overflow-x-hidden px-4 md:px-4 mx-0">
+    <PageShell className="space-y-4">
+    <div>
+      <PageTitle>Tracking</PageTitle>
+      <BodyText className="mt-1">Monitor shipment status and submit complaints from one workspace.</BodyText>
+    </div>
+    <div className="w-full max-w-none overflow-x-hidden px-0 mx-0">
       {complaintToast ? (
         <div className="sticky top-3 z-30 mb-3 px-2 sm:px-0">
           <div
@@ -2648,7 +2653,7 @@ export default function BulkTracking() {
               <Activity className="h-3 w-3" />
               Tracking Workspace
             </div>
-            <div className="mt-2 font-display text-2xl font-extrabold tracking-[-0.03em] text-[#0F172A] md:text-3xl">All Tracked Shipments</div>
+              <div className="mt-2 text-3xl font-bold text-slate-900">All Tracked Shipments</div>
             <div className="mt-1 text-sm leading-relaxed text-slate-600">Real-time visibility into every shipment.</div>
           </div>
           <div className="flex shrink-0 items-center gap-3">
@@ -2720,8 +2725,8 @@ export default function BulkTracking() {
         <div className="border-b px-4 py-3 md:px-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-xl font-medium text-[#0F172A]">Bulk Tracking</div>
-              <div className="mt-1 text-sm text-gray-600">Upload CSV/XLS/XLSX using the strict shared sample structure.</div>
+              <CardTitle className="text-xl">Bulk Tracking</CardTitle>
+              <div className="mt-1 text-sm font-normal text-slate-500">Upload CSV/XLS/XLSX using the strict shared sample structure.</div>
             </div>
             <SampleDownloadLink />
           </div>
@@ -2870,7 +2875,7 @@ export default function BulkTracking() {
             </div>
           </div>
 
-          <div className="mt-4 overflow-x-hidden rounded-2xl border bg-white">
+          <div className="mt-4 overflow-x-auto rounded-2xl border bg-white">
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
@@ -2920,7 +2925,7 @@ export default function BulkTracking() {
       ) : null}
 
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}>
-      <Card className="w-full overflow-hidden rounded-[24px] border border-[#E5E7EB] bg-[linear-gradient(180deg,#ffffff,#f8fbff)] p-0 shadow-[0_22px_52px_rgba(15,23,42,0.12)]">
+      <Card className="w-full overflow-hidden rounded-[24px] border border-[#E5E7EB] bg-white p-0 shadow-sm">
         <div className="border-b border-[#E5E7EB] bg-white/90 px-4 py-3 backdrop-blur-md md:px-4 md:py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -3022,7 +3027,7 @@ export default function BulkTracking() {
         {refreshSummary ? <div className="border-t border-[#E5E7EB] bg-[#F8FAF9] px-4 py-2 text-xs text-[#6B7280]">{refreshSummary}</div> : null}
         </div>
         <div className="p-0">
-          <div className="w-full max-h-[72vh] overflow-x-hidden overflow-y-auto rounded-[20px] border border-[#E5E7EB] bg-white">
+          <div className="w-full max-h-[72vh] overflow-x-auto overflow-y-auto rounded-[20px] border border-[#E5E7EB] bg-white">
             <table className="w-full table-fixed text-[12px] leading-4">
               <thead className="sticky top-0 z-10 border-b border-[#E5E7EB] bg-[#F8FAFC]">
               <tr>
@@ -3341,7 +3346,7 @@ export default function BulkTracking() {
         {auditSummary ? <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{auditSummary}</div> : null}
         {auditError ? <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{auditError}</div> : null}
         {auditRows.length > 0 ? (
-          <div className="mt-4 overflow-x-hidden rounded-2xl border border-[#E5E7EB] bg-white">
+          <div className="mt-4 overflow-x-auto rounded-2xl border border-[#E5E7EB] bg-white">
             <table className="min-w-[1200px] text-xs">
               <thead className="bg-[#F8FAF9]">
                 <tr>
@@ -3424,14 +3429,14 @@ export default function BulkTracking() {
     </div>
 
       {complaintRecord ? (
-        <div className="modal-wrapper bg-slate-950/60 p-2 z-40">
-          <div ref={complaintModalRef} className="modal-content w-full max-w-5xl max-w-[calc(100vw-1rem)] rounded-2xl bg-white shadow-2xl max-h-[92vh] flex flex-col overflow-hidden" role="dialog" aria-modal="true" aria-label="File Complaint">
+        <div className="modal-wrapper z-40 bg-slate-950/60 p-4">
+          <div ref={complaintModalRef} className="modal-content flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" role="dialog" aria-modal="true" aria-label="File Complaint">
             <div className="modal-header flex items-start justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
               <div>
-                <div className="text-base font-bold text-slate-900">File Complaint</div>
-                <div className="text-xs font-medium text-slate-600">Tracking: <span className="font-semibold text-slate-800">{complaintRecord.shipment.trackingNumber}</span></div>
+                <div className="text-xl font-semibold text-slate-900">File Complaint</div>
+                <div className="text-sm font-medium text-slate-600">Tracking: <span className="font-semibold text-slate-800">{complaintRecord.shipment.trackingNumber}</span></div>
                 {(me?.balances?.complaintDailyLimit != null) && (
-                  <div className="mt-1 flex items-center gap-3 text-[10px] text-slate-500">
+                  <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-500">
                     <span>Today: <span className="font-semibold text-slate-800">{me.balances.complaintDailyUsed ?? 0}</span> used / <span className="font-semibold text-emerald-700">{me.balances.complaintDailyRemaining ?? 0}</span> remaining (limit {me.balances.complaintDailyLimit})</span>
                     {me.balances.complaintMonthlyUsed != null && (
                       <span>This month: <span className="font-semibold text-slate-800">{me.balances.complaintMonthlyUsed}</span> total</span>
@@ -3448,7 +3453,7 @@ export default function BulkTracking() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-5">
               <div className="grid gap-2">
                 {complaintSubmitNotice ? (
                   <div className={cn(
@@ -3476,7 +3481,7 @@ export default function BulkTracking() {
                     </div>
                   </div>
                 ) : null}
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                   <label>
                     <div className="text-[10px] font-semibold text-slate-700 mb-0.5 uppercase tracking-wide">Article No</div>
                     <input value={complaintRecord.shipment.trackingNumber} readOnly className="w-full rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-mono text-slate-800" />
@@ -3500,7 +3505,7 @@ export default function BulkTracking() {
                   </label>
                 </div>
 
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                   <label>
                     <div className="text-[10px] font-semibold text-slate-700 mb-0.5 uppercase tracking-wide">Complainant Name</div>
                     <input ref={complaintFirstInputRef} value={complainantNameInput} onChange={(e) => setComplainantNameInput(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs text-slate-800 ${complaintValidationState.SenderName ? "border-slate-300 bg-white" : "border-red-400 bg-red-50"}`} />
@@ -3527,7 +3532,7 @@ export default function BulkTracking() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-xs font-bold text-slate-800 uppercase tracking-wide">Sender Detail</div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                     <label>
                       <div className="text-[10px] font-semibold text-slate-700 mb-0.5">Name {!senderNameIsLocked && <span className="text-red-600">*</span>}</div>
                       <input
@@ -4034,7 +4039,7 @@ export default function BulkTracking() {
       </AnimatePresence>
 
       <div id="print-area" aria-hidden="true" />
-    </>
+    </PageShell>
   );
 }
 

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Card from "../components/Card";
 import { api } from "../lib/api";
 import { TEMPLATE_DESIGNER_ENABLED } from "../lib/featureFlags";
+import { BodyText, CardTitle, PageShell, PageTitle, TableWrap } from "../components/ui/PageSystem";
 
 type Plan = { id: string; name: string; priceCents: number; monthlyLabelLimit: number; monthlyTrackingLimit: number; createdAt: string };
 type AdminUser = {
@@ -109,13 +110,17 @@ export default function Admin() {
   const previewUser = users.find((u) => u.id === previewUserId) ?? null;
 
   return (
-    <div className="space-y-6">
-      <Card className="overflow-hidden p-8 md:p-10">
+    <PageShell className="space-y-6">
+      <div>
+        <PageTitle>Admin</PageTitle>
+        <BodyText className="mt-1">Manage plans, customers, usage, and shipment-level controls.</BodyText>
+      </div>
+
+      <Card className="overflow-hidden border-slate-200 bg-white p-5 shadow-sm md:p-6">
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
           <div>
-            <div className="ui-kicker">Admin control room</div>
-            <div className="mt-5 font-display text-4xl font-extrabold tracking-[-0.05em] text-slate-950 md:text-5xl">Premium oversight for plans, customers, usage, and shipment corrections.</div>
-            <div className="mt-4 max-w-2xl text-base leading-8 text-slate-600">Manage approvals, balances, plan assignment, and shipment overrides from one structured admin workspace.</div>
+            <CardTitle>Admin Control Room</CardTitle>
+            <BodyText className="mt-2 max-w-2xl">Manage approvals, balances, plan assignment, and shipment overrides from one structured admin workspace.</BodyText>
             {err ? <div className="mt-4 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-800">{err}</div> : null}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -257,7 +262,7 @@ export default function Admin() {
               <button className="h-10 rounded-2xl border bg-white px-3 text-sm font-medium text-gray-700 shadow-lg hover:bg-gray-50" onClick={() => refresh()}>Refresh</button>
             </div>
           </div>
-          <div className="ui-table mt-4 overflow-x-auto">
+          <TableWrap className="mt-4">
             <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
               <thead className="bg-gray-50">
                 <tr className="text-xs font-medium uppercase tracking-wide text-gray-500">
@@ -274,7 +279,7 @@ export default function Admin() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
         </Card>
       ) : null}
 
@@ -284,7 +289,7 @@ export default function Admin() {
             <div className="text-xl font-medium text-gray-900">Shipments</div>
             <div className="mt-1 text-sm text-gray-600">Override shipment metadata and admin code.</div>
           </div>
-          <div className="ui-table overflow-x-auto">
+          <TableWrap>
             <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
               <thead className="bg-gray-50">
                 <tr className="text-xs font-medium uppercase tracking-wide text-gray-500">
@@ -318,7 +323,7 @@ export default function Admin() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
         </Card>
       ) : null}
 
@@ -373,7 +378,7 @@ export default function Admin() {
           </div>
         </div>
       ) : null}
-    </div>
+    </PageShell>
   );
 }
 

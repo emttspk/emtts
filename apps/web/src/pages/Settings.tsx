@@ -6,6 +6,7 @@ import { api } from "../lib/api";
 import type { MeResponse } from "../lib/types";
 import { resolvePackageMeta, usagePercent } from "../lib/packageCatalog";
 import { TEMPLATE_DESIGNER_ADMIN_EMAIL, TEMPLATE_DESIGNER_ENABLED } from "../lib/featureFlags";
+import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
 
 type ShellCtx = { me: MeResponse | null; refreshMe: () => Promise<void> };
 
@@ -69,11 +70,16 @@ export default function Settings() {
   }
 
   return (
-    <div className="space-y-6">
-      <Card className="p-8 md:p-10">
+    <PageShell className="space-y-6">
+      <div>
+        <PageTitle>Settings</PageTitle>
+        <BodyText className="mt-1">Update account profile, sender details, and package information.</BodyText>
+      </div>
+
+      <Card className="border-slate-200 bg-white p-5 shadow-sm md:p-6">
         <div className="ui-kicker">Profile settings</div>
-        <div className="mt-5 font-display text-4xl font-extrabold tracking-[-0.05em] text-slate-950 md:text-5xl">Premium sender profile for labels, returns, and account control.</div>
-        <div className="mt-4 max-w-2xl text-base leading-8 text-slate-600">Review account details and maintain the sender information used when your uploaded files do not provide return-address data.</div>
+        <div className="mt-5 text-xl font-semibold text-slate-900">Premium sender profile for labels, returns, and account control.</div>
+        <BodyText className="mt-2 max-w-2xl">Review account details and maintain the sender information used when your uploaded files do not provide return-address data.</BodyText>
 
         <div className="mt-7 grid gap-4 rounded-[28px] border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-5 md:grid-cols-3">
           <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
@@ -123,8 +129,8 @@ export default function Settings() {
       </Card>
 
       <div className="grid gap-6 xl:grid-cols-[0.72fr_1.28fr]">
-        <Card className="p-6">
-          <div className="text-xl font-medium text-gray-900">Account</div>
+        <Card className="border-slate-200 bg-white p-6 shadow-sm">
+          <CardTitle>Account</CardTitle>
           <div className="mt-4 grid gap-3 text-sm text-gray-600">
             <div className="flex items-center justify-between gap-4 rounded-2xl bg-slate-50/80 px-4 py-3">
               <div>Email</div>
@@ -159,9 +165,9 @@ export default function Settings() {
           </button>
         </Card>
 
-        <Card className="p-6 md:p-8">
-          <div className="text-xl font-medium text-gray-900">Sender Profile</div>
-          <div className="mt-1 text-sm text-gray-600">
+        <Card className="border-slate-200 bg-white p-6 shadow-sm md:p-8">
+          <CardTitle>Sender Profile</CardTitle>
+          <div className="mt-1 text-sm font-normal text-slate-500">
             These fields are used as the sender / return address on every label when not provided in your CSV.
           </div>
 
@@ -169,9 +175,9 @@ export default function Settings() {
           <div>
 
           {canUseTemplateDesigner ? (
-            <Card className="p-6">
-              <div className="text-xl font-medium text-gray-900">Admin tools</div>
-              <div className="mt-1 text-sm text-gray-600">Internal-only controls for advanced money order layout management.</div>
+            <Card className="border-slate-200 bg-white p-6 shadow-sm">
+              <CardTitle>Admin tools</CardTitle>
+              <div className="mt-1 text-sm font-normal text-slate-500">Internal-only controls for advanced money order layout management.</div>
               <div className="mt-4">
                 <button type="button" className="btn-primary" onClick={() => nav("/admin/template-designer")}>Open Money Order Designer</button>
               </div>
@@ -253,7 +259,7 @@ export default function Settings() {
         </form>
         </Card>
       </div>
-    </div>
+    </PageShell>
   );
 }
 

@@ -4,6 +4,7 @@ import { useOutletContext } from "react-router-dom";
 import Card from "../components/Card";
 import { changePackage, fetchPlans, type Plan } from "../lib/PackageService";
 import type { MeResponse } from "../lib/types";
+import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
 
 type ShellCtx = { me: MeResponse | null; refreshMe: () => Promise<void> };
 
@@ -70,24 +71,29 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
   }
 
   return (
-    <div className="space-y-8">
-      <Card className="overflow-hidden p-8">
+    <PageShell className="space-y-6">
+      <div>
+        <PageTitle>{modeTitle}</PageTitle>
+        <BodyText className="mt-1">{modeSubtitle}</BodyText>
+      </div>
+
+      <Card className="overflow-hidden border-slate-200 bg-white p-5 shadow-sm">
         <div className="grid gap-6 lg:grid-cols-[1.35fr_0.65fr] lg:items-center">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-4 py-2 text-sm font-semibold text-brand">
               <Sparkles className="h-4 w-4" />
               {modeTitle}
             </div>
-            <div className="mt-5 text-4xl font-semibold text-slate-950">{modeSubtitle}</div>
+            <div className="mt-5 text-xl font-semibold text-slate-900">Package Summary</div>
             <div className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Your current package, usage limits, billing status, and upgrade path are shown here in one surface.</div>
 
             {error ? <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
             {success ? <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div> : null}
           </div>
-          <div className="rounded-2xl border border-[#E5E7EB] bg-[linear-gradient(180deg,#0f172a,#1e293b)] p-6 text-white shadow-card">
-            <div className="text-xs uppercase tracking-[0.3em] text-slate-300">Active package</div>
-            <div className="mt-3 text-3xl font-semibold">{activePlanName}</div>
-            <div className="mt-4 grid gap-3 text-sm text-slate-200">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Active package</div>
+            <div className="mt-3 text-3xl font-semibold text-slate-900">{activePlanName}</div>
+            <div className="mt-4 grid gap-3 text-sm text-slate-600">
               <div className="flex items-center justify-between gap-4"><span>Used Units</span><span>{usedUnits.toLocaleString()}</span></div>
               <div className="flex items-center justify-between gap-4"><span>Remaining Units</span><span>{remainingUnits.toLocaleString()}</span></div>
               <div className="flex items-center justify-between gap-4"><span>Total Units</span><span>{totalUnits.toLocaleString()}</span></div>
@@ -106,11 +112,11 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
           const highlight = isCurrent || index === 1;
           const upgrading = !isCurrent && (me?.subscription?.plan?.monthlyLabelLimit ?? 0) < plan.monthlyLabelLimit;
           return (
-            <Card key={plan.id} className={highlight ? "border-brand/30 shadow-card" : undefined}>
+            <Card key={plan.id} className={highlight ? "border-brand/30 bg-white shadow-sm" : "border-slate-200 bg-white shadow-sm"}>
               <div className="p-6">
                 <div className="flex items-start justify-between">
                   <div>
-                    <div className="text-xl font-medium text-gray-900">{plan.name}</div>
+                    <CardTitle className="text-slate-900">{plan.name}</CardTitle>
                     <div className="mt-2 text-3xl font-semibold text-gray-900">
                       {formatPKR.format(Math.round(plan.priceCents / 100)).replace(/\u00A0/g, " ").replace("PKR", "Rs.")}
                       <span className="ml-2 text-sm font-medium text-gray-600">/ month</span>
@@ -158,7 +164,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
           );
         })}
       </div>
-    </div>
+    </PageShell>
   );
 }
 

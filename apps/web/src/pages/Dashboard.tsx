@@ -6,6 +6,7 @@ import { api } from "../lib/api";
 import type { MeResponse } from "../lib/types";
 import { computeStats, getFinalTrackingData } from "../lib/trackingData";
 import { resolvePackageMeta } from "../lib/packageCatalog";
+import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
 
 type DashboardStats = ReturnType<typeof computeStats> & {
   trackingUsed: number;
@@ -121,32 +122,36 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="space-y-5">
+    <PageShell className="space-y-5">
+      <div>
+        <PageTitle>Dashboard</PageTitle>
+        <BodyText className="mt-1">Business overview of package usage, shipment status, and quick actions.</BodyText>
+      </div>
       <div className="grid gap-4 xl:grid-cols-12">
-        <Card className="xl:col-span-4 border-slate-200 bg-[linear-gradient(155deg,#0f172a,#122136)] p-5 text-white shadow-[0_20px_60px_rgba(15,23,42,0.25)]">
+        <Card className="xl:col-span-4 border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200">Current Package</div>
-              <div className="mt-2 text-2xl font-semibold">{packageMeta.displayName}</div>
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Current Package</div>
+              <div className="mt-2 text-2xl font-semibold text-slate-900">{packageMeta.displayName}</div>
             </div>
-            <Package2 className="h-5 w-5 text-emerald-300" />
+            <Package2 className="h-5 w-5 text-brand" />
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-              <div className="text-slate-300">Limit</div>
-              <div className="mt-1 font-semibold text-white">{packageLimit.toLocaleString()}</div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <div className="text-slate-500">Limit</div>
+              <div className="mt-1 font-semibold text-slate-900">{packageLimit.toLocaleString()}</div>
             </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-              <div className="text-slate-300">Used</div>
-              <div className="mt-1 font-semibold text-white">{usedUnits.toLocaleString()}</div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+              <div className="text-slate-500">Used</div>
+              <div className="mt-1 font-semibold text-slate-900">{usedUnits.toLocaleString()}</div>
             </div>
           </div>
-          <Link to="/update-package" className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-brand">
+          <Link to="/update-package" className="mt-4 inline-flex items-center gap-2 rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white">
             Update Package <ArrowRight className="h-4 w-4" />
           </Link>
         </Card>
 
-        <Card className="xl:col-span-4 border-emerald-200 bg-[linear-gradient(150deg,#ecfdf5,#d1fae5)] p-5">
+        <Card className="xl:col-span-4 border-slate-200 bg-white p-5 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Remaining Units</div>
           <div className="mt-3 text-5xl font-extrabold tracking-[-0.03em] text-emerald-900">{remainingUnits.toLocaleString()}</div>
           <div className="mt-2 text-sm font-medium text-emerald-800">Formula: limit - used = remaining</div>
@@ -158,8 +163,8 @@ export default function Dashboard() {
           </div>
         </Card>
 
-        <Card className="xl:col-span-4 p-5">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Quick Actions</div>
+        <Card className="xl:col-span-4 border-slate-200 bg-white p-5 shadow-sm">
+          <CardTitle className="uppercase tracking-[0.1em] text-slate-600">Quick Actions</CardTitle>
           <div className="mt-3 grid gap-2">
             <Link to="/generate-labels" className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 hover:border-brand/30">Generate Labels</Link>
             <Link to="/generate-money-orders" className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 hover:border-brand/30">Generate Money Order</Link>
@@ -231,6 +236,6 @@ export default function Dashboard() {
           <div className="text-sm font-medium text-red-800">{error}</div>
         </Card>
       ) : null}
-    </div>
+    </PageShell>
   );
 }
