@@ -421,15 +421,10 @@ export default function Upload() {
 
   return (
     <PageShell className="space-y-3">
-      <div>
-        <PageTitle>Generate Labels</PageTitle>
-        <BodyText className="mt-1">Upload and configure labels workflow with consistent business layout.</BodyText>
-      </div>
-
-    <div className="grid gap-4">
-      <div className="min-w-0 space-y-4">
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="space-y-4 lg:col-span-2">
+    <div className="grid gap-3">
+      <div className="min-w-0 space-y-3">
+        <div className="grid gap-3 lg:grid-cols-3">
+          <div className="space-y-3 lg:col-span-2">
         <UploadDropzone
           title="Upload Orders File"
           subtitle="CSV/XLS/XLSX supported with strict shared columns. Configure options below, then generate labels."

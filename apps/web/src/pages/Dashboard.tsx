@@ -123,10 +123,6 @@ export default function Dashboard() {
 
   return (
     <PageShell className="space-y-3">
-      <div>
-        <PageTitle>Dashboard</PageTitle>
-        <BodyText className="mt-1">Business overview of package usage, shipment status, and quick actions.</BodyText>
-      </div>
       <div className="grid gap-3 xl:grid-cols-12">
         <Card className="xl:col-span-4 border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-3">

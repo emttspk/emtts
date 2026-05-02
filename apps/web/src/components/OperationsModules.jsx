@@ -34,7 +34,7 @@ const MODULES = [
 const BILLING_PACKAGES = [
   {
     name: "FREE",
-    price: "Rs 0 / cycle",
+    price: "Rs 0 / Month",
     shipmentLimit: "Labels/Units: 250",
     moneyOrderLimit: "Tracking: 250",
     trackingAccess: "Money Orders: Included",
@@ -42,7 +42,7 @@ const BILLING_PACKAGES = [
   },
   {
     name: "STANDARD",
-    price: "Rs 999 / cycle",
+    price: "Rs 999 / Month",
     shipmentLimit: "Labels/Units: 1,000",
     moneyOrderLimit: "Tracking: 1,000",
     trackingAccess: "Money Orders: Included",
@@ -50,7 +50,7 @@ const BILLING_PACKAGES = [
   },
   {
     name: "BUSINESS",
-    price: "Rs 2,500 / cycle",
+    price: "Rs 2,500 / Month",
     shipmentLimit: "Labels/Units: 3,000",
     moneyOrderLimit: "Tracking: 3,000",
     trackingAccess: "Money Orders: Included",

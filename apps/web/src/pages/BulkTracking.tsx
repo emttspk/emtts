@@ -2604,11 +2604,7 @@ export default function BulkTracking() {
   }
 
   return (
-    <PageShell className="space-y-2.5">
-    <div>
-      <PageTitle>Tracking</PageTitle>
-      <BodyText className="mt-1">Monitor shipment status and submit complaints from one workspace.</BodyText>
-    </div>
+    <PageShell className="space-y-0">
     <div className="w-full min-w-0 flex-1 max-w-none overflow-x-hidden px-0 mx-0">
       {complaintToast ? (
         <div className="sticky top-3 z-30 mb-3 px-2 sm:px-0">
@@ -3189,7 +3185,7 @@ export default function BulkTracking() {
                         </button>
                       </div>
                     </td>
-                    <td className="px-3 py-3.5 pl-4 align-middle min-w-[132px]">
+                    <td className="px-3 py-3.5 pl-4 align-middle min-w-[160px]">
                       {hasComplaintId || lifecycle.exists || queueSnapshot ? (() => {
                         const stateStyle = complaintStateBadgeClass(complaintCardState);
                         const complaintId = lifecycle.complaintId || queueSnapshot?.complaintId || "Complaint";

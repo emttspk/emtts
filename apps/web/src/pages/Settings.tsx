@@ -70,12 +70,7 @@ export default function Settings() {
   }
 
   return (
-    <PageShell className="space-y-6">
-      <div>
-        <PageTitle>Settings</PageTitle>
-        <BodyText className="mt-1">Update account profile, sender details, and package information.</BodyText>
-      </div>
-
+    <PageShell className="space-y-3">
       <Card className="border-slate-200 bg-white p-5 shadow-sm md:p-6">
         <div className="ui-kicker">Profile settings</div>
         <div className="mt-5 text-xl font-semibold text-slate-900">Premium sender profile for labels, returns, and account control.</div>

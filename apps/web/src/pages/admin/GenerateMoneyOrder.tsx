@@ -209,12 +209,7 @@ export default function GenerateMoneyOrder() {
 
   return (
     <PageShell className="space-y-3">
-      <div>
-        <PageTitle>Generate Money Order</PageTitle>
-        <BodyText className="mt-1">Upload or manual entry workflow with sender profile validation.</BodyText>
-      </div>
-
-    <div className="grid gap-4 lg:grid-cols-12">
+    <div className="grid gap-3 lg:grid-cols-12">
       <div className="space-y-3 lg:col-span-8">
         <Card className="border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">

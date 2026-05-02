@@ -64,12 +64,7 @@ export default function Jobs() {
   if (!loading && visibleJobs.length === 0) return <EmptyState onUploadClick={() => nav("/upload")} />;
 
   return (
-    <PageShell className="space-y-6">
-      <div>
-        <PageTitle>Download Labels</PageTitle>
-        <BodyText className="mt-1">Track all jobs and access completed downloadable outputs.</BodyText>
-      </div>
-
+    <PageShell className="space-y-3">
       <Card className="border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>

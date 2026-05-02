@@ -110,12 +110,7 @@ export default function Admin() {
   const previewUser = users.find((u) => u.id === previewUserId) ?? null;
 
   return (
-    <PageShell className="space-y-6">
-      <div>
-        <PageTitle>Admin</PageTitle>
-        <BodyText className="mt-1">Manage plans, customers, usage, and shipment-level controls.</BodyText>
-      </div>
-
+    <PageShell className="space-y-3">
       <Card className="overflow-hidden border-slate-200 bg-white p-5 shadow-sm md:p-6">
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
           <div>
