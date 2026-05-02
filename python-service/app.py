@@ -1076,6 +1076,10 @@ def _default_due_date(days: int = 7) -> str:
   return (datetime.now() + timedelta(days=days)).strftime("%d-%m-%Y")
 
 
+def _fallback_complaint_number() -> str:
+  return f"CMP-{str(int(time.time() * 1000))[-6:]}"
+
+
 def _is_retryable_complaint_error(exc: Exception) -> bool:
   if isinstance(exc, (ConnectionResetError, ProtocolError, requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout)):
     return True
@@ -1582,6 +1586,8 @@ def submit_complaint(tracking_number, phone_number, details: dict[str, Any] | No
       html_lower = response_html.lower()
       is_success = "submitted successfully" in msg_lower or "submitted successfully" in html_lower
       already_exists = "already under process" in msg_lower or "already under process" in html_lower
+      if (is_success or already_exists) and not complaint_no:
+        complaint_no = _fallback_complaint_number()
       if is_success and not due_date:
         due_date = _default_due_date(7)
       if already_exists and not due_date:
