@@ -406,8 +406,6 @@ async function runInlineTracking(jobId: string, userId: string) {
           explicitMo,
           trackingNumber: r.tracking_number,
         });
-        const lastEvent = processed.trackingSteps.length > 0 ? processed.trackingSteps[processed.trackingSteps.length - 1] : "-";
-        console.log(`[TrackingStatus] ${r.tracking_number} | System MOS: ${processed.systemMo} | Tracking MOS: ${processed.trackingMo} | Match: ${processed.moMatch} | Last Event: ${lastEvent} | Final Status: ${processed.systemStatus}`);
 
         const persistedStatus = resolvePersistedStatus(preserved, processed.systemStatus);
         const manualOverrideActive = Boolean(normalizeManualStatus((preserved as any).manual_status));
@@ -776,7 +774,6 @@ trackingRouter.post("/live-bulk", requireAuth, async (req, res) => {
   if (ids.length === 0) return res.status(400).json({ success: false, error: "No tracking_ids provided" });
 
   try {
-    console.log(`[BulkTracking] live-bulk: fetching ${ids.length} IDs in batched mode`);
     const bulkResults = await pythonTrackBulk(ids, { includeRaw: false, batchSize: 100, batchTimeoutMs: 120_000 });
     const resultsMap: Record<string, unknown> = {};
     for (const r of bulkResults) {
@@ -787,7 +784,6 @@ trackingRouter.post("/live-bulk", requireAuth, async (req, res) => {
         current_status: enforced,
       };
     }
-    console.log(`[Audit] Bulk Mode Active: YES (live-bulk)`);
     return res.json({ success: true, results: resultsMap, fetched: bulkResults.length });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Tracking service error";
@@ -916,14 +912,9 @@ trackingRouter.get("/track/:trackingNumber", requireAuth, async (req, res) => {
         ? `${String(result.events?.[responseEventCount - 1]?.date ?? "")} ${String(result.events?.[responseEventCount - 1]?.time ?? "")}`.trim()
         : "-";
     const statusAfterPatch = enforceFinalStatus((result as any)?.meta?.final_status ?? result.status);
-    const statusBeforePatch = String(result.status ?? "-");
     if (!STRICT_FINAL_STATUSES.has(String((result as any)?.meta?.final_status ?? "").trim())) {
-      console.error(`[TRACE] stage=API_FINAL_RESPONSE invalid_status_detected="${(result as any)?.meta?.final_status ?? result.status ?? "-"}" auto_corrected="Pending"`);
+      console.error(`[TrackingAPI] invalid status for ${result.tracking_number}: ${(result as any)?.meta?.final_status ?? result.status ?? "-"}`);
     }
-    console.log(
-      `[TRACE] stage=API_FINAL_RESPONSE tn=${result.tracking_number} event_count=${responseEventCount} first_event=${responseFirst} last_event=${responseLast} status_before_patch=${statusBeforePatch} status_after_patch=${statusAfterPatch} current_status=${statusAfterPatch}`,
-    );
-    console.log(`FINAL_STATUS = "${statusAfterPatch}"`);
 
     return res.json({
       success: true,

@@ -505,9 +505,7 @@ async function startWorker() {
     const dbUrl = String(process.env.DATABASE_URL ?? "").trim();
     if (!dbUrl) {
       console.error("[Worker] DATABASE_URL is missing. Worker will stay idle to avoid crash loops.");
-      setInterval(() => {
-        console.log("[Worker] Idle heartbeat: waiting for DATABASE_URL configuration.");
-      }, 60_000);
+      setInterval(() => undefined, 60_000);
       return;
     }
 

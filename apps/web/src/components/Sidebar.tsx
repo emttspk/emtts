@@ -62,7 +62,7 @@ export default function Sidebar(props: { isOpen: boolean; setIsOpen: (v: boolean
 
       <aside
         className={cn(
-          "fixed left-0 top-0 z-50 h-full border-r border-white/10 bg-[linear-gradient(180deg,#0F172A,#13243B,#0B6B3A)] text-white shadow-[20px_0_60px_rgba(15,23,42,0.16)]",
+          "fixed left-0 top-0 z-50 h-screen border-r border-slate-800 bg-[linear-gradient(180deg,#0B1220,#0F172A,#111827)] text-white shadow-[20px_0_60px_rgba(2,6,23,0.28)] md:sticky md:top-0",
           "transition-transform duration-300 ease-in-out md:translate-x-0",
           props.isOpen ? "translate-x-0" : "-translate-x-full",
           collapsed ? "w-64 md:w-[88px] lg:w-64" : "w-64",

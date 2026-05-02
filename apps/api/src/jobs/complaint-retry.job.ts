@@ -1,4 +1,5 @@
 import cron from "node-cron";
+import { prisma } from "../lib/prisma.js";
 import { trackingQueue } from "../queue/queue.js";
 import { getQueuedComplaintsForRetry } from "../services/complaint-queue.service.js";
 
@@ -10,12 +11,36 @@ export async function runComplaintRetryJob() {
   for (const row of rows) {
     const retryToken = Number(row.retryCount ?? 0);
     const enqueueToken = Date.now();
+    const retryJob = await prisma.trackingJob.create({
+      data: {
+        userId: row.userId,
+        kind: "COMPLAINT",
+        status: "QUEUED",
+        recordCount: 1,
+        originalFilename: null,
+        uploadPath: null,
+      },
+      select: { id: true },
+    });
+
     await trackingQueue.add(
       "process-complaint",
-      { jobId: `cq-${row.id}-${retryToken}-${enqueueToken}`, kind: "COMPLAINT", queueId: row.id, trackingNumber: row.trackingId, phone: "" },
+      { jobId: retryJob.id, kind: "COMPLAINT", queueId: row.id, trackingNumber: row.trackingId, phone: "" },
       { jobId: `complaint-queue-${row.id}-${retryToken}-${enqueueToken}` },
     );
+
+    await prisma.complaintQueue.update({
+      where: { id: row.id },
+      data: {
+        complaintStatus: "queued",
+        nextRetryAt: null,
+      },
+    });
+
     queued += 1;
+  }
+  if (queued > 0) {
+    console.log(`[ComplaintRetry] queued ${queued} complaint retry job(s)`);
   }
   return { queued };
 }

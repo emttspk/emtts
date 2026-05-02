@@ -1035,8 +1035,6 @@ shipmentsRouter.post("/refresh-pending", async (req, res) => {
         { ...raw, tracking: trackedRaw, collected_amount: collectedAmount },
         { explicitMo: explicitSystemMo, trackingNumber },
       );
-      const lastEvent = processed.trackingSteps.length > 0 ? processed.trackingSteps[processed.trackingSteps.length - 1] : "-";
-      console.log(`[TrackingStatus] ${trackingNumber} | System MOS: ${processed.systemMo} | Tracking MOS: ${processed.trackingMo} | Match: ${processed.moMatch} | Last Event: ${lastEvent} | Final Status: ${processed.systemStatus}`);
       const moIssued = resolveMoForDisplay(explicitSystemMo, processed);
       const moValue = resolveMoValueForDisplay(fromDbMo?.value ?? null, processed);
       const mergedRaw: Record<string, unknown> = {

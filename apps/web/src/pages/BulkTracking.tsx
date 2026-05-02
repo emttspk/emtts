@@ -265,6 +265,19 @@ function resolveComplaintCardState(
   return "";
 }
 
+function isComplaintActionAllowed(
+  shipmentStatus: string | null | undefined,
+  lifecycle: ComplaintLifecycle,
+  queueSnapshot: ComplaintQueueSnapshot | undefined,
+) {
+  const statusUpper = normalizeStatus(shipmentStatus).toUpperCase();
+  const complaintCardState = resolveComplaintCardState(lifecycle, queueSnapshot).toUpperCase();
+  const hasKnownComplaint = lifecycle.exists || Boolean(queueSnapshot)
+    || Boolean(String(lifecycle.complaintId ?? "").trim() || String(queueSnapshot?.complaintId ?? "").trim())
+    || ["ACTIVE", "QUEUED", "PROCESSING", "RETRY PENDING", "MANUAL REVIEW", "SUBMITTED", "DUPLICATE", "RESOLVED"].includes(complaintCardState);
+  return statusUpper === "PENDING" && !hasKnownComplaint;
+}
+
 function complaintStateBadgeClass(stateLabel: string) {
   const token = String(stateLabel ?? "").trim().toUpperCase();
   if (token === "QUEUED") return "border-slate-200 bg-slate-50 text-slate-700";
@@ -848,6 +861,7 @@ export default function BulkTracking() {
     status: string;
   } | null>(null);
   const [complaintSubmitNotice, setComplaintSubmitNotice] = useState<{ kind: "info" | "warning" | "error"; message: string } | null>(null);
+  const [complaintToast, setComplaintToast] = useState<{ kind: "info" | "warning" | "error"; message: string } | null>(null);
   const [complaintQueueByTracking, setComplaintQueueByTracking] = useState<Map<string, ComplaintQueueSnapshot>>(new Map());
   const [retryCountdownNow, setRetryCountdownNow] = useState(Date.now());
   const [complaintSelectionMode, setComplaintSelectionMode] = useState<"district" | "tehsil" | "location">("location");
@@ -934,6 +948,12 @@ export default function BulkTracking() {
     const timer = window.setInterval(() => setRetryCountdownNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (!complaintToast) return;
+    const timer = window.setTimeout(() => setComplaintToast(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [complaintToast]);
 
   const unresolvedComplaintCount = useMemo(() => {
     if (!isAdmin) return 0;
@@ -1029,6 +1049,25 @@ export default function BulkTracking() {
     setShipments(allRows);
     setTotalShipments(total || allRows.length);
     enqueueBackgroundRefresh(allRows);
+  }
+
+  function queueOptimisticComplaintState(input: { trackingId: string; status: ComplaintQueueSnapshot["complaintStatus"]; complaintId?: string; dueDate?: string }) {
+    const trackingId = String(input.trackingId ?? "").trim();
+    if (!trackingId) return;
+    setComplaintQueueByTracking((prev) => {
+      const next = new Map(prev);
+      next.set(trackingId, {
+        id: `local-${trackingId}`,
+        trackingId,
+        complaintStatus: input.status,
+        complaintId: input.complaintId ? String(input.complaintId).trim() : null,
+        dueDate: input.dueDate ? String(input.dueDate).trim() : null,
+        nextRetryAt: null,
+        retryCount: 0,
+        updatedAt: new Date().toISOString(),
+      });
+      return next;
+    });
   }
 
   function persistShipmentsCache(allRows: Shipment[], total: number, fetchedAt: number) {
@@ -2027,6 +2066,12 @@ export default function BulkTracking() {
     };
   }, [selectedTracking]);
 
+  const selectedComplaintLifecycle = selectedTracking ? parseComplaintLifecycle(selectedTracking.shipment) : null;
+  const selectedComplaintQueueSnapshot = selectedTracking ? complaintQueueByTracking.get(selectedTracking.shipment.trackingNumber) : undefined;
+  const selectedComplaintEnabled = selectedTracking && selectedComplaintLifecycle
+    ? isComplaintActionAllowed(selectedTracking.final_status, selectedComplaintLifecycle, selectedComplaintQueueSnapshot)
+    : false;
+
   function printShipmentPdf() {
     const printArea = document.getElementById("print-area");
     const modalRoot = document.getElementById("tracking-popup-print-root");
@@ -2503,20 +2548,40 @@ export default function BulkTracking() {
       const finalUiStatus = queueStatus ? "QUEUED" : status;
       setComplaintSubmitResult({ complaintNumber, dueDate, trackingId, status: finalUiStatus });
       if (finalUiStatus === "DUPLICATE") {
-        setComplaintSubmitNotice({
+        queueOptimisticComplaintState({
+          trackingId,
+          status: "duplicate",
+          complaintId: complaintNumber,
+          dueDate,
+        });
+        setComplaintToast({
           kind: "warning",
-          message: "Complaint Already Exists. Review Complaint ID and Due Date below.",
+          message: complaintNumber
+            ? `Complaint already exists for ${trackingId}. Complaint ID ${complaintNumber}.`
+            : `Complaint already exists for ${trackingId}.`,
         });
+        closeComplaintModal();
       } else if (finalUiStatus === "QUEUED") {
-        setComplaintSubmitNotice({
+        queueOptimisticComplaintState({ trackingId, status: "queued" });
+        setComplaintToast({
           kind: "info",
-          message: `Queued: complaint request accepted for ${trackingId}.`,
+          message: `Complaint queued successfully for ${trackingId}.`,
         });
+        closeComplaintModal();
       } else if (finalUiStatus === "SUCCESS") {
-        setComplaintSubmitNotice({
-          kind: "info",
-          message: `Success: complaint registered for ${trackingId}.`,
+        queueOptimisticComplaintState({
+          trackingId,
+          status: complaintNumber ? "submitted" : "processing",
+          complaintId: complaintNumber,
+          dueDate,
         });
+        setComplaintToast({
+          kind: "info",
+          message: complaintNumber
+            ? `Complaint submitted for ${trackingId}. Complaint ID ${complaintNumber}.`
+            : `Complaint queued successfully for ${trackingId}.`,
+        });
+        closeComplaintModal();
       } else {
         setComplaintSubmitNotice({
           kind: "error",
@@ -2525,7 +2590,8 @@ export default function BulkTracking() {
             : friendlyComplaintMessage(res.message),
         });
       }
-      await refreshShipments();
+      void refreshComplaintQueueSnapshot();
+      void refreshShipments();
     } catch (e) {
       setComplaintSubmitNotice({
         kind: "error",
@@ -2539,6 +2605,29 @@ export default function BulkTracking() {
   return (
     <>
     <div className="w-full max-w-full overflow-x-hidden px-0 mx-0">
+      {complaintToast ? (
+        <div className="sticky top-3 z-30 mb-3 px-2 sm:px-0">
+          <div
+            className={cn(
+              "mx-auto flex w-full max-w-4xl items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm shadow-lg backdrop-blur",
+              complaintToast.kind === "error"
+                ? "border-red-500/40 bg-red-950/90 text-red-100"
+                : complaintToast.kind === "warning"
+                  ? "border-amber-500/40 bg-amber-950/90 text-amber-100"
+                  : "border-emerald-500/40 bg-emerald-950/90 text-emerald-100",
+            )}
+          >
+            <span>{complaintToast.message}</span>
+            <button
+              type="button"
+              onClick={() => setComplaintToast(null)}
+              className="rounded border border-white/15 px-2 py-1 text-[11px] font-semibold text-inherit hover:bg-white/10"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      ) : null}
       <button
         type="button"
         onClick={() => {
@@ -2831,8 +2920,8 @@ export default function BulkTracking() {
       ) : null}
 
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}>
-      <Card className="w-full overflow-hidden rounded-[24px] border-[#E5E7EB] bg-[linear-gradient(180deg,#ffffff,#f8fbff)] p-0 shadow-[0_22px_52px_rgba(15,23,42,0.12)]">
-        <div className="border-b border-[#E5E7EB] bg-white/90 px-4 py-4 backdrop-blur-md md:px-6 md:py-5">
+      <Card className="w-full overflow-hidden rounded-[24px] border border-slate-800 bg-[#111827] p-0 shadow-[0_22px_52px_rgba(2,6,23,0.45)]">
+        <div className="border-b border-slate-800 bg-[#111827] px-4 py-4 backdrop-blur-md md:px-6 md:py-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/10">
@@ -2853,7 +2942,7 @@ export default function BulkTracking() {
                   if (e.key === "Enter") applyTrackingSearch();
                 }}
                 placeholder="Search tracking, city, status, complaint..."
-                className="w-full rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-brand sm:min-w-[280px]"
+                className="w-full rounded-xl border border-slate-700 bg-[#0F172A] px-3 py-1.5 text-xs font-medium text-slate-100 outline-none focus:border-emerald-400 sm:min-w-[280px]"
               />
               <button
                 type="button"
@@ -2879,10 +2968,10 @@ export default function BulkTracking() {
                 <option value={100}>100</option>
               </select>
             </label>
-            <label className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm">
+            <label className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-[#0F172A] px-3 py-1.5 text-xs font-medium text-slate-300 shadow-sm">
               <span>Status:</span>
               <select
-                className="border-0 bg-transparent text-xs font-semibold text-slate-700 outline-none"
+                className="border-0 bg-transparent text-xs font-semibold text-slate-100 outline-none"
                 value={statusFilter}
                 onChange={(e) => {
                   setStatusFilter(e.target.value as StatusCardFilter);
@@ -2916,7 +3005,7 @@ export default function BulkTracking() {
             </button>
             <button
               onClick={refreshShipments}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-[#F8FAF9] transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-[#0F172A] px-3 py-1.5 text-xs font-semibold text-slate-100 shadow-sm hover:bg-slate-800 transition-colors"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Refresh
@@ -2924,18 +3013,18 @@ export default function BulkTracking() {
             <button
               type="button"
               onClick={exportFilteredTrackingCsv}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-[#F8FAF9] transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-[#0F172A] px-3 py-1.5 text-xs font-semibold text-slate-100 shadow-sm hover:bg-slate-800 transition-colors"
             >
               Export
             </button>
           </div>
         </div>
-        {refreshSummary ? <div className="border-t border-[#E5E7EB] bg-[#F8FAF9] px-6 py-2 text-xs text-slate-700">{refreshSummary}</div> : null}
+        {refreshSummary ? <div className="border-t border-slate-800 bg-[#0F172A] px-6 py-2 text-xs text-slate-300">{refreshSummary}</div> : null}
         </div>
         <div className="p-0">
-          <div className="w-full max-h-[72vh] overflow-x-hidden overflow-y-auto rounded-[20px] border border-slate-200 bg-white">
+          <div className="w-full max-h-[72vh] overflow-x-hidden overflow-y-auto rounded-[20px] border border-slate-800 bg-[#0F172A]">
             <table className="w-full table-fixed text-[12px] leading-4">
-              <thead className="sticky top-0 z-10 border-b border-slate-200 bg-[#f7fafc]/95 backdrop-blur">
+              <thead className="sticky top-0 z-10 border-b border-slate-800 bg-[#111827]/95 backdrop-blur">
               <tr>
                 <th className="w-9 border-r border-slate-100 px-1.5 py-2">
                   <input
@@ -2974,10 +3063,10 @@ export default function BulkTracking() {
                 <th className="w-24 border-r border-slate-100 px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
                   Money Order Amount
                 </th>
-                <th className="w-28 border-r border-slate-100 px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                <th className="w-24 border-r border-slate-800 px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
                   Action
                 </th>
-                <th className="w-[180px] px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                <th className="w-[132px] px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
                   Complaint
                 </th>
               </tr>
@@ -2994,7 +3083,7 @@ export default function BulkTracking() {
                 const complaintCardState = resolveComplaintCardState(lifecycle, queueSnapshot);
                 const hasComplaintId = Boolean(String(lifecycle.complaintId ?? "").trim() || String(queueSnapshot?.complaintId ?? "").trim());
                 const complaintInProcess = hasComplaintId || isComplaintInProcess(lifecycle) || ["ACTIVE", "QUEUED", "PROCESSING", "RETRY PENDING"].includes(complaintCardState.toUpperCase());
-                const isComplaintEnabled = statusUpper === "PENDING" && !complaintInProcess;
+                const isComplaintEnabled = isComplaintActionAllowed(displayStatus, lifecycle, queueSnapshot);
 
                 const actionOptions = [
                   { label: "Pending", val: "PENDING" },
@@ -3251,8 +3340,8 @@ export default function BulkTracking() {
         {auditSummary ? <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{auditSummary}</div> : null}
         {auditError ? <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{auditError}</div> : null}
         {auditRows.length > 0 ? (
-          <div className="mt-4 overflow-x-auto rounded-2xl border border-[#E5E7EB] bg-white">
-            <table className="min-w-[1200px] text-xs">
+          <div className="mt-4 overflow-x-hidden rounded-2xl border border-slate-800 bg-[#0F172A]">
+            <table className="w-full table-fixed text-xs">
               <thead className="bg-[#F8FAF9]">
                 <tr>
                   <th className="px-3 py-2 text-left font-semibold text-slate-600">Tracking</th>
@@ -3848,7 +3937,7 @@ export default function BulkTracking() {
                 >
                   WhatsApp
                 </button>
-                {normalizeStatus(selectedTracking.final_status) === "PENDING" ? (
+                {selectedComplaintEnabled ? (
                   <button
                     type="button"
                     onClick={() => openComplaintModal(selectedTracking)}
