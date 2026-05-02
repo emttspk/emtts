@@ -11,7 +11,6 @@ export default function AppShell() {
   const loc = useLocation();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [me, setMe] = useState<MeResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -49,18 +48,14 @@ export default function AppShell() {
       <Sidebar
         isOpen={isSidebarOpen}
         setIsOpen={setIsSidebarOpen}
-        collapsed={isSidebarCollapsed}
-        setCollapsed={setIsSidebarCollapsed}
         userEmail={me?.user.email}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="ml-0 flex min-w-0 flex-1 flex-col overflow-hidden md:ml-[88px] lg:ml-[260px]">
         <Topbar
           title={title}
           setIsSidebarOpen={setIsSidebarOpen}
           userEmail={me?.user.email}
-          isSidebarCollapsed={isSidebarCollapsed}
-          setIsSidebarCollapsed={setIsSidebarCollapsed}
         />
 
         <main className="flex-1 overflow-x-hidden overflow-y-auto p-4">

@@ -1,7 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  ChevronLeft,
-  ChevronRight,
   Download,
   LayoutDashboard,
   LogOut,
@@ -30,24 +28,21 @@ const nav = [
 export default function Sidebar(props: {
   isOpen: boolean;
   setIsOpen: (v: boolean) => void;
-  collapsed?: boolean;
-  setCollapsed?: (v: boolean) => void;
   userEmail?: string;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
   const role = getRole();
-  const collapsed = Boolean(props.collapsed);
 
   const NavItem = (p: { to: string; label: string; icon: any; matchPrefixes: string[] }) => {
     const active = isRouteActive(location.pathname, { matchPrefixes: p.matchPrefixes });
     return (
       <Link
         to={p.to}
-        title={collapsed ? p.label : undefined}
+        title={p.label}
         className={cn(
           "group relative flex h-11 items-center rounded-xl px-3 text-sm font-semibold transition-all duration-200 ease-out",
-          collapsed ? "justify-center lg:justify-start" : "gap-3",
+          "gap-3",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80 focus-visible:ring-offset-0",
           active
             ? "border border-emerald-300/40 bg-emerald-400/10 text-white"
@@ -56,8 +51,8 @@ export default function Sidebar(props: {
         onClick={() => props.setIsOpen(false)}
       >
         <p.icon className={cn("h-5 w-5 flex-none transition-transform duration-200 ease-out group-hover:scale-105", active ? "opacity-100" : "opacity-90")} />
-        <span className={cn("truncate", collapsed && "hidden lg:inline")}>{p.label}</span>
-        {active && !collapsed ? <span className="absolute right-3 h-1.5 w-1.5 rounded-full bg-emerald-200" /> : null}
+        <span className="truncate">{p.label}</span>
+        {active ? <span className="absolute right-3 h-1.5 w-1.5 rounded-full bg-emerald-200" /> : null}
       </Link>
     );
   };
@@ -75,29 +70,19 @@ export default function Sidebar(props: {
           "w-[260px] md:w-[88px] lg:w-[260px]",
           "transition-transform duration-300 ease-in-out md:translate-x-0",
           props.isOpen ? "translate-x-0" : "-translate-x-full",
-          collapsed ? "lg:w-[88px]" : "",
         )}
       >
         <div className="flex h-[72px] items-center justify-between border-b border-white/10 px-4">
-          <div className={cn("flex min-w-0 items-center gap-3", collapsed && "md:justify-center md:gap-0") }>
+          <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-sm font-semibold text-brand shadow-card">
               EP
             </div>
-            <div className={cn("min-w-0 leading-tight", collapsed && "md:hidden lg:block") }>
+            <div className="min-w-0 leading-tight md:hidden lg:block">
               <div className="text-sm font-semibold text-white">Epost.pk</div>
               <div className="truncate text-xs font-medium text-slate-200">{props.userEmail ?? "Operations Workspace"}</div>
             </div>
           </div>
           <div className="flex items-center gap-1">
-            {props.setCollapsed ? (
-              <button
-                className="hidden rounded-lg p-2 text-gray-300 transition hover:bg-white/10 hover:text-white lg:inline-flex"
-                onClick={() => props.setCollapsed?.(!collapsed)}
-                title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              >
-                {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-              </button>
-            ) : null}
             <button className="rounded-lg p-2 text-gray-300 transition hover:bg-white/10 hover:text-white md:hidden" onClick={() => props.setIsOpen(false)}>
               <X className="h-5 w-5" />
             </button>
@@ -115,18 +100,15 @@ export default function Sidebar(props: {
 
         <div className="border-t border-white/10 px-3 py-3">
           <button
-            title={collapsed ? "Logout" : undefined}
-            className={cn(
-              "flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-slate-200 transition-all duration-200 ease-out hover:bg-white/10 hover:text-white",
-              collapsed && "md:justify-center lg:justify-start",
-            )}
+            title="Logout"
+            className="flex h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-slate-200 transition-all duration-200 ease-out hover:bg-white/10 hover:text-white"
             onClick={() => {
               clearSession();
               navigate("/login");
             }}
           >
             <LogOut className="h-5 w-5 flex-none opacity-90" />
-            <span className={cn(collapsed && "md:hidden lg:inline")}>Logout</span>
+            <span>Logout</span>
           </button>
         </div>
       </aside>

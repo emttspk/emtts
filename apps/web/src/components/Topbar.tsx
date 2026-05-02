@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Bell, ChevronDown, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Menu, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { clearSession } from "../lib/auth";
 import { cn } from "../lib/cn";
@@ -16,8 +16,6 @@ function initials(email?: string) {
 export default function Topbar(props: {
   title: string;
   setIsSidebarOpen: (v: boolean) => void;
-  isSidebarCollapsed?: boolean;
-  setIsSidebarCollapsed?: (v: boolean) => void;
   userEmail?: string;
 }) {
   const navigate = useNavigate();
@@ -33,15 +31,6 @@ export default function Topbar(props: {
           <button onClick={() => props.setIsSidebarOpen(true)} className="btn-secondary px-2.5 py-2 md:hidden">
             <Menu className="h-5 w-5" />
           </button>
-          {props.setIsSidebarCollapsed ? (
-            <button
-              onClick={() => props.setIsSidebarCollapsed?.(!props.isSidebarCollapsed)}
-              className="btn-secondary hidden p-2 lg:inline-flex"
-              title={props.isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {props.isSidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-            </button>
-          ) : null}
           <div>
             <div className="font-display text-xl font-extrabold tracking-[-0.03em] text-gray-900 md:text-2xl">{props.title}</div>
           </div>
