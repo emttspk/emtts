@@ -11,7 +11,6 @@ import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } fr
 import { buildTrackingCycleAuditRecord } from "../services/trackingCycleAudit.js";
 import { getTrackingCycleCorrections, saveTrackingCycleCorrections } from "../services/trackingCycleCorrections.js";
 import { validateAndImportCycleAudit, parseCSV } from "../services/trackingCycleImport.js";
-import { consumeUnit, refundUnit } from "../usage/unitConsumption.js";
 
 export const shipmentsRouter = Router();
 
@@ -820,11 +819,10 @@ shipmentsRouter.post("/refresh-pending", async (req, res) => {
     shipments.map((s) => s.trackingNumber),
   );
 
-  let chargedUnits = 0;
+  const chargedUnits = 0;
   let cachedCount = 0;
   let refreshedCount = 0;
   const now = Date.now();
-  const bucket = Math.floor(now / TRACKING_CACHE_TTL_MS);
   const details: Array<{ trackingNumber: string; refreshed: boolean; cached: boolean; charged: boolean; status: string }> = [];
 
   // ── Phase 1: Classify: cache-hit vs needs-refresh ──────────────────────────
@@ -852,30 +850,8 @@ shipmentsRouter.post("/refresh-pending", async (req, res) => {
     `[BulkTracking] Cache pre-filter (DB) | total=${shipments.length} cached=${cachedCount} non_cached=${needsRefresh.length}`,
   );
 
-  // ── Phase 2: Consume units for all shipments that need refresh ─────────────
-  type ConsumeInfo = { ok: boolean; idempotent: boolean; requestKey: string };
-  const consumeInfoMap = new Map<string, ConsumeInfo>();
-  const approvedForFetch: ShipmentRow[] = [];
-  for (const shipment of needsRefresh) {
-    const requestKey = `refresh:${shipment.trackingNumber}:${bucket}`;
-    const consume = await consumeUnit(userId, "tracking", requestKey);
-    consumeInfoMap.set(shipment.trackingNumber, {
-      ok: consume.ok,
-      idempotent: ("idempotent" in consume ? (consume.idempotent ?? false) : false),
-      requestKey,
-    });
-    if (consume.ok) {
-      approvedForFetch.push(shipment);
-    } else {
-      details.push({
-        trackingNumber: shipment.trackingNumber,
-        refreshed: false,
-        cached: false,
-        charged: false,
-        status: canonicalShipmentStatus(shipment.status, null),
-      });
-    }
-  }
+  // ── Phase 2: Refresh eligibility (no unit charging on refresh paths) ───────
+  const approvedForFetch: ShipmentRow[] = [...needsRefresh];
 
   // ── Phase 3: BULK FETCH — single Python call for all approved tracking IDs ─
   const bulkTrackingNumbers = approvedForFetch.map((s) => s.trackingNumber);
@@ -899,14 +875,8 @@ shipmentsRouter.post("/refresh-pending", async (req, res) => {
     }
   }
 
-  // If the tracking service is down, refund all charged units and bail early.
+  // If the tracking service is down, return an unavailable response.
   if (bulkError instanceof PythonServiceUnavailableError || bulkError instanceof PythonServiceTimeoutError) {
-    for (const shipment of approvedForFetch) {
-      const info = consumeInfoMap.get(shipment.trackingNumber);
-      if (info && !info.idempotent) {
-        await refundUnit(userId, "tracking", info.requestKey);
-      }
-    }
     return res.status(503).json({
       success: false,
       error: bulkError instanceof Error ? bulkError.message : "Tracking service unavailable",
@@ -916,16 +886,10 @@ shipmentsRouter.post("/refresh-pending", async (req, res) => {
   // ── Phase 4: Process each result from the bulk map ─────────────────────────
   for (const shipment of approvedForFetch) {
     const trackingNumber = shipment.trackingNumber;
-    const info = consumeInfoMap.get(trackingNumber)!;
-    const charged = !info.idempotent;
-    if (charged) chargedUnits += 1;
+    const charged = false;
 
     const tracked = bulkResultMap.get(trackingNumber.trim().toUpperCase()) ?? null;
     if (!tracked || bulkError) {
-      if (charged) {
-        await refundUnit(userId, "tracking", info.requestKey);
-        chargedUnits = Math.max(0, chargedUnits - 1);
-      }
       details.push({
         trackingNumber,
         refreshed: false,
@@ -1017,10 +981,6 @@ shipmentsRouter.post("/refresh-pending", async (req, res) => {
       refreshedCount += 1;
       details.push({ trackingNumber, refreshed: true, cached: false, charged, status: normalized });
     } catch {
-      if (charged) {
-        await refundUnit(userId, "tracking", info.requestKey);
-        chargedUnits = Math.max(0, chargedUnits - 1);
-      }
       details.push({
         trackingNumber,
         refreshed: false,
