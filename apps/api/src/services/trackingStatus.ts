@@ -316,6 +316,13 @@ function deriveSystemStatus(input: {
     return acc;
   }, null as (TrackingEvent & { text: string; upper: string }) | null);
 
+  const latestLooksReturnedToBooking = Boolean(
+    latestEvent
+    && bookingToken
+    && latestEvent.upper.includes(bookingToken)
+    && ["return", "returned", "return to sender", "rts", "undelivered", "refused", "delivered to sender"].some((k) => latestEvent.text.includes(k)),
+  );
+
   let reachedDeliverySide = false;
   let movedBackToBooking = false;
   let reverseDispatchToBooking = false;
@@ -403,7 +410,7 @@ function deriveSystemStatus(input: {
     if (bookingToken && ev.upper.includes(bookingToken)) return true;
     return ev.text.includes("booking office");
   });
-  if (deliveredToSender || deliveredAtBookingOffice) return "RETURNED";
+  if (latestLooksReturnedToBooking || deliveredToSender || deliveredAtBookingOffice) return "RETURNED";
   if (movedBackToBooking || reverseDispatchToBooking) return "RETURN_IN_PROCESS";
   if (returnInitiated) return "RETURN_INITIATED";
 
@@ -537,6 +544,7 @@ export type ProcessTrackingResult = {
   moIssued: string | "-";
   trackingMo: string | "-";
   systemMo: string | "-";
+  collectedAmount: number;
   moMatch: "YES" | "NO";
   resolvedDeliveryOffice: string;
   trackingSteps: string[];
@@ -730,7 +738,8 @@ export function processTracking(rawData: unknown, opts?: { explicitMo?: string |
     && codDecisionScope
     && deliveredStatusReady
     && deliveredCycleReady;
-  const moIssuedOut = moneyOrderLinkEligible ? (systemMoTokens[0] ?? "-") : "-";
+  const detectedMo = trackingMo !== "-" ? trackingMo : (systemMoTokens[0] ?? "-");
+  const moIssuedOut = detectedMo !== "-" ? detectedMo : "-";
 
   // Keep detailed system status for dashboard truth, while `status` remains canonical tri-state.
   const systemStatusOut = steps.length === 0 ? "PENDING" : systemStatus;
@@ -770,6 +779,7 @@ export function processTracking(rawData: unknown, opts?: { explicitMo?: string |
     moIssued: moIssuedOut,
     trackingMo,
     systemMo,
+    collectedAmount,
     moMatch: moMatched ? "YES" : "NO",
     resolvedDeliveryOffice,
     trackingSteps: steps,

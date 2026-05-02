@@ -15,7 +15,6 @@ import {
   computeStats,
   filterFinalTrackingData,
   getFinalTrackingData,
-  sortFinalTrackingData,
   type FinalTrackingRecord,
   type StatusCardFilter,
 } from "../lib/trackingData";
@@ -88,6 +87,7 @@ type ComplaintTemplateKey = "VALUE_PAYABLE" | "NORMAL" | "RETURN";
 type ExtendedStatusFilter = StatusCardFilter | "COMPLAINT_ACTIVE" | "COMPLAINT_CLOSED";
 
 const TRACKING_CACHE_TTL_MS = 60_000;
+const TRACKING_CACHE_STORAGE_KEY = "tracking.workspace.cache.v2";
 const BACKGROUND_BATCH_SIZE = 100;
 const COMPLAINT_PHONE_STORAGE_KEY = "complaint.manual.phone";
 const COMPLAINT_EMAIL_STORAGE_KEY = "complaint.manual.email";
@@ -906,6 +906,27 @@ export default function BulkTracking() {
   }, []);
 
   useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(TRACKING_CACHE_STORAGE_KEY);
+      if (!raw) {
+        void refreshShipments();
+        return;
+      }
+      const parsed = JSON.parse(raw) as { shipments?: Shipment[]; total?: number; fetchedAt?: number };
+      const cachedShipments = Array.isArray(parsed?.shipments) ? parsed.shipments : [];
+      const cachedTotal = Number(parsed?.total ?? cachedShipments.length);
+      const fetchedAt = Number(parsed?.fetchedAt ?? 0);
+      if (cachedShipments.length > 0 && Number.isFinite(fetchedAt) && fetchedAt > 0) {
+        trackingCacheRef.current = {
+          shipments: cachedShipments,
+          total: Number.isFinite(cachedTotal) ? cachedTotal : cachedShipments.length,
+          fetchedAt,
+        };
+        applyShipmentsSnapshot(cachedShipments, cachedTotal);
+      }
+    } catch {
+      // Ignore malformed cache and continue with live refresh.
+    }
     void refreshShipments();
   }, []);
 
@@ -1010,6 +1031,17 @@ export default function BulkTracking() {
     enqueueBackgroundRefresh(allRows);
   }
 
+  function persistShipmentsCache(allRows: Shipment[], total: number, fetchedAt: number) {
+    try {
+      window.localStorage.setItem(
+        TRACKING_CACHE_STORAGE_KEY,
+        JSON.stringify({ shipments: allRows, total: total || allRows.length, fetchedAt }),
+      );
+    } catch {
+      // Storage quota issues should never break rendering.
+    }
+  }
+
   async function fetchShipmentsFromServer() {
     const hardLimit = 200;
     let currentPage = 1;
@@ -1031,6 +1063,50 @@ export default function BulkTracking() {
     return { allRows, total };
   }
 
+  async function fetchShipmentsDiff(rows: Shipment[]) {
+    const payload = rows
+      .map((row) => ({
+        trackingNumber: String(row.trackingNumber ?? "").trim(),
+        updatedAt: String(row.updatedAt ?? "").trim(),
+      }))
+      .filter((row) => row.trackingNumber && row.updatedAt);
+
+    if (payload.length === 0) {
+      return { changedRows: [] as Shipment[], unchangedCount: 0 };
+    }
+
+    return api<{ changedRows: Shipment[]; unchangedCount: number }>("/api/shipments/diff", {
+      method: "POST",
+      body: JSON.stringify({ rows: payload }),
+    });
+  }
+
+  function applyChangedRows(baseRows: Shipment[], changedRows: Shipment[]) {
+    if (!Array.isArray(changedRows) || changedRows.length === 0) return baseRows;
+
+    const patchMap = new Map<string, Shipment>();
+    for (const row of changedRows) {
+      const key = String(row.trackingNumber ?? "").trim();
+      if (key) patchMap.set(key, row);
+    }
+
+    if (patchMap.size === 0) return baseRows;
+
+    const next = baseRows.map((row) => {
+      const key = String(row.trackingNumber ?? "").trim();
+      const patched = patchMap.get(key);
+      if (!patched) return row;
+      patchMap.delete(key);
+      return patched;
+    });
+
+    for (const extra of patchMap.values()) {
+      next.push(extra);
+    }
+
+    return next;
+  }
+
   async function revalidateShipmentsInBackground() {
     if (shipmentsRefreshInFlightRef.current) {
       shipmentsRefreshPendingRef.current = true;
@@ -1039,15 +1115,37 @@ export default function BulkTracking() {
 
     shipmentsRefreshInFlightRef.current = true;
     try {
-      const { allRows, total } = await fetchShipmentsFromServer();
-      trackingCacheRef.current = { shipments: allRows, total: total || allRows.length, fetchedAt: Date.now() };
+      const cachedRows = trackingCacheRef.current?.shipments ?? [];
+      const hasCachedRows = cachedRows.length > 0;
+      let nextRows: Shipment[];
+      let nextTotal: number;
 
-      console.log(`[TRACE] stage=FRONTEND_RECEIVED_DATA shipments=${allRows.length}`);
-      for (const row of getFinalTrackingData(allRows)) {
+      if (hasCachedRows) {
+        try {
+          const diff = await fetchShipmentsDiff(cachedRows);
+          nextRows = applyChangedRows(cachedRows, Array.isArray(diff.changedRows) ? diff.changedRows : []);
+          nextTotal = trackingCacheRef.current?.total || nextRows.length;
+        } catch {
+          const full = await fetchShipmentsFromServer();
+          nextRows = full.allRows;
+          nextTotal = full.total || full.allRows.length;
+        }
+      } else {
+        const full = await fetchShipmentsFromServer();
+        nextRows = full.allRows;
+        nextTotal = full.total || full.allRows.length;
+      }
+
+      const fetchedAt = Date.now();
+      trackingCacheRef.current = { shipments: nextRows, total: nextTotal, fetchedAt };
+      persistShipmentsCache(nextRows, nextTotal, fetchedAt);
+
+      console.log(`[TRACE] stage=FRONTEND_RECEIVED_DATA shipments=${nextRows.length}`);
+      for (const row of getFinalTrackingData(nextRows)) {
         console.log(`FRONTEND_DISPLAY_STATUS = "${row.final_status}" tn=${row.shipment.trackingNumber}`);
       }
 
-      applyShipmentsSnapshot(allRows, total);
+      applyShipmentsSnapshot(nextRows, nextTotal);
       void refreshShipmentStats();
       void refreshComplaintQueueSnapshot();
     } finally {
@@ -1350,13 +1448,15 @@ export default function BulkTracking() {
       backgroundRunningRef.current = false;
       if (updated) {
         try {
-          const data = await api<{ shipments: Shipment[] }>("/api/shipments?limit=100");
+          const { allRows, total } = await fetchShipmentsFromServer();
+          const fetchedAt = Date.now();
           trackingCacheRef.current = {
-            shipments: data.shipments,
-            total: data.shipments.length,
-            fetchedAt: Date.now(),
+            shipments: allRows,
+            total: total || allRows.length,
+            fetchedAt,
           };
-          applyShipmentsSnapshot(data.shipments, data.shipments.length);
+          persistShipmentsCache(allRows, total, fetchedAt);
+          applyShipmentsSnapshot(allRows, total);
           const stats = await api<ShipmentStats>("/api/shipments/stats");
           setShipmentStats(stats);
         } catch {
@@ -1742,7 +1842,7 @@ export default function BulkTracking() {
     const baseFilter: StatusCardFilter = statusFilter === "COMPLAINT_ACTIVE" || statusFilter === "COMPLAINT_CLOSED"
       ? "ALL"
       : statusFilter;
-    const filtered = sortFinalTrackingData(filterFinalTrackingData(finalTrackingData, baseFilter));
+    const filtered = filterFinalTrackingData(finalTrackingData, baseFilter);
 
     if (statusFilter === "COMPLAINT_ACTIVE") {
       return filtered.filter((record) => {
@@ -2439,6 +2539,16 @@ export default function BulkTracking() {
   return (
     <>
     <div className="w-full max-w-full overflow-x-hidden px-0 mx-0">
+      <button
+        type="button"
+        onClick={() => {
+          const target = document.getElementById("tracking-workspace-section");
+          target?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }}
+        className="fixed right-2 top-2 z-30 rounded-full border border-brand/40 bg-white/95 px-3 py-1 text-[11px] font-semibold text-brand shadow md:hidden"
+      >
+        Workspace
+      </button>
       <div className="grid gap-6">
         <div className="min-w-0 w-full flex-1 space-y-6">
       <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
@@ -2517,6 +2627,7 @@ export default function BulkTracking() {
       )}
 
       <Card>
+        <div id="tracking-workspace-section" />
         <div className="border-b px-6 py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -2822,11 +2933,11 @@ export default function BulkTracking() {
         {refreshSummary ? <div className="border-t border-[#E5E7EB] bg-[#F8FAF9] px-6 py-2 text-xs text-slate-700">{refreshSummary}</div> : null}
         </div>
         <div className="p-0">
-          <div className="w-full max-h-[72vh] overflow-x-visible overflow-y-auto rounded-[20px] border border-slate-200 bg-white">
-            <table className="w-full table-fixed text-[13px] leading-5">
+          <div className="w-full max-h-[72vh] overflow-x-hidden overflow-y-auto rounded-[20px] border border-slate-200 bg-white">
+            <table className="w-full table-fixed text-[12px] leading-4">
               <thead className="sticky top-0 z-10 border-b border-slate-200 bg-[#f7fafc]/95 backdrop-blur">
               <tr>
-                <th className="w-10 border-r border-slate-100 px-2 py-2.5">
+                <th className="w-9 border-r border-slate-100 px-1.5 py-2">
                   <input
                     type="checkbox"
                     className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
@@ -2842,31 +2953,31 @@ export default function BulkTracking() {
                     }
                   />
                 </th>
-                <th className="w-16 border-r border-slate-100 px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                <th className="w-14 border-r border-slate-100 px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
                   S.No
                 </th>
-                <th className="w-24 border-r border-slate-100 px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                <th className="w-20 border-r border-slate-100 px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
                   Updated
                 </th>
-                <th className="w-40 border-r border-slate-100 px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                <th className="w-32 border-r border-slate-100 px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
                   <span className="inline-flex items-center gap-1"><PackageSearch className="h-3 w-3" /> Tracking</span>
                 </th>
-                <th className="w-24 border-r border-slate-100 px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                <th className="w-20 border-r border-slate-100 px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
                   Status
                 </th>
-                <th className="w-36 border-r border-slate-100 px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                <th className="w-28 border-r border-slate-100 px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
                   <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> City</span>
                 </th>
-                <th className="w-36 border-r border-slate-100 px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                <th className="w-28 border-r border-slate-100 px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
                   <span className="inline-flex items-center gap-1"><BadgeDollarSign className="h-3 w-3" /> Money Order No</span>
                 </th>
-                <th className="w-32 border-r border-slate-100 px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                <th className="w-24 border-r border-slate-100 px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
                   Money Order Amount
                 </th>
-                <th className="w-36 border-r border-slate-100 px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                <th className="w-28 border-r border-slate-100 px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
                   Action
                 </th>
-                <th className="w-[220px] px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500">
+                <th className="w-[180px] px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
                   Complaint
                 </th>
               </tr>
@@ -2921,7 +3032,7 @@ export default function BulkTracking() {
 
                 return (
                   <tr key={s.id} className={cn("group border-b border-slate-100 transition-colors hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.05)]", rowVisual.tone)}>
-                    <td className={cn("border-r border-slate-100 border-l-4 px-2 py-2.5 align-middle", rowVisual.left)}>
+                    <td className={cn("border-r border-slate-100 border-l-4 px-1.5 py-1.5 align-middle", rowVisual.left)}>
                       <input
                         type="checkbox"
                         className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
@@ -2933,8 +3044,8 @@ export default function BulkTracking() {
                         }
                       />
                     </td>
-                    <td className="border-r border-slate-100 px-2 py-2.5 align-middle text-xs font-semibold text-slate-700">{(page - 1) * pageSize + index + 1}</td>
-                    <td className="border-r border-slate-100 px-2 py-2.5 align-middle whitespace-nowrap">
+                    <td className="border-r border-slate-100 px-1.5 py-1.5 align-middle text-[11px] font-semibold text-slate-700">{(page - 1) * pageSize + index + 1}</td>
+                    <td className="border-r border-slate-100 px-1.5 py-1.5 align-middle whitespace-nowrap">
                       <div className="flex flex-col">
                         <span className="text-xs font-semibold text-slate-900">
                           {new Date(s.updatedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}
@@ -2944,10 +3055,10 @@ export default function BulkTracking() {
                         </span>
                       </div>
                     </td>
-                    <td className="border-r border-slate-100 px-2 py-2.5 align-middle font-mono text-xs font-bold text-slate-800 group-hover:text-brand truncate whitespace-nowrap" title={s.trackingNumber}>
+                    <td className="border-r border-slate-100 px-1.5 py-1.5 align-middle font-mono text-[11px] font-bold text-slate-800 group-hover:text-brand truncate whitespace-nowrap" title={s.trackingNumber}>
                       {s.trackingNumber}
                     </td>
-                    <td className="border-r border-slate-100 px-2 py-2.5 align-middle whitespace-nowrap">
+                    <td className="border-r border-slate-100 px-1.5 py-1.5 align-middle whitespace-nowrap">
                       <div className="flex flex-col">
                         <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset", isWarning ? "bg-red-100 text-red-700 ring-red-200" : statusBadgeClass(displayStatus))}>
                           {normalizeStatus(displayStatus)}
@@ -2955,15 +3066,15 @@ export default function BulkTracking() {
                           <span className="mt-0.5 text-[10px] text-slate-500">{days}d</span>
                       </div>
                     </td>
-                      <td className="border-r border-slate-100 px-2 py-2.5 align-middle text-xs text-slate-600 truncate whitespace-nowrap" title={preferredCity(s)}>{preferredCity(s)}</td>
-                      <td className="border-r border-slate-100 px-2 py-2.5 align-middle text-xs font-semibold text-slate-700 truncate whitespace-nowrap" title={moValue || undefined}>{moValue}</td>
-                      <td className="border-r border-slate-100 px-2 py-2.5 align-middle text-xs font-medium text-slate-700 whitespace-nowrap">
+                      <td className="border-r border-slate-100 px-1.5 py-1.5 align-middle text-[11px] text-slate-600 truncate whitespace-nowrap" title={preferredCity(s)}>{preferredCity(s)}</td>
+                      <td className="border-r border-slate-100 px-1.5 py-1.5 align-middle text-[11px] font-semibold text-slate-700 truncate whitespace-nowrap" title={moValue || undefined}>{moValue}</td>
+                      <td className="border-r border-slate-100 px-1.5 py-1.5 align-middle text-[11px] font-medium text-slate-700 whitespace-nowrap">
                       {issuedValue != null ? `Rs ${issuedValue.toLocaleString()}` : "-"}
                     </td>
-                    <td className="border-r border-slate-100 px-2 py-2.5 align-middle">
+                    <td className="border-r border-slate-100 px-1.5 py-1.5 align-middle">
                       <div className="flex items-center gap-1">
                         <select
-                            className="w-24 rounded border-[#E5E7EB] bg-white px-2 py-1 text-[11px] font-medium text-slate-700 shadow-sm focus:border-brand focus:ring-brand"
+                            className="w-20 rounded border-[#E5E7EB] bg-white px-1.5 py-1 text-[10px] font-medium text-slate-700 shadow-sm focus:border-brand focus:ring-brand"
                           value={actionValue}
                           onChange={(e) => updateStatus(s.trackingNumber, e.target.value.includes("RETURN") ? "RETURNED" : e.target.value)}
                         >
@@ -2983,7 +3094,7 @@ export default function BulkTracking() {
                         </button>
                       </div>
                     </td>
-                    <td className="px-2 py-2.5 align-middle">
+                    <td className="px-1.5 py-1.5 align-middle">
                       {hasComplaintId || lifecycle.exists || queueSnapshot ? (() => {
                         const stateStyle = complaintStateBadgeClass(complaintCardState);
                         const complaintId = lifecycle.complaintId || queueSnapshot?.complaintId || "Complaint";
@@ -3701,16 +3812,16 @@ export default function BulkTracking() {
             className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-sm"
             onClick={() => setSelectedTracking(null)}
           />
-          {/* Right-side panel (desktop) / bottom drawer (mobile) */}
+          {/* Centered detail modal */}
           <motion.div
             key="detail-panel"
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", damping: 28, stiffness: 280 }}
-            className="fixed right-0 top-0 z-50 flex h-full w-full flex-col bg-white shadow-[-20px_0_60px_rgba(15,23,42,0.18)] sm:w-[420px] md:w-[480px]"
+            initial={{ opacity: 0, scale: 0.98, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.98, y: 12 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4"
           >
-          <div id="tracking-popup-print-root" className="flex h-full flex-col">
+          <div id="tracking-popup-print-root" className="flex h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
             {/* Panel Header */}
             <div className="modal-header flex items-center justify-between border-b border-[#E5E7EB] bg-white px-5 py-4">
               <div className="flex items-center gap-3">
@@ -3737,6 +3848,15 @@ export default function BulkTracking() {
                 >
                   WhatsApp
                 </button>
+                {normalizeStatus(selectedTracking.final_status) === "PENDING" ? (
+                  <button
+                    type="button"
+                    onClick={() => openComplaintModal(selectedTracking)}
+                    className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 transition-colors"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" /> Complaint
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => setSelectedTracking(null)}

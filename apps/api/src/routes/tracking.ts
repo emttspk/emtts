@@ -662,9 +662,22 @@ export async function handleTrackingBulk(req: Request, res: Response) {
 
     const existing = await prisma.shipment.findMany({
       where: { userId, trackingNumber: { in: trackingNumbers } },
-      select: { trackingNumber: true },
+      select: { trackingNumber: true, rawJson: true },
     });
     const existingSet = new Set(existing.map((s) => s.trackingNumber));
+    const uploadSequenceByTracking = new Map(trackingNumbers.map((trackingNumber, index) => [trackingNumber, index + 1]));
+    const existingUploadSequenceByTracking = new Map<string, number>();
+    for (const row of existing) {
+      try {
+        const raw = row.rawJson ? JSON.parse(row.rawJson) : null;
+        const preservedSequence = Number((raw as any)?.upload_sequence ?? (raw as any)?.uploadSequence ?? 0);
+        if (Number.isFinite(preservedSequence) && preservedSequence > 0) {
+          existingUploadSequenceByTracking.set(row.trackingNumber, preservedSequence);
+        }
+      } catch {
+        // Ignore malformed historical payloads.
+      }
+    }
     const toCreate = trackingNumbers
       .filter((t) => !existingSet.has(t))
       .map((trackingNumber) => ({
@@ -678,6 +691,7 @@ export async function handleTrackingBulk(req: Request, res: Response) {
                 ...row,
                 TrackingID: trackingNumber,
                 tracking: null,
+                upload_sequence: existingUploadSequenceByTracking.get(trackingNumber) ?? uploadSequenceByTracking.get(trackingNumber) ?? 0,
                 collected_amount: normalizeCollectedAmount(
                   (row as any)?.collected_amount ?? (row as any)?.collect_amount ?? (row as any)?.CollectAmount,
                 ),
@@ -701,6 +715,7 @@ export async function handleTrackingBulk(req: Request, res: Response) {
                 ...row,
                 TrackingID: trackingNumber,
                 tracking: null,
+                upload_sequence: existingUploadSequenceByTracking.get(trackingNumber) ?? uploadSequenceByTracking.get(trackingNumber) ?? 0,
                 collected_amount: normalizeCollectedAmount(
                   (row as any)?.collected_amount ?? (row as any)?.collect_amount ?? (row as any)?.CollectAmount,
                 ),

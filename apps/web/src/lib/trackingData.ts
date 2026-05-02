@@ -402,7 +402,24 @@ export function getFinalTrackingData(records: Shipment[], nowMs = Date.now()): F
 }
 
 export function sortFinalTrackingData(records: FinalTrackingRecord[]): FinalTrackingRecord[] {
-  return [...records].sort((a, b) => b.last_event_at - a.last_event_at);
+  return [...records]
+    .map((record, index) => {
+      const raw = parseRaw(record.shipment.rawJson);
+      const uploadSequence = Number(raw.upload_sequence ?? raw.uploadSequence ?? 0);
+      const createdAt = new Date(record.shipment.createdAt).getTime();
+      return {
+        record,
+        index,
+        uploadSequence: Number.isFinite(uploadSequence) && uploadSequence > 0 ? uploadSequence : Number.POSITIVE_INFINITY,
+        createdAt: Number.isFinite(createdAt) ? createdAt : Number.POSITIVE_INFINITY,
+      };
+    })
+    .sort((a, b) => {
+      if (a.uploadSequence !== b.uploadSequence) return a.uploadSequence - b.uploadSequence;
+      if (a.createdAt !== b.createdAt) return a.createdAt - b.createdAt;
+      return a.index - b.index;
+    })
+    .map((item) => item.record);
 }
 
 export function filterFinalTrackingData(records: FinalTrackingRecord[], filter: StatusCardFilter): FinalTrackingRecord[] {
