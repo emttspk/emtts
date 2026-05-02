@@ -2611,17 +2611,17 @@ export default function BulkTracking() {
             className={cn(
               "mx-auto flex w-full max-w-4xl items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-sm shadow-lg backdrop-blur",
               complaintToast.kind === "error"
-                ? "border-red-500/40 bg-red-950/90 text-red-100"
+                ? "border-red-200 bg-red-50 text-red-700"
                 : complaintToast.kind === "warning"
-                  ? "border-amber-500/40 bg-amber-950/90 text-amber-100"
-                  : "border-emerald-500/40 bg-emerald-950/90 text-emerald-100",
+                  ? "border-amber-200 bg-amber-50 text-amber-700"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-700",
             )}
           >
             <span>{complaintToast.message}</span>
             <button
               type="button"
               onClick={() => setComplaintToast(null)}
-              className="rounded border border-white/15 px-2 py-1 text-[11px] font-semibold text-inherit hover:bg-white/10"
+              className="rounded border border-current/20 px-2 py-1 text-[11px] font-semibold text-inherit hover:bg-black/5"
             >
               Dismiss
             </button>
@@ -2638,29 +2638,29 @@ export default function BulkTracking() {
       >
         Workspace
       </button>
-      <div className="grid gap-6">
-        <div className="min-w-0 w-full flex-1 space-y-6">
+      <div className="grid gap-4">
+        <div className="min-w-0 w-full flex-1 space-y-4">
       <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-      <Card className="overflow-hidden border-0 bg-[linear-gradient(135deg,#0f172a_0%,#0b6b3a_58%,#1e7a4a_100%)] p-6 shadow-[0_24px_56px_rgba(11,107,58,0.28)] md:p-8">
+      <Card className="overflow-hidden border border-[#E5E7EB] bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_56%,#eefbf3_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.08)] md:p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="min-w-0">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-200 backdrop-blur-sm">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
               <Activity className="h-3 w-3" />
-              Live Tracking Workspace
+              Tracking Workspace
             </div>
-            <div className="mt-3 font-display text-3xl font-extrabold tracking-[-0.04em] text-white md:text-4xl">All Tracked Shipments</div>
-            <div className="mt-2 max-w-lg text-sm leading-relaxed text-slate-200">Real-time visibility into every shipment.</div>
+            <div className="mt-2 font-display text-2xl font-extrabold tracking-[-0.03em] text-[#0F172A] md:text-3xl">All Tracked Shipments</div>
+            <div className="mt-1 max-w-lg text-sm leading-relaxed text-slate-600">Real-time visibility into every shipment.</div>
           </div>
           <div className="flex shrink-0 items-center gap-3">
-            <div className="min-w-[130px] rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
-              <div className="text-xs font-medium text-slate-300">Current File</div>
-              <div className="mt-1 truncate text-sm font-semibold text-white">{file?.name ?? "No file selected"}</div>
+            <div className="min-w-[130px] rounded-2xl border border-[#E5E7EB] bg-white p-3">
+              <div className="text-xs font-medium text-slate-500">Current File</div>
+              <div className="mt-1 truncate text-sm font-semibold text-slate-900">{file?.name ?? "No file selected"}</div>
             </div>
-            <div className="min-w-[110px] rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
-              <div className="text-xs font-medium text-slate-300">Job State</div>
-              <div className="mt-1 text-sm font-semibold text-white">{statusLabel}</div>
+            <div className="min-w-[110px] rounded-2xl border border-[#E5E7EB] bg-white p-3">
+              <div className="text-xs font-medium text-slate-500">Job State</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">{statusLabel}</div>
             </div>
-            <div className="hidden h-16 w-28 rounded-2xl border border-white/15 bg-[radial-gradient(circle_at_20%_30%,rgba(255,255,255,0.35),transparent_55%),radial-gradient(circle_at_80%_65%,rgba(16,185,129,0.5),transparent_60%)] sm:block" />
+            <div className="hidden h-14 w-24 rounded-2xl border border-[#E5E7EB] bg-[radial-gradient(circle_at_20%_30%,rgba(16,185,129,0.25),transparent_55%),radial-gradient(circle_at_80%_65%,rgba(59,130,246,0.2),transparent_60%)] sm:block" />
           </div>
         </div>
       </Card>
@@ -2717,7 +2717,7 @@ export default function BulkTracking() {
 
       <Card>
         <div id="tracking-workspace-section" />
-        <div className="border-b px-6 py-4">
+        <div className="border-b px-4 py-3 md:px-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-xl font-medium text-[#0F172A]">Bulk Tracking</div>
@@ -2727,17 +2727,17 @@ export default function BulkTracking() {
           </div>
         </div>
 
-        <div className="grid gap-4 p-6">
+        <div className="grid gap-3 p-4">
           <div
             {...getRootProps()}
             className={cn(
-              "relative rounded-[28px] border border-dashed bg-white p-8 transition-all duration-300 ease-in-out",
+              "relative rounded-[24px] border border-dashed bg-white p-5 transition-all duration-300 ease-in-out",
               isDragActive ? "border-brand bg-brand/10" : "border-gray-200 hover:border-gray-300",
             )}
           >
             <input {...getInputProps()} />
             <div className="flex flex-col items-center text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-gray-50">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50">
                 <UploadCloud className="h-6 w-6 text-gray-600" />
               </div>
               <div className="mt-4 text-base font-medium text-[#0F172A]">Drag & drop Excel/CSV</div>
@@ -2920,16 +2920,16 @@ export default function BulkTracking() {
       ) : null}
 
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}>
-      <Card className="w-full overflow-hidden rounded-[24px] border border-slate-800 bg-[#111827] p-0 shadow-[0_22px_52px_rgba(2,6,23,0.45)]">
-        <div className="border-b border-slate-800 bg-[#111827] px-4 py-4 backdrop-blur-md md:px-6 md:py-5">
+      <Card className="w-full overflow-hidden rounded-[24px] border border-[#E5E7EB] bg-[linear-gradient(180deg,#ffffff,#f8fbff)] p-0 shadow-[0_22px_52px_rgba(15,23,42,0.12)]">
+        <div className="border-b border-[#E5E7EB] bg-white/90 px-4 py-3 backdrop-blur-md md:px-4 md:py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/10">
                 <Truck className="h-4 w-4 text-brand" />
               </div>
               <div>
-                <div className="text-base font-bold tracking-tight text-slate-900">All Tracked Shipments</div>
-                <div className="text-xs text-slate-500">Search, status, history, and money-order details.</div>
+                <div className="text-base font-bold tracking-tight text-[#111827]">All Tracked Shipments</div>
+                <div className="text-xs text-[#6B7280]">Search, status, history, and money-order details.</div>
               </div>
             </div>
             <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:flex-wrap md:items-center">
@@ -2942,7 +2942,7 @@ export default function BulkTracking() {
                   if (e.key === "Enter") applyTrackingSearch();
                 }}
                 placeholder="Search tracking, city, status, complaint..."
-                className="w-full rounded-xl border border-slate-700 bg-[#0F172A] px-3 py-1.5 text-xs font-medium text-slate-100 outline-none focus:border-emerald-400 sm:min-w-[280px]"
+                className="w-full rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-medium text-[#111827] outline-none focus:border-brand sm:min-w-[280px]"
               />
               <button
                 type="button"
@@ -2968,10 +2968,10 @@ export default function BulkTracking() {
                 <option value={100}>100</option>
               </select>
             </label>
-            <label className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-[#0F172A] px-3 py-1.5 text-xs font-medium text-slate-300 shadow-sm">
+            <label className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-medium text-[#6B7280] shadow-sm">
               <span>Status:</span>
               <select
-                className="border-0 bg-transparent text-xs font-semibold text-slate-100 outline-none"
+                className="border-0 bg-transparent text-xs font-semibold text-[#111827] outline-none"
                 value={statusFilter}
                 onChange={(e) => {
                   setStatusFilter(e.target.value as StatusCardFilter);
@@ -3005,7 +3005,7 @@ export default function BulkTracking() {
             </button>
             <button
               onClick={refreshShipments}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-[#0F172A] px-3 py-1.5 text-xs font-semibold text-slate-100 shadow-sm hover:bg-slate-800 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-semibold text-[#111827] shadow-sm hover:bg-[#F8FAF9] transition-colors"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Refresh
@@ -3013,20 +3013,20 @@ export default function BulkTracking() {
             <button
               type="button"
               onClick={exportFilteredTrackingCsv}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-[#0F172A] px-3 py-1.5 text-xs font-semibold text-slate-100 shadow-sm hover:bg-slate-800 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-semibold text-[#111827] shadow-sm hover:bg-[#F8FAF9] transition-colors"
             >
               Export
             </button>
           </div>
         </div>
-        {refreshSummary ? <div className="border-t border-slate-800 bg-[#0F172A] px-6 py-2 text-xs text-slate-300">{refreshSummary}</div> : null}
+        {refreshSummary ? <div className="border-t border-[#E5E7EB] bg-[#F8FAF9] px-4 py-2 text-xs text-[#6B7280]">{refreshSummary}</div> : null}
         </div>
         <div className="p-0">
-          <div className="w-full max-h-[72vh] overflow-x-hidden overflow-y-auto rounded-[20px] border border-slate-800 bg-[#0F172A]">
+          <div className="w-full max-h-[72vh] overflow-x-auto overflow-y-auto rounded-[20px] border border-[#E5E7EB] bg-white">
             <table className="w-full table-fixed text-[12px] leading-4">
-              <thead className="sticky top-0 z-10 border-b border-slate-800 bg-[#111827]/95 backdrop-blur">
+              <thead className="sticky top-0 z-10 border-b border-[#E5E7EB] bg-[#F8FAFC]">
               <tr>
-                <th className="w-9 border-r border-slate-100 px-1.5 py-2">
+                <th className="w-9 border-r border-[#E5E7EB] px-3 py-3.5">
                   <input
                     type="checkbox"
                     className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
@@ -3042,36 +3042,36 @@ export default function BulkTracking() {
                     }
                   />
                 </th>
-                <th className="w-14 border-r border-slate-100 px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                <th className="w-14 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
                   S.No
                 </th>
-                <th className="w-20 border-r border-slate-100 px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                <th className="w-20 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
                   Updated
                 </th>
-                <th className="w-32 border-r border-slate-100 px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                <th className="w-32 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
                   <span className="inline-flex items-center gap-1"><PackageSearch className="h-3 w-3" /> Tracking</span>
                 </th>
-                <th className="w-20 border-r border-slate-100 px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                <th className="w-20 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
                   Status
                 </th>
-                <th className="w-28 border-r border-slate-100 px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                <th className="w-28 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
                   <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> City</span>
                 </th>
-                <th className="w-28 border-r border-slate-100 px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                <th className="w-28 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
                   <span className="inline-flex items-center gap-1"><BadgeDollarSign className="h-3 w-3" /> Money Order No</span>
                 </th>
-                <th className="w-24 border-r border-slate-100 px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                <th className="w-24 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
                   Money Order Amount
                 </th>
-                <th className="w-24 border-r border-slate-800 px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                <th className="w-24 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
                   Action
                 </th>
-                <th className="w-[132px] px-1.5 py-2 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+                <th className="w-[132px] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
                   Complaint
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-[#E5E7EB]">
               {paginatedShipments.map((row, index) => {
                 const s = row.shipment;
                 const displayStatus = row.final_status;
@@ -3106,22 +3106,23 @@ export default function BulkTracking() {
                 const issuedValue = extractMoValue(s.rawJson, s.moValue ?? null);
                 const complaintStateUpper = complaintCardState.toUpperCase();
                 const rowVisual = complaintStateUpper === "PROCESSING"
-                  ? { tone: "bg-purple-50/45", left: "border-l-purple-500" }
+                  ? { left: "border-l-purple-500" }
                   : complaintStateUpper === "RETRY PENDING"
-                    ? { tone: "bg-yellow-50/50", left: "border-l-yellow-500" }
+                    ? { left: "border-l-yellow-500" }
                     : complaintStateUpper === "ACTIVE"
-                      ? { tone: "bg-blue-50/45", left: "border-l-blue-500" }
+                      ? { left: "border-l-blue-500" }
                       : statusUpper.includes("DELIVERED")
-                        ? { tone: "bg-emerald-50/35", left: "border-l-emerald-500" }
+                        ? { left: "border-l-emerald-500" }
                         : statusUpper.includes("RETURN")
-                          ? { tone: "bg-red-50/35", left: "border-l-red-500" }
+                          ? { left: "border-l-red-500" }
                           : isWarning
-                            ? { tone: "bg-purple-50/40", left: "border-l-purple-400" }
-                            : { tone: "bg-amber-50/35", left: "border-l-amber-500" };
+                            ? { left: "border-l-purple-400" }
+                            : { left: "border-l-amber-500" };
+                const rowBaseTone = index % 2 === 0 ? "bg-white" : "bg-[#FAFAFA]";
 
                 return (
-                  <tr key={s.id} className={cn("group border-b border-slate-100 transition-colors hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.05)]", rowVisual.tone)}>
-                    <td className={cn("border-r border-slate-100 border-l-4 px-1.5 py-1.5 align-middle", rowVisual.left)}>
+                  <tr key={s.id} className={cn("group border-b border-[#E5E7EB] transition-colors hover:bg-slate-50", rowBaseTone)}>
+                    <td className={cn("border-r border-[#E5E7EB] border-l-4 px-3 py-3.5 align-middle", rowVisual.left)}>
                       <input
                         type="checkbox"
                         className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
@@ -3133,8 +3134,8 @@ export default function BulkTracking() {
                         }
                       />
                     </td>
-                    <td className="border-r border-slate-100 px-1.5 py-1.5 align-middle text-[11px] font-semibold text-slate-700">{(page - 1) * pageSize + index + 1}</td>
-                    <td className="border-r border-slate-100 px-1.5 py-1.5 align-middle whitespace-nowrap">
+                    <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle text-[11px] font-semibold text-slate-700">{(page - 1) * pageSize + index + 1}</td>
+                    <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle whitespace-nowrap">
                       <div className="flex flex-col">
                         <span className="text-xs font-semibold text-slate-900">
                           {new Date(s.updatedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}
@@ -3144,10 +3145,10 @@ export default function BulkTracking() {
                         </span>
                       </div>
                     </td>
-                    <td className="border-r border-slate-100 px-1.5 py-1.5 align-middle font-mono text-[11px] font-bold text-slate-800 group-hover:text-brand truncate whitespace-nowrap" title={s.trackingNumber}>
+                    <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle font-mono text-[11px] font-bold text-slate-800 group-hover:text-brand truncate whitespace-nowrap" title={s.trackingNumber}>
                       {s.trackingNumber}
                     </td>
-                    <td className="border-r border-slate-100 px-1.5 py-1.5 align-middle whitespace-nowrap">
+                    <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle whitespace-nowrap">
                       <div className="flex flex-col">
                         <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset", isWarning ? "bg-red-100 text-red-700 ring-red-200" : statusBadgeClass(displayStatus))}>
                           {normalizeStatus(displayStatus)}
@@ -3155,15 +3156,15 @@ export default function BulkTracking() {
                           <span className="mt-0.5 text-[10px] text-slate-500">{days}d</span>
                       </div>
                     </td>
-                      <td className="border-r border-slate-100 px-1.5 py-1.5 align-middle text-[11px] text-slate-600 truncate whitespace-nowrap" title={preferredCity(s)}>{preferredCity(s)}</td>
-                      <td className="border-r border-slate-100 px-1.5 py-1.5 align-middle text-[11px] font-semibold text-slate-700 truncate whitespace-nowrap" title={moValue || undefined}>{moValue}</td>
-                      <td className="border-r border-slate-100 px-1.5 py-1.5 align-middle text-[11px] font-medium text-slate-700 whitespace-nowrap">
+                      <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle text-[11px] text-slate-600 truncate whitespace-nowrap" title={preferredCity(s)}>{preferredCity(s)}</td>
+                      <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle text-[11px] font-semibold text-slate-700 truncate whitespace-nowrap" title={moValue || undefined}>{moValue}</td>
+                      <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle text-[11px] font-medium text-slate-700 whitespace-nowrap">
                       {issuedValue != null ? `Rs ${issuedValue.toLocaleString()}` : "-"}
                     </td>
-                    <td className="border-r border-slate-100 px-1.5 py-1.5 align-middle">
+                    <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle">
                       <div className="flex items-center gap-1">
                         <select
-                            className="w-20 rounded border-[#E5E7EB] bg-white px-1.5 py-1 text-[10px] font-medium text-slate-700 shadow-sm focus:border-brand focus:ring-brand"
+                            className="w-20 rounded border-[#E5E7EB] bg-white px-2 py-1.5 text-[10px] font-medium text-slate-700 shadow-sm focus:border-brand focus:ring-brand"
                           value={actionValue}
                           onChange={(e) => updateStatus(s.trackingNumber, e.target.value.includes("RETURN") ? "RETURNED" : e.target.value)}
                         >
@@ -3183,7 +3184,7 @@ export default function BulkTracking() {
                         </button>
                       </div>
                     </td>
-                    <td className="px-1.5 py-1.5 align-middle">
+                    <td className="px-3 py-3.5 align-middle">
                       {hasComplaintId || lifecycle.exists || queueSnapshot ? (() => {
                         const stateStyle = complaintStateBadgeClass(complaintCardState);
                         const complaintId = lifecycle.complaintId || queueSnapshot?.complaintId || "Complaint";
@@ -3196,9 +3197,9 @@ export default function BulkTracking() {
                           ? formatProcessingElapsed(queueSnapshot?.updatedAt, retryCountdownNow)
                           : "";
                         return (
-                          <div className={cn("w-full max-w-[210px] rounded-lg border px-2 py-1.5 text-left text-[10px]", stateStyle)}>
-                            <div className="truncate font-semibold" title={complaintId}>{complaintId}</div>
-                            <div className="mt-0.5 opacity-80">Due: {dueDate}</div>
+                          <div className="w-full max-w-[210px] rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-2 text-left text-[10px] shadow-sm">
+                            <div className="truncate font-semibold text-[#111827]" title={complaintId}>{complaintId}</div>
+                            <div className="mt-0.5 text-[#6B7280]">Due: {dueDate}</div>
                             <div className="mt-0.5">
                               <span className={cn("inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ring-1 ring-inset", stateStyle)}>
                                 {complaintCardState}
@@ -3286,7 +3287,7 @@ export default function BulkTracking() {
       </Card>
       </motion.div>
 
-      {isAdmin ? <Card className="border-[#E5E7EB] p-6">
+      {isAdmin ? <Card className="border-[#E5E7EB] p-4 md:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="text-lg font-semibold text-slate-900">Tracking Cycle Audit (100 Sample)</div>
@@ -3340,8 +3341,8 @@ export default function BulkTracking() {
         {auditSummary ? <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{auditSummary}</div> : null}
         {auditError ? <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{auditError}</div> : null}
         {auditRows.length > 0 ? (
-          <div className="mt-4 overflow-x-hidden rounded-2xl border border-slate-800 bg-[#0F172A]">
-            <table className="w-full table-fixed text-xs">
+          <div className="mt-4 overflow-x-auto rounded-2xl border border-[#E5E7EB] bg-white">
+            <table className="min-w-[1200px] text-xs">
               <thead className="bg-[#F8FAF9]">
                 <tr>
                   <th className="px-3 py-2 text-left font-semibold text-slate-600">Tracking</th>
@@ -3354,7 +3355,7 @@ export default function BulkTracking() {
                   <th className="px-3 py-2 text-left font-semibold text-slate-600">Editable Correction</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-[#E5E7EB]">
                 {auditRows.map((row) => {
                   const draft = draftFor(row);
                   return (
@@ -4036,6 +4037,9 @@ export default function BulkTracking() {
     </>
   );
 }
+
+
+
 
 
 
