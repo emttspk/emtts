@@ -99,7 +99,11 @@ def _edit_distance(left: str, right: str) -> int:
 
 
 def _load_post_office_rows() -> list[dict[str, str]]:
-  csv_path = Path(__file__).resolve().parents[1] / "city" / "post office list.csv"
+  base = Path(__file__).resolve().parents[1] / "city"
+  # Prefer the new dash-separated filename written by location_master_sync.py
+  csv_path = base / "post-office-list.csv"
+  if not csv_path.exists():
+    csv_path = base / "post office list.csv"
   if not csv_path.exists():
     return []
 
@@ -735,59 +739,72 @@ def _clean_address(value: str) -> str:
 
 
 def _match_delivery_office(delivery_office: str, district: str = "", tehsil: str = "") -> dict[str, str] | None:
+  """
+  Match delivery office text against POST_OFFICE_ROWS.
+  Priority: exact location (50) > prefix/contains location (40/30) > fuzzy location (20)
+            > exact tehsil (10) > contains tehsil (8)
+            > exact district (5) > contains district (3).
+  Location always dominates. Returns None when no match found.
+  """
   office_norm = _normalize_location_name(delivery_office)
   district_norm = _normalize_location_name(district)
   tehsil_norm = _normalize_location_name(tehsil)
-  if not POST_OFFICE_ROWS:
+  if not POST_OFFICE_ROWS or not office_norm:
     return None
 
-  def _rank_rows(target: str, district_filter: str = "", tehsil_filter: str = "") -> list[tuple[int, dict[str, str]]]:
-    ranked_rows: list[tuple[int, dict[str, str]]] = []
-    if not target:
-      return ranked_rows
+  def _score(row: dict[str, str], target: str) -> int:
+    loc = row.get("norm_location") or _normalize_location_name(row.get("location", ""))
+    teh = _normalize_location_name(row.get("tehsil", ""))
+    dist = _normalize_location_name(row.get("district", ""))
+    # Location first (highest priority)
+    if loc:
+      if loc == target:
+        return 50
+      if min(len(loc), len(target)) >= 5:
+        if loc.startswith(target) or target.startswith(loc):
+          return 40
+        if target in loc or loc in target:
+          return 30
+        if _edit_distance(loc, target) <= 2:
+          return 20
+    # Tehsil second
+    if teh:
+      if teh == target:
+        return 10
+      if min(len(teh), len(target)) >= 5 and (teh in target or target in teh):
+        return 8
+    # District last (lowest priority)
+    if dist:
+      if dist == target:
+        return 5
+      if min(len(dist), len(target)) >= 5 and (dist in target or target in dist):
+        return 3
+    return 0
+
+  # Pass 1: with explicit hierarchy constraints (district and/or tehsil provided).
+  if district_norm or tehsil_norm:
+    best_constrained: tuple[int, dict[str, str]] | None = None
     for row in POST_OFFICE_ROWS:
-      candidate = row["norm_location"]
-      if not candidate:
+      row_dist = _normalize_location_name(row.get("district", ""))
+      row_teh = _normalize_location_name(row.get("tehsil", ""))
+      if district_norm and row_dist != district_norm:
         continue
-      row_district = _normalize_location_name(row.get("district", ""))
-      row_tehsil = _normalize_location_name(row.get("tehsil", ""))
-      if district_filter and row_district != district_filter:
+      if tehsil_norm and row_teh != tehsil_norm:
         continue
-      if tehsil_filter and row_tehsil != tehsil_filter:
-        continue
-      if target == candidate:
-        ranked_rows.append((4, row))
-      elif len(candidate) >= 5 and target in candidate:
-        ranked_rows.append((3, row))
-      elif len(target) >= 5 and candidate in target:
-        ranked_rows.append((2, row))
-    ranked_rows.sort(key=lambda item: item[0], reverse=True)
-    return ranked_rows
+      s = _score(row, office_norm)
+      if s > 0 and (best_constrained is None or s > best_constrained[0]):
+        best_constrained = (s, row)
+    if best_constrained:
+      return best_constrained[1]
 
-  # 1) Preferred path: delivery office with explicit hierarchy constraints if provided.
-  ranked: list[tuple[int, dict[str, str]]] = []
-  if office_norm:
-    ranked = _rank_rows(office_norm, district_norm, tehsil_norm)
-    if ranked:
-      return ranked[0][1]
+  # Pass 2: unconstrained — location first, then tehsil, then district.
+  best: tuple[int, dict[str, str]] | None = None
+  for row in POST_OFFICE_ROWS:
+    s = _score(row, office_norm)
+    if s > 0 and (best is None or s > best[0]):
+      best = (s, row)
 
-  # 2) Fallback path: delivery office without district/tehsil constraints.
-  if office_norm:
-    ranked = _rank_rows(office_norm)
-    if ranked:
-      return ranked[0][1]
-
-  # 3) City fallback: match by district/tehsil/location text.
-  if office_norm:
-    for row in POST_OFFICE_ROWS:
-      row_district = _normalize_location_name(row.get("district", ""))
-      row_tehsil = _normalize_location_name(row.get("tehsil", ""))
-      row_location = _normalize_location_name(row.get("location", ""))
-      if office_norm in (row_district, row_tehsil, row_location):
-        return row
-
-  # 4) Deterministic final fallback: first valid hierarchy row.
-  return POST_OFFICE_ROWS[0]
+  return best[1] if best else None
 
 
 def _complaint_headers() -> dict[str, str]:

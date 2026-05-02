@@ -249,8 +249,11 @@ function editDistance(a: string, b: string): number {
 
 async function readComplaintOfficeRows(): Promise<ComplaintOfficeMatch[]> {
   const candidates = [
+    path.join(process.cwd(), "city", "post-office-list.csv"),
     path.join(process.cwd(), "city", "post office list.csv"),
+    path.join(process.cwd(), "apps", "api", "city", "post-office-list.csv"),
     path.join(process.cwd(), "apps", "api", "city", "post office list.csv"),
+    path.resolve(process.cwd(), "..", "..", "city", "post-office-list.csv"),
     path.resolve(process.cwd(), "..", "..", "city", "post office list.csv"),
   ];
   const csvPath = candidates.find((p) => existsSync(p));
@@ -271,18 +274,40 @@ async function readComplaintOfficeRows(): Promise<ComplaintOfficeMatch[]> {
 }
 
 function matchDeliveryOffice(deliveryOffice: string, rows: ComplaintOfficeMatch[]): ComplaintOfficeMatch | null {
+  // Priority: exact location (50) > prefix/contains location (40/30) > fuzzy location (20)
+  //         > exact tehsil (10) > contains tehsil (8)
+  //         > exact district (5) > contains district (3).
+  // Location always dominates. Never returns a wrong district match over a good location match.
   const source = normalizeOffice(deliveryOffice);
   if (!source) return null;
 
   let best: { score: number; row: ComplaintOfficeMatch } | null = null;
   for (const row of rows) {
-    const candidate = normalizeOffice(row.location);
-    if (!candidate) continue;
+    const loc = normalizeOffice(row.location);
+    const teh = normalizeOffice(row.tehsil);
+    const dist = normalizeOffice(row.district);
     let score = 0;
-    if (source === candidate) score = 3;
-    else if (source.includes(candidate)) score = 2;
-    else if (candidate.includes(source)) score = 1;
-    else if (Math.min(source.length, candidate.length) >= 5 && editDistance(source, candidate) <= 2) score = 1;
+
+    // Location first (highest priority)
+    if (loc) {
+      if (source === loc) score = 50;
+      else if (Math.min(source.length, loc.length) >= 5) {
+        if (source.startsWith(loc) || loc.startsWith(source)) score = 40;
+        else if (source.includes(loc) || loc.includes(source)) score = 30;
+        else if (editDistance(source, loc) <= 2) score = 20;
+      }
+    }
+    // Tehsil second
+    if (score === 0 && teh) {
+      if (source === teh) score = 10;
+      else if (Math.min(source.length, teh.length) >= 5 && (source.includes(teh) || teh.includes(source))) score = 8;
+    }
+    // District last (lowest priority)
+    if (score === 0 && dist) {
+      if (source === dist) score = 5;
+      else if (Math.min(source.length, dist.length) >= 5 && (source.includes(dist) || dist.includes(source))) score = 3;
+    }
+
     if (score > 0 && (!best || score > best.score)) {
       best = { score, row };
     }

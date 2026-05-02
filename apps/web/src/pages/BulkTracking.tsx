@@ -424,21 +424,25 @@ function resolveComplaintHierarchyRow(
   if (!rows || rows.length === 0) return null;
   const cleanCandidates = candidates.map((v) => String(v ?? "").trim()).filter(Boolean);
 
+  // Pass 1: use searchOfficeRows which prioritises location > tehsil > district
   for (const candidate of cleanCandidates) {
     const matches = searchOfficeRows(candidate, rows);
     if (matches.length > 0) return matches[0];
   }
 
-  const byCity = cleanCandidates
-    .map((candidate) => {
-      const want = normalizeComplaintCity(candidate);
-      return rows.find((row) => normalizeComplaintCity(row.location) === want || normalizeComplaintCity(row.tehsil) === want || normalizeComplaintCity(row.district) === want) ?? null;
-    })
-    .find(Boolean);
-  if (byCity) return byCity;
+  // Pass 2: exact normalised match against location first, then tehsil, then district
+  for (const candidate of cleanCandidates) {
+    const want = normalizeComplaintCity(candidate);
+    const byLocation = rows.find((row) => normalizeComplaintCity(row.location) === want);
+    if (byLocation) return byLocation;
+    const byTehsil = rows.find((row) => normalizeComplaintCity(row.tehsil) === want);
+    if (byTehsil) return byTehsil;
+    const byDistrict = rows.find((row) => normalizeComplaintCity(row.district) === want);
+    if (byDistrict) return byDistrict;
+  }
 
-  // Final deterministic fallback: first valid hierarchy row from dataset.
-  return rows[0] ?? null;
+  // No match found — return null so UI unlocks for manual selection
+  return null;
 }
 
 function getUnifiedFields(rawJson?: string | null) {
@@ -3143,17 +3147,17 @@ export default function BulkTracking() {
     </div>
 
       {complaintRecord ? (
-        <div className="modal-wrapper bg-slate-950/50 p-2 z-40">
+        <div className="modal-wrapper bg-slate-950/60 p-2 z-40">
           <div ref={complaintModalRef} className="modal-content w-full max-w-5xl max-w-[calc(100vw-1rem)] rounded-2xl bg-white shadow-2xl max-h-[92vh] flex flex-col overflow-hidden" role="dialog" aria-modal="true" aria-label="File Complaint">
-            <div className="modal-header flex items-start justify-between gap-3 border-b border-[#E5E7EB] px-4 py-3">
+            <div className="modal-header flex items-start justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
               <div>
-                <div className="text-base font-semibold text-slate-900">File Complaint</div>
-                <div className="text-xs text-slate-500">Tracking: {complaintRecord.shipment.trackingNumber}</div>
+                <div className="text-base font-bold text-slate-900">File Complaint</div>
+                <div className="text-xs font-medium text-slate-600">Tracking: <span className="font-semibold text-slate-800">{complaintRecord.shipment.trackingNumber}</span></div>
                 {(me?.balances?.complaintDailyLimit != null) && (
                   <div className="mt-1 flex items-center gap-3 text-[10px] text-slate-500">
-                    <span>Today: <span className="font-semibold text-slate-700">{me.balances.complaintDailyUsed ?? 0}</span> used / <span className="font-semibold text-green-700">{me.balances.complaintDailyRemaining ?? 0}</span> remaining (limit {me.balances.complaintDailyLimit})</span>
+                    <span>Today: <span className="font-semibold text-slate-800">{me.balances.complaintDailyUsed ?? 0}</span> used / <span className="font-semibold text-emerald-700">{me.balances.complaintDailyRemaining ?? 0}</span> remaining (limit {me.balances.complaintDailyLimit})</span>
                     {me.balances.complaintMonthlyUsed != null && (
-                      <span>This month: <span className="font-semibold text-slate-700">{me.balances.complaintMonthlyUsed}</span> total</span>
+                      <span>This month: <span className="font-semibold text-slate-800">{me.balances.complaintMonthlyUsed}</span> total</span>
                     )}
                   </div>
                 )}
@@ -3197,16 +3201,16 @@ export default function BulkTracking() {
                 ) : null}
                 <div className="grid grid-cols-4 gap-2">
                   <label>
-                    <div className="text-[10px] font-medium text-slate-600 mb-0.5">Article No</div>
-                    <input value={complaintRecord.shipment.trackingNumber} readOnly className="w-full rounded border border-[#E5E7EB] bg-[#F8FAF9] px-2 py-1 text-xs" />
+                    <div className="text-[10px] font-semibold text-slate-700 mb-0.5 uppercase tracking-wide">Article No</div>
+                    <input value={complaintRecord.shipment.trackingNumber} readOnly className="w-full rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-mono text-slate-800" />
                   </label>
                   <label>
-                    <div className="text-[10px] font-medium text-slate-600 mb-0.5">Service Type</div>
-                    <input value={detectServiceType(complaintRecord.shipment.trackingNumber)} readOnly className="w-full rounded border border-[#E5E7EB] bg-[#F8FAF9] px-2 py-1 text-xs" />
+                    <div className="text-[10px] font-semibold text-slate-700 mb-0.5 uppercase tracking-wide">Service Type</div>
+                    <input value={detectServiceType(complaintRecord.shipment.trackingNumber)} readOnly className="w-full rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-800" />
                   </label>
                   <label>
-                    <div className="text-[10px] font-medium text-slate-600 mb-0.5">Complaint Reason</div>
-                    <select value={complaintReason} onChange={(e) => setComplaintReason(e.target.value)} className="w-full rounded border border-[#E5E7EB] bg-white px-2 py-1 text-xs">
+                    <div className="text-[10px] font-semibold text-slate-700 mb-0.5 uppercase tracking-wide">Complaint Reason</div>
+                    <select value={complaintReason} onChange={(e) => setComplaintReason(e.target.value)} className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800 font-medium">
                       <option value="Pending Delivery">Pending Delivery</option>
                       <option value="Return Not Received">Return Not Received</option>
                       <option value="Money Order Not Received">Money Order Not Received</option>
@@ -3214,61 +3218,61 @@ export default function BulkTracking() {
                     </select>
                   </label>
                   <label>
-                    <div className="text-[10px] font-medium text-slate-600 mb-0.5">Booking Date</div>
-                    <input value={formatLastDate(complaintRecord.shipment)} readOnly className="w-full rounded border border-[#E5E7EB] bg-[#F8FAF9] px-2 py-1 text-xs" />
+                    <div className="text-[10px] font-semibold text-slate-700 mb-0.5 uppercase tracking-wide">Booking Date</div>
+                    <input value={formatLastDate(complaintRecord.shipment)} readOnly className="w-full rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-800" />
                   </label>
                 </div>
 
                 <div className="grid grid-cols-4 gap-2">
                   <label>
-                    <div className="text-[10px] font-medium text-slate-600 mb-0.5">Complainant Name</div>
-                    <input ref={complaintFirstInputRef} value={complainantNameInput} onChange={(e) => setComplainantNameInput(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.SenderName ? "border-[#E5E7EB]" : "border-red-300 bg-red-50"}`} />
+                    <div className="text-[10px] font-semibold text-slate-700 mb-0.5 uppercase tracking-wide">Complainant Name</div>
+                    <input ref={complaintFirstInputRef} value={complainantNameInput} onChange={(e) => setComplainantNameInput(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs text-slate-800 ${complaintValidationState.SenderName ? "border-slate-300 bg-white" : "border-red-400 bg-red-50"}`} />
                   </label>
                   <label>
-                    <div className="text-[10px] font-medium text-slate-600 mb-0.5">Mobile</div>
-                    <input value={complaintPhone} onChange={(e) => setComplaintPhone(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.Mobile ? "border-[#E5E7EB]" : "border-red-300 bg-red-50"}`} placeholder="03XXXXXXXXX" />
+                    <div className="text-[10px] font-semibold text-slate-700 mb-0.5 uppercase tracking-wide">Mobile <span className="text-red-600">*</span></div>
+                    <input value={complaintPhone} onChange={(e) => setComplaintPhone(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs text-slate-800 ${complaintValidationState.Mobile ? "border-slate-300 bg-white" : "border-red-400 bg-red-50"}`} placeholder="03XXXXXXXXX" />
                   </label>
                   <label>
-                    <div className="text-[10px] font-medium text-slate-600 mb-0.5">Reply Mode</div>
-                    <select value={replyMode} onChange={(e) => setReplyMode((e.target.value as "POST" | "EMAIL" | "SMS"))} className="w-full rounded border border-[#E5E7EB] bg-white px-2 py-1 text-xs">
+                    <div className="text-[10px] font-semibold text-slate-700 mb-0.5 uppercase tracking-wide">Reply Mode</div>
+                    <select value={replyMode} onChange={(e) => setReplyMode((e.target.value as "POST" | "EMAIL" | "SMS"))} className="w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800 font-medium">
                       <option value="POST">Post</option>
                       <option value="EMAIL">Email</option>
                       <option value="SMS">SMS</option>
                     </select>
                   </label>
                   <label>
-                    <div className="text-[10px] font-medium text-slate-600 mb-0.5">Booking Office</div>
-                    <input value={senderCitySearch || getUnifiedFields(complaintRecord.shipment.rawJson).senderCity || "-"} readOnly className="w-full rounded border border-[#E5E7EB] bg-[#F8FAF9] px-2 py-1 text-xs" />
+                    <div className="text-[10px] font-semibold text-slate-700 mb-0.5 uppercase tracking-wide">Booking Office</div>
+                    <input value={senderCitySearch || getUnifiedFields(complaintRecord.shipment.rawJson).senderCity || "-"} readOnly className="w-full rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700" />
                   </label>
                 </div>
 
-                <div className="border-t border-[#E5E7EB] pt-2 mt-2">
+                <div className="border-t border-slate-200 pt-2 mt-2">
                   <div className="flex items-center justify-between mb-2">
-                    <div className="text-xs font-semibold text-slate-800">Sender Detail</div>
+                    <div className="text-xs font-bold text-slate-800 uppercase tracking-wide">Sender Detail</div>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <label>
-                      <div className="text-[10px] font-medium text-slate-600 mb-0.5">Name {!senderNameIsLocked && <span className="text-red-500">*</span>}</div>
+                      <div className="text-[10px] font-semibold text-slate-700 mb-0.5">Name {!senderNameIsLocked && <span className="text-red-600">*</span>}</div>
                       <input
                         value={senderNameInput}
                         readOnly={senderNameIsLocked}
                         onChange={senderNameIsLocked ? undefined : (e) => setSenderNameInput(e.target.value)}
-                        className={`w-full rounded border px-2 py-1 text-xs ${senderNameIsLocked ? "bg-slate-100 border-[#E5E7EB] text-slate-600 cursor-not-allowed" : complaintValidationState.SenderName === false ? "border-red-300 bg-red-50" : "border-[#E5E7EB] bg-white"}`}
+                        className={`w-full rounded border px-2 py-1 text-xs text-slate-800 ${senderNameIsLocked ? "bg-slate-100 border-slate-200 cursor-not-allowed" : complaintValidationState.SenderName === false ? "border-red-400 bg-red-50" : "border-slate-300 bg-white"}`}
                       />
                     </label>
                     <label>
-                      <div className="text-[10px] font-medium text-slate-600 mb-0.5">Address</div>
-                      <input value={senderAddressInput} onChange={(e) => setSenderAddressInput(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.SenderAddress === false ? "border-red-300 bg-red-50" : "border-[#E5E7EB] bg-white"}`} placeholder="Required" />
+                      <div className="text-[10px] font-semibold text-slate-700 mb-0.5">Address <span className="text-red-600">*</span></div>
+                      <input value={senderAddressInput} onChange={(e) => setSenderAddressInput(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs text-slate-800 ${complaintValidationState.SenderAddress === false ? "border-red-400 bg-red-50" : "border-slate-300 bg-white"}`} placeholder="Required" />
                     </label>
                     <label>
-                      <div className="text-[10px] font-medium text-slate-600 mb-0.5">City</div>
+                      <div className="text-[10px] font-semibold text-slate-700 mb-0.5">City <span className="text-red-600">*</span></div>
                       {senderCityIsLocked ? (
-                        <input value={senderCityValue} readOnly className="w-full rounded border border-[#E5E7EB] bg-slate-100 px-2 py-1 text-xs cursor-not-allowed text-slate-600" />
+                        <input value={senderCityValue} readOnly className="w-full rounded border border-slate-200 bg-slate-100 px-2 py-1 text-xs cursor-not-allowed text-slate-700" />
                       ) : (
                         <>
-                          <input value={senderCitySearch} onChange={(e) => setSenderCitySearch(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.SenderCity === false ? "border-red-300 bg-red-50" : "border-[#E5E7EB] bg-white"}`} placeholder="Search (>=3)" />
+                          <input value={senderCitySearch} onChange={(e) => setSenderCitySearch(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs text-slate-800 ${complaintValidationState.SenderCity === false ? "border-red-400 bg-red-50" : "border-slate-300 bg-white"}`} placeholder="Search (>=3)" />
                           {senderCitySearch.trim().length >= 3 && senderCitySearchResults.length > 0 ? (
-                            <select value={senderCityValue} onChange={(e) => { setSenderCityValue(e.target.value); setSenderCitySearch(e.target.value); }} className="mt-0.5 w-full rounded border border-[#E5E7EB] bg-white px-2 py-1 text-xs">
+                            <select value={senderCityValue} onChange={(e) => { setSenderCityValue(e.target.value); setSenderCitySearch(e.target.value); }} className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800">
                               <option value="">Select</option>
                               {senderCitySearchResults.map((city) => <option key={`sender-${city}`} value={city}>{city}</option>)}
                             </select>
@@ -3279,34 +3283,34 @@ export default function BulkTracking() {
                   </div>
                 </div>
 
-                <div className="border-t border-[#E5E7EB] pt-2 mt-2">
+                <div className="border-t border-slate-200 pt-2 mt-2">
                   <div className="flex items-center justify-between mb-2">
-                    <div className="text-xs font-semibold text-slate-800">Addressee Detail</div>
-                    {complaintPrefillLoading ? <div className="text-[10px] text-slate-400">Autofilling from article data...</div> : null}
+                    <div className="text-xs font-bold text-slate-800 uppercase tracking-wide">Addressee Detail</div>
+                    {complaintPrefillLoading ? <div className="text-[10px] font-medium text-blue-600 bg-blue-50 rounded px-2 py-0.5">Autofilling from article data...</div> : null}
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <label>
-                      <div className="text-[10px] font-medium text-slate-600 mb-0.5">Name {!receiverNameIsLocked && <span className="text-red-500">*</span>}</div>
+                      <div className="text-[10px] font-semibold text-slate-700 mb-0.5">Name {!receiverNameIsLocked && <span className="text-red-600">*</span>}</div>
                       <input
                         value={receiverNameInput}
                         readOnly={receiverNameIsLocked}
                         onChange={receiverNameIsLocked ? undefined : (e) => setReceiverNameInput(e.target.value)}
-                        className={`w-full rounded border px-2 py-1 text-xs ${receiverNameIsLocked ? "bg-slate-100 border-[#E5E7EB] text-slate-600 cursor-not-allowed" : complaintValidationState.ReceiverName === false ? "border-red-300 bg-red-50" : "border-[#E5E7EB] bg-white"}`}
+                        className={`w-full rounded border px-2 py-1 text-xs text-slate-800 ${receiverNameIsLocked ? "bg-slate-100 border-slate-200 cursor-not-allowed" : complaintValidationState.ReceiverName === false ? "border-red-400 bg-red-50" : "border-slate-300 bg-white"}`}
                       />
                     </label>
                     <label>
-                      <div className="text-[10px] font-medium text-slate-600 mb-0.5">Address</div>
-                      <input value={receiverAddressInput} onChange={(e) => setReceiverAddressInput(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.ReceiverAddress === false ? "border-red-300 bg-red-50" : "border-[#E5E7EB] bg-white"}`} placeholder="Required" />
+                      <div className="text-[10px] font-semibold text-slate-700 mb-0.5">Address <span className="text-red-600">*</span></div>
+                      <input value={receiverAddressInput} onChange={(e) => setReceiverAddressInput(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs text-slate-800 ${complaintValidationState.ReceiverAddress === false ? "border-red-400 bg-red-50" : "border-slate-300 bg-white"}`} placeholder="Required" />
                     </label>
                     <label>
-                      <div className="text-[10px] font-medium text-slate-600 mb-0.5">City</div>
+                      <div className="text-[10px] font-semibold text-slate-700 mb-0.5">City <span className="text-red-600">*</span></div>
                       {receiverCityIsLocked ? (
-                        <input value={receiverCityValue} readOnly className="w-full rounded border border-[#E5E7EB] bg-slate-100 px-2 py-1 text-xs cursor-not-allowed text-slate-600" />
+                        <input value={receiverCityValue} readOnly className="w-full rounded border border-slate-200 bg-slate-100 px-2 py-1 text-xs cursor-not-allowed text-slate-700" />
                       ) : (
                         <>
-                          <input value={receiverCitySearch} onChange={(e) => setReceiverCitySearch(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs ${complaintValidationState.ReceiverCity === false ? "border-red-300 bg-red-50" : "border-[#E5E7EB] bg-white"}`} placeholder="Search (>=3)" />
+                          <input value={receiverCitySearch} onChange={(e) => setReceiverCitySearch(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs text-slate-800 ${complaintValidationState.ReceiverCity === false ? "border-red-400 bg-red-50" : "border-slate-300 bg-white"}`} placeholder="Search (>=3)" />
                           {receiverCitySearch.trim().length >= 3 && receiverCitySearchResults.length > 0 ? (
-                            <select value={receiverCityValue} onChange={(e) => { setReceiverCityValue(e.target.value); setReceiverCitySearch(e.target.value); }} className="mt-0.5 w-full rounded border border-[#E5E7EB] bg-white px-2 py-1 text-xs">
+                            <select value={receiverCityValue} onChange={(e) => { setReceiverCityValue(e.target.value); setReceiverCitySearch(e.target.value); }} className="mt-0.5 w-full rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800">
                               <option value="">Select</option>
                               {receiverCitySearchResults.map((city) => <option key={`receiver-${city}`} value={city}>{city}</option>)}
                             </select>
@@ -3317,14 +3321,14 @@ export default function BulkTracking() {
                   </div>
                 </div>
 
-                <div className="border-t border-[#E5E7EB] pt-2 mt-2">
-                  <div className="text-xs font-semibold text-slate-800 mb-2">Remarks <span className="text-red-600">*</span></div>
+                <div className="border-t border-slate-200 pt-2 mt-2">
+                  <div className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-2">Remarks <span className="text-red-600">*</span></div>
                   <div className="flex gap-1 mb-1">
-                    <button type="button" onClick={() => { setComplaintTemplate("VALUE_PAYABLE"); setComplaintText(buildComplaintTemplate(complaintRecord, "VALUE_PAYABLE")); }} className={`rounded px-2 py-0.5 text-[10px] ${complaintTemplate === "VALUE_PAYABLE" ? "border border-brand/30 bg-brand/10 text-brand" : "border border-[#E5E7EB] bg-white text-slate-600"}`}>Value Payable</button>
-                    <button type="button" onClick={() => { setComplaintTemplate("NORMAL"); setComplaintText(buildComplaintTemplate(complaintRecord, "NORMAL")); }} className={`rounded px-2 py-0.5 text-[10px] ${complaintTemplate === "NORMAL" ? "border border-brand/30 bg-brand/10 text-brand" : "border border-[#E5E7EB] bg-white text-slate-600"}`}>Normal</button>
-                    <button type="button" onClick={() => { setComplaintTemplate("RETURN"); setComplaintText(buildComplaintTemplate(complaintRecord, "RETURN")); }} className={`rounded px-2 py-0.5 text-[10px] ${complaintTemplate === "RETURN" ? "border border-brand/30 bg-brand/10 text-brand" : "border border-[#E5E7EB] bg-white text-slate-600"}`}>Return</button>
+                    <button type="button" onClick={() => { setComplaintTemplate("VALUE_PAYABLE"); setComplaintText(buildComplaintTemplate(complaintRecord, "VALUE_PAYABLE")); }} className={`rounded px-2 py-0.5 text-[10px] font-medium ${complaintTemplate === "VALUE_PAYABLE" ? "border border-brand/40 bg-brand/15 text-brand" : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}>Value Payable</button>
+                    <button type="button" onClick={() => { setComplaintTemplate("NORMAL"); setComplaintText(buildComplaintTemplate(complaintRecord, "NORMAL")); }} className={`rounded px-2 py-0.5 text-[10px] font-medium ${complaintTemplate === "NORMAL" ? "border border-brand/40 bg-brand/15 text-brand" : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}>Normal</button>
+                    <button type="button" onClick={() => { setComplaintTemplate("RETURN"); setComplaintText(buildComplaintTemplate(complaintRecord, "RETURN")); }} className={`rounded px-2 py-0.5 text-[10px] font-medium ${complaintTemplate === "RETURN" ? "border border-brand/40 bg-brand/15 text-brand" : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}>Return</button>
                   </div>
-                  <textarea rows={5} value={complaintText} onChange={(e) => setComplaintText(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs font-mono resize-y min-h-[120px] ${complaintValidationState.Remarks ? "border-[#E5E7EB]" : "border-red-300 bg-red-50"}`} placeholder="Required" />
+                  <textarea rows={5} value={complaintText} onChange={(e) => setComplaintText(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs font-mono text-slate-800 resize-y min-h-[120px] ${complaintValidationState.Remarks ? "border-slate-300 bg-white" : "border-red-400 bg-red-50"}`} placeholder="Required" />
                 </div>
 
                 <div className="border-t border-[#E5E7EB] pt-2 mt-2">
@@ -3380,12 +3384,13 @@ export default function BulkTracking() {
                   ) : (
                     <div className="text-[11px] text-amber-700 bg-amber-50 rounded px-2 py-1 mb-2">Select district -&gt; tehsil -&gt; location to complete the complaint</div>
                   )}
-                  <input type="text" value={officeSearchQuery} onChange={(e) => setOfficeSearchQuery(e.target.value)} placeholder="Or search location (&gt;=3 chars)" className="w-full rounded border border-[#E5E7EB] bg-white px-2 py-1 text-xs mb-1" autoComplete="off" />
+                  <input type="text" value={officeSearchQuery} onChange={(e) => setOfficeSearchQuery(e.target.value)} placeholder="Or search location (>=3 chars)" className="w-full rounded border border-[#E5E7EB] bg-white px-2 py-1 text-xs mb-1" autoComplete="off" />
                   {officeSearchResults.length > 0 && !complaintSelectionLocked ? (
-                    <div className="max-h-24 overflow-y-auto rounded border border-[#E5E7EB] bg-white shadow-lg">
+                    <div className="max-h-28 overflow-y-auto rounded border border-[#E5E7EB] bg-white shadow-lg">
                       {officeSearchResults.slice(0, 8).map((res, i) => (
-                        <button key={`${res.location}-${i}`} type="button" onMouseDown={(e) => { e.preventDefault(); setSelectedDistrict(res.district); setSelectedTehsil(res.tehsil); setSelectedLocation(res.location); setOfficeSearchQuery(res.location); setOfficeSearchResults([]); setComplaintSelectionLocked(true); }} className="block w-full text-left px-2 py-1 text-xs hover:bg-slate-100 border-b border-slate-100 last:border-b-0">
-                          <span className="font-medium text-slate-800">{res.location}</span> <span className="text-slate-500">({res.tehsil})</span>
+                        <button key={`${res.location}-${i}`} type="button" onMouseDown={(e) => { e.preventDefault(); setSelectedDistrict(res.district); setSelectedTehsil(res.tehsil); setSelectedLocation(res.location); setOfficeSearchQuery(res.location); setOfficeSearchResults([]); setComplaintSelectionLocked(true); }} className="block w-full text-left px-2 py-1.5 text-xs hover:bg-slate-50 border-b border-slate-100 last:border-b-0">
+                          <span className="font-semibold text-slate-900">{res.location}</span>
+                          <span className="ml-1.5 text-slate-500 text-[10px]">({res.tehsil} · {res.district})</span>
                         </button>
                       ))}
                     </div>
@@ -3403,24 +3408,24 @@ export default function BulkTracking() {
 
                 {complaintSubmitResult ? (
                   <div className={cn(
-                    "border-t border-[#E5E7EB] pt-2 mt-2 rounded-2xl border px-2 py-2 text-xs",
+                    "border-t border-slate-200 pt-2 mt-2 rounded-xl border px-3 py-2.5 text-xs",
                     complaintSubmitResult.status === "DUPLICATE"
-                      ? "border-amber-200 bg-amber-50 text-amber-900"
-                      : "border-emerald-200 bg-emerald-50 text-emerald-800",
+                      ? "border-amber-300 bg-amber-50 text-amber-900"
+                      : "border-emerald-300 bg-emerald-50 text-emerald-900",
                   )}>
-                    <div className="font-semibold">{complaintSubmitResult.status === "DUPLICATE" ? "Complaint Already Exists" : "Complaint Registered"}</div>
-                    <div>Complaint ID: {complaintSubmitResult.complaintNumber || "-"}</div>
-                    <div>Due Date: {complaintSubmitResult.dueDate || "-"}</div>
-                    <div>Current Status: {complaintSubmitResult.status === "DUPLICATE" ? (activeComplaintLifecycle?.stateLabel || "ACTIVE") : "ACTIVE"}</div>
+                    <div className="font-bold text-sm">{complaintSubmitResult.status === "DUPLICATE" ? "Complaint Already Exists" : "Complaint Registered"}</div>
+                    <div className="mt-1">Complaint ID: <span className="font-semibold">{complaintSubmitResult.complaintNumber || "-"}</span></div>
+                    <div>Due Date: <span className="font-semibold">{complaintSubmitResult.dueDate || "-"}</span></div>
+                    <div>Status: <span className="font-semibold">{complaintSubmitResult.status === "DUPLICATE" ? (activeComplaintLifecycle?.stateLabel || "ACTIVE") : "ACTIVE"}</span></div>
                   </div>
                 ) : null}
               </div>
             </div>
 
-            <div className="sticky bottom-0 border-t border-[#E5E7EB] bg-white px-4 py-2 flex items-center justify-between gap-2">
+            <div className="sticky bottom-0 border-t border-slate-200 bg-white px-4 py-2 flex items-center justify-between gap-2">
               <button
                 type="button"
-                className="rounded border border-[#E5E7EB] bg-white px-3 py-1 text-xs text-slate-700 hover:bg-[#F8FAF9]"
+                className="rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
                 onClick={() => setComplaintRecord(null)}
                 disabled={submittingComplaint}
               >
@@ -3431,7 +3436,7 @@ export default function BulkTracking() {
                   type="button"
                   onClick={handleComplaintPreview}
                   disabled={submittingComplaint}
-                  className="rounded border border-brand/30 bg-brand/10 px-3 py-1 text-xs text-brand hover:bg-brand/20 disabled:opacity-60"
+                  className="rounded border border-brand/40 bg-brand/10 px-3 py-1.5 text-xs font-medium text-brand hover:bg-brand/20 disabled:opacity-60"
                 >
                   Preview
                 </button>
@@ -3440,7 +3445,7 @@ export default function BulkTracking() {
                   onClick={submitComplaintInstant}
                   disabled={submittingComplaint || !complaintSubmitReady || Boolean(activeComplaintLifecycle && isComplaintInProcess(activeComplaintLifecycle))}
                   title={activeComplaintLifecycle && isComplaintInProcess(activeComplaintLifecycle) ? "Complaint already active or in process" : (complaintPrefillLoading ? "Waiting for addressee autofill" : (complaintSubmitReady ? "Ready to submit" : `Missing: ${complaintSubmitMissingFields.join(", ")}`))}
-                  className="rounded border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
+                  className="rounded border border-emerald-400 bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submittingComplaint ? "Submitting..." : (activeComplaintLifecycle && isComplaintInProcess(activeComplaintLifecycle) ? "Complaint In Process" : (complaintPrefillLoading ? "Autofilling..." : "Submit"))}
                 </button>
@@ -3577,24 +3582,24 @@ export default function BulkTracking() {
               </div>
             </div>
 
-            <div className="sticky bottom-0 border-t border-[#E5E7EB] bg-white px-4 py-2 flex items-center justify-between gap-2">
-              <button
-                type="button"
-                className="rounded border border-[#E5E7EB] bg-white px-3 py-1 text-xs text-slate-700 hover:bg-[#F8FAF9]"
-                onClick={() => setComplaintPreviewVisible(false)}
-                disabled={submittingComplaint}
-              >
-                Back to Edit
-              </button>
-              <button
-                type="button"
-                onClick={handleComplaintSubmitFromPreview}
-                disabled={submittingComplaint || Object.values(complaintValidationState).some(v => !v)}
-                className="rounded border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs text-emerald-700 hover:bg-emerald-100 disabled:opacity-60"
-              >
-                {submittingComplaint ? "Submitting..." : "Confirm & Submit"}
-              </button>
-            </div>
+              <div className="sticky bottom-0 border-t border-slate-200 bg-white px-4 py-2 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  className="rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  onClick={() => setComplaintPreviewVisible(false)}
+                  disabled={submittingComplaint}
+                >
+                  Back to Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={handleComplaintSubmitFromPreview}
+                  disabled={submittingComplaint || Object.values(complaintValidationState).some(v => !v)}
+                  className="rounded border border-emerald-400 bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submittingComplaint ? "Submitting..." : "Confirm & Submit"}
+                </button>
+              </div>
           </div>
         </div>
       ) : null}
