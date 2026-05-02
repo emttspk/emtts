@@ -87,7 +87,7 @@ type ComplaintPrefill = {
 type ComplaintTemplateKey = "VALUE_PAYABLE" | "NORMAL" | "RETURN";
 type ExtendedStatusFilter = StatusCardFilter | "COMPLAINT_ACTIVE" | "COMPLAINT_CLOSED";
 
-const TRACKING_CACHE_TTL_MS = 10 * 60 * 1000;
+const TRACKING_CACHE_TTL_MS = 60_000;
 const BACKGROUND_BATCH_SIZE = 100;
 const COMPLAINT_PHONE_STORAGE_KEY = "complaint.manual.phone";
 const COMPLAINT_EMAIL_STORAGE_KEY = "complaint.manual.email";
@@ -284,6 +284,16 @@ function formatRetryCountdown(nextRetryAt: string | null | undefined, nowMs: num
   const seconds = Math.floor((delta % 60_000) / 1000);
   if (minutes <= 0) return `Next retry in ${seconds}s`;
   return `Next retry in ${minutes}m ${seconds}s`;
+}
+
+function formatProcessingElapsed(startAt: string | null | undefined, nowMs: number): string {
+  const startedMs = startAt ? new Date(startAt).getTime() : 0;
+  if (!Number.isFinite(startedMs) || startedMs <= 0) return "00:00:00";
+  const elapsed = Math.max(0, nowMs - startedMs);
+  const hours = Math.floor(elapsed / 3_600_000);
+  const minutes = Math.floor((elapsed % 3_600_000) / 60_000);
+  const seconds = Math.floor((elapsed % 60_000) / 1_000);
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function friendlyComplaintMessage(raw: string | null | undefined): string {
@@ -857,8 +867,11 @@ export default function BulkTracking() {
   const backgroundQueueRef = useRef<string[]>([]);
   const backgroundSeenRef = useRef(new Set<string>());
   const backgroundRunningRef = useRef(false);
+  const trackingCacheRef = useRef<{ shipments: Shipment[]; total: number; fetchedAt: number } | null>(null);
+  const shipmentsRefreshInFlightRef = useRef(false);
+  const shipmentsRefreshPendingRef = useRef(false);
   const submitTrackingRef = useRef(false);
-  const fetchedComplaintRef = useRef<{ trackingId: string; isFetched: boolean }>({ trackingId: "", isFetched: false });
+  const complaintPrefillRequestRef = useRef(0);
   const complaintModalRef = useRef<HTMLDivElement | null>(null);
   const complaintFirstInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -891,15 +904,6 @@ export default function BulkTracking() {
       setComplaintEmail(savedEmail);
     }
   }, []);
-
-  useEffect(() => {
-    if (!complaintRecord) return;
-    const trackingId = String(complaintRecord.shipment.trackingNumber ?? "").trim();
-    if (!trackingId) return;
-    if (fetchedComplaintRef.current.trackingId !== trackingId) {
-      fetchedComplaintRef.current = { trackingId, isFetched: false };
-    }
-  }, [complaintRecord?.shipment.trackingNumber]);
 
   useEffect(() => {
     void refreshShipments();
@@ -1000,7 +1004,13 @@ export default function BulkTracking() {
     }
   }
 
-  async function refreshShipments() {
+  function applyShipmentsSnapshot(allRows: Shipment[], total: number) {
+    setShipments(allRows);
+    setTotalShipments(total || allRows.length);
+    enqueueBackgroundRefresh(allRows);
+  }
+
+  async function fetchShipmentsFromServer() {
     const hardLimit = 200;
     let currentPage = 1;
     let total = 0;
@@ -1018,15 +1028,50 @@ export default function BulkTracking() {
       currentPage += 1;
     }
 
-    console.log(`[TRACE] stage=FRONTEND_RECEIVED_DATA shipments=${allRows.length}`);
-    for (const row of getFinalTrackingData(allRows)) {
-      console.log(`FRONTEND_DISPLAY_STATUS = "${row.final_status}" tn=${row.shipment.trackingNumber}`);
+    return { allRows, total };
+  }
+
+  async function revalidateShipmentsInBackground() {
+    if (shipmentsRefreshInFlightRef.current) {
+      shipmentsRefreshPendingRef.current = true;
+      return;
     }
-    setShipments(allRows);
-    setTotalShipments(total || allRows.length);
-    void refreshShipmentStats();
-    void refreshComplaintQueueSnapshot();
-    enqueueBackgroundRefresh(allRows);
+
+    shipmentsRefreshInFlightRef.current = true;
+    try {
+      const { allRows, total } = await fetchShipmentsFromServer();
+      trackingCacheRef.current = { shipments: allRows, total: total || allRows.length, fetchedAt: Date.now() };
+
+      console.log(`[TRACE] stage=FRONTEND_RECEIVED_DATA shipments=${allRows.length}`);
+      for (const row of getFinalTrackingData(allRows)) {
+        console.log(`FRONTEND_DISPLAY_STATUS = "${row.final_status}" tn=${row.shipment.trackingNumber}`);
+      }
+
+      applyShipmentsSnapshot(allRows, total);
+      void refreshShipmentStats();
+      void refreshComplaintQueueSnapshot();
+    } finally {
+      shipmentsRefreshInFlightRef.current = false;
+      if (shipmentsRefreshPendingRef.current) {
+        shipmentsRefreshPendingRef.current = false;
+        void revalidateShipmentsInBackground();
+      }
+    }
+  }
+
+  async function refreshShipments() {
+    const cached = trackingCacheRef.current;
+    const cacheFresh = Boolean(cached && Date.now() - cached.fetchedAt < TRACKING_CACHE_TTL_MS);
+
+    if (cacheFresh && cached) {
+      applyShipmentsSnapshot(cached.shipments, cached.total);
+      void refreshShipmentStats();
+      void refreshComplaintQueueSnapshot();
+      void revalidateShipmentsInBackground();
+      return;
+    }
+
+    await revalidateShipmentsInBackground();
   }
 
   async function refreshAllPending() {
@@ -1306,7 +1351,12 @@ export default function BulkTracking() {
       if (updated) {
         try {
           const data = await api<{ shipments: Shipment[] }>("/api/shipments?limit=100");
-          setShipments(data.shipments);
+          trackingCacheRef.current = {
+            shipments: data.shipments,
+            total: data.shipments.length,
+            fetchedAt: Date.now(),
+          };
+          applyShipmentsSnapshot(data.shipments, data.shipments.length);
           const stats = await api<ShipmentStats>("/api/shipments/stats");
           setShipmentStats(stats);
         } catch {
@@ -1483,6 +1533,22 @@ export default function BulkTracking() {
     };
   }, [selectedTracking]);
 
+  function closeComplaintModal() {
+    setComplaintPreviewVisible(false);
+    setComplaintRecord(null);
+    setComplaintPrefill(null);
+    setComplaintPrefillLoading(false);
+    setComplaintSubmitResult(null);
+    setComplaintSubmitNotice(null);
+    setComplaintSelectionLocked(false);
+    setSelectedDistrict("");
+    setSelectedTehsil("");
+    setSelectedLocation("");
+    setOfficeSearchQuery("");
+    setOfficeSearchResults([]);
+    setComplaintValidationState({});
+  }
+
   useEffect(() => {
     if (!complaintRecord) return;
 
@@ -1496,7 +1562,7 @@ export default function BulkTracking() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        setComplaintRecord(null);
+        closeComplaintModal();
         return;
       }
 
@@ -1937,9 +2003,8 @@ export default function BulkTracking() {
     const shipment = record.shipment;
     const trackingId = String(shipment.trackingNumber ?? "").trim();
     if (!trackingId) return;
-    if (fetchedComplaintRef.current.trackingId !== trackingId) {
-      fetchedComplaintRef.current = { trackingId, isFetched: false };
-    }
+    const prefillRequestId = complaintPrefillRequestRef.current + 1;
+    complaintPrefillRequestRef.current = prefillRequestId;
     const raw = parseRaw(shipment.rawJson);
     const senderPhone = String(
       (raw as any)?.shipperPhone ??
@@ -2019,17 +2084,13 @@ export default function BulkTracking() {
     setComplaintSelectionLocked(false);
     setOfficeSearchQuery("");
     setOfficeSearchResults([]);
+    setComplaintValidationState({});
+    setComplaintPrefill(null);
     setComplaintPrefillLoading(true);
-
-    if (fetchedComplaintRef.current.isFetched && fetchedComplaintRef.current.trackingId === trackingId) {
-      setComplaintPrefillLoading(false);
-      return;
-    }
 
     void api<ComplaintPrefill>(`/api/tracking/complaint/prefill/${encodeURIComponent(shipment.trackingNumber)}`)
       .then((prefill) => {
-        if (fetchedComplaintRef.current.trackingId !== trackingId) return;
-        if (fetchedComplaintRef.current.isFetched) return;
+        if (complaintPrefillRequestRef.current !== prefillRequestId) return;
         setComplaintPrefill(prefill);
         const apiAddresseeName = _cleanDash(String(prefill.addresseeName ?? "").trim());
         const apiAddresseeAddress = _cleanDash(String(prefill.addresseeAddress ?? "").trim());
@@ -2101,11 +2162,10 @@ export default function BulkTracking() {
           // If receiver address is still the raw delivery-office string, upgrade it to the fully-matched city name
           setReceiverAddressInput((prev) => (prev === deliveryOffice || prev === eventBasedDeliveryOffice || prev === deliveryDmo || prev === uploadConsigneeCity) ? receiverCityMatched : prev);
         }
-        fetchedComplaintRef.current = { trackingId, isFetched: true };
         setComplaintPrefillLoading(false);
       })
       .catch(() => {
-        if (fetchedComplaintRef.current.trackingId !== trackingId) return;
+        if (complaintPrefillRequestRef.current !== prefillRequestId) return;
         setComplaintPrefill({
           deliveryOffice: preferredCity(shipment),
           addresseeName: trackingConsigneeName || uploadConsigneeName,
@@ -2121,7 +2181,6 @@ export default function BulkTracking() {
         setSelectedTehsil("");
         setSelectedLocation("");
         setComplaintSelectionLocked(false);
-        fetchedComplaintRef.current = { trackingId, isFetched: true };
         setComplaintPrefillLoading(false);
       });
   }
@@ -2340,16 +2399,23 @@ export default function BulkTracking() {
         console.log("Complaint submit response:", res);
       }
 
-      setComplaintSubmitResult({ complaintNumber, dueDate, trackingId, status });
-      if (status === "DUPLICATE") {
+      const queueStatus = String(res.status ?? "").trim().toUpperCase() === "QUEUED";
+      const finalUiStatus = queueStatus ? "QUEUED" : status;
+      setComplaintSubmitResult({ complaintNumber, dueDate, trackingId, status: finalUiStatus });
+      if (finalUiStatus === "DUPLICATE") {
         setComplaintSubmitNotice({
           kind: "warning",
           message: "Complaint Already Exists. Review Complaint ID and Due Date below.",
         });
-      } else if (status === "SUCCESS") {
+      } else if (finalUiStatus === "QUEUED") {
         setComplaintSubmitNotice({
           kind: "info",
-          message: `Complaint registered successfully for ${trackingId}.`,
+          message: `Queued: complaint request accepted for ${trackingId}.`,
+        });
+      } else if (finalUiStatus === "SUCCESS") {
+        setComplaintSubmitNotice({
+          kind: "info",
+          message: `Success: complaint registered for ${trackingId}.`,
         });
       } else {
         setComplaintSubmitNotice({
@@ -2360,9 +2426,6 @@ export default function BulkTracking() {
         });
       }
       await refreshShipments();
-      if (status === "SUCCESS") {
-        setComplaintRecord(null);
-      }
     } catch (e) {
       setComplaintSubmitNotice({
         kind: "error",
@@ -2418,7 +2481,7 @@ export default function BulkTracking() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.32, delay: i * 0.06 }}
-              whileHover={{ y: -4, boxShadow: "0 16px 32px rgba(15,23,42,0.12)" }}
+              whileHover={{ boxShadow: "0 16px 32px rgba(15,23,42,0.12)" }}
               onClick={() => { setStatusFilter(card.filter); setPage(1); }}
               className={cn("rounded-2xl border p-4 text-left transition-shadow duration-200", card.color)}
             >
@@ -2841,17 +2904,24 @@ export default function BulkTracking() {
                 const fetchedMO = extractMoReference(s.rawJson, s.moIssued ?? null);
                 const moValue = fetchedMO ? fetchedMO : "-";
                 const issuedValue = extractMoValue(s.rawJson, s.moValue ?? null);
-                const rowTone = isWarning
-                  ? "bg-violet-50/40"
-                  : statusUpper.includes("DELIVERED")
-                    ? "bg-emerald-50/35"
-                    : statusUpper.includes("RETURN")
-                      ? "bg-red-50/35"
-                      : "bg-orange-50/30";
+                const complaintStateUpper = complaintCardState.toUpperCase();
+                const rowVisual = complaintStateUpper === "PROCESSING"
+                  ? { tone: "bg-purple-50/45", left: "border-l-purple-500" }
+                  : complaintStateUpper === "RETRY PENDING"
+                    ? { tone: "bg-yellow-50/50", left: "border-l-yellow-500" }
+                    : complaintStateUpper === "ACTIVE"
+                      ? { tone: "bg-blue-50/45", left: "border-l-blue-500" }
+                      : statusUpper.includes("DELIVERED")
+                        ? { tone: "bg-emerald-50/35", left: "border-l-emerald-500" }
+                        : statusUpper.includes("RETURN")
+                          ? { tone: "bg-red-50/35", left: "border-l-red-500" }
+                          : isWarning
+                            ? { tone: "bg-purple-50/40", left: "border-l-purple-400" }
+                            : { tone: "bg-amber-50/35", left: "border-l-amber-500" };
 
                 return (
-                  <tr key={s.id} className={cn("group border-b border-slate-100 transition-colors hover:bg-brand/10", rowTone)}>
-                    <td className="border-r border-slate-100 px-2 py-2.5 align-middle">
+                  <tr key={s.id} className={cn("group border-b border-slate-100 transition-colors hover:shadow-[inset_0_0_0_1px_rgba(15,23,42,0.05)]", rowVisual.tone)}>
+                    <td className={cn("border-r border-slate-100 border-l-4 px-2 py-2.5 align-middle", rowVisual.left)}>
                       <input
                         type="checkbox"
                         className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
@@ -2922,6 +2992,9 @@ export default function BulkTracking() {
                         const retryHint = complaintCardState === "RETRY PENDING"
                           ? formatRetryCountdown(queueSnapshot?.nextRetryAt, retryCountdownNow)
                           : "";
+                        const processingElapsed = complaintCardState === "PROCESSING"
+                          ? formatProcessingElapsed(queueSnapshot?.updatedAt, retryCountdownNow)
+                          : "";
                         return (
                           <div className={cn("w-full max-w-[210px] rounded-lg border px-2 py-1.5 text-left text-[10px]", stateStyle)}>
                             <div className="truncate font-semibold" title={complaintId}>{complaintId}</div>
@@ -2933,6 +3006,9 @@ export default function BulkTracking() {
                             </div>
                             {complaintCardState === "RETRY PENDING" ? (
                               <div className="mt-1 text-[9px] font-semibold text-amber-700">{retryHint}</div>
+                            ) : null}
+                            {complaintCardState === "PROCESSING" ? (
+                              <div className="mt-1 text-[9px] font-semibold text-purple-700">Processing... {processingElapsed}</div>
                             ) : null}
                             {!complaintInProcess ? (
                               <button
@@ -3165,7 +3241,7 @@ export default function BulkTracking() {
               <button
                 type="button"
                 className="rounded border border-[#E5E7EB] px-2 py-1 text-xs text-slate-600 hover:bg-[#F8FAF9]"
-                onClick={() => setComplaintRecord(null)}
+                onClick={closeComplaintModal}
               >
                 Close
               </button>
@@ -3411,12 +3487,20 @@ export default function BulkTracking() {
                     "border-t border-slate-200 pt-2 mt-2 rounded-xl border px-3 py-2.5 text-xs",
                     complaintSubmitResult.status === "DUPLICATE"
                       ? "border-amber-300 bg-amber-50 text-amber-900"
-                      : "border-emerald-300 bg-emerald-50 text-emerald-900",
+                      : complaintSubmitResult.status === "QUEUED"
+                        ? "border-blue-300 bg-blue-50 text-blue-900"
+                        : "border-emerald-300 bg-emerald-50 text-emerald-900",
                   )}>
-                    <div className="font-bold text-sm">{complaintSubmitResult.status === "DUPLICATE" ? "Complaint Already Exists" : "Complaint Registered"}</div>
-                    <div className="mt-1">Complaint ID: <span className="font-semibold">{complaintSubmitResult.complaintNumber || "-"}</span></div>
-                    <div>Due Date: <span className="font-semibold">{complaintSubmitResult.dueDate || "-"}</span></div>
-                    <div>Status: <span className="font-semibold">{complaintSubmitResult.status === "DUPLICATE" ? (activeComplaintLifecycle?.stateLabel || "ACTIVE") : "ACTIVE"}</span></div>
+                    <div className="font-bold text-sm">
+                      {complaintSubmitResult.status === "DUPLICATE"
+                        ? "Complaint Already Exists"
+                        : complaintSubmitResult.status === "QUEUED"
+                          ? "Queued"
+                          : "Success"}
+                    </div>
+                    <div className="mt-1">Complaint ID: <span className="font-semibold">{complaintSubmitResult.complaintNumber || "Pending assignment"}</span></div>
+                    <div>Due Date: <span className="font-semibold">{complaintSubmitResult.dueDate || "Pending"}</span></div>
+                    <div>Status: <span className="font-semibold">{complaintSubmitResult.status === "DUPLICATE" ? (activeComplaintLifecycle?.stateLabel || "ACTIVE") : complaintSubmitResult.status}</span></div>
                   </div>
                 ) : null}
               </div>
@@ -3426,7 +3510,7 @@ export default function BulkTracking() {
               <button
                 type="button"
                 className="rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                onClick={() => setComplaintRecord(null)}
+                onClick={closeComplaintModal}
                 disabled={submittingComplaint}
               >
                 Close

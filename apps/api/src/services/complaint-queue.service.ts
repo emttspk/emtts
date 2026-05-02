@@ -157,12 +157,9 @@ export async function getQueuedComplaintsForRetry(limit = 25) {
   return prisma.complaintQueue.findMany({
     where: {
       complaintStatus: { in: ["queued", "retry_pending", LEGACY_RETRY_STATUS] },
-      OR: [
-        { nextRetryAt: null },
-        { nextRetryAt: { lte: new Date() } },
-      ],
+      nextRetryAt: { lte: new Date() },
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ nextRetryAt: "asc" }, { createdAt: "asc" }],
     take: limit,
   });
 }
