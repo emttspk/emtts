@@ -8,7 +8,7 @@ export const COMPLAINT_MAX_RETRIES = 6;
 export type ComplaintQueueStatus = "queued" | "processing" | "submitted" | "duplicate" | "retry_pending" | "manual_review" | "resolved" | "closed";
 
 const LEGACY_RETRY_STATUS = "retrying";
-const ACTIVE_QUEUE_STATUSES = ["queued", "processing", "retry_pending", "submitted", "manual_review", LEGACY_RETRY_STATUS] as const;
+const ACTIVE_QUEUE_STATUSES = ["queued", "processing", "retry_pending", "submitted", "duplicate", "manual_review", LEGACY_RETRY_STATUS] as const;
 
 export function normalizeComplaintQueueStatus(status: string | null | undefined): ComplaintQueueStatus | string {
   const normalized = String(status ?? "").trim().toLowerCase();

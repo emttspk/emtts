@@ -1544,14 +1544,38 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
 
     const duplicate = await findActiveComplaintDuplicate(userId, trackingNumber);
     if (duplicate.duplicate) {
+      const duplicateDueDateText = duplicate.dueDate
+        ? toDdMmYyyy(duplicate.dueDate.toISOString().slice(0, 10))
+        : "";
+      const duplicateStructuredParts = [
+        duplicate.complaintId ? `COMPLAINT_ID: ${duplicate.complaintId}` : "",
+        duplicateDueDateText ? `DUE_DATE: ${duplicateDueDateText}` : "",
+        "COMPLAINT_STATE: ACTIVE",
+      ].filter(Boolean);
+      const duplicateStructured = `${duplicateStructuredParts.join(" | ")}\nUser complaint:\n${remarks}\n\nResponse:\nComplaint already active for this tracking number.`;
+
+      await prisma.shipment.upsert({
+        where: { userId_trackingNumber: { userId, trackingNumber } },
+        create: {
+          userId,
+          trackingNumber,
+          complaintStatus: "FILED",
+          complaintText: duplicateStructured,
+        },
+        update: {
+          complaintStatus: "FILED",
+          complaintText: duplicateStructured,
+        },
+      });
+
       return res.status(409).json({
         success: false,
         message: `Complaint already active for tracking ${trackingNumber}`,
         complaintId: duplicate.complaintId || "",
-        dueDate: duplicate.dueDate ? toDdMmYyyy(duplicate.dueDate.toISOString().slice(0, 10)) : "",
+        dueDate: duplicateDueDateText,
         trackingId: trackingNumber,
         complaint_id: duplicate.complaintId || "",
-        due_date: duplicate.dueDate ? toDdMmYyyy(duplicate.dueDate.toISOString().slice(0, 10)) : "",
+        due_date: duplicateDueDateText,
         tracking_id: trackingNumber,
         duplicate: true,
       });

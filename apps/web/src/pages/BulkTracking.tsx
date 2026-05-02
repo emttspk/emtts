@@ -247,6 +247,24 @@ function normalizeQueueStatusLabel(raw: string | null | undefined): "QUEUED" | "
   return "ACTIVE";
 }
 
+function resolveComplaintCardState(
+  lifecycle: ComplaintLifecycle,
+  queueSnapshot: ComplaintQueueSnapshot | undefined,
+) {
+  const queueState = normalizeQueueStatusLabel(queueSnapshot?.complaintStatus);
+  const lifecycleResolved = ["RESOLVED", "CLOSED", "REJECTED"].includes(String(lifecycle.state ?? "").toUpperCase());
+  const hasComplaintId = Boolean(String(lifecycle.complaintId ?? "").trim() || String(queueSnapshot?.complaintId ?? "").trim());
+
+  if (lifecycleResolved) return "RESOLVED";
+  if (hasComplaintId || queueState === "SUBMITTED" || queueState === "DUPLICATE") return "ACTIVE";
+  if (queueState === "PROCESSING") return "PROCESSING";
+  if (queueState === "QUEUED") return "QUEUED";
+  if (queueState === "RETRY PENDING") return "RETRY PENDING";
+  if (queueState === "MANUAL REVIEW") return "MANUAL REVIEW";
+  if (lifecycle.exists) return lifecycle.stateLabel || "ACTIVE";
+  return "";
+}
+
 function complaintStateBadgeClass(stateLabel: string) {
   const token = String(stateLabel ?? "").trim().toUpperCase();
   if (token === "QUEUED") return "border-slate-200 bg-slate-50 text-slate-700";
@@ -888,6 +906,32 @@ export default function BulkTracking() {
     return () => window.clearInterval(timer);
   }, []);
 
+  const unresolvedComplaintCount = useMemo(() => {
+    if (!isAdmin) return 0;
+    let unresolved = 0;
+    for (const shipment of shipments) {
+      const lifecycle = parseComplaintLifecycle(shipment);
+      const queueSnapshot = complaintQueueByTracking.get(shipment.trackingNumber);
+      if (!queueSnapshot) continue;
+      const cardState = resolveComplaintCardState(lifecycle, queueSnapshot).toUpperCase();
+      const hasComplaintId = Boolean(String(lifecycle.complaintId ?? "").trim() || String(queueSnapshot.complaintId ?? "").trim());
+      const resolved = hasComplaintId || ["ACTIVE", "RESOLVED", "CLOSED", "REJECTED"].includes(cardState);
+      if (!resolved && ["QUEUED", "PROCESSING", "RETRY PENDING"].includes(cardState)) {
+        unresolved += 1;
+      }
+    }
+    return unresolved;
+  }, [isAdmin, shipments, complaintQueueByTracking]);
+
+  useEffect(() => {
+    if (!isAdmin || unresolvedComplaintCount <= 0) return;
+    const timer = window.setInterval(() => {
+      void refreshComplaintQueueSnapshot();
+      void refreshShipments();
+    }, 15_000);
+    return () => window.clearInterval(timer);
+  }, [isAdmin, unresolvedComplaintCount]);
+
   useEffect(() => {
     let interval: number;
     if (uiState === "processing") {
@@ -1334,15 +1378,8 @@ export default function BulkTracking() {
     setRefreshingPending(true);
     setRefreshSummary(null);
     try {
-      const pendingTrackingNumbers = getFinalTrackingData(shipments)
-        .filter((s) => s.final_status.includes("PENDING"))
-        .map((s) => s.shipment.trackingNumber);
-      const response = await api<{ refreshed: number; cached: number; chargedUnits: number }>("/api/shipments/refresh-pending", {
-        method: "POST",
-        body: JSON.stringify({ trackingNumbers: pendingTrackingNumbers }),
-      });
-      setRefreshSummary(`Refreshed ${response.refreshed}, cached ${response.cached}, charged ${response.chargedUnits} unit(s).`);
       await refreshShipments();
+      setRefreshSummary("Complaint submitted. Shipment state refreshed without charging units.");
     } catch (e) {
       setRefreshSummary(e instanceof Error ? e.message : "Refresh failed");
     } finally {
@@ -2776,14 +2813,9 @@ export default function BulkTracking() {
                 const statusUpper = normalizeStatus(displayStatus).toUpperCase();
                 const lifecycle = parseComplaintLifecycle(s);
                 const queueSnapshot = complaintQueueByTracking.get(s.trackingNumber);
-                const queueState = normalizeQueueStatusLabel(queueSnapshot?.complaintStatus);
-                const lifecycleResolved = ["RESOLVED", "CLOSED", "REJECTED"].includes(lifecycle.state);
-                const complaintCardState = queueSnapshot
-                  ? (["SUBMITTED", "DUPLICATE"].includes(queueState)
-                    ? (lifecycleResolved ? "RESOLVED" : "ACTIVE")
-                    : queueState)
-                  : (lifecycleResolved ? "RESOLVED" : (lifecycle.exists ? lifecycle.stateLabel : ""));
-                const complaintInProcess = isComplaintInProcess(lifecycle) || ["QUEUED", "PROCESSING", "RETRY PENDING"].includes(complaintCardState);
+                const complaintCardState = resolveComplaintCardState(lifecycle, queueSnapshot);
+                const hasComplaintId = Boolean(String(lifecycle.complaintId ?? "").trim() || String(queueSnapshot?.complaintId ?? "").trim());
+                const complaintInProcess = hasComplaintId || isComplaintInProcess(lifecycle) || ["ACTIVE", "QUEUED", "PROCESSING", "RETRY PENDING"].includes(complaintCardState.toUpperCase());
                 const isComplaintEnabled = statusUpper === "PENDING" && !complaintInProcess;
 
                 const actionOptions = [
@@ -2878,7 +2910,7 @@ export default function BulkTracking() {
                       </div>
                     </td>
                     <td className="px-2 py-2.5 align-middle">
-                      {lifecycle.exists || queueSnapshot ? (() => {
+                      {hasComplaintId || lifecycle.exists || queueSnapshot ? (() => {
                         const stateStyle = complaintStateBadgeClass(complaintCardState);
                         const complaintId = lifecycle.complaintId || queueSnapshot?.complaintId || "Complaint";
                         const dueDate = lifecycle.dueDateText

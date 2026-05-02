@@ -1293,6 +1293,10 @@ const trackingWorker = new Worker(
           },
         });
 
+        const finalizedTrackingId = String((result as any).trackingId ?? data.trackingNumber ?? "").trim() || data.trackingNumber;
+        const finalizedComplaintId = String((result as any).complaintId ?? "").trim();
+        const finalizedDueDate = String((result as any).dueDate ?? "").trim();
+        console.log(`[Complaint Finalized] trackingId=${finalizedTrackingId} complaintId=${finalizedComplaintId || "-"} dueDate=${finalizedDueDate || "-"} status=${String((result as any).status ?? "-")}`);
         console.log(`[TrackingWorker] Complaint job ${job.id} completed (${result.status})`);
         return { resultPath: path.relative(process.cwd(), outPath), complaintStatus: result.status };
       }

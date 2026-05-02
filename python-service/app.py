@@ -1584,6 +1584,8 @@ def submit_complaint(tracking_number, phone_number, details: dict[str, Any] | No
       already_exists = "already under process" in msg_lower or "already under process" in html_lower
       if is_success and not due_date:
         due_date = _default_due_date(7)
+      if already_exists and not due_date:
+        due_date = _default_due_date(7)
 
       print(f"[ComplaintAPI] Tracking={tn} Attempt={attempt} Message={message_text or '-'} ParsedComplaintID={complaint_no or '-'} DueDate={due_date or '-'}")
 
