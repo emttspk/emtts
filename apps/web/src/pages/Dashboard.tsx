@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
-import { ArrowRight, Clock3, CreditCard, Package2, RadioTower, Wallet } from "lucide-react";
+import { ArrowRight, Clock3, CreditCard, Package2, RadioTower, Wallet, AlertCircle } from "lucide-react";
 import Card from "../components/Card";
 import { api } from "../lib/api";
 import type { MeResponse } from "../lib/types";
@@ -10,6 +10,7 @@ import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/Page
 
 type DashboardStats = ReturnType<typeof computeStats> & {
   trackingUsed: number;
+  complaintTotal: number;
   graphData: Array<{ date: string; total: number; byStatus: Record<string, number> }>;
 };
 
@@ -22,6 +23,7 @@ type DashboardShipment = {
   updatedAt: string;
   latestDate?: string | null;
   latestTime?: string | null;
+  complaintStatus?: string | null;
 };
 
 type ShellCtx = { me: MeResponse | null; refreshMe: () => Promise<void> };
@@ -39,7 +41,7 @@ export default function Dashboard() {
   const [shipmentStats, setShipmentStats] = useState<DashboardStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function refreshShipments() {
+  const refreshShipments = useCallback(async () => {
     const hardLimit = 200;
     let page = 1;
     const rows: DashboardShipment[] = [];
@@ -58,6 +60,7 @@ export default function Dashboard() {
 
     const byDate: Record<string, { total: number; byStatus: Record<string, number> }> = {};
     let trackingUsed = 0;
+    let complaintTotal = 0;
     const month = new Date().toISOString().slice(0, 7);
 
     for (const row of finalData) {
@@ -68,6 +71,8 @@ export default function Dashboard() {
       byDate[date].total += 1;
       byDate[date].byStatus[key] = (byDate[date].byStatus[key] ?? 0) + 1;
       if (created.slice(0, 7) === month) trackingUsed += 1;
+      const cs = String((row.shipment as DashboardShipment).complaintStatus ?? "").trim();
+      if (cs && cs.toUpperCase() !== "NONE") complaintTotal += 1;
     }
 
     const graphData = Object.keys(byDate)
@@ -78,8 +83,8 @@ export default function Dashboard() {
         byStatus: byDate[date].byStatus,
       }));
 
-    setShipmentStats({ ...base, trackingUsed, graphData });
-  }
+    setShipmentStats({ ...base, trackingUsed, complaintTotal, graphData });
+  }, []);
 
   useEffect(() => {
     let ok = true;
@@ -101,6 +106,7 @@ export default function Dashboard() {
       returned: shipmentStats?.returned ?? 0,
       totalAmount: shipmentStats?.totalAmount ?? 0,
       trackingUsed: shipmentStats?.trackingUsed ?? 0,
+      complaintTotal: shipmentStats?.complaintTotal ?? 0,
       graphData: shipmentStats?.graphData ?? [],
     }),
     [shipmentStats],
@@ -113,12 +119,14 @@ export default function Dashboard() {
   const packageMeta = resolvePackageMeta(activePlanName);
 
   const activity = useMemo(() => [...stats.graphData].slice(-6), [stats.graphData]);
-  const maxActivity = Math.max(1, ...activity.map((item) => item.total));
+  const maxActivity = useMemo(() => Math.max(1, ...activity.map((item) => item.total)), [activity]);
 
   const summaryCards = [
     { label: "Money Order Total", value: formatPKR.format(stats.totalAmount).replace("PKR", "Rs."), icon: CreditCard },
-    { label: "Label Total", value: stats.total.toLocaleString(), icon: Wallet },
     { label: "Tracking Total", value: stats.trackingUsed.toLocaleString(), icon: RadioTower },
+    { label: "Pending Total", value: stats.pending.toLocaleString(), icon: Clock3 },
+    { label: "Returned Total", value: stats.returned.toLocaleString(), icon: Wallet },
+    { label: "Complaint Total", value: stats.complaintTotal.toLocaleString(), icon: AlertCircle },
   ];
 
   return (
@@ -169,7 +177,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid min-w-0 w-full gap-3 overflow-hidden md:grid-cols-3">
+      <div className="grid min-w-0 w-full gap-3 overflow-hidden sm:grid-cols-2 lg:grid-cols-5">
         {summaryCards.map((card) => {
           const Icon = card.icon;
           return (
