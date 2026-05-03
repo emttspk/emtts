@@ -3,7 +3,7 @@ import { interpretTrackingCycles } from "./trackingInterpreter.js";
 import type { TrackingCycleInterpretation } from "./trackingInterpreter.js";
 
 export type PatchedTrackingMeta = {
-  final_status: "Pending" | "Delivered" | "Return";
+  final_status: "Pending" | "Delivered" | "Return" | "OUT_FOR_DELIVERY" | "IN_TRANSIT" | "FAILED" | "DELIVERED WITH PAYMENT";
   total_cycles: number;
   final_cycle_index: number;
   current_cycle: number;
@@ -61,7 +61,15 @@ type Cycle = {
 };
 
 const MOS_ID_RE = /\b(MOS[A-Z0-9]{4,})\b/i;
-const ALLOWED_FINAL_STATUSES = new Set<PatchedTrackingMeta["final_status"]>(["Pending", "Delivered", "Return"]);
+const ALLOWED_FINAL_STATUSES = new Set<PatchedTrackingMeta["final_status"]>([
+  "Pending",
+  "Delivered",
+  "Return",
+  "OUT_FOR_DELIVERY",
+  "IN_TRANSIT",
+  "FAILED",
+  "DELIVERED WITH PAYMENT",
+]);
 
 function asText(v: unknown): string {
   return String(v ?? "").trim();
@@ -475,8 +483,75 @@ function normalizePatchedFinalStatus(value: unknown): PatchedTrackingMeta["final
 
 function finalStatusFromCycleInterpretation(value: TrackingCycleInterpretation["final_status"]): PatchedTrackingMeta["final_status"] {
   if (value === "RETURNED") return "Return";
-  if (value === "DELIVERED" || value === "DELIVERED WITH PAYMENT") return "Delivered";
+  if (value === "DELIVERED WITH PAYMENT") return "DELIVERED WITH PAYMENT";
+  if (value === "DELIVERED") return "Delivered";
   return "Pending";
+}
+
+function normalizeSourceStatus(value: unknown): string {
+  return asText(value)
+    .toUpperCase()
+    .replace(/\s+/g, "_");
+}
+
+function hasReturnOrFailureSignal(text: string): boolean {
+  return (
+    text.includes("undelivered") ||
+    text.includes("return") ||
+    text.includes("refused") ||
+    text.includes("failed")
+  );
+}
+
+function hasStrictDeliveredToAddressee(events: Event[]): boolean {
+  return events.some((ev) => isStrictDelivered(lower(ev.description)));
+}
+
+function hasRollbackAfterLatestOutForDelivery(events: Event[]): boolean {
+  let latestOutForDelivery = -1;
+  for (let i = 0; i < events.length; i += 1) {
+    if (isDeliveryAttempt(lower(events[i].description))) latestOutForDelivery = i;
+  }
+  if (latestOutForDelivery < 0) return false;
+  return events.slice(latestOutForDelivery + 1).some((ev) => hasReturnOrFailureSignal(lower(ev.description)));
+}
+
+function resolvePatchedStatus(
+  sourceStatus: string,
+  cycleStatus: PatchedTrackingMeta["final_status"],
+  events: Event[],
+): PatchedTrackingMeta["final_status"] {
+  const source = normalizeSourceStatus(sourceStatus);
+  // Preserve terminal statuses.
+  if (source === "RETURNED" || source === "RETURN") return "Return";
+  if (source === "FAILED" || source === "FAILED_DELIVERY") return "FAILED";
+
+  const cycleReturned = cycleStatus === "Return";
+
+  // Priority 1: DELIVERED must stay DELIVERED when delivery confirmation exists.
+  if (source === "DELIVERED" && hasStrictDeliveredToAddressee(events)) {
+    return "Delivered";
+  }
+
+  // Priority 4: a terminal delivery event in latest cycle marks completion.
+  const hasTerminalDelivery = hasStrictDeliveredToAddressee(events) || cycleStatus === "DELIVERED WITH PAYMENT";
+  if (hasTerminalDelivery) {
+    return cycleStatus === "DELIVERED WITH PAYMENT" ? "DELIVERED WITH PAYMENT" : "Delivered";
+  }
+
+  // Priority 2: OUT_FOR_DELIVERY remains unless explicit rollback exists.
+  if (source === "OUT_FOR_DELIVERY") {
+    if (!hasRollbackAfterLatestOutForDelivery(events)) return "OUT_FOR_DELIVERY";
+    return cycleReturned ? "Return" : "Pending";
+  }
+
+  // Priority 3: IN_TRANSIT may become Pending only for active/incomplete cycle.
+  if (source === "IN_TRANSIT") {
+    if (cycleReturned) return "Return";
+    return cycleStatus === "Pending" ? "Pending" : "IN_TRANSIT";
+  }
+
+  return cycleStatus;
 }
 
 function deriveMeta(events: Event[], manualPendingOverride: boolean): PatchedTrackingMeta {
@@ -546,8 +621,8 @@ function deriveMeta(events: Event[], manualPendingOverride: boolean): PatchedTra
   const mosOverride = mos.startIndex == null || (scoped.length <= events.length && scoped[0] === events[mos.startIndex]);
   const complaintRule =
     !complaintEnabled || finalStatus === "Pending";
-  const delayRule = finalStatus === "Pending" || finalStatus === "Delivered" || finalStatus === "Return";
-  const statusRule = ["Pending", "Delivered", "Return"].includes(finalStatus);
+  const delayRule = ALLOWED_FINAL_STATUSES.has(finalStatus);
+  const statusRule = ALLOWED_FINAL_STATUSES.has(finalStatus);
   const firstTs = events[0]?.timestamp ?? null;
   const lastTs = events[events.length - 1]?.timestamp ?? null;
   const firstLtLast =
@@ -641,7 +716,9 @@ export function applyTrackingPatchLayer(
 
   const manualPendingOverride = Boolean(opts?.manualPendingOverride);
   const lastEvent = displayEvents[displayEvents.length - 1] ?? null;
-  meta.final_status = finalStatusFromCycleInterpretation(cycleInterpretation.final_status);
+  const cycleResolvedStatus = finalStatusFromCycleInterpretation(cycleInterpretation.final_status);
+  const resolvedStatus = resolvePatchedStatus(statusBeforePatch, cycleResolvedStatus, displayEvents);
+  meta.final_status = resolvedStatus;
 
   const sourceCycle = Number((response as any)?.current_cycle ?? response.meta?.current_cycle ?? 0);
   if (Number.isFinite(sourceCycle) && sourceCycle > 0) {
@@ -670,13 +747,13 @@ export function applyTrackingPatchLayer(
     `[TRACE] CYCLE_AUDIT total_cycles=${meta.total_cycles} final_cycle=${meta.final_cycle_index} final_status=${meta.final_status} last_event="${meta.last_event}" reason="${meta.decision_reason}"`,
   );
   console.log(`RAW_STATUS = "${statusBeforePatch}"`);
-  console.log(`COMPUTED_STATUS = "${meta.final_status}"`);
+  console.log(`COMPUTED_STATUS = "${resolvedStatus}"`);
 
   meta.cycle_description = `${meta.final_status} (Loop ${Math.max(1, meta.current_cycle)})`;
 
   return {
     ...response,
-    status: meta.final_status,
+    status: resolvedStatus,
     complaint_eligible: meta.complaint_enabled,
     days_passed: meta.days_passed,
     mos_id: response.mos_id ?? meta.mos_id ?? null,

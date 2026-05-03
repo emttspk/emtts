@@ -14,7 +14,7 @@ export type PythonTrackResult = {
   events?: Array<{ date: string; time: string; location: string; description: string }>;
   display_events?: Array<{ date: string; time: string; location: string; description: string }>;
   meta?: {
-    final_status: "Pending" | "Delivered" | "Return";
+    final_status: "Pending" | "Delivered" | "Return" | "OUT_FOR_DELIVERY" | "IN_TRANSIT" | "FAILED" | "DELIVERED WITH PAYMENT";
     total_cycles: number;
     final_cycle_index: number;
     current_cycle: number;
