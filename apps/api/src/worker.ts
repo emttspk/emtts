@@ -719,6 +719,14 @@ const worker = new Worker(
         shipmentType: shipmentType ?? null,
         outputMode,
       });
+      const inputRowsCount = orders.length;
+      const validRowsCount = labelOrders.length;
+      const skippedRowsCount = Math.max(0, inputRowsCount - validRowsCount);
+      console.log(`[Worker] Label rows - input: ${inputRowsCount}, valid: ${validRowsCount}, skipped: ${skippedRowsCount}`);
+      if (validRowsCount === 0) {
+        throw new Error("No valid rows available for label generation. All rows were skipped after validation.");
+      }
+
       const moneyOrderEligibleOrders = doGenerateMoneyOrder
         ? labelOrders.filter((order) => shouldApplyPakistanPostValuePayableRules(order.carrierType, resolveOrderShipmentType(order, shipmentType)) && hasMoneyOrderAmount(order))
         : [];
@@ -751,6 +759,7 @@ const worker = new Worker(
           };
         });
       }
+      console.log(`[Worker] Label template rows to render: ${labelOrdersForRender.length}`);
 
       if (trackAfterGenerate === true) {
         const orderByTracking = new Map(
@@ -892,12 +901,26 @@ const worker = new Worker(
           includeMoneyOrders: moneyOrderEligibleOrders.length > 0,
           outputMode,
         });
+        const labelsHtmlSize = Buffer.byteLength(html, "utf8");
+        console.log(`[Worker] Labels HTML size: ${labelsHtmlSize} bytes`);
+        if (!String(html ?? "").trim() || labelsHtmlSize < 200) {
+          throw new Error(`Labels HTML is empty or too small (${labelsHtmlSize} bytes)`);
+        }
         const pdfData = await htmlToPdfBuffer(html, browser, outputMode === "envelope" ? "envelope-9x4" : "A4");
         const pdfBuffer = Buffer.from(pdfData);
+        console.log(`[Worker] Labels PDF buffer size: ${pdfBuffer.length} bytes`);
+        if (pdfBuffer.length <= 0) {
+          throw new Error("Labels PDF buffer is empty");
+        }
         labelsPdf = pdfBuffer;
         labelsPath = path.join(outputsDir(), `${jobId}-labels.pdf`);
         console.log(`[Worker] Labels output file path: ${labelsPath}`);
         await fs.writeFile(labelsPath, pdfBuffer);
+        const labelsFileStats = await fs.stat(labelsPath);
+        console.log(`[Worker] Labels saved file size: ${labelsFileStats.size} bytes`);
+        if (labelsFileStats.size <= 0) {
+          throw new Error("Labels PDF file was saved with zero bytes");
+        }
         const labelsAbsPath = await waitForStoredFile(toStoredPath(labelsPath), 8, 250);
         if (!labelsAbsPath) {
           console.error(`[Worker] Labels file missing after write. Path: ${labelsPath}`);
@@ -932,14 +955,16 @@ const worker = new Worker(
               issueDate: allocatedRow.issue_date ?? new Date().toISOString().slice(0, 10),
             }));
           });
+          console.log(`[Worker] Money-order rows - eligible: ${moneyOrderEligibleOrders.length}, printable: ${printableOrders.length}`);
           if (printableOrders.length === 0) {
-            moneyPdf = null;
-            moneyPath = null;
+            throw new Error("Money order file was not generated: no printable money-order rows were produced");
           } else {
           const backgrounds = await loadMoneyOrderBackgrounds().catch(() => null);
           console.log("MoneyOrderData:", printableOrders);
           const renderMoneyOrderPdf = async () => {
             const moneyHtml = moneyOrderHtml(printableOrders, { backgrounds: backgrounds ?? undefined });
+            const moneyHtmlSize = Buffer.byteLength(String(moneyHtml ?? ""), "utf8");
+            console.log(`[Worker] Money-order HTML size: ${moneyHtmlSize} bytes`);
             if (!String(moneyHtml ?? "").trim() || moneyHtml.length < 500) {
               throw new Error("EMPTY_HTML_BLOCKED");
             }
@@ -958,9 +983,11 @@ const worker = new Worker(
           };
 
           moneyPdf = await renderMoneyOrderPdf();
+          console.log(`[Worker] Money-order PDF buffer size: ${moneyPdf.length} bytes`);
           if (moneyPdf.length < 20_000) {
             console.error(`[Worker] Money order PDF too small (${moneyPdf.length} bytes), regenerating...`);
             moneyPdf = await renderMoneyOrderPdf();
+            console.log(`[Worker] Money-order PDF buffer size after retry: ${moneyPdf.length} bytes`);
           }
           if (moneyPdf.length < 20_000) {
             throw new Error(`Money order PDF is too small after regeneration (${moneyPdf.length} bytes)`);
@@ -969,6 +996,11 @@ const worker = new Worker(
           moneyPath = moneyOrdersOutputPath(jobId);
           console.log("Output path:", moneyPath);
           await fs.writeFile(moneyPath, moneyPdf);
+          const moneyFileStats = await fs.stat(moneyPath);
+          console.log(`[Worker] Money-order saved file size: ${moneyFileStats.size} bytes`);
+          if (moneyFileStats.size <= 0) {
+            throw new Error("Money order PDF file was saved with zero bytes");
+          }
           const moneyAbsPath = await waitForStoredFile(toStoredPath(moneyPath), 8, 250);
           const moneyFileExists = Boolean(moneyAbsPath);
           console.log("File exists after generation:", moneyFileExists);

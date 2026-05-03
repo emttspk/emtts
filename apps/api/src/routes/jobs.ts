@@ -685,10 +685,21 @@ jobsRouter.get("/:jobId/download/labels", requireAuth, async (req, res) => {
 
   const absPath = await waitForStoredFile(relPath, 8, 500);
   if (!absPath) {
+    const fallbackPath = resolveStoredPath(relPath);
+    if (existsSync(fallbackPath)) {
+      const stats = fsSync.statSync(fallbackPath);
+      if (stats.isFile() && stats.size <= 0) {
+        return res.status(422).json({ success: false, message: "Labels file is empty" });
+      }
+    }
     return res.status(404).json({ success: false, message: "File not found on disk" });
   }
   const resolvedAbsPath = path.resolve(absPath);
   console.log("DOWNLOAD PATH:", resolvedAbsPath);
+  const labelsStats = fsSync.statSync(resolvedAbsPath);
+  if (!labelsStats.isFile() || labelsStats.size <= 0) {
+    return res.status(422).json({ success: false, message: "Labels file is empty" });
+  }
   const allowedRoot = outputsDir();
   const relToRoot = path.relative(allowedRoot, resolvedAbsPath);
   if (relToRoot.startsWith("..") || path.isAbsolute(relToRoot)) {
@@ -734,10 +745,21 @@ async function handleMoneyOrdersDownload(req: Request, res: Response) {
 
   const absPath = await waitForStoredFile(relPath, 8, 500);
   if (!absPath) {
+    const fallbackPath = resolveStoredPath(relPath);
+    if (existsSync(fallbackPath)) {
+      const stats = fsSync.statSync(fallbackPath);
+      if (stats.isFile() && stats.size <= 0) {
+        return res.status(422).json({ success: false, message: "Money order file is empty" });
+      }
+    }
     return res.status(404).json({ success: false, message: "Money order file was not generated" });
   }
   const resolvedAbsPath = path.resolve(absPath);
   console.log("DOWNLOAD PATH:", resolvedAbsPath);
+  const moneyOrderStats = fsSync.statSync(resolvedAbsPath);
+  if (!moneyOrderStats.isFile() || moneyOrderStats.size <= 0) {
+    return res.status(422).json({ success: false, message: "Money order file is empty" });
+  }
 
   const allowedRoot = outputsDir();
   const relToRoot = path.relative(allowedRoot, resolvedAbsPath);
