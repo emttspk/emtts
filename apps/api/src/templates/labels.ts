@@ -68,10 +68,9 @@ function deriveNetCommissionFromGross(grossAmount: number, shipmentType: unknown
     return { netAmount: moAmount, commission };
   }
 
-  // COD uses standard VPL/VPP calculation
+  // COD: no commission — collect amount is the MO amount directly
   if (normalizedShipment === "COD") {
-    const commission = moAmount > 10_000 ? 100 : 75;
-    return { netAmount: moAmount, commission };
+    return { netAmount: moAmount, commission: 0 };
   }
 
   // All other types (parcel, document, etc.) - no commission
@@ -193,7 +192,9 @@ function strictMoneyOrderNumber(value: unknown) {
   if (validated.ok) return validated.value;
 
   const suffixStripped = raw.replace(/-S\d+$/i, "");
-  const digits = suffixStripped.startsWith("MOS")
+  const isCod = suffixStripped.startsWith("UMO");
+  const knownPrefix = isCod ? "UMO" : "MOS";
+  const digits = (suffixStripped.startsWith("MOS") || suffixStripped.startsWith("UMO"))
     ? suffixStripped.slice(3).replace(/\D/g, "")
     : suffixStripped.replace(/\D/g, "");
   if (digits.length < 8) return "-";
@@ -201,7 +202,7 @@ function strictMoneyOrderNumber(value: unknown) {
   const mm = digits.length >= 8 ? digits.slice(-8, -6) : "00";
   const seq = digits.slice(-6);
   const normalizedMonth = /^(0[1-9]|1[0-2])$/.test(mm) ? mm : String(new Date().getMonth() + 1).padStart(2, "0");
-  const coerced = `MOS${normalizedMonth}${seq}`;
+  const coerced = `${knownPrefix}${normalizedMonth}${seq}`;
   return validateMoneyOrderNumber(coerced).ok ? coerced : "-";
 }
 
@@ -298,6 +299,15 @@ function renderBoxAmountBlock(summary: LabelAmountSummary) {
   }
 
   const formatRs = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
+  if (summary.commission > 0) {
+    return `
+    <div class="money">
+      <div class="money-row"><span class="money-label">MO Amount</span><span class="money-value">Rs. ${escapeHtml(formatRs(summary.moAmount))}</span></div>
+      <div class="money-row"><span class="money-label">MO Commission</span><span class="money-value">Rs. ${escapeHtml(formatRs(summary.commission))}</span></div>
+      <div class="money-row"><span class="money-label">Gross Collect Amount</span><span class="money-value">Rs. ${escapeHtml(formatRs(summary.grossAmount))}</span></div>
+    </div>
+  `;
+  }
   return `
     <div class="money">
       <div class="money-row"><span class="money-label">MO Amount</span><span class="money-value">Rs. ${escapeHtml(formatRs(summary.moAmount))}</span></div>
@@ -1144,7 +1154,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     /(<div class="field en" style="left:15\.56mm;top:174\.79mm;width:67\.18mm;font-size:1\.83mm;line-height:1\.12;white-space:normal;">)([\s\S]*?)(<\/div>)/g,
     slotIndex,
     (_m, p1, _old, p3) =>
-      `${p1}\n      ${escapeHtml(consigneeName)} | ${escapeHtml(consigneePhone)}<br/>\n      ${escapeHtml(consigneeAddress)}<br/>\n      MOS: ${escapeHtml(moNumber)} | ${escapeHtml(amountDisplay)}\n    ${p3}`,
+      `${p1}\n      ${escapeHtml(consigneeName)} | ${escapeHtml(consigneePhone)}<br/>\n      ${escapeHtml(consigneeAddress)}<br/>\n      MO: ${escapeHtml(moNumber)} | ${escapeHtml(amountDisplay)}\n    ${p3}`,
   );
 
   // Bottom tracking line

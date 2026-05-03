@@ -325,16 +325,16 @@ function isMoneyOrderUniqueViolation(error: unknown) {
   return message.includes("mo_number") || message.includes("idx_money_orders_mo_number") || message.includes("duplicate key");
 }
 
-function moneyOrderLockKey(issueDate: string) {
-  const prefix = buildMoneyOrderNumber(1, issueDate).slice(0, 5);
-  return `money_orders:mos:${prefix}`;
+function moneyOrderLockKey(issueDate: string, shipmentType?: unknown) {
+  const prefix = buildMoneyOrderNumber(1, issueDate, shipmentType).slice(0, 5);
+  return `money_orders:${prefix.toLowerCase()}:${prefix}`;
 }
 
-async function allocateNextMoneyOrderNumber(executor: Prisma.TransactionClient, issueDate: string, reservedNumbers: Set<string>) {
-  await executor.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${moneyOrderLockKey(issueDate)}))`;
+async function allocateNextMoneyOrderNumber(executor: Prisma.TransactionClient, issueDate: string, reservedNumbers: Set<string>, shipmentType?: unknown) {
+  await executor.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${moneyOrderLockKey(issueDate, shipmentType)}))`;
 
   let sequence = 1;
-  const latestPrefix = `${buildMoneyOrderNumber(1, issueDate).slice(0, 5)}%`;
+  const latestPrefix = `${buildMoneyOrderNumber(1, issueDate, shipmentType).slice(0, 5)}%`;
   const latest = await executor.$queryRaw<Array<{ mo_number: string }>>`
     SELECT mo_number
     FROM money_orders
@@ -342,13 +342,15 @@ async function allocateNextMoneyOrderNumber(executor: Prisma.TransactionClient, 
     ORDER BY LENGTH(mo_number) DESC, mo_number DESC
     LIMIT 1
   `;
-  const latestSequence = parseIdentifierSequence(String(latest[0]?.mo_number ?? ""));
+  // Parse sequence after the fixed 5-char prefix+month (handles 6-digit and 7-digit overflow)
+  const latestMoStr = String(latest[0]?.mo_number ?? "");
+  const latestSequence = latestMoStr.length >= 6 ? Number.parseInt(latestMoStr.slice(5), 10) : null;
   if (latestSequence && latestSequence > 0) {
     sequence = latestSequence + 1;
   }
 
   while (true) {
-    const moNumber = buildMoneyOrderNumber(sequence, issueDate);
+    const moNumber = buildMoneyOrderNumber(sequence, issueDate, shipmentType);
     const exists = await executor.$queryRaw<Array<{ exists: number }>>`
       SELECT 1::int AS exists
       FROM money_orders
@@ -359,7 +361,8 @@ async function allocateNextMoneyOrderNumber(executor: Prisma.TransactionClient, 
       reservedNumbers.add(moNumber);
       return moNumber;
     }
-    console.warn("MOS duplicate detected. New MOS generated.");
+    const moPrefix = String(shipmentType ?? "").trim().toUpperCase() === "COD" ? "UMO" : "MOS";
+    console.warn(`${moPrefix} duplicate detected. New number generated.`);
     sequence += 1;
   }
 }
@@ -433,7 +436,7 @@ async function ensureSystemMoneyOrders(
         let attempts = 0;
         while (attempts < 25) {
           attempts += 1;
-          const moNumber = await allocateNextMoneyOrderNumber(tx, row.issueDate, reservedNumbers);
+          const moNumber = await allocateNextMoneyOrderNumber(tx, row.issueDate, reservedNumbers, row.shipmentType);
           const inserted = await tx.$executeRaw`
             INSERT INTO money_orders (id, user_id, tracking_number, mo_number, segment_index, tracking_id, issue_date, amount, mo_amount, commission, gross_amount)
             VALUES (${randomUUID()}, ${userId}, ${row.trackingNumber}, ${moNumber}, ${desiredLine.segmentIndex}, ${row.trackingNumber}, ${row.issueDate}, ${desiredLine.moAmount}, ${desiredLine.moAmount}, ${desiredLine.commission}, ${desiredLine.grossAmount})
@@ -457,7 +460,8 @@ async function ensureSystemMoneyOrders(
           }
 
           reservedNumbers.delete(moNumber);
-          console.warn("MOS duplicate detected. New MOS generated.");
+          const moPrefix = String(row.shipmentType ?? "").trim().toUpperCase() === "COD" ? "UMO" : "MOS";
+          console.warn(`${moPrefix} duplicate detected. New number generated.`);
           if (attempts >= 25) {
             throw new Error("Unable to allocate unique money order number after 25 attempts");
           }

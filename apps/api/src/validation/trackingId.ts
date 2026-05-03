@@ -1,11 +1,12 @@
 export const TRACKING_PREFIX = "VPL";
 export const MONEY_ORDER_PREFIX = "MOS";
+export const MONEY_ORDER_PREFIX_COD = "UMO";
 export const MONEY_ORDER_SPLIT_LIMIT = 20_000;
 
 const allowedTrackingPrefixes = [TRACKING_PREFIX] as const;
 
 const trackingIdPattern = /^VPL\d{8,9}$/;
-const moneyOrderNumberPattern = /^MOS(0[1-9]|1[0-2])\d{6}$/;
+const moneyOrderNumberPattern = /^(MOS|UMO)(0[1-9]|1[0-2])\d{6,7}$/;
 
 export type StrictTrackingValidation = { ok: true; value: string } | { ok: false; reason: string };
 
@@ -86,13 +87,16 @@ export function buildTrackingId(sequence: number, value?: string | Date) {
   return `${TRACKING_PREFIX}${formatIdentifierDateCode(value)}${formatIdentifierSequence(sequence)}`;
 }
 
-export function buildMoneyOrderNumber(sequence: number, value?: string | Date) {
-  if (!Number.isInteger(sequence) || sequence <= 0 || sequence > 999_999) {
-    throw new Error("Money order sequence must be between 1 and 999999 for MOSMMXXXXXX format.");
+export function buildMoneyOrderNumber(sequence: number, value?: string | Date, shipmentType?: unknown) {
+  if (!Number.isInteger(sequence) || sequence <= 0) {
+    throw new Error("Money order sequence must be a positive integer.");
   }
+  const normalizedType = String(shipmentType ?? "").trim().toUpperCase();
+  const prefix = normalizedType === "COD" ? MONEY_ORDER_PREFIX_COD : MONEY_ORDER_PREFIX;
   const date = value instanceof Date ? value : value ? new Date(value) : new Date();
   const month = String(date.getMonth() + 1).padStart(2, "0");
-  return `${MONEY_ORDER_PREFIX}${month}${String(sequence).padStart(6, "0")}`;
+  const width = sequence > 999_999 ? 7 : 6;
+  return `${prefix}${month}${String(sequence).padStart(width, "0")}`;
 }
 
 export function parseIdentifierSequence(value: string) {
@@ -145,7 +149,7 @@ export function validateMoneyOrderNumber(value: unknown): StrictTrackingValidati
   if (!moneyOrderNumberPattern.test(compact)) {
     return {
       ok: false,
-      reason: "money order number must match MOSMMXXXXXX format (exactly 11 characters)",
+      reason: "money order number must match MOSMMXXXXXX or UMOMMXXXXXX format (6–7 digit sequence)",
     };
   }
 
