@@ -691,6 +691,25 @@ const worker = new Worker(
           throw new Error(`Upload validation failed. ${uploadSourceErrors.slice(0, 20).join(" ")}`);
         }
       }
+
+      // Pre-barcode validation: ensure trackingIds are properly handled
+      const preValidationWarnings: string[] = [];
+      let missingTrackingCount = 0;
+      for (let i = 0; i < orders.length; i++) {
+        const order = orders[i]!;
+        const trackingIdRaw = String(order.TrackingID ?? "").trim();
+        if (!trackingIdRaw) {
+          missingTrackingCount++;
+          if (!doAutoGenerateTracking && barcodeMode === "manual") {
+            preValidationWarnings.push(`Row ${i + 2}: No tracking ID - will be skipped (manual mode requires explicit IDs)`);
+          }
+        }
+      }
+
+      if (preValidationWarnings.length > 0 && barcodeMode === "manual" && missingTrackingCount > 0) {
+        console.warn(`[BarcodeValidation] ${preValidationWarnings.length} rows with missing tracking IDs:`, preValidationWarnings.slice(0, 10));
+      }
+
       const outputMode = printMode === "envelope" ? "envelope" : printMode === "flyer" ? "flyer" : "labels";
       const labelOrders = prepareLabelOrders(orders, {
         autoGenerateTracking: autoGenerateTracking === true,
