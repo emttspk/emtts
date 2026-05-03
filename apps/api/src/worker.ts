@@ -23,6 +23,7 @@ import { finalizeQueuedToGenerated, finalizeQueuedTrackingToGenerated, releaseQu
 import { loadMoneyOrderBackgrounds } from "./money-order/backgrounds.js";
 import { prepareLabelOrders } from "./services/labelDocument.js";
 import {
+  buildTrackingId,
   buildMoneyOrderNumber,
   moneyOrderBreakdown,
   normalizeTrackingId,
@@ -599,10 +600,11 @@ const worker = new Worker(
       const manualTrackingIds = orders
         .map((order, idx) => ({
           idx,
-          trackingId: String(order.TrackingID ?? "").trim().toUpperCase(),
+          trackingId: String(order.TrackingID ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, ""),
           order,
         }))
         .filter((item) => item.trackingId);
+      console.log(`[Worker] Mapped tracking IDs before duplicate handling (first 20): ${JSON.stringify(manualTrackingIds.map((item) => item.trackingId).slice(0, 20))}`);
 
       if (manualTrackingIds.length > 0) {
         const existingTrackings = await prisma.shipment.findMany({
@@ -617,18 +619,55 @@ const worker = new Worker(
 
         const duplicateIds = new Set(existingTrackings.map((s) => String(s.trackingNumber ?? "").trim().toUpperCase()));
         const seenInBatch = new Set<string>();
+        const duplicateRowsToSkip = new Set<number>();
+        const allKnownTrackingIds = new Set(manualTrackingIds.map((item) => item.trackingId));
+        let generatedReplacementCount = 0;
+        let skippedDuplicateCount = 0;
+
+        console.log(
+          `[Worker] Duplicate detection result: ${JSON.stringify({
+            dbDuplicates: duplicateIds.size,
+            dbDuplicateValues: Array.from(duplicateIds).slice(0, 20),
+          })}`,
+        );
 
         for (const row of manualTrackingIds) {
           const key = row.trackingId;
           const dbDuplicate = duplicateIds.has(key);
           const batchDuplicate = seenInBatch.has(key);
           if (dbDuplicate || batchDuplicate) {
-            row.order.TrackingID = "";
-            console.warn("Tracking ID already exists. New tracking ID assigned.");
+            if (doAutoGenerateTracking) {
+              let offset = generatedReplacementCount + 1;
+              let replacement = buildTrackingId(offset, new Date());
+              while (allKnownTrackingIds.has(replacement)) {
+                offset += 1;
+                replacement = buildTrackingId(offset, new Date());
+              }
+              row.order.TrackingID = replacement;
+              allKnownTrackingIds.add(replacement);
+              generatedReplacementCount = offset;
+              console.warn(`[Worker] Tracking ID duplicate replaced for row ${row.idx + 2}: ${key} -> ${replacement}`);
+            } else {
+              duplicateRowsToSkip.add(row.idx);
+              skippedDuplicateCount += 1;
+              console.warn(`[Worker] Tracking ID duplicate skipped in manual mode for row ${row.idx + 2}: ${key}`);
+            }
             continue;
           }
           seenInBatch.add(key);
         }
+
+        if (duplicateRowsToSkip.size > 0) {
+          orders = orders.filter((_order, idx) => !duplicateRowsToSkip.has(idx));
+        }
+
+        console.log(
+          `[Worker] Duplicate handling summary: ${JSON.stringify({
+            replacedForAutoMode: generatedReplacementCount,
+            skippedForManualMode: skippedDuplicateCount,
+            remainingRows: orders.length,
+          })}`,
+        );
       }
 
       let useProfileShipper = false;
