@@ -29,6 +29,8 @@ model User {
   usage         UsageMonthly[]
   refunds       RefundRequest[]
   complaintQueue ComplaintQueue[]
+  payments      Payment[]
+  invoices      Invoice[]
 }
 
 model Plan {
@@ -40,6 +42,8 @@ model Plan {
   createdAt         DateTime @default(now())
 
   subscriptions Subscription[]
+  payments      Payment[]
+  invoices      Invoice[]
 }
 
 model Subscription {
@@ -53,9 +57,86 @@ model Subscription {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   plan Plan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  payments Payment[]
+  invoices Invoice[]
 
   @@index([userId])
   @@index([planId])
+}
+
+model Payment {
+  id                   String        @id @default(uuid())
+  userId               String
+  planId               String
+  subscriptionId       String?
+  provider             String        @default("EP_GATEWAY")
+  reference            String        @unique
+  gatewayOrderId       String        @unique
+  gatewayTransactionId String?
+  idempotencyKey       String        @unique
+  checkoutToken        String        @unique
+  kind                 String        @default("PURCHASE")
+  status               String        @default("PENDING")
+  amountCents          Int
+  currency             String        @default("PKR")
+  verifiedAt           DateTime?
+  paidAt               DateTime?
+  failureReason        String?
+  metadata             Json?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan         Plan          @relation(fields: [planId], references: [id], onDelete: Restrict)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  invoice      Invoice?
+  events       PaymentEvent[]
+
+  @@index([userId, status])
+  @@index([planId])
+  @@index([subscriptionId])
+}
+
+model Invoice {
+  id             String        @id @default(uuid())
+  userId         String
+  planId         String
+  paymentId      String        @unique
+  subscriptionId String?
+  invoiceNumber  String        @unique
+  amountCents    Int
+  currency       String        @default("PKR")
+  status         String        @default("OPEN")
+  issuedAt       DateTime      @default(now())
+  paidAt         DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan         Plan          @relation(fields: [planId], references: [id], onDelete: Restrict)
+  payment      Payment       @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status])
+  @@index([planId])
+  @@index([subscriptionId])
+}
+
+model PaymentEvent {
+  id          String   @id @default(uuid())
+  paymentId   String
+  eventId     String   @unique
+  source      String
+  status      String
+  payloadHash String
+  signature   String?
+  payloadJson Json
+  createdAt   DateTime @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@unique([paymentId, source, payloadHash])
+  @@index([paymentId, source])
 }
 
 model UsageMonthly {

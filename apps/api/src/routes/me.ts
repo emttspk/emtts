@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import { COMPLAINT_UNIT_COST, getComplaintAllowance, getLatestUnitSnapshot } from "../usage/unitConsumption.js";
+import { buildHostedCheckoutUrl, getLatestPendingPayment } from "../services/epGatewayBilling.service.js";
 
 export const meRouter = Router();
 
@@ -35,6 +36,7 @@ meRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
     include: { plan: true },
     orderBy: { createdAt: "desc" },
   });
+  const pendingPayment = await getLatestPendingPayment(userId);
 
   const snapshot = await getLatestUnitSnapshot(userId);
   const month = snapshot.month;
@@ -98,6 +100,19 @@ meRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
       nearExpiry: isNearExpiry,
       unitsRemaining: remainingUnits,
     },
+    pendingPayment: pendingPayment
+      ? {
+          reference: pendingPayment.reference,
+          status: pendingPayment.status,
+          kind: pendingPayment.kind,
+          amountCents: pendingPayment.amountCents,
+          currency: pendingPayment.currency,
+          planName: pendingPayment.plan.name,
+          invoiceNumber: pendingPayment.invoice?.invoiceNumber ?? null,
+          checkoutUrl: buildHostedCheckoutUrl(pendingPayment.reference, pendingPayment.checkoutToken),
+          createdAt: pendingPayment.createdAt,
+        }
+      : null,
   });
 });
 

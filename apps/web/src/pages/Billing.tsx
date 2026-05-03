@@ -54,13 +54,34 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
       .finally(() => setLoadingPlans(false));
   }, []);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get("payment");
+    const reference = params.get("reference");
+    if (!payment) return;
+
+    if (payment === "success") {
+      setSuccess(reference ? `Payment verified and subscription activated. Ref: ${reference}` : "Payment verified and subscription activated.");
+      void refreshMe();
+    } else if (payment === "canceled") {
+      setError(reference ? `Payment canceled. Ref: ${reference}` : "Payment canceled.");
+    } else {
+      setError(reference ? `Payment failed. Ref: ${reference}` : "Payment failed.");
+    }
+  }, [refreshMe]);
+
   async function choosePlan(plan: Plan) {
-    if (plan.id === currentPlanId) return;
+    const renewingCurrentPlan = plan.id === currentPlanId && (expired || nearExpiry);
+    if (plan.id === currentPlanId && !renewingCurrentPlan) return;
     setSubmittingPlanId(plan.id);
     setError(null);
     setSuccess(null);
     try {
-      await changePackage(plan.id);
+      const response = await changePackage(plan.id);
+      if (response.requiresRedirect && response.checkoutUrl) {
+        window.location.assign(response.checkoutUrl);
+        return;
+      }
       await refreshMe();
       setSuccess(`Package changed to ${plan.name}.`);
     } catch (err) {
@@ -89,6 +110,18 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
 
             {error ? <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
             {success ? <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div> : null}
+            {me?.pendingPayment ? (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                Pending payment for {me.pendingPayment.planName} is waiting for completion. Invoice {me.pendingPayment.invoiceNumber ?? "pending"}.
+                <button
+                  className="ml-3 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
+                  type="button"
+                  onClick={() => window.location.assign(me.pendingPayment!.checkoutUrl)}
+                >
+                  Resume payment
+                </button>
+              </div>
+            ) : null}
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Active package</div>
@@ -108,7 +141,8 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
       <div className="grid gap-5 lg:grid-cols-3">
         {loadingPlans ? <Card className="p-6 text-sm text-slate-600">Loading packages...</Card> : null}
         {plans.map((plan, index) => {
-          const isCurrent = currentPlanId === plan.id;
+          const isCurrent = currentPlanId === plan.id && !expired && !nearExpiry;
+          const canRenewCurrentPlan = currentPlanId === plan.id && (expired || nearExpiry);
           const highlight = isCurrent || index === 1;
           const upgrading = !isCurrent && (me?.subscription?.plan?.monthlyLabelLimit ?? 0) < plan.monthlyLabelLimit;
           return (
@@ -149,12 +183,14 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                   className="mt-6 w-full rounded-2xl bg-brand px-4 py-3 text-sm font-medium text-white shadow-lg transition-all duration-300 ease-in-out hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60"
                   type="button"
                   onClick={() => choosePlan(plan)}
-                  disabled={isCurrent || submittingPlanId === plan.id}
+                  disabled={(isCurrent && !canRenewCurrentPlan) || submittingPlanId === plan.id}
                 >
                   {isCurrent
                     ? `Current: ${plan.name}`
                     : submittingPlanId === plan.id
                       ? "Updating..."
+                      : canRenewCurrentPlan
+                        ? `Renew ${plan.name}`
                       : upgrading
                         ? `Upgrade to ${plan.name}`
                         : `Choose ${plan.name}`}

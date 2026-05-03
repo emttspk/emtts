@@ -105,4 +105,15 @@ export type MeResponse = {
     nearExpiry: boolean;
     unitsRemaining: number;
   };
+  pendingPayment?: {
+    reference: string;
+    status: string;
+    kind: string;
+    amountCents: number;
+    currency: string;
+    planName: string;
+    invoiceNumber: string | null;
+    checkoutUrl: string;
+    createdAt: string;
+  } | null;
 };

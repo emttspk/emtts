@@ -27,6 +27,7 @@ const envSchema = z.object({
   MONEY_ORDER_FRONT_IMAGE_PATH: z.string().optional(),
   MONEY_ORDER_BACK_IMAGE_PATH: z.string().optional(),
   ENABLE_TEMPLATE_DESIGNER: z.string().default("false"),
+  EP_GATEWAY_SECRET: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);
