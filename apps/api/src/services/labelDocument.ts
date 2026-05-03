@@ -1,5 +1,5 @@
 import { type LabelOrder, type LabelPrintMode, generateLabelBarcodeBase64 } from "../templates/labels.js";
-import { buildTrackingId, validateTrackingId } from "../validation/trackingId.js";
+import { buildTrackingId, validateTrackingId, validateUploadedTrackingId } from "../validation/trackingId.js";
 
 type TrackingScheme = "standard" | "rl" | "ums";
 type CarrierType = "pakistan_post" | "courier";
@@ -41,8 +41,8 @@ export function prepareLabelOrders(
       let trackingNumber: string;
 
       if (manualTracking) {
-        // Manual mode: try to use provided ID
-        const validated = validateTrackingId(manualTracking);
+        // Manual mode: uploaded tracking ID — accept any non-empty format
+        const validated = validateUploadedTrackingId(manualTracking);
         if (!validated.ok) {
           throw new Error(`Invalid tracking ID in row: ${(validated as any).reason}`);
         }
@@ -60,12 +60,20 @@ export function prepareLabelOrders(
       }
 
       // Step 3: Final validation
-      const validated = validateTrackingId(trackingNumber);
-      if (!validated.ok) {
-        throw new Error(`Failed validation: ${(validated as any).reason}`);
+      // For system-generated IDs, apply strict format validation.
+      // For uploaded IDs (already resolved above), skip regex check — just re-normalize.
+      let trackingId: string;
+      if (opts.autoGenerateTracking && !String(order.TrackingID ?? "").trim()) {
+        // Generated ID — strict validation
+        const validated = validateTrackingId(trackingNumber);
+        if (!validated.ok) {
+          throw new Error(`Failed validation: ${(validated as any).reason}`);
+        }
+        trackingId = validated.value;
+      } else {
+        // Uploaded ID — accept as-is (already non-empty validated above)
+        trackingId = trackingNumber;
       }
-
-      const trackingId = validated.value;
 
       return {
         ...(order as LabelOrder),

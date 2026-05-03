@@ -1472,10 +1472,10 @@ trackingWorker.on("error", (err) => {
   const isConnReset = err.message.includes("ECONNRESET") || (err as any).code === "ECONNRESET";
   if (isConnRefused) {
     // eslint-disable-next-line no-console
-    console.error("Tracking worker could not connect to Redis (ECONNREFUSED). Start Redis and retry.");
+    console.warn("[Redis] Tracking worker could not connect (ECONNREFUSED). Will retry automatically.");
   } else if (isConnReset) {
     // eslint-disable-next-line no-console
-    console.error("Tracking worker Redis connection reset (ECONNRESET). Ensure Redis is stable and retry.");
+    console.warn("[Redis] Tracking worker connection reset (ECONNRESET). Will retry automatically.");
   } else {
     // eslint-disable-next-line no-console
     console.error("Tracking worker error:", err);

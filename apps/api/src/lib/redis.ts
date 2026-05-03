@@ -29,7 +29,17 @@ export const redis = new IORedis(connectionUrl, {
 
 redis.on("connect", () => console.log("✅ Redis CONNECTED"));
 redis.on("ready", () => console.log("✅ Redis READY"));
-redis.on("error", (err) => console.error("❌ Redis ERROR:", err));
+redis.on("error", (err: Error) => {
+  // Downgrade transient Redis errors to warnings — they are expected during reconnect cycles
+  // and should not pollute Railway error logs as fatal events.
+  const msg = err?.message ?? String(err ?? "");
+  const isTransient = /ECONNREFUSED|ECONNRESET|ETIMEDOUT|socket hang up|connect ETIMEDOUT/i.test(msg);
+  if (isTransient) {
+    console.warn("[Redis] Connection warning (transient):", msg);
+  } else {
+    console.warn("[Redis] Error:", msg);
+  }
+});
 
 export const connection = redis;
 export const redisEnabled = hasUsableRedisUrl;
