@@ -109,7 +109,19 @@ const strictAliasLookup = (() => {
 })();
 
 function resolveStrictColumn(rawHeader: string) {
-  return strictAliasLookup.get(normalizeHeaderKey(rawHeader));
+  const normalized = normalizeHeaderKey(rawHeader);
+  const direct = strictAliasLookup.get(normalized);
+  if (direct) return direct;
+
+  // Compatibility fallback for variants like VPL/RL Bar Code, VPL Barcode, Tracking Barcode, etc.
+  if (normalized.includes("tracking")) {
+    return "TrackingID";
+  }
+  if (normalized.includes("barcode") || normalized.includes("barcodeid") || normalized.includes("barcodeno")) {
+    return "TrackingID";
+  }
+
+  return undefined;
 }
 
 function normalizeTrackingCandidate(value: unknown) {
