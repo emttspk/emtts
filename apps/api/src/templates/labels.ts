@@ -7,6 +7,7 @@ import {
   buildMoneyOrderNumber,
   buildTrackingId,
   moneyOrderBreakdown,
+  reverseMoneyOrderFromGross,
   shouldApplyPakistanPostValuePayableRules,
   shouldShowValuePayableAmount,
   validateMoneyOrderNumber,
@@ -248,24 +249,55 @@ type LabelAmountSummary = {
   showCalculation: boolean;
 };
 
-function getLabelAmountSummary(order: Pick<LabelOrder, "carrierType" | "shipmentType" | "shipmenttype" | "CollectAmount">): LabelAmountSummary {
+function isUploadedLabelRow(order: Record<string, unknown>) {
+  const mode = String(order.barcodeMode ?? order.barcode_mode ?? "").trim().toLowerCase();
+  return mode === "manual";
+}
+
+function getLabelAmountSummary(order: Pick<LabelOrder, "carrierType" | "shipmentType" | "shipmenttype" | "CollectAmount" | "barcodeMode">): LabelAmountSummary {
   const carrierType = order.carrierType === "courier" ? "courier" : "pakistan_post";
   const shipmentType = resolveOrderShipmentType(order);
-  const moAmountInput = toNum(order.CollectAmount);
-  const appliesPakistanPostRules = shouldApplyPakistanPostValuePayableRules(carrierType, shipmentType) && moAmountInput > 0;
+  const collectAmount = toNum(order.CollectAmount);
+  const appliesPakistanPostRules = shouldApplyPakistanPostValuePayableRules(carrierType, shipmentType) && collectAmount > 0;
   if (!appliesPakistanPostRules) {
     return {
       carrierType,
       shipmentType,
       appliesPakistanPostRules,
-      grossAmount: moAmountInput,
+      grossAmount: collectAmount,
       moAmount: 0,
       commission: 0,
       showCalculation: false,
     };
   }
 
-  const { netAmount, commission } = deriveNetCommissionFromGross(moAmountInput, shipmentType);
+  if (shipmentType === "COD") {
+    return {
+      carrierType,
+      shipmentType,
+      appliesPakistanPostRules,
+      grossAmount: collectAmount,
+      moAmount: collectAmount,
+      commission: 0,
+      showCalculation: true,
+    };
+  }
+
+  const uploadedGrossMode = isUploadedLabelRow(order as Record<string, unknown>) && (shipmentType === "VPL" || shipmentType === "VPP");
+  if (uploadedGrossMode) {
+    const reversed = reverseMoneyOrderFromGross(collectAmount, shipmentType);
+    return {
+      carrierType,
+      shipmentType,
+      appliesPakistanPostRules,
+      grossAmount: reversed.grossAmount,
+      moAmount: reversed.moAmount,
+      commission: reversed.commission,
+      showCalculation: true,
+    };
+  }
+
+  const { netAmount, commission } = deriveNetCommissionFromGross(collectAmount, shipmentType);
   const grossAmount = netAmount + commission;
   return {
     carrierType,
@@ -278,19 +310,26 @@ function getLabelAmountSummary(order: Pick<LabelOrder, "carrierType" | "shipment
   };
 }
 
-function resolveMoneyOrderAmount(order: Pick<LabelOrder, "CollectAmount" | "shipmentType" | "shipmenttype"> & Record<string, unknown>) {
-  const declaredMoAmount = toNum(
-    order.CollectAmount ?? order.collect_amount ?? order.collected_amount ?? order.collectAmount ?? 0,
-  );
-  if (declaredMoAmount > 0) {
-    return declaredMoAmount;
-  }
-
+function resolveMoneyOrderAmount(order: Pick<LabelOrder, "CollectAmount" | "shipmentType" | "shipmenttype" | "barcodeMode"> & Record<string, unknown>) {
   const explicitMoAmount = toNum(order.amountRs ?? order.amount ?? 0);
   if (explicitMoAmount > 0) {
     return explicitMoAmount;
   }
-  return declaredMoAmount;
+
+  const collectAmount = toNum(
+    order.CollectAmount ?? order.collect_amount ?? order.collected_amount ?? order.collectAmount ?? 0,
+  );
+  if (collectAmount <= 0) {
+    return 0;
+  }
+
+  const shipmentType = resolveOrderShipmentType(order as Pick<LabelOrder, "shipmentType" | "shipmenttype">);
+  const uploadedGrossMode = isUploadedLabelRow(order as Record<string, unknown>) && (shipmentType === "VPL" || shipmentType === "VPP");
+  if (uploadedGrossMode) {
+    return reverseMoneyOrderFromGross(collectAmount, shipmentType).moAmount;
+  }
+
+  return collectAmount;
 }
 
 function renderBoxAmountBlock(summary: LabelAmountSummary) {
@@ -299,18 +338,11 @@ function renderBoxAmountBlock(summary: LabelAmountSummary) {
   }
 
   const formatRs = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
-  if (summary.commission > 0) {
-    return `
+  return `
     <div class="money">
       <div class="money-row"><span class="money-label">MO Amount</span><span class="money-value">Rs. ${escapeHtml(formatRs(summary.moAmount))}</span></div>
       <div class="money-row"><span class="money-label">MO Commission</span><span class="money-value">Rs. ${escapeHtml(formatRs(summary.commission))}</span></div>
       <div class="money-row"><span class="money-label">Gross Collect Amount</span><span class="money-value">Rs. ${escapeHtml(formatRs(summary.grossAmount))}</span></div>
-    </div>
-  `;
-  }
-  return `
-    <div class="money">
-      <div class="money-row"><span class="money-label">MO Amount</span><span class="money-value">Rs. ${escapeHtml(formatRs(summary.moAmount))}</span></div>
     </div>
   `;
 }

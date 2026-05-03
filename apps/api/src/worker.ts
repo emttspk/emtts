@@ -28,6 +28,7 @@ import {
   moneyOrderBreakdown,
   normalizeTrackingId,
   parseIdentifierSequence,
+  reverseMoneyOrderFromGross,
   shouldApplyPakistanPostValuePayableRules,
   shouldShowValuePayableAmount,
   validateMoneyOrderNumber,
@@ -800,10 +801,19 @@ const worker = new Worker(
         await ensureSystemMoneyOrders(
           job.userId,
           moneyOrderEligibleOrders.map((order) => ({
-            trackingNumber: String(order.trackingNumber ?? "").trim(),
-            amount: (order as any).CollectAmount,
-            issueDate: today,
             shipmentType: resolveOrderShipmentType(order, shipmentType),
+            trackingNumber: String(order.trackingNumber ?? "").trim(),
+            amount: (() => {
+              const resolvedShipmentType = resolveOrderShipmentType(order, shipmentType);
+              const collectAmount = normalizeAmount((order as any).CollectAmount);
+              const barcodeModeValue = String((order as any).barcodeMode ?? "").trim().toLowerCase();
+              const isUploadedGrossRow = barcodeModeValue === "manual" && doAutoGenerateTracking !== true;
+              if (isUploadedGrossRow && (resolvedShipmentType === "VPL" || resolvedShipmentType === "VPP")) {
+                return reverseMoneyOrderFromGross(collectAmount, resolvedShipmentType).moAmount;
+              }
+              return collectAmount;
+            })(),
+            issueDate: today,
           })),
         );
         moneyOrdersByTracking = await getMoneyOrdersByTracking(

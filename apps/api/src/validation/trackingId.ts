@@ -19,6 +19,12 @@ export type MoneyOrderBreakdownLine = {
   netAmount: number;
 };
 
+export type MoneyOrderTotals = {
+  grossAmount: number;
+  moAmount: number;
+  commission: number;
+};
+
 export function getAllowedTrackingPrefixes() {
   return [...allowedTrackingPrefixes];
 }
@@ -200,4 +206,32 @@ export function moneyOrderBreakdown(total: number, shipmentType?: unknown): Mone
       netAmount,
     };
   });
+}
+
+export function reverseMoneyOrderFromGross(grossAmount: number, shipmentType?: unknown): MoneyOrderTotals {
+  const gross = Math.max(0, Math.floor(grossAmount));
+  const normalizedShipment = normalizeShipmentType(shipmentType);
+
+  if (normalizedShipment === "COD") {
+    return {
+      grossAmount: gross,
+      moAmount: gross,
+      commission: 0,
+    };
+  }
+
+  if (normalizedShipment === "VPL" || normalizedShipment === "VPP") {
+    const commission = gross <= 10_000 ? 75 : 100;
+    return {
+      grossAmount: gross,
+      moAmount: Math.max(0, gross - commission),
+      commission,
+    };
+  }
+
+  return {
+    grossAmount: gross,
+    moAmount: gross,
+    commission: 0,
+  };
 }
