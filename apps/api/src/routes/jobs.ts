@@ -401,24 +401,30 @@ export async function handleLabelUpload(req: Request, res: Response) {
   const uploadedFile = req.file;
   if (!uploadedFile) return res.status(400).json({ success: false, error: "Missing file", message: "Missing file" });
 
-  // Phase 2: Check for duplicate filename per user (case-insensitive)
+  // Phase 2: Check for duplicate filename — only block if a COMPLETED job exists with same filename.
+  // Failed/Queued/Processing jobs do NOT reserve the filename so re-uploads are always allowed.
   const normalizedFileName = uploadedFile.originalname.trim().toLowerCase();
-  const existingJobs = await prisma.labelJob.findMany({
-    where: { userId },
-    select: { originalFilename: true }
+  const existingCompletedJobs = await prisma.labelJob.findMany({
+    where: { userId, status: "COMPLETED" },
+    select: { originalFilename: true },
   }).catch(() => []);
-  
-  const isDuplicate = existingJobs.some(job => 
-    job.originalFilename.trim().toLowerCase() === normalizedFileName
+
+  const isDuplicate = existingCompletedJobs.some(
+    (job) => job.originalFilename.trim().toLowerCase() === normalizedFileName,
   );
 
+  console.log(`[Upload] Filename duplicate check: { filename: "${normalizedFileName}", isDuplicate: ${isDuplicate}, checkedAgainst: "COMPLETED jobs only" }`);
+
   if (isDuplicate) {
+    console.warn(`[Upload] Filename reserved — blocked re-upload: "${normalizedFileName}"`);
     return res.status(409).json({
       success: false,
       error: "This file name already exists.",
       message: "This file name already exists.",
     });
   }
+
+  console.log(`[Upload] Filename not reserved — proceeding with upload: "${normalizedFileName}"`);
 
   const ext = path.extname(uploadedFile.originalname).toLowerCase();
   const generateMoneyOrderRequested = String(req.body?.generateMoneyOrder ?? "false").toLowerCase() === "true";

@@ -668,6 +668,14 @@ const worker = new Worker(
             remainingRows: orders.length,
           })}`,
         );
+
+        // Log final tracking IDs going into generation
+        const finalTrackingIds = orders
+          .map((o) => String(o.TrackingID ?? "").trim().toUpperCase())
+          .filter(Boolean);
+        console.log(
+          `[Worker] Final tracking IDs after duplicate handling (${finalTrackingIds.length} rows, first 20): ${JSON.stringify(finalTrackingIds.slice(0, 20))}`,
+        );
       }
 
       let useProfileShipper = false;
@@ -762,9 +770,13 @@ const worker = new Worker(
       const validRowsCount = labelOrders.length;
       const skippedRowsCount = Math.max(0, inputRowsCount - validRowsCount);
       console.log(`[Worker] Label rows - input: ${inputRowsCount}, valid: ${validRowsCount}, skipped: ${skippedRowsCount}`);
+      if (skippedRowsCount > 0) {
+        console.warn(`[Worker] ${skippedRowsCount} row(s) skipped during label preparation (invalid tracking ID or missing data). ${validRowsCount} valid row(s) will proceed.`);
+      }
       if (validRowsCount === 0) {
         throw new Error("No valid rows available for label generation. All rows were skipped after validation.");
       }
+      console.log(`[Worker] Proceeding with ${validRowsCount} valid row(s) for label generation.`);
 
       const moneyOrderEligibleOrders = doGenerateMoneyOrder
         ? labelOrders.filter((order) => shouldApplyPakistanPostValuePayableRules(order.carrierType, resolveOrderShipmentType(order, shipmentType)) && hasMoneyOrderAmount(order))
@@ -787,6 +799,19 @@ const worker = new Worker(
           job.userId,
           moneyOrderEligibleOrders.map((order) => String(order.trackingNumber ?? "").trim()),
         );
+
+        // Log all assigned MO numbers for this batch
+        const allMoNumbers: string[] = [];
+        for (const [tracking, rows] of moneyOrdersByTracking) {
+          for (const row of rows) {
+            const moNum = String(row.mo_number ?? "").trim();
+            if (moNum) allMoNumbers.push(moNum);
+          }
+        }
+        console.log(
+          `[Worker] Generated MO numbers for batch (${allMoNumbers.length} total, first 20): ${JSON.stringify(allMoNumbers.slice(0, 20))}`,
+        );
+
         labelOrdersForRender = labelOrders.map((order) => {
           const trackingNumber = String(order.trackingNumber ?? "").trim();
           const moneyOrderNumbers = (moneyOrdersByTracking.get(trackingNumber) ?? [])
