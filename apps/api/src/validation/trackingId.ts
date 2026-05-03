@@ -125,7 +125,7 @@ export function validateTrackingId(value: unknown): StrictTrackingValidation {
 /**
  * Validate a tracking ID that was uploaded by a user.
  * Accepts any non-empty string — no format restriction.
- * Use this for upload flows. Use validateTrackingId() only for system-generated IDs.
+ * Use this for upload/manual flows. Use validateTrackingId() only for system-generated IDs.
  */
 export function validateUploadedTrackingId(value: unknown): StrictTrackingValidation {
   const compact = normalizeTrackingId(value);

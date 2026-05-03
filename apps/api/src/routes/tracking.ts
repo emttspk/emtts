@@ -16,7 +16,7 @@ import { ensureRedisConnection, getRedisConnection } from "../queue/redis.js";
 import { redisEnabled } from "../lib/redis.js";
 import { parseOrdersFromFile } from "../parse/orders.js";
 import { parseTrackingNumbersFromFile } from "../parse/tracking.js";
-import { validateTrackingId } from "../validation/trackingId.js";
+import { validateUploadedTrackingId } from "../validation/trackingId.js";
 import { finalizeQueuedTrackingToGenerated, releaseQueuedTracking } from "../usage/limits.js";
 import { COMPLAINT_UNIT_COST, consumeUnits, getComplaintAllowance, recordUnitsUsed, refundUnits } from "../usage/unitConsumption.js";
 import {
@@ -587,9 +587,10 @@ export async function handleTrackingBulk(req: Request, res: Response) {
     } else {
       const body = z.object({ tracking_numbers: z.array(z.string().min(1)).min(1).max(2000) }).parse(req.body);
       const invalid: string[] = [];
+      console.log("[TrackingUpload] Validation path used: UPLOAD");
       trackingNumbers = body.tracking_numbers
         .map((t, i) => {
-          const result = validateTrackingId(t);
+          const result = validateUploadedTrackingId(t);
           if (!result.ok) {
             invalid.push(`Row ${i + 1}: ${(result as any).reason}`);
             return "";

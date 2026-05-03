@@ -607,22 +607,30 @@ const worker = new Worker(
       console.log(`[Worker] Mapped tracking IDs before duplicate handling (first 20): ${JSON.stringify(manualTrackingIds.map((item) => item.trackingId).slice(0, 20))}`);
 
       if (manualTrackingIds.length > 0) {
-        const existingTrackings = await prisma.shipment.findMany({
-          where: {
-            userId: job.userId,
-            trackingNumber: {
-              in: manualTrackingIds.map((item) => item.trackingId),
-            },
-          },
-          select: { trackingNumber: true },
-        }).catch(() => []);
-
-        const duplicateIds = new Set(existingTrackings.map((s) => String(s.trackingNumber ?? "").trim().toUpperCase()));
+        const duplicateIds = doAutoGenerateTracking
+          ? new Set(
+              (
+                await prisma.shipment
+                  .findMany({
+                    where: {
+                      userId: job.userId,
+                      trackingNumber: {
+                        in: manualTrackingIds.map((item) => item.trackingId),
+                      },
+                    },
+                    select: { trackingNumber: true },
+                  })
+                  .catch(() => [])
+              ).map((s) => String(s.trackingNumber ?? "").trim().toUpperCase()),
+            )
+          : new Set<string>();
         const seenInBatch = new Set<string>();
-        const duplicateRowsToSkip = new Set<number>();
         const allKnownTrackingIds = new Set(manualTrackingIds.map((item) => item.trackingId));
         let generatedReplacementCount = 0;
-        let skippedDuplicateCount = 0;
+        let allowedDuplicateCount = 0;
+
+        console.log(`[Worker] Validation path used: ${doAutoGenerateTracking ? "GENERATED" : "UPLOAD"}`);
+        console.log(`[Worker] Tracking duplicate mode: ${doAutoGenerateTracking ? "ENFORCE" : "ALLOW"}`);
 
         console.log(
           `[Worker] Duplicate detection result: ${JSON.stringify({
@@ -648,23 +656,18 @@ const worker = new Worker(
               generatedReplacementCount = offset;
               console.warn(`[Worker] Tracking ID duplicate replaced for row ${row.idx + 2}: ${key} -> ${replacement}`);
             } else {
-              duplicateRowsToSkip.add(row.idx);
-              skippedDuplicateCount += 1;
-              console.warn(`[Worker] Tracking ID duplicate skipped in manual mode for row ${row.idx + 2}: ${key}`);
+              allowedDuplicateCount += 1;
+              console.log(`[Worker] Tracking ID duplicate allowed in upload/manual mode for row ${row.idx + 2}: ${key}`);
             }
             continue;
           }
           seenInBatch.add(key);
         }
 
-        if (duplicateRowsToSkip.size > 0) {
-          orders = orders.filter((_order, idx) => !duplicateRowsToSkip.has(idx));
-        }
-
         console.log(
           `[Worker] Duplicate handling summary: ${JSON.stringify({
             replacedForAutoMode: generatedReplacementCount,
-            skippedForManualMode: skippedDuplicateCount,
+            allowedForManualMode: allowedDuplicateCount,
             remainingRows: orders.length,
           })}`,
         );
@@ -769,7 +772,11 @@ const worker = new Worker(
       const inputRowsCount = orders.length;
       const validRowsCount = labelOrders.length;
       const skippedRowsCount = Math.max(0, inputRowsCount - validRowsCount);
+      const rejectedRowsCount = skippedRowsCount;
+      const acceptedRowsCount = validRowsCount;
       console.log(`[Worker] Label rows - input: ${inputRowsCount}, valid: ${validRowsCount}, skipped: ${skippedRowsCount}`);
+      console.log(`[Worker] Rows accepted count: ${acceptedRowsCount}`);
+      console.log(`[Worker] Rows rejected count: ${rejectedRowsCount}`);
       if (skippedRowsCount > 0) {
         console.warn(`[Worker] ${skippedRowsCount} row(s) skipped during label preparation (invalid tracking ID or missing data). ${validRowsCount} valid row(s) will proceed.`);
       }

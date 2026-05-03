@@ -17,7 +17,7 @@ function prismaLogFilter(event: any) {
   const message = event?.message ?? "";
 
   // Convert update notices to info level to prevent Railway log rate limiting
-  if (level === "error" && message.includes("Update notice")) {
+  if ((level === "error" || level === "warn") && /update notice|update available/i.test(message)) {
     console.info(`[prisma-info] ${message}`);
     return;
   }

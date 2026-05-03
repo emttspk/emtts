@@ -2,7 +2,7 @@ import xlsx from "xlsx";
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { validateTrackingId } from "../validation/trackingId.js";
+import { validateUploadedTrackingId } from "../validation/trackingId.js";
 import { uploadsDir } from "../storage/paths.js";
 
 export type OrderRecord = {
@@ -210,7 +210,7 @@ function buildOrdersFromRows(
         invalidRows.push(`Row ${i + 2}: TrackingID is required.`);
       }
     } else {
-      const trackingResult = validateTrackingId(normalizedTracking);
+      const trackingResult = validateUploadedTrackingId(normalizedTracking);
       if (!trackingResult.ok) {
         invalidRows.push(`Row ${i + 2}: ${(trackingResult as any).reason}`);
       } else {
@@ -224,6 +224,7 @@ function buildOrdersFromRows(
   });
 
   console.log(`[OrdersParser] Mapped tracking IDs (first 20): ${JSON.stringify(mappedTrackingIds.slice(0, 20))}`);
+  console.log("[OrdersParser] Validation path used: UPLOAD");
   console.log(
     `[OrdersParser] Duplicate detection in file: ${JSON.stringify({ duplicates: duplicateTrackingIds.size, values: Array.from(duplicateTrackingIds).slice(0, 20) })}`,
   );

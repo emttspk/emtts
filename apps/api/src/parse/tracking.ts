@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import xlsx from "xlsx";
-import { validateTrackingId } from "../validation/trackingId.js";
+import { validateUploadedTrackingId } from "../validation/trackingId.js";
 
 const TRACKING_HEADER_CANDIDATES = [
   "trackingid",
@@ -56,13 +56,15 @@ export async function parseTrackingNumbersFromFile(inputPath: string, trackingFi
   const invalidRows: string[] = [];
   const out: string[] = [];
   values.forEach((value, i) => {
-    const parsed = validateTrackingId(value);
+    const parsed = validateUploadedTrackingId(value);
     if (!parsed.ok) {
       invalidRows.push(`Row ${i + 2}: ${(parsed as any).reason}`);
       return;
     }
     out.push(parsed.value);
   });
+
+  console.log("[TrackingParser] Validation path used: UPLOAD");
 
   if (invalidRows.length > 0) {
     throw new Error(`Tracking upload validation failed. ${invalidRows.slice(0, 30).join(" ")}`);
