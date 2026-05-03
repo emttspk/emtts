@@ -554,6 +554,17 @@ function resolvePatchedStatus(
   return cycleStatus;
 }
 
+function toCanonicalOutputStatus(status: PatchedTrackingMeta["final_status"]): string {
+  if (status === "Pending") return "PENDING";
+  if (status === "Delivered") return "DELIVERED";
+  if (status === "Return") return "RETURNED";
+  if (status === "DELIVERED WITH PAYMENT") return "DELIVERED WITH PAYMENT";
+  if (status === "OUT_FOR_DELIVERY") return "OUT_FOR_DELIVERY";
+  if (status === "IN_TRANSIT") return "IN_TRANSIT";
+  if (status === "FAILED") return "FAILED";
+  return "PENDING";
+}
+
 function deriveMeta(events: Event[], manualPendingOverride: boolean): PatchedTrackingMeta {
   const mos = extractMosInfo(events);
   const scoped = mos.startIndex != null ? events.slice(mos.startIndex) : events;
@@ -718,6 +729,7 @@ export function applyTrackingPatchLayer(
   const lastEvent = displayEvents[displayEvents.length - 1] ?? null;
   const cycleResolvedStatus = finalStatusFromCycleInterpretation(cycleInterpretation.final_status);
   const resolvedStatus = resolvePatchedStatus(statusBeforePatch, cycleResolvedStatus, displayEvents);
+  const outputStatus = toCanonicalOutputStatus(resolvedStatus);
   meta.final_status = resolvedStatus;
 
   const sourceCycle = Number((response as any)?.current_cycle ?? response.meta?.current_cycle ?? 0);
@@ -747,13 +759,13 @@ export function applyTrackingPatchLayer(
     `[TRACE] CYCLE_AUDIT total_cycles=${meta.total_cycles} final_cycle=${meta.final_cycle_index} final_status=${meta.final_status} last_event="${meta.last_event}" reason="${meta.decision_reason}"`,
   );
   console.log(`RAW_STATUS = "${statusBeforePatch}"`);
-  console.log(`COMPUTED_STATUS = "${resolvedStatus}"`);
+  console.log(`COMPUTED_STATUS = "${outputStatus}"`);
 
   meta.cycle_description = `${meta.final_status} (Loop ${Math.max(1, meta.current_cycle)})`;
 
   return {
     ...response,
-    status: resolvedStatus,
+    status: outputStatus,
     complaint_eligible: meta.complaint_enabled,
     days_passed: meta.days_passed,
     mos_id: response.mos_id ?? meta.mos_id ?? null,
