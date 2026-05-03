@@ -61,6 +61,7 @@ type Cycle = {
 };
 
 const MOS_ID_RE = /\b(MOS[A-Z0-9]{4,})\b/i;
+const TRACKING_VERBOSE_LOGS = process.env.TRACKING_VERBOSE_LOGS === "1";
 const ALLOWED_FINAL_STATUSES = new Set<PatchedTrackingMeta["final_status"]>([
   "Pending",
   "Delivered",
@@ -118,11 +119,13 @@ function processEvents(events: EventInput[] | undefined | null): Event[] {
     return 0;
   });
 
-  for (const ev of normalized) {
-    const parsed = ev.timestamp
-      ? `${ev.timestamp.getFullYear()}-${String(ev.timestamp.getMonth() + 1).padStart(2, "0")}-${String(ev.timestamp.getDate()).padStart(2, "0")} ${String(ev.timestamp.getHours()).padStart(2, "0")}:${String(ev.timestamp.getMinutes()).padStart(2, "0")}`
-      : "INVALID";
-    console.log(`[TRACE] stage=PATCH_TIMESTAMP_PARSE RAW: ${ev.date} ${ev.time} -> PARSED: ${parsed}`);
+  if (TRACKING_VERBOSE_LOGS) {
+    for (const ev of normalized) {
+      const parsed = ev.timestamp
+        ? `${ev.timestamp.getFullYear()}-${String(ev.timestamp.getMonth() + 1).padStart(2, "0")}-${String(ev.timestamp.getDate()).padStart(2, "0")} ${String(ev.timestamp.getHours()).padStart(2, "0")}:${String(ev.timestamp.getMinutes()).padStart(2, "0")}`
+        : "INVALID";
+      console.log(`[TRACE] stage=PATCH_TIMESTAMP_PARSE RAW: ${ev.date} ${ev.time} -> PARSED: ${parsed}`);
+    }
   }
 
   return normalized;
@@ -752,14 +755,16 @@ export function applyTrackingPatchLayer(
 
   const firstEventDate = displayEvents[0]?.date ?? "-";
   const lastEventDate = displayEvents[displayEvents.length - 1]?.date ?? "-";
-  console.log(
-    `[TRACE] PATCH_APPLIED = TRUE | status_before_patch=${statusBeforePatch} status_after_patch=${meta.final_status} event_count=${displayEvents.length} first_event_in=${firstIn} last_event_in=${lastIn} first_event_out=${firstEventDate} last_event_out=${lastEventDate} complaint_enabled=${meta.complaint_enabled} order_asc=${meta.audit.sorted}`,
-  );
-  console.log(
-    `[TRACE] CYCLE_AUDIT total_cycles=${meta.total_cycles} final_cycle=${meta.final_cycle_index} final_status=${meta.final_status} last_event="${meta.last_event}" reason="${meta.decision_reason}"`,
-  );
-  console.log(`RAW_STATUS = "${statusBeforePatch}"`);
-  console.log(`COMPUTED_STATUS = "${outputStatus}"`);
+  if (TRACKING_VERBOSE_LOGS) {
+    console.log(
+      `[TRACE] PATCH_APPLIED = TRUE | status_before_patch=${statusBeforePatch} status_after_patch=${meta.final_status} event_count=${displayEvents.length} first_event_in=${firstIn} last_event_in=${lastIn} first_event_out=${firstEventDate} last_event_out=${lastEventDate} complaint_enabled=${meta.complaint_enabled} order_asc=${meta.audit.sorted}`,
+    );
+    console.log(
+      `[TRACE] CYCLE_AUDIT total_cycles=${meta.total_cycles} final_cycle=${meta.final_cycle_index} final_status=${meta.final_status} last_event="${meta.last_event}" reason="${meta.decision_reason}"`,
+    );
+    console.log(`RAW_STATUS = "${statusBeforePatch}"`);
+    console.log(`COMPUTED_STATUS = "${outputStatus}"`);
+  }
 
   meta.cycle_description = `${meta.final_status} (Loop ${Math.max(1, meta.current_cycle)})`;
 

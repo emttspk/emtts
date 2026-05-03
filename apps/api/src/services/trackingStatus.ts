@@ -18,6 +18,8 @@ type TrackingLifecycle = {
   completed: boolean;
 };
 
+const TRACKING_VERBOSE_LOGS = process.env.TRACKING_VERBOSE_LOGS === "1";
+
 function extractTrackingSteps(rawData: unknown): string[] {
   if (!rawData || typeof rawData !== "object") return [];
   const raw = rawData as Record<string, unknown>;
@@ -759,13 +761,15 @@ export function processTracking(rawData: unknown, opts?: { explicitMo?: string |
   const amountLoaded = collectedAmount > 0 || hasCollectedAmountField(rawData);
   const defaultStateFixed = steps.length === 0 ? String(systemStatusOut).toUpperCase().includes("PENDING") : true;
   const bulkTrackingStable = true;
-  console.log(`[Audit] Full Tracking Captured: ${fullTrackingCaptured ? "YES" : "NO"}`);
-  console.log(`[Audit] MOS Detected: ${mosDetectedAudit ? "YES" : "NO"}`);
-  console.log(`[Audit] MO Issued Updated: ${moIssuedUpdated ? "YES" : "NO"}`);
-  console.log(`[Audit] Amount Loaded: ${amountLoaded ? "YES" : "NO"}`);
-  console.log(`[Audit] COD Logic Applied: ${codLogicApplied ? "YES" : "NO"}`);
-  console.log(`[Audit] Action Default Fixed: ${defaultStateFixed ? "YES" : "NO"}`);
-  console.log(`[Audit] Bulk Stable: ${bulkTrackingStable ? "YES" : "NO"}`);
+  if (TRACKING_VERBOSE_LOGS) {
+    console.log(`[Audit] Full Tracking Captured: ${fullTrackingCaptured ? "YES" : "NO"}`);
+    console.log(`[Audit] MOS Detected: ${mosDetectedAudit ? "YES" : "NO"}`);
+    console.log(`[Audit] MO Issued Updated: ${moIssuedUpdated ? "YES" : "NO"}`);
+    console.log(`[Audit] Amount Loaded: ${amountLoaded ? "YES" : "NO"}`);
+    console.log(`[Audit] COD Logic Applied: ${codLogicApplied ? "YES" : "NO"}`);
+    console.log(`[Audit] Action Default Fixed: ${defaultStateFixed ? "YES" : "NO"}`);
+    console.log(`[Audit] Bulk Stable: ${bulkTrackingStable ? "YES" : "NO"}`);
+  }
 
   return {
     status: finalStatus,
