@@ -340,6 +340,10 @@ export async function processEpGatewayNotification(input: ProcessNotificationInp
   const payloadHash = buildPayloadHash(payload);
   const nextStatus = String(input.status).trim().toUpperCase();
 
+  if (input.source === "WEBHOOK" && FINAL_PAYMENT_STATUSES.has(payment.status) && payment.status === nextStatus) {
+    return { payment, invoice: payment.invoice, duplicate: false, replayPrevented: true, subscription: null };
+  }
+
   try {
     await prisma.paymentEvent.create({
       data: {
