@@ -23,6 +23,7 @@ type SignaturePayload = {
 type ProcessNotificationInput = SignaturePayload & {
   source: GatewaySource;
   signature?: string | null;
+  signatureValidated?: boolean;
   eventId?: string | null;
   rawPayload?: Record<string, unknown>;
   failureReason?: string | null;
@@ -369,7 +370,11 @@ export async function processEpGatewayNotification(input: ProcessNotificationInp
     ...(input.rawPayload ?? {}),
   } as Record<string, unknown>;
 
-  if ((input.source === "CALLBACK" || input.source === "WEBHOOK") && !verifyEpGatewaySignature(input, input.signature)) {
+  if (
+    (input.source === "CALLBACK" || input.source === "WEBHOOK")
+    && !input.signatureValidated
+    && !verifyEpGatewaySignature(input, input.signature)
+  ) {
     throw new Error("Invalid EP Gateway signature");
   }
 
