@@ -1,0 +1,16 @@
+Epic,Feature,Priority,Tier,Owner,Acceptance Criteria
+Onboarding,Merchant profile and store mapping,P0,Starter,Product+Backend,Merchant can save and validate storeId and integration profile
+Checkout,Hosted checkout initiation,P0,Starter,Backend+Frontend,Intent API returns checkout URL and transaction can complete end-to-end
+Callbacks,IPN/postback receiver,P0,Starter,Backend,Callback is acknowledged quickly and event is persisted durably
+State Machine,Transaction lifecycle engine,P0,Starter,Backend,State transitions follow canonical rules and duplicate callbacks are idempotent
+Observability,Payment dashboard basic views,P1,Starter,Frontend+Data,Merchant can view status timeline and failed reasons
+Reconciliation,Daily reconciliation job,P1,Starter,Backend+Data,Drifted transactions are detected and listed with action status
+Direct API,MA transaction adapter,P0,Growth,Backend,MA initiation and status inquiry pass staging test suite
+Direct API,OTC transaction adapter,P1,Growth,Backend,OTC initiation and inquiry pass staging test suite
+Security,RSA signature service,P0,Enterprise,Backend+Security,Request and response signatures validate against defined vectors
+Payments,QR adapter integration,P1,Enterprise,Backend,Generate QR workflow returns QR payload and records transaction
+Payments,Pinless precheck adapter,P1,Enterprise,Backend,Precheck token flow works with required request headers and validations
+Governance,RBAC and approval workflows,P1,Enterprise,Platform,Admin can control channel access and config approvals
+Compliance,Audit export and immutable trails,P1,Enterprise,Platform+Data,Security-sensitive actions are exported with actor and timestamp
+Resilience,Retry and dead-letter handling,P0,Growth,Backend,Failed callback/inquiry retries follow policy and DLQ replay works
+SRE,Alerts and on-call runbook,P0,All,SRE,Latency and error-rate alerts trigger and runbook remediation is documented

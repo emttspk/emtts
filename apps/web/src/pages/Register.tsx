@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { createUserWithEmailAndPassword, sendEmailVerification, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { api, apiUrl } from "../lib/api";
 import { setSession } from "../lib/auth";
 import AuthShell from "../components/AuthShell";
+import { auth, firebaseReady } from "../firebase";
 
 const CONTACT_PATTERN = /^03[0-9]{9}$/;
 
@@ -38,6 +40,7 @@ export default function Register() {
   const [contactErr, setContactErr] = useState<string | null>(null);
   const [cnicErr, setCnicErr] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   return (
@@ -47,12 +50,14 @@ export default function Register() {
       subtitle="Set up account and sender profile."
     >
       {err ? <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">{err}</div> : null}
+      {notice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">{notice}</div> : null}
 
       <form
         className="space-y-3.5"
         onSubmit={async (e) => {
           e.preventDefault();
           setErr(null);
+          setNotice(null);
 
           const contactError = validateContact(contactNumber.trim());
           if (contactError) {
@@ -74,7 +79,7 @@ export default function Register() {
             const fullUrl = apiUrl(endpoint);
             console.log(`[REGISTER] Attempting registration for: ${email}`);
             console.log(`[REGISTER] Request URL: ${fullUrl}`);
-            const data = await api<{ token: string; user: { role: string } }>(endpoint, {
+            const data = await api<{ token: string; refreshToken?: string; user: { role: string } }>(endpoint, {
               method: "POST",
               body: JSON.stringify({
                 email,
@@ -86,8 +91,32 @@ export default function Register() {
                 cnic: cnic.trim() || null,
               }),
             });
+
+            if (firebaseReady && auth) {
+              try {
+                let credential;
+                try {
+                  credential = await createUserWithEmailAndPassword(auth, email, password);
+                } catch (createError) {
+                  const message = createError instanceof Error ? createError.message : "Firebase registration failed";
+                  const alreadyExists = /email-already-in-use/i.test(message);
+                  if (!alreadyExists) throw createError;
+                  credential = await signInWithEmailAndPassword(auth, email, password);
+                }
+
+                if (!credential.user.emailVerified) {
+                  await sendEmailVerification(credential.user);
+                  setNotice("Verification email sent. Please verify your email before next login.");
+                }
+                await signOut(auth);
+              } catch (firebaseError) {
+                const message = firebaseError instanceof Error ? firebaseError.message : "Failed to send verification email";
+                console.warn(`[REGISTER] Firebase verification warning: ${message}`);
+              }
+            }
+
             console.log(`[REGISTER] Success, received token and user role: ${data.user.role}`);
-            setSession(data.token, data.user.role);
+            setSession(data.token, data.user.role, data.refreshToken);
             nav("/dashboard");
           } catch (error) {
             const errorMsg = error instanceof Error ? error.message : "Registration failed";

@@ -10,6 +10,8 @@ import { getToken } from "./lib/auth";
 const Home = lazy(() => import("./pages/Home"));
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const EmailOtpLogin = lazy(() => import("./pages/EmailOtpLogin"));
 const PublicTracking = lazy(() => import("./pages/PublicTracking"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const BulkTracking = lazy(() => import("./pages/BulkTracking"));
@@ -49,6 +51,8 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/email-otp" element={<EmailOtpLogin />} />
         <Route path="/track" element={<Navigate to="/tracking" replace />} />
         <Route path="/tracking" element={<TrackingEntry />} />
         <Route path="/tracking/:trackingId" element={<PublicTracking />} />

@@ -12,6 +12,7 @@
     "start": "npm run build && node scripts/start.cjs"
   },
   "dependencies": {
+    "firebase": "^12.12.1",
     "framer-motion": "^12.38.0",
     "html5-qrcode": "^2.3.8",
     "jsbarcode": "^3.12.3",

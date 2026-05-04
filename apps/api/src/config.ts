@@ -45,6 +45,9 @@ const envSchema = z.object({
   EP_GATEWAY_STATUS_FAILED_VALUES: z.string().default("FAILED,FAIL,ERROR,01,999"),
   EP_GATEWAY_STATUS_CANCELED_VALUES: z.string().default("CANCELED,CANCELLED,CANCEL"),
   EP_GATEWAY_PAYMENT_MODE: z.string().default("CC"),
+  FIREBASE_PROJECT_ID: z.string().optional(),
+  FIREBASE_CLIENT_EMAIL: z.string().optional(),
+  FIREBASE_PRIVATE_KEY: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);

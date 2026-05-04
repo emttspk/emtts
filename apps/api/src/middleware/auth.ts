@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { verifyAccessToken } from "../auth/jwt.js";
 import type { AppRole } from "../auth/jwt.js";
+import { isAccessJwtRevoked } from "../auth/security.js";
 
 export type AuthedRequest = Request & {
   user?: { id: string; role: AppRole };
@@ -13,6 +14,9 @@ export function requireAuth(req: AuthedRequest, res: Response, next: NextFunctio
   const token = bearer ?? queryToken;
   if (!token) return res.status(401).json({ error: "Unauthorized" });
   try {
+    if (isAccessJwtRevoked(token)) {
+      return res.status(401).json({ error: "Session revoked" });
+    }
     const claims = verifyAccessToken(token);
     req.user = { id: claims.sub, role: claims.role };
     next();

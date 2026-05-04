@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "firebase": "^12.12.1",
     "prisma": "^5.22.0"
   },
   "devDependencies": {
