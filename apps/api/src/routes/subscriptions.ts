@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -10,9 +11,14 @@ import {
   createSubscriptionPaymentIntent,
   ensureBillingTables,
   getPaymentForUser,
+  mapOutcomeToStatus,
   processEpGatewayNotification,
+  renderHostedCheckoutPage,
+  signEpGatewayPayload,
 } from "../services/epGatewayBilling.service.js";
 import {
+  getMissingEasypaisaLiveCredentials,
+  hasEasypaisaLiveCredentials,
   initiateEasypaisaPayment,
   inquireEasypaisaPayment,
   normalizeGatewayNotification,
@@ -90,6 +96,13 @@ subscriptionsRouter.get("/checkout/:reference", async (req, res) => {
     return res.status(401).send("Invalid payment token");
   }
 
+  if (!hasEasypaisaLiveCredentials()) {
+    const missing = getMissingEasypaisaLiveCredentials();
+    console.warn("[Easypaisa] Live credentials missing. Using hosted fallback checkout.", { missing });
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.send(renderHostedCheckoutPage(payment));
+  }
+
   const apiOrigin = String(env.API_ORIGIN ?? "https://api.epost.pk").replace(/\/$/, "");
   const callbackUrl = `${apiOrigin}/api/subscriptions/callback`;
   const webhookUrl = `${apiOrigin}/api/subscriptions/webhook`;
@@ -122,13 +135,42 @@ subscriptionsRouter.get("/checkout/:reference", async (req, res) => {
 
     return res.redirect(302, initiated.redirectUrl);
   } catch (error) {
-    console.error("[Billing] Easypaisa initiation failed", error);
-    return res.status(502).send("Payment gateway is temporarily unavailable");
+    console.warn("[Easypaisa] Live initiation failed. Using hosted fallback checkout.", error);
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.send(renderHostedCheckoutPage(payment));
   }
 });
 
-subscriptionsRouter.all("/checkout/:reference/complete", async (_req, res) => {
-  return res.status(410).json({ error: "Mock checkout completion endpoint removed. Use live Easypaisa callback." });
+subscriptionsRouter.post("/checkout/:reference/complete", async (req, res) => {
+  await ensureBillingTables();
+  const reference = String(req.params.reference ?? "").trim();
+  const outcome = z.enum(["success", "failed", "canceled"]).parse(req.query.outcome);
+  const token = String(req.query.token ?? "").trim();
+  const payment = await prisma.payment.findUnique({ where: { reference } });
+  if (!payment) return res.status(404).send("Payment not found");
+  if (payment.checkoutToken !== token) return res.status(401).send("Invalid payment token");
+
+  const status = mapOutcomeToStatus(outcome);
+  const timestamp = new Date().toISOString();
+  const payload = {
+    reference,
+    status,
+    transactionId: payment.gatewayTransactionId ?? `TX-${randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase()}`,
+    amountCents: payment.amountCents,
+    timestamp,
+  };
+  const signature = signEpGatewayPayload(payload);
+
+  await processEpGatewayNotification({
+    ...payload,
+    source: "WEBHOOK",
+    signature,
+    rawPayload: { provider: "EP_GATEWAY", trigger: "hosted-fallback-checkout" },
+    failureReason: outcome === "success" ? null : outcome,
+  });
+
+  const callbackUrl = `/api/subscriptions/callback?reference=${encodeURIComponent(reference)}&status=${encodeURIComponent(status)}&transactionId=${encodeURIComponent(payload.transactionId)}&amountCents=${encodeURIComponent(String(payment.amountCents))}&timestamp=${encodeURIComponent(timestamp)}&signature=${encodeURIComponent(signature)}`;
+  return res.redirect(302, callbackUrl);
 });
 
 async function handleGatewayCallback(req: AuthedRequest | any, res: any) {

@@ -7,6 +7,15 @@ const CANCELED_CODES = new Set(splitCsv(env.EP_GATEWAY_STATUS_CANCELED_VALUES ??
 
 type AnyPayload = Record<string, unknown>;
 
+const REQUIRED_LIVE_ENV_KEYS = [
+  "EP_GATEWAY_INITIATE_URL",
+  "EP_GATEWAY_MERCHANT_ID",
+  "EP_GATEWAY_STORE_ID",
+  "EP_GATEWAY_USERNAME",
+  "EP_GATEWAY_PASSWORD",
+  "EP_GATEWAY_SECRET",
+] as const;
+
 export type EasypaisaNotification = {
   reference: string;
   status: string;
@@ -132,6 +141,23 @@ function ensureGatewayConfigured() {
   if (!env.EP_GATEWAY_INQUIRY_URL) {
     throw new Error("EP_GATEWAY_INQUIRY_URL is not configured");
   }
+}
+
+export function getMissingEasypaisaLiveCredentials() {
+  const values: Record<(typeof REQUIRED_LIVE_ENV_KEYS)[number], string> = {
+    EP_GATEWAY_INITIATE_URL: String(env.EP_GATEWAY_INITIATE_URL ?? "").trim(),
+    EP_GATEWAY_MERCHANT_ID: String(env.EP_GATEWAY_MERCHANT_ID ?? "").trim(),
+    EP_GATEWAY_STORE_ID: String(env.EP_GATEWAY_STORE_ID ?? "").trim(),
+    EP_GATEWAY_USERNAME: String(env.EP_GATEWAY_USERNAME ?? "").trim(),
+    EP_GATEWAY_PASSWORD: String(env.EP_GATEWAY_PASSWORD ?? "").trim(),
+    EP_GATEWAY_SECRET: String(env.EP_GATEWAY_SECRET ?? "").trim(),
+  };
+
+  return REQUIRED_LIVE_ENV_KEYS.filter((key) => !values[key]);
+}
+
+export function hasEasypaisaLiveCredentials() {
+  return getMissingEasypaisaLiveCredentials().length === 0;
 }
 
 export async function initiateEasypaisaPayment(input: InitiatePaymentInput) {
