@@ -5,6 +5,7 @@ import { env } from "../config.js";
 
 const FINAL_PAYMENT_STATUSES = new Set(["SUCCEEDED", "FAILED", "CANCELED", "EXPIRED"]);
 const SUCCESS_STATUSES = new Set(["SUCCEEDED"]);
+const PENDING_PAYMENT_TTL_MS = 30 * 60 * 1000;
 let billingTablesReady = false;
 
 export type PaymentKind = "PURCHASE" | "UPGRADE" | "RENEWAL";
@@ -112,6 +113,32 @@ function buildPayloadHash(payload: Record<string, unknown>) {
   return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 
+function isPendingPaymentExpired(createdAt: Date) {
+  return Date.now() - createdAt.getTime() > PENDING_PAYMENT_TTL_MS;
+}
+
+async function expirePendingPayment(paymentId: string, reference: string) {
+  const now = new Date();
+  const updated = await prisma.$transaction(async (tx) => {
+    const updatedPayment = await tx.payment.updateMany({
+      where: { id: paymentId, status: "PENDING" },
+      data: { status: "EXPIRED", failureReason: "EXPIRED", verifiedAt: now },
+    });
+    if (updatedPayment.count === 0) return false;
+    await tx.invoice.updateMany({
+      where: { paymentId, status: "OPEN" },
+      data: { status: "EXPIRED" },
+    });
+    return true;
+  });
+
+  if (updated) {
+    console.info(`[Billing] payment expired reference=${reference}`);
+  }
+
+  return updated;
+}
+
 export async function ensureBillingTables() {
   if (billingTablesReady) return;
   await prisma.$executeRawUnsafe(`
@@ -206,15 +233,19 @@ export async function createSubscriptionPaymentIntent(userId: string, planId: st
     return { plan, activeSubscription, pendingPayment: null };
   }
 
-  if (pendingPayment && pendingPayment.createdAt.getTime() > Date.now() - 30 * 60 * 1000) {
-    return {
-      plan,
-      activeSubscription,
-      pendingPayment,
-      invoice: pendingPayment.invoice,
-      checkoutUrl: buildHostedCheckoutUrl(pendingPayment.reference, pendingPayment.checkoutToken),
-      requiresRedirect: true,
-    };
+  if (pendingPayment) {
+    if (!isPendingPaymentExpired(pendingPayment.createdAt)) {
+      console.info(`[Billing] payment resumed reference=${pendingPayment.reference}`);
+      return {
+        plan,
+        activeSubscription,
+        pendingPayment,
+        invoice: pendingPayment.invoice,
+        checkoutUrl: buildHostedCheckoutUrl(pendingPayment.reference, pendingPayment.checkoutToken),
+        requiresRedirect: true,
+      };
+    }
+    await expirePendingPayment(pendingPayment.id, pendingPayment.reference);
   }
 
   const kind = resolvePaymentKind(planId, activeSubscription ? { planId: activeSubscription.planId, currentPeriodEnd: activeSubscription.currentPeriodEnd } : null);
@@ -263,6 +294,9 @@ export async function createSubscriptionPaymentIntent(userId: string, planId: st
     return { payment, invoice };
   });
 
+  console.info(`[Billing] invoice created invoice=${result.invoice.invoiceNumber} reference=${result.payment.reference}`);
+  console.info(`[Billing] payment initiated reference=${result.payment.reference} kind=${result.payment.kind}`);
+
   return {
     plan,
     activeSubscription,
@@ -296,7 +330,7 @@ async function activatePaidSubscription(payment: {
       data: { status: "CANCELED" },
     });
 
-    return tx.subscription.create({
+    const subscription = await tx.subscription.create({
       data: {
         userId: payment.userId,
         planId: payment.planId,
@@ -306,6 +340,9 @@ async function activatePaidSubscription(payment: {
       },
       include: { plan: true },
     });
+
+    console.info(`[Billing] subscription activated user=${payment.userId} plan=${subscription.plan.name} payment=${payment.id}`);
+    return subscription;
   });
 }
 
@@ -341,6 +378,7 @@ export async function processEpGatewayNotification(input: ProcessNotificationInp
   const nextStatus = String(input.status).trim().toUpperCase();
 
   if (input.source === "WEBHOOK" && FINAL_PAYMENT_STATUSES.has(payment.status) && payment.status === nextStatus) {
+    console.info(`[Billing] webhook replay blocked reference=${payment.reference} status=${nextStatus}`);
     return { payment, invoice: payment.invoice, duplicate: false, replayPrevented: true, subscription: null };
   }
 
@@ -358,6 +396,9 @@ export async function processEpGatewayNotification(input: ProcessNotificationInp
     });
   } catch (error) {
     if (error instanceof Error && /unique|constraint/i.test(error.message)) {
+      if (input.source === "CALLBACK") {
+        console.info(`[Billing] duplicate callback ignored reference=${payment.reference} event=${eventId}`);
+      }
       return { payment, invoice: payment.invoice, duplicate: true, replayPrevented: false, subscription: null };
     }
     throw error;
@@ -380,6 +421,16 @@ export async function processEpGatewayNotification(input: ProcessNotificationInp
   }
 
   const updated = await prisma.$transaction(async (tx) => {
+    const invoiceStatus = SUCCESS_STATUSES.has(nextStatus)
+      ? "PAID"
+      : nextStatus === "FAILED"
+        ? "FAILED"
+        : nextStatus === "EXPIRED"
+          ? "EXPIRED"
+          : nextStatus === "CANCELED"
+            ? "CANCELED"
+            : "VOID";
+
     const updatedPayment = await tx.payment.update({
       where: { id: payment.id },
       data: {
@@ -396,7 +447,7 @@ export async function processEpGatewayNotification(input: ProcessNotificationInp
     const updatedInvoice = await tx.invoice.update({
       where: { paymentId: payment.id },
       data: {
-        status: SUCCESS_STATUSES.has(nextStatus) ? "PAID" : "VOID",
+        status: invoiceStatus,
         paidAt: SUCCESS_STATUSES.has(nextStatus) ? new Date() : null,
         subscriptionId,
       },
@@ -424,11 +475,19 @@ export async function getPaymentForUser(userId: string, reference: string) {
 
 export async function getLatestPendingPayment(userId: string) {
   await ensureBillingTables();
-  return prisma.payment.findFirst({
-    where: { userId, status: "PENDING" },
-    include: { plan: true, invoice: true },
-    orderBy: { createdAt: "desc" },
-  });
+  for (let i = 0; i < 5; i += 1) {
+    const pending = await prisma.payment.findFirst({
+      where: { userId, status: "PENDING" },
+      include: { plan: true, invoice: true },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!pending) return null;
+    if (!isPendingPaymentExpired(pending.createdAt)) return pending;
+    await expirePendingPayment(pending.id, pending.reference);
+  }
+
+  return null;
 }
 
 export function renderHostedCheckoutPage(payment: {
