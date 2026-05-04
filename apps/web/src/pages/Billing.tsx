@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Sparkles } from "lucide-react";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useSearchParams } from "react-router-dom";
 import Card from "../components/Card";
 import { changePackage, fetchPlans, type Plan } from "../lib/PackageService";
 import type { MeResponse } from "../lib/types";
+import { apiUrl } from "../lib/api";
 import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
 
 type ShellCtx = { me: MeResponse | null; refreshMe: () => Promise<void> };
@@ -22,11 +23,14 @@ type BillingProps = {
 
 export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
   const { me, refreshMe } = useOutletContext<ShellCtx>();
+  const [searchParams] = useSearchParams();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [submittingPlanId, setSubmittingPlanId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const planParam = searchParams.get("plan")?.toLowerCase() ?? null;
+  const autoInitDone = useRef(false);
   const remainingUnits = me?.balances?.unitsRemaining ?? me?.activePackage?.unitsRemaining ?? me?.balances?.labelsRemaining ?? 0;
   const totalUnits = me?.balances?.labelLimit ?? me?.subscription?.plan?.monthlyLabelLimit ?? 0;
   const usedUnits = Math.max(0, totalUnits - remainingUnits);
@@ -54,6 +58,17 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
       .finally(() => setLoadingPlans(false));
   }, []);
 
+  // Auto-initiate checkout when ?plan= param is present (from /billing/checkout?plan=standard)
+  useEffect(() => {
+    if (!planParam || autoInitDone.current || loadingPlans || plans.length === 0) return;
+    const target = plans.find((p) => p.name.toLowerCase().replace(/\s+plan$/i, "").trim() === planParam);
+    if (!target) return;
+    const isCurrent = target.id === currentPlanId;
+    if (isCurrent) return;
+    autoInitDone.current = true;
+    void choosePlan(target);
+  }, [planParam, loadingPlans, plans]);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const payment = params.get("payment");
@@ -79,7 +94,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
     try {
       const response = await changePackage(plan.id);
       if (response.requiresRedirect && response.checkoutUrl) {
-        window.location.assign(response.checkoutUrl);
+        window.location.assign(apiUrl(response.checkoutUrl));
         return;
       }
       await refreshMe();
@@ -116,7 +131,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                 <button
                   className="ml-3 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
                   type="button"
-                  onClick={() => window.location.assign(me.pendingPayment!.checkoutUrl)}
+                  onClick={() => window.location.assign(apiUrl(me.pendingPayment!.checkoutUrl))}
                 >
                   Resume payment
                 </button>
@@ -143,7 +158,8 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
         {plans.map((plan, index) => {
           const isCurrent = currentPlanId === plan.id && !expired && !nearExpiry;
           const canRenewCurrentPlan = currentPlanId === plan.id && (expired || nearExpiry);
-          const highlight = isCurrent || index === 1;
+          const isTargeted = Boolean(planParam && plan.name.toLowerCase().replace(/\s+plan$/i, "").trim() === planParam);
+          const highlight = isCurrent || isTargeted || index === 1;
           const upgrading = !isCurrent && (me?.subscription?.plan?.monthlyLabelLimit ?? 0) < plan.monthlyLabelLimit;
           return (
             <Card key={plan.id} className={highlight ? "border-brand/30 bg-white shadow-sm" : "border-slate-200 bg-white shadow-sm"}>
@@ -157,7 +173,13 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                     </div>
                     <div className="mt-2 text-sm text-gray-600">{plan.monthlyLabelLimit.toLocaleString()} total units for labels, tracking, and money-order generation.</div>
                   </div>
-                  {isCurrent ? <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-medium text-white">Current</span> : highlight ? <span className="rounded-full bg-brand px-3 py-1 text-xs font-medium text-white">Recommended</span> : null}
+                  {isCurrent ? (
+                    <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-medium text-white">Current Plan</span>
+                  ) : isTargeted ? (
+                    <span className="rounded-full bg-brand px-3 py-1 text-xs font-medium text-white">Selected</span>
+                  ) : highlight ? (
+                    <span className="rounded-full bg-brand px-3 py-1 text-xs font-medium text-white">Recommended</span>
+                  ) : null}
                 </div>
 
                 <div className="mt-5 space-y-2 text-sm text-gray-600">
@@ -186,14 +208,16 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                   disabled={(isCurrent && !canRenewCurrentPlan) || submittingPlanId === plan.id}
                 >
                   {isCurrent
-                    ? `Current: ${plan.name}`
+                    ? `Current Plan`
                     : submittingPlanId === plan.id
                       ? "Updating..."
                       : canRenewCurrentPlan
                         ? `Renew ${plan.name}`
-                      : upgrading
-                        ? `Upgrade to ${plan.name}`
-                        : `Choose ${plan.name}`}
+                        : upgrading
+                          ? `Upgrade to ${plan.name}`
+                          : currentPlanId
+                            ? `Downgrade to ${plan.name}`
+                            : `Buy Now`}
                 </button>
               </div>
             </Card>

@@ -39,6 +39,10 @@ const BILLING_PACKAGES = [
     moneyOrderLimit: "Tracking: 250",
     trackingAccess: "Money Orders: Included",
     complaintSupport: "Complaints: 1/day",
+    cta: "Get Started Free",
+    checkoutHref: "/register",
+    badge: null,
+    featured: false,
   },
   {
     name: "STANDARD",
@@ -47,6 +51,10 @@ const BILLING_PACKAGES = [
     moneyOrderLimit: "Tracking: 1,000",
     trackingAccess: "Money Orders: Included",
     complaintSupport: "Complaints: 5/day, 50/month",
+    cta: "Buy Now",
+    checkoutHref: "/billing/checkout?plan=standard",
+    badge: "Most Popular",
+    featured: true,
   },
   {
     name: "BUSINESS",
@@ -55,6 +63,10 @@ const BILLING_PACKAGES = [
     moneyOrderLimit: "Tracking: 3,000",
     trackingAccess: "Money Orders: Included",
     complaintSupport: "Complaints: 10/day, 300/month",
+    cta: "Buy Now",
+    checkoutHref: "/billing/checkout?plan=business",
+    badge: "Best Value",
+    featured: false,
   },
 ];
 
@@ -102,9 +114,20 @@ export default function OperationsModules() {
             {BILLING_PACKAGES.map((plan) => (
               <article
                 key={plan.name}
-                className="rounded-2xl border border-white/80 bg-white/75 p-6 shadow-[0_22px_44px_rgba(15,23,42,0.14)] backdrop-blur-xl"
+                className={`rounded-2xl border bg-white/75 p-6 shadow-[0_22px_44px_rgba(15,23,42,0.14)] backdrop-blur-xl ${
+                  plan.featured
+                    ? "border-emerald-400/60 shadow-[0_22px_44px_rgba(11,107,58,0.18)]"
+                    : "border-white/80"
+                }`}
               >
-                <div className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-700">{plan.name}</div>
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-700">{plan.name}</div>
+                  {plan.badge ? (
+                    <span className="rounded-full bg-emerald-700 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                      {plan.badge}
+                    </span>
+                  ) : null}
+                </div>
                 <div className="mt-2 text-2xl font-black tracking-[-0.02em] text-slate-950">{plan.price}</div>
                 <ul className="mt-5 space-y-2 text-sm leading-6 text-slate-700">
                   <li>{plan.shipmentLimit}</li>
@@ -112,6 +135,16 @@ export default function OperationsModules() {
                   <li>{plan.trackingAccess}</li>
                   <li>{plan.complaintSupport}</li>
                 </ul>
+                <a
+                  href={plan.checkoutHref}
+                  className={`mt-6 inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-bold transition-all duration-200 hover:-translate-y-0.5 ${
+                    plan.name === "FREE"
+                      ? "border border-slate-300 bg-white text-slate-800 hover:border-emerald-500 hover:text-emerald-700"
+                      : "bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] text-white shadow-[0_8px_20px_rgba(11,107,58,0.28)]"
+                  }`}
+                >
+                  {plan.cta}
+                </a>
               </article>
             ))}
           </div>

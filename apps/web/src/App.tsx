@@ -75,6 +75,7 @@ export default function App() {
           <Route path="/downloads" element={<Navigate to="/jobs?filter=completed" replace />} />
           <Route path="/billing" element={<Billing />} />
           <Route path="/pricing" element={<Billing />} />
+          <Route path="/billing/checkout" element={<Billing entryMode="select" />} />
           <Route path="/packages" element={<Navigate to="/select-package" replace />} />
           <Route path="/select-package" element={<SelectPackage />} />
           <Route path="/update-package" element={<UpdatePackage />} />
