@@ -20,6 +20,8 @@ meRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
       email: true,
       role: true,
       createdAt: true,
+      username: true,
+      onboardingComplete: true,
       companyName: true,
       address: true,
       contactNumber: true,
@@ -61,6 +63,7 @@ meRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
 
   return res.json({
     user,
+    onboardingRequired: !user.onboardingComplete,
     subscription: subscription
       ? {
           id: subscription.id,

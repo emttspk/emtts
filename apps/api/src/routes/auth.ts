@@ -43,6 +43,35 @@ function shapeAuthResponse(user: { id: string; email: string; role: string; crea
   };
 }
 
+function normalizeNullable(value: string | null | undefined) {
+  const trimmed = String(value ?? "").trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function isProfileComplete(input: {
+  companyName: string | null;
+  address: string | null;
+  originCity: string | null;
+  contactNumber: string | null;
+}) {
+  return !!(input.companyName && input.address && input.originCity && input.contactNumber);
+}
+
+function usernameFromEmail(email: string) {
+  const localPart = email.split("@")[0] || "user";
+  return localPart.replace(/[^a-zA-Z0-9_.-]/g, "").slice(0, 40) || `user_${Date.now()}`;
+}
+
+function uniqueConstraintMessage(err: unknown): string | null {
+  if (!(err instanceof Error)) return null;
+  const message = err.message.toLowerCase();
+  if (!message.includes("unique constraint")) return null;
+  if (message.includes("email")) return "Email already registered";
+  if (message.includes("contactnumber") || message.includes("contact_number")) return "Mobile number already registered";
+  if (message.includes("cnic")) return "CNIC already registered";
+  return "Duplicate value detected";
+}
+
 async function ensureStarterSubscription(userId: string) {
   const starterPlan =
     (await prisma.plan.findFirst({ where: { name: "Free Plan" } })) ??
@@ -75,6 +104,7 @@ authRouter.use((req, res, next) => {
 authRouter.post("/register", async (req, res) => {
   const body = z
     .object({
+      username: z.string().trim().min(3).max(80).optional(),
       email: z.string().trim().email(),
       password: z.string().min(8).max(200),
       companyName: z.string().max(120).nullable().optional(),
@@ -86,6 +116,20 @@ authRouter.post("/register", async (req, res) => {
     .parse(req.body);
 
   const email = normalizeEmail(body.email);
+  const profileInput = {
+    companyName: normalizeNullable(body.companyName),
+    address: normalizeNullable(body.address),
+    originCity: normalizeNullable(body.originCity),
+    contactNumber: normalizeNullable(body.contactNumber),
+    cnic: normalizeNullable(body.cnic),
+  };
+  const onboardingComplete = isProfileComplete(profileInput);
+  const username = normalizeNullable(body.username) ?? (onboardingComplete ? usernameFromEmail(email) : null);
+
+  if (!username) {
+    return res.status(400).json({ error: "Username is required" });
+  }
+
   const ip = getClientIp(req);
   const device = getDeviceInfo(req);
   try {
@@ -100,18 +144,24 @@ authRouter.post("/register", async (req, res) => {
   try {
     user = await prisma.user.create({
       data: {
+        username,
         email,
         passwordHash,
         role: "USER",
-        companyName: body.companyName,
-        address: body.address,
-        contactNumber: body.contactNumber,
-        cnic: body.cnic,
-        originCity: body.originCity,
+        onboardingComplete,
+        companyName: profileInput.companyName,
+        address: profileInput.address,
+        contactNumber: profileInput.contactNumber,
+        cnic: profileInput.cnic,
+        originCity: profileInput.originCity,
       },
       select: { id: true, email: true, role: true, createdAt: true },
     });
   } catch (err) {
+    const duplicateMessage = uniqueConstraintMessage(err);
+    if (duplicateMessage) {
+      return res.status(409).json({ error: duplicateMessage });
+    }
     console.error("Failed to create user:", err);
     return res.status(500).json({ error: "Failed to create account - database unavailable" });
   }
@@ -125,7 +175,10 @@ authRouter.post("/register", async (req, res) => {
 
   recordLoginHistory(user.id, { email, method: "password", ip, device, success: true });
   auditAuthEvent("auth.register.success", req, { email, userId: user.id });
-  return res.json(shapeAuthResponse(user));
+  return res.json({
+    ...shapeAuthResponse(user),
+    onboardingRequired: !onboardingComplete,
+  });
 });
 
 authRouter.post("/login", async (req, res) => {
@@ -216,9 +269,11 @@ authRouter.post("/firebase-login", async (req, res) => {
       const passwordHash = await hashPassword(randomPassword);
       user = await prisma.user.create({
         data: {
+          username: usernameFromEmail(email),
           email,
           passwordHash,
           role: "USER",
+          onboardingComplete: false,
           companyName: (decoded.name as string | undefined) || null,
         },
       });
@@ -243,16 +298,59 @@ authRouter.post("/firebase-login", async (req, res) => {
     });
     auditAuthEvent("auth.firebase.success", req, { email, userId: user.id, provider });
 
-    return res.json(shapeAuthResponse({
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      createdAt: user.createdAt,
-    }));
+    const onboardingRequired = !user.onboardingComplete;
+
+    return res.json({
+      ...shapeAuthResponse({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+      }),
+      onboardingRequired,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     auditAuthEvent("auth.firebase.failure", req, { message });
     return res.status(401).json({ error: "Invalid Firebase token" });
+  }
+});
+
+authRouter.post("/complete-profile", requireAuth, async (req, res) => {
+  const body = z
+    .object({
+      companyName: z.string().trim().min(1).max(120),
+      address: z.string().trim().min(1).max(300),
+      originCity: z.string().trim().min(1).max(80),
+      contactNumber: z.string().trim().min(1).max(30),
+      cnic: z.string().trim().max(15).nullable().optional(),
+    })
+    .parse(req.body);
+
+  try {
+    const user = await prisma.user.update({
+      where: { id: (req as any).user.id },
+      data: {
+        companyName: body.companyName,
+        address: body.address,
+        originCity: body.originCity,
+        contactNumber: body.contactNumber,
+        cnic: normalizeNullable(body.cnic),
+        onboardingComplete: true,
+      },
+      select: { id: true, email: true, role: true, createdAt: true },
+    });
+
+    return res.json({
+      ...shapeAuthResponse(user),
+      onboardingRequired: false,
+    });
+  } catch (err) {
+    const duplicateMessage = uniqueConstraintMessage(err);
+    if (duplicateMessage) {
+      return res.status(409).json({ error: duplicateMessage });
+    }
+    return res.status(500).json({ error: "Failed to complete profile" });
   }
 });
 

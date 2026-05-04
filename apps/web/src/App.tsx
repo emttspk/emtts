@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import RequireAuth from "./components/RequireAuth";
+import RequireProfileCompletion from "./components/RequireProfileCompletion";
 import RequireAdmin from "./components/RequireAdmin";
 import AppShell from "./components/AppShell";
 import Card from "./components/Card";
@@ -10,6 +11,7 @@ import { getToken } from "./lib/auth";
 const Home = lazy(() => import("./pages/Home"));
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
+const RegisterProfile = lazy(() => import("./pages/RegisterProfile"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const EmailOtpLogin = lazy(() => import("./pages/EmailOtpLogin"));
 const PublicTracking = lazy(() => import("./pages/PublicTracking"));
@@ -51,6 +53,14 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route
+          path="/register/profile"
+          element={
+            <RequireAuth>
+              <RegisterProfile />
+            </RequireAuth>
+          }
+        />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/email-otp" element={<EmailOtpLogin />} />
         <Route path="/email-otp-login" element={<EmailOtpLogin />} />
@@ -61,7 +71,9 @@ export default function App() {
         <Route
           element={
             <RequireAuth>
-              <AppShell />
+              <RequireProfileCompletion>
+                <AppShell />
+              </RequireProfileCompletion>
             </RequireAuth>
           }
         >
