@@ -4,7 +4,12 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { hashPassword, verifyPassword } from "../auth/password.js";
 import { asAppRole, signAccessToken } from "../auth/jwt.js";
-import { verifyFirebaseIdToken } from "../auth/firebaseAdmin.js";
+import {
+  generateFirebaseEmailSignInLink,
+  generateFirebasePasswordResetLink,
+  isFirebaseAuthConfigured,
+  verifyFirebaseIdToken,
+} from "../auth/firebaseAdmin.js";
 import {
   auditAuthEvent,
   checkAuthRateLimit,
@@ -21,6 +26,7 @@ import {
   rotateRefreshToken,
 } from "../auth/security.js";
 import { requireAuth } from "../middleware/auth.js";
+import { env } from "../config.js";
 
 export const authRouter = Router();
 
@@ -313,6 +319,130 @@ authRouter.post("/firebase-login", async (req, res) => {
     const message = err instanceof Error ? err.message : String(err);
     auditAuthEvent("auth.firebase.failure", req, { message });
     return res.status(401).json({ error: "Invalid Firebase token" });
+  }
+});
+
+authRouter.post("/forgot-password", async (req, res) => {
+  const parsed = z.object({ email: z.string().trim().email() }).safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Valid email is required" });
+  }
+
+  if (!isFirebaseAuthConfigured()) {
+    return res.status(503).json({ error: "Password reset is not configured" });
+  }
+
+  const email = normalizeEmail(parsed.data.email);
+  const continueUrl = `${String(env.WEB_ORIGIN || "https://www.epost.pk").replace(/\/$/, "")}/login`;
+
+  try {
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+    if (user) {
+      await generateFirebasePasswordResetLink(email, continueUrl);
+    }
+    auditAuthEvent("auth.forgot_password.requested", req, { email, userFound: !!user });
+    return res.json({ success: true, message: "If this account exists, a password reset email has been sent." });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    auditAuthEvent("auth.forgot_password.failed", req, { email, message });
+    return res.status(500).json({ error: "Failed to process password reset" });
+  }
+});
+
+authRouter.post("/email-otp/send", async (req, res) => {
+  const parsed = z
+    .object({
+      email: z.string().trim().email(),
+      continueUrl: z.string().trim().url().optional(),
+    })
+    .safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Valid email is required" });
+  }
+
+  if (!isFirebaseAuthConfigured()) {
+    return res.status(503).json({ error: "Email OTP is not configured" });
+  }
+
+  const email = normalizeEmail(parsed.data.email);
+  const continueUrl = parsed.data.continueUrl ?? `${String(env.WEB_ORIGIN || "https://www.epost.pk").replace(/\/$/, "")}/email-otp-login`;
+
+  try {
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+    if (user) {
+      await generateFirebaseEmailSignInLink(email, continueUrl);
+    }
+    auditAuthEvent("auth.email_otp.send", req, { email, userFound: !!user });
+    return res.json({ success: true, message: "If this account exists, an email OTP link has been sent." });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    auditAuthEvent("auth.email_otp.send_failed", req, { email, message });
+    return res.status(500).json({ error: "Failed to send email OTP" });
+  }
+});
+
+authRouter.post("/email-otp/verify", async (req, res) => {
+  const parsed = z.object({ idToken: z.string().min(20) }).safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Firebase idToken is required" });
+  }
+
+  try {
+    const decoded = await verifyFirebaseIdToken(parsed.data.idToken);
+    const email = normalizeEmail(decoded.email || "");
+    if (!email) {
+      return res.status(400).json({ error: "Firebase token has no email" });
+    }
+
+    let user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      const randomPassword = `${randomUUID()}-${Date.now()}-email-link`;
+      const passwordHash = await hashPassword(randomPassword);
+      user = await prisma.user.create({
+        data: {
+          username: usernameFromEmail(email),
+          email,
+          passwordHash,
+          role: "USER",
+          onboardingComplete: false,
+          companyName: (decoded.name as string | undefined) || null,
+        },
+      });
+      try {
+        await ensureStarterSubscription(user.id);
+      } catch (err) {
+        console.log("Failed to create starter subscription for email OTP user:", err instanceof Error ? err.message : err);
+      }
+    }
+
+    if (user.suspended) {
+      auditAuthEvent("auth.email_otp.suspended", req, { email, userId: user.id });
+      return res.status(403).json({ error: "Account disabled" });
+    }
+
+    recordLoginHistory(user.id, {
+      email,
+      method: "email_link",
+      ip: getClientIp(req),
+      device: getDeviceInfo(req),
+      success: true,
+    });
+    auditAuthEvent("auth.email_otp.verify_success", req, { email, userId: user.id });
+
+    return res.json({
+      ...shapeAuthResponse({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+      }),
+      onboardingRequired: !user.onboardingComplete,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    auditAuthEvent("auth.email_otp.verify_failed", req, { message });
+    return res.status(401).json({ error: "Invalid or expired email OTP token" });
   }
 });
 
