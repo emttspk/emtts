@@ -25,6 +25,9 @@ type InitiatePaymentInput = {
   amountCents: number;
   callbackUrl: string;
   returnUrl: string;
+  successUrl?: string;
+  failureUrl?: string;
+  webhookUrl?: string;
   customerEmail?: string | null;
   customerMobile?: string | null;
   description: string;
@@ -140,6 +143,7 @@ export async function initiateEasypaisaPayment(input: InitiatePaymentInput) {
 
   const initiatedAt = nowIso();
   const amount = toRupees(input.amountCents);
+  const paymentMode = String(env.EP_GATEWAY_PAYMENT_MODE ?? "CC").trim().toUpperCase() || "CC";
   const payload: AnyPayload = {
     merchantId: env.EP_GATEWAY_MERCHANT_ID ?? "",
     storeId: env.EP_GATEWAY_STORE_ID ?? "",
@@ -152,10 +156,14 @@ export async function initiateEasypaisaPayment(input: InitiatePaymentInput) {
     currency: "PKR",
     callbackUrl: input.callbackUrl,
     returnUrl: input.returnUrl,
+    successUrl: input.successUrl ?? input.returnUrl,
+    failureUrl: input.failureUrl ?? input.returnUrl,
+    webhookUrl: input.webhookUrl ?? input.callbackUrl,
     description: input.description,
     timestamp: initiatedAt,
+    paymentMode,
+    channel: paymentMode,
     customerEmail: input.customerEmail ?? "",
-    customerMobile: input.customerMobile ?? "",
   };
 
   const signature = signGatewayPayload({

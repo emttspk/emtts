@@ -44,6 +44,7 @@ const envSchema = z.object({
   EP_GATEWAY_STATUS_SUCCESS_VALUES: z.string().default("SUCCESS,SUCCEEDED,PAID,00,000"),
   EP_GATEWAY_STATUS_FAILED_VALUES: z.string().default("FAILED,FAIL,ERROR,01,999"),
   EP_GATEWAY_STATUS_CANCELED_VALUES: z.string().default("CANCELED,CANCELLED,CANCEL"),
+  EP_GATEWAY_PAYMENT_MODE: z.string().default("CC"),
 });
 
 export const env = envSchema.parse(process.env);

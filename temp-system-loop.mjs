@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const API = 'https://api-production-28491.up.railway.app';
+const API = 'https://api.epost.pk';
 const email = 'nazimsaeed@gmail.com';
 const password = 'Lahore!23q';
 const trackingId = `VPL26${String(Math.floor(Math.random()*900000)+100000)}`;

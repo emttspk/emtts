@@ -1,4 +1,4 @@
-const API = 'https://api-production-28491.up.railway.app';
+const API = 'https://api.epost.pk';
 const creds = { email: 'nazimsaeed@gmail.com', password: 'Lahore!23' };
 
 async function readJson(response) {

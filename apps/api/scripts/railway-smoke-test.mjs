@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 
-const API_BASE_URL = (process.env.API_BASE_URL || "https://api-production-28491.up.railway.app").trim();
+const API_BASE_URL = (process.env.API_BASE_URL || "https://api.epost.pk").trim();
 const EMAIL = (process.env.SMOKE_EMAIL || "").trim();
 const PASSWORD = (process.env.SMOKE_PASSWORD || "").trim();
 const POLL_INTERVAL_MS = Number(process.env.SMOKE_POLL_INTERVAL_MS || 5000);

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 
-const API = "https://api-production-28491.up.railway.app";
+const API = "https://api.epost.pk";
 const EMAIL = "nazimsaeed@gmail.com";
 const PASSWORD = "Lahore!23";
 

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const API = "https://api-production-28491.up.railway.app";
+const API = "https://api.epost.pk";
 const email = `railway.smoke.${Date.now()}@example.com`;
 const password = "SmokePass123!";
 const trackingId = `VPL26${String(Math.floor(Math.random()*900000)+100000)}`;

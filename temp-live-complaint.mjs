@@ -1,5 +1,5 @@
 async function main() {
-  const API = 'https://api-production-28491.up.railway.app';
+  const API = 'https://api.epost.pk';
   const trackingId = 'VPL26030761';
 
   const loginResp = await fetch(`${API}/api/auth/login`, {

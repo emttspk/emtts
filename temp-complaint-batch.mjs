@@ -1,4 +1,4 @@
-const API = 'https://api-production-28491.up.railway.app';
+const API = 'https://api.epost.pk';
 const email = 'railway.quick.1776853708912@example.com';
 const password = 'SmokePass123!';
 const ids = ['VPL26030726', 'VPL26030761', 'VPL26030763', 'VPL26030759', 'VPL26030723', 'VPL26030730'];

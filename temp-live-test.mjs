@@ -2,7 +2,7 @@ import fs from 'node:fs';
 
 async function main() {
   // Login
-  const loginResp = await fetch('https://api-production-28491.up.railway.app/api/auth/login', {
+  const loginResp = await fetch('https://api.epost.pk/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: 'nazimsaeed@gmail.com', password: 'Lahore!23' })
@@ -21,7 +21,7 @@ async function main() {
   form.set('barcodeMode', 'auto');
   form.set('outputMode', 'a4');
 
-  const uploadResp = await fetch('https://api-production-28491.up.railway.app/api/upload', {
+  const uploadResp = await fetch('https://api.epost.pk/api/upload', {
     method: 'POST',
     headers: { 'Authorization': 'Bearer ' + token },
     body: form
@@ -30,7 +30,7 @@ async function main() {
   console.log('Upload result:', JSON.stringify(uploadResult, null, 2));
 
   const jobId = uploadResult.jobId;
-  const API = 'https://api-production-28491.up.railway.app';
+  const API = 'https://api.epost.pk';
   const headers = { Authorization: 'Bearer ' + token };
 
   // Poll job status until COMPLETED or FAILED

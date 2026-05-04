@@ -90,10 +90,9 @@ subscriptionsRouter.get("/checkout/:reference", async (req, res) => {
     return res.status(401).send("Invalid payment token");
   }
 
-  const protocol = String(req.header("x-forwarded-proto") ?? req.protocol ?? "https").split(",")[0].trim() || "https";
-  const host = String(req.header("x-forwarded-host") ?? req.get("host") ?? "").split(",")[0].trim();
-  const apiOrigin = String(env.API_ORIGIN ?? `${protocol}://${host}`).replace(/\/$/, "");
+  const apiOrigin = String(env.API_ORIGIN ?? "https://api.epost.pk").replace(/\/$/, "");
   const callbackUrl = `${apiOrigin}/api/subscriptions/callback`;
+  const webhookUrl = `${apiOrigin}/api/subscriptions/webhook`;
 
   try {
     const initiated = await initiateEasypaisaPayment({
@@ -101,6 +100,9 @@ subscriptionsRouter.get("/checkout/:reference", async (req, res) => {
       amountCents: payment.amountCents,
       callbackUrl,
       returnUrl: callbackUrl,
+      successUrl: callbackUrl,
+      failureUrl: callbackUrl,
+      webhookUrl,
       description: `${payment.plan.name} subscription`,
     });
 
