@@ -72,7 +72,7 @@ export default function EmailOtpLogin() {
           try {
             const normalized = email.trim().toLowerCase();
             await sendSignInLinkToEmail(auth, normalized, {
-              url: `${window.location.origin}/email-otp`,
+              url: `${window.location.origin}/email-otp-login`,
               handleCodeInApp: true,
             });
             localStorage.setItem(EMAIL_KEY, normalized);

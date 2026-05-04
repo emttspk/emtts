@@ -32,6 +32,7 @@ export default function Register() {
 
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [address, setAddress] = useState("");
   const [originCity, setOriginCity] = useState("");
@@ -84,6 +85,7 @@ export default function Register() {
               body: JSON.stringify({
                 email,
                 password,
+                username: username.trim() || null,
                 companyName: companyName || null,
                 address: address || null,
                 contactNumber: contactNumber || null,
@@ -136,6 +138,10 @@ export default function Register() {
           <label className="block text-sm">
             <div className="mb-2 font-medium text-slate-700">Password *</div>
             <input className="field-input focus:ring-emerald-200" value={password} onChange={(e) => setPassword(e.target.value)} type="password" minLength={8} placeholder="At least 8 characters" required />
+          </label>
+          <label className="block text-sm">
+            <div className="mb-2 font-medium text-slate-700">Username</div>
+            <input className="field-input focus:ring-emerald-200" value={username} onChange={(e) => setUsername(e.target.value)} type="text" placeholder="your.username" maxLength={80} />
           </label>
         </div>
 

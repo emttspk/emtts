@@ -120,9 +120,9 @@ export default function Login() {
 
         <div className="flex items-center justify-between gap-2 pt-1 text-sm">
           <Link to="/forgot-password" className="font-medium text-slate-500 transition-colors hover:text-slate-700">
-            Forgot password
+            Forgot Password?
           </Link>
-          <Link to="/email-otp" className="font-medium text-slate-500 transition-colors hover:text-slate-700">
+          <Link to="/email-otp-login" className="font-medium text-slate-500 transition-colors hover:text-slate-700">
             Email OTP
           </Link>
           <Link to="/register" className="font-semibold text-brand transition-colors hover:text-brand-dark">

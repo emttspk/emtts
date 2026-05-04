@@ -53,6 +53,7 @@ export default function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/email-otp" element={<EmailOtpLogin />} />
+        <Route path="/email-otp-login" element={<EmailOtpLogin />} />
         <Route path="/track" element={<Navigate to="/tracking" replace />} />
         <Route path="/tracking" element={<TrackingEntry />} />
         <Route path="/tracking/:trackingId" element={<PublicTracking />} />

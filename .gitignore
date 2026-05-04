@@ -27,3 +27,5 @@ LCS*.xls
 LCS*.xlsx
 
 tracking/credentials.json
+EP Gateway/
+EP Gateway/.venv/
