@@ -123,6 +123,35 @@
   .status-pill {
     @apply inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold;
   }
+
+  .google-auth-btn {
+    @apply relative flex h-11 w-full items-center justify-between rounded-md border border-[#dadce0] bg-white px-3 text-[14px] font-medium text-[#3c4043] shadow-sm transition-colors;
+  }
+
+  .google-auth-btn:hover {
+    border-color: #c7cbd1;
+    background: #ffffff;
+  }
+
+  .google-auth-btn:focus-visible {
+    outline: 2px solid #1a73e8;
+    outline-offset: 2px;
+  }
+
+  .google-auth-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+
+  .google-auth-btn__icon,
+  .google-auth-btn__spacer {
+    @apply flex h-5 w-5 items-center justify-center;
+  }
+
+  .google-auth-btn__label {
+    @apply flex-1 text-center font-medium;
+    font-family: Roboto, Arial, sans-serif;
+  }
 }
 
 @media (max-width: 768px) {

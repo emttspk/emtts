@@ -7,6 +7,7 @@ import { api } from "../lib/api";
 import { setSession } from "../lib/auth";
 
 const EMAIL_KEY = "labelgen_email_otp";
+const EMAIL_OTP_URL = "https://www.epost.pk/email-otp-login";
 
 export default function EmailOtpLogin() {
   const nav = useNavigate();
@@ -52,7 +53,7 @@ export default function EmailOtpLogin() {
   }, [currentUrl, nav]);
 
   return (
-    <AuthShell mode="login" title="Email OTP login" subtitle="Get a one-time sign-in link in your email inbox.">
+    <AuthShell mode="login" title="Email OTP login" subtitle="Get a one-time ePost.pk sign-in link in your email inbox.">
       {error ? <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</div> : null}
       {notice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{notice}</div> : null}
 
@@ -72,11 +73,11 @@ export default function EmailOtpLogin() {
           try {
             const normalized = email.trim().toLowerCase();
             await sendSignInLinkToEmail(auth, normalized, {
-              url: `${window.location.origin}/email-otp-login`,
+              url: EMAIL_OTP_URL,
               handleCodeInApp: true,
             });
             localStorage.setItem(EMAIL_KEY, normalized);
-            setNotice("OTP email link sent. Open it on this same browser to continue.");
+            setNotice("ePost.pk OTP email link sent. Open it on this same browser to continue.");
           } catch (err) {
             const message = err instanceof Error ? err.message : "Failed to send email OTP link";
             setError(message);

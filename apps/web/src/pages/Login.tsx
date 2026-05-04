@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api, apiUrl } from "../lib/api";
 import { setSession } from "../lib/auth";
 import AuthShell from "../components/AuthShell";
+import GoogleAuthButton from "../components/GoogleAuthButton";
 import { auth, firebaseReady } from "../firebase";
 
 export default function Login() {
@@ -52,9 +53,7 @@ export default function Login() {
     >
       {err ? <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{err}</div> : null}
 
-      <button type="button" className="btn-secondary mb-4 w-full rounded-xl" disabled={loading} onClick={handleGoogleLogin}>
-        {loading ? "Please wait..." : "Continue with Google"}
-      </button>
+      <GoogleAuthButton className="mb-4" label="Sign in with Google" disabled={loading} loading={loading} onClick={handleGoogleLogin} />
 
       <form
         className="space-y-3.5"

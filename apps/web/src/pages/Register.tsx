@@ -4,6 +4,7 @@ import { GoogleAuthProvider, createUserWithEmailAndPassword, sendEmailVerificati
 import { api } from "../lib/api";
 import { setSession } from "../lib/auth";
 import AuthShell from "../components/AuthShell";
+import GoogleAuthButton from "../components/GoogleAuthButton";
 import { auth, firebaseReady } from "../firebase";
 
 export default function Register() {
@@ -57,14 +58,12 @@ export default function Register() {
     <AuthShell
       mode="register"
       title="Create account"
-      subtitle="Step 1: create your auth identity."
+      subtitle="Step 1: create your auth identity. Step 2: complete your company profile."
     >
       {err ? <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">{err}</div> : null}
       {notice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">{notice}</div> : null}
 
-      <button type="button" className="btn-secondary mb-4 w-full rounded-xl" disabled={loading} onClick={handleGoogleRegister}>
-        {loading ? "Please wait..." : "Continue with Google"}
-      </button>
+      <GoogleAuthButton className="mb-4" label="Sign up with Google" disabled={loading} loading={loading} onClick={handleGoogleRegister} />
 
       <form
         className="space-y-3.5"
@@ -128,6 +127,13 @@ export default function Register() {
             <div className="mb-2 font-medium text-slate-700">Password *</div>
             <input className="field-input focus:ring-emerald-200" value={password} onChange={(e) => setPassword(e.target.value)} type="password" minLength={8} placeholder="At least 8 characters" required />
           </label>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-600">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">Step 2 Preview</div>
+          <p className="mt-2">
+            Next screen keeps this profile field order: Company Name, Address, City, Contact No, CNIC.
+          </p>
         </div>
 
         <button disabled={loading} className="btn-primary w-full rounded-xl">

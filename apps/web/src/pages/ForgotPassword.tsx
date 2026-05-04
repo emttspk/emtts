@@ -4,6 +4,8 @@ import { sendPasswordResetEmail } from "firebase/auth";
 import AuthShell from "../components/AuthShell";
 import { auth, firebaseReady } from "../firebase";
 
+const PASSWORD_RESET_REDIRECT = "https://www.epost.pk/login";
+
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -11,7 +13,7 @@ export default function ForgotPassword() {
   const [loading, setLoading] = useState(false);
 
   return (
-    <AuthShell mode="login" title="Reset password" subtitle="Send a secure reset link to your email.">
+    <AuthShell mode="login" title="Reset password" subtitle="Send a secure ePost.pk reset link to your email.">
       {error ? <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</div> : null}
       {notice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{notice}</div> : null}
 
@@ -29,8 +31,11 @@ export default function ForgotPassword() {
 
           setLoading(true);
           try {
-            await sendPasswordResetEmail(auth, email.trim());
-            setNotice("Password reset email sent. Please check your inbox.");
+            await sendPasswordResetEmail(auth, email.trim(), {
+              url: PASSWORD_RESET_REDIRECT,
+              handleCodeInApp: false,
+            });
+            setNotice("ePost.pk password reset email sent. Please check your inbox.");
           } catch (err) {
             const message = err instanceof Error ? err.message : "Failed to send password reset email";
             setError(message);
