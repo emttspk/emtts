@@ -144,16 +144,22 @@ manualPaymentsRouter.get("/my", requireAuth, async (req: AuthedRequest, res) => 
 // ── GET /api/manual-payments/wallet-info ─ Merchant display info ──────────────
 manualPaymentsRouter.get("/wallet-info", async (_req, res) => {
   const settings = await getOrCreateBillingSettings();
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  const version = settings.updatedAt.toISOString();
   return res.json({
     jazzcash: {
       accountNumber: settings.jazzcashNumber,
       accountTitle: settings.jazzcashTitle,
       qrUrl: settings.jazzcashQrPath ? "/api/manual-payments/wallet-qr/jazzcash" : null,
+      qrVersion: settings.jazzcashQrPath ? version : null,
     },
     easypaisa: {
       accountNumber: settings.easypaisaNumber,
       accountTitle: settings.easypaisaTitle,
       qrUrl: settings.easypaisaQrPath ? "/api/manual-payments/wallet-qr/easypaisa" : null,
+      qrVersion: settings.easypaisaQrPath ? version : null,
     },
   });
 });
@@ -175,6 +181,9 @@ manualPaymentsRouter.get("/wallet-qr/:method", async (req, res) => {
     return res.status(404).json({ error: "QR file missing" });
   }
 
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
   return res.sendFile(absPath);
 });
 

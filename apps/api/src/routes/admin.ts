@@ -530,6 +530,9 @@ adminRouter.post("/plans", async (req, res) => {
 
 adminRouter.get("/billing-settings", async (_req, res) => {
   const settings = await getOrCreateBillingSettings();
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
   res.json({
     settings: {
       ...settings,
@@ -569,6 +572,20 @@ adminRouter.put(
     const jazzcashQr = files.jazzcashQr?.[0];
     const easypaisaQr = files.easypaisaQr?.[0];
 
+    console.info("[BillingSettings] save request", {
+      actor: (req as any).user?.id ?? "unknown",
+      jazzcashNumber: body.jazzcashNumber,
+      jazzcashTitle: body.jazzcashTitle,
+      easypaisaNumber: body.easypaisaNumber,
+      easypaisaTitle: body.easypaisaTitle,
+      standardPrice: body.standardPrice,
+      businessPrice: body.businessPrice,
+      hasJazzcashQrUpload: Boolean(jazzcashQr),
+      hasEasypaisaQrUpload: Boolean(easypaisaQr),
+      clearJazzcashQr: body.clearJazzcashQr,
+      clearEasypaisaQr: body.clearEasypaisaQr,
+    });
+
     const current = await getOrCreateBillingSettings();
     const jazzcashQrPath = jazzcashQr
       ? toStoredPath(jazzcashQr.path)
@@ -607,6 +624,17 @@ adminRouter.put(
     });
 
     await syncConfiguredPlanPrices(updated);
+
+    console.info("[BillingSettings] save committed", {
+      id: updated.id,
+      updatedAt: updated.updatedAt.toISOString(),
+      jazzcashNumber: updated.jazzcashNumber,
+      easypaisaNumber: updated.easypaisaNumber,
+      jazzcashQrPath: updated.jazzcashQrPath,
+      easypaisaQrPath: updated.easypaisaQrPath,
+      standardPrice: updated.standardPrice,
+      businessPrice: updated.businessPrice,
+    });
 
     res.json({
       settings: {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Smartphone, QrCode, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { api, apiUrl } from "../lib/api";
+import { getToken } from "../lib/auth";
 
 type Plan = {
   id: string;
@@ -16,8 +17,8 @@ type InvoiceData = {
 };
 
 type WalletInfo = {
-  jazzcash: { accountNumber: string; accountTitle: string; qrUrl: string | null };
-  easypaisa: { accountNumber: string; accountTitle: string; qrUrl: string | null };
+  jazzcash: { accountNumber: string; accountTitle: string; qrUrl: string | null; qrVersion?: string | null };
+  easypaisa: { accountNumber: string; accountTitle: string; qrUrl: string | null; qrVersion?: string | null };
 };
 
 type MyPaymentRequest = {
@@ -60,12 +61,26 @@ export default function ManualPaymentModal({ plan, invoice, onClose, onSuccess }
   const [submittedRequest, setSubmittedRequest] = useState<MyPaymentRequest | null>(null);
   const [pendingRequests, setPendingRequests] = useState<MyPaymentRequest[]>([]);
   const [loadingPending, setLoadingPending] = useState(false);
+  const [walletError, setWalletError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    api<WalletInfo>("/api/manual-payments/wallet-info")
-      .then((data) => setWalletInfo(data))
-      .catch(() => {});
+    const requestTs = Date.now();
+    fetch(apiUrl(`/api/manual-payments/wallet-info?ts=${requestTs}`), {
+      method: "GET",
+      cache: "no-store",
+      headers: { "cache-control": "no-cache" },
+    })
+      .then(async (res) => {
+        const data = (await res.json()) as WalletInfo & { error?: string };
+        if (!res.ok) throw new Error(data.error ?? "Failed to load wallet details");
+        setWalletInfo(data);
+        setWalletError(null);
+      })
+      .catch((err) => {
+        setWalletInfo(null);
+        setWalletError(err instanceof Error ? err.message : "Failed to load wallet details");
+      });
   }, []);
 
   // Load pending requests for this plan
@@ -110,9 +125,7 @@ export default function ManualPaymentModal({ plan, invoice, onClose, onSuccess }
 
       const res = await fetch(apiUrl("/api/manual-payments"), {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token") ?? ""}`,
-        },
+        headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : undefined,
         body: formData,
       });
 
@@ -188,6 +201,7 @@ export default function ManualPaymentModal({ plan, invoice, onClose, onSuccess }
                     key={m}
                     type="button"
                     onClick={() => handleMethodSelect(m)}
+                    disabled={!walletInfo || !!walletError}
                     className="flex flex-col items-center gap-2 rounded-2xl border-2 border-slate-200 bg-white p-5 text-sm font-semibold text-slate-800 transition hover:border-brand hover:bg-brand/5 hover:text-brand"
                   >
                     <Smartphone className="h-7 w-7" />
@@ -195,6 +209,8 @@ export default function ManualPaymentModal({ plan, invoice, onClose, onSuccess }
                   </button>
                 ))}
               </div>
+              {walletError ? <div className="text-xs text-red-600">{walletError}</div> : null}
+              {!walletInfo && !walletError ? <div className="text-xs text-slate-500">Loading wallet details...</div> : null}
             </div>
           )}
 
@@ -210,11 +226,11 @@ export default function ManualPaymentModal({ plan, invoice, onClose, onSuccess }
                 <div className="space-y-1 text-sm text-slate-700">
                   <div className="flex justify-between">
                     <span className="text-slate-500">Account Title</span>
-                    <span className="font-medium">{selectedInfo?.accountTitle ?? "ePost Pakistan"}</span>
+                    <span className="font-medium">{selectedInfo?.accountTitle ?? "-"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Account Number</span>
-                    <span className="font-medium font-mono">{selectedInfo?.accountNumber ?? "—"}</span>
+                    <span className="font-medium font-mono">{selectedInfo?.accountNumber ?? "-"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Invoice</span>
@@ -232,7 +248,7 @@ export default function ManualPaymentModal({ plan, invoice, onClose, onSuccess }
                       Scan QR to pay
                     </div>
                     <img
-                      src={selectedInfo.qrUrl}
+                      src={selectedInfo.qrVersion ? `${selectedInfo.qrUrl}?v=${encodeURIComponent(selectedInfo.qrVersion)}` : selectedInfo.qrUrl}
                       alt={`${method} QR code`}
                       className="h-36 w-36 rounded-xl border border-slate-200 object-contain"
                     />
