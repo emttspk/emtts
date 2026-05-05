@@ -13,6 +13,7 @@ const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
 const RegisterProfile = lazy(() => import("./pages/RegisterProfile"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ForgotUsername = lazy(() => import("./pages/ForgotUsername"));
 const EmailOtpLogin = lazy(() => import("./pages/EmailOtpLogin"));
 const PublicTracking = lazy(() => import("./pages/PublicTracking"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -62,6 +63,7 @@ export default function App() {
           }
         />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/forgot-username" element={<ForgotUsername />} />
         <Route path="/email-otp" element={<EmailOtpLogin />} />
         <Route path="/email-otp-login" element={<EmailOtpLogin />} />
         <Route path="/track" element={<Navigate to="/tracking" replace />} />

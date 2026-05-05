@@ -9,8 +9,7 @@ import { auth, firebaseReady } from "../firebase";
 
 export default function Login() {
   const nav = useNavigate();
-  const [usernameHint, setUsernameHint] = useState("");
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -61,9 +60,11 @@ export default function Login() {
           setErr(null);
           setLoading(true);
           try {
-            if (firebaseReady && auth) {
+            const isEmail = identifier.includes("@");
+
+            if (isEmail && firebaseReady && auth) {
               try {
-                const credential = await signInWithEmailAndPassword(auth, email, password);
+                const credential = await signInWithEmailAndPassword(auth, identifier, password);
                 if (!credential.user.emailVerified) {
                   await signOut(auth);
                   throw new Error("Email is not verified. Please verify your email before logging in.");
@@ -84,11 +85,11 @@ export default function Login() {
 
             const endpoint = "/api/auth/login";
             const fullUrl = apiUrl(endpoint);
-            console.log(`[LOGIN] Attempting login for: ${email}`);
+            console.log(`[LOGIN] Attempting login for: ${identifier}`);
             console.log(`[LOGIN] Request URL: ${fullUrl}`);
             const data = await api<{ token: string; refreshToken?: string; user: { role: string } }>(endpoint, {
               method: "POST",
-              body: JSON.stringify({ email, password }),
+              body: JSON.stringify({ identifier, password }),
             });
             console.log(`[LOGIN] Success, received token and user role: ${data.user.role}`);
             setSession(data.token, data.user.role, data.refreshToken);
@@ -103,18 +104,13 @@ export default function Login() {
         }}
       >
         <label className="block text-sm">
-          <div className="mb-2 font-medium text-slate-900">Username</div>
-          <input className="field-input focus:ring-emerald-200" value={usernameHint} onChange={(e) => setUsernameHint(e.target.value)} type="text" placeholder="your.username (optional)" maxLength={80} autoComplete="username" />
+          <div className="mb-2 font-medium text-slate-900">Username or Email</div>
+          <input className="field-input focus:ring-emerald-200" value={identifier} onChange={(e) => setIdentifier(e.target.value)} type="text" placeholder="username or you@company.com" required autoComplete="username" />
         </label>
 
         <label className="block text-sm">
           <div className="mb-2 font-medium text-slate-900">Password</div>
           <input className="field-input focus:ring-emerald-200" value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="********" required />
-        </label>
-
-        <label className="block text-sm">
-          <div className="mb-2 font-medium text-slate-900">Email</div>
-          <input className="field-input focus:ring-emerald-200" value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@company.com" required />
         </label>
 
         <button disabled={loading} className="btn-primary mt-1 w-full rounded-xl">
@@ -126,6 +122,9 @@ export default function Login() {
         <div className="flex items-center justify-between gap-2 pt-1 text-sm">
           <Link to="/forgot-password" className="font-medium text-slate-500 transition-colors hover:text-slate-700">
             Forgot Password?
+          </Link>
+          <Link to="/forgot-username" className="font-medium text-slate-500 transition-colors hover:text-slate-700">
+            Forgot Username?
           </Link>
           <Link to="/email-otp-login" className="font-medium text-slate-500 transition-colors hover:text-slate-700">
             Email OTP

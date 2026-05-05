@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { GoogleAuthProvider, createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, signOut } from "firebase/auth";
 import { api } from "../lib/api";
@@ -18,6 +18,37 @@ export default function Register() {
   const [err, setErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Username availability
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
+  const [usernameChecking, setUsernameChecking] = useState(false);
+
+  // Debounced username check
+  const usernameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function handleUsernameChange(value: string) {
+    setUsername(value);
+    setUsernameAvailable(null);
+    setUsernameSuggestions([]);
+    if (usernameDebounceRef.current) clearTimeout(usernameDebounceRef.current);
+    if (value.trim().length < 3) return;
+    usernameDebounceRef.current = setTimeout(async () => {
+      setUsernameChecking(true);
+      try {
+        const res = await fetch(`/api/auth/check-username?username=${encodeURIComponent(value.trim())}`);
+        if (res.ok) {
+          const data = await res.json() as { available: boolean; suggestions?: string[] };
+          setUsernameAvailable(data.available);
+          setUsernameSuggestions(data.suggestions ?? []);
+        }
+      } catch {
+        // silently ignore availability check errors
+      } finally {
+        setUsernameChecking(false);
+      }
+    }, 400);
+  }
 
   // Pending email verification state
   const [pendingVerification, setPendingVerification] = useState(false);
@@ -147,6 +178,10 @@ export default function Register() {
             setErr("Username is required.");
             return;
           }
+          if (usernameAvailable === false) {
+            setErr("Please choose an available username before continuing.");
+            return;
+          }
 
           setLoading(true);
           try {
@@ -191,15 +226,49 @@ export default function Register() {
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">Identity</div>
           <label className="block text-sm">
             <div className="mb-2 font-medium text-slate-700">Username *</div>
-            <input className="field-input focus:ring-emerald-200" value={username} onChange={(e) => setUsername(e.target.value)} type="text" placeholder="your.username" maxLength={80} required />
-          </label>
-          <label className="block text-sm">
-            <div className="mb-2 font-medium text-slate-700">Password *</div>
-            <input className="field-input focus:ring-emerald-200" value={password} onChange={(e) => setPassword(e.target.value)} type="password" minLength={8} placeholder="At least 8 characters" required />
+            <input
+              className="field-input focus:ring-emerald-200"
+              value={username}
+              onChange={(e) => handleUsernameChange(e.target.value)}
+              type="text"
+              placeholder="your.username"
+              maxLength={80}
+              required
+            />
+            {usernameChecking && (
+              <p className="mt-1 text-xs text-slate-400">Checking availability...</p>
+            )}
+            {!usernameChecking && usernameAvailable === true && username.trim().length >= 3 && (
+              <p className="mt-1 text-xs font-medium text-emerald-600">Username is available</p>
+            )}
+            {!usernameChecking && usernameAvailable === false && (
+              <div className="mt-1">
+                <p className="text-xs font-medium text-red-600">Username already taken</p>
+                {usernameSuggestions.length > 0 && (
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Try:{" "}
+                    {usernameSuggestions.map((s, i) => (
+                      <button
+                        key={s}
+                        type="button"
+                        className="font-medium text-brand hover:underline"
+                        onClick={() => handleUsernameChange(s)}
+                      >
+                        {s}{i < usernameSuggestions.length - 1 ? ", " : ""}
+                      </button>
+                    ))}
+                  </p>
+                )}
+              </div>
+            )}
           </label>
           <label className="block text-sm">
             <div className="mb-2 font-medium text-slate-700">Email *</div>
             <input className="field-input focus:ring-emerald-200" value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@company.com" required />
+          </label>
+          <label className="block text-sm">
+            <div className="mb-2 font-medium text-slate-700">Password *</div>
+            <input className="field-input focus:ring-emerald-200" value={password} onChange={(e) => setPassword(e.target.value)} type="password" minLength={8} placeholder="At least 8 characters" required />
           </label>
         </div>
 

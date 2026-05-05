@@ -188,62 +188,117 @@ authRouter.post("/register", async (req, res) => {
 });
 
 authRouter.post("/login", async (req, res) => {
-  let body: { email: string; password: string };
-  try {
-    body = z
-      .object({
-        email: z.string().trim().email(),
-        password: z.string().min(1),
-      })
-      .parse(req.body);
-  } catch {
-    return res.status(400).json({ error: "email and password are required" });
+  // Accept { identifier, password } (new) or legacy { email, password }
+  const parsed = z
+    .object({
+      identifier: z.string().trim().min(1).optional(),
+      email: z.string().trim().optional(),
+      password: z.string().min(1),
+    })
+    .safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({ error: "identifier and password are required" });
+  }
+
+  const rawIdentifier = (parsed.data.identifier ?? parsed.data.email ?? "").trim();
+  if (!rawIdentifier) {
+    return res.status(400).json({ error: "identifier and password are required" });
   }
 
   try {
-    const email = normalizeEmail(body.email);
+    const isEmail = rawIdentifier.includes("@");
+    const lookupKey = isEmail ? normalizeEmail(rawIdentifier) : rawIdentifier;
     const ip = getClientIp(req);
     const device = getDeviceInfo(req);
-    const lockout = getLockout(email, ip);
+    const lockout = getLockout(lookupKey, ip);
     if (lockout.locked) {
-      auditAuthEvent("auth.login.locked", req, { email, remainingSeconds: lockout.remainingSeconds });
+      auditAuthEvent("auth.login.locked", req, { identifier: rawIdentifier, remainingSeconds: lockout.remainingSeconds });
       return res.status(423).json({ error: `Account temporarily locked. Try again in ${lockout.remainingSeconds}s.` });
     }
 
-    console.log(`[AUTH] Login attempt for email: ${email}`);
-    const user = await prisma.user.findUnique({ where: { email } });
+    console.log(`[AUTH] Login attempt for identifier: ${rawIdentifier} (${isEmail ? "email" : "username"})`);
+    const user = isEmail
+      ? await prisma.user.findUnique({ where: { email: lookupKey } })
+      : await prisma.user.findFirst({ where: { username: rawIdentifier } });
+
     if (!user) {
-      console.log(`[AUTH] Login failed: User not found for email: ${email}`);
-      const failed = recordFailedAttempt(email, ip);
-      auditAuthEvent("auth.login.user_missing", req, { email, failedCount: failed.count, locked: failed.locked });
+      console.log(`[AUTH] Login failed: User not found for identifier: ${rawIdentifier}`);
+      const failed = recordFailedAttempt(lookupKey, ip);
+      auditAuthEvent("auth.login.user_missing", req, { identifier: rawIdentifier, failedCount: failed.count, locked: failed.locked });
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
     if (user.suspended) {
-      console.log(`[AUTH] Login failed: Suspended account for email: ${email}`);
-      auditAuthEvent("auth.login.suspended", req, { email, userId: user.id });
+      console.log(`[AUTH] Login failed: Suspended account for identifier: ${rawIdentifier}`);
+      auditAuthEvent("auth.login.suspended", req, { identifier: rawIdentifier, userId: user.id });
       return res.status(403).json({ error: "Account disabled" });
     }
 
-    console.log(`[AUTH] User found for email: ${email}. Verifying password...`);
-    const ok = await verifyPassword(body.password, user.passwordHash);
+    console.log(`[AUTH] User found for identifier: ${rawIdentifier}. Verifying password...`);
+    const ok = await verifyPassword(parsed.data.password, user.passwordHash);
     if (!ok) {
-      console.log(`[AUTH] Login failed: Invalid password for email: ${email}`);
-      const failed = recordFailedAttempt(email, ip);
-      auditAuthEvent("auth.login.password_invalid", req, { email, userId: user.id, failedCount: failed.count, locked: failed.locked });
-      recordLoginHistory(user.id, { email, method: "password", ip, device, success: false });
+      console.log(`[AUTH] Login failed: Invalid password for identifier: ${rawIdentifier}`);
+      const failed = recordFailedAttempt(lookupKey, ip);
+      auditAuthEvent("auth.login.password_invalid", req, { identifier: rawIdentifier, userId: user.id, failedCount: failed.count, locked: failed.locked });
+      recordLoginHistory(user.id, { email: user.email, method: "password", ip, device, success: false });
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    clearFailedAttempts(email, ip);
-    console.log(`[AUTH] Login successful for email: ${email}`);
-    recordLoginHistory(user.id, { email, method: "password", ip, device, success: true });
-    auditAuthEvent("auth.login.success", req, { email, userId: user.id });
+    clearFailedAttempts(lookupKey, ip);
+    console.log(`[AUTH] Login successful for identifier: ${rawIdentifier}`);
+    recordLoginHistory(user.id, { email: user.email, method: "password", ip, device, success: true });
+    auditAuthEvent("auth.login.success", req, { identifier: rawIdentifier, userId: user.id });
     return res.json(shapeAuthResponse(user));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[AUTH] Login database error:", message);
     return res.status(503).json({ error: "Login temporarily unavailable. Please try again." });
+  }
+});
+
+authRouter.get("/check-username", async (req, res) => {
+  const username = String(req.query.username ?? "").trim();
+  if (username.length < 1) {
+    return res.status(400).json({ error: "username is required" });
+  }
+
+  try {
+    const existing = await prisma.user.findFirst({ where: { username } });
+    if (!existing) {
+      return res.json({ available: true });
+    }
+    const suggestions = [`${username}123`, `${username}_pk`, `official_${username}`];
+    return res.json({ available: false, suggestions });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[AUTH] check-username error:", message);
+    return res.status(503).json({ error: "Service temporarily unavailable" });
+  }
+});
+
+authRouter.post("/forgot-username", async (req, res) => {
+  const parsed = z.object({ email: z.string().trim().email() }).safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "Valid email is required" });
+  }
+
+  const email = normalizeEmail(parsed.data.email);
+  try {
+    const user = await prisma.user.findUnique({ where: { email }, select: { username: true } });
+    auditAuthEvent("auth.forgot_username.requested", req, { email, userFound: !!user });
+    // Return username directly (no mail system configured — safe for business app context)
+    return res.json({
+      success: true,
+      message: user?.username
+        ? `Your username is: ${user.username}`
+        : "If this email is registered, your username has been retrieved.",
+      username: user?.username ?? null,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[AUTH] forgot-username error:", message);
+    return res.status(500).json({ error: "Failed to process request" });
   }
 });
 
