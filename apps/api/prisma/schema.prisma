@@ -120,6 +120,7 @@ model Invoice {
   plan         Plan          @relation(fields: [planId], references: [id], onDelete: Restrict)
   payment      Payment       @relation(fields: [paymentId], references: [id], onDelete: Cascade)
   subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  manualPayments ManualPaymentRequest[]
 
   @@index([userId, status])
   @@index([planId])
@@ -341,6 +342,7 @@ model ManualPaymentRequest {
   id            String    @id @default(uuid())
   userId        String
   planId        String
+  invoiceId     String?   // links to Invoice created during plan selection
   paymentMethod String    // JAZZCASH | EASYPAISA
   transactionId String
   screenshotPath String?
@@ -353,11 +355,13 @@ model ManualPaymentRequest {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan Plan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan    Plan     @relation(fields: [planId], references: [id], onDelete: Restrict)
+  invoice Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
 
   @@index([userId, status])
   @@index([planId])
+  @@index([invoiceId])
   @@index([status])
 }
 

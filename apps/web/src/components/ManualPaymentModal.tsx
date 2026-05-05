@@ -8,6 +8,13 @@ type Plan = {
   priceCents: number;
 };
 
+type InvoiceData = {
+  id: string;
+  invoiceNumber: string;
+  amountCents: number;
+  currency?: string;
+};
+
 type WalletInfo = {
   jazzcash: { accountNumber: string; accountTitle: string; qrUrl: string | null };
   easypaisa: { accountNumber: string; accountTitle: string; qrUrl: string | null };
@@ -27,6 +34,7 @@ type MyPaymentRequest = {
 
 type Props = {
   plan: Plan;
+  invoice: InvoiceData;
   onClose: () => void;
   onSuccess: () => void;
 };
@@ -41,7 +49,7 @@ const formatPKR = new Intl.NumberFormat("en-PK", {
 
 type PaymentMethod = "JAZZCASH" | "EASYPAISA";
 
-export default function ManualPaymentModal({ plan, onClose, onSuccess }: Props) {
+export default function ManualPaymentModal({ plan, invoice, onClose, onSuccess }: Props) {
   const [step, setStep] = useState<"method" | "details" | "submitted">("method");
   const [method, setMethod] = useState<PaymentMethod | null>(null);
   const [walletInfo, setWalletInfo] = useState<WalletInfo | null>(null);
@@ -93,6 +101,7 @@ export default function ManualPaymentModal({ plan, onClose, onSuccess }: Props) 
     try {
       const formData = new FormData();
       formData.append("planId", plan.id);
+      formData.append("invoiceId", invoice.id);
       formData.append("paymentMethod", method);
       formData.append("transactionId", transactionId.trim());
       if (screenshot) {
@@ -124,7 +133,7 @@ export default function ManualPaymentModal({ plan, onClose, onSuccess }: Props) 
     }
   }
 
-  const amountFormatted = formatPKR.format(Math.round(plan.priceCents / 100)).replace(/\u00A0/g, " ").replace("PKR", "Rs.");
+  const amountFormatted = formatPKR.format(Math.round(invoice.amountCents / 100)).replace(/\u00A0/g, " ").replace("PKR", "Rs.");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -155,6 +164,21 @@ export default function ManualPaymentModal({ plan, onClose, onSuccess }: Props) 
           {/* STEP 1: Method selection */}
           {step === "method" && (
             <div className="space-y-3">
+              {/* Invoice summary */}
+              <div className="rounded-xl border border-brand/20 bg-brand/5 px-4 py-3 space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Invoice</span>
+                  <span className="font-mono font-semibold text-slate-800">{invoice.invoiceNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Plan</span>
+                  <span className="font-medium text-slate-800">{plan.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Amount</span>
+                  <span className="font-semibold text-brand">{amountFormatted}</span>
+                </div>
+              </div>
               <p className="text-sm text-slate-600">
                 Transfer {amountFormatted} to the merchant wallet of your choice, then submit the transaction ID below.
               </p>
@@ -191,6 +215,10 @@ export default function ManualPaymentModal({ plan, onClose, onSuccess }: Props) 
                   <div className="flex justify-between">
                     <span className="text-slate-500">Account Number</span>
                     <span className="font-medium font-mono">{selectedInfo?.accountNumber ?? "—"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Invoice</span>
+                    <span className="font-mono font-semibold text-slate-800">{invoice.invoiceNumber}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Amount</span>

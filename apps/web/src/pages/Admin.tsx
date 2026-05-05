@@ -53,6 +53,21 @@ type ManualPaymentRow = {
   createdAt: string;
   plan: { id: string; name: string; priceCents: number };
   user: { id: string; email: string; companyName?: string | null };
+  invoice?: { id: string; invoiceNumber: string; status: string; amountCents: number } | null;
+};
+
+type InvoiceRow = {
+  id: string;
+  invoiceNumber: string;
+  status: string; // OPEN | PAID
+  amountCents: number;
+  currency: string;
+  issuedAt: string;
+  paidAt?: string | null;
+  createdAt: string;
+  plan: { id: string; name: string };
+  user: { id: string; email: string; companyName?: string | null };
+  manualPayments: { id: string; status: string; transactionId: string; paymentMethod: string; createdAt: string }[];
 };
 
 type BillingSettings = {
@@ -66,7 +81,7 @@ type BillingSettings = {
   businessPrice: number;
 };
 
-type SectionKey = "overview" | "plans" | "customers" | "usage" | "shipments" | "payments" | "billing";
+type SectionKey = "overview" | "plans" | "customers" | "usage" | "shipments" | "payments" | "invoices" | "billing";
 
 const formatPKR = new Intl.NumberFormat("en-PK", {
   style: "currency",
@@ -85,6 +100,9 @@ export default function Admin() {
   const [manualPayments, setManualPayments] = useState<ManualPaymentRow[]>([]);
   const [manualPaymentFilter, setManualPaymentFilter] = useState<"PENDING" | "APPROVED" | "REJECTED" | "ALL">("PENDING");
   const [manualPaymentAction, setManualPaymentAction] = useState<Record<string, boolean>>({});
+  const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
+  const [invoiceFilter, setInvoiceFilter] = useState<"" | "OPEN" | "PAID">("OPEN");
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
   const [billingSettings, setBillingSettings] = useState<BillingSettings | null>(null);
   const [billingDraft, setBillingDraft] = useState({
     jazzcashNumber: "",
@@ -220,6 +238,19 @@ export default function Admin() {
     setManualPayments(data.requests);
   }
 
+  async function refreshInvoices(filter: "" | "OPEN" | "PAID" = invoiceFilter) {
+    setLoadingInvoices(true);
+    try {
+      const statusParam = filter ? `?status=${filter}` : "";
+      const data = await api<{ invoices: InvoiceRow[] }>(`/api/admin/invoices${statusParam}`);
+      setInvoices(data.invoices);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to load invoices");
+    } finally {
+      setLoadingInvoices(false);
+    }
+  }
+
   async function handleApprovePayment(id: string) {
     setManualPaymentAction((prev) => ({ ...prev, [id]: true }));
     try {
@@ -252,7 +283,10 @@ export default function Admin() {
     if (section === "payments") {
       refreshManualPayments(manualPaymentFilter).catch((e) => setErr(e instanceof Error ? e.message : "Failed"));
     }
-  }, [section, manualPaymentFilter]);
+    if (section === "invoices") {
+      refreshInvoices(invoiceFilter).catch((e) => setErr(e instanceof Error ? e.message : "Failed"));
+    }
+  }, [section, manualPaymentFilter, invoiceFilter]);
 
   const totals = useMemo(
     () => ({
@@ -286,6 +320,7 @@ export default function Admin() {
             ["usage", "Usage"],
             ["shipments", "Shipments"],
             ["payments", "Wallet Payments"],
+            ["invoices", "Invoices"],
             ["billing", "Billing Settings"],
           ].map(([key, label]) => (
             <button
@@ -470,6 +505,95 @@ export default function Admin() {
                     <td className="px-4 py-3"><input className="w-40 rounded-2xl border border-slate-200 bg-white px-2 py-1.5 text-xs" value={shipment.adminCode ?? ""} onChange={(e) => setShipments((prev) => prev.map((item) => (item.id === shipment.id ? { ...item, adminCode: e.target.value } : item)))} placeholder="Code" /></td>
                     <td className="px-4 py-3 text-right">
                       <button className="rounded-2xl border bg-white px-2.5 py-1 text-xs font-medium text-gray-700 shadow-lg hover:bg-gray-50" onClick={async () => { setErr(null); try { await api(`/api/admin/shipments/${shipment.id}`, { method: "PATCH", body: JSON.stringify({ shipmentType: shipment.shipmentType ?? null, status: shipment.status ?? null, city: shipment.city ?? null, adminCode: shipment.adminCode ?? null }) }); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Failed to update shipment"); } }}>Save</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableWrap>
+        </Card>
+      ) : null}
+
+      {section === "invoices" ? (
+        <Card className="min-w-0 w-full overflow-hidden">
+          <div className="border-b px-6 py-4">
+            <div className="text-xl font-medium text-gray-900">Invoices</div>
+            <div className="mt-1 text-sm text-gray-600">All invoices created during plan selection. Linked to manual wallet payments.</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {([["", "All"], ["OPEN", "Open / Pending"], ["PAID", "Paid"]] as const).map(([f, label]) => (
+                <button
+                  key={f}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${invoiceFilter === f ? "bg-brand text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                  onClick={() => setInvoiceFilter(f)}
+                >
+                  {label}
+                </button>
+              ))}
+              <button
+                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                onClick={() => refreshInvoices(invoiceFilter)}
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
+          <TableWrap>
+            <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
+              <thead className="bg-gray-50">
+                <tr className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <th className="px-4 py-3">Customer</th>
+                  <th className="px-4 py-3">Invoice #</th>
+                  <th className="px-4 py-3">Plan</th>
+                  <th className="px-4 py-3">Amount</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Issued</th>
+                  <th className="px-4 py-3">Paid</th>
+                  <th className="px-4 py-3">Payments</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {loadingInvoices && (
+                  <tr><td className="px-4 py-6 text-center text-sm text-slate-400" colSpan={8}>Loading...</td></tr>
+                )}
+                {!loadingInvoices && invoices.length === 0 && (
+                  <tr><td className="px-4 py-6 text-center text-sm text-slate-400" colSpan={8}>No invoices found.</td></tr>
+                )}
+                {invoices.map((inv) => (
+                  <tr key={inv.id} className="transition-colors hover:bg-gray-50/60">
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-slate-900">{inv.user.companyName ?? inv.user.email}</div>
+                      <div className="text-xs text-slate-400">{inv.user.email}</div>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs font-semibold text-slate-800">{inv.invoiceNumber}</td>
+                    <td className="px-4 py-3 text-slate-700">{inv.plan.name}</td>
+                    <td className="px-4 py-3 text-slate-700">
+                      {formatPKR.format(Math.round(inv.amountCents / 100)).replace(/\u00A0/g, " ").replace("PKR", "Rs.")}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${inv.status === "PAID" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                        {inv.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-500">{new Date(inv.issuedAt).toLocaleDateString("en-PK")}</td>
+                    <td className="px-4 py-3 text-xs text-slate-500">{inv.paidAt ? new Date(inv.paidAt).toLocaleDateString("en-PK") : "—"}</td>
+                    <td className="px-4 py-3">
+                      {inv.manualPayments.length === 0 ? (
+                        <span className="text-xs text-slate-400">No payments</span>
+                      ) : (
+                        <div className="space-y-1">
+                          {inv.manualPayments.map((mp) => (
+                            <div key={mp.id} className="flex items-center gap-1.5">
+                              <span className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${mp.status === "APPROVED" ? "bg-emerald-100 text-emerald-700" : mp.status === "REJECTED" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                                {mp.status}
+                              </span>
+                              <span className={`rounded-full px-1.5 py-0.5 text-xs ${mp.paymentMethod === "JAZZCASH" ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"}`}>
+                                {mp.paymentMethod}
+                              </span>
+                              <span className="font-mono text-xs text-slate-500">{mp.transactionId}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -32,6 +32,7 @@ const upload = multer({
 // ── schema validation ─────────────────────────────────────────────────────────
 const submitSchema = z.object({
   planId: z.string().uuid(),
+  invoiceId: z.string().uuid().optional(), // links payment to a pre-created Invoice
   paymentMethod: z.enum(["JAZZCASH", "EASYPAISA"]),
   transactionId: z.string().min(4).max(100),
 });
@@ -58,27 +59,51 @@ manualPaymentsRouter.post(
         return res.status(400).json({ error: "Manual payment is only for paid plans" });
       }
 
-      // Reject if user already has a pending request for the same plan
-      const existing = await prisma.manualPaymentRequest.findFirst({
-        where: { userId, planId: body.planId, status: "PENDING" },
-      });
-      if (existing) {
-        return res.status(409).json({
-          error: "You already have a pending payment request for this plan. Please wait for admin review.",
+      // Validate invoiceId belongs to this user if provided
+      if (body.invoiceId) {
+        const invoice = await prisma.invoice.findUnique({ where: { id: body.invoiceId } });
+        if (!invoice) {
+          return res.status(404).json({ error: "Invoice not found" });
+        }
+        if (invoice.userId !== userId) {
+          return res.status(403).json({ error: "Invoice does not belong to this user" });
+        }
+        // Reject if a pending payment already exists for this invoice
+        const existingByInvoice = await prisma.manualPaymentRequest.findFirst({
+          where: { invoiceId: body.invoiceId, status: "PENDING" },
         });
+        if (existingByInvoice) {
+          return res.status(409).json({
+            error: "A pending payment request already exists for this invoice. Please wait for admin review.",
+          });
+        }
+      } else {
+        // Fallback: reject if user already has a pending request for the same plan
+        const existing = await prisma.manualPaymentRequest.findFirst({
+          where: { userId, planId: body.planId, status: "PENDING" },
+        });
+        if (existing) {
+          return res.status(409).json({
+            error: "You already have a pending payment request for this plan. Please wait for admin review.",
+          });
+        }
       }
 
       const request = await prisma.manualPaymentRequest.create({
         data: {
           userId,
           planId: body.planId,
+          invoiceId: body.invoiceId ?? null,
           paymentMethod: body.paymentMethod,
           transactionId: body.transactionId,
           screenshotPath,
           amountCents: effectiveAmountCents,
           status: "PENDING",
         },
-        include: { plan: { select: { id: true, name: true, priceCents: true } } },
+        include: {
+          plan: { select: { id: true, name: true, priceCents: true } },
+          invoice: { select: { id: true, invoiceNumber: true, status: true } },
+        },
       });
 
       return res.status(201).json({
@@ -90,6 +115,7 @@ manualPaymentsRouter.post(
           amountCents: request.amountCents,
           currency: request.currency,
           plan: request.plan,
+          invoice: request.invoice ?? null,
           createdAt: request.createdAt,
         },
       });
@@ -163,6 +189,7 @@ export async function adminListManualPayments(req: any, res: any) {
     include: {
       plan: { select: { id: true, name: true, priceCents: true } },
       user: { select: { id: true, email: true, companyName: true } },
+      invoice: { select: { id: true, invoiceNumber: true, status: true, amountCents: true } },
     },
     orderBy: { createdAt: "desc" },
     take: 200,
@@ -176,7 +203,7 @@ export async function adminApproveManualPayment(req: AuthedRequest, res: any) {
 
   const payment = await prisma.manualPaymentRequest.findUnique({
     where: { id },
-    include: { plan: true },
+    include: { plan: true, invoice: true },
   });
   if (!payment) return res.status(404).json({ error: "Payment request not found" });
   if (payment.status !== "PENDING") {
@@ -221,6 +248,14 @@ export async function adminApproveManualPayment(req: AuthedRequest, res: any) {
         verifiedAt: now,
       },
     });
+
+    // Mark linked invoice as PAID
+    if (payment.invoiceId) {
+      await tx.invoice.update({
+        where: { id: payment.invoiceId },
+        data: { status: "PAID", paidAt: now },
+      });
+    }
   });
 
   return res.json({ success: true, message: "Payment approved and subscription activated" });

@@ -817,3 +817,25 @@ adminRouter.post("/refund-requests/:id/reject", async (req, res) => {
 adminRouter.get("/manual-payments", adminListManualPayments);
 adminRouter.post("/manual-payments/:id/approve", adminApproveManualPayment);
 adminRouter.post("/manual-payments/:id/reject", adminRejectManualPayment);
+
+/* ── Admin: Invoice list ── */
+
+adminRouter.get("/invoices", async (req, res) => {
+  const status = typeof req.query.status === "string" ? req.query.status : undefined;
+  const where = status ? { status } : {};
+  const invoices = await prisma.invoice.findMany({
+    where,
+    include: {
+      user: { select: { id: true, email: true, companyName: true } },
+      plan: { select: { id: true, name: true } },
+      manualPayments: {
+        select: { id: true, status: true, transactionId: true, paymentMethod: true, createdAt: true },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+  });
+  return res.json({ invoices });
+});

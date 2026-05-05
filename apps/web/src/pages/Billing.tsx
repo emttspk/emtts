@@ -31,6 +31,8 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [manualPaymentPlan, setManualPaymentPlan] = useState<Plan | null>(null);
+  const [manualPaymentInvoice, setManualPaymentInvoice] = useState<{ id: string; invoiceNumber: string; amountCents: number; currency: string } | null>(null);
+  const [initiatingWalletPlanId, setInitiatingWalletPlanId] = useState<string | null>(null);
   const planParam = searchParams.get("plan")?.toLowerCase() ?? null;
   const autoInitDone = useRef(false);
   const remainingUnits = me?.balances?.unitsRemaining ?? me?.activePackage?.unitsRemaining ?? me?.balances?.labelsRemaining ?? 0;
@@ -95,6 +97,12 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
     setSuccess(null);
     try {
       const response = await changePackage(plan.id);
+      if (response.requiresManualPayment && response.invoice) {
+        // Invoice-first manual wallet payment flow
+        setManualPaymentPlan(plan);
+        setManualPaymentInvoice(response.invoice);
+        return;
+      }
       if (response.requiresRedirect && response.checkoutUrl) {
         window.location.assign(apiUrl(response.checkoutUrl));
         return;
@@ -105,6 +113,24 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
       setError(err instanceof Error ? err.message : "Failed to update package");
     } finally {
       setSubmittingPlanId(null);
+    }
+  }
+
+  async function initiateWalletPayment(plan: Plan) {
+    setInitiatingWalletPlanId(plan.id);
+    setError(null);
+    try {
+      const response = await changePackage(plan.id);
+      if (response.invoice) {
+        setManualPaymentPlan(plan);
+        setManualPaymentInvoice(response.invoice);
+      } else {
+        setError("Failed to create invoice. Please try again.");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to initiate payment");
+    } finally {
+      setInitiatingWalletPlanId(null);
     }
   }
 
@@ -225,10 +251,11 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                 {plan.priceCents > 0 && !isCurrent && (
                   <button
                     type="button"
-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                    onClick={() => setManualPaymentPlan(plan)}
+                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                    disabled={initiatingWalletPlanId === plan.id}
+                    onClick={() => initiateWalletPayment(plan)}
                   >
-                    Pay via JazzCash / Easypaisa
+                    {initiatingWalletPlanId === plan.id ? "Creating invoice…" : "Pay via JazzCash / Easypaisa"}
                   </button>
                 )}
               </div>
@@ -237,12 +264,14 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
         })}
       </div>
     </PageShell>
-    {manualPaymentPlan && (
+    {manualPaymentPlan && manualPaymentInvoice && (
       <ManualPaymentModal
         plan={manualPaymentPlan}
-        onClose={() => setManualPaymentPlan(null)}
+        invoice={manualPaymentInvoice}
+        onClose={() => { setManualPaymentPlan(null); setManualPaymentInvoice(null); }}
         onSuccess={() => {
           setManualPaymentPlan(null);
+          setManualPaymentInvoice(null);
           setSuccess("Payment request submitted. Awaiting admin approval.");
         }}
       />

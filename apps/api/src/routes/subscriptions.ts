@@ -58,28 +58,33 @@ subscriptionsRouter.post("/start", requireAuth, async (req: AuthedRequest, res) 
     return res.json({ subscription: sub, requiresRedirect: false });
   }
 
+  // PHASE 1: Gateway initiation disabled — invoice-linked manual wallet payment flow.
+  // createSubscriptionPaymentIntent creates Invoice + Payment records in DB.
+  // Gateway checkout URL is intentionally NOT used; kept dormant for future reactivation.
   const intent = await createSubscriptionPaymentIntent(userId, plan.id);
-  if (!intent.pendingPayment || !intent.invoice || !intent.checkoutUrl) {
-    return res.status(500).json({ error: "Failed to create payment intent" });
+  if (!intent.pendingPayment || !intent.invoice) {
+    return res.status(500).json({ error: "Failed to create invoice" });
   }
 
   return res.json({
-    requiresRedirect: true,
-    checkoutUrl: intent.checkoutUrl,
-    payment: {
-      id: intent.pendingPayment.id,
-      reference: intent.pendingPayment.reference,
-      kind: intent.pendingPayment.kind,
-      status: intent.pendingPayment.status,
-      amountCents: intent.pendingPayment.amountCents,
-      currency: intent.pendingPayment.currency,
-    },
+    requiresManualPayment: true,
+    requiresRedirect: false,
     invoice: {
       id: intent.invoice.id,
       invoiceNumber: intent.invoice.invoiceNumber,
       status: intent.invoice.status,
       amountCents: intent.invoice.amountCents,
       currency: intent.invoice.currency,
+    },
+    payment: {
+      id: intent.pendingPayment.id,
+      reference: intent.pendingPayment.reference,
+      amountCents: intent.pendingPayment.amountCents,
+      currency: intent.pendingPayment.currency,
+    },
+    plan: {
+      id: plan.id,
+      name: plan.name,
     },
   });
 });

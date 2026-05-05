@@ -10,12 +10,13 @@ export type Plan = {
 
 export type ChangePackageResponse = {
   requiresRedirect?: boolean;
+  requiresManualPayment?: boolean;
   checkoutUrl?: string;
   payment?: {
     id: string;
     reference: string;
-    kind: string;
-    status: string;
+    kind?: string;
+    status?: string;
     amountCents: number;
     currency: string;
   };
@@ -25,6 +26,10 @@ export type ChangePackageResponse = {
     status: string;
     amountCents: number;
     currency: string;
+  };
+  plan?: {
+    id: string;
+    name: string;
   };
   subscription?: unknown;
 };
