@@ -23,16 +23,29 @@ export default function Register() {
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
   const [usernameChecking, setUsernameChecking] = useState(false);
+  const [usernameFormatErr, setUsernameFormatErr] = useState<string | null>(null);
 
   // Debounced username check
   const usernameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const USERNAME_REGEX = /^[a-zA-Z0-9_]+$/;
 
   function handleUsernameChange(value: string) {
     setUsername(value);
     setUsernameAvailable(null);
     setUsernameSuggestions([]);
+    setUsernameFormatErr(null);
     if (usernameDebounceRef.current) clearTimeout(usernameDebounceRef.current);
-    if (value.trim().length < 3) return;
+    const trimmed = value.trim();
+    if (trimmed.includes("@")) {
+      setUsernameFormatErr("Username cannot be an email address");
+      return;
+    }
+    if (trimmed.length > 0 && !USERNAME_REGEX.test(trimmed)) {
+      setUsernameFormatErr("Username can only contain letters, numbers, and underscores");
+      return;
+    }
+    if (trimmed.length < 3) return;
     usernameDebounceRef.current = setTimeout(async () => {
       setUsernameChecking(true);
       try {
@@ -178,6 +191,14 @@ export default function Register() {
             setErr("Username is required.");
             return;
           }
+          if (normalizedUsername.includes("@")) {
+            setErr("Username cannot be an email address.");
+            return;
+          }
+          if (!/^[a-zA-Z0-9_]+$/.test(normalizedUsername)) {
+            setErr("Username can only contain letters, numbers, and underscores.");
+            return;
+          }
           if (usernameAvailable === false) {
             setErr("Please choose an available username before continuing.");
             return;
@@ -235,13 +256,16 @@ export default function Register() {
               maxLength={80}
               required
             />
-            {usernameChecking && (
+            {usernameFormatErr && (
+              <p className="mt-1 text-xs font-medium text-red-600">{usernameFormatErr}</p>
+            )}
+            {!usernameFormatErr && usernameChecking && (
               <p className="mt-1 text-xs text-slate-400">Checking availability...</p>
             )}
-            {!usernameChecking && usernameAvailable === true && username.trim().length >= 3 && (
+            {!usernameFormatErr && !usernameChecking && usernameAvailable === true && username.trim().length >= 3 && (
               <p className="mt-1 text-xs font-medium text-emerald-600">Username is available</p>
             )}
-            {!usernameChecking && usernameAvailable === false && (
+            {!usernameFormatErr && !usernameChecking && usernameAvailable === false && (
               <div className="mt-1">
                 <p className="text-xs font-medium text-red-600">Username already taken</p>
                 {usernameSuggestions.length > 0 && (
@@ -273,7 +297,7 @@ export default function Register() {
         </div>
 
         <button disabled={loading} className="btn-primary w-full rounded-xl">
-          {loading ? "Creating identity..." : "Continue to Profile"}
+          {loading ? "Creating account..." : "Continue"}
         </button>
 
         <GoogleAuthButton className="w-full" label="Sign up with Google" disabled={loading} loading={loading} onClick={handleGoogleRegister} />
