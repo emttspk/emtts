@@ -16,6 +16,7 @@ import { adminTemplatesRouter } from "./routes/adminTemplates.js";
 import { subscriptionsRouter } from "./routes/subscriptions.js";
 import { plansRouter, ensureDefaultPlans } from "./routes/plans.js";
 import { manualPaymentsRouter } from "./routes/manualPayments.js";
+import { billingSettingsRouter } from "./routes/billingSettings.js";
 import { ensureStorageDirs } from "./storage/paths.js";
 import { startCleanupCron } from "./cron/cleanup.js";
 import { requireAuth } from "./middleware/auth.js";
@@ -500,6 +501,7 @@ router.use("/admin/templates", ensureApiDatabaseConnection, adminTemplatesRouter
 router.use("/admin", ensureApiDatabaseConnection, adminRouter);
 router.use("/subscriptions", ensureApiDatabaseConnection, subscriptionsRouter);
 router.use("/manual-payments", ensureApiDatabaseConnection, manualPaymentsRouter);
+router.use("/billing-settings", ensureApiDatabaseConnection, billingSettingsRouter);
 router.use("/plans", plansRouter);
 
 router.use("/*", (_req, res) => {

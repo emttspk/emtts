@@ -9,8 +9,8 @@ type Plan = {
 };
 
 type WalletInfo = {
-  jazzcash: { merchantAccount: string; merchantName: string; qrUrl: string | null };
-  easypaisa: { merchantAccount: string; merchantName: string; qrUrl: string | null };
+  jazzcash: { accountNumber: string; accountTitle: string; qrUrl: string | null };
+  easypaisa: { accountNumber: string; accountTitle: string; qrUrl: string | null };
 };
 
 type MyPaymentRequest = {
@@ -55,7 +55,7 @@ export default function ManualPaymentModal({ plan, onClose, onSuccess }: Props) 
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    api<{ jazzcash: WalletInfo["jazzcash"]; easypaisa: WalletInfo["easypaisa"] }>("/api/manual-payments/wallet-info")
+    api<WalletInfo>("/api/manual-payments/wallet-info")
       .then((data) => setWalletInfo(data))
       .catch(() => {});
   }, []);
@@ -185,12 +185,12 @@ export default function ManualPaymentModal({ plan, onClose, onSuccess }: Props) 
                 </div>
                 <div className="space-y-1 text-sm text-slate-700">
                   <div className="flex justify-between">
-                    <span className="text-slate-500">Merchant Name</span>
-                    <span className="font-medium">{selectedInfo?.merchantName ?? "ePost Pakistan"}</span>
+                    <span className="text-slate-500">Account Title</span>
+                    <span className="font-medium">{selectedInfo?.accountTitle ?? "ePost Pakistan"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Account Number</span>
-                    <span className="font-medium font-mono">{selectedInfo?.merchantAccount ?? "—"}</span>
+                    <span className="font-medium font-mono">{selectedInfo?.accountNumber ?? "—"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Amount</span>

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
+import { getOrCreateBillingSettings, resolveConfiguredPlanPrice } from "../services/billing-settings.service.js";
 
 export const plansRouter = Router();
 
@@ -15,14 +16,6 @@ export async function ensureDefaultPlans() {
       try {
         const existing = await prisma.plan.findFirst({ where: { name: plan.name } });
         if (existing) {
-          await prisma.plan.update({
-            where: { id: existing.id },
-            data: {
-              priceCents: plan.priceCents,
-              monthlyLabelLimit: plan.monthlyLabelLimit,
-              monthlyTrackingLimit: plan.monthlyTrackingLimit,
-            },
-          });
           continue;
         }
         await prisma.plan.create({ data: plan });
@@ -39,7 +32,13 @@ export async function ensureDefaultPlans() {
 plansRouter.get("/", async (_req, res, next) => {
   try {
     const plans = await prisma.plan.findMany({ orderBy: { priceCents: "asc" } });
-    res.json({ success: true, plans, message: "Plans retrieved successfully" });
+    const settings = await getOrCreateBillingSettings();
+    const configuredPlans = plans.map((plan) => ({
+      ...plan,
+      priceCents: resolveConfiguredPlanPrice(plan.name, plan.priceCents, settings),
+    }));
+
+    res.json({ success: true, plans: configuredPlans, message: "Plans retrieved successfully" });
   } catch (err) {
     console.log("Database unavailable for plans, returning defaults:", err instanceof Error ? err.message : err);
     res.json({

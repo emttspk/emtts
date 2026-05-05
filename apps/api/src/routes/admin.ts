@@ -1,4 +1,7 @@
 import { Router } from "express";
+import fs from "node:fs";
+import path from "node:path";
+import multer from "multer";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
@@ -21,8 +24,28 @@ import {
   adminApproveManualPayment,
   adminRejectManualPayment,
 } from "./manualPayments.js";
+import { storageRoot, toStoredPath } from "../storage/paths.js";
+import { getOrCreateBillingSettings, syncConfiguredPlanPrices } from "../services/billing-settings.service.js";
 
 export const adminRouter = Router();
+
+const billingQrDir = path.join(storageRoot(), "billing-wallet-qr");
+if (!fs.existsSync(billingQrDir)) {
+  fs.mkdirSync(billingQrDir, { recursive: true });
+}
+
+const billingQrUpload = multer({
+  dest: billingQrDir,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter(_req, file, cb) {
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files are allowed"));
+    }
+  },
+});
 
 startComplaintSyncJob();
 startComplaintBackupJob();
@@ -505,6 +528,96 @@ adminRouter.post("/plans", async (req, res) => {
   res.json({ plan });
 });
 
+adminRouter.get("/billing-settings", async (_req, res) => {
+  const settings = await getOrCreateBillingSettings();
+  res.json({
+    settings: {
+      ...settings,
+      jazzcashQrUrl: settings.jazzcashQrPath ? "/api/manual-payments/wallet-qr/jazzcash" : null,
+      easypaisaQrUrl: settings.easypaisaQrPath ? "/api/manual-payments/wallet-qr/easypaisa" : null,
+    },
+  });
+});
+
+adminRouter.put(
+  "/billing-settings",
+  billingQrUpload.fields([
+    { name: "jazzcashQr", maxCount: 1 },
+    { name: "easypaisaQr", maxCount: 1 },
+  ]),
+  async (req, res) => {
+    const body = z
+      .object({
+        jazzcashNumber: z.string().trim().min(1),
+        jazzcashTitle: z.string().trim().min(1),
+        easypaisaNumber: z.string().trim().min(1),
+        easypaisaTitle: z.string().trim().min(1),
+        standardPrice: z.coerce.number().int().positive(),
+        businessPrice: z.coerce.number().int().positive(),
+        clearJazzcashQr: z
+          .string()
+          .optional()
+          .transform((v) => v === "true"),
+        clearEasypaisaQr: z
+          .string()
+          .optional()
+          .transform((v) => v === "true"),
+      })
+      .parse(req.body ?? {});
+
+    const files = (req.files ?? {}) as Record<string, Express.Multer.File[]>;
+    const jazzcashQr = files.jazzcashQr?.[0];
+    const easypaisaQr = files.easypaisaQr?.[0];
+
+    const current = await getOrCreateBillingSettings();
+    const jazzcashQrPath = jazzcashQr
+      ? toStoredPath(jazzcashQr.path)
+      : body.clearJazzcashQr
+        ? null
+        : current.jazzcashQrPath;
+    const easypaisaQrPath = easypaisaQr
+      ? toStoredPath(easypaisaQr.path)
+      : body.clearEasypaisaQr
+        ? null
+        : current.easypaisaQrPath;
+
+    const updated = await prisma.billingSettings.upsert({
+      where: { id: 1 },
+      create: {
+        id: 1,
+        jazzcashNumber: body.jazzcashNumber,
+        jazzcashTitle: body.jazzcashTitle,
+        jazzcashQrPath,
+        easypaisaNumber: body.easypaisaNumber,
+        easypaisaTitle: body.easypaisaTitle,
+        easypaisaQrPath,
+        standardPrice: body.standardPrice,
+        businessPrice: body.businessPrice,
+      },
+      update: {
+        jazzcashNumber: body.jazzcashNumber,
+        jazzcashTitle: body.jazzcashTitle,
+        jazzcashQrPath,
+        easypaisaNumber: body.easypaisaNumber,
+        easypaisaTitle: body.easypaisaTitle,
+        easypaisaQrPath,
+        standardPrice: body.standardPrice,
+        businessPrice: body.businessPrice,
+      },
+    });
+
+    await syncConfiguredPlanPrices(updated);
+
+    res.json({
+      settings: {
+        ...updated,
+        jazzcashQrUrl: updated.jazzcashQrPath ? "/api/manual-payments/wallet-qr/jazzcash" : null,
+        easypaisaQrUrl: updated.easypaisaQrPath ? "/api/manual-payments/wallet-qr/easypaisa" : null,
+      },
+    });
+  },
+);
+
 adminRouter.get("/usage", async (req, res) => {
   const month = z
     .string()
@@ -521,9 +634,11 @@ adminRouter.get("/usage", async (req, res) => {
 });
 
 adminRouter.post("/plans/seed", async (_req, res) => {
+  const settings = await getOrCreateBillingSettings();
   const defaults = [
     { name: "Free Plan", priceCents: 0, monthlyLabelLimit: 250, monthlyTrackingLimit: 250 },
-    { name: "Business Plan", priceCents: 250000, monthlyLabelLimit: 2000, monthlyTrackingLimit: 2000 },
+    { name: "Standard Plan", priceCents: settings.standardPrice, monthlyLabelLimit: 1000, monthlyTrackingLimit: 1000 },
+    { name: "Business Plan", priceCents: settings.businessPrice, monthlyLabelLimit: 2000, monthlyTrackingLimit: 2000 },
   ] as const;
   const plans = [];
   for (const plan of defaults) {

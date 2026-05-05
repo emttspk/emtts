@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Card from "../components/Card";
-import { api } from "../lib/api";
+import { api, apiUrl } from "../lib/api";
 import { TEMPLATE_DESIGNER_ENABLED } from "../lib/featureFlags";
 import { BodyText, CardTitle, PageShell, PageTitle, TableWrap } from "../components/ui/PageSystem";
 
@@ -55,7 +55,18 @@ type ManualPaymentRow = {
   user: { id: string; email: string; companyName?: string | null };
 };
 
-type SectionKey = "overview" | "plans" | "customers" | "usage" | "shipments" | "payments";
+type BillingSettings = {
+  jazzcashNumber: string;
+  jazzcashTitle: string;
+  jazzcashQrUrl: string | null;
+  easypaisaNumber: string;
+  easypaisaTitle: string;
+  easypaisaQrUrl: string | null;
+  standardPrice: number;
+  businessPrice: number;
+};
+
+type SectionKey = "overview" | "plans" | "customers" | "usage" | "shipments" | "payments" | "billing";
 
 const formatPKR = new Intl.NumberFormat("en-PK", {
   style: "currency",
@@ -74,6 +85,20 @@ export default function Admin() {
   const [manualPayments, setManualPayments] = useState<ManualPaymentRow[]>([]);
   const [manualPaymentFilter, setManualPaymentFilter] = useState<"PENDING" | "APPROVED" | "REJECTED" | "ALL">("PENDING");
   const [manualPaymentAction, setManualPaymentAction] = useState<Record<string, boolean>>({});
+  const [billingSettings, setBillingSettings] = useState<BillingSettings | null>(null);
+  const [billingDraft, setBillingDraft] = useState({
+    jazzcashNumber: "",
+    jazzcashTitle: "",
+    easypaisaNumber: "",
+    easypaisaTitle: "",
+    standardPrice: "",
+    businessPrice: "",
+  });
+  const [jazzcashQrFile, setJazzcashQrFile] = useState<File | null>(null);
+  const [easypaisaQrFile, setEasypaisaQrFile] = useState<File | null>(null);
+  const [clearJazzcashQr, setClearJazzcashQr] = useState(false);
+  const [clearEasypaisaQr, setClearEasypaisaQr] = useState(false);
+  const [savingBillingSettings, setSavingBillingSettings] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [month, setMonth] = useState(() => {
     const d = new Date();
@@ -101,16 +126,92 @@ export default function Admin() {
   }
 
   async function refresh() {
-    const [p, u, us, sh] = await Promise.all([
+    const [p, u, us, sh, bs] = await Promise.all([
       api<{ plans: Plan[] }>("/api/admin/plans"),
       api<{ users: AdminUser[] }>("/api/admin/users"),
       api<{ usage: UsageRow[] }>(`/api/admin/usage?month=${encodeURIComponent(month)}`),
       api<{ shipments: ShipmentRow[] }>("/api/admin/shipments?limit=50"),
+      api<{ settings: BillingSettings }>("/api/admin/billing-settings"),
     ]);
     setPlans(p.plans.filter((plan) => !["Starter Plan", "Pro Plan"].includes(plan.name)));
     setUsers(u.users);
     setUsage(us.usage);
     setShipments(sh.shipments);
+    setBillingSettings(bs.settings);
+    setBillingDraft({
+      jazzcashNumber: bs.settings.jazzcashNumber,
+      jazzcashTitle: bs.settings.jazzcashTitle,
+      easypaisaNumber: bs.settings.easypaisaNumber,
+      easypaisaTitle: bs.settings.easypaisaTitle,
+      standardPrice: String(bs.settings.standardPrice),
+      businessPrice: String(bs.settings.businessPrice),
+    });
+    setClearJazzcashQr(false);
+    setClearEasypaisaQr(false);
+    setJazzcashQrFile(null);
+    setEasypaisaQrFile(null);
+  }
+
+  async function saveBillingSettings() {
+    if (!billingDraft.jazzcashNumber.trim() || !billingDraft.jazzcashTitle.trim() || !billingDraft.easypaisaNumber.trim() || !billingDraft.easypaisaTitle.trim()) {
+      setErr("Wallet numbers and titles are required.");
+      return;
+    }
+    if (!billingDraft.standardPrice.trim() || !billingDraft.businessPrice.trim()) {
+      setErr("Standard and Business prices are required.");
+      return;
+    }
+
+    setSavingBillingSettings(true);
+    setErr(null);
+    try {
+      const formData = new FormData();
+      formData.append("jazzcashNumber", billingDraft.jazzcashNumber.trim());
+      formData.append("jazzcashTitle", billingDraft.jazzcashTitle.trim());
+      formData.append("easypaisaNumber", billingDraft.easypaisaNumber.trim());
+      formData.append("easypaisaTitle", billingDraft.easypaisaTitle.trim());
+      formData.append("standardPrice", billingDraft.standardPrice.trim());
+      formData.append("businessPrice", billingDraft.businessPrice.trim());
+      if (jazzcashQrFile) formData.append("jazzcashQr", jazzcashQrFile);
+      if (easypaisaQrFile) formData.append("easypaisaQr", easypaisaQrFile);
+      if (clearJazzcashQr) formData.append("clearJazzcashQr", "true");
+      if (clearEasypaisaQr) formData.append("clearEasypaisaQr", "true");
+
+      const response = await fetch(apiUrl(`/api/admin/billing-settings`), {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token") ?? ""}`,
+        },
+        body: formData,
+      });
+
+      const json = (await response.json()) as { error?: string; settings?: BillingSettings };
+      if (!response.ok) {
+        setErr(json.error ?? "Failed to save billing settings");
+        return;
+      }
+
+      if (json.settings) {
+        setBillingSettings(json.settings);
+        setBillingDraft({
+          jazzcashNumber: json.settings.jazzcashNumber,
+          jazzcashTitle: json.settings.jazzcashTitle,
+          easypaisaNumber: json.settings.easypaisaNumber,
+          easypaisaTitle: json.settings.easypaisaTitle,
+          standardPrice: String(json.settings.standardPrice),
+          businessPrice: String(json.settings.businessPrice),
+        });
+      }
+      setJazzcashQrFile(null);
+      setEasypaisaQrFile(null);
+      setClearJazzcashQr(false);
+      setClearEasypaisaQr(false);
+      await refresh();
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : "Failed to save billing settings");
+    } finally {
+      setSavingBillingSettings(false);
+    }
   }
 
   async function refreshManualPayments(filter: "PENDING" | "APPROVED" | "REJECTED" | "ALL" = manualPaymentFilter) {
@@ -185,6 +286,7 @@ export default function Admin() {
             ["usage", "Usage"],
             ["shipments", "Shipments"],
             ["payments", "Wallet Payments"],
+            ["billing", "Billing Settings"],
           ].map(([key, label]) => (
             <button
               key={key}
@@ -374,6 +476,109 @@ export default function Admin() {
               </tbody>
             </table>
           </TableWrap>
+        </Card>
+      ) : null}
+
+      {section === "billing" ? (
+        <Card className="min-w-0 w-full overflow-hidden p-6">
+          <div className="text-xl font-medium text-gray-900">Billing Settings</div>
+          <div className="mt-1 text-sm text-gray-600">Configure wallet accounts, optional QR images, and plan prices for Standard/Business.</div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <Card className="p-4">
+              <div className="text-sm font-semibold text-slate-900">JazzCash</div>
+              <div className="mt-3 space-y-2">
+                <input
+                  className="w-full rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg"
+                  value={billingDraft.jazzcashNumber}
+                  onChange={(e) => setBillingDraft((prev) => ({ ...prev, jazzcashNumber: e.target.value }))}
+                  placeholder="JazzCash account number"
+                />
+                <input
+                  className="w-full rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg"
+                  value={billingDraft.jazzcashTitle}
+                  onChange={(e) => setBillingDraft((prev) => ({ ...prev, jazzcashTitle: e.target.value }))}
+                  placeholder="JazzCash account title"
+                />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setJazzcashQrFile(e.target.files?.[0] ?? null)}
+                  className="w-full rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg"
+                />
+                {billingSettings?.jazzcashQrUrl && !clearJazzcashQr ? (
+                  <img src={billingSettings.jazzcashQrUrl} alt="JazzCash QR" className="h-28 w-28 rounded-xl border object-contain" />
+                ) : null}
+                <label className="flex items-center gap-2 text-xs text-slate-600">
+                  <input type="checkbox" checked={clearJazzcashQr} onChange={(e) => setClearJazzcashQr(e.target.checked)} />
+                  Remove JazzCash QR
+                </label>
+              </div>
+            </Card>
+
+            <Card className="p-4">
+              <div className="text-sm font-semibold text-slate-900">Easypaisa</div>
+              <div className="mt-3 space-y-2">
+                <input
+                  className="w-full rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg"
+                  value={billingDraft.easypaisaNumber}
+                  onChange={(e) => setBillingDraft((prev) => ({ ...prev, easypaisaNumber: e.target.value }))}
+                  placeholder="Easypaisa account number"
+                />
+                <input
+                  className="w-full rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg"
+                  value={billingDraft.easypaisaTitle}
+                  onChange={(e) => setBillingDraft((prev) => ({ ...prev, easypaisaTitle: e.target.value }))}
+                  placeholder="Easypaisa account title"
+                />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setEasypaisaQrFile(e.target.files?.[0] ?? null)}
+                  className="w-full rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg"
+                />
+                {billingSettings?.easypaisaQrUrl && !clearEasypaisaQr ? (
+                  <img src={billingSettings.easypaisaQrUrl} alt="Easypaisa QR" className="h-28 w-28 rounded-xl border object-contain" />
+                ) : null}
+                <label className="flex items-center gap-2 text-xs text-slate-600">
+                  <input type="checkbox" checked={clearEasypaisaQr} onChange={(e) => setClearEasypaisaQr(e.target.checked)} />
+                  Remove Easypaisa QR
+                </label>
+              </div>
+            </Card>
+          </div>
+
+          <Card className="mt-4 p-4">
+            <div className="text-sm font-semibold text-slate-900">Package Pricing</div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <input
+                className="w-full rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg"
+                type="number"
+                min={1}
+                value={billingDraft.standardPrice}
+                onChange={(e) => setBillingDraft((prev) => ({ ...prev, standardPrice: e.target.value }))}
+                placeholder="Standard price (paisa)"
+              />
+              <input
+                className="w-full rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg"
+                type="number"
+                min={1}
+                value={billingDraft.businessPrice}
+                onChange={(e) => setBillingDraft((prev) => ({ ...prev, businessPrice: e.target.value }))}
+                placeholder="Business price (paisa)"
+              />
+            </div>
+          </Card>
+
+          <div className="mt-4 flex justify-end">
+            <button
+              className="rounded-2xl bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark disabled:opacity-60"
+              onClick={() => saveBillingSettings()}
+              disabled={savingBillingSettings}
+            >
+              {savingBillingSettings ? "Saving..." : "Save Billing Settings"}
+            </button>
+          </div>
         </Card>
       ) : null}
 

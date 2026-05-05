@@ -360,3 +360,17 @@ model ManualPaymentRequest {
   @@index([planId])
   @@index([status])
 }
+
+model BillingSettings {
+  id               Int      @id @default(1)
+  jazzcashNumber   String
+  jazzcashTitle    String
+  jazzcashQrPath   String?
+  easypaisaNumber  String
+  easypaisaTitle   String
+  easypaisaQrPath  String?
+  standardPrice    Int
+  businessPrice    Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}

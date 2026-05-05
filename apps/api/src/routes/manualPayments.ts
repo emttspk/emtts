@@ -4,8 +4,9 @@ import { Router } from "express";
 import multer from "multer";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
-import { requireAuth, requireAdmin, type AuthedRequest } from "../middleware/auth.js";
-import { storageRoot } from "../storage/paths.js";
+import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
+import { resolveStoredPath, storageRoot } from "../storage/paths.js";
+import { getOrCreateBillingSettings, resolveConfiguredPlanPrice } from "../services/billing-settings.service.js";
 
 export const manualPaymentsRouter = Router();
 
@@ -51,7 +52,9 @@ manualPaymentsRouter.post(
       if (!plan) {
         return res.status(404).json({ error: "Plan not found" });
       }
-      if (plan.priceCents <= 0) {
+      const settings = await getOrCreateBillingSettings();
+      const effectiveAmountCents = resolveConfiguredPlanPrice(plan.name, plan.priceCents, settings);
+      if (effectiveAmountCents <= 0) {
         return res.status(400).json({ error: "Manual payment is only for paid plans" });
       }
 
@@ -72,7 +75,7 @@ manualPaymentsRouter.post(
           paymentMethod: body.paymentMethod,
           transactionId: body.transactionId,
           screenshotPath,
-          amountCents: plan.priceCents,
+          amountCents: effectiveAmountCents,
           status: "PENDING",
         },
         include: { plan: { select: { id: true, name: true, priceCents: true } } },
@@ -114,18 +117,39 @@ manualPaymentsRouter.get("/my", requireAuth, async (req: AuthedRequest, res) => 
 
 // ── GET /api/manual-payments/wallet-info ─ Merchant display info ──────────────
 manualPaymentsRouter.get("/wallet-info", async (_req, res) => {
+  const settings = await getOrCreateBillingSettings();
   return res.json({
     jazzcash: {
-      merchantAccount: process.env.JAZZCASH_MERCHANT_ACCOUNT ?? "03xxxxxxxxx",
-      merchantName: process.env.JAZZCASH_MERCHANT_NAME ?? "ePost Pakistan",
-      qrUrl: process.env.JAZZCASH_QR_URL ?? null,
+      accountNumber: settings.jazzcashNumber,
+      accountTitle: settings.jazzcashTitle,
+      qrUrl: settings.jazzcashQrPath ? "/api/manual-payments/wallet-qr/jazzcash" : null,
     },
     easypaisa: {
-      merchantAccount: process.env.EASYPAISA_MERCHANT_ACCOUNT ?? "03xxxxxxxxx",
-      merchantName: process.env.EASYPAISA_MERCHANT_NAME ?? "ePost Pakistan",
-      qrUrl: process.env.EASYPAISA_QR_URL ?? null,
+      accountNumber: settings.easypaisaNumber,
+      accountTitle: settings.easypaisaTitle,
+      qrUrl: settings.easypaisaQrPath ? "/api/manual-payments/wallet-qr/easypaisa" : null,
     },
   });
+});
+
+manualPaymentsRouter.get("/wallet-qr/:method", async (req, res) => {
+  const method = String(req.params.method ?? "").trim().toLowerCase();
+  if (method !== "jazzcash" && method !== "easypaisa") {
+    return res.status(404).json({ error: "Wallet method not found" });
+  }
+
+  const settings = await getOrCreateBillingSettings();
+  const storedPath = method === "jazzcash" ? settings.jazzcashQrPath : settings.easypaisaQrPath;
+  if (!storedPath) {
+    return res.status(404).json({ error: "QR not configured" });
+  }
+
+  const absPath = resolveStoredPath(storedPath);
+  if (!fs.existsSync(absPath)) {
+    return res.status(404).json({ error: "QR file missing" });
+  }
+
+  return res.sendFile(absPath);
 });
 
 // ── ADMIN routes (mounted separately in admin.ts) ────────────────────────────
