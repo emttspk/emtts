@@ -9,6 +9,7 @@ import { auth, firebaseReady } from "../firebase";
 
 export default function Login() {
   const nav = useNavigate();
+  const [usernameHint, setUsernameHint] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -52,8 +53,6 @@ export default function Login() {
       subtitle="Access your shipment workspace."
     >
       {err ? <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{err}</div> : null}
-
-      <GoogleAuthButton className="mb-4" label="Sign in with Google" disabled={loading} loading={loading} onClick={handleGoogleLogin} />
 
       <form
         className="space-y-3.5"
@@ -104,8 +103,8 @@ export default function Login() {
         }}
       >
         <label className="block text-sm">
-          <div className="mb-2 font-medium text-slate-900">Email</div>
-          <input className="field-input focus:ring-emerald-200" value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@company.com" required />
+          <div className="mb-2 font-medium text-slate-900">Username</div>
+          <input className="field-input focus:ring-emerald-200" value={usernameHint} onChange={(e) => setUsernameHint(e.target.value)} type="text" placeholder="your.username (optional)" maxLength={80} autoComplete="username" />
         </label>
 
         <label className="block text-sm">
@@ -113,9 +112,16 @@ export default function Login() {
           <input className="field-input focus:ring-emerald-200" value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="********" required />
         </label>
 
+        <label className="block text-sm">
+          <div className="mb-2 font-medium text-slate-900">Email</div>
+          <input className="field-input focus:ring-emerald-200" value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@company.com" required />
+        </label>
+
         <button disabled={loading} className="btn-primary mt-1 w-full rounded-xl">
           {loading ? "Signing in..." : "Login"}
         </button>
+
+        <GoogleAuthButton className="mt-1" label="Sign in with Google" disabled={loading} loading={loading} onClick={handleGoogleLogin} />
 
         <div className="flex items-center justify-between gap-2 pt-1 text-sm">
           <Link to="/forgot-password" className="font-medium text-slate-500 transition-colors hover:text-slate-700">

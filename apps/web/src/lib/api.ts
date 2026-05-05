@@ -5,8 +5,14 @@ const base = (
   || ""
 );
 
+function normalizeConfiguredBase(value: string) {
+  const strippedQuotes = value.replace(/^['\"]|['\"]$/g, "").trim();
+  const withoutTrailingSlash = strippedQuotes.replace(/\/+$/, "");
+  return withoutTrailingSlash.replace(/\/api$/i, "");
+}
+
 function resolveBaseUrl() {
-  const trimmed = base.replace(/\/+$/, "");
+  const trimmed = normalizeConfiguredBase(base);
   if (typeof window === "undefined") return trimmed;
 
   const host = window.location.hostname;
@@ -15,6 +21,7 @@ function resolveBaseUrl() {
   // In local web runs, default to the API dev port when no explicit env is provided.
   if (!trimmed) {
     if (runningLocal && window.location.port !== "3000") return "http://127.0.0.1:3000";
+    if (/^(www\.)?epost\.pk$/i.test(host)) return "https://api.epost.pk";
     return "";
   }
 

@@ -135,8 +135,6 @@ export default function Register() {
       {err ? <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">{err}</div> : null}
       {notice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">{notice}</div> : null}
 
-      <GoogleAuthButton className="mb-4" label="Sign up with Google" disabled={loading} loading={loading} onClick={handleGoogleRegister} />
-
       <form
         className="space-y-3.5"
         onSubmit={async (e) => {
@@ -196,18 +194,20 @@ export default function Register() {
             <input className="field-input focus:ring-emerald-200" value={username} onChange={(e) => setUsername(e.target.value)} type="text" placeholder="your.username" maxLength={80} required />
           </label>
           <label className="block text-sm">
-            <div className="mb-2 font-medium text-slate-700">Email *</div>
-            <input className="field-input focus:ring-emerald-200" value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@company.com" required />
-          </label>
-          <label className="block text-sm">
             <div className="mb-2 font-medium text-slate-700">Password *</div>
             <input className="field-input focus:ring-emerald-200" value={password} onChange={(e) => setPassword(e.target.value)} type="password" minLength={8} placeholder="At least 8 characters" required />
+          </label>
+          <label className="block text-sm">
+            <div className="mb-2 font-medium text-slate-700">Email *</div>
+            <input className="field-input focus:ring-emerald-200" value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@company.com" required />
           </label>
         </div>
 
         <button disabled={loading} className="btn-primary w-full rounded-xl">
           {loading ? "Creating identity..." : "Continue to Profile"}
         </button>
+
+        <GoogleAuthButton className="w-full" label="Sign up with Google" disabled={loading} loading={loading} onClick={handleGoogleRegister} />
 
         <div className="flex items-center justify-between text-sm text-slate-500">
           <Link to={`/login${email ? `?email=${encodeURIComponent(email)}` : ""}`} className="font-semibold text-brand transition hover:text-brand-dark">
