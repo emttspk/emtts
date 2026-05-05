@@ -40,7 +40,22 @@ type ShipmentRow = {
   user: { id: string; email: string };
 };
 
-type SectionKey = "overview" | "plans" | "customers" | "usage" | "shipments";
+type ManualPaymentRow = {
+  id: string;
+  status: string;
+  paymentMethod: string;
+  transactionId: string;
+  amountCents: number;
+  currency: string;
+  notes?: string | null;
+  verifiedBy?: string | null;
+  verifiedAt?: string | null;
+  createdAt: string;
+  plan: { id: string; name: string; priceCents: number };
+  user: { id: string; email: string; companyName?: string | null };
+};
+
+type SectionKey = "overview" | "plans" | "customers" | "usage" | "shipments" | "payments";
 
 const formatPKR = new Intl.NumberFormat("en-PK", {
   style: "currency",
@@ -56,6 +71,9 @@ export default function Admin() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [usage, setUsage] = useState<UsageRow[]>([]);
   const [shipments, setShipments] = useState<ShipmentRow[]>([]);
+  const [manualPayments, setManualPayments] = useState<ManualPaymentRow[]>([]);
+  const [manualPaymentFilter, setManualPaymentFilter] = useState<"PENDING" | "APPROVED" | "REJECTED" | "ALL">("PENDING");
+  const [manualPaymentAction, setManualPaymentAction] = useState<Record<string, boolean>>({});
   const [err, setErr] = useState<string | null>(null);
   const [month, setMonth] = useState(() => {
     const d = new Date();
@@ -95,9 +113,45 @@ export default function Admin() {
     setShipments(sh.shipments);
   }
 
+  async function refreshManualPayments(filter: "PENDING" | "APPROVED" | "REJECTED" | "ALL" = manualPaymentFilter) {
+    const statusParam = filter === "ALL" ? "" : `?status=${filter}`;
+    const data = await api<{ requests: ManualPaymentRow[] }>(`/api/admin/manual-payments${statusParam}`);
+    setManualPayments(data.requests);
+  }
+
+  async function handleApprovePayment(id: string) {
+    setManualPaymentAction((prev) => ({ ...prev, [id]: true }));
+    try {
+      await api(`/api/admin/manual-payments/${id}/approve`, { method: "POST" });
+      await refreshManualPayments();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to approve");
+    } finally {
+      setManualPaymentAction((prev) => ({ ...prev, [id]: false }));
+    }
+  }
+
+  async function handleRejectPayment(id: string) {
+    setManualPaymentAction((prev) => ({ ...prev, [id]: true }));
+    try {
+      await api(`/api/admin/manual-payments/${id}/reject`, { method: "POST", body: JSON.stringify({}) });
+      await refreshManualPayments();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Failed to reject");
+    } finally {
+      setManualPaymentAction((prev) => ({ ...prev, [id]: false }));
+    }
+  }
+
   useEffect(() => {
     refresh().catch((e) => setErr(e instanceof Error ? e.message : "Failed"));
   }, [month]);
+
+  useEffect(() => {
+    if (section === "payments") {
+      refreshManualPayments(manualPaymentFilter).catch((e) => setErr(e instanceof Error ? e.message : "Failed"));
+    }
+  }, [section, manualPaymentFilter]);
 
   const totals = useMemo(
     () => ({
@@ -130,6 +184,7 @@ export default function Admin() {
             ["customers", "Customers"],
             ["usage", "Usage"],
             ["shipments", "Shipments"],
+            ["payments", "Wallet Payments"],
           ].map(([key, label]) => (
             <button
               key={key}
@@ -313,6 +368,98 @@ export default function Admin() {
                     <td className="px-4 py-3"><input className="w-40 rounded-2xl border border-slate-200 bg-white px-2 py-1.5 text-xs" value={shipment.adminCode ?? ""} onChange={(e) => setShipments((prev) => prev.map((item) => (item.id === shipment.id ? { ...item, adminCode: e.target.value } : item)))} placeholder="Code" /></td>
                     <td className="px-4 py-3 text-right">
                       <button className="rounded-2xl border bg-white px-2.5 py-1 text-xs font-medium text-gray-700 shadow-lg hover:bg-gray-50" onClick={async () => { setErr(null); try { await api(`/api/admin/shipments/${shipment.id}`, { method: "PATCH", body: JSON.stringify({ shipmentType: shipment.shipmentType ?? null, status: shipment.status ?? null, city: shipment.city ?? null, adminCode: shipment.adminCode ?? null }) }); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Failed to update shipment"); } }}>Save</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableWrap>
+        </Card>
+      ) : null}
+
+      {section === "payments" ? (
+        <Card className="min-w-0 w-full overflow-hidden">
+          <div className="border-b px-6 py-4">
+            <div className="text-xl font-medium text-gray-900">Wallet Payment Queue</div>
+            <div className="mt-1 text-sm text-gray-600">Review and approve/reject manual JazzCash &amp; Easypaisa payment submissions.</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(["PENDING", "APPROVED", "REJECTED", "ALL"] as const).map((f) => (
+                <button
+                  key={f}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${manualPaymentFilter === f ? "bg-brand text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                  onClick={() => setManualPaymentFilter(f)}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          </div>
+          <TableWrap>
+            <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
+              <thead className="bg-gray-50">
+                <tr className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <th className="px-4 py-3">Customer</th>
+                  <th className="px-4 py-3">Plan</th>
+                  <th className="px-4 py-3">Method</th>
+                  <th className="px-4 py-3">Transaction ID</th>
+                  <th className="px-4 py-3">Amount</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {manualPayments.length === 0 && (
+                  <tr>
+                    <td className="px-4 py-6 text-center text-sm text-slate-400" colSpan={8}>No payment requests found.</td>
+                  </tr>
+                )}
+                {manualPayments.map((payment) => (
+                  <tr key={payment.id} className="transition-colors hover:bg-gray-50/60">
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-slate-900">{payment.user.companyName ?? payment.user.email}</div>
+                      <div className="text-xs text-slate-400">{payment.user.email}</div>
+                    </td>
+                    <td className="px-4 py-3 text-slate-700">{payment.plan.name}</td>
+                    <td className="px-4 py-3">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${payment.paymentMethod === "JAZZCASH" ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
+                        {payment.paymentMethod}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-700">{payment.transactionId}</td>
+                    <td className="px-4 py-3 text-slate-700">
+                      {formatPKR.format(Math.round(payment.amountCents / 100)).replace(/\u00A0/g, " ").replace("PKR", "Rs.")}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${payment.status === "APPROVED" ? "bg-emerald-100 text-emerald-700" : payment.status === "REJECTED" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                        {payment.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-500">{new Date(payment.createdAt).toLocaleDateString("en-PK")}</td>
+                    <td className="px-4 py-3 text-right">
+                      {payment.status === "PENDING" && (
+                        <div className="flex justify-end gap-2">
+                          <button
+                            className="rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                            disabled={!!manualPaymentAction[payment.id]}
+                            onClick={() => handleApprovePayment(payment.id)}
+                          >
+                            {manualPaymentAction[payment.id] ? "…" : "Approve"}
+                          </button>
+                          <button
+                            className="rounded-xl border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            disabled={!!manualPaymentAction[payment.id]}
+                            onClick={() => handleRejectPayment(payment.id)}
+                          >
+                            {manualPaymentAction[payment.id] ? "…" : "Reject"}
+                          </button>
+                        </div>
+                      )}
+                      {payment.status !== "PENDING" && (
+                        <span className="text-xs text-slate-400">
+                          {payment.verifiedBy ? `by ${payment.verifiedBy}` : "—"}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}

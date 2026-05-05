@@ -33,6 +33,7 @@ model User {
   complaintQueue ComplaintQueue[]
   payments      Payment[]
   invoices      Invoice[]
+  manualPayments ManualPaymentRequest[]
 }
 
 model Plan {
@@ -46,6 +47,7 @@ model Plan {
   subscriptions Subscription[]
   payments      Payment[]
   invoices      Invoice[]
+  manualPayments ManualPaymentRequest[]
 }
 
 model Subscription {
@@ -333,4 +335,28 @@ model MoneyOrder {
   @@index([trackingNumber])
   @@index([trackingId])
   @@index([issueDate])
+}
+
+model ManualPaymentRequest {
+  id            String    @id @default(uuid())
+  userId        String
+  planId        String
+  paymentMethod String    // JAZZCASH | EASYPAISA
+  transactionId String
+  screenshotPath String?
+  amountCents   Int
+  currency      String    @default("PKR")
+  status        String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  notes         String?
+  verifiedBy    String?
+  verifiedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([userId, status])
+  @@index([planId])
+  @@index([status])
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Sparkles } from "lucide-react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import Card from "../components/Card";
+import ManualPaymentModal from "../components/ManualPaymentModal";
 import { changePackage, fetchPlans, type Plan } from "../lib/PackageService";
 import type { MeResponse } from "../lib/types";
 import { apiUrl } from "../lib/api";
@@ -29,6 +30,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
   const [submittingPlanId, setSubmittingPlanId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [manualPaymentPlan, setManualPaymentPlan] = useState<Plan | null>(null);
   const planParam = searchParams.get("plan")?.toLowerCase() ?? null;
   const autoInitDone = useRef(false);
   const remainingUnits = me?.balances?.unitsRemaining ?? me?.activePackage?.unitsRemaining ?? me?.balances?.labelsRemaining ?? 0;
@@ -107,11 +109,12 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
   }
 
   return (
-    <PageShell className="space-y-6">
-      <div>
-        <PageTitle>{modeTitle}</PageTitle>
-        <BodyText className="mt-1">{modeSubtitle}</BodyText>
-      </div>
+    <>
+      <PageShell className="space-y-6">
+        <div>
+          <PageTitle>{modeTitle}</PageTitle>
+          <BodyText className="mt-1">{modeSubtitle}</BodyText>
+        </div>
 
       <Card className="overflow-hidden border-slate-200 bg-white p-5 shadow-sm">
         <div className="grid gap-6 lg:grid-cols-[1.35fr_0.65fr] lg:items-center">
@@ -219,12 +222,32 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                             ? `Downgrade to ${plan.name}`
                             : `Buy Now`}
                 </button>
+                {plan.priceCents > 0 && !isCurrent && (
+                  <button
+                    type="button"
+                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                    onClick={() => setManualPaymentPlan(plan)}
+                  >
+                    Pay via JazzCash / Easypaisa
+                  </button>
+                )}
               </div>
             </Card>
           );
         })}
       </div>
     </PageShell>
+    {manualPaymentPlan && (
+      <ManualPaymentModal
+        plan={manualPaymentPlan}
+        onClose={() => setManualPaymentPlan(null)}
+        onSuccess={() => {
+          setManualPaymentPlan(null);
+          setSuccess("Payment request submitted. Awaiting admin approval.");
+        }}
+      />
+    )}
+  </>
   );
 }
 

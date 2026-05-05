@@ -16,6 +16,11 @@ import { runComplaintRetryJob, startComplaintRetryJob } from "../jobs/complaint-
 import { getComplaintCircuitState } from "../services/complaint-circuit.service.js";
 import { processComplaintQueueById } from "../processors/complaint.processor.js";
 import { normalizeComplaintQueueStatus } from "../services/complaint-queue.service.js";
+import {
+  adminListManualPayments,
+  adminApproveManualPayment,
+  adminRejectManualPayment,
+} from "./manualPayments.js";
 
 export const adminRouter = Router();
 
@@ -691,3 +696,9 @@ adminRouter.post("/refund-requests/:id/reject", async (req, res) => {
 
   res.json({ refundRequest: updated });
 });
+
+/* ── Admin: Manual wallet payment queue ── */
+
+adminRouter.get("/manual-payments", adminListManualPayments);
+adminRouter.post("/manual-payments/:id/approve", adminApproveManualPayment);
+adminRouter.post("/manual-payments/:id/reject", adminRejectManualPayment);
