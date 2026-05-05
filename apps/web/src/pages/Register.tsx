@@ -19,6 +19,11 @@ export default function Register() {
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Pending email verification state
+  const [pendingVerification, setPendingVerification] = useState(false);
+  const [pendingData, setPendingData] = useState<{ token: string; refreshToken?: string; user: { role: string }; onboardingRequired?: boolean } | null>(null);
+  const [verifyChecking, setVerifyChecking] = useState(false);
+
   async function finalizeRegistrationSession(data: { token: string; refreshToken?: string; user: { role: string }; onboardingRequired?: boolean }) {
     setSession(data.token, data.user.role, data.refreshToken);
     nav(data.onboardingRequired ? "/register/profile" : "/dashboard");
@@ -45,6 +50,7 @@ export default function Register() {
         body: JSON.stringify({ idToken }),
       });
 
+      // Google accounts are always verified — proceed directly
       await finalizeRegistrationSession(data);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Google registration failed";
@@ -54,11 +60,77 @@ export default function Register() {
     }
   }
 
+  async function handleContinueAfterVerify() {
+    if (!pendingData || !auth) return;
+    setVerifyChecking(true);
+    setErr(null);
+    try {
+      // Reload the Firebase user to pick up latest emailVerified state
+      await auth.currentUser?.reload();
+      if (auth.currentUser?.emailVerified) {
+        await signOut(auth);
+        await finalizeRegistrationSession(pendingData);
+      } else {
+        setErr("Email not yet verified. Please click the link in your inbox, then try again.");
+      }
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : "Verification check failed");
+    } finally {
+      setVerifyChecking(false);
+    }
+  }
+
+  async function handleResendVerification() {
+    if (!auth?.currentUser) return;
+    setErr(null);
+    try {
+      await sendEmailVerification(auth.currentUser);
+      setNotice("Verification email resent. Check your inbox.");
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : "Failed to resend verification email");
+    }
+  }
+
+  // Pending verification screen
+  if (pendingVerification) {
+    return (
+      <AuthShell mode="register" title="Verify your email" subtitle="Check your inbox to activate your account.">
+        {err ? <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">{err}</div> : null}
+        {notice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">{notice}</div> : null}
+
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
+          <p className="font-semibold text-slate-900">A verification link was sent to:</p>
+          <p className="mt-1 font-medium text-brand">{email}</p>
+          <p className="mt-3 text-slate-600">Click the link in your email, then return here and press <strong>Continue</strong>.</p>
+        </div>
+
+        <div className="mt-4 grid gap-3">
+          <button
+            type="button"
+            disabled={verifyChecking}
+            className="btn-primary w-full rounded-xl"
+            onClick={handleContinueAfterVerify}
+          >
+            {verifyChecking ? "Checking..." : "I've verified — Continue →"}
+          </button>
+          <button
+            type="button"
+            disabled={verifyChecking}
+            className="btn-secondary w-full rounded-xl text-sm"
+            onClick={handleResendVerification}
+          >
+            Resend verification email
+          </button>
+        </div>
+      </AuthShell>
+    );
+  }
+
   return (
     <AuthShell
       mode="register"
       title="Create account"
-      subtitle="Step 1: create your auth identity. Step 2: complete your company profile."
+      subtitle="Enter your details to get started."
     >
       {err ? <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">{err}</div> : null}
       {notice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">{notice}</div> : null}
@@ -95,7 +167,11 @@ export default function Register() {
 
                 if (!credential.user.emailVerified) {
                   await sendEmailVerification(credential.user);
-                  setNotice("Verification email sent. Please verify your email.");
+                  // Block navigation — show verify email screen
+                  setPendingData(data);
+                  setPendingVerification(true);
+                  setLoading(false);
+                  return;
                 }
                 await signOut(auth);
               } catch (firebaseError) {
@@ -127,13 +203,6 @@ export default function Register() {
             <div className="mb-2 font-medium text-slate-700">Password *</div>
             <input className="field-input focus:ring-emerald-200" value={password} onChange={(e) => setPassword(e.target.value)} type="password" minLength={8} placeholder="At least 8 characters" required />
           </label>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-600">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">Step 2 Preview</div>
-          <p className="mt-2">
-            Next screen keeps this profile field order: Company Name, Address, City, Contact No, CNIC.
-          </p>
         </div>
 
         <button disabled={loading} className="btn-primary w-full rounded-xl">

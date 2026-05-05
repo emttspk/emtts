@@ -145,7 +145,7 @@
 
   .google-auth-btn__icon,
   .google-auth-btn__spacer {
-    @apply flex h-5 w-5 items-center justify-center;
+    @apply flex h-6 w-6 items-center justify-center;
   }
 
   .google-auth-btn__label {

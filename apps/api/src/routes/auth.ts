@@ -484,6 +484,48 @@ authRouter.post("/complete-profile", requireAuth, async (req, res) => {
   }
 });
 
+authRouter.post("/change-password", requireAuth, async (req, res) => {
+  const parsed = z
+    .object({
+      currentPassword: z.string().min(1),
+      newPassword: z.string().min(8, "New password must be at least 8 characters"),
+    })
+    .safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message ?? "currentPassword and newPassword (min 8 chars) are required" });
+  }
+
+  const userId = (req as any).user.id as string;
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, passwordHash: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const valid = await verifyPassword(parsed.data.currentPassword, user.passwordHash);
+    if (!valid) {
+      auditAuthEvent("auth.change_password.bad_current", req, { userId, email: user.email });
+      return res.status(401).json({ error: "Current password is incorrect" });
+    }
+
+    const newHash = await hashPassword(parsed.data.newPassword);
+    await prisma.user.update({ where: { id: userId }, data: { passwordHash: newHash } });
+    auditAuthEvent("auth.change_password.success", req, { userId, email: user.email });
+
+    return res.json({ success: true, message: "Password updated successfully" });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    auditAuthEvent("auth.change_password.error", req, { userId, message });
+    return res.status(500).json({ error: "Failed to update password" });
+  }
+});
+
 authRouter.post("/refresh", async (req, res) => {
   const body = z.object({ refreshToken: z.string().min(10) }).safeParse(req.body);
   if (!body.success) {
