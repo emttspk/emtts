@@ -24,7 +24,7 @@ import {
   adminApproveManualPayment,
   adminRejectManualPayment,
 } from "./manualPayments.js";
-import { storageRoot, toStoredPath } from "../storage/paths.js";
+import { resolveStoredPath, storageRoot, toStoredPath } from "../storage/paths.js";
 import { getOrCreateBillingSettings, syncConfiguredPlanPrices } from "../services/billing-settings.service.js";
 
 export const adminRouter = Router();
@@ -530,14 +530,16 @@ adminRouter.post("/plans", async (req, res) => {
 
 adminRouter.get("/billing-settings", async (_req, res) => {
   const settings = await getOrCreateBillingSettings();
+  const jazzcashQrExists = Boolean(settings.jazzcashQrPath && fs.existsSync(resolveStoredPath(settings.jazzcashQrPath)));
+  const easypaisaQrExists = Boolean(settings.easypaisaQrPath && fs.existsSync(resolveStoredPath(settings.easypaisaQrPath)));
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.setHeader("Pragma", "no-cache");
   res.setHeader("Expires", "0");
   res.json({
     settings: {
       ...settings,
-      jazzcashQrUrl: settings.jazzcashQrPath ? "/api/manual-payments/wallet-qr/jazzcash" : null,
-      easypaisaQrUrl: settings.easypaisaQrPath ? "/api/manual-payments/wallet-qr/easypaisa" : null,
+      jazzcashQrUrl: jazzcashQrExists ? "/api/manual-payments/wallet-qr/jazzcash" : null,
+      easypaisaQrUrl: easypaisaQrExists ? "/api/manual-payments/wallet-qr/easypaisa" : null,
     },
   });
 });
@@ -625,22 +627,29 @@ adminRouter.put(
 
     await syncConfiguredPlanPrices(updated);
 
+    const saved = await prisma.billingSettings.findUnique({ where: { id: updated.id } });
+
     console.info("[BillingSettings] save committed", {
-      id: updated.id,
-      updatedAt: updated.updatedAt.toISOString(),
-      jazzcashNumber: updated.jazzcashNumber,
-      easypaisaNumber: updated.easypaisaNumber,
-      jazzcashQrPath: updated.jazzcashQrPath,
-      easypaisaQrPath: updated.easypaisaQrPath,
-      standardPrice: updated.standardPrice,
-      businessPrice: updated.businessPrice,
+      id: saved?.id ?? updated.id,
+      updatedAt: (saved?.updatedAt ?? updated.updatedAt).toISOString(),
+      jazzcashNumber: saved?.jazzcashNumber ?? updated.jazzcashNumber,
+      jazzcashTitle: saved?.jazzcashTitle ?? updated.jazzcashTitle,
+      easypaisaNumber: saved?.easypaisaNumber ?? updated.easypaisaNumber,
+      easypaisaTitle: saved?.easypaisaTitle ?? updated.easypaisaTitle,
+      jazzcashQrPath: saved?.jazzcashQrPath ?? updated.jazzcashQrPath,
+      easypaisaQrPath: saved?.easypaisaQrPath ?? updated.easypaisaQrPath,
+      standardPrice: saved?.standardPrice ?? updated.standardPrice,
+      businessPrice: saved?.businessPrice ?? updated.businessPrice,
     });
+
+    const jazzcashQrExists = Boolean(updated.jazzcashQrPath && fs.existsSync(resolveStoredPath(updated.jazzcashQrPath)));
+    const easypaisaQrExists = Boolean(updated.easypaisaQrPath && fs.existsSync(resolveStoredPath(updated.easypaisaQrPath)));
 
     res.json({
       settings: {
         ...updated,
-        jazzcashQrUrl: updated.jazzcashQrPath ? "/api/manual-payments/wallet-qr/jazzcash" : null,
-        easypaisaQrUrl: updated.easypaisaQrPath ? "/api/manual-payments/wallet-qr/easypaisa" : null,
+        jazzcashQrUrl: jazzcashQrExists ? "/api/manual-payments/wallet-qr/jazzcash" : null,
+        easypaisaQrUrl: easypaisaQrExists ? "/api/manual-payments/wallet-qr/easypaisa" : null,
       },
     });
   },

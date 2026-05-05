@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Smartphone, QrCode, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
-import { api, apiUrl } from "../lib/api";
-import { getToken } from "../lib/auth";
+import { api } from "../lib/api";
 
 type Plan = {
   id: string;
@@ -66,14 +65,8 @@ export default function ManualPaymentModal({ plan, invoice, onClose, onSuccess }
 
   useEffect(() => {
     const requestTs = Date.now();
-    fetch(apiUrl(`/api/manual-payments/wallet-info?ts=${requestTs}`), {
-      method: "GET",
-      cache: "no-store",
-      headers: { "cache-control": "no-cache" },
-    })
-      .then(async (res) => {
-        const data = (await res.json()) as WalletInfo & { error?: string };
-        if (!res.ok) throw new Error(data.error ?? "Failed to load wallet details");
+    api<WalletInfo>(`/api/manual-payments/wallet-info?ts=${requestTs}`, { method: "GET", cache: "no-store" })
+      .then((data) => {
         setWalletInfo(data);
         setWalletError(null);
       })
@@ -123,24 +116,16 @@ export default function ManualPaymentModal({ plan, invoice, onClose, onSuccess }
         formData.append("screenshot", screenshot);
       }
 
-      const res = await fetch(apiUrl("/api/manual-payments"), {
+      const json = await api<{ request?: MyPaymentRequest }>("/api/manual-payments", {
         method: "POST",
-        headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : undefined,
         body: formData,
       });
-
-      const json = (await res.json()) as { request?: MyPaymentRequest; error?: string };
-
-      if (!res.ok) {
-        setError(json.error ?? "Failed to submit payment request.");
-        return;
-      }
 
       setSubmittedRequest(json.request ?? null);
       setStep("submitted");
       onSuccess();
-    } catch {
-      setError("Network error. Please try again.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Network error. Please try again.");
     } finally {
       setSubmitting(false);
     }

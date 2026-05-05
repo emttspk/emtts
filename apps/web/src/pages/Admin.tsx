@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Card from "../components/Card";
-import { api, apiUrl } from "../lib/api";
+import { api } from "../lib/api";
 import { TEMPLATE_DESIGNER_ENABLED } from "../lib/featureFlags";
 import { BodyText, CardTitle, PageShell, PageTitle, TableWrap } from "../components/ui/PageSystem";
 
@@ -195,19 +195,10 @@ export default function Admin() {
       if (clearJazzcashQr) formData.append("clearJazzcashQr", "true");
       if (clearEasypaisaQr) formData.append("clearEasypaisaQr", "true");
 
-      const response = await fetch(apiUrl(`/api/admin/billing-settings`), {
+      const json = await api<{ settings?: BillingSettings }>("/api/admin/billing-settings", {
         method: "PUT",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token") ?? ""}`,
-        },
         body: formData,
       });
-
-      const json = (await response.json()) as { error?: string; settings?: BillingSettings };
-      if (!response.ok) {
-        setErr(json.error ?? "Failed to save billing settings");
-        return;
-      }
 
       if (json.settings) {
         setBillingSettings(json.settings);

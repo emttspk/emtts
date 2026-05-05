@@ -143,25 +143,37 @@ manualPaymentsRouter.get("/my", requireAuth, async (req: AuthedRequest, res) => 
 
 // ── GET /api/manual-payments/wallet-info ─ Merchant display info ──────────────
 manualPaymentsRouter.get("/wallet-info", async (_req, res) => {
-  const settings = await getOrCreateBillingSettings();
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-  res.setHeader("Pragma", "no-cache");
-  res.setHeader("Expires", "0");
-  const version = settings.updatedAt.toISOString();
-  return res.json({
-    jazzcash: {
-      accountNumber: settings.jazzcashNumber,
-      accountTitle: settings.jazzcashTitle,
-      qrUrl: settings.jazzcashQrPath ? "/api/manual-payments/wallet-qr/jazzcash" : null,
-      qrVersion: settings.jazzcashQrPath ? version : null,
-    },
-    easypaisa: {
-      accountNumber: settings.easypaisaNumber,
-      accountTitle: settings.easypaisaTitle,
-      qrUrl: settings.easypaisaQrPath ? "/api/manual-payments/wallet-qr/easypaisa" : null,
-      qrVersion: settings.easypaisaQrPath ? version : null,
-    },
-  });
+  try {
+    const settings = await getOrCreateBillingSettings();
+    const jazzcashQrExists = Boolean(
+      settings.jazzcashQrPath && fs.existsSync(resolveStoredPath(settings.jazzcashQrPath)),
+    );
+    const easypaisaQrExists = Boolean(
+      settings.easypaisaQrPath && fs.existsSync(resolveStoredPath(settings.easypaisaQrPath)),
+    );
+    const version = settings.updatedAt.toISOString();
+
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    return res.status(200).json({
+      jazzcash: {
+        accountNumber: settings.jazzcashNumber,
+        accountTitle: settings.jazzcashTitle,
+        qrUrl: jazzcashQrExists ? "/api/manual-payments/wallet-qr/jazzcash" : null,
+        qrVersion: jazzcashQrExists ? version : null,
+      },
+      easypaisa: {
+        accountNumber: settings.easypaisaNumber,
+        accountTitle: settings.easypaisaTitle,
+        qrUrl: easypaisaQrExists ? "/api/manual-payments/wallet-qr/easypaisa" : null,
+        qrVersion: easypaisaQrExists ? version : null,
+      },
+    });
+  } catch (error) {
+    console.error("[ManualPayment] wallet-info error", error);
+    return res.status(500).json({ error: "Failed to load wallet info" });
+  }
 });
 
 manualPaymentsRouter.get("/wallet-qr/:method", async (req, res) => {
