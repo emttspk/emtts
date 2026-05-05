@@ -22,6 +22,9 @@ async function ensureCredentials() {
   const ts = Date.now();
   const autoEmail = `smoke.auto.${ts}@example.com`;
   const autoPassword = `Smoke@${ts}Aa!`;
+  const uniqueDigits = String(ts).slice(-9);
+  const autoContactNumber = `03${uniqueDigits}`;
+  const autoCnic = `${String(ts).slice(-13)}`;
 
   await jsonFetch(`${API_BASE_URL}/api/auth/register`, {
     method: "POST",
@@ -29,11 +32,12 @@ async function ensureCredentials() {
     body: JSON.stringify({
       email: autoEmail,
       password: autoPassword,
+      username: `smoke.${ts}`,
       companyName: "Smoke Auto",
       address: "Smoke Street",
-      contactNumber: "03001234567",
+      contactNumber: autoContactNumber,
       originCity: "Lahore",
-      cnic: null,
+      cnic: autoCnic,
     }),
   });
 
