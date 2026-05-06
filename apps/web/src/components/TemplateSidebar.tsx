@@ -14,13 +14,14 @@ export default function TemplateSidebar(props: {
   templates: MoneyOrderTemplate[];
   selectedTemplateId: string | null;
   onSelectTemplate: (templateId: string) => void;
+  onSetActiveTemplate: (templateId: string) => void;
   onRenameTemplate: (templateId: string, name: string) => Promise<void>;
   onPreviewTemplate: (templateId: string) => void;
 }) {
   return (
     <Card className="h-fit p-4">
       <div className="text-sm font-semibold uppercase tracking-wide text-slate-500">Template Dashboard</div>
-      <div className="mt-2 text-xs text-slate-500">Designer opens the active template and saves edits directly to it.</div>
+      <div className="mt-2 text-xs text-slate-500">Load templates, mark active, and edit selected template with immediate persistence.</div>
 
       <div className="mt-4 space-y-2">
         {props.templates.map((template) => (
@@ -52,6 +53,15 @@ export default function TemplateSidebar(props: {
                 }}
               >
                 Edit
+              </button>
+              <button
+                className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-700"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  props.onSetActiveTemplate(template.id);
+                }}
+              >
+                Set Active
               </button>
               <button
                 className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-700"

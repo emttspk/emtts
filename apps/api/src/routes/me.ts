@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import { COMPLAINT_UNIT_COST, getComplaintAllowance, getLatestUnitSnapshot } from "../usage/unitConsumption.js";
 import { buildHostedCheckoutUrl, getLatestPendingPayment } from "../services/epGatewayBilling.service.js";
+import { getPlanExtrasByIds } from "./plans.js";
 
 export const meRouter = Router();
 
@@ -39,6 +40,8 @@ meRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
     orderBy: { createdAt: "desc" },
   });
   const pendingPayment = await getLatestPendingPayment(userId);
+  const planExtrasMap = subscription?.planId ? await getPlanExtrasByIds([subscription.planId]) : new Map();
+  const subscriptionPlanExtras = subscription?.planId ? planExtrasMap.get(subscription.planId) : null;
 
   const snapshot = await getLatestUnitSnapshot(userId);
   const month = snapshot.month;
@@ -68,7 +71,20 @@ meRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
       ? {
           id: subscription.id,
           status: subscription.status,
-          plan: subscription.plan,
+          plan: {
+            ...subscription.plan,
+            fullPriceCents: subscriptionPlanExtras?.fullPriceCents ?? subscription.plan.priceCents,
+            discountPriceCents: subscriptionPlanExtras?.discountPriceCents ?? subscription.plan.priceCents,
+            discountPct: subscriptionPlanExtras?.discountPct ?? 0,
+            isSuspended: subscriptionPlanExtras?.isSuspended ?? false,
+            unitsIncluded: subscriptionPlanExtras?.unitsIncluded ?? subscription.plan.monthlyLabelLimit,
+            labelsIncluded: subscriptionPlanExtras?.labelsIncluded ?? subscription.plan.monthlyLabelLimit,
+            trackingIncluded: subscriptionPlanExtras?.trackingIncluded ?? subscription.plan.monthlyTrackingLimit,
+            moneyOrdersIncluded: subscriptionPlanExtras?.moneyOrdersIncluded ?? subscription.plan.monthlyLabelLimit,
+            complaintsIncluded: subscriptionPlanExtras?.complaintsIncluded ?? complaintAllowance.monthlyLimit,
+            dailyComplaintLimit: subscriptionPlanExtras?.dailyComplaintLimit ?? complaintAllowance.dailyLimit,
+            monthlyComplaintLimit: subscriptionPlanExtras?.monthlyComplaintLimit ?? complaintAllowance.monthlyLimit,
+          },
           currentPeriodStart: subscription.currentPeriodStart,
           currentPeriodEnd: subscription.currentPeriodEnd,
         }

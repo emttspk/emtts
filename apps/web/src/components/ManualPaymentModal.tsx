@@ -280,7 +280,7 @@ export default function ManualPaymentModal({ plan, invoice, onClose, onSuccess }
                 <input
                   ref={fileRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/*,application/pdf"
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0] ?? null;

@@ -1,5 +1,6 @@
 import path from "node:path";
 import fs from "node:fs";
+import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import multer from "multer";
 import { z } from "zod";
@@ -25,14 +26,20 @@ if (!fs.existsSync(screenshotsDir)) {
 }
 
 const upload = multer({
-  dest: screenshotsDir,
+  storage: multer.diskStorage({
+    destination: screenshotsDir,
+    filename: (_req, file, cb) => {
+      const ext = path.extname(String(file.originalname ?? "")).toLowerCase();
+      cb(null, `${randomUUID()}${ext}`);
+    },
+  }),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
   fileFilter(_req, file, cb) {
-    const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"];
     if (allowed.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error("Only image files are allowed for screenshots"));
+      cb(new Error("Only image or PDF files are allowed for payment proof"));
     }
   },
 });
@@ -252,6 +259,16 @@ export async function adminListManualPayments(req: any, res: any) {
   return res.json({
     requests: requests.map((request) => ({
       ...request,
+      proofFileName: request.screenshotPath ? path.basename(request.screenshotPath) : null,
+      proofMimeType: (() => {
+        const ext = path.extname(String(request.screenshotPath ?? "")).toLowerCase();
+        if (ext === ".pdf") return "application/pdf";
+        if (ext === ".png") return "image/png";
+        if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
+        if (ext === ".webp") return "image/webp";
+        if (ext === ".gif") return "image/gif";
+        return null;
+      })(),
       screenshotUrl: request.screenshotPath
         ? buildAbsoluteApiUrl(req, `/api/manual-payments/screenshot/${encodeURIComponent(request.id)}`)
         : null,

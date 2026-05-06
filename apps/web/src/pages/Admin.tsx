@@ -13,6 +13,13 @@ type Plan = {
   discountPriceCents?: number;
   discountPct?: number;
   isSuspended?: boolean;
+  unitsIncluded?: number;
+  labelsIncluded?: number;
+  trackingIncluded?: number;
+  moneyOrdersIncluded?: number;
+  complaintsIncluded?: number;
+  dailyComplaintLimit?: number;
+  monthlyComplaintLimit?: number;
   monthlyLabelLimit: number;
   monthlyTrackingLimit: number;
   createdAt: string;
@@ -66,6 +73,24 @@ type ManualPaymentRow = {
   user: { id: string; email: string; companyName?: string | null };
   invoice?: { id: string; invoiceNumber: string; status: string; amountCents: number } | null;
   screenshotUrl?: string | null;
+  proofFileName?: string | null;
+  proofMimeType?: string | null;
+};
+
+type PlanForm = {
+  name: string;
+  fullPriceCents: number;
+  discountPriceCents: number;
+  unitsIncluded: number;
+  labelsIncluded: number;
+  trackingIncluded: number;
+  moneyOrdersIncluded: number;
+  complaintsIncluded: number;
+  dailyComplaintLimit: number;
+  monthlyComplaintLimit: number;
+  monthlyLabelLimit: number;
+  monthlyTrackingLimit: number;
+  isSuspended: boolean;
 };
 
 type InvoiceRow = {
@@ -136,11 +161,30 @@ export default function Admin() {
     const m = String(d.getUTCMonth() + 1).padStart(2, "0");
     return `${y}-${m}`;
   });
-  const [name, setName] = useState("Business Plan");
-  const [fullPriceCents, setFullPriceCents] = useState(250000);
-  const [discountPriceCents, setDiscountPriceCents] = useState(250000);
-  const [monthlyLabelLimit, setMonthlyLabelLimit] = useState(2000);
-  const [monthlyTrackingLimit, setMonthlyTrackingLimit] = useState(2000);
+  const [planDraft, setPlanDraft] = useState<PlanForm>({
+    name: "Business Plan",
+    fullPriceCents: 250000,
+    discountPriceCents: 250000,
+    unitsIncluded: 2000,
+    labelsIncluded: 2000,
+    trackingIncluded: 2000,
+    moneyOrdersIncluded: 2000,
+    complaintsIncluded: 300,
+    dailyComplaintLimit: 10,
+    monthlyComplaintLimit: 300,
+    monthlyLabelLimit: 2000,
+    monthlyTrackingLimit: 2000,
+    isSuspended: false,
+  });
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+  const [editingPlanDraft, setEditingPlanDraft] = useState<PlanForm | null>(null);
+  const [savingPlanEdit, setSavingPlanEdit] = useState(false);
+  const [proofModal, setProofModal] = useState<{ open: boolean; url: string | null; mimeType: string | null; fileName: string | null }>({
+    open: false,
+    url: null,
+    mimeType: null,
+    fileName: null,
+  });
   const [creditDrafts, setCreditDrafts] = useState<Record<string, { labelCredits: string; trackingCredits: string; planId: string }>>({});
   const [section, setSection] = useState<SectionKey>("overview");
   const [previewUserId, setPreviewUserId] = useState<string | null>(null);
@@ -184,30 +228,39 @@ export default function Admin() {
   }
 
   async function updatePlan(plan: Plan) {
-    const nextName = window.prompt("Plan name", plan.name);
-    if (!nextName) return;
-    const nextFull = window.prompt("Full price in paisa", String(plan.fullPriceCents ?? plan.priceCents));
-    if (!nextFull) return;
-    const nextDiscount = window.prompt("Discounted price in paisa", String(plan.discountPriceCents ?? plan.priceCents));
-    if (!nextDiscount) return;
-    const nextLabel = window.prompt("Labels included (monthly)", String(plan.monthlyLabelLimit));
-    if (!nextLabel) return;
-    const nextTracking = window.prompt("Tracking included (monthly)", String(plan.monthlyTrackingLimit));
-    if (!nextTracking) return;
+    setEditingPlanId(plan.id);
+    setEditingPlanDraft({
+      name: plan.name,
+      fullPriceCents: plan.fullPriceCents ?? plan.priceCents,
+      discountPriceCents: plan.discountPriceCents ?? plan.priceCents,
+      unitsIncluded: plan.unitsIncluded ?? plan.monthlyLabelLimit,
+      labelsIncluded: plan.labelsIncluded ?? plan.monthlyLabelLimit,
+      trackingIncluded: plan.trackingIncluded ?? plan.monthlyTrackingLimit,
+      moneyOrdersIncluded: plan.moneyOrdersIncluded ?? plan.monthlyLabelLimit,
+      complaintsIncluded: plan.complaintsIncluded ?? 0,
+      dailyComplaintLimit: plan.dailyComplaintLimit ?? 0,
+      monthlyComplaintLimit: plan.monthlyComplaintLimit ?? 0,
+      monthlyLabelLimit: plan.monthlyLabelLimit,
+      monthlyTrackingLimit: plan.monthlyTrackingLimit,
+      isSuspended: Boolean(plan.isSuspended),
+    });
+  }
+
+  async function savePlanEdits() {
+    if (!editingPlanId || !editingPlanDraft) return;
+    setSavingPlanEdit(true);
     try {
-      await api(`/api/admin/plans/${plan.id}`, {
+      await api(`/api/admin/plans/${editingPlanId}`, {
         method: "PUT",
-        body: JSON.stringify({
-          name: nextName,
-          fullPriceCents: Number(nextFull),
-          discountPriceCents: Number(nextDiscount),
-          monthlyLabelLimit: Number(nextLabel),
-          monthlyTrackingLimit: Number(nextTracking),
-        }),
+        body: JSON.stringify(editingPlanDraft),
       });
+      setEditingPlanId(null);
+      setEditingPlanDraft(null);
       await refresh();
     } catch (error) {
       setErr(error instanceof Error ? error.message : "Failed to update plan");
+    } finally {
+      setSavingPlanEdit(false);
     }
   }
 
@@ -231,6 +284,16 @@ export default function Admin() {
     } catch (error) {
       setErr(error instanceof Error ? error.message : "Failed to delete plan");
     }
+  }
+
+  function openProofModal(payment: ManualPaymentRow) {
+    if (!payment.screenshotUrl) return;
+    setProofModal({
+      open: true,
+      url: buildAuthenticatedApiUrl(payment.screenshotUrl),
+      mimeType: payment.proofMimeType ?? null,
+      fileName: payment.proofFileName ?? null,
+    });
   }
 
   async function saveBillingSettings() {
@@ -424,14 +487,14 @@ export default function Admin() {
             <button className="rounded-2xl border bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-lg hover:bg-gray-50" onClick={() => refresh()}>Refresh</button>
           </div>
           <form
-            className="grid gap-3 border-t bg-slate-50 px-6 py-4 sm:grid-cols-5"
+            className="grid gap-3 border-t bg-slate-50 px-6 py-4 sm:grid-cols-2 lg:grid-cols-4"
             onSubmit={async (e) => {
               e.preventDefault();
               setErr(null);
               try {
                 await api("/api/admin/plans", {
                   method: "POST",
-                  body: JSON.stringify({ name, fullPriceCents, discountPriceCents, monthlyLabelLimit, monthlyTrackingLimit }),
+                  body: JSON.stringify(planDraft),
                 });
                 await refresh();
               } catch (error) {
@@ -439,11 +502,16 @@ export default function Admin() {
               }
             }}
           >
-            <input className="field-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Plan name" />
-            <input className="field-input" value={fullPriceCents} onChange={(e) => setFullPriceCents(Number(e.target.value))} placeholder="Full price (paisa)" type="number" />
-            <input className="field-input" value={discountPriceCents} onChange={(e) => setDiscountPriceCents(Number(e.target.value))} placeholder="Discounted price (paisa)" type="number" />
-            <input className="field-input" value={monthlyLabelLimit} onChange={(e) => setMonthlyLabelLimit(Number(e.target.value))} placeholder="Labels Included" type="number" />
-            <input className="field-input" value={monthlyTrackingLimit} onChange={(e) => setMonthlyTrackingLimit(Number(e.target.value))} placeholder="Tracking Included" type="number" />
+            <input className="field-input" value={planDraft.name} onChange={(e) => setPlanDraft((prev) => ({ ...prev, name: e.target.value }))} placeholder="Plan name" />
+            <input className="field-input" value={planDraft.fullPriceCents} onChange={(e) => setPlanDraft((prev) => ({ ...prev, fullPriceCents: Number(e.target.value || 0) }))} placeholder="Full price (paisa)" type="number" />
+            <input className="field-input" value={planDraft.discountPriceCents} onChange={(e) => setPlanDraft((prev) => ({ ...prev, discountPriceCents: Number(e.target.value || 0) }))} placeholder="Discounted price (paisa)" type="number" />
+            <input className="field-input" value={planDraft.unitsIncluded} onChange={(e) => setPlanDraft((prev) => ({ ...prev, unitsIncluded: Number(e.target.value || 0) }))} placeholder="Units Included" type="number" />
+            <input className="field-input" value={planDraft.labelsIncluded} onChange={(e) => setPlanDraft((prev) => ({ ...prev, labelsIncluded: Number(e.target.value || 0), monthlyLabelLimit: Number(e.target.value || 0) }))} placeholder="Labels Included" type="number" />
+            <input className="field-input" value={planDraft.trackingIncluded} onChange={(e) => setPlanDraft((prev) => ({ ...prev, trackingIncluded: Number(e.target.value || 0), monthlyTrackingLimit: Number(e.target.value || 0) }))} placeholder="Tracking Included" type="number" />
+            <input className="field-input" value={planDraft.moneyOrdersIncluded} onChange={(e) => setPlanDraft((prev) => ({ ...prev, moneyOrdersIncluded: Number(e.target.value || 0) }))} placeholder="Money Orders Included" type="number" />
+            <input className="field-input" value={planDraft.complaintsIncluded} onChange={(e) => setPlanDraft((prev) => ({ ...prev, complaintsIncluded: Number(e.target.value || 0) }))} placeholder="Complaints Included" type="number" />
+            <input className="field-input" value={planDraft.dailyComplaintLimit} onChange={(e) => setPlanDraft((prev) => ({ ...prev, dailyComplaintLimit: Number(e.target.value || 0) }))} placeholder="Daily Complaint Limit" type="number" />
+            <input className="field-input" value={planDraft.monthlyComplaintLimit} onChange={(e) => setPlanDraft((prev) => ({ ...prev, monthlyComplaintLimit: Number(e.target.value || 0) }))} placeholder="Monthly Complaint Limit" type="number" />
             <button className="rounded-2xl bg-brand px-3 py-2 text-sm font-medium text-white shadow-lg hover:bg-brand-dark">Create</button>
           </form>
           <div className="grid gap-4 border-t bg-white p-6 md:grid-cols-2">
@@ -463,6 +531,10 @@ export default function Admin() {
                 ) : null}
                 <div className="mt-4 text-sm text-slate-700">Labels Included: {plan.monthlyLabelLimit.toLocaleString()}</div>
                 <div className="mt-1 text-sm text-slate-700">Tracking Included: {plan.monthlyTrackingLimit.toLocaleString()}</div>
+                <div className="mt-1 text-sm text-slate-700">Money Orders Included: {(plan.moneyOrdersIncluded ?? 0).toLocaleString()}</div>
+                <div className="mt-1 text-sm text-slate-700">Complaints Included: {(plan.complaintsIncluded ?? 0).toLocaleString()}</div>
+                <div className="mt-1 text-sm text-slate-700">Daily Complaints: {(plan.dailyComplaintLimit ?? 0).toLocaleString()}</div>
+                <div className="mt-1 text-sm text-slate-700">Monthly Complaints: {(plan.monthlyComplaintLimit ?? 0).toLocaleString()}</div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700" onClick={() => updatePlan(plan)}>Edit</button>
                   <button className={`rounded-xl px-3 py-1.5 text-xs font-medium ${plan.isSuspended ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : "border border-amber-200 bg-amber-50 text-amber-700"}`} onClick={() => toggleSuspendPlan(plan)}>{plan.isSuspended ? "Unsuspend" : "Suspend"}</button>
@@ -812,7 +884,7 @@ export default function Admin() {
               <tbody className="divide-y divide-gray-100 bg-white">
                 {manualPayments.length === 0 && (
                   <tr>
-                    <td className="px-4 py-6 text-center text-sm text-slate-400" colSpan={8}>No payment requests found.</td>
+                    <td className="px-4 py-6 text-center text-sm text-slate-400" colSpan={9}>No payment requests found.</td>
                   </tr>
                 )}
                 {manualPayments.map((payment) => (
@@ -839,14 +911,13 @@ export default function Admin() {
                     <td className="px-4 py-3 text-xs text-slate-500">{new Date(payment.createdAt).toLocaleDateString("en-PK")}</td>
                     <td className="px-4 py-3">
                       {payment.screenshotUrl ? (
-                        <a
-                          href={buildAuthenticatedApiUrl(payment.screenshotUrl)}
-                          target="_blank"
-                          rel="noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => openProofModal(payment)}
                           className="rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-lg hover:bg-slate-50"
                         >
                           View Proof
-                        </a>
+                        </button>
                       ) : (
                         <span className="text-xs text-slate-400">No attachment</span>
                       )}
@@ -932,6 +1003,65 @@ export default function Admin() {
                 <button className="rounded-2xl bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark" onClick={async () => { try { const planId = draftFor(previewUser.id, previewUser.subscription?.plan.id).planId; if (!planId) return; await api(`/api/admin/users/${previewUser.id}/subscription`, { method: "POST", body: JSON.stringify({ planId }) }); await refresh(); } catch (error) { setErr(error instanceof Error ? error.message : "Failed"); } }}>Assign</button>
               </div>
             </Card>
+          </div>
+        </div>
+      ) : null}
+
+      {editingPlanId && editingPlanDraft ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-xl font-semibold text-slate-950">Edit Plan</div>
+                <div className="mt-1 text-sm text-slate-600">Update all plan fields and persist complete plan state.</div>
+              </div>
+              <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700" onClick={() => { setEditingPlanId(null); setEditingPlanDraft(null); }}>Close</button>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <input className="field-input" value={editingPlanDraft.name} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, name: e.target.value } : prev)} placeholder="Plan name" />
+              <input className="field-input" value={editingPlanDraft.fullPriceCents} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, fullPriceCents: Number(e.target.value || 0) } : prev)} type="number" placeholder="Full price (paisa)" />
+              <input className="field-input" value={editingPlanDraft.discountPriceCents} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, discountPriceCents: Number(e.target.value || 0) } : prev)} type="number" placeholder="Discounted price (paisa)" />
+              <input className="field-input" value={editingPlanDraft.unitsIncluded} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, unitsIncluded: Number(e.target.value || 0) } : prev)} type="number" placeholder="Units Included" />
+              <input className="field-input" value={editingPlanDraft.labelsIncluded} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, labelsIncluded: Number(e.target.value || 0), monthlyLabelLimit: Number(e.target.value || 0) } : prev)} type="number" placeholder="Labels Included" />
+              <input className="field-input" value={editingPlanDraft.trackingIncluded} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, trackingIncluded: Number(e.target.value || 0), monthlyTrackingLimit: Number(e.target.value || 0) } : prev)} type="number" placeholder="Tracking Included" />
+              <input className="field-input" value={editingPlanDraft.moneyOrdersIncluded} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, moneyOrdersIncluded: Number(e.target.value || 0) } : prev)} type="number" placeholder="Money Orders Included" />
+              <input className="field-input" value={editingPlanDraft.complaintsIncluded} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, complaintsIncluded: Number(e.target.value || 0) } : prev)} type="number" placeholder="Complaints Included" />
+              <input className="field-input" value={editingPlanDraft.dailyComplaintLimit} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, dailyComplaintLimit: Number(e.target.value || 0) } : prev)} type="number" placeholder="Daily Complaint Limit" />
+              <input className="field-input" value={editingPlanDraft.monthlyComplaintLimit} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, monthlyComplaintLimit: Number(e.target.value || 0) } : prev)} type="number" placeholder="Monthly Complaint Limit" />
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" checked={editingPlanDraft.isSuspended} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, isSuspended: e.target.checked } : prev)} />
+                Suspended
+              </label>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700" onClick={() => { setEditingPlanId(null); setEditingPlanDraft(null); }}>Cancel</button>
+              <button className="rounded-xl bg-brand px-4 py-2 text-xs font-semibold text-white disabled:opacity-60" disabled={savingPlanEdit} onClick={() => savePlanEdits()}>{savingPlanEdit ? "Saving..." : "Save Plan"}</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {proofModal.open ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+              <div className="text-sm font-semibold text-slate-900">Payment Proof Preview</div>
+              <button className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700" onClick={() => setProofModal({ open: false, url: null, mimeType: null, fileName: null })}>Close</button>
+            </div>
+            <div className="max-h-[78vh] overflow-auto p-4">
+              {proofModal.url && String(proofModal.mimeType ?? "").startsWith("image/") ? (
+                <img src={proofModal.url} alt={proofModal.fileName ?? "Payment proof"} className="mx-auto max-h-[70vh] w-auto rounded-xl border border-slate-200 object-contain" />
+              ) : null}
+              {proofModal.url && String(proofModal.mimeType ?? "") === "application/pdf" ? (
+                <iframe src={proofModal.url} title="PDF payment proof" className="h-[70vh] w-full rounded-xl border border-slate-200" />
+              ) : null}
+              {proofModal.url && !String(proofModal.mimeType ?? "").startsWith("image/") && String(proofModal.mimeType ?? "") !== "application/pdf" ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                  Unsupported preview format.
+                  <a href={proofModal.url} target="_blank" rel="noreferrer" className="ml-2 font-semibold text-brand">Open in new tab</a>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       ) : null}

@@ -80,21 +80,21 @@ export default function TemplateDesigner() {
 
   function syncWithActiveTemplate(items: MoneyOrderTemplate[]) {
     const activeTemplate = items.find((template) => template.isActive) ?? items[0] ?? null;
-    const normalizedTemplates = activeTemplate ? [activeTemplate] : [];
-    setTemplates(normalizedTemplates);
-    setSelectedTemplateId(activeTemplate?.id ?? null);
-    return activeTemplate;
+    setTemplates(items);
+    const nextSelectedTemplate = items.find((template) => template.id === selectedTemplateId) ?? activeTemplate;
+    setSelectedTemplateId(nextSelectedTemplate?.id ?? null);
+    return nextSelectedTemplate;
   }
 
   async function refreshTemplates() {
     const { templates: templateList } = await getActiveAdminTemplate();
-    const activeTemplate = syncWithActiveTemplate(templateList);
-    if (!activeTemplate) {
+    const selected = syncWithActiveTemplate(templateList);
+    if (!selected) {
       setSelectedFieldId(null);
       return;
     }
-    if (!activeTemplate.fields.some((field) => field.id === selectedFieldId)) {
-      setSelectedFieldId(activeTemplate.fields[0]?.id ?? null);
+    if (!selected.fields.some((field) => field.id === selectedFieldId)) {
+      setSelectedFieldId(selected.fields[0]?.id ?? null);
     }
   }
 
@@ -128,6 +128,11 @@ export default function TemplateDesigner() {
   async function renameTemplate(templateId: string, name: string) {
     const result = await updateAdminTemplate(templateId, { name });
     setTemplates((previous) => previous.map((template) => (template.id === templateId ? result.template : template)));
+  }
+
+  async function setActiveTemplate(templateId: string) {
+    await updateAdminTemplate(templateId, { isActive: true });
+    await refreshTemplates();
   }
 
   async function uploadBackground(file: File) {
@@ -262,6 +267,16 @@ export default function TemplateDesigner() {
     }
   }
 
+  useEffect(() => {
+    if (!selectedTemplate) {
+      setSelectedFieldId(null);
+      return;
+    }
+    if (!selectedTemplate.fields.some((field) => field.id === selectedFieldId)) {
+      setSelectedFieldId(selectedTemplate.fields[0]?.id ?? null);
+    }
+  }, [selectedTemplateId, templates]);
+
   if (!TEMPLATE_DESIGNER_ENABLED) {
     return (
       <Card className="p-6">
@@ -291,6 +306,9 @@ export default function TemplateDesigner() {
         templates={templates}
         selectedTemplateId={selectedTemplateId}
         onSelectTemplate={setSelectedTemplateId}
+        onSetActiveTemplate={(templateId) => {
+          void setActiveTemplate(templateId);
+        }}
         onRenameTemplate={renameTemplate}
         onPreviewTemplate={(templateId) => {
           setSelectedTemplateId(templateId);

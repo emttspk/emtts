@@ -62,6 +62,25 @@ function getComplaintLimits(planName: string | null | undefined) {
   return { daily: 5, monthly: 150 };
 }
 
+async function getPlanComplaintLimitsFromColumns(planId: string | null | undefined) {
+  if (!planId) return null;
+  const rows = await prisma.$queryRaw<Array<{ daily_complaint_limit: number | null; monthly_complaint_limit: number | null }>>`
+    SELECT daily_complaint_limit, monthly_complaint_limit
+    FROM "Plan"
+    WHERE id = ${planId}
+    LIMIT 1
+  `;
+  const row = rows[0];
+  if (!row) return null;
+  const daily = Number(row.daily_complaint_limit ?? 0);
+  const monthly = Number(row.monthly_complaint_limit ?? 0);
+  if (daily <= 0 && monthly <= 0) return null;
+  return {
+    daily: Math.max(0, daily),
+    monthly: Math.max(Math.max(0, daily), monthly),
+  };
+}
+
 function isClosedConnectionError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error ?? "");
   return /connection is closed|Can't reach database server|P1001/i.test(message);
@@ -190,7 +209,9 @@ export async function getComplaintAllowance(userId: string): Promise<ComplaintAl
     const trackingQueued = usage?.trackingQueued ?? 0;
     const remainingUnits = Math.max(0, labelLimit - (labelsGenerated + labelsQueued));
     const trackingRemaining = Math.max(0, trackingLimit - (trackingGenerated + trackingQueued));
-    const limits = getComplaintLimits(subscription?.plan?.name ?? null);
+    const fallbackLimits = getComplaintLimits(subscription?.plan?.name ?? null);
+    const planColumnLimits = await getPlanComplaintLimitsFromColumns(subscription?.planId ?? null);
+    const limits = planColumnLimits ?? fallbackLimits;
     const dailyLimit = limits.daily;
     const monthlyLimit = limits.monthly;
     const dailyUsed = complaintCountRows[0]?.count ?? 0;

@@ -8,6 +8,13 @@ export type Plan = {
   discountPriceCents?: number;
   discountPct?: number;
   isSuspended?: boolean;
+  unitsIncluded?: number;
+  labelsIncluded?: number;
+  trackingIncluded?: number;
+  moneyOrdersIncluded?: number;
+  complaintsIncluded?: number;
+  dailyComplaintLimit?: number;
+  monthlyComplaintLimit?: number;
   monthlyLabelLimit: number;
   monthlyTrackingLimit: number;
 };

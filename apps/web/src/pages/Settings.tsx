@@ -5,12 +5,17 @@ import Card from "../components/Card";
 import { clearSession } from "../lib/auth";
 import { api } from "../lib/api";
 import type { MeResponse } from "../lib/types";
-import { usagePercent } from "../lib/packageCatalog";
 import { TEMPLATE_DESIGNER_ADMIN_EMAIL, TEMPLATE_DESIGNER_ENABLED } from "../lib/featureFlags";
 import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
 import { auth, firebaseReady } from "../firebase";
 
 type ShellCtx = { me: MeResponse | null; refreshMe: () => Promise<void> };
+
+function usagePercent(remaining: number, total: number) {
+  if (!total || total <= 0) return 0;
+  const used = Math.max(0, total - remaining);
+  return Math.max(0, Math.min(100, Math.round((used / total) * 100)));
+}
 
 export default function Settings() {
   const nav = useNavigate();

@@ -531,6 +531,13 @@ adminRouter.get("/plans", async (_req, res) => {
         discountPriceCents: extras?.discountPriceCents ?? plan.priceCents,
         discountPct: extras?.discountPct ?? 0,
         isSuspended: extras?.isSuspended ?? false,
+        unitsIncluded: extras?.unitsIncluded ?? plan.monthlyLabelLimit,
+        labelsIncluded: extras?.labelsIncluded ?? plan.monthlyLabelLimit,
+        trackingIncluded: extras?.trackingIncluded ?? plan.monthlyTrackingLimit,
+        moneyOrdersIncluded: extras?.moneyOrdersIncluded ?? plan.monthlyLabelLimit,
+        complaintsIncluded: extras?.complaintsIncluded ?? 0,
+        dailyComplaintLimit: extras?.dailyComplaintLimit ?? 0,
+        monthlyComplaintLimit: extras?.monthlyComplaintLimit ?? 0,
       };
     }),
   });
@@ -543,6 +550,14 @@ adminRouter.post("/plans", async (req, res) => {
       name: z.string().min(1),
       fullPriceCents: z.number().int().nonnegative(),
       discountPriceCents: z.number().int().nonnegative(),
+      unitsIncluded: z.number().int().nonnegative().optional(),
+      labelsIncluded: z.number().int().nonnegative().optional(),
+      trackingIncluded: z.number().int().nonnegative().optional(),
+      moneyOrdersIncluded: z.number().int().nonnegative().optional(),
+      complaintsIncluded: z.number().int().nonnegative().optional(),
+      dailyComplaintLimit: z.number().int().nonnegative().optional(),
+      monthlyComplaintLimit: z.number().int().nonnegative().optional(),
+      isSuspended: z.boolean().optional(),
       monthlyLabelLimit: z.number().int().positive(),
       monthlyTrackingLimit: z.number().int().positive(),
     })
@@ -560,11 +575,26 @@ adminRouter.post("/plans", async (req, res) => {
     } as any,
   });
 
+  const labelsIncluded = Math.max(0, body.labelsIncluded ?? body.monthlyLabelLimit);
+  const trackingIncluded = Math.max(0, body.trackingIncluded ?? body.monthlyTrackingLimit);
+  const unitsIncluded = Math.max(labelsIncluded, body.unitsIncluded ?? labelsIncluded);
+  const moneyOrdersIncluded = Math.max(0, body.moneyOrdersIncluded ?? labelsIncluded);
+  const dailyComplaintLimit = Math.max(0, body.dailyComplaintLimit ?? 0);
+  const monthlyComplaintLimit = Math.max(dailyComplaintLimit, body.monthlyComplaintLimit ?? 0);
+  const complaintsIncluded = Math.max(0, body.complaintsIncluded ?? monthlyComplaintLimit);
+
   await prisma.$executeRaw`
     UPDATE "Plan"
     SET full_price_cents = ${fullPriceCents},
         discount_price_cents = ${discountPriceCents},
-        is_suspended = FALSE
+        is_suspended = ${Boolean(body.isSuspended)},
+        units_included = ${unitsIncluded},
+        labels_included = ${labelsIncluded},
+        tracking_included = ${trackingIncluded},
+        money_orders_included = ${moneyOrdersIncluded},
+        complaints_included = ${complaintsIncluded},
+        daily_complaint_limit = ${dailyComplaintLimit},
+        monthly_complaint_limit = ${monthlyComplaintLimit}
     WHERE id = ${plan.id}
   `;
 
@@ -574,7 +604,14 @@ adminRouter.post("/plans", async (req, res) => {
       fullPriceCents,
       discountPriceCents,
       discountPct: fullPriceCents > 0 ? Math.round(((fullPriceCents - discountPriceCents) / fullPriceCents) * 100) : 0,
-      isSuspended: false,
+      isSuspended: Boolean(body.isSuspended),
+      unitsIncluded,
+      labelsIncluded,
+      trackingIncluded,
+      moneyOrdersIncluded,
+      complaintsIncluded,
+      dailyComplaintLimit,
+      monthlyComplaintLimit,
     },
   });
 });
@@ -586,6 +623,14 @@ adminRouter.put("/plans/:planId", async (req, res) => {
       name: z.string().min(1).optional(),
       fullPriceCents: z.number().int().nonnegative().optional(),
       discountPriceCents: z.number().int().nonnegative().optional(),
+      unitsIncluded: z.number().int().nonnegative().optional(),
+      labelsIncluded: z.number().int().nonnegative().optional(),
+      trackingIncluded: z.number().int().nonnegative().optional(),
+      moneyOrdersIncluded: z.number().int().nonnegative().optional(),
+      complaintsIncluded: z.number().int().nonnegative().optional(),
+      dailyComplaintLimit: z.number().int().nonnegative().optional(),
+      monthlyComplaintLimit: z.number().int().nonnegative().optional(),
+      isSuspended: z.boolean().optional(),
       monthlyLabelLimit: z.number().int().positive().optional(),
       monthlyTrackingLimit: z.number().int().positive().optional(),
     })
@@ -598,6 +643,13 @@ adminRouter.put("/plans/:planId", async (req, res) => {
   const existingExtras = extrasMap.get(existing.id);
   const nextDiscount = Math.max(0, body.discountPriceCents ?? existingExtras?.discountPriceCents ?? existing.priceCents);
   const nextFull = Math.max(nextDiscount, body.fullPriceCents ?? existingExtras?.fullPriceCents ?? existing.priceCents);
+  const nextLabelsIncluded = Math.max(0, body.labelsIncluded ?? existingExtras?.labelsIncluded ?? existing.monthlyLabelLimit);
+  const nextTrackingIncluded = Math.max(0, body.trackingIncluded ?? existingExtras?.trackingIncluded ?? existing.monthlyTrackingLimit);
+  const nextUnitsIncluded = Math.max(nextLabelsIncluded, body.unitsIncluded ?? existingExtras?.unitsIncluded ?? nextLabelsIncluded);
+  const nextMoneyOrdersIncluded = Math.max(0, body.moneyOrdersIncluded ?? existingExtras?.moneyOrdersIncluded ?? nextLabelsIncluded);
+  const nextDailyComplaintLimit = Math.max(0, body.dailyComplaintLimit ?? existingExtras?.dailyComplaintLimit ?? 0);
+  const nextMonthlyComplaintLimit = Math.max(nextDailyComplaintLimit, body.monthlyComplaintLimit ?? existingExtras?.monthlyComplaintLimit ?? 0);
+  const nextComplaintsIncluded = Math.max(0, body.complaintsIncluded ?? existingExtras?.complaintsIncluded ?? nextMonthlyComplaintLimit);
 
   const plan = await prisma.plan.update({
     where: { id: existing.id },
@@ -612,7 +664,15 @@ adminRouter.put("/plans/:planId", async (req, res) => {
   await prisma.$executeRaw`
     UPDATE "Plan"
     SET full_price_cents = ${nextFull},
-        discount_price_cents = ${nextDiscount}
+        discount_price_cents = ${nextDiscount},
+        is_suspended = ${body.isSuspended ?? existingExtras?.isSuspended ?? false},
+        units_included = ${nextUnitsIncluded},
+        labels_included = ${nextLabelsIncluded},
+        tracking_included = ${nextTrackingIncluded},
+        money_orders_included = ${nextMoneyOrdersIncluded},
+        complaints_included = ${nextComplaintsIncluded},
+        daily_complaint_limit = ${nextDailyComplaintLimit},
+        monthly_complaint_limit = ${nextMonthlyComplaintLimit}
     WHERE id = ${plan.id}
   `;
 
@@ -622,7 +682,14 @@ adminRouter.put("/plans/:planId", async (req, res) => {
       fullPriceCents: nextFull,
       discountPriceCents: nextDiscount,
       discountPct: nextFull > 0 ? Math.round(((nextFull - nextDiscount) / nextFull) * 100) : 0,
-      isSuspended: existingExtras?.isSuspended ?? false,
+      isSuspended: body.isSuspended ?? existingExtras?.isSuspended ?? false,
+      unitsIncluded: nextUnitsIncluded,
+      labelsIncluded: nextLabelsIncluded,
+      trackingIncluded: nextTrackingIncluded,
+      moneyOrdersIncluded: nextMoneyOrdersIncluded,
+      complaintsIncluded: nextComplaintsIncluded,
+      dailyComplaintLimit: nextDailyComplaintLimit,
+      monthlyComplaintLimit: nextMonthlyComplaintLimit,
     },
   });
 });
@@ -822,7 +889,14 @@ adminRouter.post("/plans/seed", async (_req, res) => {
         UPDATE "Plan"
         SET full_price_cents = ${plan.priceCents},
             discount_price_cents = ${plan.priceCents},
-            is_suspended = FALSE
+            is_suspended = FALSE,
+            units_included = ${plan.monthlyLabelLimit},
+            labels_included = ${plan.monthlyLabelLimit},
+            tracking_included = ${plan.monthlyTrackingLimit},
+            money_orders_included = ${plan.monthlyLabelLimit},
+            complaints_included = ${plan.name === "Free Plan" ? 5 : plan.name === "Business Plan" ? 300 : 150},
+            daily_complaint_limit = ${plan.name === "Free Plan" ? 1 : plan.name === "Business Plan" ? 10 : 5},
+            monthly_complaint_limit = ${plan.name === "Free Plan" ? 5 : plan.name === "Business Plan" ? 300 : 150}
         WHERE id = ${updated.id}
       `;
       plans.push(updated);
@@ -833,7 +907,14 @@ adminRouter.post("/plans/seed", async (_req, res) => {
       UPDATE "Plan"
       SET full_price_cents = ${plan.priceCents},
           discount_price_cents = ${plan.priceCents},
-          is_suspended = FALSE
+          is_suspended = FALSE,
+          units_included = ${plan.monthlyLabelLimit},
+          labels_included = ${plan.monthlyLabelLimit},
+          tracking_included = ${plan.monthlyTrackingLimit},
+          money_orders_included = ${plan.monthlyLabelLimit},
+          complaints_included = ${plan.name === "Free Plan" ? 5 : plan.name === "Business Plan" ? 300 : 150},
+          daily_complaint_limit = ${plan.name === "Free Plan" ? 1 : plan.name === "Business Plan" ? 10 : 5},
+          monthly_complaint_limit = ${plan.name === "Free Plan" ? 5 : plan.name === "Business Plan" ? 300 : 150}
       WHERE id = ${created.id}
     `;
     plans.push(created);
