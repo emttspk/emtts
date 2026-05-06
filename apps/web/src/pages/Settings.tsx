@@ -5,7 +5,7 @@ import Card from "../components/Card";
 import { clearSession } from "../lib/auth";
 import { api } from "../lib/api";
 import type { MeResponse } from "../lib/types";
-import { resolvePackageMeta, usagePercent } from "../lib/packageCatalog";
+import { usagePercent } from "../lib/packageCatalog";
 import { TEMPLATE_DESIGNER_ADMIN_EMAIL, TEMPLATE_DESIGNER_ENABLED } from "../lib/featureFlags";
 import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
 import { auth, firebaseReady } from "../firebase";
@@ -38,12 +38,16 @@ export default function Settings() {
   const [resetSent, setResetSent] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
   const activePlanName = me?.subscription?.plan?.name ?? me?.activePackage?.planName ?? "BUSINESS";
-  const packageMeta = resolvePackageMeta(activePlanName);
   const remainingUnits = me?.balances?.unitsRemaining ?? me?.activePackage?.unitsRemaining ?? 0;
-  const unitLimit = me?.balances?.labelLimit ?? packageMeta.units;
+  const unitLimit = me?.balances?.labelLimit ?? me?.subscription?.plan?.monthlyLabelLimit ?? 0;
   const usedPercent = usagePercent(remainingUnits, unitLimit);
   const billingStatus = me?.subscription?.status ?? me?.activePackage?.status ?? "-";
   const expiryDate = me?.activePackage?.expiresAt ?? me?.subscription?.currentPeriodEnd;
+  const planPriceCents = me?.subscription?.plan?.discountPriceCents ?? me?.subscription?.plan?.priceCents ?? 0;
+  const planPriceText = planPriceCents > 0 ? `Rs. ${Math.round(planPriceCents / 100).toLocaleString("en-PK")}` : "Rs. 0";
+  const trackingLimit = me?.balances?.trackingLimit ?? me?.subscription?.plan?.monthlyTrackingLimit ?? 0;
+  const complaintDaily = me?.balances?.complaintDailyLimit ?? 0;
+  const complaintMonthly = me?.balances?.complaintMonthlyLimit ?? 0;
   const canUseTemplateDesigner =
     me?.user.role === "ADMIN" &&
     TEMPLATE_DESIGNER_ENABLED &&
@@ -147,7 +151,7 @@ export default function Settings() {
         <div className="mt-7 grid gap-4 rounded-[28px] border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-5 md:grid-cols-3">
           <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">Subscription</div>
-            <div className="mt-2 text-xl font-semibold text-emerald-900">{packageMeta.displayName}</div>
+            <div className="mt-2 text-xl font-semibold text-emerald-900">{activePlanName}</div>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 md:col-span-2">
             <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
@@ -163,15 +167,15 @@ export default function Settings() {
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
             <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Plan Price</div>
-            <div className="mt-2 text-lg font-semibold text-slate-900">{packageMeta.priceText}</div>
+            <div className="mt-2 text-lg font-semibold text-slate-900">{planPriceText}</div>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
             <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tracking Limit</div>
-            <div className="mt-2 text-lg font-semibold text-slate-900">{packageMeta.tracking.toLocaleString()}</div>
+            <div className="mt-2 text-lg font-semibold text-slate-900">{trackingLimit.toLocaleString()}</div>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
             <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Complaints</div>
-            <div className="mt-2 text-lg font-semibold text-slate-900">{packageMeta.complaints}</div>
+            <div className="mt-2 text-lg font-semibold text-slate-900">{complaintDaily}/day, {complaintMonthly}/month</div>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
             <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Billing Status</div>

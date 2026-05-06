@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Smartphone, QrCode, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
-import { api } from "../lib/api";
+import { api, apiUrl } from "../lib/api";
 
 type Plan = {
   id: string;
@@ -233,7 +233,11 @@ export default function ManualPaymentModal({ plan, invoice, onClose, onSuccess }
                       Scan QR to pay
                     </div>
                     <img
-                      src={selectedInfo.qrVersion ? `${selectedInfo.qrUrl}?v=${encodeURIComponent(selectedInfo.qrVersion)}` : selectedInfo.qrUrl}
+                      src={
+                        selectedInfo.qrVersion
+                          ? `${apiUrl(selectedInfo.qrUrl)}?v=${encodeURIComponent(selectedInfo.qrVersion)}`
+                          : apiUrl(selectedInfo.qrUrl)
+                      }
                       alt={`${method} QR code`}
                       className="h-36 w-36 rounded-xl border border-slate-200 object-contain"
                     />

@@ -1,11 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Card from "../components/Card";
-import { api } from "../lib/api";
+import { api, apiUrl, buildAuthenticatedApiUrl } from "../lib/api";
 import { TEMPLATE_DESIGNER_ENABLED } from "../lib/featureFlags";
 import { BodyText, CardTitle, PageShell, PageTitle, TableWrap } from "../components/ui/PageSystem";
 
-type Plan = { id: string; name: string; priceCents: number; monthlyLabelLimit: number; monthlyTrackingLimit: number; createdAt: string };
+type Plan = {
+  id: string;
+  name: string;
+  priceCents: number;
+  fullPriceCents?: number;
+  discountPriceCents?: number;
+  discountPct?: number;
+  isSuspended?: boolean;
+  monthlyLabelLimit: number;
+  monthlyTrackingLimit: number;
+  createdAt: string;
+};
 type AdminUser = {
   id: string;
   email: string;
@@ -54,6 +65,7 @@ type ManualPaymentRow = {
   plan: { id: string; name: string; priceCents: number };
   user: { id: string; email: string; companyName?: string | null };
   invoice?: { id: string; invoiceNumber: string; status: string; amountCents: number } | null;
+  screenshotUrl?: string | null;
 };
 
 type InvoiceRow = {
@@ -125,7 +137,8 @@ export default function Admin() {
     return `${y}-${m}`;
   });
   const [name, setName] = useState("Business Plan");
-  const [priceCents, setPriceCents] = useState(250000);
+  const [fullPriceCents, setFullPriceCents] = useState(250000);
+  const [discountPriceCents, setDiscountPriceCents] = useState(250000);
   const [monthlyLabelLimit, setMonthlyLabelLimit] = useState(2000);
   const [monthlyTrackingLimit, setMonthlyTrackingLimit] = useState(2000);
   const [creditDrafts, setCreditDrafts] = useState<Record<string, { labelCredits: string; trackingCredits: string; planId: string }>>({});
@@ -168,6 +181,56 @@ export default function Admin() {
     setClearEasypaisaQr(false);
     setJazzcashQrFile(null);
     setEasypaisaQrFile(null);
+  }
+
+  async function updatePlan(plan: Plan) {
+    const nextName = window.prompt("Plan name", plan.name);
+    if (!nextName) return;
+    const nextFull = window.prompt("Full price in paisa", String(plan.fullPriceCents ?? plan.priceCents));
+    if (!nextFull) return;
+    const nextDiscount = window.prompt("Discounted price in paisa", String(plan.discountPriceCents ?? plan.priceCents));
+    if (!nextDiscount) return;
+    const nextLabel = window.prompt("Labels included (monthly)", String(plan.monthlyLabelLimit));
+    if (!nextLabel) return;
+    const nextTracking = window.prompt("Tracking included (monthly)", String(plan.monthlyTrackingLimit));
+    if (!nextTracking) return;
+    try {
+      await api(`/api/admin/plans/${plan.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          name: nextName,
+          fullPriceCents: Number(nextFull),
+          discountPriceCents: Number(nextDiscount),
+          monthlyLabelLimit: Number(nextLabel),
+          monthlyTrackingLimit: Number(nextTracking),
+        }),
+      });
+      await refresh();
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : "Failed to update plan");
+    }
+  }
+
+  async function toggleSuspendPlan(plan: Plan) {
+    try {
+      await api(`/api/admin/plans/${plan.id}/suspend`, {
+        method: "POST",
+        body: JSON.stringify({ isSuspended: !plan.isSuspended }),
+      });
+      await refresh();
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : "Failed to suspend plan");
+    }
+  }
+
+  async function deletePlan(plan: Plan) {
+    if (!confirm(`Delete ${plan.name}?`)) return;
+    try {
+      await api(`/api/admin/plans/${plan.id}`, { method: "DELETE" });
+      await refresh();
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : "Failed to delete plan");
+    }
   }
 
   async function saveBillingSettings() {
@@ -368,7 +431,7 @@ export default function Admin() {
               try {
                 await api("/api/admin/plans", {
                   method: "POST",
-                  body: JSON.stringify({ name, priceCents, monthlyLabelLimit, monthlyTrackingLimit: monthlyLabelLimit }),
+                  body: JSON.stringify({ name, fullPriceCents, discountPriceCents, monthlyLabelLimit, monthlyTrackingLimit }),
                 });
                 await refresh();
               } catch (error) {
@@ -377,17 +440,34 @@ export default function Admin() {
             }}
           >
             <input className="field-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Plan name" />
-            <input className="field-input" value={priceCents} onChange={(e) => setPriceCents(Number(e.target.value))} placeholder="Price (paisa)" type="number" />
-            <input className="field-input" value={monthlyLabelLimit} onChange={(e) => { const v = Number(e.target.value); setMonthlyLabelLimit(v); setMonthlyTrackingLimit(v); }} placeholder="Units" type="number" />
-            <input className="field-input bg-slate-100" value={monthlyTrackingLimit} readOnly placeholder="Units (mirrored)" type="number" />
+            <input className="field-input" value={fullPriceCents} onChange={(e) => setFullPriceCents(Number(e.target.value))} placeholder="Full price (paisa)" type="number" />
+            <input className="field-input" value={discountPriceCents} onChange={(e) => setDiscountPriceCents(Number(e.target.value))} placeholder="Discounted price (paisa)" type="number" />
+            <input className="field-input" value={monthlyLabelLimit} onChange={(e) => setMonthlyLabelLimit(Number(e.target.value))} placeholder="Labels Included" type="number" />
+            <input className="field-input" value={monthlyTrackingLimit} onChange={(e) => setMonthlyTrackingLimit(Number(e.target.value))} placeholder="Tracking Included" type="number" />
             <button className="rounded-2xl bg-brand px-3 py-2 text-sm font-medium text-white shadow-lg hover:bg-brand-dark">Create</button>
           </form>
           <div className="grid gap-4 border-t bg-white p-6 md:grid-cols-2">
             {plans.map((plan) => (
               <Card key={plan.id} className="p-5">
-                <div className="text-lg font-semibold text-slate-950">{plan.name}</div>
-                <div className="mt-2 text-sm text-slate-600">{formatPKR.format(Math.round(plan.priceCents / 100)).replace(/\u00A0/g, " ")} / cycle</div>
-                <div className="mt-4 text-sm text-slate-700">{plan.monthlyLabelLimit.toLocaleString()} shared units</div>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="text-lg font-semibold text-slate-950">{plan.name}</div>
+                  <span className={`rounded-full px-2 py-1 text-xs font-semibold ${plan.isSuspended ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>
+                    {plan.isSuspended ? "Suspended" : "Active"}
+                  </span>
+                </div>
+                <div className="mt-2 text-sm text-slate-600">
+                  {formatPKR.format(Math.round((plan.discountPriceCents ?? plan.priceCents) / 100)).replace(/\u00A0/g, " ")} / cycle
+                </div>
+                {(plan.discountPct ?? 0) > 0 ? (
+                  <div className="mt-1 text-xs text-slate-500">Full: {formatPKR.format(Math.round((plan.fullPriceCents ?? plan.priceCents) / 100)).replace(/\u00A0/g, " ")} ({plan.discountPct}% off)</div>
+                ) : null}
+                <div className="mt-4 text-sm text-slate-700">Labels Included: {plan.monthlyLabelLimit.toLocaleString()}</div>
+                <div className="mt-1 text-sm text-slate-700">Tracking Included: {plan.monthlyTrackingLimit.toLocaleString()}</div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700" onClick={() => updatePlan(plan)}>Edit</button>
+                  <button className={`rounded-xl px-3 py-1.5 text-xs font-medium ${plan.isSuspended ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : "border border-amber-200 bg-amber-50 text-amber-700"}`} onClick={() => toggleSuspendPlan(plan)}>{plan.isSuspended ? "Unsuspend" : "Suspend"}</button>
+                  <button className="rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700" onClick={() => deletePlan(plan)}>Delete</button>
+                </div>
               </Card>
             ))}
           </div>
@@ -622,7 +702,7 @@ export default function Admin() {
                   className="w-full rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg"
                 />
                 {billingSettings?.jazzcashQrUrl && !clearJazzcashQr ? (
-                  <img src={billingSettings.jazzcashQrUrl} alt="JazzCash QR" className="h-28 w-28 rounded-xl border object-contain" />
+                  <img src={apiUrl(billingSettings.jazzcashQrUrl)} alt="JazzCash QR" className="h-28 w-28 rounded-xl border object-contain" />
                 ) : null}
                 <label className="flex items-center gap-2 text-xs text-slate-600">
                   <input type="checkbox" checked={clearJazzcashQr} onChange={(e) => setClearJazzcashQr(e.target.checked)} />
@@ -653,7 +733,7 @@ export default function Admin() {
                   className="w-full rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg"
                 />
                 {billingSettings?.easypaisaQrUrl && !clearEasypaisaQr ? (
-                  <img src={billingSettings.easypaisaQrUrl} alt="Easypaisa QR" className="h-28 w-28 rounded-xl border object-contain" />
+                  <img src={apiUrl(billingSettings.easypaisaQrUrl)} alt="Easypaisa QR" className="h-28 w-28 rounded-xl border object-contain" />
                 ) : null}
                 <label className="flex items-center gap-2 text-xs text-slate-600">
                   <input type="checkbox" checked={clearEasypaisaQr} onChange={(e) => setClearEasypaisaQr(e.target.checked)} />
@@ -725,6 +805,7 @@ export default function Admin() {
                   <th className="px-4 py-3">Amount</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Proof</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
@@ -756,6 +837,20 @@ export default function Admin() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-500">{new Date(payment.createdAt).toLocaleDateString("en-PK")}</td>
+                    <td className="px-4 py-3">
+                      {payment.screenshotUrl ? (
+                        <a
+                          href={buildAuthenticatedApiUrl(payment.screenshotUrl)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-lg hover:bg-slate-50"
+                        >
+                          View Proof
+                        </a>
+                      ) : (
+                        <span className="text-xs text-slate-400">No attachment</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-right">
                       {payment.status === "PENDING" && (
                         <div className="flex justify-end gap-2">

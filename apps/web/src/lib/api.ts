@@ -43,6 +43,7 @@ function networkErrorMessage(url: string) {
 }
 
 export function apiUrl(path: string) {
+  if (/^https?:\/\//i.test(path)) return path;
   return `${resolvedBase}${path}`;
 }
 

@@ -79,7 +79,17 @@ export type MeResponse = {
     | {
         id: string;
         status: string;
-        plan: { id: string; name: string; priceCents: number; monthlyLabelLimit: number; monthlyTrackingLimit: number };
+        plan: {
+          id: string;
+          name: string;
+          priceCents: number;
+          fullPriceCents?: number;
+          discountPriceCents?: number;
+          discountPct?: number;
+          isSuspended?: boolean;
+          monthlyLabelLimit: number;
+          monthlyTrackingLimit: number;
+        };
         currentPeriodStart: string;
         currentPeriodEnd: string;
       }
@@ -96,7 +106,9 @@ export type MeResponse = {
     complaintDailyLimit?: number;
     complaintDailyUsed?: number;
     complaintDailyRemaining?: number;
+    complaintMonthlyLimit?: number;
     complaintMonthlyUsed?: number;
+    complaintMonthlyRemaining?: number;
   };
   activePackage?: {
     planName: string | null;

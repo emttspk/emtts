@@ -1733,6 +1733,18 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
   }
 
   const complaintAllowance = await getComplaintAllowance(userId);
+  if (complaintAllowance.dailyRemaining <= 0) {
+    return res.status(429).json({
+      success: false,
+      message: `Daily complaint limit reached (${complaintAllowance.dailyLimit}/day).`,
+    });
+  }
+  if (complaintAllowance.monthlyRemaining <= 0) {
+    return res.status(429).json({
+      success: false,
+      message: `Monthly complaint limit reached (${complaintAllowance.monthlyLimit}/month).`,
+    });
+  }
   if (complaintAllowance.remainingUnits < COMPLAINT_UNIT_COST) {
     return res.status(402).json({
       success: false,

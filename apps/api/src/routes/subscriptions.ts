@@ -23,6 +23,7 @@ import {
   inquireEasypaisaPayment,
   normalizeGatewayNotification,
 } from "../services/easypaisaGateway.service.js";
+import { ensurePlanManagementColumns } from "./plans.js";
 
 export const subscriptionsRouter = Router();
 
@@ -44,9 +45,17 @@ subscriptionsRouter.post("/start", requireAuth, async (req: AuthedRequest, res) 
   const body = startSchema.parse(req.body);
 
   await ensureBillingTables();
+  await ensurePlanManagementColumns();
 
   const plan = await prisma.plan.findUnique({ where: { id: body.planId } });
   if (!plan) return res.status(404).json({ error: "Plan not found" });
+
+  const suspendedRows = await prisma.$queryRaw<Array<{ is_suspended: boolean }>>`
+    SELECT is_suspended FROM "Plan" WHERE id = ${plan.id}
+  `;
+  if (Boolean(suspendedRows[0]?.is_suspended)) {
+    return res.status(409).json({ error: "This plan is currently suspended" });
+  }
 
   if (plan.priceCents <= 0) {
     const { now, end } = buildFreePlanWindow(plan.name);

@@ -90,6 +90,10 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
   }, [refreshMe]);
 
   async function choosePlan(plan: Plan) {
+    if (plan.isSuspended) {
+      setError(`${plan.name} is temporarily suspended and cannot be purchased right now.`);
+      return;
+    }
     const renewingCurrentPlan = plan.id === currentPlanId && (expired || nearExpiry);
     if (plan.id === currentPlanId && !renewingCurrentPlan) return;
     setSubmittingPlanId(plan.id);
@@ -117,6 +121,10 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
   }
 
   async function initiateWalletPayment(plan: Plan) {
+    if (plan.isSuspended) {
+      setError(`${plan.name} is temporarily suspended and cannot be purchased right now.`);
+      return;
+    }
     setInitiatingWalletPlanId(plan.id);
     setError(null);
     try {
@@ -190,6 +198,9 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
           const isTargeted = Boolean(planParam && plan.name.toLowerCase().replace(/\s+plan$/i, "").trim() === planParam);
           const highlight = isCurrent || isTargeted || index === 1;
           const upgrading = !isCurrent && (me?.subscription?.plan?.monthlyLabelLimit ?? 0) < plan.monthlyLabelLimit;
+          const discountedPrice = plan.discountPriceCents ?? plan.priceCents;
+          const fullPrice = Math.max(discountedPrice, plan.fullPriceCents ?? discountedPrice);
+          const discountPct = fullPrice > 0 ? Math.max(0, Math.round(((fullPrice - discountedPrice) / fullPrice) * 100)) : 0;
           return (
             <Card key={plan.id} className={highlight ? "border-brand/30 bg-white shadow-sm" : "border-slate-200 bg-white shadow-sm"}>
               <div className="p-6">
@@ -197,9 +208,15 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                   <div>
                     <CardTitle className="text-slate-900">{plan.name}</CardTitle>
                     <div className="mt-2 text-3xl font-semibold text-gray-900">
-                      {formatPKR.format(Math.round(plan.priceCents / 100)).replace(/\u00A0/g, " ").replace("PKR", "Rs.")}
+                      {formatPKR.format(Math.round(discountedPrice / 100)).replace(/\u00A0/g, " ").replace("PKR", "Rs.")}
                       <span className="ml-2 text-sm font-medium text-gray-600">/ month</span>
                     </div>
+                    {discountPct > 0 ? (
+                      <div className="mt-1 text-xs text-slate-600">
+                        <span className="line-through">{formatPKR.format(Math.round(fullPrice / 100)).replace(/\u00A0/g, " ").replace("PKR", "Rs.")}</span>
+                        <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-700">{discountPct}% OFF</span>
+                      </div>
+                    ) : null}
                     <div className="mt-2 text-sm text-gray-600">{plan.monthlyLabelLimit.toLocaleString()} total units for labels, tracking, and money-order generation.</div>
                   </div>
                   {isCurrent ? (
@@ -214,27 +231,28 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                 <div className="mt-5 space-y-2 text-sm text-gray-600">
                   <div className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-emerald-500" />
-                    A4 print-ready labels
+                    Labels Included
                   </div>
                   <div className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-emerald-500" />
-                    Bulk tracking workspace
+                    Tracking Included
                   </div>
                   <div className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-emerald-500" />
-                    Admin balance support
+                    Money Orders Included
                   </div>
                   <div className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-emerald-500" />
-                    {upgrading ? "Upgrade package" : "Package available"}
+                    Complaints Included
                   </div>
                 </div>
+                {plan.isSuspended ? <div className="mt-3 text-xs font-medium text-red-600">Temporarily suspended by admin.</div> : null}
 
                 <button
                   className="mt-6 w-full rounded-2xl bg-brand px-4 py-3 text-sm font-medium text-white shadow-lg transition-all duration-300 ease-in-out hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60"
                   type="button"
                   onClick={() => choosePlan(plan)}
-                  disabled={(isCurrent && !canRenewCurrentPlan) || submittingPlanId === plan.id}
+                  disabled={(isCurrent && !canRenewCurrentPlan) || submittingPlanId === plan.id || Boolean(plan.isSuspended)}
                 >
                   {isCurrent
                     ? `Current Plan`
@@ -246,9 +264,11 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                           ? `Upgrade to ${plan.name}`
                           : currentPlanId
                             ? `Downgrade to ${plan.name}`
-                            : `Buy Now`}
+                            : plan.isSuspended
+                              ? "Temporarily Unavailable"
+                              : `Buy Now`}
                 </button>
-                {plan.priceCents > 0 && !isCurrent && (
+                {discountedPrice > 0 && !isCurrent && !plan.isSuspended && (
                   <button
                     type="button"
                     className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"

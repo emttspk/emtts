@@ -5,7 +5,15 @@ import { resolveStoredPath } from "../storage/paths.js";
 
 export const billingSettingsRouter = Router();
 
-billingSettingsRouter.get("/", async (_req, res) => {
+function buildAbsoluteApiUrl(req: any, relativePath: string) {
+  const xfProto = String(req.header("x-forwarded-proto") ?? "").split(",")[0].trim();
+  const proto = xfProto || req.protocol || "https";
+  const host = String(req.header("x-forwarded-host") ?? req.get("host") ?? "").trim();
+  if (!host) return relativePath;
+  return `${proto}://${host}${relativePath}`;
+}
+
+billingSettingsRouter.get("/", async (req, res) => {
   const settings = await getOrCreateBillingSettings();
   const jazzcashQrExists = Boolean(settings.jazzcashQrPath && fs.existsSync(resolveStoredPath(settings.jazzcashQrPath)));
   const easypaisaQrExists = Boolean(settings.easypaisaQrPath && fs.existsSync(resolveStoredPath(settings.easypaisaQrPath)));
@@ -17,11 +25,11 @@ billingSettingsRouter.get("/", async (_req, res) => {
     settings: {
       jazzcashNumber: settings.jazzcashNumber,
       jazzcashTitle: settings.jazzcashTitle,
-      jazzcashQrUrl: jazzcashQrExists ? "/api/manual-payments/wallet-qr/jazzcash" : null,
+      jazzcashQrUrl: jazzcashQrExists ? buildAbsoluteApiUrl(req, "/api/manual-payments/wallet-qr/jazzcash") : null,
       jazzcashQrVersion: jazzcashQrExists ? version : null,
       easypaisaNumber: settings.easypaisaNumber,
       easypaisaTitle: settings.easypaisaTitle,
-      easypaisaQrUrl: easypaisaQrExists ? "/api/manual-payments/wallet-qr/easypaisa" : null,
+      easypaisaQrUrl: easypaisaQrExists ? buildAbsoluteApiUrl(req, "/api/manual-payments/wallet-qr/easypaisa") : null,
       easypaisaQrVersion: easypaisaQrExists ? version : null,
       standardPrice: settings.standardPrice,
       businessPrice: settings.businessPrice,

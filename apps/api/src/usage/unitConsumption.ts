@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "../lib/prisma.js";
 import { monthKeyUTC } from "./month.js";
 
-export const COMPLAINT_UNIT_COST = 5;
+export const COMPLAINT_UNIT_COST = 10;
 
 export type UnitActionType = "label" | "tracking" | "money_order" | "complaint";
 
@@ -30,7 +30,9 @@ export type ComplaintAllowance = {
   dailyLimit: number;
   dailyUsed: number;
   dailyRemaining: number;
+  monthlyLimit: number;
   monthlyUsed: number;
+  monthlyRemaining: number;
   unitsPerComplaint: number;
   remainingUnits: number;
   trackingRemaining: number;
@@ -46,8 +48,18 @@ function isTrackingScopedAction(actionType: UnitActionType) {
   return actionType === "tracking";
 }
 
-function getComplaintDailyLimit(planName: string | null | undefined) {
-  return String(planName ?? "").toLowerCase().includes("free") ? 1 : 5;
+function getComplaintLimits(planName: string | null | undefined) {
+  const normalized = String(planName ?? "").toLowerCase();
+  if (normalized.includes("free")) {
+    return { daily: 1, monthly: 5 };
+  }
+  if (normalized.includes("business")) {
+    return { daily: 10, monthly: 300 };
+  }
+  if (normalized.includes("standard")) {
+    return { daily: 5, monthly: 150 };
+  }
+  return { daily: 5, monthly: 150 };
 }
 
 function isClosedConnectionError(error: unknown) {
@@ -178,7 +190,9 @@ export async function getComplaintAllowance(userId: string): Promise<ComplaintAl
     const trackingQueued = usage?.trackingQueued ?? 0;
     const remainingUnits = Math.max(0, labelLimit - (labelsGenerated + labelsQueued));
     const trackingRemaining = Math.max(0, trackingLimit - (trackingGenerated + trackingQueued));
-    const dailyLimit = getComplaintDailyLimit(subscription?.plan?.name ?? null);
+    const limits = getComplaintLimits(subscription?.plan?.name ?? null);
+    const dailyLimit = limits.daily;
+    const monthlyLimit = limits.monthly;
     const dailyUsed = complaintCountRows[0]?.count ?? 0;
     const monthlyUsed = (complaintMonthlyCountRows[0]?.count ?? 0) as number;
 
@@ -187,7 +201,9 @@ export async function getComplaintAllowance(userId: string): Promise<ComplaintAl
       dailyLimit,
       dailyUsed,
       dailyRemaining: Math.max(0, dailyLimit - dailyUsed),
+      monthlyLimit,
       monthlyUsed,
+      monthlyRemaining: Math.max(0, monthlyLimit - monthlyUsed),
       unitsPerComplaint: COMPLAINT_UNIT_COST,
       remainingUnits,
       trackingRemaining,

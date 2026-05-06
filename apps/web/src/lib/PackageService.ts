@@ -4,6 +4,10 @@ export type Plan = {
   id: string;
   name: string;
   priceCents: number;
+  fullPriceCents?: number;
+  discountPriceCents?: number;
+  discountPct?: number;
+  isSuspended?: boolean;
   monthlyLabelLimit: number;
   monthlyTrackingLimit: number;
 };

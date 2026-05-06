@@ -26,8 +26,17 @@ import {
 } from "./manualPayments.js";
 import { resolveStoredPath, storageRoot, toStoredPath } from "../storage/paths.js";
 import { getOrCreateBillingSettings, syncConfiguredPlanPrices } from "../services/billing-settings.service.js";
+import { ensurePlanManagementColumns, getPlanExtrasByIds } from "./plans.js";
 
 export const adminRouter = Router();
+
+function buildAbsoluteApiUrl(req: any, relativePath: string) {
+  const xfProto = String(req.header("x-forwarded-proto") ?? "").split(",")[0].trim();
+  const proto = xfProto || req.protocol || "https";
+  const host = String(req.header("x-forwarded-host") ?? req.get("host") ?? "").trim();
+  if (!host) return relativePath;
+  return `${proto}://${host}${relativePath}`;
+}
 
 const billingQrDir = path.join(storageRoot(), "billing-wallet-qr");
 if (!fs.existsSync(billingQrDir)) {
@@ -510,25 +519,144 @@ adminRouter.post("/refunds/:refundId/reject", async (req, res) => {
 });
 
 adminRouter.get("/plans", async (_req, res) => {
+  await ensurePlanManagementColumns();
   const plans = await prisma.plan.findMany({ orderBy: { createdAt: "desc" } });
-  res.json({ plans });
+  const extrasMap = await getPlanExtrasByIds(plans.map((plan) => plan.id));
+  res.json({
+    plans: plans.map((plan) => {
+      const extras = extrasMap.get(plan.id);
+      return {
+        ...plan,
+        fullPriceCents: extras?.fullPriceCents ?? plan.priceCents,
+        discountPriceCents: extras?.discountPriceCents ?? plan.priceCents,
+        discountPct: extras?.discountPct ?? 0,
+        isSuspended: extras?.isSuspended ?? false,
+      };
+    }),
+  });
 });
 
 adminRouter.post("/plans", async (req, res) => {
+  await ensurePlanManagementColumns();
   const body = z
     .object({
       name: z.string().min(1),
-      priceCents: z.number().int().nonnegative(),
+      fullPriceCents: z.number().int().nonnegative(),
+      discountPriceCents: z.number().int().nonnegative(),
       monthlyLabelLimit: z.number().int().positive(),
       monthlyTrackingLimit: z.number().int().positive(),
     })
     .parse(req.body);
 
-  const plan = await prisma.plan.create({ data: body as any });
-  res.json({ plan });
+  const discountPriceCents = Math.max(0, body.discountPriceCents);
+  const fullPriceCents = Math.max(discountPriceCents, body.fullPriceCents);
+
+  const plan = await prisma.plan.create({
+    data: {
+      name: body.name,
+      priceCents: discountPriceCents,
+      monthlyLabelLimit: body.monthlyLabelLimit,
+      monthlyTrackingLimit: body.monthlyTrackingLimit,
+    } as any,
+  });
+
+  await prisma.$executeRaw`
+    UPDATE "Plan"
+    SET full_price_cents = ${fullPriceCents},
+        discount_price_cents = ${discountPriceCents},
+        is_suspended = FALSE
+    WHERE id = ${plan.id}
+  `;
+
+  res.json({
+    plan: {
+      ...plan,
+      fullPriceCents,
+      discountPriceCents,
+      discountPct: fullPriceCents > 0 ? Math.round(((fullPriceCents - discountPriceCents) / fullPriceCents) * 100) : 0,
+      isSuspended: false,
+    },
+  });
 });
 
-adminRouter.get("/billing-settings", async (_req, res) => {
+adminRouter.put("/plans/:planId", async (req, res) => {
+  await ensurePlanManagementColumns();
+  const body = z
+    .object({
+      name: z.string().min(1).optional(),
+      fullPriceCents: z.number().int().nonnegative().optional(),
+      discountPriceCents: z.number().int().nonnegative().optional(),
+      monthlyLabelLimit: z.number().int().positive().optional(),
+      monthlyTrackingLimit: z.number().int().positive().optional(),
+    })
+    .parse(req.body);
+
+  const existing = await prisma.plan.findUnique({ where: { id: req.params.planId } });
+  if (!existing) return res.status(404).json({ error: "Plan not found" });
+
+  const extrasMap = await getPlanExtrasByIds([existing.id]);
+  const existingExtras = extrasMap.get(existing.id);
+  const nextDiscount = Math.max(0, body.discountPriceCents ?? existingExtras?.discountPriceCents ?? existing.priceCents);
+  const nextFull = Math.max(nextDiscount, body.fullPriceCents ?? existingExtras?.fullPriceCents ?? existing.priceCents);
+
+  const plan = await prisma.plan.update({
+    where: { id: existing.id },
+    data: {
+      name: body.name ?? existing.name,
+      priceCents: nextDiscount,
+      monthlyLabelLimit: body.monthlyLabelLimit ?? existing.monthlyLabelLimit,
+      monthlyTrackingLimit: body.monthlyTrackingLimit ?? existing.monthlyTrackingLimit,
+    },
+  });
+
+  await prisma.$executeRaw`
+    UPDATE "Plan"
+    SET full_price_cents = ${nextFull},
+        discount_price_cents = ${nextDiscount}
+    WHERE id = ${plan.id}
+  `;
+
+  res.json({
+    plan: {
+      ...plan,
+      fullPriceCents: nextFull,
+      discountPriceCents: nextDiscount,
+      discountPct: nextFull > 0 ? Math.round(((nextFull - nextDiscount) / nextFull) * 100) : 0,
+      isSuspended: existingExtras?.isSuspended ?? false,
+    },
+  });
+});
+
+adminRouter.post("/plans/:planId/suspend", async (req, res) => {
+  await ensurePlanManagementColumns();
+  const body = z.object({ isSuspended: z.boolean().default(true) }).parse(req.body ?? {});
+  const existing = await prisma.plan.findUnique({ where: { id: req.params.planId } });
+  if (!existing) return res.status(404).json({ error: "Plan not found" });
+
+  await prisma.$executeRaw`
+    UPDATE "Plan"
+    SET is_suspended = ${body.isSuspended}
+    WHERE id = ${existing.id}
+  `;
+  res.json({ success: true, planId: existing.id, isSuspended: body.isSuspended });
+});
+
+adminRouter.delete("/plans/:planId", async (req, res) => {
+  const existing = await prisma.plan.findUnique({ where: { id: req.params.planId } });
+  if (!existing) return res.status(404).json({ error: "Plan not found" });
+
+  const activeSubscriptions = await prisma.subscription.count({
+    where: { planId: existing.id, status: "ACTIVE" },
+  });
+  if (activeSubscriptions > 0) {
+    return res.status(409).json({ error: "Cannot delete plan with active subscriptions" });
+  }
+
+  await prisma.plan.delete({ where: { id: existing.id } });
+  res.json({ success: true });
+});
+
+adminRouter.get("/billing-settings", async (req, res) => {
   const settings = await getOrCreateBillingSettings();
   const jazzcashQrExists = Boolean(settings.jazzcashQrPath && fs.existsSync(resolveStoredPath(settings.jazzcashQrPath)));
   const easypaisaQrExists = Boolean(settings.easypaisaQrPath && fs.existsSync(resolveStoredPath(settings.easypaisaQrPath)));
@@ -538,8 +666,8 @@ adminRouter.get("/billing-settings", async (_req, res) => {
   res.json({
     settings: {
       ...settings,
-      jazzcashQrUrl: jazzcashQrExists ? "/api/manual-payments/wallet-qr/jazzcash" : null,
-      easypaisaQrUrl: easypaisaQrExists ? "/api/manual-payments/wallet-qr/easypaisa" : null,
+      jazzcashQrUrl: jazzcashQrExists ? buildAbsoluteApiUrl(req, "/api/manual-payments/wallet-qr/jazzcash") : null,
+      easypaisaQrUrl: easypaisaQrExists ? buildAbsoluteApiUrl(req, "/api/manual-payments/wallet-qr/easypaisa") : null,
     },
   });
 });
@@ -648,8 +776,8 @@ adminRouter.put(
     res.json({
       settings: {
         ...updated,
-        jazzcashQrUrl: jazzcashQrExists ? "/api/manual-payments/wallet-qr/jazzcash" : null,
-        easypaisaQrUrl: easypaisaQrExists ? "/api/manual-payments/wallet-qr/easypaisa" : null,
+        jazzcashQrUrl: jazzcashQrExists ? buildAbsoluteApiUrl(req, "/api/manual-payments/wallet-qr/jazzcash") : null,
+        easypaisaQrUrl: easypaisaQrExists ? buildAbsoluteApiUrl(req, "/api/manual-payments/wallet-qr/easypaisa") : null,
       },
     });
   },
@@ -671,6 +799,7 @@ adminRouter.get("/usage", async (req, res) => {
 });
 
 adminRouter.post("/plans/seed", async (_req, res) => {
+  await ensurePlanManagementColumns();
   const settings = await getOrCreateBillingSettings();
   const defaults = [
     { name: "Free Plan", priceCents: 0, monthlyLabelLimit: 250, monthlyTrackingLimit: 250 },
@@ -689,10 +818,24 @@ adminRouter.post("/plans/seed", async (_req, res) => {
           monthlyTrackingLimit: plan.monthlyTrackingLimit,
         },
       });
+      await prisma.$executeRaw`
+        UPDATE "Plan"
+        SET full_price_cents = ${plan.priceCents},
+            discount_price_cents = ${plan.priceCents},
+            is_suspended = FALSE
+        WHERE id = ${updated.id}
+      `;
       plans.push(updated);
       continue;
     }
     const created = await prisma.plan.create({ data: plan });
+    await prisma.$executeRaw`
+      UPDATE "Plan"
+      SET full_price_cents = ${plan.priceCents},
+          discount_price_cents = ${plan.priceCents},
+          is_suspended = FALSE
+      WHERE id = ${created.id}
+    `;
     plans.push(created);
   }
   res.json({ plans });

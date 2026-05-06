@@ -5,7 +5,6 @@ import Card from "../components/Card";
 import { api } from "../lib/api";
 import type { MeResponse } from "../lib/types";
 import { computeStats, getFinalTrackingData } from "../lib/trackingData";
-import { resolvePackageMeta } from "../lib/packageCatalog";
 import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
 
 type DashboardStats = ReturnType<typeof computeStats> & {
@@ -115,8 +114,7 @@ export default function Dashboard() {
   const remainingUnits = me?.balances?.unitsRemaining ?? me?.activePackage?.unitsRemaining ?? 0;
   const packageLimit = me?.balances?.labelLimit ?? me?.subscription?.plan?.monthlyLabelLimit ?? 0;
   const usedUnits = Math.max(0, packageLimit - remainingUnits);
-  const activePlanName = me?.subscription?.plan?.name ?? me?.activePackage?.planName ?? "BUSINESS";
-  const packageMeta = resolvePackageMeta(activePlanName);
+  const activePlanName = me?.subscription?.plan?.name ?? me?.activePackage?.planName ?? "No active plan";
 
   const activity = useMemo(() => [...stats.graphData].slice(-6), [stats.graphData]);
   const maxActivity = useMemo(() => Math.max(1, ...activity.map((item) => item.total)), [activity]);
@@ -136,7 +134,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Current Package</div>
-              <div className="mt-2 text-2xl font-semibold text-slate-900">{packageMeta.displayName}</div>
+              <div className="mt-2 text-2xl font-semibold text-slate-900">{activePlanName}</div>
             </div>
             <Package2 className="h-5 w-5 text-brand" />
           </div>
