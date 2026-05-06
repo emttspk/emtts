@@ -165,15 +165,15 @@ export default function Admin() {
     name: "Business Plan",
     fullPriceCents: 250000,
     discountPriceCents: 250000,
-    unitsIncluded: 2000,
-    labelsIncluded: 2000,
-    trackingIncluded: 2000,
-    moneyOrdersIncluded: 2000,
+    unitsIncluded: 3000,
+    labelsIncluded: 3000,
+    trackingIncluded: 3000,
+    moneyOrdersIncluded: 3000,
     complaintsIncluded: 300,
     dailyComplaintLimit: 10,
     monthlyComplaintLimit: 300,
-    monthlyLabelLimit: 2000,
-    monthlyTrackingLimit: 2000,
+    monthlyLabelLimit: 3000,
+    monthlyTrackingLimit: 3000,
     isSuspended: false,
   });
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
@@ -202,7 +202,7 @@ export default function Admin() {
 
   async function refresh() {
     const [p, u, us, sh, bs] = await Promise.all([
-      api<{ plans: Plan[] }>("/api/admin/plans"),
+      api<{ plans: Plan[] }>("/api/plans"),
       api<{ users: AdminUser[] }>("/api/admin/users"),
       api<{ usage: UsageRow[] }>(`/api/admin/usage?month=${encodeURIComponent(month)}`),
       api<{ shipments: ShipmentRow[] }>("/api/admin/shipments?limit=50"),
@@ -487,7 +487,7 @@ export default function Admin() {
             <button className="rounded-2xl border bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-lg hover:bg-gray-50" onClick={() => refresh()}>Refresh</button>
           </div>
           <form
-            className="grid gap-3 border-t bg-slate-50 px-6 py-4 sm:grid-cols-2 lg:grid-cols-4"
+            className="border-t bg-slate-50 px-6 py-5"
             onSubmit={async (e) => {
               e.preventDefault();
               setErr(null);
@@ -502,17 +502,63 @@ export default function Admin() {
               }
             }}
           >
-            <input className="field-input" value={planDraft.name} onChange={(e) => setPlanDraft((prev) => ({ ...prev, name: e.target.value }))} placeholder="Plan name" />
-            <input className="field-input" value={planDraft.fullPriceCents} onChange={(e) => setPlanDraft((prev) => ({ ...prev, fullPriceCents: Number(e.target.value || 0) }))} placeholder="Full price (paisa)" type="number" />
-            <input className="field-input" value={planDraft.discountPriceCents} onChange={(e) => setPlanDraft((prev) => ({ ...prev, discountPriceCents: Number(e.target.value || 0) }))} placeholder="Discounted price (paisa)" type="number" />
-            <input className="field-input" value={planDraft.unitsIncluded} onChange={(e) => setPlanDraft((prev) => ({ ...prev, unitsIncluded: Number(e.target.value || 0) }))} placeholder="Units Included" type="number" />
-            <input className="field-input" value={planDraft.labelsIncluded} onChange={(e) => setPlanDraft((prev) => ({ ...prev, labelsIncluded: Number(e.target.value || 0), monthlyLabelLimit: Number(e.target.value || 0) }))} placeholder="Labels Included" type="number" />
-            <input className="field-input" value={planDraft.trackingIncluded} onChange={(e) => setPlanDraft((prev) => ({ ...prev, trackingIncluded: Number(e.target.value || 0), monthlyTrackingLimit: Number(e.target.value || 0) }))} placeholder="Tracking Included" type="number" />
-            <input className="field-input" value={planDraft.moneyOrdersIncluded} onChange={(e) => setPlanDraft((prev) => ({ ...prev, moneyOrdersIncluded: Number(e.target.value || 0) }))} placeholder="Money Orders Included" type="number" />
-            <input className="field-input" value={planDraft.complaintsIncluded} onChange={(e) => setPlanDraft((prev) => ({ ...prev, complaintsIncluded: Number(e.target.value || 0) }))} placeholder="Complaints Included" type="number" />
-            <input className="field-input" value={planDraft.dailyComplaintLimit} onChange={(e) => setPlanDraft((prev) => ({ ...prev, dailyComplaintLimit: Number(e.target.value || 0) }))} placeholder="Daily Complaint Limit" type="number" />
-            <input className="field-input" value={planDraft.monthlyComplaintLimit} onChange={(e) => setPlanDraft((prev) => ({ ...prev, monthlyComplaintLimit: Number(e.target.value || 0) }))} placeholder="Monthly Complaint Limit" type="number" />
-            <button className="rounded-2xl bg-brand px-3 py-2 text-sm font-medium text-white shadow-lg hover:bg-brand-dark">Create</button>
+            <div className="mx-auto w-full max-w-3xl space-y-3">
+              <label className="block text-sm font-medium text-slate-700">
+                Plan name
+                <input className="field-input mt-1 w-full" value={planDraft.name} onChange={(e) => setPlanDraft((prev) => ({ ...prev, name: e.target.value }))} placeholder="Business Plan" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Full price (paisa)
+                <input className="field-input mt-1 w-full" value={planDraft.fullPriceCents} onChange={(e) => setPlanDraft((prev) => ({ ...prev, fullPriceCents: Number(e.target.value || 0) }))} placeholder="250000" type="number" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Discount price (paisa)
+                <input className="field-input mt-1 w-full" value={planDraft.discountPriceCents} onChange={(e) => setPlanDraft((prev) => ({ ...prev, discountPriceCents: Number(e.target.value || 0) }))} placeholder="250000" type="number" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Units included
+                <input className="field-input mt-1 w-full" value={planDraft.unitsIncluded} onChange={(e) => setPlanDraft((prev) => ({ ...prev, unitsIncluded: Number(e.target.value || 0) }))} placeholder="2000" type="number" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Labels included
+                <input className="field-input mt-1 w-full" value={planDraft.labelsIncluded} onChange={(e) => setPlanDraft((prev) => ({ ...prev, labelsIncluded: Number(e.target.value || 0), monthlyLabelLimit: Number(e.target.value || 0) }))} placeholder="2000" type="number" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Tracking included
+                <input className="field-input mt-1 w-full" value={planDraft.trackingIncluded} onChange={(e) => setPlanDraft((prev) => ({ ...prev, trackingIncluded: Number(e.target.value || 0), monthlyTrackingLimit: Number(e.target.value || 0) }))} placeholder="2000" type="number" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Money orders included
+                <input className="field-input mt-1 w-full" value={planDraft.moneyOrdersIncluded} onChange={(e) => setPlanDraft((prev) => ({ ...prev, moneyOrdersIncluded: Number(e.target.value || 0) }))} placeholder="2000" type="number" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Complaints included
+                <input className="field-input mt-1 w-full" value={planDraft.complaintsIncluded} onChange={(e) => setPlanDraft((prev) => ({ ...prev, complaintsIncluded: Number(e.target.value || 0) }))} placeholder="300" type="number" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Daily complaint limit
+                <input className="field-input mt-1 w-full" value={planDraft.dailyComplaintLimit} onChange={(e) => setPlanDraft((prev) => ({ ...prev, dailyComplaintLimit: Number(e.target.value || 0) }))} placeholder="10" type="number" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Monthly complaint limit
+                <input className="field-input mt-1 w-full" value={planDraft.monthlyComplaintLimit} onChange={(e) => setPlanDraft((prev) => ({ ...prev, monthlyComplaintLimit: Number(e.target.value || 0) }))} placeholder="300" type="number" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Monthly label limit
+                <input className="field-input mt-1 w-full" value={planDraft.monthlyLabelLimit} onChange={(e) => setPlanDraft((prev) => ({ ...prev, monthlyLabelLimit: Number(e.target.value || 0), labelsIncluded: Number(e.target.value || 0) }))} placeholder="2000" type="number" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Monthly tracking limit
+                <input className="field-input mt-1 w-full" value={planDraft.monthlyTrackingLimit} onChange={(e) => setPlanDraft((prev) => ({ ...prev, monthlyTrackingLimit: Number(e.target.value || 0), trackingIncluded: Number(e.target.value || 0) }))} placeholder="2000" type="number" />
+              </label>
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" checked={planDraft.isSuspended} onChange={(e) => setPlanDraft((prev) => ({ ...prev, isSuspended: e.target.checked }))} />
+                Suspended
+              </label>
+              <div className="pt-2">
+                <button className="rounded-2xl bg-brand px-4 py-2 text-sm font-medium text-white shadow-lg hover:bg-brand-dark">Create</button>
+              </div>
+            </div>
           </form>
           <div className="grid gap-4 border-t bg-white p-6 md:grid-cols-2">
             {plans.map((plan) => (
@@ -529,8 +575,8 @@ export default function Admin() {
                 {(plan.discountPct ?? 0) > 0 ? (
                   <div className="mt-1 text-xs text-slate-500">Full: {formatPKR.format(Math.round((plan.fullPriceCents ?? plan.priceCents) / 100)).replace(/\u00A0/g, " ")} ({plan.discountPct}% off)</div>
                 ) : null}
-                <div className="mt-4 text-sm text-slate-700">Labels Included: {plan.monthlyLabelLimit.toLocaleString()}</div>
-                <div className="mt-1 text-sm text-slate-700">Tracking Included: {plan.monthlyTrackingLimit.toLocaleString()}</div>
+                <div className="mt-4 text-sm text-slate-700">Labels Included: {(plan.labelsIncluded ?? plan.monthlyLabelLimit).toLocaleString()}</div>
+                <div className="mt-1 text-sm text-slate-700">Tracking Included: {(plan.trackingIncluded ?? plan.monthlyTrackingLimit).toLocaleString()}</div>
                 <div className="mt-1 text-sm text-slate-700">Money Orders Included: {(plan.moneyOrdersIncluded ?? 0).toLocaleString()}</div>
                 <div className="mt-1 text-sm text-slate-700">Complaints Included: {(plan.complaintsIncluded ?? 0).toLocaleString()}</div>
                 <div className="mt-1 text-sm text-slate-700">Daily Complaints: {(plan.dailyComplaintLimit ?? 0).toLocaleString()}</div>
@@ -1017,17 +1063,55 @@ export default function Admin() {
               </div>
               <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700" onClick={() => { setEditingPlanId(null); setEditingPlanDraft(null); }}>Close</button>
             </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <input className="field-input" value={editingPlanDraft.name} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, name: e.target.value } : prev)} placeholder="Plan name" />
-              <input className="field-input" value={editingPlanDraft.fullPriceCents} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, fullPriceCents: Number(e.target.value || 0) } : prev)} type="number" placeholder="Full price (paisa)" />
-              <input className="field-input" value={editingPlanDraft.discountPriceCents} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, discountPriceCents: Number(e.target.value || 0) } : prev)} type="number" placeholder="Discounted price (paisa)" />
-              <input className="field-input" value={editingPlanDraft.unitsIncluded} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, unitsIncluded: Number(e.target.value || 0) } : prev)} type="number" placeholder="Units Included" />
-              <input className="field-input" value={editingPlanDraft.labelsIncluded} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, labelsIncluded: Number(e.target.value || 0), monthlyLabelLimit: Number(e.target.value || 0) } : prev)} type="number" placeholder="Labels Included" />
-              <input className="field-input" value={editingPlanDraft.trackingIncluded} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, trackingIncluded: Number(e.target.value || 0), monthlyTrackingLimit: Number(e.target.value || 0) } : prev)} type="number" placeholder="Tracking Included" />
-              <input className="field-input" value={editingPlanDraft.moneyOrdersIncluded} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, moneyOrdersIncluded: Number(e.target.value || 0) } : prev)} type="number" placeholder="Money Orders Included" />
-              <input className="field-input" value={editingPlanDraft.complaintsIncluded} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, complaintsIncluded: Number(e.target.value || 0) } : prev)} type="number" placeholder="Complaints Included" />
-              <input className="field-input" value={editingPlanDraft.dailyComplaintLimit} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, dailyComplaintLimit: Number(e.target.value || 0) } : prev)} type="number" placeholder="Daily Complaint Limit" />
-              <input className="field-input" value={editingPlanDraft.monthlyComplaintLimit} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, monthlyComplaintLimit: Number(e.target.value || 0) } : prev)} type="number" placeholder="Monthly Complaint Limit" />
+            <div className="mt-4 space-y-3">
+              <label className="block text-sm font-medium text-slate-700">
+                Plan name
+                <input className="field-input mt-1 w-full" value={editingPlanDraft.name} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, name: e.target.value } : prev)} placeholder="Plan name" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Full price (paisa)
+                <input className="field-input mt-1 w-full" value={editingPlanDraft.fullPriceCents} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, fullPriceCents: Number(e.target.value || 0) } : prev)} type="number" placeholder="Full price (paisa)" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Discounted price (paisa)
+                <input className="field-input mt-1 w-full" value={editingPlanDraft.discountPriceCents} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, discountPriceCents: Number(e.target.value || 0) } : prev)} type="number" placeholder="Discounted price (paisa)" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Units included
+                <input className="field-input mt-1 w-full" value={editingPlanDraft.unitsIncluded} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, unitsIncluded: Number(e.target.value || 0) } : prev)} type="number" placeholder="Units Included" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Labels included
+                <input className="field-input mt-1 w-full" value={editingPlanDraft.labelsIncluded} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, labelsIncluded: Number(e.target.value || 0), monthlyLabelLimit: Number(e.target.value || 0) } : prev)} type="number" placeholder="Labels Included" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Tracking included
+                <input className="field-input mt-1 w-full" value={editingPlanDraft.trackingIncluded} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, trackingIncluded: Number(e.target.value || 0), monthlyTrackingLimit: Number(e.target.value || 0) } : prev)} type="number" placeholder="Tracking Included" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Money orders included
+                <input className="field-input mt-1 w-full" value={editingPlanDraft.moneyOrdersIncluded} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, moneyOrdersIncluded: Number(e.target.value || 0) } : prev)} type="number" placeholder="Money Orders Included" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Complaints included
+                <input className="field-input mt-1 w-full" value={editingPlanDraft.complaintsIncluded} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, complaintsIncluded: Number(e.target.value || 0) } : prev)} type="number" placeholder="Complaints Included" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Daily complaint limit
+                <input className="field-input mt-1 w-full" value={editingPlanDraft.dailyComplaintLimit} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, dailyComplaintLimit: Number(e.target.value || 0) } : prev)} type="number" placeholder="Daily Complaint Limit" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Monthly complaint limit
+                <input className="field-input mt-1 w-full" value={editingPlanDraft.monthlyComplaintLimit} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, monthlyComplaintLimit: Number(e.target.value || 0) } : prev)} type="number" placeholder="Monthly Complaint Limit" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Monthly label limit
+                <input className="field-input mt-1 w-full" value={editingPlanDraft.monthlyLabelLimit} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, monthlyLabelLimit: Number(e.target.value || 0), labelsIncluded: Number(e.target.value || 0) } : prev)} type="number" placeholder="Monthly Label Limit" />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                Monthly tracking limit
+                <input className="field-input mt-1 w-full" value={editingPlanDraft.monthlyTrackingLimit} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, monthlyTrackingLimit: Number(e.target.value || 0), trackingIncluded: Number(e.target.value || 0) } : prev)} type="number" placeholder="Monthly Tracking Limit" />
+              </label>
               <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input type="checkbox" checked={editingPlanDraft.isSuspended} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, isSuspended: e.target.checked } : prev)} />
                 Suspended

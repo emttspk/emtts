@@ -1,0 +1,469 @@
+{
+  "api": "https://api.epost.pk",
+  "login": {
+    "ok": true,
+    "status": 200
+  },
+  "beforeAdminPlans": [
+    {
+      "id": "d00b4e7e-8bd5-42d9-9d58-0e26cc864cf1",
+      "name": "Trail",
+      "priceCents": 100,
+      "fullPriceCents": 0,
+      "discountPriceCents": 0,
+      "unitsIncluded": 1,
+      "labelsIncluded": 1,
+      "trackingIncluded": 1,
+      "moneyOrdersIncluded": 1,
+      "complaintsIncluded": 150,
+      "dailyComplaintLimit": 5,
+      "monthlyComplaintLimit": 150,
+      "monthlyLabelLimit": 1,
+      "monthlyTrackingLimit": 1,
+      "isSuspended": false
+    },
+    {
+      "id": "7377e0c7-eaf7-41fa-93d6-c9da6e76874a",
+      "name": "Standard Plan",
+      "priceCents": 99900,
+      "fullPriceCents": 0,
+      "discountPriceCents": 0,
+      "unitsIncluded": 1000,
+      "labelsIncluded": 1000,
+      "trackingIncluded": 1000,
+      "moneyOrdersIncluded": 1000,
+      "complaintsIncluded": 150,
+      "dailyComplaintLimit": 5,
+      "monthlyComplaintLimit": 150,
+      "monthlyLabelLimit": 1000,
+      "monthlyTrackingLimit": 1000,
+      "isSuspended": false
+    },
+    {
+      "id": "41e87919-dc18-4029-97aa-3dddfd994449",
+      "name": "Business Plan",
+      "priceCents": 250000,
+      "fullPriceCents": 0,
+      "discountPriceCents": 0,
+      "unitsIncluded": 3000,
+      "labelsIncluded": 3000,
+      "trackingIncluded": 3000,
+      "moneyOrdersIncluded": 3000,
+      "complaintsIncluded": 300,
+      "dailyComplaintLimit": 10,
+      "monthlyComplaintLimit": 300,
+      "monthlyLabelLimit": 3000,
+      "monthlyTrackingLimit": 3000,
+      "isSuspended": false
+    },
+    {
+      "id": "9c757216-af6f-4ade-9c3a-5faa5d761ce8",
+      "name": "Free Plan",
+      "priceCents": 0,
+      "fullPriceCents": 0,
+      "discountPriceCents": 0,
+      "unitsIncluded": 250,
+      "labelsIncluded": 250,
+      "trackingIncluded": 250,
+      "moneyOrdersIncluded": 250,
+      "complaintsIncluded": 5,
+      "dailyComplaintLimit": 1,
+      "monthlyComplaintLimit": 5,
+      "monthlyLabelLimit": 250,
+      "monthlyTrackingLimit": 250,
+      "isSuspended": false
+    }
+  ],
+  "repairPayloads": [
+    {
+      "planId": "9c757216-af6f-4ade-9c3a-5faa5d761ce8",
+      "payload": {
+        "name": "Free Plan",
+        "fullPriceCents": 0,
+        "discountPriceCents": 0,
+        "unitsIncluded": 250,
+        "labelsIncluded": 250,
+        "trackingIncluded": 250,
+        "moneyOrdersIncluded": 250,
+        "complaintsIncluded": 5,
+        "dailyComplaintLimit": 1,
+        "monthlyComplaintLimit": 5,
+        "monthlyLabelLimit": 250,
+        "monthlyTrackingLimit": 250,
+        "isSuspended": false
+      }
+    },
+    {
+      "planId": "7377e0c7-eaf7-41fa-93d6-c9da6e76874a",
+      "payload": {
+        "name": "Standard Plan",
+        "fullPriceCents": 99900,
+        "discountPriceCents": 99900,
+        "unitsIncluded": 1000,
+        "labelsIncluded": 1000,
+        "trackingIncluded": 1000,
+        "moneyOrdersIncluded": 1000,
+        "complaintsIncluded": 150,
+        "dailyComplaintLimit": 5,
+        "monthlyComplaintLimit": 150,
+        "monthlyLabelLimit": 1000,
+        "monthlyTrackingLimit": 1000,
+        "isSuspended": false
+      }
+    },
+    {
+      "planId": "41e87919-dc18-4029-97aa-3dddfd994449",
+      "payload": {
+        "name": "Business Plan",
+        "fullPriceCents": 250000,
+        "discountPriceCents": 250000,
+        "unitsIncluded": 3000,
+        "labelsIncluded": 3000,
+        "trackingIncluded": 3000,
+        "moneyOrdersIncluded": 3000,
+        "complaintsIncluded": 300,
+        "dailyComplaintLimit": 10,
+        "monthlyComplaintLimit": 300,
+        "monthlyLabelLimit": 3000,
+        "monthlyTrackingLimit": 3000,
+        "isSuspended": false
+      }
+    }
+  ],
+  "repairResponses": [
+    {
+      "planId": "9c757216-af6f-4ade-9c3a-5faa5d761ce8",
+      "status": 200,
+      "ok": true,
+      "plan": {
+        "id": "9c757216-af6f-4ade-9c3a-5faa5d761ce8",
+        "name": "Free Plan",
+        "priceCents": 0,
+        "fullPriceCents": 0,
+        "discountPriceCents": 0,
+        "unitsIncluded": 250,
+        "labelsIncluded": 250,
+        "trackingIncluded": 250,
+        "moneyOrdersIncluded": 250,
+        "complaintsIncluded": 5,
+        "dailyComplaintLimit": 1,
+        "monthlyComplaintLimit": 5,
+        "monthlyLabelLimit": 250,
+        "monthlyTrackingLimit": 250,
+        "isSuspended": false
+      }
+    },
+    {
+      "planId": "7377e0c7-eaf7-41fa-93d6-c9da6e76874a",
+      "status": 200,
+      "ok": true,
+      "plan": {
+        "id": "7377e0c7-eaf7-41fa-93d6-c9da6e76874a",
+        "name": "Standard Plan",
+        "priceCents": 99900,
+        "fullPriceCents": 99900,
+        "discountPriceCents": 99900,
+        "unitsIncluded": 1000,
+        "labelsIncluded": 1000,
+        "trackingIncluded": 1000,
+        "moneyOrdersIncluded": 1000,
+        "complaintsIncluded": 150,
+        "dailyComplaintLimit": 5,
+        "monthlyComplaintLimit": 150,
+        "monthlyLabelLimit": 1000,
+        "monthlyTrackingLimit": 1000,
+        "isSuspended": false
+      }
+    },
+    {
+      "planId": "41e87919-dc18-4029-97aa-3dddfd994449",
+      "status": 200,
+      "ok": true,
+      "plan": {
+        "id": "41e87919-dc18-4029-97aa-3dddfd994449",
+        "name": "Business Plan",
+        "priceCents": 250000,
+        "fullPriceCents": 250000,
+        "discountPriceCents": 250000,
+        "unitsIncluded": 3000,
+        "labelsIncluded": 3000,
+        "trackingIncluded": 3000,
+        "moneyOrdersIncluded": 3000,
+        "complaintsIncluded": 300,
+        "dailyComplaintLimit": 10,
+        "monthlyComplaintLimit": 300,
+        "monthlyLabelLimit": 3000,
+        "monthlyTrackingLimit": 3000,
+        "isSuspended": false
+      }
+    }
+  ],
+  "afterAdminPlans": [
+    {
+      "id": "d00b4e7e-8bd5-42d9-9d58-0e26cc864cf1",
+      "name": "Trail",
+      "priceCents": 100,
+      "fullPriceCents": 0,
+      "discountPriceCents": 0,
+      "unitsIncluded": 1,
+      "labelsIncluded": 1,
+      "trackingIncluded": 1,
+      "moneyOrdersIncluded": 1,
+      "complaintsIncluded": 150,
+      "dailyComplaintLimit": 5,
+      "monthlyComplaintLimit": 150,
+      "monthlyLabelLimit": 1,
+      "monthlyTrackingLimit": 1,
+      "isSuspended": false
+    },
+    {
+      "id": "7377e0c7-eaf7-41fa-93d6-c9da6e76874a",
+      "name": "Standard Plan",
+      "priceCents": 99900,
+      "fullPriceCents": 99900,
+      "discountPriceCents": 99900,
+      "unitsIncluded": 1000,
+      "labelsIncluded": 1000,
+      "trackingIncluded": 1000,
+      "moneyOrdersIncluded": 1000,
+      "complaintsIncluded": 150,
+      "dailyComplaintLimit": 5,
+      "monthlyComplaintLimit": 150,
+      "monthlyLabelLimit": 1000,
+      "monthlyTrackingLimit": 1000,
+      "isSuspended": false
+    },
+    {
+      "id": "41e87919-dc18-4029-97aa-3dddfd994449",
+      "name": "Business Plan",
+      "priceCents": 250000,
+      "fullPriceCents": 250000,
+      "discountPriceCents": 250000,
+      "unitsIncluded": 3000,
+      "labelsIncluded": 3000,
+      "trackingIncluded": 3000,
+      "moneyOrdersIncluded": 3000,
+      "complaintsIncluded": 300,
+      "dailyComplaintLimit": 10,
+      "monthlyComplaintLimit": 300,
+      "monthlyLabelLimit": 3000,
+      "monthlyTrackingLimit": 3000,
+      "isSuspended": false
+    },
+    {
+      "id": "9c757216-af6f-4ade-9c3a-5faa5d761ce8",
+      "name": "Free Plan",
+      "priceCents": 0,
+      "fullPriceCents": 0,
+      "discountPriceCents": 0,
+      "unitsIncluded": 250,
+      "labelsIncluded": 250,
+      "trackingIncluded": 250,
+      "moneyOrdersIncluded": 250,
+      "complaintsIncluded": 5,
+      "dailyComplaintLimit": 1,
+      "monthlyComplaintLimit": 5,
+      "monthlyLabelLimit": 250,
+      "monthlyTrackingLimit": 250,
+      "isSuspended": false
+    }
+  ],
+  "publicPlansAfterRepair": [
+    {
+      "id": "9c757216-af6f-4ade-9c3a-5faa5d761ce8",
+      "name": "Free Plan",
+      "priceCents": 0,
+      "fullPriceCents": 0,
+      "discountPriceCents": 0,
+      "unitsIncluded": 250,
+      "labelsIncluded": 250,
+      "trackingIncluded": 250,
+      "moneyOrdersIncluded": 250,
+      "complaintsIncluded": 5,
+      "dailyComplaintLimit": 1,
+      "monthlyComplaintLimit": 5,
+      "monthlyLabelLimit": 250,
+      "monthlyTrackingLimit": 250,
+      "isSuspended": false
+    },
+    {
+      "id": "d00b4e7e-8bd5-42d9-9d58-0e26cc864cf1",
+      "name": "Trail",
+      "priceCents": 0,
+      "fullPriceCents": 0,
+      "discountPriceCents": 0,
+      "unitsIncluded": 1,
+      "labelsIncluded": 1,
+      "trackingIncluded": 1,
+      "moneyOrdersIncluded": 1,
+      "complaintsIncluded": 150,
+      "dailyComplaintLimit": 5,
+      "monthlyComplaintLimit": 150,
+      "monthlyLabelLimit": 1,
+      "monthlyTrackingLimit": 1,
+      "isSuspended": false
+    },
+    {
+      "id": "7377e0c7-eaf7-41fa-93d6-c9da6e76874a",
+      "name": "Standard Plan",
+      "priceCents": 99900,
+      "fullPriceCents": 99900,
+      "discountPriceCents": 99900,
+      "unitsIncluded": 1000,
+      "labelsIncluded": 1000,
+      "trackingIncluded": 1000,
+      "moneyOrdersIncluded": 1000,
+      "complaintsIncluded": 150,
+      "dailyComplaintLimit": 5,
+      "monthlyComplaintLimit": 150,
+      "monthlyLabelLimit": 1000,
+      "monthlyTrackingLimit": 1000,
+      "isSuspended": false
+    },
+    {
+      "id": "41e87919-dc18-4029-97aa-3dddfd994449",
+      "name": "Business Plan",
+      "priceCents": 250000,
+      "fullPriceCents": 250000,
+      "discountPriceCents": 250000,
+      "unitsIncluded": 3000,
+      "labelsIncluded": 3000,
+      "trackingIncluded": 3000,
+      "moneyOrdersIncluded": 3000,
+      "complaintsIncluded": 300,
+      "dailyComplaintLimit": 10,
+      "monthlyComplaintLimit": 300,
+      "monthlyLabelLimit": 3000,
+      "monthlyTrackingLimit": 3000,
+      "isSuspended": false
+    }
+  ],
+  "testDeleteFlow": {
+    "createRequestPayload": {
+      "name": "Copilot Test Plan 1778066028536",
+      "fullPriceCents": 123400,
+      "discountPriceCents": 120000,
+      "unitsIncluded": 321,
+      "labelsIncluded": 320,
+      "trackingIncluded": 310,
+      "moneyOrdersIncluded": 300,
+      "complaintsIncluded": 25,
+      "dailyComplaintLimit": 2,
+      "monthlyComplaintLimit": 20,
+      "monthlyLabelLimit": 320,
+      "monthlyTrackingLimit": 310,
+      "isSuspended": false
+    },
+    "createResponse": {
+      "id": "08b85523-53b7-4e42-8ff5-6df01fd4f41f",
+      "name": "Copilot Test Plan 1778066028536",
+      "priceCents": 120000,
+      "fullPriceCents": 123400,
+      "discountPriceCents": 120000,
+      "unitsIncluded": 321,
+      "labelsIncluded": 320,
+      "trackingIncluded": 310,
+      "moneyOrdersIncluded": 300,
+      "complaintsIncluded": 25,
+      "dailyComplaintLimit": 2,
+      "monthlyComplaintLimit": 20,
+      "monthlyLabelLimit": 320,
+      "monthlyTrackingLimit": 310,
+      "isSuspended": false
+    },
+    "editRequestPayload": {
+      "name": "Copilot Test Plan 1778066028536 Edited",
+      "fullPriceCents": 140000,
+      "discountPriceCents": 130000,
+      "unitsIncluded": 555,
+      "labelsIncluded": 500,
+      "trackingIncluded": 450,
+      "moneyOrdersIncluded": 430,
+      "complaintsIncluded": 40,
+      "dailyComplaintLimit": 4,
+      "monthlyComplaintLimit": 35,
+      "monthlyLabelLimit": 500,
+      "monthlyTrackingLimit": 450,
+      "isSuspended": true
+    },
+    "editResponse": {
+      "id": "08b85523-53b7-4e42-8ff5-6df01fd4f41f",
+      "name": "Copilot Test Plan 1778066028536 Edited",
+      "priceCents": 130000,
+      "fullPriceCents": 140000,
+      "discountPriceCents": 130000,
+      "unitsIncluded": 555,
+      "labelsIncluded": 500,
+      "trackingIncluded": 450,
+      "moneyOrdersIncluded": 430,
+      "complaintsIncluded": 40,
+      "dailyComplaintLimit": 4,
+      "monthlyComplaintLimit": 35,
+      "monthlyLabelLimit": 500,
+      "monthlyTrackingLimit": 450,
+      "isSuspended": true
+    },
+    "suspendUnsuspendResponse": {
+      "ok": true,
+      "status": 200,
+      "body": {
+        "success": true,
+        "planId": "08b85523-53b7-4e42-8ff5-6df01fd4f41f",
+        "isSuspended": false
+      }
+    },
+    "deleteResponse": {
+      "ok": true,
+      "status": 200,
+      "body": {
+        "success": true
+      }
+    },
+    "existsAfterDelete": false
+  },
+  "protectedDeleteFlow": {
+    "plan": {
+      "id": "7377e0c7-eaf7-41fa-93d6-c9da6e76874a",
+      "name": "Standard Plan",
+      "priceCents": 99900,
+      "fullPriceCents": 99900,
+      "discountPriceCents": 99900,
+      "unitsIncluded": 1000,
+      "labelsIncluded": 1000,
+      "trackingIncluded": 1000,
+      "moneyOrdersIncluded": 1000,
+      "complaintsIncluded": 150,
+      "dailyComplaintLimit": 5,
+      "monthlyComplaintLimit": 150,
+      "monthlyLabelLimit": 1000,
+      "monthlyTrackingLimit": 1000,
+      "isSuspended": false
+    },
+    "response": {
+      "ok": false,
+      "status": 409,
+      "body": {
+        "error": "Cannot delete plan with active subscriptions"
+      }
+    }
+  },
+  "templateFlow": {
+    "listStatus": 200,
+    "uploadStatus": 201,
+    "uploadBody": {
+      "backgroundUrl": "/api/admin/templates/background/04c9630d-0fdc-4ea5-8073-2aa4c1124ef4.png",
+      "fileName": "04c9630d-0fdc-4ea5-8073-2aa4c1124ef4.png",
+      "sourcePdfUrl": null,
+      "originalName": "tiny-template.png",
+      "size": 67,
+      "mimeType": "image/png"
+    },
+    "saveStatus": 200,
+    "activateStatus": 200,
+    "activeTemplateIdAfterRefresh": "8927c7da-2fad-4a4f-b775-223ff17eb58c",
+    "selectedTemplateId": "8927c7da-2fad-4a4f-b775-223ff17eb58c",
+    "persistedAfterRefresh": true,
+    "templateCount": 1
+  },
+  "errors": []
+}

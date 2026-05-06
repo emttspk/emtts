@@ -28,7 +28,7 @@ export const PACKAGE_CATALOG: PackageMeta[] = [
     priceText: "Rs 999",
     units: 1000,
     tracking: 1000,
-    complaints: "5/day, 50/month",
+    complaints: "5/day, 150/month",
     moneyOrders: "Included",
     tagline: "For growing dispatch operations that need daily shipment control.",
     badge: "Most Popular",

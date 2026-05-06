@@ -1,3 +1,6 @@
+import { useEffect, useMemo, useState } from "react";
+import { fetchPlans } from "../lib/PackageService";
+
 const MODULES = [
   {
     title: "Label Generation",
@@ -31,46 +34,61 @@ const MODULES = [
   },
 ];
 
-const BILLING_PACKAGES = [
-  {
-    name: "FREE",
-    price: "Rs 0 / Month",
-    shipmentLimit: "Labels/Units: 250",
-    moneyOrderLimit: "Tracking: 250",
-    trackingAccess: "Money Orders: Included",
-    complaintSupport: "Complaints: 1/day",
-    cta: "Get Started Free",
-    checkoutHref: "/register",
-    badge: null,
-    featured: false,
-  },
-  {
-    name: "STANDARD",
-    price: "Rs 999 / Month",
-    shipmentLimit: "Labels/Units: 1,000",
-    moneyOrderLimit: "Tracking: 1,000",
-    trackingAccess: "Money Orders: Included",
-    complaintSupport: "Complaints: 5/day, 50/month",
-    cta: "Buy Now",
-    checkoutHref: "/billing/checkout?plan=standard",
-    badge: "Most Popular",
-    featured: true,
-  },
-  {
-    name: "BUSINESS",
-    price: "Rs 2,500 / Month",
-    shipmentLimit: "Labels/Units: 3,000",
-    moneyOrderLimit: "Tracking: 3,000",
-    trackingAccess: "Money Orders: Included",
-    complaintSupport: "Complaints: 10/day, 300/month",
-    cta: "Buy Now",
-    checkoutHref: "/billing/checkout?plan=business",
-    badge: "Best Value",
-    featured: false,
-  },
-];
+const formatPrice = (priceCents) => `Rs ${Math.round((priceCents || 0) / 100).toLocaleString()} / Month`;
+
+function toPlanSlug(name) {
+  return String(name || "")
+    .toLowerCase()
+    .replace(/\s+plan$/i, "")
+    .trim();
+}
+
+function complaintText(plan) {
+  const included = Number(plan.complaintsIncluded || 0);
+  if (included <= 0) return "Complaints: Not included";
+  const parts = [];
+  if (plan.dailyComplaintLimit && plan.dailyComplaintLimit > 0) {
+    parts.push(`${plan.dailyComplaintLimit}/day`);
+  }
+  if (plan.monthlyComplaintLimit && plan.monthlyComplaintLimit > 0) {
+    parts.push(`${plan.monthlyComplaintLimit}/month`);
+  }
+  if (!parts.length) {
+    parts.push(`${included}/month`);
+  }
+  return `Complaints: ${parts.join(", ")}`;
+}
 
 export default function OperationsModules() {
+  const [plans, setPlans] = useState([]);
+
+  useEffect(() => {
+    fetchPlans()
+      .then((items) => setPlans(items.filter((plan) => !plan.isSuspended)))
+      .catch(() => setPlans([]));
+  }, []);
+
+  const billingPackages = useMemo(() => {
+    return [...plans]
+      .sort((a, b) => (a.discountPriceCents ?? a.priceCents) - (b.discountPriceCents ?? b.priceCents))
+      .map((plan, index) => {
+        const planSlug = toPlanSlug(plan.name);
+        const priceCents = plan.discountPriceCents ?? plan.priceCents;
+        return {
+          name: planSlug.toUpperCase() || "PLAN",
+          price: formatPrice(priceCents),
+          shipmentLimit: `Labels/Units: ${(plan.monthlyLabelLimit || 0).toLocaleString()}`,
+          moneyOrderLimit: `Tracking: ${(plan.monthlyTrackingLimit || 0).toLocaleString()}`,
+          trackingAccess: `Money Orders: ${(plan.moneyOrdersIncluded || 0) > 0 ? "Included" : "Not included"}`,
+          complaintSupport: complaintText(plan),
+          cta: priceCents > 0 ? "Buy Now" : "Get Started Free",
+          checkoutHref: priceCents > 0 ? `/billing/checkout?plan=${encodeURIComponent(planSlug)}` : "/register",
+          badge: index === 1 ? "Most Popular" : null,
+          featured: index === 1,
+        };
+      });
+  }, [plans]);
+
   return (
     <section className="relative overflow-hidden bg-[linear-gradient(180deg,#f4fbff_0%,#f8fcfa_45%,#eef6ff_100%)] py-14 md:py-16">
       <div className="mx-auto w-full max-w-[1400px] px-4 md:px-6 lg:px-12">
@@ -111,7 +129,7 @@ export default function OperationsModules() {
           </div>
 
           <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-3">
-            {BILLING_PACKAGES.map((plan) => (
+            {billingPackages.map((plan) => (
               <article
                 key={plan.name}
                 className={`rounded-2xl border bg-white/75 p-6 shadow-[0_22px_44px_rgba(15,23,42,0.14)] backdrop-blur-xl ${

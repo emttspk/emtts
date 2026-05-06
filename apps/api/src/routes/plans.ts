@@ -42,6 +42,7 @@ export async function getPlanExtrasByIds(planIds: string[]) {
   const rows = await prisma.$queryRaw<Array<{
     id: string;
     name: string;
+    pricecents: number;
     monthlylabellimit: number;
     monthlytrackinglimit: number;
     full_price_cents: number | null;
@@ -57,6 +58,7 @@ export async function getPlanExtrasByIds(planIds: string[]) {
   }>>`
     SELECT id,
            name,
+          "priceCents" AS pricecents,
            "monthlyLabelLimit" AS monthlylabellimit,
            "monthlyTrackingLimit" AS monthlytrackinglimit,
            full_price_cents,
@@ -77,6 +79,7 @@ export async function getPlanExtrasByIds(planIds: string[]) {
     const normalizedName = String(row.name ?? "").toLowerCase();
     const defaultDailyLimit = normalizedName.includes("free") ? 1 : normalizedName.includes("business") ? 10 : 5;
     const defaultMonthlyLimit = normalizedName.includes("free") ? 5 : normalizedName.includes("business") ? 300 : 150;
+    const basePriceCents = Math.max(0, Number(row.pricecents ?? 0));
     const labelsIncluded = Math.max(0, Number(row.labels_included ?? row.monthlylabellimit ?? 0));
     const trackingIncluded = Math.max(0, Number(row.tracking_included ?? row.monthlytrackinglimit ?? row.monthlylabellimit ?? 0));
     const unitsIncluded = Math.max(labelsIncluded, Number(row.units_included ?? labelsIncluded));
@@ -84,9 +87,9 @@ export async function getPlanExtrasByIds(planIds: string[]) {
     const dailyComplaintLimit = Math.max(0, Number(row.daily_complaint_limit ?? defaultDailyLimit));
     const monthlyComplaintLimit = Math.max(dailyComplaintLimit, Number(row.monthly_complaint_limit ?? defaultMonthlyLimit));
     const complaintsIncluded = Math.max(0, Number(row.complaints_included ?? monthlyComplaintLimit));
-    const discountPriceCents = Math.max(0, Number(row.discount_price_cents ?? 0));
-    const fullPriceCentsRaw = Number(row.full_price_cents ?? 0);
-    const fullPriceCents = Math.max(discountPriceCents, fullPriceCentsRaw || discountPriceCents);
+    const discountPriceCents = Math.max(0, Number(row.discount_price_cents ?? basePriceCents));
+    const fullPriceCentsRaw = Number(row.full_price_cents ?? basePriceCents);
+    const fullPriceCents = Math.max(discountPriceCents, fullPriceCentsRaw || discountPriceCents || basePriceCents);
     const discountPct = fullPriceCents > 0 ? Math.max(0, Math.min(100, Math.round(((fullPriceCents - discountPriceCents) / fullPriceCents) * 100))) : 0;
     map.set(row.id, {
       fullPriceCents,

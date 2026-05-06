@@ -51,6 +51,13 @@ export async function updateAdminTemplate(templateId: string, patch: Partial<Pic
   });
 }
 
+export async function activateAdminTemplate(templateId: string) {
+  return api<{ template: MoneyOrderTemplate }>(`/api/admin/templates/${templateId}/activate`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
 export async function createTemplateField(templateId: string, body: {
   fieldKey: string;
   fieldType: TemplateFieldType;

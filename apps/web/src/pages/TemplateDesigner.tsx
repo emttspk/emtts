@@ -3,6 +3,7 @@ import Card from "../components/Card";
 import { api, uploadFile } from "../lib/api";
 import { TEMPLATE_DESIGNER_ADMIN_EMAIL, TEMPLATE_DESIGNER_ENABLED } from "../lib/featureFlags";
 import {
+  activateAdminTemplate,
   createTemplateField,
   deleteTemplateField,
   getActiveAdminTemplate,
@@ -131,7 +132,7 @@ export default function TemplateDesigner() {
   }
 
   async function setActiveTemplate(templateId: string) {
-    await updateAdminTemplate(templateId, { isActive: true });
+    await activateAdminTemplate(templateId);
     await refreshTemplates();
   }
 

@@ -871,7 +871,7 @@ adminRouter.post("/plans/seed", async (_req, res) => {
   const defaults = [
     { name: "Free Plan", priceCents: 0, monthlyLabelLimit: 250, monthlyTrackingLimit: 250 },
     { name: "Standard Plan", priceCents: settings.standardPrice, monthlyLabelLimit: 1000, monthlyTrackingLimit: 1000 },
-    { name: "Business Plan", priceCents: settings.businessPrice, monthlyLabelLimit: 2000, monthlyTrackingLimit: 2000 },
+    { name: "Business Plan", priceCents: settings.businessPrice, monthlyLabelLimit: 3000, monthlyTrackingLimit: 3000 },
   ] as const;
   const plans = [];
   for (const plan of defaults) {
