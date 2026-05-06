@@ -81,15 +81,9 @@ type PlanForm = {
   name: string;
   fullPriceCents: number;
   discountPriceCents: number;
-  unitsIncluded: number;
-  labelsIncluded: number;
-  trackingIncluded: number;
-  moneyOrdersIncluded: number;
-  complaintsIncluded: number;
+  totalSharedUnits: number;
   dailyComplaintLimit: number;
   monthlyComplaintLimit: number;
-  monthlyLabelLimit: number;
-  monthlyTrackingLimit: number;
   isSuspended: boolean;
 };
 
@@ -165,15 +159,9 @@ export default function Admin() {
     name: "Business Plan",
     fullPriceCents: 250000,
     discountPriceCents: 250000,
-    unitsIncluded: 3000,
-    labelsIncluded: 3000,
-    trackingIncluded: 3000,
-    moneyOrdersIncluded: 3000,
-    complaintsIncluded: 300,
+    totalSharedUnits: 3000,
     dailyComplaintLimit: 10,
     monthlyComplaintLimit: 300,
-    monthlyLabelLimit: 3000,
-    monthlyTrackingLimit: 3000,
     isSuspended: false,
   });
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
@@ -193,6 +181,30 @@ export default function Admin() {
     return creditDrafts[userId] ?? { labelCredits: "", trackingCredits: "", planId: currentPlanId ?? "" };
   }
 
+  function toPlanPayload(draft: PlanForm) {
+    const fullPriceCents = Math.max(0, Number(draft.fullPriceCents || 0));
+    const discountPriceCents = Math.max(0, Number(draft.discountPriceCents || fullPriceCents));
+    const totalSharedUnits = Math.max(1, Number(draft.totalSharedUnits || 1));
+    const dailyComplaintLimit = Math.max(0, Number(draft.dailyComplaintLimit || 0));
+    const monthlyComplaintLimit = Math.max(dailyComplaintLimit, Number(draft.monthlyComplaintLimit || 0));
+
+    return {
+      name: draft.name,
+      fullPriceCents,
+      discountPriceCents,
+      unitsIncluded: totalSharedUnits,
+      labelsIncluded: totalSharedUnits,
+      trackingIncluded: totalSharedUnits,
+      moneyOrdersIncluded: totalSharedUnits,
+      complaintsIncluded: monthlyComplaintLimit,
+      dailyComplaintLimit,
+      monthlyComplaintLimit,
+      monthlyLabelLimit: totalSharedUnits,
+      monthlyTrackingLimit: totalSharedUnits,
+      isSuspended: Boolean(draft.isSuspended),
+    };
+  }
+
   function updateDraft(userId: string, patch: Partial<{ labelCredits: string; trackingCredits: string; planId: string }>, currentPlanId?: string | null) {
     setCreditDrafts((prev) => ({
       ...prev,
@@ -202,7 +214,7 @@ export default function Admin() {
 
   async function refresh() {
     const [p, u, us, sh, bs] = await Promise.all([
-      api<{ plans: Plan[] }>("/api/plans"),
+      api<{ plans: Plan[] }>("/api/admin/plans"),
       api<{ users: AdminUser[] }>("/api/admin/users"),
       api<{ usage: UsageRow[] }>(`/api/admin/usage?month=${encodeURIComponent(month)}`),
       api<{ shipments: ShipmentRow[] }>("/api/admin/shipments?limit=50"),
@@ -233,15 +245,9 @@ export default function Admin() {
       name: plan.name,
       fullPriceCents: plan.fullPriceCents ?? plan.priceCents,
       discountPriceCents: plan.discountPriceCents ?? plan.priceCents,
-      unitsIncluded: plan.unitsIncluded ?? plan.monthlyLabelLimit,
-      labelsIncluded: plan.labelsIncluded ?? plan.monthlyLabelLimit,
-      trackingIncluded: plan.trackingIncluded ?? plan.monthlyTrackingLimit,
-      moneyOrdersIncluded: plan.moneyOrdersIncluded ?? plan.monthlyLabelLimit,
-      complaintsIncluded: plan.complaintsIncluded ?? 0,
+      totalSharedUnits: plan.unitsIncluded ?? plan.monthlyLabelLimit,
       dailyComplaintLimit: plan.dailyComplaintLimit ?? 0,
       monthlyComplaintLimit: plan.monthlyComplaintLimit ?? 0,
-      monthlyLabelLimit: plan.monthlyLabelLimit,
-      monthlyTrackingLimit: plan.monthlyTrackingLimit,
       isSuspended: Boolean(plan.isSuspended),
     });
   }
@@ -252,7 +258,7 @@ export default function Admin() {
     try {
       await api(`/api/admin/plans/${editingPlanId}`, {
         method: "PUT",
-        body: JSON.stringify(editingPlanDraft),
+        body: JSON.stringify(toPlanPayload(editingPlanDraft)),
       });
       setEditingPlanId(null);
       setEditingPlanDraft(null);
@@ -494,7 +500,7 @@ export default function Admin() {
               try {
                 await api("/api/admin/plans", {
                   method: "POST",
-                  body: JSON.stringify(planDraft),
+                  body: JSON.stringify(toPlanPayload(planDraft)),
                 });
                 await refresh();
               } catch (error) {
@@ -508,32 +514,16 @@ export default function Admin() {
                 <input className="field-input mt-1 w-full" value={planDraft.name} onChange={(e) => setPlanDraft((prev) => ({ ...prev, name: e.target.value }))} placeholder="Business Plan" />
               </label>
               <label className="block text-sm font-medium text-slate-700">
-                Full price (paisa)
+                Price (paisa)
                 <input className="field-input mt-1 w-full" value={planDraft.fullPriceCents} onChange={(e) => setPlanDraft((prev) => ({ ...prev, fullPriceCents: Number(e.target.value || 0) }))} placeholder="250000" type="number" />
               </label>
               <label className="block text-sm font-medium text-slate-700">
-                Discount price (paisa)
+                Discount price (optional, paisa)
                 <input className="field-input mt-1 w-full" value={planDraft.discountPriceCents} onChange={(e) => setPlanDraft((prev) => ({ ...prev, discountPriceCents: Number(e.target.value || 0) }))} placeholder="250000" type="number" />
               </label>
               <label className="block text-sm font-medium text-slate-700">
-                Units included
-                <input className="field-input mt-1 w-full" value={planDraft.unitsIncluded} onChange={(e) => setPlanDraft((prev) => ({ ...prev, unitsIncluded: Number(e.target.value || 0) }))} placeholder="2000" type="number" />
-              </label>
-              <label className="block text-sm font-medium text-slate-700">
-                Labels included
-                <input className="field-input mt-1 w-full" value={planDraft.labelsIncluded} onChange={(e) => setPlanDraft((prev) => ({ ...prev, labelsIncluded: Number(e.target.value || 0), monthlyLabelLimit: Number(e.target.value || 0) }))} placeholder="2000" type="number" />
-              </label>
-              <label className="block text-sm font-medium text-slate-700">
-                Tracking included
-                <input className="field-input mt-1 w-full" value={planDraft.trackingIncluded} onChange={(e) => setPlanDraft((prev) => ({ ...prev, trackingIncluded: Number(e.target.value || 0), monthlyTrackingLimit: Number(e.target.value || 0) }))} placeholder="2000" type="number" />
-              </label>
-              <label className="block text-sm font-medium text-slate-700">
-                Money orders included
-                <input className="field-input mt-1 w-full" value={planDraft.moneyOrdersIncluded} onChange={(e) => setPlanDraft((prev) => ({ ...prev, moneyOrdersIncluded: Number(e.target.value || 0) }))} placeholder="2000" type="number" />
-              </label>
-              <label className="block text-sm font-medium text-slate-700">
-                Complaints included
-                <input className="field-input mt-1 w-full" value={planDraft.complaintsIncluded} onChange={(e) => setPlanDraft((prev) => ({ ...prev, complaintsIncluded: Number(e.target.value || 0) }))} placeholder="300" type="number" />
+                Total shared units
+                <input className="field-input mt-1 w-full" value={planDraft.totalSharedUnits} onChange={(e) => setPlanDraft((prev) => ({ ...prev, totalSharedUnits: Number(e.target.value || 0) }))} placeholder="3000" type="number" min={1} />
               </label>
               <label className="block text-sm font-medium text-slate-700">
                 Daily complaint limit
@@ -542,14 +532,6 @@ export default function Admin() {
               <label className="block text-sm font-medium text-slate-700">
                 Monthly complaint limit
                 <input className="field-input mt-1 w-full" value={planDraft.monthlyComplaintLimit} onChange={(e) => setPlanDraft((prev) => ({ ...prev, monthlyComplaintLimit: Number(e.target.value || 0) }))} placeholder="300" type="number" />
-              </label>
-              <label className="block text-sm font-medium text-slate-700">
-                Monthly label limit
-                <input className="field-input mt-1 w-full" value={planDraft.monthlyLabelLimit} onChange={(e) => setPlanDraft((prev) => ({ ...prev, monthlyLabelLimit: Number(e.target.value || 0), labelsIncluded: Number(e.target.value || 0) }))} placeholder="2000" type="number" />
-              </label>
-              <label className="block text-sm font-medium text-slate-700">
-                Monthly tracking limit
-                <input className="field-input mt-1 w-full" value={planDraft.monthlyTrackingLimit} onChange={(e) => setPlanDraft((prev) => ({ ...prev, monthlyTrackingLimit: Number(e.target.value || 0), trackingIncluded: Number(e.target.value || 0) }))} placeholder="2000" type="number" />
               </label>
               <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input type="checkbox" checked={planDraft.isSuspended} onChange={(e) => setPlanDraft((prev) => ({ ...prev, isSuspended: e.target.checked }))} />
@@ -575,12 +557,14 @@ export default function Admin() {
                 {(plan.discountPct ?? 0) > 0 ? (
                   <div className="mt-1 text-xs text-slate-500">Full: {formatPKR.format(Math.round((plan.fullPriceCents ?? plan.priceCents) / 100)).replace(/\u00A0/g, " ")} ({plan.discountPct}% off)</div>
                 ) : null}
-                <div className="mt-4 text-sm text-slate-700">Labels Included: {(plan.labelsIncluded ?? plan.monthlyLabelLimit).toLocaleString()}</div>
-                <div className="mt-1 text-sm text-slate-700">Tracking Included: {(plan.trackingIncluded ?? plan.monthlyTrackingLimit).toLocaleString()}</div>
-                <div className="mt-1 text-sm text-slate-700">Money Orders Included: {(plan.moneyOrdersIncluded ?? 0).toLocaleString()}</div>
-                <div className="mt-1 text-sm text-slate-700">Complaints Included: {(plan.complaintsIncluded ?? 0).toLocaleString()}</div>
-                <div className="mt-1 text-sm text-slate-700">Daily Complaints: {(plan.dailyComplaintLimit ?? 0).toLocaleString()}</div>
-                <div className="mt-1 text-sm text-slate-700">Monthly Complaints: {(plan.monthlyComplaintLimit ?? 0).toLocaleString()}</div>
+                <div className="mt-4 text-sm text-slate-700">Total Shared Units: {(plan.unitsIncluded ?? plan.monthlyLabelLimit).toLocaleString()}</div>
+                <div className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Services Included</div>
+                <div className="mt-1 text-sm text-slate-700">✔ Labels</div>
+                <div className="mt-1 text-sm text-slate-700">✔ Tracking</div>
+                <div className="mt-1 text-sm text-slate-700">✔ Money Orders</div>
+                <div className="mt-1 text-sm text-slate-700">✔ Complaints</div>
+                <div className="mt-2 text-sm text-slate-700">Complaint Cost: 10 Units Each</div>
+                <div className="mt-1 text-sm text-slate-700">Complaint Limits: {(plan.dailyComplaintLimit ?? 0).toLocaleString()}/day, {(plan.monthlyComplaintLimit ?? 0).toLocaleString()}/month</div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700" onClick={() => updatePlan(plan)}>Edit</button>
                   <button className={`rounded-xl px-3 py-1.5 text-xs font-medium ${plan.isSuspended ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : "border border-amber-200 bg-amber-50 text-amber-700"}`} onClick={() => toggleSuspendPlan(plan)}>{plan.isSuspended ? "Unsuspend" : "Suspend"}</button>
@@ -1069,32 +1053,16 @@ export default function Admin() {
                 <input className="field-input mt-1 w-full" value={editingPlanDraft.name} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, name: e.target.value } : prev)} placeholder="Plan name" />
               </label>
               <label className="block text-sm font-medium text-slate-700">
-                Full price (paisa)
+                Price (paisa)
                 <input className="field-input mt-1 w-full" value={editingPlanDraft.fullPriceCents} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, fullPriceCents: Number(e.target.value || 0) } : prev)} type="number" placeholder="Full price (paisa)" />
               </label>
               <label className="block text-sm font-medium text-slate-700">
-                Discounted price (paisa)
+                Discounted price (optional, paisa)
                 <input className="field-input mt-1 w-full" value={editingPlanDraft.discountPriceCents} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, discountPriceCents: Number(e.target.value || 0) } : prev)} type="number" placeholder="Discounted price (paisa)" />
               </label>
               <label className="block text-sm font-medium text-slate-700">
-                Units included
-                <input className="field-input mt-1 w-full" value={editingPlanDraft.unitsIncluded} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, unitsIncluded: Number(e.target.value || 0) } : prev)} type="number" placeholder="Units Included" />
-              </label>
-              <label className="block text-sm font-medium text-slate-700">
-                Labels included
-                <input className="field-input mt-1 w-full" value={editingPlanDraft.labelsIncluded} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, labelsIncluded: Number(e.target.value || 0), monthlyLabelLimit: Number(e.target.value || 0) } : prev)} type="number" placeholder="Labels Included" />
-              </label>
-              <label className="block text-sm font-medium text-slate-700">
-                Tracking included
-                <input className="field-input mt-1 w-full" value={editingPlanDraft.trackingIncluded} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, trackingIncluded: Number(e.target.value || 0), monthlyTrackingLimit: Number(e.target.value || 0) } : prev)} type="number" placeholder="Tracking Included" />
-              </label>
-              <label className="block text-sm font-medium text-slate-700">
-                Money orders included
-                <input className="field-input mt-1 w-full" value={editingPlanDraft.moneyOrdersIncluded} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, moneyOrdersIncluded: Number(e.target.value || 0) } : prev)} type="number" placeholder="Money Orders Included" />
-              </label>
-              <label className="block text-sm font-medium text-slate-700">
-                Complaints included
-                <input className="field-input mt-1 w-full" value={editingPlanDraft.complaintsIncluded} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, complaintsIncluded: Number(e.target.value || 0) } : prev)} type="number" placeholder="Complaints Included" />
+                Total shared units
+                <input className="field-input mt-1 w-full" value={editingPlanDraft.totalSharedUnits} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, totalSharedUnits: Number(e.target.value || 0) } : prev)} type="number" min={1} placeholder="Total Shared Units" />
               </label>
               <label className="block text-sm font-medium text-slate-700">
                 Daily complaint limit
@@ -1103,14 +1071,6 @@ export default function Admin() {
               <label className="block text-sm font-medium text-slate-700">
                 Monthly complaint limit
                 <input className="field-input mt-1 w-full" value={editingPlanDraft.monthlyComplaintLimit} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, monthlyComplaintLimit: Number(e.target.value || 0) } : prev)} type="number" placeholder="Monthly Complaint Limit" />
-              </label>
-              <label className="block text-sm font-medium text-slate-700">
-                Monthly label limit
-                <input className="field-input mt-1 w-full" value={editingPlanDraft.monthlyLabelLimit} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, monthlyLabelLimit: Number(e.target.value || 0), labelsIncluded: Number(e.target.value || 0) } : prev)} type="number" placeholder="Monthly Label Limit" />
-              </label>
-              <label className="block text-sm font-medium text-slate-700">
-                Monthly tracking limit
-                <input className="field-input mt-1 w-full" value={editingPlanDraft.monthlyTrackingLimit} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, monthlyTrackingLimit: Number(e.target.value || 0), trackingIncluded: Number(e.target.value || 0) } : prev)} type="number" placeholder="Monthly Tracking Limit" />
               </label>
               <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input type="checkbox" checked={editingPlanDraft.isSuspended} onChange={(e) => setEditingPlanDraft((prev) => prev ? { ...prev, isSuspended: e.target.checked } : prev)} />

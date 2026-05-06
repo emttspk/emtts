@@ -32,6 +32,9 @@ export default function SenderProfileCard({ me, className = "", compact = false 
   const mobile = String(me?.user.contactNumber ?? "").trim() || "-";
   const packageName = me?.subscription?.plan?.name ?? me?.activePackage?.planName ?? "No package";
   const remainingUnits = me?.balances?.unitsRemaining ?? me?.balances?.labelsRemaining ?? me?.activePackage?.unitsRemaining ?? 0;
+  const totalSharedUnits = me?.balances?.labelLimit ?? me?.subscription?.plan?.monthlyLabelLimit ?? 0;
+  const complaintDaily = me?.balances?.complaintDailyLimit ?? me?.subscription?.plan?.dailyComplaintLimit ?? 0;
+  const complaintMonthly = me?.balances?.complaintMonthlyLimit ?? me?.subscription?.plan?.monthlyComplaintLimit ?? 0;
   const rowGap = compact ? "gap-2" : "gap-3";
 
   return (
@@ -44,7 +47,11 @@ export default function SenderProfileCard({ me, className = "", compact = false 
         <DetailRow label="City" value={city} />
         <DetailRow label="Mobile" value={mobile} />
         <DetailRow label="Package" value={packageName} truncate />
+        <DetailRow label="Total Units" value={Number(totalSharedUnits).toLocaleString()} />
         <DetailRow label="Remaining Units" value={Number(remainingUnits).toLocaleString()} />
+        <DetailRow label="Services" value="Labels, Tracking, Money Orders, Complaints" truncate />
+        <DetailRow label="Cost" value="10 units per complaint" />
+        <DetailRow label="Limits" value={`${complaintDaily}/day, ${complaintMonthly}/month`} />
       </div>
     </Card>
   );

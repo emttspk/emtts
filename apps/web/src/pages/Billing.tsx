@@ -181,7 +181,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
             <div className="mt-4 grid gap-3 text-sm text-slate-600">
               <div className="flex items-center justify-between gap-4"><span>Used Units</span><span>{usedUnits.toLocaleString()}</span></div>
               <div className="flex items-center justify-between gap-4"><span>Remaining Units</span><span>{remainingUnits.toLocaleString()}</span></div>
-              <div className="flex items-center justify-between gap-4"><span>Total Units</span><span>{totalUnits.toLocaleString()}</span></div>
+              <div className="flex items-center justify-between gap-4"><span>Total Shared Units</span><span>{totalUnits.toLocaleString()}</span></div>
               <div className="flex items-center justify-between gap-4"><span>Tracking Actions</span><span>{(me?.usage?.trackingGenerated ?? 0).toLocaleString()}</span></div>
               <div className={`flex items-center justify-between gap-4 ${nearExpiry ? "text-amber-300" : expired ? "text-red-300" : ""}`}><span>Expiry Date</span><span>{expiryDateObj ? expiryDateObj.toLocaleDateString("en-PK") : "-"}</span></div>
               <div className="flex items-center justify-between gap-4"><span>Billing Status</span><span>{billingStatus}</span></div>
@@ -217,7 +217,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                         <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-700">{discountPct}% OFF</span>
                       </div>
                     ) : null}
-                    <div className="mt-2 text-sm text-gray-600">{plan.monthlyLabelLimit.toLocaleString()} total units for labels, tracking, and money-order generation.</div>
+                    <div className="mt-2 text-sm text-gray-600">Total Shared Units: {(plan.unitsIncluded ?? plan.monthlyLabelLimit).toLocaleString()}</div>
                   </div>
                   {isCurrent ? (
                     <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-medium text-white">Current Plan</span>
@@ -231,19 +231,15 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                 <div className="mt-5 space-y-2 text-sm text-gray-600">
                   <div className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-emerald-500" />
-                    Labels Included
+                    Services Included: ✔ Labels ✔ Tracking ✔ Money Orders ✔ Complaints
                   </div>
                   <div className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-emerald-500" />
-                    Tracking Included
+                    Complaint Cost: 10 Units Each
                   </div>
                   <div className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-emerald-500" />
-                    Money Orders Included
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-500" />
-                    Complaints Included
+                    Complaint Limits: {plan.dailyComplaintLimit ?? 0}/day, {plan.monthlyComplaintLimit ?? 0}/month
                   </div>
                 </div>
                 {plan.isSuspended ? <div className="mt-3 text-xs font-medium text-red-600">Temporarily suspended by admin.</div> : null}

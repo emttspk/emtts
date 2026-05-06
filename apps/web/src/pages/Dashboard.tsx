@@ -115,6 +115,8 @@ export default function Dashboard() {
   const packageLimit = me?.balances?.labelLimit ?? me?.subscription?.plan?.monthlyLabelLimit ?? 0;
   const usedUnits = Math.max(0, packageLimit - remainingUnits);
   const activePlanName = me?.subscription?.plan?.name ?? me?.activePackage?.planName ?? "No active plan";
+  const complaintDaily = me?.balances?.complaintDailyLimit ?? me?.subscription?.plan?.dailyComplaintLimit ?? 0;
+  const complaintMonthly = me?.balances?.complaintMonthlyLimit ?? me?.subscription?.plan?.monthlyComplaintLimit ?? 0;
 
   const activity = useMemo(() => [...stats.graphData].slice(-6), [stats.graphData]);
   const maxActivity = useMemo(() => Math.max(1, ...activity.map((item) => item.total)), [activity]);
@@ -140,13 +142,18 @@ export default function Dashboard() {
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-              <div className="text-slate-500">Limit</div>
+              <div className="text-slate-500">Total Shared Units</div>
               <div className="mt-1 font-semibold text-slate-900">{packageLimit.toLocaleString()}</div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
               <div className="text-slate-500">Used</div>
               <div className="mt-1 font-semibold text-slate-900">{usedUnits.toLocaleString()}</div>
             </div>
+          </div>
+          <div className="mt-3 space-y-1 text-sm text-slate-700">
+            <div>Services Included: ✔ Labels ✔ Tracking ✔ Money Orders ✔ Complaints</div>
+            <div>Complaint Cost: 10 Units Each</div>
+            <div>Complaint Limits: {complaintDaily}/day, {complaintMonthly}/month</div>
           </div>
           <Link to="/update-package" className="mt-4 inline-flex items-center gap-2 rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white">
             Update Package <ArrowRight className="h-4 w-4" />

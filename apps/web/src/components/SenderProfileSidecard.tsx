@@ -18,6 +18,9 @@ export default function SenderProfileSidecard({ me, className = "" }: Props) {
     me?.balances?.labelsRemaining ??
     me?.activePackage?.unitsRemaining ??
     0;
+  const totalSharedUnits = me?.balances?.labelLimit ?? me?.subscription?.plan?.monthlyLabelLimit ?? 0;
+  const complaintDaily = me?.balances?.complaintDailyLimit ?? me?.subscription?.plan?.dailyComplaintLimit ?? 0;
+  const complaintMonthly = me?.balances?.complaintMonthlyLimit ?? me?.subscription?.plan?.monthlyComplaintLimit ?? 0;
 
   return (
     <Card className={`p-5 ${className}`}>
@@ -31,7 +34,11 @@ export default function SenderProfileSidecard({ me, className = "" }: Props) {
       </div>
       <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
         <div className="flex items-center justify-between gap-3 text-xs text-slate-600"><span>Package</span><span className="font-semibold text-slate-900">{packageName}</span></div>
+        <div className="mt-1 flex items-center justify-between gap-3 text-xs text-slate-600"><span>Total Shared Units</span><span className="font-semibold text-slate-900">{Number(totalSharedUnits).toLocaleString()}</span></div>
         <div className="mt-1 flex items-center justify-between gap-3 text-xs text-slate-600"><span>Remaining Units</span><span className="font-semibold text-slate-900">{Number(remainingUnits).toLocaleString()}</span></div>
+        <div className="mt-1 text-xs text-slate-600">Services Included: <span className="font-semibold text-slate-900">✔ Labels ✔ Tracking ✔ Money Orders ✔ Complaints</span></div>
+        <div className="mt-1 text-xs text-slate-600">Complaint Cost: <span className="font-semibold text-slate-900">10 Units Each</span></div>
+        <div className="mt-1 text-xs text-slate-600">Complaint Limits: <span className="font-semibold text-slate-900">{complaintDaily}/day, {complaintMonthly}/month</span></div>
       </div>
     </Card>
   );

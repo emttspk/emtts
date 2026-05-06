@@ -8,20 +8,7 @@ const formatCount = (value) => value.toLocaleString();
 const formatPrice = (priceCents) => `Rs ${Math.round((priceCents || 0) / 100).toLocaleString()}`;
 
 function complaintText(plan) {
-  const included = Number(plan.complaintsIncluded || 0);
-  if (included <= 0) return "Not included";
-
-  const parts = [];
-  if (plan.dailyComplaintLimit && plan.dailyComplaintLimit > 0) {
-    parts.push(`${plan.dailyComplaintLimit}/day`);
-  }
-  if (plan.monthlyComplaintLimit && plan.monthlyComplaintLimit > 0) {
-    parts.push(`${plan.monthlyComplaintLimit}/month`);
-  }
-  if (parts.length === 0) {
-    parts.push(`${included}/month`);
-  }
-  return parts.join(", ");
+  return `${Number(plan.dailyComplaintLimit || 0)}/day, ${Number(plan.monthlyComplaintLimit || 0)}/month`;
 }
 
 export default function Pricing() {
@@ -57,10 +44,10 @@ export default function Pricing() {
                 <div className={`mt-4 text-sm leading-7 ${featured ? "text-emerald-50" : "text-slate-600"}`}>{tagline}</div>
                 <div className="mt-6 grid gap-3 text-sm">
                   {[
-                    ["Units", formatCount(plan.monthlyLabelLimit || 0)],
-                    ["Tracking", formatCount(plan.monthlyTrackingLimit || 0)],
-                    ["Money orders", (plan.moneyOrdersIncluded || 0) > 0 ? "Included" : "Not included"],
-                    ["Complaints", complaintText(plan)],
+                    ["Total Shared Units", formatCount(plan.unitsIncluded ?? plan.monthlyLabelLimit ?? 0)],
+                    ["Services Included", "✔ Labels ✔ Tracking ✔ Money Orders ✔ Complaints"],
+                    ["Complaint Cost", "10 Units Each"],
+                    ["Complaint Limits", complaintText(plan)],
                   ].map(([label, value]) => (
                     <div key={label} className={`flex items-center justify-between rounded-2xl px-4 py-3 ${featured ? "bg-white/10 text-white" : "bg-slate-50 text-slate-700"}`}>
                       <span>{label}</span>

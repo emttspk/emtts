@@ -46,7 +46,7 @@ export type ChangePackageResponse = {
 };
 
 export async function fetchPlans() {
-  const data = await api<{ plans: Plan[] }>("/api/plans");
+  const data = await api<{ plans: Plan[] }>(`/api/plans?t=${Date.now()}`);
   return data.plans ?? [];
 }
 

@@ -135,6 +135,9 @@ export async function ensureDefaultPlans() {
 
 plansRouter.get("/", async (_req, res, next) => {
   try {
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.set("Pragma", "no-cache");
+    res.set("Expires", "0");
     await ensurePlanManagementColumns();
     const plans = await prisma.plan.findMany({ orderBy: { priceCents: "asc" } });
     const settings = await getOrCreateBillingSettings();
@@ -162,7 +165,7 @@ plansRouter.get("/", async (_req, res, next) => {
       };
     });
 
-    res.json({ success: true, plans: configuredPlans, message: "Plans retrieved successfully" });
+    res.json({ success: true, plans: configuredPlans.filter((plan) => !plan.isSuspended), message: "Plans retrieved successfully" });
   } catch (err) {
     console.log("Database unavailable for plans, returning defaults:", err instanceof Error ? err.message : err);
     res.json({

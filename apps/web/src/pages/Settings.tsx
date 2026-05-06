@@ -50,7 +50,6 @@ export default function Settings() {
   const expiryDate = me?.activePackage?.expiresAt ?? me?.subscription?.currentPeriodEnd;
   const planPriceCents = me?.subscription?.plan?.discountPriceCents ?? me?.subscription?.plan?.priceCents ?? 0;
   const planPriceText = planPriceCents > 0 ? `Rs. ${Math.round(planPriceCents / 100).toLocaleString("en-PK")}` : "Rs. 0";
-  const trackingLimit = me?.balances?.trackingLimit ?? me?.subscription?.plan?.monthlyTrackingLimit ?? 0;
   const complaintDaily = me?.balances?.complaintDailyLimit ?? 0;
   const complaintMonthly = me?.balances?.complaintMonthlyLimit ?? 0;
   const canUseTemplateDesigner =
@@ -175,11 +174,19 @@ export default function Settings() {
             <div className="mt-2 text-lg font-semibold text-slate-900">{planPriceText}</div>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Tracking Limit</div>
-            <div className="mt-2 text-lg font-semibold text-slate-900">{trackingLimit.toLocaleString()}</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Total Shared Units</div>
+            <div className="mt-2 text-lg font-semibold text-slate-900">{unitLimit.toLocaleString()}</div>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Complaints</div>
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Complaint Cost</div>
+            <div className="mt-2 text-lg font-semibold text-slate-900">10 Units Each</div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Services Included</div>
+            <div className="mt-2 text-sm font-semibold text-slate-900">✔ Labels ✔ Tracking ✔ Money Orders ✔ Complaints</div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Complaint Limits</div>
             <div className="mt-2 text-lg font-semibold text-slate-900">{complaintDaily}/day, {complaintMonthly}/month</div>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">

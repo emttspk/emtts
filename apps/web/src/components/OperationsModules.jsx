@@ -43,20 +43,8 @@ function toPlanSlug(name) {
     .trim();
 }
 
-function complaintText(plan) {
-  const included = Number(plan.complaintsIncluded || 0);
-  if (included <= 0) return "Complaints: Not included";
-  const parts = [];
-  if (plan.dailyComplaintLimit && plan.dailyComplaintLimit > 0) {
-    parts.push(`${plan.dailyComplaintLimit}/day`);
-  }
-  if (plan.monthlyComplaintLimit && plan.monthlyComplaintLimit > 0) {
-    parts.push(`${plan.monthlyComplaintLimit}/month`);
-  }
-  if (!parts.length) {
-    parts.push(`${included}/month`);
-  }
-  return `Complaints: ${parts.join(", ")}`;
+function complaintLimitText(plan) {
+  return `${plan.dailyComplaintLimit || 0}/day, ${plan.monthlyComplaintLimit || 0}/month`;
 }
 
 export default function OperationsModules() {
@@ -77,10 +65,8 @@ export default function OperationsModules() {
         return {
           name: planSlug.toUpperCase() || "PLAN",
           price: formatPrice(priceCents),
-          shipmentLimit: `Labels/Units: ${(plan.monthlyLabelLimit || 0).toLocaleString()}`,
-          moneyOrderLimit: `Tracking: ${(plan.monthlyTrackingLimit || 0).toLocaleString()}`,
-          trackingAccess: `Money Orders: ${(plan.moneyOrdersIncluded || 0) > 0 ? "Included" : "Not included"}`,
-          complaintSupport: complaintText(plan),
+          totalSharedUnits: `Total Shared Units: ${(plan.unitsIncluded ?? plan.monthlyLabelLimit ?? 0).toLocaleString()}`,
+          complaintLimits: `Complaint Limits: ${complaintLimitText(plan)}`,
           cta: priceCents > 0 ? "Buy Now" : "Get Started Free",
           checkoutHref: priceCents > 0 ? `/billing/checkout?plan=${encodeURIComponent(planSlug)}` : "/register",
           badge: index === 1 ? "Most Popular" : null,
@@ -148,10 +134,14 @@ export default function OperationsModules() {
                 </div>
                 <div className="mt-2 text-2xl font-black tracking-[-0.02em] text-slate-950">{plan.price}</div>
                 <ul className="mt-5 space-y-2 text-sm leading-6 text-slate-700">
-                  <li>{plan.shipmentLimit}</li>
-                  <li>{plan.moneyOrderLimit}</li>
-                  <li>{plan.trackingAccess}</li>
-                  <li>{plan.complaintSupport}</li>
+                  <li>{plan.totalSharedUnits}</li>
+                  <li className="font-semibold text-slate-600">Services Included:</li>
+                  <li>✔ Labels</li>
+                  <li>✔ Tracking</li>
+                  <li>✔ Money Orders</li>
+                  <li>✔ Complaints</li>
+                  <li>Complaint Cost: 10 Units Each</li>
+                  <li>{plan.complaintLimits}</li>
                 </ul>
                 <a
                   href={plan.checkoutHref}
