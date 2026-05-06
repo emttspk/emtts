@@ -712,11 +712,20 @@ adminRouter.delete("/plans/:planId", async (req, res) => {
   const existing = await prisma.plan.findUnique({ where: { id: req.params.planId } });
   if (!existing) return res.status(404).json({ error: "Plan not found" });
 
-  const activeSubscriptions = await prisma.subscription.count({
-    where: { planId: existing.id, status: "ACTIVE" },
-  });
+  const [activeSubscriptions, totalSubscriptions, payments, invoices, manualPayments] = await Promise.all([
+    prisma.subscription.count({ where: { planId: existing.id, status: "ACTIVE" } }),
+    prisma.subscription.count({ where: { planId: existing.id } }),
+    prisma.payment.count({ where: { planId: existing.id } }),
+    prisma.invoice.count({ where: { planId: existing.id } }),
+    prisma.manualPaymentRequest.count({ where: { planId: existing.id } }),
+  ]);
+
   if (activeSubscriptions > 0) {
     return res.status(409).json({ error: "Cannot delete plan with active subscriptions" });
+  }
+
+  if (totalSubscriptions > 0 || payments > 0 || invoices > 0 || manualPayments > 0) {
+    return res.status(409).json({ error: "Cannot delete plan with billing history" });
   }
 
   await prisma.plan.delete({ where: { id: existing.id } });
