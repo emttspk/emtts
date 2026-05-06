@@ -99,3 +99,39 @@ Plan metadata is stored in runtime-safe Plan columns (created if missing):
 - Delete removes plan only when no active subscriptions exist.
 - Suspended plans show badge/disabled purchase behavior.
 - Template list is visible, switch works, editor hydrates selected template.
+
+## Live Repair Completion (2026-05-06)
+
+### Plan pricing + limits repaired in production
+- Free Plan
+  - price: Rs 0
+  - labels: 250
+  - tracking: 250
+  - complaints: 1/day, 5/month
+- Standard Plan
+  - price: Rs 999
+  - labels: 1000
+  - tracking: 1000
+  - complaints: 5/day, 150/month
+- Business Plan
+  - price: Rs 2500
+  - labels: 3000
+  - tracking: 3000
+  - complaints: 10/day, 300/month
+
+### Delete flow hardening
+- `DELETE /api/admin/plans/:planId` now blocks deletion if any of the following exist:
+  - active subscriptions
+  - historical subscriptions
+  - payments
+  - invoices
+  - manual payment requests
+- Response is explicit conflict (`409`) instead of surfacing DB foreign-key runtime errors.
+
+### Frontend/API sync
+- Admin plans surface switched to consume `GET /api/plans` so all pricing/extra fields render from one source of truth.
+- Remaining static package metadata adjusted to match canonical complaint limits.
+
+### Template designer
+- Active template switch uses dedicated activation endpoint (`POST /api/admin/templates/:id/activate`).
+- Upload + save + activate + refresh persistence validated on live API.
