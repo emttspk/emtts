@@ -4,12 +4,24 @@ import { ArrowRight, Clock3, CreditCard, Package2, RadioTower, Wallet, AlertCirc
 import Card from "../components/Card";
 import { api } from "../lib/api";
 import type { MeResponse } from "../lib/types";
-import { computeStats, getFinalTrackingData } from "../lib/trackingData";
+import { getFinalTrackingData } from "../lib/trackingData";
 import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
+import UnifiedShipmentCards from "../components/UnifiedShipmentCards";
 
-type DashboardStats = ReturnType<typeof computeStats> & {
+type DashboardStats = {
+  total: number;
+  delivered: number;
+  pending: number;
+  returned: number;
+  complaints: number;
+  totalAmount: number;
+  deliveredAmount: number;
+  pendingAmount: number;
+  returnedAmount: number;
+};
+
+type DashboardActivityStats = {
   trackingUsed: number;
-  complaintTotal: number;
   graphData: Array<{ date: string; total: number; byStatus: Record<string, number> }>;
 };
 
@@ -38,7 +50,24 @@ const formatPKR = new Intl.NumberFormat("en-PK", {
 export default function Dashboard() {
   const { me } = useOutletContext<ShellCtx>();
   const [shipmentStats, setShipmentStats] = useState<DashboardStats | null>(null);
+  const [activityStats, setActivityStats] = useState<DashboardActivityStats | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const DASHBOARD_STATS_CACHE_KEY = "dashboard.shipment.stats.cache.v1";
+
+  const refreshShipmentStats = useCallback(async () => {
+    const cachedRaw = window.localStorage.getItem(DASHBOARD_STATS_CACHE_KEY);
+    if (cachedRaw) {
+      try {
+        const cached = JSON.parse(cachedRaw) as { value: DashboardStats; ts: number };
+        if (cached?.value) setShipmentStats(cached.value);
+      } catch {
+        // Ignore malformed local cache.
+      }
+    }
+    const latest = await api<DashboardStats>("/api/shipments/stats");
+    setShipmentStats(latest);
+    window.localStorage.setItem(DASHBOARD_STATS_CACHE_KEY, JSON.stringify({ value: latest, ts: Date.now() }));
+  }, []);
 
   const refreshShipments = useCallback(async () => {
     const hardLimit = 200;
@@ -55,11 +84,8 @@ export default function Dashboard() {
     }
 
     const finalData = getFinalTrackingData(rows);
-    const base = computeStats(finalData);
-
     const byDate: Record<string, { total: number; byStatus: Record<string, number> }> = {};
     let trackingUsed = 0;
-    let complaintTotal = 0;
     const month = new Date().toISOString().slice(0, 7);
 
     for (const row of finalData) {
@@ -70,8 +96,6 @@ export default function Dashboard() {
       byDate[date].total += 1;
       byDate[date].byStatus[key] = (byDate[date].byStatus[key] ?? 0) + 1;
       if (created.slice(0, 7) === month) trackingUsed += 1;
-      const cs = String((row.shipment as DashboardShipment).complaintStatus ?? "").trim();
-      if (cs && cs.toUpperCase() !== "NONE") complaintTotal += 1;
     }
 
     const graphData = Object.keys(byDate)
@@ -82,20 +106,20 @@ export default function Dashboard() {
         byStatus: byDate[date].byStatus,
       }));
 
-    setShipmentStats({ ...base, trackingUsed, complaintTotal, graphData });
+    setActivityStats({ trackingUsed, graphData });
   }, []);
 
   useEffect(() => {
     let ok = true;
     setError(null);
-    refreshShipments().catch((e) => {
+    Promise.all([refreshShipmentStats(), refreshShipments()]).catch((e) => {
       if (!ok) return;
       setError(e instanceof Error ? e.message : "Failed to load shipments");
     });
     return () => {
       ok = false;
     };
-  }, []);
+  }, [refreshShipmentStats, refreshShipments]);
 
   const stats = useMemo(
     () => ({
@@ -103,12 +127,15 @@ export default function Dashboard() {
       delivered: shipmentStats?.delivered ?? 0,
       pending: shipmentStats?.pending ?? 0,
       returned: shipmentStats?.returned ?? 0,
+      complaints: shipmentStats?.complaints ?? 0,
       totalAmount: shipmentStats?.totalAmount ?? 0,
-      trackingUsed: shipmentStats?.trackingUsed ?? 0,
-      complaintTotal: shipmentStats?.complaintTotal ?? 0,
-      graphData: shipmentStats?.graphData ?? [],
+      deliveredAmount: shipmentStats?.deliveredAmount ?? 0,
+      pendingAmount: shipmentStats?.pendingAmount ?? 0,
+      returnedAmount: shipmentStats?.returnedAmount ?? 0,
+      trackingUsed: activityStats?.trackingUsed ?? 0,
+      graphData: activityStats?.graphData ?? [],
     }),
-    [shipmentStats],
+    [shipmentStats, activityStats],
   );
 
   const remainingUnits = me?.balances?.unitsRemaining ?? me?.activePackage?.unitsRemaining ?? 0;
@@ -122,11 +149,11 @@ export default function Dashboard() {
   const maxActivity = useMemo(() => Math.max(1, ...activity.map((item) => item.total)), [activity]);
 
   const summaryCards = [
-    { label: "Money Order Total", value: formatPKR.format(stats.totalAmount).replace("PKR", "Rs."), icon: CreditCard },
-    { label: "Tracking Total", value: stats.trackingUsed.toLocaleString(), icon: RadioTower },
-    { label: "Pending Total", value: stats.pending.toLocaleString(), icon: Clock3 },
-    { label: "Returned Total", value: stats.returned.toLocaleString(), icon: Wallet },
-    { label: "Complaint Total", value: stats.complaintTotal.toLocaleString(), icon: AlertCircle },
+    { key: "ALL" as const, label: "Total", parcels: stats.total, amount: stats.totalAmount },
+    { key: "DELIVERED" as const, label: "Delivered", parcels: stats.delivered, amount: stats.deliveredAmount },
+    { key: "PENDING" as const, label: "Pending", parcels: stats.pending, amount: stats.pendingAmount },
+    { key: "RETURNED" as const, label: "Returned", parcels: stats.returned, amount: stats.returnedAmount },
+    { key: "COMPLAINTS" as const, label: "Complaints", parcels: stats.complaints, amount: 0 },
   ];
 
   return (
@@ -182,20 +209,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid min-w-0 w-full gap-3 overflow-hidden sm:grid-cols-2 lg:grid-cols-5">
-        {summaryCards.map((card) => {
-          const Icon = card.icon;
-          return (
-            <Card key={card.label} className="min-w-0 w-full overflow-hidden p-5">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-slate-600">{card.label}</div>
-                <Icon className="h-4 w-4 text-brand" />
-              </div>
-              <div className="mt-3 text-2xl font-bold text-slate-950">{card.value}</div>
-            </Card>
-          );
-        })}
-      </div>
+      <UnifiedShipmentCards items={summaryCards} />
 
       <div className="grid min-w-0 w-full gap-3 overflow-hidden xl:grid-cols-12">
         <Card className="min-w-0 w-full overflow-hidden xl:col-span-8 p-5">

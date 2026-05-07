@@ -721,11 +721,34 @@ adminRouter.delete("/plans/:planId", async (req, res) => {
   ]);
 
   if (activeSubscriptions > 0) {
-    return res.status(409).json({ error: "Cannot delete plan with active subscriptions" });
+    return res.status(409).json({
+      error: `Cannot delete plan: ${activeSubscriptions} active subscription(s) linked.`,
+      blockers: {
+        activeSubscriptions,
+        subscriptions: totalSubscriptions,
+        payments,
+        invoices,
+        manualPayments,
+      },
+    });
   }
 
   if (totalSubscriptions > 0 || payments > 0 || invoices > 0 || manualPayments > 0) {
-    return res.status(409).json({ error: "Cannot delete plan with billing history" });
+    const reasons: string[] = [];
+    if (totalSubscriptions > 0) reasons.push(`${totalSubscriptions} subscription record(s)`);
+    if (invoices > 0) reasons.push(`${invoices} invoice record(s)`);
+    if (payments > 0) reasons.push(`${payments} payment record(s)`);
+    if (manualPayments > 0) reasons.push(`${manualPayments} manual payment request(s)`);
+    return res.status(409).json({
+      error: `Cannot delete plan: linked billing history exists (${reasons.join(", ")}).`,
+      blockers: {
+        activeSubscriptions,
+        subscriptions: totalSubscriptions,
+        payments,
+        invoices,
+        manualPayments,
+      },
+    });
   }
 
   await prisma.plan.delete({ where: { id: existing.id } });

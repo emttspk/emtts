@@ -8,7 +8,7 @@ import {
 } from "../services/complaint-queue.service.js";
 import { recordComplaintCircuitFailure, recordComplaintCircuitSuccess, isComplaintCircuitOpen } from "../services/complaint-circuit.service.js";
 import { logComplaintAudit } from "../services/complaint-audit.service.js";
-import { parseComplaintRecord } from "../services/complaint.service.js";
+import { composeComplaintText, extractComplaintHistory, parseComplaintRecord, type ComplaintHistoryEntry } from "../services/complaint.service.js";
 
 function normalizeDueDateToDate(input: string) {
   const value = String(input ?? "").trim();
@@ -113,12 +113,31 @@ export async function processComplaintQueueById(queueId: string) {
       await recordComplaintCircuitFailure(responseText || "Complaint submission failed");
     }
 
-    const structuredParts: string[] = [];
-    if (finalizedComplaintId) structuredParts.push(`COMPLAINT_ID: ${finalizedComplaintId}`);
-    if (normalizedFinalDueDate) structuredParts.push(`DUE_DATE: ${normalizedFinalDueDate}`);
-    structuredParts.push("COMPLAINT_STATE: ACTIVE");
-    const structuredHeader = structuredParts.join(" | ");
-    const structuredText = `${structuredHeader}\nUser complaint:\n${String(payload.complaint_text ?? "").trim()}\n\nResponse:\n${responseText}`;
+    const existingHistory = extractComplaintHistory(existingShipment?.complaintText, existingShipment?.complaintStatus, trackingNumber);
+    const attemptFromPayload = Math.max(1, Number(payload.attempt_number ?? 0) || 0);
+    const inferredAttempt = existingHistory.length > 0 ? Math.max(...existingHistory.map((entry) => Math.max(1, Number(entry.attemptNumber ?? 1)))) + 1 : 1;
+    const attemptNumber = attemptFromPayload > 0 ? attemptFromPayload : inferredAttempt;
+    const latestHistory = existingHistory.length > 0 ? existingHistory[existingHistory.length - 1] : null;
+    const nextEntry: ComplaintHistoryEntry = {
+      complaintId: finalizedComplaintId || latestHistory?.complaintId || "",
+      trackingId: trackingNumber,
+      createdAt: new Date().toISOString(),
+      dueDate: normalizedFinalDueDate || latestHistory?.dueDate || "",
+      status: submitSuccess || alreadyExists ? "ACTIVE" : "ERROR",
+      attemptNumber,
+      previousComplaintReference: String(payload.previous_complaint_reference ?? latestHistory?.complaintId ?? "").trim(),
+    };
+    const mergedHistory = [...existingHistory.filter((entry) => Boolean(entry.complaintId)), nextEntry]
+      .sort((a, b) => Number(a.attemptNumber ?? 1) - Number(b.attemptNumber ?? 1));
+
+    const structuredText = composeComplaintText({
+      complaintId: finalizedComplaintId,
+      dueDate: normalizedFinalDueDate,
+      state: "ACTIVE",
+      userComplaint: String(payload.complaint_text ?? "").trim(),
+      responseText,
+      historyEntries: mergedHistory,
+    });
 
     await prisma.shipment.upsert({
       where: { userId_trackingNumber: { userId: queueRow.userId, trackingNumber } },

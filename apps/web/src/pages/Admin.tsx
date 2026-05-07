@@ -130,9 +130,11 @@ export default function Admin() {
   const [shipments, setShipments] = useState<ShipmentRow[]>([]);
   const [manualPayments, setManualPayments] = useState<ManualPaymentRow[]>([]);
   const [manualPaymentFilter, setManualPaymentFilter] = useState<"PENDING" | "APPROVED" | "REJECTED" | "ALL">("PENDING");
+  const [manualPaymentsPage, setManualPaymentsPage] = useState(1);
   const [manualPaymentAction, setManualPaymentAction] = useState<Record<string, boolean>>({});
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [invoiceFilter, setInvoiceFilter] = useState<"" | "OPEN" | "PAID">("OPEN");
+  const [invoicesPage, setInvoicesPage] = useState(1);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
   const [billingSettings, setBillingSettings] = useState<BillingSettings | null>(null);
   const [billingDraft, setBillingDraft] = useState({
@@ -176,6 +178,7 @@ export default function Admin() {
   const [creditDrafts, setCreditDrafts] = useState<Record<string, { labelCredits: string; trackingCredits: string; planId: string }>>({});
   const [section, setSection] = useState<SectionKey>("overview");
   const [previewUserId, setPreviewUserId] = useState<string | null>(null);
+  const adminTablePageSize = 20;
 
   function draftFor(userId: string, currentPlanId?: string | null) {
     return creditDrafts[userId] ?? { labelCredits: "", trackingCredits: "", planId: currentPlanId ?? "" };
@@ -356,17 +359,39 @@ export default function Admin() {
   }
 
   async function refreshManualPayments(filter: "PENDING" | "APPROVED" | "REJECTED" | "ALL" = manualPaymentFilter) {
+    const cacheKey = `admin.manualPayments.${filter}.v1`;
+    const cachedRaw = window.localStorage.getItem(cacheKey);
+    if (cachedRaw) {
+      try {
+        const cached = JSON.parse(cachedRaw) as { requests: ManualPaymentRow[] };
+        if (Array.isArray(cached?.requests)) setManualPayments(cached.requests);
+      } catch {
+        // Ignore malformed local cache.
+      }
+    }
     const statusParam = filter === "ALL" ? "" : `?status=${filter}`;
     const data = await api<{ requests: ManualPaymentRow[] }>(`/api/admin/manual-payments${statusParam}`);
     setManualPayments(data.requests);
+    window.localStorage.setItem(cacheKey, JSON.stringify({ requests: data.requests, ts: Date.now() }));
   }
 
   async function refreshInvoices(filter: "" | "OPEN" | "PAID" = invoiceFilter) {
+    const cacheKey = `admin.invoices.${filter || "ALL"}.v1`;
     setLoadingInvoices(true);
+    const cachedRaw = window.localStorage.getItem(cacheKey);
+    if (cachedRaw) {
+      try {
+        const cached = JSON.parse(cachedRaw) as { invoices: InvoiceRow[] };
+        if (Array.isArray(cached?.invoices)) setInvoices(cached.invoices);
+      } catch {
+        // Ignore malformed local cache.
+      }
+    }
     try {
       const statusParam = filter ? `?status=${filter}` : "";
       const data = await api<{ invoices: InvoiceRow[] }>(`/api/admin/invoices${statusParam}`);
       setInvoices(data.invoices);
+      window.localStorage.setItem(cacheKey, JSON.stringify({ invoices: data.invoices, ts: Date.now() }));
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Failed to load invoices");
     } finally {
@@ -405,9 +430,11 @@ export default function Admin() {
   useEffect(() => {
     if (section === "payments") {
       refreshManualPayments(manualPaymentFilter).catch((e) => setErr(e instanceof Error ? e.message : "Failed"));
+      setManualPaymentsPage(1);
     }
     if (section === "invoices") {
       refreshInvoices(invoiceFilter).catch((e) => setErr(e instanceof Error ? e.message : "Failed"));
+      setInvoicesPage(1);
     }
   }, [section, manualPaymentFilter, invoiceFilter]);
 
@@ -420,6 +447,24 @@ export default function Admin() {
   );
 
   const previewUser = users.find((u) => u.id === previewUserId) ?? null;
+  const totalManualPages = Math.max(1, Math.ceil(manualPayments.length / adminTablePageSize));
+  const totalInvoicePages = Math.max(1, Math.ceil(invoices.length / adminTablePageSize));
+  const paginatedManualPayments = useMemo(() => {
+    const start = (manualPaymentsPage - 1) * adminTablePageSize;
+    return manualPayments.slice(start, start + adminTablePageSize);
+  }, [manualPayments, manualPaymentsPage]);
+  const paginatedInvoices = useMemo(() => {
+    const start = (invoicesPage - 1) * adminTablePageSize;
+    return invoices.slice(start, start + adminTablePageSize);
+  }, [invoices, invoicesPage]);
+
+  useEffect(() => {
+    if (manualPaymentsPage > totalManualPages) setManualPaymentsPage(totalManualPages);
+  }, [manualPaymentsPage, totalManualPages]);
+
+  useEffect(() => {
+    if (invoicesPage > totalInvoicePages) setInvoicesPage(totalInvoicePages);
+  }, [invoicesPage, totalInvoicePages]);
 
   return (
     <PageShell className="space-y-3">
@@ -710,6 +755,17 @@ export default function Admin() {
               </button>
             </div>
           </div>
+          <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-2 text-xs text-slate-600">
+            <div>
+              Page <span className="font-semibold text-slate-800">{invoicesPage}</span> of <span className="font-semibold text-slate-800">{totalInvoicePages}</span> · <span className="font-semibold text-slate-800">{paginatedInvoices.length}</span> shown · <span className="font-semibold text-slate-800">{invoices.length}</span> total
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 disabled:opacity-40" disabled={invoicesPage <= 1} onClick={() => setInvoicesPage(1)}>First</button>
+              <button className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 disabled:opacity-40" disabled={invoicesPage <= 1} onClick={() => setInvoicesPage((p) => Math.max(1, p - 1))}>Previous</button>
+              <button className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 disabled:opacity-40" disabled={invoicesPage >= totalInvoicePages} onClick={() => setInvoicesPage((p) => Math.min(totalInvoicePages, p + 1))}>Next</button>
+              <button className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 disabled:opacity-40" disabled={invoicesPage >= totalInvoicePages} onClick={() => setInvoicesPage(totalInvoicePages)}>Last</button>
+            </div>
+          </div>
           <TableWrap>
             <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
               <thead className="bg-gray-50">
@@ -731,7 +787,7 @@ export default function Admin() {
                 {!loadingInvoices && invoices.length === 0 && (
                   <tr><td className="px-4 py-6 text-center text-sm text-slate-400" colSpan={8}>No invoices found.</td></tr>
                 )}
-                {invoices.map((inv) => (
+                {paginatedInvoices.map((inv) => (
                   <tr key={inv.id} className="transition-colors hover:bg-gray-50/60">
                     <td className="px-4 py-3">
                       <div className="font-medium text-slate-900">{inv.user.companyName ?? inv.user.email}</div>
@@ -773,6 +829,12 @@ export default function Admin() {
               </tbody>
             </table>
           </TableWrap>
+          <div className="flex items-center justify-end gap-1.5 border-t border-slate-200 px-6 py-2 text-xs text-slate-600">
+            <button className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 disabled:opacity-40" disabled={invoicesPage <= 1} onClick={() => setInvoicesPage(1)}>First</button>
+            <button className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 disabled:opacity-40" disabled={invoicesPage <= 1} onClick={() => setInvoicesPage((p) => Math.max(1, p - 1))}>Previous</button>
+            <button className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 disabled:opacity-40" disabled={invoicesPage >= totalInvoicePages} onClick={() => setInvoicesPage((p) => Math.min(totalInvoicePages, p + 1))}>Next</button>
+            <button className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 disabled:opacity-40" disabled={invoicesPage >= totalInvoicePages} onClick={() => setInvoicesPage(totalInvoicePages)}>Last</button>
+          </div>
         </Card>
       ) : null}
 
@@ -896,6 +958,17 @@ export default function Admin() {
               ))}
             </div>
           </div>
+          <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-6 py-2 text-xs text-slate-600">
+            <div>
+              Page <span className="font-semibold text-slate-800">{manualPaymentsPage}</span> of <span className="font-semibold text-slate-800">{totalManualPages}</span> · <span className="font-semibold text-slate-800">{paginatedManualPayments.length}</span> shown · <span className="font-semibold text-slate-800">{manualPayments.length}</span> total
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 disabled:opacity-40" disabled={manualPaymentsPage <= 1} onClick={() => setManualPaymentsPage(1)}>First</button>
+              <button className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 disabled:opacity-40" disabled={manualPaymentsPage <= 1} onClick={() => setManualPaymentsPage((p) => Math.max(1, p - 1))}>Previous</button>
+              <button className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 disabled:opacity-40" disabled={manualPaymentsPage >= totalManualPages} onClick={() => setManualPaymentsPage((p) => Math.min(totalManualPages, p + 1))}>Next</button>
+              <button className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 disabled:opacity-40" disabled={manualPaymentsPage >= totalManualPages} onClick={() => setManualPaymentsPage(totalManualPages)}>Last</button>
+            </div>
+          </div>
           <TableWrap>
             <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
               <thead className="bg-gray-50">
@@ -917,7 +990,7 @@ export default function Admin() {
                     <td className="px-4 py-6 text-center text-sm text-slate-400" colSpan={9}>No payment requests found.</td>
                   </tr>
                 )}
-                {manualPayments.map((payment) => (
+                {paginatedManualPayments.map((payment) => (
                   <tr key={payment.id} className="transition-colors hover:bg-gray-50/60">
                     <td className="px-4 py-3">
                       <div className="font-medium text-slate-900">{payment.user.companyName ?? payment.user.email}</div>
@@ -982,6 +1055,12 @@ export default function Admin() {
               </tbody>
             </table>
           </TableWrap>
+          <div className="flex items-center justify-end gap-1.5 border-t border-slate-200 px-6 py-2 text-xs text-slate-600">
+            <button className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 disabled:opacity-40" disabled={manualPaymentsPage <= 1} onClick={() => setManualPaymentsPage(1)}>First</button>
+            <button className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 disabled:opacity-40" disabled={manualPaymentsPage <= 1} onClick={() => setManualPaymentsPage((p) => Math.max(1, p - 1))}>Previous</button>
+            <button className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 disabled:opacity-40" disabled={manualPaymentsPage >= totalManualPages} onClick={() => setManualPaymentsPage((p) => Math.min(totalManualPages, p + 1))}>Next</button>
+            <button className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 disabled:opacity-40" disabled={manualPaymentsPage >= totalManualPages} onClick={() => setManualPaymentsPage(totalManualPages)}>Last</button>
+          </div>
         </Card>
       ) : null}
 

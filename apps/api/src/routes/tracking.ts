@@ -28,6 +28,7 @@ import {
 } from "../services/trackingService.js";
 import { logComplaintAudit } from "../services/complaint-audit.service.js";
 import { enqueueComplaint, findActiveComplaintDuplicate, type ComplaintQueuePayload } from "../services/complaint-queue.service.js";
+import { extractComplaintHistory } from "../services/complaint.service.js";
 import { processTracking } from "../services/trackingStatus.js";
 import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "../services/trackingIntelligence.js";
 
@@ -1752,10 +1753,45 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
     });
   }
 
+  const complaintHistory = extractComplaintHistory(shipment?.complaintText, shipment?.complaintStatus, trackingNumber);
+  const latestHistory = complaintHistory.length > 0 ? complaintHistory[complaintHistory.length - 1] : null;
+  const attemptNumber = latestHistory ? Math.max(1, Number(latestHistory.attemptNumber ?? 1) + 1) : 1;
+  const previousComplaintReference = String(latestHistory?.complaintId ?? "").trim();
+  const previousDueDate = String(latestHistory?.dueDate ?? "").trim();
+  const previousDueDateTs = parseDueDateToTs(previousDueDate);
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const previousDueDatePassed = previousDueDateTs != null && previousDueDateTs < todayStart.getTime();
+
+  const autoRemarks: string[] = [];
+  if (attemptNumber === 2 && previousComplaintReference) {
+    autoRemarks.push(`Previous complaint reference: ${previousComplaintReference}.`);
+    if (previousDueDatePassed && previousDueDate) {
+      autoRemarks.push(`Previous due date (${toDdMmYyyy(previousDueDate)}) has already passed and shipment is still unresolved.`);
+    }
+  }
+  if (attemptNumber >= 3) {
+    if (previousComplaintReference) {
+      autoRemarks.push(`Previous complaint reference: ${previousComplaintReference}.`);
+    }
+    autoRemarks.push("This is a repeated unresolved complaint attempt.");
+    autoRemarks.push("Escalation required if this attempt remains unresolved.");
+  }
+  const finalRemarks = autoRemarks.length > 0
+    ? `${remarks}\n\n${autoRemarks.join("\n")}`
+    : remarks;
+
+  if (complaintContext) {
+    complaintContext.remarks = finalRemarks;
+    complaintContext.complaint_text = finalRemarks;
+  }
+
   const payload: ComplaintQueuePayload = {
     tracking_number: trackingNumber,
     phone: normalizedPhone,
-    complaint_text: remarks,
+    complaint_text: finalRemarks,
+    attempt_number: attemptNumber,
+    previous_complaint_reference: previousComplaintReference,
     sender_name: body.sender_name,
     sender_address: body.sender_address,
     sender_city_value: body.sender_city_value,
@@ -1802,7 +1838,7 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
       queueId: queueRow.id,
       trackingNumber,
       phone: normalizedPhone,
-      complaintText: remarks,
+      complaintText: finalRemarks,
     },
     { jobId: complaintJob.id },
   );

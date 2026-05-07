@@ -4,6 +4,7 @@ import { useOutletContext } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { UploadCloud, AlertCircle, Eye, MapPin, PackageSearch, BadgeDollarSign, RefreshCw, Printer, Package, CheckCircle2, Clock, TrendingUp, X, MessageSquare, Activity, ChevronRight, Truck, ArrowUpRight, Search } from "lucide-react";
 import Card from "../components/Card";
+import UnifiedShipmentCards from "../components/UnifiedShipmentCards";
 import SampleDownloadLink from "../components/SampleDownloadLink";
 import { cn } from "../lib/cn";
 import { api, apiHealthCheck, uploadFile } from "../lib/api";
@@ -34,6 +35,7 @@ type ShipmentStats = {
   delivered: number;
   pending: number;
   returned: number;
+  complaints?: number;
   delayed: number;
   trackingUsed?: number;
   totalAmount?: number;
@@ -143,6 +145,9 @@ type ComplaintLifecycle = {
   state: string;
   stateLabel: string;
   message: string;
+  complaintCount: number;
+  latestAttempt: number;
+  previousComplaintReference: string;
 };
 
 type ComplaintQueueSnapshot = {
@@ -181,16 +186,29 @@ function parseDueDateToTs(input: string): number | null {
 
 function parseComplaintLifecycle(shipment: Shipment): ComplaintLifecycle {
   const textBlob = String(shipment.complaintText ?? "").trim();
+  const historyMarker = "COMPLAINT_HISTORY_JSON:";
+  const historyIndex = textBlob.lastIndexOf(historyMarker);
+  const historyRaw = historyIndex >= 0 ? textBlob.slice(historyIndex + historyMarker.length).trim() : "";
+  const parsedHistory = (() => {
+    if (!historyRaw) return [] as Array<{ complaintId: string; dueDate?: string; attemptNumber?: number; previousComplaintReference?: string }>;
+    try {
+      const parsed = JSON.parse(historyRaw) as { entries?: Array<{ complaintId: string; dueDate?: string; attemptNumber?: number; previousComplaintReference?: string }> };
+      return Array.isArray(parsed?.entries) ? parsed.entries : [];
+    } catch {
+      return [];
+    }
+  })();
+  const latestHistory = parsedHistory.length > 0 ? parsedHistory[parsedHistory.length - 1] : null;
   const idFromStructured = textBlob.match(/COMPLAINT_ID\s*:\s*([A-Z0-9\-]+)/i)?.[1] ?? "";
   const idFromMessage = textBlob.match(/Complaint\s*ID\s*([A-Z0-9\-]+)/i)?.[1] ?? "";
-  const rawId = (idFromStructured || idFromMessage || "").trim();
+  const rawId = (latestHistory?.complaintId || idFromStructured || idFromMessage || "").trim();
   const complaintId = rawId
     ? (rawId.toUpperCase().startsWith("CMP-") ? rawId.toUpperCase() : `CMP-${rawId}`)
     : "";
 
   const dueStructured = textBlob.match(/DUE_DATE\s*:\s*([^\n|]+)/i)?.[1] ?? "";
   const dueFromMessage = textBlob.match(/Due\s*Date\s*(?:on)?\s*([0-3]?\d\/[0-1]?\d\/\d{4})/i)?.[1] ?? "";
-  const dueDateText = String(dueStructured || dueFromMessage || "").trim();
+  const dueDateText = String(latestHistory?.dueDate || dueStructured || dueFromMessage || "").trim();
   const dueDateTs = parseDueDateToTs(dueDateText);
   const stateFromStructured = textBlob.match(/COMPLAINT_STATE\s*:\s*([^\n|]+)/i)?.[1] ?? "";
   const stateFromStatus = String(shipment.complaintStatus ?? "").trim();
@@ -227,6 +245,9 @@ function parseComplaintLifecycle(shipment: Shipment): ComplaintLifecycle {
     state: normalizedState,
     stateLabel: normalizedState,
     message: textBlob,
+    complaintCount: parsedHistory.length > 0 ? parsedHistory.length : (hasComplaint ? 1 : 0),
+    latestAttempt: Number(latestHistory?.attemptNumber ?? (hasComplaint ? 1 : 0)) || 0,
+    previousComplaintReference: String(latestHistory?.previousComplaintReference ?? "").trim(),
   };
 }
 
@@ -272,10 +293,17 @@ function isComplaintActionAllowed(
   queueSnapshot: ComplaintQueueSnapshot | undefined,
 ) {
   const statusUpper = normalizeStatus(shipmentStatus).toUpperCase();
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const reopenEligible = statusUpper === "PENDING"
+    && ["RESOLVED", "CLOSED", "REJECTED"].includes(String(lifecycle.state ?? "").toUpperCase())
+    && lifecycle.dueDateTs != null
+    && lifecycle.dueDateTs < todayStart.getTime();
   const complaintCardState = resolveComplaintCardState(lifecycle, queueSnapshot).toUpperCase();
   const hasKnownComplaint = lifecycle.exists || Boolean(queueSnapshot)
     || Boolean(String(lifecycle.complaintId ?? "").trim() || String(queueSnapshot?.complaintId ?? "").trim())
     || ["ACTIVE", "QUEUED", "PROCESSING", "RETRY PENDING", "MANUAL REVIEW", "SUBMITTED", "DUPLICATE", "RESOLVED"].includes(complaintCardState);
+  if (reopenEligible) return true;
   return statusUpper === "PENDING" && !hasKnownComplaint;
 }
 
@@ -2667,35 +2695,54 @@ export default function BulkTracking() {
       </Card>
       </motion.div>
 
-      <div className="grid gap-3 sm:grid-cols-5">
-          {[
-            { filter: "ALL" as StatusCardFilter, label: "Total Shipments", value: summaryStats.total, icon: <Package className="h-5 w-5" />, color: "border-slate-200 bg-white", iconBg: "bg-slate-100 text-slate-600", textColor: "text-slate-900", subColor: "text-slate-500" },
-            { filter: "DELIVERED" as StatusCardFilter, label: "Delivered", value: summaryStats.delivered, icon: <CheckCircle2 className="h-5 w-5" />, color: "border-emerald-200 bg-emerald-50", iconBg: "bg-emerald-100 text-emerald-600", textColor: "text-emerald-900", subColor: "text-emerald-600" },
-            { filter: "PENDING" as StatusCardFilter, label: "Pending", value: summaryStats.pending, icon: <Clock className="h-5 w-5" />, color: "border-orange-200 bg-orange-50", iconBg: "bg-orange-100 text-orange-600", textColor: "text-orange-900", subColor: "text-orange-600" },
-            { filter: "RETURNED" as StatusCardFilter, label: "Returned", value: summaryStats.returned, icon: <ArrowUpRight className="h-5 w-5" />, color: "border-red-200 bg-red-50", iconBg: "bg-red-100 text-red-600", textColor: "text-red-900", subColor: "text-red-600" },
-            { filter: "COMPLAINT_ACTIVE" as ExtendedStatusFilter, label: "Complaints", value: complaintTotals.total, icon: <TrendingUp className="h-5 w-5" />, color: "border-violet-200 bg-violet-50", iconBg: "bg-violet-100 text-violet-600", textColor: "text-violet-900", subColor: "text-violet-600" },
-          ].map((card, i) => (
-            <motion.button
-              key={card.filter}
-              type="button"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.32, delay: i * 0.06 }}
-              whileHover={{ boxShadow: "0 16px 32px rgba(15,23,42,0.12)" }}
-              onClick={() => { setStatusFilter(card.filter); setPage(1); }}
-              className={cn("rounded-2xl border p-4 text-left transition-shadow duration-200", card.color)}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl", card.iconBg)}>
-                  {card.icon}
-                </div>
-                <ChevronRight className={cn("h-4 w-4 opacity-40 mt-1", card.subColor)} />
-              </div>
-              <div className={cn("mt-3 text-[11px] font-semibold uppercase tracking-[0.1em]", card.subColor)}>{card.label}</div>
-              <div className={cn("mt-1 text-2xl font-bold", card.textColor)}>{card.value.toLocaleString()}</div>
-            </motion.button>
-          ))}
-      </div>
+      <UnifiedShipmentCards
+        items={[
+          {
+            key: "ALL",
+            label: "Total",
+            parcels: shipmentStats?.total ?? summaryStats.total,
+            amount: shipmentStats?.totalAmount ?? summaryStats.totalAmount,
+            active: statusFilter === "ALL",
+          },
+          {
+            key: "DELIVERED",
+            label: "Delivered",
+            parcels: shipmentStats?.delivered ?? summaryStats.delivered,
+            amount: shipmentStats?.deliveredAmount ?? summaryStats.deliveredAmount,
+            active: statusFilter === "DELIVERED",
+          },
+          {
+            key: "PENDING",
+            label: "Pending",
+            parcels: shipmentStats?.pending ?? summaryStats.pending,
+            amount: shipmentStats?.pendingAmount ?? summaryStats.pendingAmount,
+            active: statusFilter === "PENDING",
+          },
+          {
+            key: "RETURNED",
+            label: "Returned",
+            parcels: shipmentStats?.returned ?? summaryStats.returned,
+            amount: shipmentStats?.returnedAmount ?? summaryStats.returnedAmount,
+            active: statusFilter === "RETURNED",
+          },
+          {
+            key: "COMPLAINTS",
+            label: "Complaints",
+            parcels: shipmentStats?.complaints ?? complaintTotals.total,
+            amount: 0,
+            active: statusFilter === "COMPLAINT_ACTIVE",
+          },
+        ]}
+        onSelect={(key) => {
+          if (key === "COMPLAINTS") {
+            setStatusFilter("COMPLAINT_ACTIVE");
+            setPage(1);
+            return;
+          }
+          setStatusFilter(key as StatusCardFilter);
+          setPage(1);
+        }}
+      />
 
       {null}
 
@@ -3023,6 +3070,41 @@ export default function BulkTracking() {
         {refreshSummary ? <div className="border-t border-[#E5E7EB] bg-[#F8FAF9] px-4 py-2 text-xs text-[#6B7280]">{refreshSummary}</div> : null}
         </div>
         <div className="p-0">
+          <div className="flex items-center justify-between border-y border-[#E5E7EB] bg-[#F8FAFC] px-4 py-2 text-xs text-slate-600">
+            <div className="text-slate-500">
+              Page <span className="font-semibold text-slate-700">{page}</span> of <span className="font-semibold text-slate-700">{totalPages}</span> &nbsp;·&nbsp; <span className="font-semibold text-slate-700">{paginatedShipments.length}</span> of <span className="font-semibold text-slate-700">{totalFilteredShipments}</span> filtered
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
+                disabled={page <= 1}
+                onClick={() => setPage(1)}
+              >
+                First
+              </button>
+              <button
+                className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
+                disabled={page <= 1}
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              >
+                Previous
+              </button>
+              <button
+                className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
+                disabled={page >= totalPages}
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              >
+                Next
+              </button>
+              <button
+                className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
+                disabled={page >= totalPages}
+                onClick={() => setPage(totalPages)}
+              >
+                Last
+              </button>
+            </div>
+          </div>
           <div className="w-full max-h-[72vh] overflow-y-auto overflow-x-auto md:overflow-x-hidden rounded-[20px] border border-[#E5E7EB] bg-white">
             <table className="w-full table-fixed text-[12px] leading-4">
               <thead className="sticky top-0 z-10 border-b border-[#E5E7EB] bg-[#F8FAFC]">
@@ -3085,6 +3167,12 @@ export default function BulkTracking() {
                 const hasComplaintId = Boolean(String(lifecycle.complaintId ?? "").trim() || String(queueSnapshot?.complaintId ?? "").trim());
                 const complaintInProcess = hasComplaintId || isComplaintInProcess(lifecycle) || ["ACTIVE", "QUEUED", "PROCESSING", "RETRY PENDING"].includes(complaintCardState.toUpperCase());
                 const isComplaintEnabled = isComplaintActionAllowed(displayStatus, lifecycle, queueSnapshot);
+                const todayStart = new Date();
+                todayStart.setHours(0, 0, 0, 0);
+                const isReopenEligible = normalizeStatus(displayStatus).toUpperCase() === "PENDING"
+                  && ["RESOLVED", "CLOSED", "REJECTED"].includes(String(lifecycle.state ?? "").toUpperCase())
+                  && lifecycle.dueDateTs != null
+                  && lifecycle.dueDateTs < todayStart.getTime();
 
                 const actionOptions = [
                   { label: "Pending", val: "PENDING" },
@@ -3201,6 +3289,7 @@ export default function BulkTracking() {
                           <div className="w-full rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-2 text-left text-[10px] shadow-sm">
                             <div className="truncate font-semibold text-[#111827]" title={complaintId}>{complaintId}</div>
                             <div className="mt-0.5 text-[#6B7280]">Due: {dueDate}</div>
+                            <div className="mt-0.5 text-[#6B7280]">Complaint Count: {lifecycle.complaintCount.toLocaleString()}</div>
                             <div className="mt-0.5">
                               <span className={cn("inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ring-1 ring-inset", stateStyle)}>
                                 {complaintCardState}
@@ -3224,7 +3313,7 @@ export default function BulkTracking() {
                                     : "cursor-not-allowed bg-gray-50 text-gray-400 ring-gray-200"
                                 )}
                               >
-                                New Complaint
+                                {isReopenEligible ? "Reopen Complaint" : "New Complaint"}
                               </button>
                             ) : (
                               <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
@@ -3246,7 +3335,7 @@ export default function BulkTracking() {
                           )}
                         >
                           <MessageSquare className="h-3 w-3" />
-                          Complaint
+                          {isReopenEligible ? "Reopen Complaint" : "Complaint"}
                         </button>
                       )}
                     </td>
@@ -3269,18 +3358,32 @@ export default function BulkTracking() {
             </div>
             <div className="flex items-center gap-1.5">
               <button
-                className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-1 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
+                className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
+                disabled={page <= 1}
+                onClick={() => setPage(1)}
+              >
+                First
+              </button>
+              <button
+                className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
                 disabled={page <= 1}
                 onClick={() => setPage((prev) => Math.max(1, prev - 1))}
               >
-                ← Previous
+                Previous
               </button>
               <button
-                className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-1 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
+                className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
                 disabled={page >= totalPages}
                 onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
               >
-                Next →
+                Next
+              </button>
+              <button
+                className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
+                disabled={page >= totalPages}
+                onClick={() => setPage(totalPages)}
+              >
+                Last
               </button>
             </div>
           </div>
@@ -3470,6 +3573,7 @@ export default function BulkTracking() {
                         <div className="font-semibold">Complaint ID: {activeComplaintLifecycle.complaintId}</div>
                         <div className="mt-1 text-emerald-800">Due Date: {activeComplaintLifecycle.dueDateText || "-"}</div>
                         <div className="mt-1 text-emerald-800">Status: {activeComplaintLifecycle.stateLabel}</div>
+                        <div className="mt-1 text-emerald-800">Complaint Count: {activeComplaintLifecycle.complaintCount.toLocaleString()}</div>
                       </div>
                       <span className="rounded-full border border-emerald-300 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
                         {activeComplaintLifecycle.stateLabel || "ACTIVE"}
@@ -3945,7 +4049,7 @@ export default function BulkTracking() {
                     onClick={() => openComplaintModal(selectedTracking)}
                     className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 transition-colors"
                   >
-                    <MessageSquare className="h-3.5 w-3.5" /> Complaint
+                    <MessageSquare className="h-3.5 w-3.5" /> {selectedComplaintLifecycle && ["RESOLVED", "CLOSED", "REJECTED"].includes(selectedComplaintLifecycle.state) ? "Reopen Complaint" : "Complaint"}
                   </button>
                 ) : null}
                 <button
@@ -3979,6 +4083,7 @@ export default function BulkTracking() {
                 <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">MO Value</div><div className="mt-1 text-xs font-semibold text-emerald-700">{trackingDetailData.moValue != null ? `Rs ${trackingDetailData.moValue.toLocaleString()}` : "-"}</div></div>
                 <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Origin City</div><div className="mt-1 text-xs font-semibold text-slate-900">{trackingDetailData.bookingOffice}</div></div>
                 <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Delivery City</div><div className="mt-1 text-xs font-semibold text-slate-900">{trackingDetailData.deliveryOffice}</div></div>
+                <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Complaint Count</div><div className="mt-1 text-xs font-semibold text-slate-900">{selectedComplaintLifecycle?.complaintCount ?? 0}</div></div>
               </div>
 
               {/* Consignee */}

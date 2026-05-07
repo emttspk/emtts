@@ -46,7 +46,29 @@ export type ChangePackageResponse = {
 };
 
 export async function fetchPlans() {
+  const cacheKey = "plans.public.cache.v1";
+  const cachedRaw = window.localStorage.getItem(cacheKey);
+  if (cachedRaw) {
+    try {
+      const cached = JSON.parse(cachedRaw) as { plans: Plan[] };
+      if (Array.isArray(cached?.plans) && cached.plans.length > 0) {
+        void api<{ plans: Plan[] }>(`/api/plans?t=${Date.now()}`)
+          .then((latest) => {
+            window.localStorage.setItem(cacheKey, JSON.stringify({ plans: latest.plans ?? [], ts: Date.now() }));
+            window.dispatchEvent(new CustomEvent("plans-cache-refresh", { detail: latest.plans ?? [] }));
+          })
+          .catch(() => {
+            // Ignore background refresh errors.
+          });
+        return cached.plans;
+      }
+    } catch {
+      // Ignore malformed cache.
+    }
+  }
+
   const data = await api<{ plans: Plan[] }>(`/api/plans?t=${Date.now()}`);
+  window.localStorage.setItem(cacheKey, JSON.stringify({ plans: data.plans ?? [], ts: Date.now() }));
   return data.plans ?? [];
 }
 

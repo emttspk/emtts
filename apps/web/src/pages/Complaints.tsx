@@ -6,22 +6,41 @@ import type { Shipment } from "../lib/types";
 
 export default function Complaints() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [totalShipments, setTotalShipments] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string>("");
   const [phone, setPhone] = useState<string>("");
+  const [page, setPage] = useState(1);
+  const pageSize = 25;
+  const totalPages = Math.max(1, Math.ceil(totalShipments / pageSize));
+  const cacheKey = `complaints.shipments.page.${page}.limit.${pageSize}.v1`;
 
   const polling = useTrackingJobPolling({});
 
   async function refresh() {
-    const data = await api<{ shipments: Shipment[] }>("/api/shipments?limit=50");
+    const data = await api<{ shipments: Shipment[]; total: number }>(`/api/shipments?page=${page}&limit=${pageSize}`);
     setShipments(data.shipments);
+    setTotalShipments(Number(data.total ?? data.shipments.length));
+    window.localStorage.setItem(cacheKey, JSON.stringify({ shipments: data.shipments, total: data.total, ts: Date.now() }));
   }
 
   useEffect(() => {
     let ok = true;
     setLoading(true);
     setError(null);
+    const cachedRaw = window.localStorage.getItem(cacheKey);
+    if (cachedRaw) {
+      try {
+        const cached = JSON.parse(cachedRaw) as { shipments: Shipment[]; total: number };
+        if (Array.isArray(cached?.shipments)) {
+          setShipments(cached.shipments);
+          setTotalShipments(Number(cached.total ?? cached.shipments.length));
+        }
+      } catch {
+        // Ignore malformed cache.
+      }
+    }
     refresh()
       .catch((e) => {
         if (!ok) return;
@@ -34,7 +53,11 @@ export default function Complaints() {
     return () => {
       ok = false;
     };
-  }, []);
+  }, [page]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const current = useMemo(() => shipments.find((s) => s.trackingNumber === selected) ?? null, [shipments, selected]);
 
@@ -147,6 +170,17 @@ export default function Complaints() {
 
       <Card className="p-8">
         <div className="text-lg font-medium text-[#0F172A]">Recent Shipments</div>
+        <div className="mt-3 flex items-center justify-between rounded-xl border border-[#E5E7EB] bg-[#F8FAF9] px-3 py-2 text-xs text-slate-600">
+          <div>
+            Page <span className="font-semibold text-slate-800">{page}</span> of <span className="font-semibold text-slate-800">{totalPages}</span> · <span className="font-semibold text-slate-800">{shipments.length}</span> shown · <span className="font-semibold text-slate-800">{totalShipments}</span> total
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 disabled:opacity-40" disabled={page <= 1} onClick={() => setPage(1)}>First</button>
+            <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 disabled:opacity-40" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</button>
+            <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 disabled:opacity-40" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</button>
+            <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 disabled:opacity-40" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>Last</button>
+          </div>
+        </div>
         <div className="mt-4 overflow-x-auto rounded-2xl border border-[#E5E7EB] bg-white shadow-xl">
           <table className="min-w-full text-sm">
             <thead className="bg-[#F8FAF9]">
@@ -175,6 +209,12 @@ export default function Complaints() {
               ) : null}
             </tbody>
           </table>
+        </div>
+        <div className="mt-3 flex items-center justify-end gap-1.5 text-xs text-slate-600">
+          <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 disabled:opacity-40" disabled={page <= 1} onClick={() => setPage(1)}>First</button>
+          <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 disabled:opacity-40" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</button>
+          <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 disabled:opacity-40" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</button>
+          <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 disabled:opacity-40" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>Last</button>
         </div>
       </Card>
     </div>

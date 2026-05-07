@@ -24,6 +24,18 @@ export type ComplaintAlertRecord = {
   createdAt: string;
 };
 
+export type ComplaintHistoryEntry = {
+  complaintId: string;
+  trackingId: string;
+  createdAt: string;
+  dueDate: string;
+  status: string;
+  attemptNumber: number;
+  previousComplaintReference: string;
+};
+
+const COMPLAINT_HISTORY_MARKER = "COMPLAINT_HISTORY_JSON:";
+
 function parseDueDateToTs(input: string): number | null {
   const value = String(input ?? "").trim();
   if (!value) return null;
@@ -88,6 +100,66 @@ export function upsertComplaintMetadata(textBlob: string | null | undefined, met
   }
   lines[0] = firstLine;
   return lines.join("\n").trim();
+}
+
+function parseStoredComplaintHistory(textBlob: string | null | undefined): ComplaintHistoryEntry[] {
+  const text = String(textBlob ?? "");
+  const markerIndex = text.lastIndexOf(COMPLAINT_HISTORY_MARKER);
+  if (markerIndex < 0) return [];
+  const rawJson = text.slice(markerIndex + COMPLAINT_HISTORY_MARKER.length).trim();
+  if (!rawJson) return [];
+  try {
+    const parsed = JSON.parse(rawJson) as { entries?: ComplaintHistoryEntry[] } | ComplaintHistoryEntry[];
+    const entries = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.entries) ? parsed.entries : [];
+    return entries
+      .map((entry) => ({
+        complaintId: String(entry.complaintId ?? "").trim(),
+        trackingId: String(entry.trackingId ?? "").trim(),
+        createdAt: String(entry.createdAt ?? "").trim(),
+        dueDate: String(entry.dueDate ?? "").trim(),
+        status: String(entry.status ?? "").trim().toUpperCase() || "ACTIVE",
+        attemptNumber: Math.max(1, Number(entry.attemptNumber ?? 1) || 1),
+        previousComplaintReference: String(entry.previousComplaintReference ?? "").trim(),
+      }))
+      .filter((entry) => Boolean(entry.complaintId));
+  } catch {
+    return [];
+  }
+}
+
+export function extractComplaintHistory(textBlob: string | null | undefined, complaintStatus?: string | null, trackingId?: string) {
+  const stored = parseStoredComplaintHistory(textBlob);
+  if (stored.length > 0) return stored;
+
+  const fallback = parseComplaintRecord(textBlob, complaintStatus);
+  if (!fallback.complaintId) return [];
+  return [{
+    complaintId: fallback.complaintId,
+    trackingId: String(trackingId ?? "").trim(),
+    createdAt: new Date().toISOString(),
+    dueDate: fallback.dueDate,
+    status: fallback.state,
+    attemptNumber: 1,
+    previousComplaintReference: "",
+  }];
+}
+
+export function composeComplaintText(input: {
+  complaintId: string;
+  dueDate: string;
+  state?: string;
+  userComplaint: string;
+  responseText: string;
+  historyEntries: ComplaintHistoryEntry[];
+}) {
+  const stateLabel = String(input.state ?? "ACTIVE").trim().toUpperCase() || "ACTIVE";
+  const headerParts: string[] = [];
+  if (String(input.complaintId ?? "").trim()) headerParts.push(`COMPLAINT_ID: ${String(input.complaintId).trim()}`);
+  if (String(input.dueDate ?? "").trim()) headerParts.push(`DUE_DATE: ${String(input.dueDate).trim()}`);
+  headerParts.push(`COMPLAINT_STATE: ${stateLabel}`);
+  const header = headerParts.join(" | ");
+  const historyJson = JSON.stringify({ entries: input.historyEntries });
+  return `${header}\nUser complaint:\n${String(input.userComplaint ?? "").trim()}\n\nResponse:\n${String(input.responseText ?? "").trim()}\n\n${COMPLAINT_HISTORY_MARKER} ${historyJson}`;
 }
 
 export async function listComplaintRecords(filters?: { trackingIds?: string[] }) {

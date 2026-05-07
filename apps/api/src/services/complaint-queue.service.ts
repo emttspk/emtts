@@ -21,6 +21,8 @@ export type ComplaintQueuePayload = {
   tracking_number: string;
   phone: string;
   complaint_text: string;
+  attempt_number?: number;
+  previous_complaint_reference?: string;
   sender_name?: string;
   sender_address?: string;
   sender_city_value?: string;
