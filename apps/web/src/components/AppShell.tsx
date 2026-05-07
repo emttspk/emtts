@@ -6,6 +6,7 @@ import type { MeResponse } from "../lib/types";
 import { fetchMe } from "../lib/UserService";
 import Card from "./Card";
 import { resolvePageTitle } from "../lib/navigation";
+import { useIdleTimeout } from "../hooks/useIdleTimeout";
 
 export default function AppShell() {
   const loc = useLocation();
@@ -13,6 +14,9 @@ export default function AppShell() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [me, setMe] = useState<MeResponse | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Global idle timeout: auto-logout after 15 min of inactivity
+  useIdleTimeout(true);
 
   const title = useMemo(() => {
     return resolvePageTitle(loc.pathname);

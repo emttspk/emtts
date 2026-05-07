@@ -906,6 +906,7 @@ export default function BulkTracking() {
   const [complaintPreviewVisible, setComplaintPreviewVisible] = useState(false);
   const [complaintValidationState, setComplaintValidationState] = useState<Record<string, boolean>>({});
   const [showServiceAlert, setShowServiceAlert] = useState(false);
+  const [historyModalRecord, setHistoryModalRecord] = useState<FinalTrackingRecord | null>(null);
   const importFileInputRef = useRef<HTMLInputElement>(null);
   const backgroundQueueRef = useRef<string[]>([]);
   const backgroundSeenRef = useRef(new Set<string>());
@@ -3321,6 +3322,15 @@ export default function BulkTracking() {
                                 {complaintCardState}
                               </div>
                             )}
+                            {lifecycle.complaintCount > 0 ? (
+                              <button
+                                type="button"
+                                onClick={() => setHistoryModalRecord(row)}
+                                className="mt-1 inline-flex w-full items-center justify-center rounded px-2 py-0.5 text-[9px] font-medium ring-1 ring-inset transition-all bg-slate-50 text-slate-600 ring-slate-200 hover:bg-slate-100"
+                              >
+                                View History ({lifecycle.complaintCount})
+                              </button>
+                            ) : null}
                           </div>
                         );
                       })() : (
@@ -4140,6 +4150,103 @@ export default function BulkTracking() {
       </AnimatePresence>
 
       <div id="print-area" aria-hidden="true" />
+
+      {historyModalRecord ? (() => {
+        const historyShipment = historyModalRecord.shipment;
+        const textBlob = String(historyShipment.complaintText ?? "").trim();
+        const historyMarker = "COMPLAINT_HISTORY_JSON:";
+        const historyIndex = textBlob.lastIndexOf(historyMarker);
+        const historyRaw = historyIndex >= 0 ? textBlob.slice(historyIndex + historyMarker.length).trim() : "";
+        const historyEntries: Array<{
+          complaintId?: string;
+          trackingId?: string;
+          createdAt?: string;
+          dueDate?: string;
+          status?: string;
+          attemptNumber?: number;
+          previousComplaintReference?: string;
+        }> = (() => {
+          if (!historyRaw) return [];
+          try {
+            const parsed = JSON.parse(historyRaw) as { entries?: unknown[] };
+            return Array.isArray(parsed?.entries) ? (parsed.entries as typeof historyEntries) : [];
+          } catch { return []; }
+        })();
+        const sortedEntries = [...historyEntries].sort((a, b) => Number(a.attemptNumber ?? 1) - Number(b.attemptNumber ?? 1));
+        return (
+          <div className="modal-wrapper z-50 bg-slate-950/60 p-4">
+            <div className="modal-content flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" role="dialog" aria-modal="true" aria-label="Complaint History">
+              <div className="modal-header flex items-start justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
+                <div>
+                  <div className="text-lg font-semibold text-slate-900">Complaint History</div>
+                  <div className="text-sm text-slate-600">Tracking: <span className="font-semibold text-slate-800">{historyShipment.trackingNumber}</span></div>
+                </div>
+                <button
+                  type="button"
+                  className="rounded border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50"
+                  onClick={() => setHistoryModalRecord(null)}
+                >
+                  Close
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4">
+                {sortedEntries.length === 0 ? (
+                  <div className="rounded border border-slate-200 p-4 text-center text-sm text-slate-500">
+                    No complaint history found for this tracking number.
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {sortedEntries.map((entry, idx) => (
+                      <div key={idx} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className="text-xs font-bold text-slate-700">Attempt #{entry.attemptNumber ?? idx + 1}</span>
+                          <span className={cn(
+                            "rounded px-2 py-0.5 text-[10px] font-semibold uppercase",
+                            entry.status === "ACTIVE" ? "bg-green-100 text-green-800" :
+                            entry.status === "ERROR" ? "bg-red-100 text-red-800" :
+                            "bg-slate-200 text-slate-700"
+                          )}>{entry.status ?? "ACTIVE"}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <span className="text-slate-500">Complaint ID:</span>
+                            <span className="ml-1 font-semibold text-slate-800">{entry.complaintId || "-"}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500">Filed Date:</span>
+                            <span className="ml-1 font-semibold text-slate-800">
+                              {entry.createdAt ? new Date(entry.createdAt).toLocaleDateString("en-GB") : "-"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500">Due Date:</span>
+                            <span className="ml-1 font-semibold text-slate-800">{entry.dueDate || "-"}</span>
+                          </div>
+                          {entry.previousComplaintReference ? (
+                            <div>
+                              <span className="text-slate-500">Previous Ref:</span>
+                              <span className="ml-1 font-semibold text-slate-800">{entry.previousComplaintReference}</span>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="border-t border-slate-200 px-4 py-3 flex justify-end">
+                <button
+                  type="button"
+                  className="rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  onClick={() => setHistoryModalRecord(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })() : null}
     </PageShell>
   );
 }

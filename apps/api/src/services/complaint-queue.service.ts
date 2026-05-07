@@ -49,6 +49,7 @@ export function getComplaintNextRetryAt(retryCount: number) {
 }
 
 export async function findActiveComplaintDuplicate(userId: string, trackingId: string) {
+  const now = new Date();
   const queueDuplicate = await prisma.complaintQueue.findFirst({
     where: {
       userId,
@@ -59,12 +60,17 @@ export async function findActiveComplaintDuplicate(userId: string, trackingId: s
   });
 
   if (queueDuplicate) {
-    return {
-      duplicate: true,
-      complaintId: queueDuplicate.complaintId ?? "",
-      dueDate: queueDuplicate.dueDate,
-      source: "queue" as const,
-    };
+    // If the complaint has a due date that has already passed, allow re-complaint
+    if (queueDuplicate.dueDate && queueDuplicate.dueDate < now) {
+      // Due date passed — not a blocking duplicate, allow new complaint
+    } else {
+      return {
+        duplicate: true,
+        complaintId: queueDuplicate.complaintId ?? "",
+        dueDate: queueDuplicate.dueDate,
+        source: "queue" as const,
+      };
+    }
   }
 
   const shipment = await prisma.shipment.findUnique({
