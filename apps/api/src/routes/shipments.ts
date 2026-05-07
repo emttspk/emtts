@@ -316,6 +316,23 @@ shipmentsRouter.get("/stats", async (req, res) => {
     console.log("Database unavailable for shipments, returning empty data:", err instanceof Error ? err.message : err);
   }
 
+  // Fetch active complaint queue entries to compute complaintAmount
+  let activeComplaintTrackingIds = new Set<string>();
+  try {
+    const activeComplaints = await prisma.complaintQueue.findMany({
+      where: {
+        userId,
+        complaintStatus: { in: ["queued", "processing", "submitted", "retry_pending", "manual_review"] },
+      },
+      select: { trackingId: true },
+    });
+    for (const c of activeComplaints) {
+      if (c.trackingId) activeComplaintTrackingIds.add(String(c.trackingId).trim());
+    }
+  } catch (err) {
+    console.log("Failed to fetch active complaints for stats:", err instanceof Error ? err.message : err);
+  }
+
   const total = shipments.length;
   const byStatus: Record<string, number> = {};
   const byDate: Record<string, { total: number; byStatus: Record<string, number> }> = {};
@@ -324,6 +341,8 @@ shipmentsRouter.get("/stats", async (req, res) => {
   let pendingAmount = 0;
   let returnedAmount = 0;
   let delayedAmount = 0;
+  let complaintAmount = 0;
+  let complaintsCount = 0;
   let trackingUsed = 0;
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
@@ -350,6 +369,10 @@ shipmentsRouter.get("/stats", async (req, res) => {
     if (isComplaintEnabled(s.daysPassed) && key !== "DELIVERED") delayedAmount += amt;
     if (s.createdAt >= monthStart) trackingUsed += 1;
     totalAmount += amt;
+    if (activeComplaintTrackingIds.has(s.trackingNumber)) {
+      complaintAmount += amt;
+      complaintsCount += 1;
+    }
 
     const date = new Date(s.createdAt).toISOString().split("T")[0];
     if (!byDate[date]) {
@@ -388,6 +411,8 @@ shipmentsRouter.get("/stats", async (req, res) => {
     delayedAmount,
     trackingUsed,
     graphData,
+    complaintAmount,
+    complaints: complaintsCount,
   });
 });
 

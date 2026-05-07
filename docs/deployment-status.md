@@ -1,4 +1,18 @@
-# Deployment Status (Railway)
+# Deployment Status
+
+**Last Updated:** 2026-05-08  
+**Commit:** b717fc5 — final repair complaint lifecycle dashboard sync cache and admin timeout  
+**Railway Project:** 144be6f4-a17c-47ec-8c23-3d5963c4d5fb  
+**Status:** ALL SERVICES ONLINE
+
+## Services
+- Api: ● Online · https://api.epost.pk · deployment 9ed33202
+- Web: ● Online · https://www.epost.pk · deployment 18526b21
+- Worker: ● Online · https://worker.epost.pk
+- Python: ● Online · https://python.epost.pk
+
+---
+ (Railway)
 
 ## Latest Confirmed Runtime
 Source: `temp-live-status-latest.utf8.json`

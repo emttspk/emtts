@@ -18,6 +18,7 @@ type DashboardStats = {
   deliveredAmount: number;
   pendingAmount: number;
   returnedAmount: number;
+  complaintAmount: number;
 };
 
 type DashboardActivityStats = {
@@ -132,6 +133,7 @@ export default function Dashboard() {
       deliveredAmount: shipmentStats?.deliveredAmount ?? 0,
       pendingAmount: shipmentStats?.pendingAmount ?? 0,
       returnedAmount: shipmentStats?.returnedAmount ?? 0,
+      complaintAmount: shipmentStats?.complaintAmount ?? 0,
       trackingUsed: activityStats?.trackingUsed ?? 0,
       graphData: activityStats?.graphData ?? [],
     }),
@@ -154,6 +156,7 @@ export default function Dashboard() {
     { key: "PENDING" as const, label: "Pending", parcels: stats.pending, amount: stats.pendingAmount },
     { key: "RETURNED" as const, label: "Returned", parcels: stats.returned, amount: stats.returnedAmount },
     { key: "COMPLAINTS" as const, label: "Complaints", parcels: stats.complaints, amount: 0 },
+    { key: "COMPLAINTS" as const, label: "Complaints", parcels: stats.complaints, amount: stats.complaintAmount },
   ];
 
   return (

@@ -43,6 +43,7 @@ type ShipmentStats = {
   pendingAmount?: number;
   returnedAmount?: number;
   delayedAmount?: number;
+  complaintAmount?: number;
 };
 
 type CycleAuditRecord = {
@@ -93,6 +94,7 @@ const TRACKING_CACHE_TTL_MS = 60_000;
 const TRACKING_CACHE_STORAGE_KEY = "tracking.workspace.cache.v2";
 const BACKGROUND_BATCH_SIZE = 100;
 const COMPLAINT_PHONE_STORAGE_KEY = "complaint.manual.phone";
+const STATS_CACHE_STORAGE_KEY = "tracking.shipment.stats.cache.v1";
 const COMPLAINT_EMAIL_STORAGE_KEY = "complaint.manual.email";
 const TRACKING_SERVICE_TYPE_MAP: Record<string, string> = {
   UMS: "UMS",
@@ -1052,8 +1054,18 @@ export default function BulkTracking() {
   }, [shipments, uiState, jobStartTime]);
 
   async function refreshShipmentStats() {
+    const cachedRaw = window.localStorage.getItem(STATS_CACHE_STORAGE_KEY);
+    if (cachedRaw) {
+      try {
+        const cached = JSON.parse(cachedRaw) as { value: ShipmentStats; ts: number };
+        if (cached?.value) setShipmentStats(cached.value);
+      } catch {
+        // Ignore malformed stats cache.
+      }
+    }
     const data = await api<ShipmentStats>("/api/shipments/stats");
     setShipmentStats(data);
+    window.localStorage.setItem(STATS_CACHE_STORAGE_KEY, JSON.stringify({ value: data, ts: Date.now() }));
   }
 
   async function refreshComplaintQueueSnapshot() {
