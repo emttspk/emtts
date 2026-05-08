@@ -1,5 +1,72 @@
 # FINAL EXECUTION REPORT — FINAL LIVE VERIFICATION
 
+## Mandatory Rollback Loop — Money Order Static Background Restore (2026-05-08)
+
+Rollback objective:
+
+- Revert dynamic money order background resolution introduced in intermediate implementation.
+- Restore static front image binding to `MO/MO F.png` in core renderer.
+- Remove background parameter injection from worker and admin preview routes.
+- Preserve all field layout, coordinates, and non-background rendering logic.
+
+### Rationale for Rollback
+
+- User requirement: deterministic stable background source without dynamic resolution.
+- Simplified rendering pipeline for maintainability and predictability.
+- Static binding ensures consistent output across preview, PDF, and print without runtime negotiation.
+
+### Code Changes Applied
+
+- `apps/api/src/templates/labels.ts`
+  - Added `resolveStaticMoFrontDataUrl()` function with cached data URL resolution for `MO/MO F.png`.
+  - Modified `moneyOrderHtml()` to always pass static resolver output to `moneyOrderHtmlFromBenchmark()`.
+  - Removed dynamic `opts.backgrounds.frontDataUrl` parameter dependency.
+  
+- `apps/api/src/worker.ts`
+  - Removed `loadMoneyOrderBackgrounds()` call and background object construction.
+  - Simplified MO render section to call `moneyOrderHtml(printableOrders)` directly.
+  
+- `apps/api/src/routes/adminTemplates.ts`
+  - Removed `loadMoneyOrderBackgrounds()` invocation from preview route handler.
+  - Admin preview now uses same static source as production via `moneyOrderHtml()`.
+
+### Validation Results
+
+- `npm install`: PASS
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS
+- `npm run build`: PASS (Web + API)
+- `npm run test`: PASS (`smoke:railway` SUCCESS)
+- `npm run dev`: PASS (Vite ready, API listening)
+
+### Deployment Results
+
+- Api redeploy: `railway up --service Api --detach` (SUCCESS)
+- Web redeploy: `railway up --service Web --detach` (SUCCESS)
+- Post-deploy validation:
+  - Api logs show `[MO_TEMPLATE_RESOLVED]` confirming renderer initialization.
+  - Money order PDF generation working end-to-end.
+  - Admin template operations and preview requests successful.
+
+### Visual Proof
+
+- Generated screenshot: `forensic-artifacts/mo-static-front-proof.png` (static front image confirmed present)
+- Generated PDF: `forensic-artifacts/mo-static-front-proof.pdf` (PDF rendering confirmed successful)
+
+### Git Commit
+
+```
+eaad8f0 (HEAD -> main, origin/main) revert dynamic money order background and restore static MO F front image rendering
+```
+
+### Documentation
+
+- Full details: `docs/money-order-static-background-restore.md`
+- Binding location: `MO/MO F.png` (static source used by all renders)
+- Rendering flow: `moneyOrderHtml(orders)` → `moneyOrderHtmlFromBenchmark(orders, staticDataUrl)` → PDF generation
+
+---
+
 ## Mandatory Forensic Recovery Loop — Money Order Template Restore (2026-05-08)
 
 Forensic objective:
