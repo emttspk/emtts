@@ -1,13 +1,13 @@
 # Deployment Status
 
 **Last Updated:** 2026-05-08  
-**Commit:** 4fba6a0 — fix returned stats complaint aggregation shipment status expansion and navigation filters  
+**Commit:** bbe13fe — complete complaint lifecycle dashboard cards tracking filters and action sync  
 **Railway Project:** 144be6f4-a17c-47ec-8c23-3d5963c4d5fb  
 **Status:** API + WEB DEPLOYED, ONLINE, AND LIVE-VERIFIED
 
 ## Services
-- Api: Online · https://api.epost.pk · deployment f8adb806-ab46-4317-b4fa-620c5c93618a
-- Web: Online · https://www.epost.pk · deployment 4c94f94a-ff68-47b7-8c3f-4ee322061c57
+- Api: Online · https://api.epost.pk · deployment b9fd913f-8d6e-4411-a15b-c0b61612082c
+- Web: Online · https://www.epost.pk · deployment 7e8ef0bb-c002-4c50-8b8f-bae74e334a2d
 - Worker: Online · https://worker.epost.pk
 - Python: Online · https://python.epost.pk
 - Postgres-hUZn: Online
@@ -21,10 +21,11 @@ Source: `temp-final-consistency-audit.mjs` with Railway `DATABASE_PUBLIC_URL`.
 - Returned: count 128, amount 119925
 - Complaints: count 203, amount 185075
 - Complaint Watch: count 89, amount 93375
-- Complaint Active: 110
-- Complaint Resolved: 8
-- Complaint Closed: 66
-- Complaint Reopened: 16
+- Complaint Active: count 69, amount 74000
+- Complaint In Process: count 41, amount 41800
+- Complaint Resolved: count 8, amount 7300
+- Complaint Closed: count 66, amount 61975
+- Complaint Reopened: count 16, amount 13600
 
 ## Post-Deploy API Stats Payload
 Source: `temp-live-verify-matrix.json` and `temp-final-consistency-audit.json` after deploy.
@@ -35,7 +36,8 @@ Source: `temp-live-verify-matrix.json` and `temp-final-consistency-audit.json` a
 - `returned=128`
 - `complaints=203`
 - `complaintWatch=89`
-- `complaintActive=110`
+- `complaintActive=69`
+- `complaintInProcess=41`
 - `complaintResolved=8`
 - `complaintClosed=66`
 - `complaintReopened=16`
@@ -45,21 +47,27 @@ Source: `temp-live-verify-matrix.json` and `temp-final-consistency-audit.json` a
 - `returnedAmount=119925`
 - `complaintAmount=185075`
 - `complaintWatchAmount=93375`
+- `complaintActiveAmount=74000`
+- `complaintInProcessAmount=41800`
+- `complaintResolvedAmount=7300`
+- `complaintClosedAmount=61975`
+- `complaintReopenedAmount=13600`
 
-DB vs API parity checks: PASS (`returned`, `complaints`, `complaintWatch`, `complaintActive`, `complaintResolved`, `complaintClosed`, `complaintReopened`).
+DB vs API parity checks: PASS (`returned`, `complaints`, `complaintWatch`, `complaintWatchAmount`, `complaintActive`, `complaintInProcess`, `complaintResolved`, `complaintClosed`, `complaintReopened`, `complaintActiveAmount`, `complaintInProcessAmount`, `complaintResolvedAmount`, `complaintClosedAmount`, `complaintReopenedAmount`).
 
 ## UI Proof Artifacts
 - Dashboard screenshot: `temp-ui-shots/dashboard-postfix.png`
 - Tracking screenshot: `temp-ui-shots/tracking-postfix.png`
 - Shipment Status screenshot: `temp-ui-shots/shipment-status-postfix.png`
+- Complaint lifecycle cards screenshot: `temp-ui-shots/complaint-lifecycle-cards-postfix.png`
 - Returned filter screenshot: `temp-ui-shots/filter-returned-proof.png`
 - Complaint Watch filter screenshot: `temp-ui-shots/filter-complaint-watch-proof.png`
 - Click filter JSON proof: `temp-click-filter-proof.json`
 
 ## Validation Outcome
 - Dashboard cards and Tracking cards match one backend `/api/shipments/stats` source.
-- Returned counts now include all return sources (Pakistan Post lifecycle + manual overrides).
-- Complaint total counts all complaint history attempts.
-- Complaint Watch remains active-only and pending-only.
-- Complaint lifecycle breakdown available and validated in production (`active`, `resolved`, `closed`, `reopened`).
-- Card click navigation filters are live and verified.
+- Shipment Status section shows all required 9 cards with counts and amounts from API payload.
+- Tracking supports all required filters (`DELIVERED`, `PENDING`, `RETURNED`, `COMPLAINT_WATCH`, `COMPLAINT_TOTAL`, `COMPLAINT_ACTIVE`, `COMPLAINT_CLOSED`, `COMPLAINT_REOPENED`, `COMPLAINT_IN_PROCESS`).
+- Card click navigation filters are live and verified for all required routes.
+- Complaint action button labels are lifecycle-synced (`Complaint`, `In Process`, `Reopen Complaint`).
+- Final production validation loop completed with clean command outcomes (`install`, `lint`, `typecheck`, `build`, `test`, `dev`).
