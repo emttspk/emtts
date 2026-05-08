@@ -3,6 +3,7 @@ import { Download } from "lucide-react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import Card from "../components/Card";
 import SampleDownloadLink from "../components/SampleDownloadLink";
+import SenderProfileCard from "../components/SenderProfileCard";
 import UploadDropzone from "../components/UploadDropzone";
 import { api, apiHealthCheck, triggerBrowserDownload, uploadFile } from "../lib/api";
 import type { LabelJob, MeResponse } from "../lib/types";
@@ -422,6 +423,7 @@ export default function Upload() {
     <PageShell className="space-y-3">
     <div className="grid grid-cols-1 gap-3">
       <div className="min-w-0 w-full space-y-3">
+        <SenderProfileCard me={me} compact className="shadow-sm" />
         <div className="grid grid-cols-1 gap-3">
           <div className="space-y-3 min-w-0 w-full">
         <UploadDropzone

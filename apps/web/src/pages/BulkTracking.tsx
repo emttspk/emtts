@@ -4,6 +4,7 @@ import { useOutletContext, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { UploadCloud, AlertCircle, Eye, MapPin, PackageSearch, BadgeDollarSign, RefreshCw, Printer, Package, CheckCircle2, Clock, TrendingUp, X, MessageSquare, Activity, ChevronRight, Truck, ArrowUpRight, Search } from "lucide-react";
 import Card from "../components/Card";
+import SenderProfileCard from "../components/SenderProfileCard";
 import UnifiedShipmentCards from "../components/UnifiedShipmentCards";
 import SampleDownloadLink from "../components/SampleDownloadLink";
 import { cn } from "../lib/cn";
@@ -2845,7 +2846,7 @@ export default function BulkTracking() {
         }}
       />
 
-      {null}
+      <SenderProfileCard me={me} compact className="shadow-sm" />
 
       {uiState === "processing" && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-brand px-6 py-3 text-white shadow-lg transition-all duration-300">
