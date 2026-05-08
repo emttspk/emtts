@@ -1,5 +1,70 @@
 # FINAL EXECUTION REPORT — FINAL LIVE VERIFICATION
 
+## Mandatory Forensic Recovery Loop — Money Order Template Restore (2026-05-08)
+
+Forensic objective:
+
+- Prove whether `apps/api/templates/mo-sample-two-records.html` was deleted/altered.
+- Restore only if missing.
+- Trace money-order render chain (preview/print/PDF) and repair only the missing link.
+- Re-validate filename exemption behavior and full quality gates.
+
+### Forensic Findings
+
+- Git history for `apps/api/templates/mo-sample-two-records.html` contains add-only event (`b4ae475cd02be7b2c6de8d12f9b6716d13f124aa`), with no deletion commit.
+- Exact blob integrity check:
+  - `ORIG_BLOB=6aa3e5533dcbf103e0e029f8e0a1a22722b0fed7`
+  - `CURR_BLOB=6aa3e5533dcbf103e0e029f8e0a1a22722b0fed7`
+  - Result: `MATCH_EXACT_ORIGINAL`.
+- Template structural integrity confirmed (`sheet_count=2`, `front_half_count=2`, `back_half_count=2`, `bg_div_count=4`).
+- Restoration was not required because file already matched original byte-for-byte.
+
+### Render-Chain Repair (Forensic-Only)
+
+- `apps/api/src/routes/adminTemplates.ts`
+  - Preview route now loads active backgrounds via `loadMoneyOrderBackgrounds()` and passes them into `moneyOrderHtml(...)`.
+  - This aligns preview path with worker PDF path and removes chain mismatch.
+
+### Mandatory Evidence (Live)
+
+- Live forensic runner executed: `temp-money-order-forensic-recovery.mjs`.
+- Machine report: `temp-money-order-forensic-recovery-report.json`.
+- Output artifacts:
+  - `forensic-artifacts/35664778-a105-4a11-a83d-28b852107d56-labels.pdf`
+  - `forensic-artifacts/35664778-a105-4a11-a83d-28b852107d56-money-orders.pdf`
+- Money-order generation status: `COMPLETED`.
+- Money-order PDF size: `358443` bytes, embedded image tokens: `5`.
+
+### Regression Checks (Filename Exemption)
+
+- Exempt filename `LCS 15-13-11-2024.xls`:
+  - First upload: PASS (`200`)
+  - Second upload: PASS (`200`) — duplicate bypass confirmed.
+- Non-exempt filename `forensic-non-exempt-1778279244700.csv`:
+  - First upload: PASS (`200`)
+  - Second upload: BLOCKED (`409`, `This file name already exists.`).
+- Admin exemption mutation endpoint probe with non-admin token:
+  - `/api/admin/settings` -> `403 Forbidden` (admin-only, expected for this token).
+
+### Validation Loop (This Forensic Run)
+
+- `npm install`: PASS
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS
+- `npm run build`: PASS
+- `npm run dev`: PASS (web + api startup observed)
+- `npm run test`: PASS (`@labelgen/api smoke:railway` SUCCESS)
+
+### Deployment (This Forensic Run)
+
+- Api redeploy: `railway up --service Api --detach`
+  - Build Logs id: `aa6f172c-b15b-452b-8938-c31ceb1f0ebd`
+- Web redeploy: `railway up --service Web --detach`
+  - Build Logs id: `db9a46ab-435c-4d86-886d-29d1a2af3fb2`
+- Post-deploy health evidence:
+  - Api logs show worker completion, duplicate-check behavior, and successful PDF download endpoint.
+  - Web logs show container start and `200` responses across app/assets.
+
 ## Mandatory Fix Loop — Money Order Background + Test Filename Exemption (2026-05-08)
 
 Fix objective:

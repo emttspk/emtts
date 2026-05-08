@@ -11,6 +11,7 @@ import { prisma } from "../lib/prisma.js";
 import { uploadsDir } from "../storage/paths.js";
 import { launchPuppeteerBrowser } from "../pdf/render.js";
 import { moneyOrderHtml } from "../templates/labels.js";
+import { loadMoneyOrderBackgrounds } from "../money-order/backgrounds.js";
 import { renderMoneyOrderTemplate } from "../templates/TemplateRenderer.js";
 
 const TEMPLATE_DESIGNER_ADMIN_EMAIL = "nazimsaeed@gmail.com";
@@ -547,7 +548,8 @@ adminTemplatesRouter.post("/:id/preview", async (req, res) => {
     shipmentType: "VPL",
   };
 
-  const html = moneyOrderHtml([orderLikeRecord as any]);
+  const backgrounds = await loadMoneyOrderBackgrounds().catch(() => null);
+  const html = moneyOrderHtml([orderLikeRecord as any], { backgrounds: backgrounds ?? undefined });
 
   return res.json({
     renderedTemplate,

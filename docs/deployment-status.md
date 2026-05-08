@@ -1,9 +1,60 @@
 # Deployment Status
 
 **Last Updated:** 2026-05-08  
-**Commit:** pending local commit — fix money order front background and add test filename exemption system  
+**Commit:** pending local commit — restore original money order template file and fix front background rendering  
 **Railway Project:** 144be6f4-a17c-47ec-8c23-3d5963c4d5fb  
 **Status:** API + WEB DEPLOYED, ONLINE, AND LIVE-VERIFIED
+
+## Mandatory Forensic Recovery Loop — Money Order Template Restore
+
+### Forensic result
+- `apps/api/templates/mo-sample-two-records.html` was not deleted.
+- Git history shows add-only origin commit: `b4ae475cd02be7b2c6de8d12f9b6716d13f124aa`.
+- Blob parity proved exact match with original:
+	- `ORIG_BLOB=6aa3e5533dcbf103e0e029f8e0a1a22722b0fed7`
+	- `CURR_BLOB=6aa3e5533dcbf103e0e029f8e0a1a22722b0fed7`
+	- `MATCH_EXACT_ORIGINAL`
+- Structural integrity confirmed: `sheet_count=2`, `front_half_count=2`, `back_half_count=2`, `bg_div_count=4`.
+
+### Repair applied (forensic-only)
+- Preview-render chain aligned with worker/PDF chain:
+	- `apps/api/src/routes/adminTemplates.ts`
+	- Added `loadMoneyOrderBackgrounds()` in preview route and passed `backgrounds` into `moneyOrderHtml(...)`.
+
+### Live evidence
+- Forensic report JSON: `temp-money-order-forensic-recovery-report.json`
+- Generated artifacts:
+	- `forensic-artifacts/35664778-a105-4a11-a83d-28b852107d56-labels.pdf`
+	- `forensic-artifacts/35664778-a105-4a11-a83d-28b852107d56-money-orders.pdf`
+- Money-order job: `35664778-a105-4a11-a83d-28b852107d56` -> `COMPLETED`
+- Money-order PDF: `358443` bytes, image tokens: `5`
+
+### Filename exemption regression proof
+- Exempt test file `LCS 15-13-11-2024.xls`:
+	- Upload 1: `200` (job `07b15b54-a61e-47c9-8440-9f1089094d7c`)
+	- Upload 2: `200` (job `6e84e02a-d5c0-4a57-becb-06823862208d`)
+- Non-exempt test file `forensic-non-exempt-1778279244700.csv`:
+	- Upload 1: `200` (job `49c80933-bd1e-4823-8228-8d03c87dfd42`)
+	- Upload 2: `409` (`This file name already exists.`)
+- Admin-list mutation endpoint with current token:
+	- `GET /api/admin/settings` -> `403 Forbidden` (admin-only scope)
+
+### Validation loop
+- `npm install`: PASS
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS
+- `npm run build`: PASS
+- `npm run dev`: PASS
+- `npm run test`: PASS (`smoke:railway`)
+
+### Deployment proof (forensic run)
+- Api deploy: `railway up --service Api --detach`
+	- Build Logs id: `aa6f172c-b15b-452b-8938-c31ceb1f0ebd`
+- Web deploy: `railway up --service Web --detach`
+	- Build Logs id: `db9a46ab-435c-4d86-886d-29d1a2af3fb2`
+- Post-deploy logs:
+	- Api: worker completed jobs, duplicate checks executed, label downloads served.
+	- Web: container started and app/assets served with `200`.
 
 ## Mandatory Fix Loop — Money Order Background + Test Filename Exemption
 
