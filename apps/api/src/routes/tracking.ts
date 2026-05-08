@@ -1316,11 +1316,28 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
     const due = textBlob.match(/DUE_DATE\s*:\s*([^\n|]+)/i)?.[1]
       ?? textBlob.match(/Due\s*Date\s*(?:on)?\s*([0-3]?\d\/[0-1]?\d\/\d{4})/i)?.[1]
       ?? "";
+    const state = textBlob.match(/COMPLAINT_STATE\s*:\s*([^\n|]+)/i)?.[1]
+      ?? String(complaintStatus ?? "");
+    const normalizedState = String(state).trim().toUpperCase();
     const dueTs = parseDueDateToTs(String(due).trim());
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const active = String(complaintStatus ?? "").toUpperCase() === "FILED" && Boolean(id) && dueTs != null && dueTs >= today.getTime();
-    return { active, id: String(id).trim(), dueDate: String(due).trim() };
+    const isTerminalState = ["RESOLVED", "CLOSED", "REJECTED"].includes(normalizedState);
+    const activeByStatusAndDue = String(complaintStatus ?? "").toUpperCase() === "FILED"
+      && Boolean(id)
+      && dueTs != null
+      && dueTs >= today.getTime();
+    const activeByState = ["ACTIVE", "FILED", "SUBMITTED", "PROCESSING", "QUEUED", "MANUAL_REVIEW", "DUPLICATE"].includes(normalizedState)
+      && Boolean(id)
+      && (dueTs == null || dueTs >= today.getTime());
+    const active = !isTerminalState && (activeByStatusAndDue || activeByState);
+    return {
+      active,
+      id: String(id).trim(),
+      dueDate: String(due).trim(),
+      dueTs,
+      state: normalizedState,
+    };
   };
 
   let complaintAllowed = false;
@@ -1575,8 +1592,11 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
       });
     }
 
+    const dueDateExpired = existing.dueTs != null && existing.dueTs < Date.now();
+    const reopenAllowedByLifecycle = ["RESOLVED", "CLOSED", "REJECTED"].includes(existing.state) || dueDateExpired;
+
     const duplicate = await findActiveComplaintDuplicate(userId, trackingNumber);
-    if (duplicate.duplicate) {
+    if (duplicate.duplicate && !reopenAllowedByLifecycle) {
       const duplicateDueDateText = duplicate.dueDate
         ? toDdMmYyyy(duplicate.dueDate.toISOString().slice(0, 10))
         : "";
