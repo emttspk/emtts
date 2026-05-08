@@ -7,6 +7,7 @@ export type ShipmentStats = {
   pending: number;
   returned: number;
   complaints?: number;
+  complaintWatch?: number;
   delayed?: number;
   trackingUsed?: number;
   totalAmount?: number;
@@ -15,6 +16,7 @@ export type ShipmentStats = {
   returnedAmount?: number;
   delayedAmount?: number;
   complaintAmount?: number;
+  complaintWatchAmount?: number;
 };
 
 export const SHIPMENT_STATS_CACHE_KEY = "shipment.stats.cache.v1";

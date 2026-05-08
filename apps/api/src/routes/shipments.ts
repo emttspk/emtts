@@ -6,7 +6,8 @@ import { requireAuth } from "../middleware/auth.js";
 import { requireAdmin } from "../middleware/auth.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { pythonTrackBulk, PythonServiceUnavailableError, PythonServiceTimeoutError } from "../services/trackingService.js";
-import { canonicalShipmentStatus, calculateStatusCards, isComplaintEnabled, processTracking } from "../services/trackingStatus.js";
+import { canonicalShipmentStatus, isComplaintEnabled, processTracking } from "../services/trackingStatus.js";
+import { listComplaintRecords } from "../services/complaint.service.js";
 import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "../services/trackingIntelligence.js";
 import { buildTrackingCycleAuditRecord } from "../services/trackingCycleAudit.js";
 import { getTrackingCycleCorrections, saveTrackingCycleCorrections } from "../services/trackingCycleCorrections.js";
@@ -316,39 +317,30 @@ shipmentsRouter.get("/stats", async (req, res) => {
     console.log("Database unavailable for shipments, returning empty data:", err instanceof Error ? err.message : err);
   }
 
-  // Fetch active complaint queue entries to compute complaintAmount
-  let activeComplaintTrackingIds = new Set<string>();
+  let complaintRecords: Awaited<ReturnType<typeof listComplaintRecords>> = [];
   try {
-    const activeComplaints = await prisma.complaintQueue.findMany({
-      where: {
-        userId,
-        complaintStatus: { in: ["queued", "processing", "submitted", "retry_pending", "manual_review"] },
-      },
-      select: { trackingId: true },
-    });
-    for (const c of activeComplaints) {
-      if (c.trackingId) activeComplaintTrackingIds.add(String(c.trackingId).trim());
-    }
+    complaintRecords = await listComplaintRecords({ userId });
   } catch (err) {
-    console.log("Failed to fetch active complaints for stats:", err instanceof Error ? err.message : err);
+    console.log("Failed to fetch complaint records for stats:", err instanceof Error ? err.message : err);
   }
 
-  const total = shipments.length;
   const byStatus: Record<string, number> = {};
   const byDate: Record<string, { total: number; byStatus: Record<string, number> }> = {};
+  let total = 0;
+  let delivered = 0;
+  let pending = 0;
+  let returned = 0;
+  let delayed = 0;
   let totalAmount = 0;
   let deliveredAmount = 0;
   let pendingAmount = 0;
   let returnedAmount = 0;
   let delayedAmount = 0;
-  let complaintAmount = 0;
-  let complaintsCount = 0;
   let trackingUsed = 0;
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-
-  // Build per-shipment enriched list for calculateStatusCards
-  const cardsInput: Array<{ status?: string | null; daysPassed?: number | null; moIssued?: string | null }> = [];
+  const shipmentAmounts = new Map<string, number>();
+  const shipmentStatuses = new Map<string, string>();
 
   for (const s of shipments) {
     const raw = parseRaw(s.rawJson);
@@ -358,21 +350,28 @@ shipmentsRouter.get("/stats", async (req, res) => {
     });
     const computedStatus = String(processed.systemStatus ?? s.status ?? "").trim();
     const key = canonicalShipmentStatus(computedStatus, null);
+    total += 1;
     byStatus[key] = (byStatus[key] ?? 0) + 1;
     const amt = toAmount(s.rawJson);
+    shipmentAmounts.set(s.trackingNumber, amt);
+    shipmentStatuses.set(s.trackingNumber, key);
 
-    cardsInput.push({ status: computedStatus || s.status, daysPassed: s.daysPassed, moIssued: null });
-
-    if (key === "DELIVERED") deliveredAmount += amt;
-    if (key === "PENDING") pendingAmount += amt;
-    if (key === "RETURN") returnedAmount += amt;
-    if (isComplaintEnabled(s.daysPassed) && key !== "DELIVERED") delayedAmount += amt;
+    if (key === "DELIVERED") {
+      delivered += 1;
+      deliveredAmount += amt;
+    } else if (key === "RETURN") {
+      returned += 1;
+      returnedAmount += amt;
+    } else {
+      pending += 1;
+      pendingAmount += amt;
+    }
+    if (isComplaintEnabled(s.daysPassed, computedStatus) && key === "PENDING") {
+      delayed += 1;
+      delayedAmount += amt;
+    }
     if (s.createdAt >= monthStart) trackingUsed += 1;
     totalAmount += amt;
-    if (activeComplaintTrackingIds.has(s.trackingNumber)) {
-      complaintAmount += amt;
-      complaintsCount += 1;
-    }
 
     const date = new Date(s.createdAt).toISOString().split("T")[0];
     if (!byDate[date]) {
@@ -382,9 +381,18 @@ shipmentsRouter.get("/stats", async (req, res) => {
     byDate[date].byStatus[key] = (byDate[date].byStatus[key] ?? 0) + 1;
   }
 
-  // Use the single shared status-card calculation
-  const cards = calculateStatusCards(cardsInput);
-  const delayed = cards.delayed;
+  let complaintAmount = 0;
+  let complaintWatch = 0;
+  let complaintWatchAmount = 0;
+  for (const record of complaintRecords) {
+    const trackingId = String(record.trackingId ?? "").trim();
+    const amount = shipmentAmounts.get(trackingId) ?? 0;
+    complaintAmount += amount;
+    if (record.active && shipmentStatuses.get(trackingId) === "PENDING") {
+      complaintWatch += 1;
+      complaintWatchAmount += amount;
+    }
+  }
 
   const graphData = Object.keys(byDate)
     .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
@@ -396,13 +404,13 @@ shipmentsRouter.get("/stats", async (req, res) => {
 
   return res.json({
     success: true,
-    total: cards.total,
-    delivered: cards.delivered,
-    pending: cards.pending,
-    returned: cards.returned,
+    total,
+    delivered,
+    pending,
+    returned,
     undelivered: byStatus.UNDELIVERED ?? 0,
     outForDelivery: 0,
-    delayed: cards.delayed,
+    delayed,
     byStatus,
     totalAmount,
     deliveredAmount,
@@ -412,7 +420,9 @@ shipmentsRouter.get("/stats", async (req, res) => {
     trackingUsed,
     graphData,
     complaintAmount,
-    complaints: complaintsCount,
+    complaints: complaintRecords.length,
+    complaintWatch,
+    complaintWatchAmount,
   });
 });
 

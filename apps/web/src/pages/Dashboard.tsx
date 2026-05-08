@@ -101,6 +101,7 @@ export default function Dashboard() {
       pending: shipmentStats?.pending ?? 0,
       returned: shipmentStats?.returned ?? 0,
       complaints: shipmentStats?.complaints ?? 0,
+      complaintWatch: shipmentStats?.complaintWatch ?? 0,
       totalAmount: shipmentStats?.totalAmount ?? 0,
       deliveredAmount: shipmentStats?.deliveredAmount ?? 0,
       pendingAmount: shipmentStats?.pendingAmount ?? 0,
@@ -164,7 +165,6 @@ export default function Dashboard() {
         <Card className="min-w-0 w-full overflow-hidden xl:col-span-4 border-slate-200 bg-white p-5 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">Remaining Units</div>
           <div className="mt-3 text-5xl font-extrabold tracking-[-0.03em] text-emerald-900">{remainingUnits.toLocaleString()}</div>
-          <div className="mt-2 text-sm font-medium text-emerald-800">Formula: limit - used = remaining</div>
           <div className="mt-4 h-2 rounded-full bg-emerald-100">
             <div
               className="h-2 rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400"
@@ -205,7 +205,7 @@ export default function Dashboard() {
               <div className="text-xs text-slate-500">Complaints Watch</div>
               <div className="mt-1 flex items-center gap-2 text-2xl font-bold text-slate-900">
                 <Clock3 className="h-5 w-5 text-brand" />
-                {stats.pending.toLocaleString()}
+                {stats.complaintWatch.toLocaleString()}
               </div>
             </div>
           </div>

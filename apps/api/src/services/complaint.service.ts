@@ -166,10 +166,12 @@ export function composeComplaintText(input: {
   return `${header}\nUser complaint:\n${String(input.userComplaint ?? "").trim()}\n\nResponse:\n${String(input.responseText ?? "").trim()}\n\n${COMPLAINT_HISTORY_MARKER} ${historyJson}`;
 }
 
-export async function listComplaintRecords(filters?: { trackingIds?: string[] }) {
+export async function listComplaintRecords(filters?: { trackingIds?: string[]; userId?: string }) {
+  const userId = String(filters?.userId ?? "").trim();
   const trackingIds = Array.from(new Set((filters?.trackingIds ?? []).map((value) => String(value ?? "").trim()).filter(Boolean)));
   const shipments = await prisma.shipment.findMany({
     where: {
+      ...(userId ? { userId } : {}),
       ...(trackingIds.length > 0 ? { trackingNumber: { in: trackingIds } } : {}),
       OR: [
         { complaintStatus: { in: ["FILED", "DUPLICATE", "ERROR"] } },
