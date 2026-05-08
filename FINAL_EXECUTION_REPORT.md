@@ -220,3 +220,49 @@ temp-live-stats-postfix.json
 | Docs updated to final state | PASS |
 
 **FINAL VERIFICATION COMPLETE — ALL REQUIRED LIVE CONDITIONS SATISFIED**
+
+---
+
+## Frontend Enforcement Loop Update — 2026-05-08 Session 2
+
+**Commit:** 82a7691  
+**Branch:** main  
+**Railway:** Api ● Online, Web ● Online
+
+### Changes Made
+
+| File | Change |
+|---|---|
+| `apps/web/src/pages/BulkTracking.tsx` | Fixed `isReopeningComplaint` to include expired due date (history sections + escalation warning now appended for expired-due-date reopen) |
+| `apps/web/src/pages/BulkTracking.tsx` | Fixed `isReopenEligible` in table row to include expired due date (label shows "Reopen Complaint" for expired-due-date cases) |
+| `apps/web/src/pages/BulkTracking.tsx` | Fixed detail panel button label to include expired due date ("Reopen Complaint" shown for expired-due-date cases) |
+
+### Enforcement Audit Results
+
+| Requirement | Status | Notes |
+|---|---|---|
+| Single card source (`useShipmentStats`) | PASS | Dashboard and BulkTracking both use the hook |
+| Total binding (count=total, amount=totalAmount) | PASS | Confirmed in Dashboard and BulkTracking |
+| Delivered binding (count=delivered, amount=deliveredAmount) | PASS | Confirmed |
+| Pending binding (count=pending, amount=pendingAmount) | PASS | Confirmed |
+| Returned binding (count=returned, amount=returnedAmount) | PASS | Confirmed |
+| Complaints binding (count=complaints, amount=complaintAmount) | PASS | Confirmed |
+| Card order: Total → Delivered → Pending → Returned → Complaints | PASS | Both pages |
+| Cache-first hydration (read cache, render, background refresh) | PASS | `useState(() => readCachedShipmentStats())` initializes immediately |
+| Re-Complaint button for RESOLVED/CLOSED/REJECTED | PASS | `resolvedOrClosed` gate |
+| Re-Complaint button for expired due date | PASS | Fixed in this session |
+| Reopen modal shows previous IDs/due dates/remarks | PASS | `isReopeningComplaint` appends history sections |
+| Reopen modal shows escalation warning | PASS | Appended in `openComplaintModal` |
+| Expired-due-date reopen also appends history | PASS | Fixed in this session |
+
+### Validation
+
+| Command | Result |
+|---|---|
+| `npm install` | PASS |
+| `npm run lint` | PASS |
+| `npm run typecheck` | PASS |
+| `npm run build` | PASS |
+| `npm run test` | PASS (smoke test SUCCESS) |
+
+**FRONTEND ENFORCEMENT LOOP COMPLETE — ALL REQUIREMENTS SATISFIED**
