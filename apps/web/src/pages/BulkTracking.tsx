@@ -297,10 +297,10 @@ function isComplaintActionAllowed(
   const statusUpper = normalizeStatus(shipmentStatus).toUpperCase();
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
+  const lifecycleStateUp = String(lifecycle.state ?? "").toUpperCase();
   const reopenEligible = statusUpper === "PENDING"
-    && ["RESOLVED", "CLOSED", "REJECTED"].includes(String(lifecycle.state ?? "").toUpperCase())
-    && lifecycle.dueDateTs != null
-    && lifecycle.dueDateTs < todayStart.getTime();
+    && (["RESOLVED", "CLOSED", "REJECTED"].includes(lifecycleStateUp)
+      || (lifecycle.dueDateTs != null && lifecycle.dueDateTs < todayStart.getTime()));
   const complaintCardState = resolveComplaintCardState(lifecycle, queueSnapshot).toUpperCase();
   const hasKnownComplaint = lifecycle.exists || Boolean(queueSnapshot)
     || Boolean(String(lifecycle.complaintId ?? "").trim() || String(queueSnapshot?.complaintId ?? "").trim())
@@ -2247,6 +2247,31 @@ export default function BulkTracking() {
       location: "",
       remarks: buildComplaintTemplate(record, templateKey),
     };
+
+    // For reopen: append previous complaint history and escalation warning
+    const lifecycle = parseComplaintLifecycle(shipment);
+    const isReopeningComplaint = ["RESOLVED", "CLOSED", "REJECTED"].includes(String(lifecycle.state ?? "").toUpperCase());
+    let finalRemarks = normalizedFormState.remarks;
+    if (isReopeningComplaint) {
+      const textBlob = String(shipment.complaintText ?? "").trim();
+      const histMarker = "COMPLAINT_HISTORY_JSON:";
+      const histIdx = textBlob.lastIndexOf(histMarker);
+      const histRaw = histIdx >= 0 ? textBlob.slice(histIdx + histMarker.length).trim() : "";
+      const histEntries = (() => {
+        if (!histRaw) return [] as Array<{ complaintId?: string; dueDate?: string; attemptNumber?: number }>;
+        try {
+          const p = JSON.parse(histRaw) as { entries?: Array<{ complaintId?: string; dueDate?: string; attemptNumber?: number }> };
+          return Array.isArray(p?.entries) ? p.entries : [];
+        } catch { return []; }
+      })();
+      const historyLines = histEntries.length > 0
+        ? histEntries.map((e, i) => `  Attempt ${e.attemptNumber ?? i + 1}: ${e.complaintId ?? "N/A"} | Due: ${e.dueDate ?? "N/A"}`).join("\n")
+        : `  Attempt 1: ${lifecycle.complaintId || "N/A"} | Due: ${lifecycle.dueDateText || "N/A"}`;
+      finalRemarks = finalRemarks
+        + `\n\n--- PREVIOUS COMPLAINT HISTORY ---\n${historyLines}`
+        + `\n\nWARNING: Repeated unresolved complaint. Next escalation may be filed before PMG office, Consumer Court, or Federal Ombudsman.`;
+    }
+
     setComplaintRecord(record);
     setComplaintSubmitResult(null);
     setComplaintSubmitNotice(null);
@@ -2254,7 +2279,7 @@ export default function BulkTracking() {
     setComplaintEmail(email);
     setReplyMode("POST");
     setComplaintTemplate(templateKey);
-    setComplaintText(normalizedFormState.remarks);
+    setComplaintText(finalRemarks);
     setComplaintReason("Pending Delivery");
     setComplainantNameInput(normalizedFormState.sender_name);
     setSenderNameInput(normalizedFormState.sender_name);
@@ -2742,7 +2767,7 @@ export default function BulkTracking() {
             key: "COMPLAINTS",
             label: "Complaints",
             parcels: shipmentStats?.complaints ?? complaintTotals.total,
-            amount: 0,
+            amount: shipmentStats?.complaintAmount ?? 0,
             active: statusFilter === "COMPLAINT_ACTIVE",
           },
         ]}
@@ -3178,14 +3203,11 @@ export default function BulkTracking() {
                 const queueSnapshot = complaintQueueByTracking.get(s.trackingNumber);
                 const complaintCardState = resolveComplaintCardState(lifecycle, queueSnapshot);
                 const hasComplaintId = Boolean(String(lifecycle.complaintId ?? "").trim() || String(queueSnapshot?.complaintId ?? "").trim());
-                const complaintInProcess = hasComplaintId || isComplaintInProcess(lifecycle) || ["ACTIVE", "QUEUED", "PROCESSING", "RETRY PENDING"].includes(complaintCardState.toUpperCase());
+                const resolvedOrClosed = ["RESOLVED", "CLOSED", "REJECTED"].includes(String(lifecycle.state ?? "").toUpperCase());
+                const complaintInProcess = !resolvedOrClosed && (hasComplaintId || isComplaintInProcess(lifecycle) || ["ACTIVE", "QUEUED", "PROCESSING", "RETRY PENDING"].includes(complaintCardState.toUpperCase()));
                 const isComplaintEnabled = isComplaintActionAllowed(displayStatus, lifecycle, queueSnapshot);
-                const todayStart = new Date();
-                todayStart.setHours(0, 0, 0, 0);
                 const isReopenEligible = normalizeStatus(displayStatus).toUpperCase() === "PENDING"
-                  && ["RESOLVED", "CLOSED", "REJECTED"].includes(String(lifecycle.state ?? "").toUpperCase())
-                  && lifecycle.dueDateTs != null
-                  && lifecycle.dueDateTs < todayStart.getTime();
+                  && resolvedOrClosed;
 
                 const actionOptions = [
                   { label: "Pending", val: "PENDING" },

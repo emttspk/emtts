@@ -155,7 +155,6 @@ export default function Dashboard() {
     { key: "DELIVERED" as const, label: "Delivered", parcels: stats.delivered, amount: stats.deliveredAmount },
     { key: "PENDING" as const, label: "Pending", parcels: stats.pending, amount: stats.pendingAmount },
     { key: "RETURNED" as const, label: "Returned", parcels: stats.returned, amount: stats.returnedAmount },
-    { key: "COMPLAINTS" as const, label: "Complaints", parcels: stats.complaints, amount: 0 },
     { key: "COMPLAINTS" as const, label: "Complaints", parcels: stats.complaints, amount: stats.complaintAmount },
   ];
 
