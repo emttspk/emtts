@@ -1,9 +1,54 @@
 # Deployment Status
 
 **Last Updated:** 2026-05-08  
-**Commit:** 4bd9fe3 — fix sender profile binding and cleanup unused development artifacts  
+**Commit:** pending local commit — fix post-cleanup money order background and user workspace route regressions  
 **Railway Project:** 144be6f4-a17c-47ec-8c23-3d5963c4d5fb  
 **Status:** API + WEB DEPLOYED, ONLINE, AND LIVE-VERIFIED
+
+## Mandatory Recovery Loop — Post Cleanup Regression Fix
+
+### What cleanup broke
+- User generate workflows became inaccessible for normal authenticated users because user routes were chained into admin-only routes.
+- Money order background rendering became fragile when template background paths were saved with leading slashes.
+
+### What was restored
+- User routes now directly serve:
+	- `/generate-labels`
+	- `/generate-money-orders`
+- Admin aliases now redirect to the user-safe equivalents while preserving admin guard boundaries.
+- Money-order background loader now resolves leading-slash assets from known deploy-safe paths:
+	- `apps/web/public/...`
+	- `apps/api/templates/...`
+
+### Why route access failed
+- `/generate-labels` and `/generate-money-orders` previously redirected to `/admin/...` endpoints protected by `RequireAdmin`.
+- Result: non-admin authenticated users (including production workspace users) hit admin guard and could not continue.
+
+### Why background rendering failed
+- Active template backgrounds can be stored as URL-like strings (for example `/templates/mo-front-default.png`).
+- API background resolver previously lacked robust filesystem fallback mapping for that form across deployment directories.
+
+### Recovery validation
+- `npm install`: PASS
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS
+- `npm run build`: PASS
+- `npm run dev`: PASS
+- `npm run test`: PASS (`@labelgen/api smoke:railway` success)
+
+### Deployment proof (this loop)
+- Api deploy command: `railway up --service Api --detach`
+- Web deploy command: `railway up --service Web --detach`
+- Api build logs id: `024430ab-1117-4e4e-b1c3-0f1a45caf0b4`
+- Web build logs id: `bb325e11-9abb-4733-b751-4db3d6850190`
+- Api live logs include: `GET /api/me`, `GET /api/shipments/stats`, tracking bulk completion traces.
+- Web live logs include: `200` responses for app routes/assets including generate-workflow bundles.
+
+### Current protection model
+- Authenticated users: Generate Labels, Generate Money Order, Tracking, Dashboard.
+- Admin-only: `/admin` and all explicit admin pages remain under `RequireAdmin`.
+
+---
 
 ## Latest Session Changes
 - Sender profile regression fixed: `SenderProfileCard` restored to `BulkTracking.tsx` (below stats cards) and `Upload.tsx` (above dropzone)

@@ -49,6 +49,15 @@ async function resolveActiveTemplateFrontDataUrl() {
       return undefined;
     }
 
+    if (backgroundUrl.startsWith("/")) {
+      const normalized = backgroundUrl.replace(/^\/+/, "");
+      const candidateFromWebPublic = await resolveDefaultPath(`apps/web/public/${normalized}`);
+      if (candidateFromWebPublic) return fileToDataUrl(candidateFromWebPublic);
+
+      const candidateFromApiTemplates = await resolveDefaultPath(`apps/api/templates/${normalized}`);
+      if (candidateFromApiTemplates) return fileToDataUrl(candidateFromApiTemplates);
+    }
+
     return fileToDataUrl(backgroundUrl);
   } catch {
     return undefined;

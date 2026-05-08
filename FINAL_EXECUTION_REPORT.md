@@ -1,5 +1,67 @@
 # FINAL EXECUTION REPORT — FINAL LIVE VERIFICATION
 
+## Mandatory Recovery Loop — Post Cleanup Regression Fix (2026-05-08)
+
+Recovery objective:
+
+- Restore money order background rendering in preview, PDF, and print.
+- Restore authenticated non-admin access to Generate Labels and Generate Money Order.
+- Keep admin-only restrictions on admin pages.
+- Validate install/lint/typecheck/build/dev/test and redeploy Api + Web.
+
+### Root Cause
+
+- Route regression: user routes (`/generate-labels`, `/generate-money-orders`) redirected to admin routes (`/admin/...`) guarded by `RequireAdmin`, blocking normal users.
+- Background regression: template `backgroundUrl` values beginning with `/` were not consistently resolved by API-side background loader in all deployment layouts.
+
+### Code Repairs Applied
+
+- `apps/web/src/App.tsx`
+  - `/generate-labels` and `/generate-money-orders` now render their pages directly inside authenticated + profile-complete route group.
+  - `/admin/generate-labels` and `/admin/generate-money-orders` now redirect to user-safe routes.
+  - `/admin` and other admin pages remain behind `RequireAdmin`.
+- `apps/web/src/components/Sidebar.tsx`
+  - Navigation targets updated to `/generate-labels` and `/generate-money-orders`.
+- `apps/web/src/lib/navigation.ts`
+  - Shared nav metadata updated to user-safe generate routes while preserving admin item definitions.
+- `apps/api/src/money-order/backgrounds.ts`
+  - Added leading-slash background fallback resolution in:
+    - `apps/web/public/<normalized-path>`
+    - `apps/api/templates/<normalized-path>`
+  - Preserved handling for uploaded template backgrounds and ignored remote/data URL inputs.
+
+### Validation Results
+
+- `npm install`: PASS
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS
+- `npm run build`: PASS
+- `npm run dev`: PASS (Vite + API watcher up)
+- `npm run test`: PASS (`smoke:railway` completed, job processed, PDF downloadable)
+
+### Deployment Results
+
+- Api redeploy: `railway up --service Api --detach` (Build Logs id `024430ab-1117-4e4e-b1c3-0f1a45caf0b4`)
+- Web redeploy: `railway up --service Web --detach` (Build Logs id `bb325e11-9abb-4733-b751-4db3d6850190`)
+- Post-deploy logs:
+  - Api: healthy authenticated traffic (`GET /api/me`, `GET /api/shipments/stats`, tracking batch activity)
+  - Web: healthy static/app route traffic with `200` responses, including generated workflow assets.
+
+### Account Access Outcome
+
+- Guard behavior after fix:
+  - Authenticated users can reach Generate Labels and Generate Money Order through user routes.
+  - Admin-only pages remain protected by `RequireAdmin`.
+- Live logs show active authenticated traffic and generate-workflow asset requests after deploy.
+
+### Cleanup Impact and Restoration
+
+- Prior cleanup removed non-essential development artifacts.
+- This loop performed only repair actions (no cleanup/removals).
+- Restored behavior is focused on route access and money order background rendering reliability.
+
+---
+
 ## Stabilization + Cleanup Loop (2026-05-08)
 
 Commit deployed in this loop:

@@ -83,8 +83,8 @@ export default function App() {
           <Route path="/tracking" element={<Navigate to="/tracking-workspace" replace />} />
           <Route path="/tracking-workspace" element={<BulkTracking />} />
           <Route path="/complaints" element={<Complaints />} />
-          <Route path="/generate-labels" element={<Navigate to="/admin/generate-labels" replace />} />
-          <Route path="/generate-money-orders" element={<Navigate to="/admin/generate-money-orders" replace />} />
+          <Route path="/generate-labels" element={<GenerateLabels />} />
+          <Route path="/generate-money-orders" element={<GenerateMoneyOrder />} />
           <Route
             path="/upload"
             element={<Upload />}
@@ -108,14 +108,7 @@ export default function App() {
               </RequireAdmin>
             }
           />
-          <Route
-            path="/admin/generate-labels"
-            element={
-              <RequireAdmin>
-                <GenerateLabels />
-              </RequireAdmin>
-            }
-          />
+          <Route path="/admin/generate-labels" element={<Navigate to="/generate-labels" replace />} />
           <Route
             path="/admin/complaint-monitor"
             element={
@@ -124,14 +117,7 @@ export default function App() {
               </RequireAdmin>
             }
           />
-          <Route
-            path="/admin/generate-money-orders"
-            element={
-              <RequireAdmin>
-                <GenerateMoneyOrder />
-              </RequireAdmin>
-            }
-          />
+          <Route path="/admin/generate-money-orders" element={<Navigate to="/generate-money-orders" replace />} />
           {TEMPLATE_DESIGNER_ENABLED ? (
             <Route
               path="/admin/template-designer"
