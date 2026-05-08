@@ -20,6 +20,7 @@ import {
   type StatusCardFilter,
 } from "../lib/trackingData";
 import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
+import { useShipmentStats } from "../hooks/useShipmentStats";
 
 type Shipment = BaseShipment & {
   shipmentType?: string | null;
@@ -29,22 +30,6 @@ type Shipment = BaseShipment & {
 };
 
 type ShellCtx = { me: MeResponse | null; refreshMe: () => Promise<void> };
-
-type ShipmentStats = {
-  total: number;
-  delivered: number;
-  pending: number;
-  returned: number;
-  complaints?: number;
-  delayed: number;
-  trackingUsed?: number;
-  totalAmount?: number;
-  deliveredAmount?: number;
-  pendingAmount?: number;
-  returnedAmount?: number;
-  delayedAmount?: number;
-  complaintAmount?: number;
-};
 
 type CycleAuditRecord = {
   tracking_number: string;
@@ -94,7 +79,6 @@ const TRACKING_CACHE_TTL_MS = 60_000;
 const TRACKING_CACHE_STORAGE_KEY = "tracking.workspace.cache.v2";
 const BACKGROUND_BATCH_SIZE = 100;
 const COMPLAINT_PHONE_STORAGE_KEY = "complaint.manual.phone";
-const STATS_CACHE_STORAGE_KEY = "tracking.shipment.stats.cache.v1";
 const COMPLAINT_EMAIL_STORAGE_KEY = "complaint.manual.email";
 const TRACKING_SERVICE_TYPE_MAP: Record<string, string> = {
   UMS: "UMS",
@@ -853,7 +837,7 @@ export default function BulkTracking() {
   const [refreshSummary, setRefreshSummary] = useState<string | null>(null);
   const [refreshingPending, setRefreshingPending] = useState(false);
   const [selectedTracking, setSelectedTracking] = useState<FinalTrackingRecord | null>(null);
-  const [shipmentStats, setShipmentStats] = useState<ShipmentStats | null>(null);
+  const { shipmentStats, refreshShipmentStats } = useShipmentStats();
   const [pageSize, setPageSize] = useState<20 | 50 | 100>(20);
   const [statusFilter, setStatusFilter] = useState<ExtendedStatusFilter>("ALL");
   const [searchInput, setSearchInput] = useState("");
@@ -1052,21 +1036,6 @@ export default function BulkTracking() {
       }
     }
   }, [shipments, uiState, jobStartTime]);
-
-  async function refreshShipmentStats() {
-    const cachedRaw = window.localStorage.getItem(STATS_CACHE_STORAGE_KEY);
-    if (cachedRaw) {
-      try {
-        const cached = JSON.parse(cachedRaw) as { value: ShipmentStats; ts: number };
-        if (cached?.value) setShipmentStats(cached.value);
-      } catch {
-        // Ignore malformed stats cache.
-      }
-    }
-    const data = await api<ShipmentStats>("/api/shipments/stats");
-    setShipmentStats(data);
-    window.localStorage.setItem(STATS_CACHE_STORAGE_KEY, JSON.stringify({ value: data, ts: Date.now() }));
-  }
 
   async function refreshComplaintQueueSnapshot() {
     if (!isAdmin) {
@@ -1538,8 +1507,7 @@ export default function BulkTracking() {
           };
           persistShipmentsCache(allRows, total, fetchedAt);
           applyShipmentsSnapshot(allRows, total);
-          const stats = await api<ShipmentStats>("/api/shipments/stats");
-          setShipmentStats(stats);
+          await refreshShipmentStats();
         } catch {
           // Ignore background sync failures.
         }
@@ -2248,7 +2216,7 @@ export default function BulkTracking() {
       remarks: buildComplaintTemplate(record, templateKey),
     };
 
-    // For reopen: append previous complaint history and escalation warning
+    // For reopen: append canonical previous complaint history and warning
     const lifecycle = parseComplaintLifecycle(shipment);
     const isReopeningComplaint = ["RESOLVED", "CLOSED", "REJECTED"].includes(String(lifecycle.state ?? "").toUpperCase());
     let finalRemarks = normalizedFormState.remarks;
@@ -2258,18 +2226,26 @@ export default function BulkTracking() {
       const histIdx = textBlob.lastIndexOf(histMarker);
       const histRaw = histIdx >= 0 ? textBlob.slice(histIdx + histMarker.length).trim() : "";
       const histEntries = (() => {
-        if (!histRaw) return [] as Array<{ complaintId?: string; dueDate?: string; attemptNumber?: number }>;
+        if (!histRaw) return [] as Array<{ complaintId?: string; dueDate?: string; attemptNumber?: number; userComplaint?: string }>;
         try {
-          const p = JSON.parse(histRaw) as { entries?: Array<{ complaintId?: string; dueDate?: string; attemptNumber?: number }> };
+          const p = JSON.parse(histRaw) as { entries?: Array<{ complaintId?: string; dueDate?: string; attemptNumber?: number; userComplaint?: string }> };
           return Array.isArray(p?.entries) ? p.entries : [];
         } catch { return []; }
       })();
-      const historyLines = histEntries.length > 0
-        ? histEntries.map((e, i) => `  Attempt ${e.attemptNumber ?? i + 1}: ${e.complaintId ?? "N/A"} | Due: ${e.dueDate ?? "N/A"}`).join("\n")
-        : `  Attempt 1: ${lifecycle.complaintId || "N/A"} | Due: ${lifecycle.dueDateText || "N/A"}`;
+      const previousIds = histEntries.length > 0
+        ? histEntries.map((entry) => entry.complaintId ?? "-").join("\n")
+        : (lifecycle.complaintId || "-");
+      const previousDueDates = histEntries.length > 0
+        ? histEntries.map((entry) => entry.dueDate ?? "-").join("\n")
+        : (lifecycle.dueDateText || "-");
+      const previousRemarks = histEntries.length > 0
+        ? histEntries.map((entry, index) => `${index + 1}. ${String(entry.userComplaint ?? "").trim() || "-"}`).join("\n")
+        : "1. -";
       finalRemarks = finalRemarks
-        + `\n\n--- PREVIOUS COMPLAINT HISTORY ---\n${historyLines}`
-        + `\n\nWARNING: Repeated unresolved complaint. Next escalation may be filed before PMG office, Consumer Court, or Federal Ombudsman.`;
+        + `\n\nPrevious Complaint IDs:\n${previousIds}`
+        + `\n\nPrevious Due Dates:\n${previousDueDates}`
+        + `\n\nPrevious Remarks:\n${previousRemarks}`
+        + "\n\nRepeated unresolved complaint.\nClosing unresolved complaint without written legal response may result in escalation before PMG office, Consumer Court, or Federal Ombudsman.";
     }
 
     setComplaintRecord(record);
@@ -2738,35 +2714,35 @@ export default function BulkTracking() {
           {
             key: "ALL",
             label: "Total",
-            parcels: shipmentStats?.total ?? summaryStats.total,
-            amount: shipmentStats?.totalAmount ?? summaryStats.totalAmount,
+            parcels: shipmentStats?.total ?? 0,
+            amount: shipmentStats?.totalAmount ?? 0,
             active: statusFilter === "ALL",
           },
           {
             key: "DELIVERED",
             label: "Delivered",
-            parcels: shipmentStats?.delivered ?? summaryStats.delivered,
-            amount: shipmentStats?.deliveredAmount ?? summaryStats.deliveredAmount,
+            parcels: shipmentStats?.delivered ?? 0,
+            amount: shipmentStats?.deliveredAmount ?? 0,
             active: statusFilter === "DELIVERED",
           },
           {
             key: "PENDING",
             label: "Pending",
-            parcels: shipmentStats?.pending ?? summaryStats.pending,
-            amount: shipmentStats?.pendingAmount ?? summaryStats.pendingAmount,
+            parcels: shipmentStats?.pending ?? 0,
+            amount: shipmentStats?.pendingAmount ?? 0,
             active: statusFilter === "PENDING",
           },
           {
             key: "RETURNED",
             label: "Returned",
-            parcels: shipmentStats?.returned ?? summaryStats.returned,
-            amount: shipmentStats?.returnedAmount ?? summaryStats.returnedAmount,
+            parcels: shipmentStats?.returned ?? 0,
+            amount: shipmentStats?.returnedAmount ?? 0,
             active: statusFilter === "RETURNED",
           },
           {
             key: "COMPLAINTS",
             label: "Complaints",
-            parcels: shipmentStats?.complaints ?? complaintTotals.total,
+            parcels: shipmentStats?.complaints ?? 0,
             amount: shipmentStats?.complaintAmount ?? 0,
             active: statusFilter === "COMPLAINT_ACTIVE",
           },

@@ -126,6 +126,7 @@ export async function processComplaintQueueById(queueId: string) {
       status: submitSuccess || alreadyExists ? "ACTIVE" : "ERROR",
       attemptNumber,
       previousComplaintReference: String(payload.previous_complaint_reference ?? latestHistory?.complaintId ?? "").trim(),
+      userComplaint: String(payload.current_user_remarks ?? payload.complaint_text ?? "").trim(),
     };
     const mergedHistory = [...existingHistory.filter((entry) => Boolean(entry.complaintId)), nextEntry]
       .sort((a, b) => Number(a.attemptNumber ?? 1) - Number(b.attemptNumber ?? 1));

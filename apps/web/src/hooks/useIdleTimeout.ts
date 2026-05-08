@@ -16,7 +16,11 @@ const CACHE_KEYS_TO_CLEAR = [
 function clearAllAppCache() {
   // Clear known cache keys
   CACHE_KEYS_TO_CLEAR.forEach((key) => {
-    try { localStorage.removeItem(key); } catch {}
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // Ignore storage cleanup failures during logout.
+    }
   });
   // Also clear any keys matching cache patterns
   const keysToRemove: string[] = [];
@@ -27,10 +31,18 @@ function clearAllAppCache() {
     }
   }
   keysToRemove.forEach((key) => {
-    try { localStorage.removeItem(key); } catch {}
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // Ignore storage cleanup failures during logout.
+    }
   });
   // Clear sessionStorage entirely
-  try { sessionStorage.clear(); } catch {}
+  try {
+    sessionStorage.clear();
+  } catch {
+    // Ignore storage cleanup failures during logout.
+  }
 }
 
 export function useIdleTimeout(enabled: boolean = true) {

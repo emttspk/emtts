@@ -1763,23 +1763,15 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
   todayStart.setHours(0, 0, 0, 0);
   const previousDueDatePassed = previousDueDateTs != null && previousDueDateTs < todayStart.getTime();
 
-  const autoRemarks: string[] = [];
-  if (attemptNumber === 2 && previousComplaintReference) {
-    autoRemarks.push(`Previous complaint reference: ${previousComplaintReference}.`);
-    if (previousDueDatePassed && previousDueDate) {
-      autoRemarks.push(`Previous due date (${toDdMmYyyy(previousDueDate)}) has already passed and shipment is still unresolved.`);
-    }
-  }
-  if (attemptNumber >= 3) {
-    if (previousComplaintReference) {
-      autoRemarks.push(`Previous complaint reference: ${previousComplaintReference}.`);
-    }
-    autoRemarks.push("This is a repeated unresolved complaint attempt.");
-    autoRemarks.push("Escalation required if this attempt remains unresolved.");
-  }
-  const finalRemarks = autoRemarks.length > 0
-    ? `${remarks}\n\n${autoRemarks.join("\n")}`
-    : remarks;
+  const stripReopenAppendix = (input: string) => input
+    .replace(/\n\n--- PREVIOUS COMPLAINT HISTORY ---[\s\S]*$/i, "")
+    .replace(/\n\nPrevious Complaint IDs:[\s\S]*$/i, "")
+    .trim();
+  const baseRemarks = stripReopenAppendix(remarks);
+  const reopenWarning = "Repeated unresolved complaint.\nClosing unresolved complaint without written legal response may result in escalation before PMG office, Consumer Court, or Federal Ombudsman.";
+  const finalRemarks = attemptNumber > 1
+    ? `${baseRemarks}\n\nPrevious Complaint IDs:\n${complaintHistory.map((entry) => entry.complaintId || "-").join("\n")}\n\nPrevious Due Dates:\n${complaintHistory.map((entry) => entry.dueDate || "-").join("\n")}\n\nPrevious Remarks:\n${complaintHistory.map((entry, index) => `${index + 1}. ${String(entry.userComplaint ?? "").trim() || "-"}`).join("\n")}\n\n${reopenWarning}`
+    : baseRemarks;
 
   if (complaintContext) {
     complaintContext.remarks = finalRemarks;
@@ -1790,6 +1782,7 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
     tracking_number: trackingNumber,
     phone: normalizedPhone,
     complaint_text: finalRemarks,
+    current_user_remarks: baseRemarks,
     attempt_number: attemptNumber,
     previous_complaint_reference: previousComplaintReference,
     sender_name: body.sender_name,

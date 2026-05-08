@@ -21,6 +21,7 @@ export type ComplaintQueuePayload = {
   tracking_number: string;
   phone: string;
   complaint_text: string;
+  current_user_remarks?: string;
   attempt_number?: number;
   previous_complaint_reference?: string;
   sender_name?: string;
@@ -50,7 +51,7 @@ export function getComplaintNextRetryAt(retryCount: number) {
 
 export async function findActiveComplaintDuplicate(userId: string, trackingId: string) {
   const now = new Date();
-  const queueDuplicate = await prisma.complaintQueue.findFirst({
+  const queueDuplicates = await prisma.complaintQueue.findMany({
     where: {
       userId,
       trackingId,
@@ -59,11 +60,11 @@ export async function findActiveComplaintDuplicate(userId: string, trackingId: s
     orderBy: { updatedAt: "desc" },
   });
 
-  if (queueDuplicate) {
-    // If the complaint has a due date that has already passed, allow re-complaint
-    if (queueDuplicate.dueDate && queueDuplicate.dueDate < now) {
-      // Due date passed — not a blocking duplicate, allow new complaint
-    } else {
+  for (const queueDuplicate of queueDuplicates) {
+    const status = normalizeComplaintQueueStatus(queueDuplicate.complaintStatus);
+    const dueDateActive = queueDuplicate.dueDate ? queueDuplicate.dueDate >= now : false;
+    const missingDueDateButInFlight = ["queued", "processing", "retry_pending"].includes(String(status));
+    if (dueDateActive || missingDueDateButInFlight) {
       return {
         duplicate: true,
         complaintId: queueDuplicate.complaintId ?? "",

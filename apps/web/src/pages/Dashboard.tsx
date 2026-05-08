@@ -7,19 +7,7 @@ import type { MeResponse } from "../lib/types";
 import { getFinalTrackingData } from "../lib/trackingData";
 import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
 import UnifiedShipmentCards from "../components/UnifiedShipmentCards";
-
-type DashboardStats = {
-  total: number;
-  delivered: number;
-  pending: number;
-  returned: number;
-  complaints: number;
-  totalAmount: number;
-  deliveredAmount: number;
-  pendingAmount: number;
-  returnedAmount: number;
-  complaintAmount: number;
-};
+import { useShipmentStats } from "../hooks/useShipmentStats";
 
 type DashboardActivityStats = {
   trackingUsed: number;
@@ -50,25 +38,9 @@ const formatPKR = new Intl.NumberFormat("en-PK", {
 
 export default function Dashboard() {
   const { me } = useOutletContext<ShellCtx>();
-  const [shipmentStats, setShipmentStats] = useState<DashboardStats | null>(null);
   const [activityStats, setActivityStats] = useState<DashboardActivityStats | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const DASHBOARD_STATS_CACHE_KEY = "dashboard.shipment.stats.cache.v1";
-
-  const refreshShipmentStats = useCallback(async () => {
-    const cachedRaw = window.localStorage.getItem(DASHBOARD_STATS_CACHE_KEY);
-    if (cachedRaw) {
-      try {
-        const cached = JSON.parse(cachedRaw) as { value: DashboardStats; ts: number };
-        if (cached?.value) setShipmentStats(cached.value);
-      } catch {
-        // Ignore malformed local cache.
-      }
-    }
-    const latest = await api<DashboardStats>("/api/shipments/stats");
-    setShipmentStats(latest);
-    window.localStorage.setItem(DASHBOARD_STATS_CACHE_KEY, JSON.stringify({ value: latest, ts: Date.now() }));
-  }, []);
+  const { shipmentStats, refreshShipmentStats } = useShipmentStats();
 
   const refreshShipments = useCallback(async () => {
     const hardLimit = 200;

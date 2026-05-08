@@ -32,6 +32,7 @@ export type ComplaintHistoryEntry = {
   status: string;
   attemptNumber: number;
   previousComplaintReference: string;
+  userComplaint?: string;
 };
 
 const COMPLAINT_HISTORY_MARKER = "COMPLAINT_HISTORY_JSON:";
@@ -120,6 +121,7 @@ function parseStoredComplaintHistory(textBlob: string | null | undefined): Compl
         status: String(entry.status ?? "").trim().toUpperCase() || "ACTIVE",
         attemptNumber: Math.max(1, Number(entry.attemptNumber ?? 1) || 1),
         previousComplaintReference: String(entry.previousComplaintReference ?? "").trim(),
+        userComplaint: String(entry.userComplaint ?? "").trim(),
       }))
       .filter((entry) => Boolean(entry.complaintId));
   } catch {
@@ -132,6 +134,7 @@ export function extractComplaintHistory(textBlob: string | null | undefined, com
   if (stored.length > 0) return stored;
 
   const fallback = parseComplaintRecord(textBlob, complaintStatus);
+  const fallbackUserComplaint = String(textBlob ?? "").match(/User complaint:\s*([\s\S]*?)\n\nResponse:/i)?.[1]?.trim() ?? "";
   if (!fallback.complaintId) return [];
   return [{
     complaintId: fallback.complaintId,
@@ -141,6 +144,7 @@ export function extractComplaintHistory(textBlob: string | null | undefined, com
     status: fallback.state,
     attemptNumber: 1,
     previousComplaintReference: "",
+    userComplaint: fallbackUserComplaint,
   }];
 }
 
