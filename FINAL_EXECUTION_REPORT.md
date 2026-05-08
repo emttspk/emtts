@@ -1,19 +1,36 @@
 # FINAL EXECUTION REPORT — FINAL LIVE VERIFICATION
 
-## Mandatory Final UI Completion Loop (2026-05-08, Post-Deploy Proof)
+## Stabilization + Cleanup Loop (2026-05-08)
 
 Commit deployed in this loop:
 
-- `bbe13fe` — complete complaint lifecycle dashboard cards tracking filters and action sync
+- `4bd9fe3` — fix sender profile binding and cleanup unused development artifacts
 
 ### Deployment Result
+
+- Api: deployed via `railway up --service Api --detach` (SUCCESS — `/api/me` confirmed live in logs)
+- Web: deployed via `railway up --service Web --detach` (SUCCESS — serving 200 responses)
+
+### Changes
+- Sender profile binding regression fixed (see `docs/sender-profile-fix.md`)
+- 110 development artifact files removed (see `docs/cleanup-audit.md`)
+- Build: 0 errors · Typecheck: 0 errors · Lint: 0 errors
+- Production accounts, data, plans, billing all intact
+
+---
+
+## Previous Loop: Mandatory Final UI Completion Loop (2026-05-08)
+
+Commit deployed in previous loop:
+
+- `bbe13fe` — complete complaint lifecycle dashboard cards tracking filters and action sync
+
+### Deployment Result (previous)
 
 - Api deployment: `b9fd913f-8d6e-4411-a15b-c0b61612082c` (SUCCESS)
 - Web deployment: `7e8ef0bb-c002-4c50-8b8f-bae74e334a2d` (SUCCESS)
 
 ### Live Validation Matrix (Production)
-
-Source: `temp-live-verify-matrix.json`.
 
 - A Plan Delete: PASS (`409` with billing-history blocker guard)
 - B Dashboard Values: PASS (`total=1218`, `delivered=19`, `pending=1071`, `returned=128`, `complaints=203`, `totalAmount=1076725`)

@@ -1,9 +1,16 @@
 # Deployment Status
 
 **Last Updated:** 2026-05-08  
-**Commit:** bbe13fe — complete complaint lifecycle dashboard cards tracking filters and action sync  
+**Commit:** 4bd9fe3 — fix sender profile binding and cleanup unused development artifacts  
 **Railway Project:** 144be6f4-a17c-47ec-8c23-3d5963c4d5fb  
 **Status:** API + WEB DEPLOYED, ONLINE, AND LIVE-VERIFIED
+
+## Latest Session Changes
+- Sender profile regression fixed: `SenderProfileCard` restored to `BulkTracking.tsx` (below stats cards) and `Upload.tsx` (above dropzone)
+- Profile source of truth: `GET /api/me` — single, no duplicates
+- 104 `temp-*` files + 5 test/audit files + `smokeTest.ts` removed
+- All services: zero build errors, zero TypeScript errors, zero lint errors
+- Deployed: `railway up --service Api --detach` + `railway up --service Web --detach`
 
 ## Services
 - Api: Online · https://api.epost.pk · deployment b9fd913f-8d6e-4411-a15b-c0b61612082c
