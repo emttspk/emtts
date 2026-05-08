@@ -280,3 +280,53 @@ Closing unresolved complaint without written legal response may result in escala
 ```
 
 This confirms the final required behavior: terminal-state complaints can reopen, a new complaint ID and due date are created, previous IDs and due dates are appended, previous remarks are preserved, the mandatory escalation warning is present, and the lifecycle is persisted in the database.
+
+---
+
+## 14. Post-Deploy Runtime Reopen Example (Latest)
+
+Final proof captured after commit `2f65f76` and Railway deployment `2622b258-a8d9-4508-aead-c0bb68896269`.
+
+| Field | Value |
+|---|---|
+| Tracking ID | VPL25110554 |
+| Previous Complaint ID | CMP-663087 |
+| Previous Due Date | 09-05-2026 |
+| New Complaint ID | CMP-474826 |
+| New Due Date | 15-05-2026 |
+| Attempt Number | 2 |
+| Previous Complaint Reference | CMP-663087 |
+| New Entry Status | ACTIVE |
+
+### Required Remarks Append (Exact)
+
+```text
+Previous Complaint IDs:
+CMP-663087
+
+Previous Due Dates:
+09-05-2026
+
+Previous Remarks:
+1. Dear Complaint Team, ...
+
+This complaint remains unresolved despite previous closure.
+Closing unresolved complaint without written lawful response may result in escalation before Consumer Court, PMG office, or Federal Ombudsman.
+```
+
+### Persisted History (Post-Deploy)
+
+From `temp-live-reopen-proof-postdeploy.json`:
+
+```json
+{
+  "complaintId": "CMP-474826",
+  "trackingId": "VPL25110554",
+  "dueDate": "15-05-2026",
+  "status": "ACTIVE",
+  "attemptNumber": 2,
+  "previousComplaintReference": "CMP-663087"
+}
+```
+
+This confirms the runtime post-deploy behavior required by the mandatory bug fix loop: new reopen complaint created, due date rotated, history appended, and exact warning persisted.

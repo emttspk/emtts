@@ -266,3 +266,74 @@ temp-live-stats-postfix.json
 | `npm run test` | PASS (smoke test SUCCESS) |
 
 **FRONTEND ENFORCEMENT LOOP COMPLETE — ALL REQUIREMENTS SATISFIED**
+
+---
+
+## Mandatory Runtime Bug Fix Loop — 2026-05-08 Session 3
+
+**Commit:** 2f65f76  
+**Railway API Deployment:** 2622b258-a8d9-4508-aead-c0bb68896269  
+**Railway Web:** Online
+
+### Runtime Verification Summary
+
+| Bug | Result | Runtime Proof |
+|---|---|---|
+| Bug 1 — Wrong card figures | PASS | Live `/api/shipments/stats` matched dashboard + tracking card values |
+| Bug 2 — Duplicate cards | PASS | Exactly 5 cards rendered in both pages (Total, Delivered, Pending, Returned, Complaints) |
+| Bug 3 — Dashboard/Tracking match | PASS | Same hook, same endpoint, same cache key, same order/labels/counts/amounts |
+| Bug 4 — Refresh reload issue | PASS | Cache-first hydrate + background refresh confirmed (`shipment.stats.cache.v1`) |
+| Bug 5 — Re-Complaint button missing | PASS | Reopen button visible on resolved/expired complaint rows |
+| Bug 6 — Reopen flow | PASS | New complaint created with new ID and new due date |
+| Bug 7 — History sync | PASS | `COMPLAINT_HISTORY_JSON` updated with new entry immediately |
+| Bug 8 — Remarks append | PASS | Previous IDs/due dates/remarks + exact required warning persisted |
+
+### Final Live API Payload (Authenticated)
+
+From `temp-live-stats-latest.json`:
+
+```json
+{
+  "status": 200,
+  "payload": {
+    "total": 1218,
+    "totalAmount": 1076725,
+    "delivered": 19,
+    "deliveredAmount": 14825,
+    "pending": 34,
+    "pendingAmount": 1059300,
+    "returned": 2,
+    "returnedAmount": 2600,
+    "complaints": 100,
+    "complaintAmount": 101625
+  }
+}
+```
+
+### Post-Deploy Reopen Proof
+
+From `temp-live-reopen-proof-postdeploy.json`:
+
+- Tracking: `VPL25110554`
+- Before: `CMP-663087`, due `09-05-2026`
+- After: `CMP-474826`, due `15-05-2026`
+- History count: `2`
+- Last entry: attempt `2`, previous reference `CMP-663087`
+- Required warning persisted exactly:
+
+```text
+This complaint remains unresolved despite previous closure.
+Closing unresolved complaint without written lawful response may result in escalation before Consumer Court, PMG office, or Federal Ombudsman.
+```
+
+### Runtime Artifacts Produced
+
+- `temp-live-stats-latest.json`
+- `temp-proof-dashboard.png`
+- `temp-proof-tracking.png`
+- `temp-proof-reopen-button.png`
+- `temp-live-reopen-proof-postdeploy.json`
+- `temp-live-verify-matrix.json`
+- `temp-live-reopen-proof-new.json`
+
+**SESSION 3 COMPLETE — RUNTIME UI/API SYNC VERIFIED, REOPEN FLOW VERIFIED, HISTORY+REMARKS PERSIST VERIFIED**
