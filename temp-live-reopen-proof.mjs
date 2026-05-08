@@ -111,9 +111,9 @@ async function main() {
   const hasPrevDue = afterText.includes("Previous Due Dates:");
   const hasPrevRemarks = afterText.includes("Previous Remarks:");
   const hasWarning =
-    afterText.includes("Repeated unresolved complaint.") &&
+    afterText.includes("This complaint remains unresolved despite previous closure.") &&
     afterText.includes(
-      "Closing unresolved complaint without written legal response may result in escalation before PMG office, Consumer Court, or Federal Ombudsman.",
+      "Closing unresolved complaint without written lawful response may result in escalation before Consumer Court, PMG office, or Federal Ombudsman.",
     );
 
   let historyCount = 0;

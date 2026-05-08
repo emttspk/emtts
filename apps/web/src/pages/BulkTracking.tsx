@@ -2247,7 +2247,7 @@ export default function BulkTracking() {
         + `\n\nPrevious Complaint IDs:\n${previousIds}`
         + `\n\nPrevious Due Dates:\n${previousDueDates}`
         + `\n\nPrevious Remarks:\n${previousRemarks}`
-        + "\n\nRepeated unresolved complaint.\nClosing unresolved complaint without written legal response may result in escalation before PMG office, Consumer Court, or Federal Ombudsman.";
+        + "\n\nThis complaint remains unresolved despite previous closure.\nClosing unresolved complaint without written lawful response may result in escalation before Consumer Court, PMG office, or Federal Ombudsman.";
     }
 
     setComplaintRecord(record);

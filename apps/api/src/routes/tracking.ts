@@ -1788,7 +1788,7 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
     .replace(/\n\nPrevious Complaint IDs:[\s\S]*$/i, "")
     .trim();
   const baseRemarks = stripReopenAppendix(remarks);
-  const reopenWarning = "Repeated unresolved complaint.\nClosing unresolved complaint without written legal response may result in escalation before PMG office, Consumer Court, or Federal Ombudsman.";
+  const reopenWarning = "This complaint remains unresolved despite previous closure.\nClosing unresolved complaint without written lawful response may result in escalation before Consumer Court, PMG office, or Federal Ombudsman.";
   const finalRemarks = attemptNumber > 1
     ? `${baseRemarks}\n\nPrevious Complaint IDs:\n${complaintHistory.map((entry) => entry.complaintId || "-").join("\n")}\n\nPrevious Due Dates:\n${complaintHistory.map((entry) => entry.dueDate || "-").join("\n")}\n\nPrevious Remarks:\n${complaintHistory.map((entry, index) => `${index + 1}. ${String(entry.userComplaint ?? "").trim() || "-"}`).join("\n")}\n\n${reopenWarning}`
     : baseRemarks;
