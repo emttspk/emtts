@@ -1,5 +1,76 @@
 # FINAL EXECUTION REPORT — FINAL LIVE VERIFICATION
 
+## Mandatory Data Audit Loop Completion (2026-05-08)
+
+Commit deployed in this loop:
+
+- `c927237` — fix shipment stats aggregation complaint watch sync and dashboard cleanup
+
+### DB Audit Result (Direct DB-Level Verification)
+
+Source: direct Prisma read against Railway Postgres public URL via `temp-shipment-stats-audit.ts`.
+
+```json
+{
+  "auditedUser": "nazimsaeed@gmail.com",
+  "totals": {
+    "total": { "count": 1218, "amount": 1076725 },
+    "delivered": { "count": 19, "amount": 14825 },
+    "pending": { "count": 1197, "amount": 1059300 },
+    "returned": { "count": 2, "amount": 2600 },
+    "complaints": { "count": 184, "amount": 185075 },
+    "complaintWatch": { "count": 89, "amount": 93375 }
+  }
+}
+```
+
+### API Stats Payload (Post-Deploy)
+
+Source: `node temp-live-verify-matrix.mjs` after `railway up --service Api --detach` and `railway up --service Web --detach`.
+
+```json
+{
+  "status": 200,
+  "total": 1218,
+  "delivered": 19,
+  "pending": 1197,
+  "returned": 2,
+  "complaints": 184,
+  "totalAmount": 1076725,
+  "deliveredAmount": 14825,
+  "pendingAmount": 1059300,
+  "returnedAmount": 2600,
+  "complaintAmount": 185075,
+  "complaintWatch": 89,
+  "complaintWatchAmount": 93375
+}
+```
+
+### Screenshot Artifacts
+
+- Dashboard screenshot: `temp-ui-shots/dashboard-postfix.png`
+- Tracking screenshot: `temp-ui-shots/tracking-postfix.png`
+- Shipment Status screenshot: `temp-ui-shots/shipment-status-postfix.png`
+
+### Required Proof Checks
+
+- Counts are correct: PASS (`total=delivered+pending+returned` => `1218=19+1197+2`)
+- Amounts are correct: PASS (status amounts sum to total; complaints and watch amounts consistent with DB audit)
+- Complaint Watch separated from Complaints: PASS (`complaintWatch=89`, `complaints=184`)
+- Shipment Status matches cards: PASS (Delivered 19, Pending 1197, Returned 2)
+- Formula text removed: PASS (no "Formula: limit - used = remaining" on dashboard)
+
+### Commands Completed
+
+- `npm install`: PASS
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS
+- `npm run build`: PASS
+- `npm run test`: PASS
+- `git add . && git commit && git push`: PASS
+- `railway up --service Api --detach`: PASS
+- `railway up --service Web --detach`: PASS
+
 **Date:** 2026-05-08  
 **Commit:** a6e9e8b (pushed to origin/main)  
 **Previous Commits:** 0fa3cd5, 25731e5, 492b525  

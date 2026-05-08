@@ -1,53 +1,50 @@
 # Deployment Status
 
 **Last Updated:** 2026-05-08  
-**Commit:** 2f65f76 — runtime fix cards cache complaint reopen and history sync  
+**Commit:** c927237 — fix shipment stats aggregation complaint watch sync and dashboard cleanup  
 **Railway Project:** 144be6f4-a17c-47ec-8c23-3d5963c4d5fb  
-**Status:** ALL SERVICES ONLINE AND LIVE-VERIFIED
+**Status:** API + WEB DEPLOYED, ONLINE, AND LIVE-VERIFIED
 
 ## Services
-- Api: Online · https://api.epost.pk · deployment 2622b258-a8d9-4508-aead-c0bb68896269
-- Web: Online · https://www.epost.pk
+- Api: Online · https://api.epost.pk · deployment 0178a613-2afe-4935-84e7-860b15fed8a5
+- Web: Online · https://www.epost.pk · deployment 44531bc7-7b14-4114-9909-3829c77e877b
 - Worker: Online · https://worker.epost.pk
 - Python: Online · https://python.epost.pk
+- Postgres-hUZn: Online
 
-## Latest Confirmed Runtime
-- Api health endpoint: `GET /api/health -> 200 {"status":"ok"}`
-- Stats endpoint live payload (`2f65f76`):
-  - `total=1218`
-  - `delivered=19`
-  - `pending=34`
-  - `returned=2`
-  - `totalAmount=1076725`
-  - `deliveredAmount=14825`
-  - `pendingAmount=1059300`
-  - `returnedAmount=2600`
-  - `complaintAmount=101625`
-  - `complaints=100`
+## DB Audit (Direct Table Verification)
+Source: `temp-shipment-stats-audit.ts` with Railway `DATABASE_PUBLIC_URL`.
 
-## Final Production Fixes Confirmed
-- Dashboard and Tracking pages use the same stats hook, endpoint, cache key, and response object.
-- Stats cards no longer rely on separate local calculations.
-- Cache-first hydration confirmed on refresh.
-- Re-Complaint button is visible for terminal-state or expired complaints.
-- Reopen API now honors stored `COMPLAINT_STATE` and does not falsely block terminal-state complaints.
-- Reopen complaint text persists previous complaint IDs, previous due dates, previous remarks, and the required legal escalation warning.
-- Warning text is now exactly:
-  - `This complaint remains unresolved despite previous closure.`
-  - `Closing unresolved complaint without written lawful response may result in escalation before Consumer Court, PMG office, or Federal Ombudsman.`
+- Total: count 1218, amount 1076725
+- Delivered: count 19, amount 14825
+- Pending: count 1197, amount 1059300
+- Returned: count 2, amount 2600
+- Complaints: count 184, amount 185075
+- Complaint Watch: count 89, amount 93375
 
-## Live Reopen Proof
-- Tracking: `VPL25110554`
-- Previous complaint ID: `CMP-663087`
-- Previous due date: `09-05-2026`
-- New complaint ID after reopen: `CMP-474826`
-- New due date after reopen: `15-05-2026`
-- Persisted history count: `2`
-- Last entry status: `ACTIVE`
-- Previous complaint reference on new entry: `CMP-663087`
+## Post-Deploy API Stats Payload
+Source: `temp-live-verify-matrix.json` after deploy.
 
-## Supporting Notes
-- Real deletable plan verification previously passed in production.
-- Protected delete blocker verification previously passed in production.
-- Complaint history modal and shared stats UI were already verified live before the final reopen fix.
-- Sample complaint document updated at `docs/samplecomplaint.md`.
+- `total=1218`
+- `delivered=19`
+- `pending=1197`
+- `returned=2`
+- `complaints=184`
+- `complaintWatch=89`
+- `totalAmount=1076725`
+- `deliveredAmount=14825`
+- `pendingAmount=1059300`
+- `returnedAmount=2600`
+- `complaintAmount=185075`
+- `complaintWatchAmount=93375`
+
+## UI Proof Artifacts
+- Dashboard screenshot: `temp-ui-shots/dashboard-postfix.png`
+- Tracking screenshot: `temp-ui-shots/tracking-postfix.png`
+- Shipment Status screenshot: `temp-ui-shots/shipment-status-postfix.png`
+
+## Validation Outcome
+- Dashboard cards and Tracking cards now match backend counts and amounts.
+- Shipment Status section matches top cards exactly (Delivered 19, Pending 1197, Returned 2).
+- Complaint Watch is separated from Complaints.
+- Formula line removed from Remaining Units panel.
