@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-05-08T13:15:02.769Z",
+  "timestamp": "2026-05-08T13:56:13.314Z",
   "matrix": {
     "A": {
       "planId": "d00b4e7e-8bd5-42d9-9d58-0e26cc864cf1",
@@ -21,12 +21,12 @@
       "status": 200,
       "totalParcels": 1218,
       "delivered": 19,
-      "pending": 1197,
-      "returned": 2,
-      "complaints": 184,
+      "pending": 1071,
+      "returned": 128,
+      "complaints": 203,
       "totalAmount": 1076725,
       "pass": true,
-      "ms": 698
+      "ms": 600
     },
     "C": {
       "sameSource": true,
@@ -49,8 +49,8 @@
       "note": "COMPLAINT_HISTORY_JSON found in production data"
     },
     "G": {
-      "firstCallMs": 698,
-      "secondCallMs": 1432,
+      "firstCallMs": 600,
+      "secondCallMs": 1369,
       "pass": true
     },
     "H": {

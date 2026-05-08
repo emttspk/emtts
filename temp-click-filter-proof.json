@@ -1,0 +1,13 @@
+{
+  "generatedAt": "2026-05-08T14:17:58.814Z",
+  "returnedClick": {
+    "clicked": true,
+    "url": "https://www.epost.pk/tracking-workspace?status=RETURNED",
+    "hasExpectedStatusQuery": true
+  },
+  "complaintWatchClick": {
+    "clicked": true,
+    "url": "https://www.epost.pk/tracking-workspace?status=COMPLAINT_WATCH",
+    "hasExpectedStatusQuery": true
+  }
+}

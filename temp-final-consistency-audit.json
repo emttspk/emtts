@@ -1,6 +1,8 @@
 {
-  "capturedAt": "2026-05-08T14:19:35.093Z",
-  "stats": {
+  "generatedAt": "2026-05-08T13:57:01.584Z",
+  "apiStatusCode": 200,
+  "userId": "4602e275-9b69-44f5-b3af-222178eeb87d",
+  "apiStats": {
     "success": true,
     "total": 1218,
     "delivered": 19,
@@ -55,5 +57,32 @@
     "complaintResolved": 8,
     "complaintClosed": 66,
     "complaintReopened": 16
-  }
+  },
+  "dbAudit": {
+    "total": 1218,
+    "delivered": 19,
+    "pending": 1071,
+    "returned": 128,
+    "totalAmount": 1076725,
+    "deliveredAmount": 14825,
+    "pendingAmount": 941975,
+    "returnedAmount": 119925,
+    "complaints": 203,
+    "complaintAmount": 185075,
+    "complaintWatch": 89,
+    "complaintActive": 110,
+    "complaintResolved": 8,
+    "complaintClosed": 66,
+    "complaintReopened": 16
+  },
+  "compare": {
+    "returned": true,
+    "complaints": true,
+    "complaintWatch": true,
+    "complaintActive": true,
+    "complaintResolved": true,
+    "complaintClosed": true,
+    "complaintReopened": true
+  },
+  "allMatch": true
 }

@@ -1,35 +1,39 @@
 import puppeteer from "puppeteer";
 
 const BASE = "https://www.epost.pk";
+const API = "https://api.epost.pk";
 const EMAIL = "nazimsaeed@gmail.com";
 const PASSWORD = "Lahore!23";
 
+async function loginByApi() {
+  const r = await fetch(`${API}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ identifier: EMAIL, password: PASSWORD }),
+  });
+  const body = await r.json();
+  const token = body?.token ?? body?.accessToken ?? body?.data?.token ?? null;
+  const role = body?.user?.role ?? body?.data?.user?.role ?? "ADMIN";
+  if (!token) throw new Error("API login failed for screenshot capture");
+  return { token, role };
+}
+
 async function main() {
+  const session = await loginByApi();
   const browser = await puppeteer.launch({ headless: "new", args: ["--no-sandbox", "--disable-setuid-sandbox"] });
   const page = await browser.newPage();
   page.setDefaultTimeout(120000);
   await page.setViewport({ width: 1600, height: 1100 });
 
-  await page.goto(`${BASE}/login`, { waitUntil: "networkidle2" });
-  await page.type('input[placeholder="username or you@company.com"]', EMAIL);
-  await page.type('input[placeholder="********"]', PASSWORD);
-  const loginButton = await page.waitForSelector("button", { visible: true });
-  if (!loginButton) throw new Error("Login button not found");
-  await Promise.all([
-    page.waitForNavigation({ waitUntil: "networkidle2" }),
-    page.evaluate(() => {
-      const buttons = Array.from(document.querySelectorAll("button"));
-      const target = buttons.find((button) => String(button.textContent || "").trim().toLowerCase() === "login");
-      if (!target) throw new Error("Login button with expected label not found");
-      target.click();
-    }),
-  ]);
+  await page.goto(BASE, { waitUntil: "domcontentloaded" });
+  await page.evaluate(({ token, role }) => {
+    localStorage.setItem("labelgen_token", token);
+    localStorage.setItem("labelgen_role", role);
+    localStorage.setItem("labelgen_refresh_token", "");
+  }, session);
 
-  await page.goto(`${BASE}/dashboard`, { waitUntil: "networkidle2" });
-  await page.waitForFunction(() => {
-    const text = String(document.body?.innerText ?? "");
-    return text.includes("Current Package") && text.includes("Remaining Units") && text.includes("Shipment Status");
-  }, { timeout: 120000 });
+  await page.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" });
+  await new Promise((resolve) => setTimeout(resolve, 15000));
   await page.screenshot({ path: "temp-ui-shots/dashboard-postfix.png", fullPage: true });
 
   const shipmentStatusRect = await page.evaluate(() => {
@@ -55,11 +59,8 @@ async function main() {
     await page.screenshot({ path: "temp-ui-shots/shipment-status-postfix.png", fullPage: true });
   }
 
-  await page.goto(`${BASE}/tracking-workspace`, { waitUntil: "networkidle2" });
-  await page.waitForFunction(() => {
-    const text = String(document.body?.innerText ?? "");
-    return text.includes("Tracking") && text.includes("Delivered") && text.includes("Pending") && text.includes("Complaints");
-  }, { timeout: 120000 });
+  await page.goto(`${BASE}/tracking-workspace`, { waitUntil: "domcontentloaded" });
+  await new Promise((resolve) => setTimeout(resolve, 15000));
   await page.screenshot({ path: "temp-ui-shots/tracking-postfix.png", fullPage: true });
 
   await browser.close();

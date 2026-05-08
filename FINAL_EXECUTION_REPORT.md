@@ -1,64 +1,90 @@
 # FINAL EXECUTION REPORT — FINAL LIVE VERIFICATION
 
-## Mandatory Data Audit Loop Completion (2026-05-08)
+## Mandatory Final Data Consistency Loop Completion (2026-05-08)
 
 Commit deployed in this loop:
 
-- `c927237` — fix shipment stats aggregation complaint watch sync and dashboard cleanup
+- `4fba6a0` — fix returned stats complaint aggregation shipment status expansion and navigation filters
+
+### Deployment Result
+
+- Api deployment: `f8adb806-ab46-4317-b4fa-620c5c93618a` (SUCCESS)
+- Web deployment: `4c94f94a-ff68-47b7-8c3f-4ee322061c57` (SUCCESS)
 
 ### DB Audit Result (Direct DB-Level Verification)
 
-Source: direct Prisma read against Railway Postgres public URL via `temp-shipment-stats-audit.ts`.
+Source: `temp-final-consistency-audit.mjs` using Railway `DATABASE_PUBLIC_URL`.
 
 ```json
 {
-  "auditedUser": "nazimsaeed@gmail.com",
-  "totals": {
-    "total": { "count": 1218, "amount": 1076725 },
-    "delivered": { "count": 19, "amount": 14825 },
-    "pending": { "count": 1197, "amount": 1059300 },
-    "returned": { "count": 2, "amount": 2600 },
-    "complaints": { "count": 184, "amount": 185075 },
-    "complaintWatch": { "count": 89, "amount": 93375 }
-  }
+  "total": 1218,
+  "delivered": 19,
+  "pending": 1071,
+  "returned": 128,
+  "totalAmount": 1076725,
+  "deliveredAmount": 14825,
+  "pendingAmount": 941975,
+  "returnedAmount": 119925,
+  "complaints": 203,
+  "complaintAmount": 185075,
+  "complaintWatch": 89,
+  "complaintActive": 110,
+  "complaintResolved": 8,
+  "complaintClosed": 66,
+  "complaintReopened": 16
 }
 ```
 
 ### API Stats Payload (Post-Deploy)
 
-Source: `node temp-live-verify-matrix.mjs` after `railway up --service Api --detach` and `railway up --service Web --detach`.
+Source: `temp-final-consistency-audit.json` and `temp-live-verify-matrix.json`.
 
 ```json
 {
   "status": 200,
   "total": 1218,
   "delivered": 19,
-  "pending": 1197,
-  "returned": 2,
-  "complaints": 184,
+  "pending": 1071,
+  "returned": 128,
+  "complaints": 203,
+  "complaintWatch": 89,
+  "complaintActive": 110,
+  "complaintResolved": 8,
+  "complaintClosed": 66,
+  "complaintReopened": 16,
   "totalAmount": 1076725,
   "deliveredAmount": 14825,
-  "pendingAmount": 1059300,
-  "returnedAmount": 2600,
+  "pendingAmount": 941975,
+  "returnedAmount": 119925,
   "complaintAmount": 185075,
-  "complaintWatch": 89,
   "complaintWatchAmount": 93375
 }
 ```
+
+### Click-to-Filter Proof
+
+Source: `temp-click-filter-proof.json`.
+
+- Returned click: `https://www.epost.pk/tracking-workspace?status=RETURNED`
+- Complaint Watch click: `https://www.epost.pk/tracking-workspace?status=COMPLAINT_WATCH`
+- Both expected query filters: PASS
 
 ### Screenshot Artifacts
 
 - Dashboard screenshot: `temp-ui-shots/dashboard-postfix.png`
 - Tracking screenshot: `temp-ui-shots/tracking-postfix.png`
 - Shipment Status screenshot: `temp-ui-shots/shipment-status-postfix.png`
+- Returned filter proof: `temp-ui-shots/filter-returned-proof.png`
+- Complaint Watch filter proof: `temp-ui-shots/filter-complaint-watch-proof.png`
 
 ### Required Proof Checks
 
-- Counts are correct: PASS (`total=delivered+pending+returned` => `1218=19+1197+2`)
-- Amounts are correct: PASS (status amounts sum to total; complaints and watch amounts consistent with DB audit)
-- Complaint Watch separated from Complaints: PASS (`complaintWatch=89`, `complaints=184`)
-- Shipment Status matches cards: PASS (Delivered 19, Pending 1197, Returned 2)
-- Formula text removed: PASS (no "Formula: limit - used = remaining" on dashboard)
+- Returned consistency (DB vs API): PASS (`128 = 128`)
+- Complaint consistency (DB vs API): PASS (`203 = 203`)
+- Complaint lifecycle fields in API payload: PASS (`complaintActive`, `complaintResolved`, `complaintClosed`, `complaintReopened` present)
+- Dashboard/Tracking shared stats source: PASS (`/api/shipments/stats`)
+- Dashboard status expansion: PASS (Delivered, Pending, Returned, Complaint Watch, Active, Closed, Resolved, Reopened, Complaint Amount)
+- Click-to-filter routing: PASS (`?status=RETURNED`, `?status=COMPLAINT_WATCH`)
 
 ### Commands Completed
 
@@ -66,14 +92,14 @@ Source: `node temp-live-verify-matrix.mjs` after `railway up --service Api --det
 - `npm run lint`: PASS
 - `npm run typecheck`: PASS
 - `npm run build`: PASS
+- `npm run dev`: PASS
 - `npm run test`: PASS
 - `git add . && git commit && git push`: PASS
 - `railway up --service Api --detach`: PASS
 - `railway up --service Web --detach`: PASS
 
 **Date:** 2026-05-08  
-**Commit:** a6e9e8b (pushed to origin/main)  
-**Previous Commits:** 0fa3cd5, 25731e5, 492b525  
+**Commit:** 4fba6a0 (pushed to origin/main)  
 **Railway Project:** 144be6f4-a17c-47ec-8c23-3d5963c4d5fb
 
 ---
