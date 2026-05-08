@@ -16,6 +16,7 @@ import { consumeUnits, getLatestUnitSnapshot, refundUnits } from "../usage/unitC
 import { getQueue } from "../lib/queue.js";
 import { previewLabelHtml, renderLabelDocumentHtml, type LabelPrintMode } from "../templates/labels.js";
 import { prepareLabelOrders } from "../services/labelDocument.js";
+import { isUploadFileNameExempt } from "../services/upload-file-exemptions.service.js";
 import { shouldShowValuePayableAmount } from "../validation/trackingId.js";
 
 export const jobsRouter = Router();
@@ -404,6 +405,7 @@ export async function handleLabelUpload(req: Request, res: Response) {
   // Phase 2: Check for duplicate filename — only block if a COMPLETED job exists with same filename.
   // Failed/Queued/Processing jobs do NOT reserve the filename so re-uploads are always allowed.
   const normalizedFileName = uploadedFile.originalname.trim().toLowerCase();
+  const isExemptFileName = await isUploadFileNameExempt(uploadedFile.originalname).catch(() => false);
   const existingCompletedJobs = await prisma.labelJob.findMany({
     where: { userId, status: "COMPLETED" },
     select: { originalFilename: true },
@@ -413,9 +415,13 @@ export async function handleLabelUpload(req: Request, res: Response) {
     (job) => job.originalFilename.trim().toLowerCase() === normalizedFileName,
   );
 
-  console.log(`[Upload] Filename duplicate check: { filename: "${normalizedFileName}", isDuplicate: ${isDuplicate}, checkedAgainst: "COMPLETED jobs only" }`);
+  console.log(`[Upload] Filename duplicate check: { filename: "${normalizedFileName}", isDuplicate: ${isDuplicate}, isExempt: ${isExemptFileName}, checkedAgainst: "COMPLETED jobs only" }`);
 
-  if (isDuplicate) {
+  if (isExemptFileName) {
+    console.log(`[Upload] Exempt filename detected — bypassing duplicate block: "${normalizedFileName}"`);
+  }
+
+  if (!isExemptFileName && isDuplicate) {
     console.warn(`[Upload] Filename reserved — blocked re-upload: "${normalizedFileName}"`);
     return res.status(409).json({
       success: false,

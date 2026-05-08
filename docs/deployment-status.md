@@ -1,9 +1,45 @@
 # Deployment Status
 
 **Last Updated:** 2026-05-08  
-**Commit:** pending local commit — fix post-cleanup money order background and user workspace route regressions  
+**Commit:** pending local commit — fix money order front background and add test filename exemption system  
 **Railway Project:** 144be6f4-a17c-47ec-8c23-3d5963c4d5fb  
 **Status:** API + WEB DEPLOYED, ONLINE, AND LIVE-VERIFIED
+
+## Mandatory Fix Loop — Money Order Background + Test Filename Exemption
+
+### Scope completed
+- Money order front background URL handling repaired for absolute URL form with API background path.
+- Runtime-admin-configurable filename exemption list added for duplicate upload bypass.
+- Default exempt filename enabled: `LCS 15-13-11-2024.xls`.
+- Duplicate blocking preserved for all non-exempt names.
+
+### API/Web updates in this loop
+- API:
+	- `apps/api/src/money-order/backgrounds.ts`
+	- `apps/api/src/routes/jobs.ts`
+	- `apps/api/src/routes/admin.ts`
+	- `apps/api/src/services/upload-file-exemptions.service.ts` (new)
+- Web:
+	- `apps/web/src/pages/Admin.tsx`
+
+### Validation loop
+- `npm install`: PASS
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS
+- `npm run build`: PASS
+- `npm run test`: PASS (`smoke:railway`)
+- `npm run dev`: PASS (web + api startup confirmed)
+
+### Deployment proof (this loop)
+- Api deploy: `railway up --service Api --detach`
+	- Build Logs id: `ae54a2cb-e9c5-4037-8ed0-1ac5a4c6b6f7`
+- Web deploy: `railway up --service Web --detach`
+	- Build Logs id: `76413156-2732-4de5-b09b-4f3ebd5406d3`
+- Post-deploy health logs:
+	- Api: worker completion and labels PDF download traffic observed.
+	- Web: route and assets served with `200` responses.
+
+---
 
 ## Mandatory Recovery Loop — Post Cleanup Regression Fix
 

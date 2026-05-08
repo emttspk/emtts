@@ -110,6 +110,7 @@ type BillingSettings = {
   easypaisaQrUrl: string | null;
   standardPrice: number;
   businessPrice: number;
+  exemptFileNames: string[];
 };
 
 type SectionKey = "overview" | "plans" | "customers" | "usage" | "shipments" | "payments" | "invoices" | "billing";
@@ -144,6 +145,7 @@ export default function Admin() {
     easypaisaTitle: "",
     standardPrice: "",
     businessPrice: "",
+    exemptFileNamesText: "",
   });
   const [jazzcashQrFile, setJazzcashQrFile] = useState<File | null>(null);
   const [easypaisaQrFile, setEasypaisaQrFile] = useState<File | null>(null);
@@ -235,6 +237,7 @@ export default function Admin() {
       easypaisaTitle: bs.settings.easypaisaTitle,
       standardPrice: String(bs.settings.standardPrice),
       businessPrice: String(bs.settings.businessPrice),
+      exemptFileNamesText: (bs.settings.exemptFileNames ?? []).join("\n"),
     });
     setClearJazzcashQr(false);
     setClearEasypaisaQr(false);
@@ -325,6 +328,15 @@ export default function Admin() {
       formData.append("easypaisaTitle", billingDraft.easypaisaTitle.trim());
       formData.append("standardPrice", billingDraft.standardPrice.trim());
       formData.append("businessPrice", billingDraft.businessPrice.trim());
+      formData.append(
+        "exemptFileNames",
+        JSON.stringify(
+          billingDraft.exemptFileNamesText
+            .split(/\r?\n/)
+            .map((entry) => entry.trim())
+            .filter((entry) => entry.length > 0),
+        ),
+      );
       if (jazzcashQrFile) formData.append("jazzcashQr", jazzcashQrFile);
       if (easypaisaQrFile) formData.append("easypaisaQr", easypaisaQrFile);
       if (clearJazzcashQr) formData.append("clearJazzcashQr", "true");
@@ -344,6 +356,7 @@ export default function Admin() {
           easypaisaTitle: json.settings.easypaisaTitle,
           standardPrice: String(json.settings.standardPrice),
           businessPrice: String(json.settings.businessPrice),
+          exemptFileNamesText: (json.settings.exemptFileNames ?? []).join("\n"),
         });
       }
       setJazzcashQrFile(null);
@@ -927,6 +940,17 @@ export default function Admin() {
                 placeholder="Business price (paisa)"
               />
             </div>
+          </Card>
+
+          <Card className="mt-4 p-4">
+            <div className="text-sm font-semibold text-slate-900">Allow Test File Names</div>
+            <div className="mt-1 text-xs text-slate-500">One file name per line. Duplicate-upload block will be skipped for these names.</div>
+            <textarea
+              className="mt-3 min-h-[120px] w-full rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg"
+              value={billingDraft.exemptFileNamesText}
+              onChange={(e) => setBillingDraft((prev) => ({ ...prev, exemptFileNamesText: e.target.value }))}
+              placeholder="LCS 15-13-11-2024.xls"
+            />
           </Card>
 
           <div className="mt-4 flex justify-end">

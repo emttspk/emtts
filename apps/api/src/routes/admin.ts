@@ -26,6 +26,7 @@ import {
 } from "./manualPayments.js";
 import { resolveStoredPath, storageRoot, toStoredPath } from "../storage/paths.js";
 import { getOrCreateBillingSettings, syncConfiguredPlanPrices } from "../services/billing-settings.service.js";
+import { getUploadExemptFileNames, saveUploadExemptFileNames } from "../services/upload-file-exemptions.service.js";
 import { ensurePlanManagementColumns, getPlanExtrasByIds } from "./plans.js";
 
 export const adminRouter = Router();
@@ -756,7 +757,10 @@ adminRouter.delete("/plans/:planId", async (req, res) => {
 });
 
 adminRouter.get("/billing-settings", async (req, res) => {
-  const settings = await getOrCreateBillingSettings();
+  const [settings, exemptFileNames] = await Promise.all([
+    getOrCreateBillingSettings(),
+    getUploadExemptFileNames(),
+  ]);
   const jazzcashQrExists = Boolean(settings.jazzcashQrPath && fs.existsSync(resolveStoredPath(settings.jazzcashQrPath)));
   const easypaisaQrExists = Boolean(settings.easypaisaQrPath && fs.existsSync(resolveStoredPath(settings.easypaisaQrPath)));
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
@@ -765,6 +769,7 @@ adminRouter.get("/billing-settings", async (req, res) => {
   res.json({
     settings: {
       ...settings,
+      exemptFileNames,
       jazzcashQrUrl: jazzcashQrExists ? buildAbsoluteApiUrl(req, "/api/manual-payments/wallet-qr/jazzcash") : null,
       easypaisaQrUrl: easypaisaQrExists ? buildAbsoluteApiUrl(req, "/api/manual-payments/wallet-qr/easypaisa") : null,
     },
@@ -794,8 +799,24 @@ adminRouter.put(
           .string()
           .optional()
           .transform((v) => v === "true"),
+        exemptFileNames: z.string().optional(),
       })
       .parse(req.body ?? {});
+
+    let parsedExemptFileNames: string[] | undefined;
+    if (typeof body.exemptFileNames === "string") {
+      try {
+        const parsed = JSON.parse(body.exemptFileNames);
+        if (!Array.isArray(parsed)) {
+          return res.status(400).json({ success: false, error: "Invalid exemptFileNames payload" });
+        }
+        parsedExemptFileNames = parsed
+          .map((entry) => String(entry ?? ""))
+          .filter((entry) => entry.trim().length > 0);
+      } catch {
+        return res.status(400).json({ success: false, error: "Invalid exemptFileNames payload" });
+      }
+    }
 
     const files = (req.files ?? {}) as Record<string, Express.Multer.File[]>;
     const jazzcashQr = files.jazzcashQr?.[0];
@@ -852,6 +873,10 @@ adminRouter.put(
       },
     });
 
+    const exemptFileNames = parsedExemptFileNames
+      ? await saveUploadExemptFileNames(parsedExemptFileNames)
+      : await getUploadExemptFileNames();
+
     await syncConfiguredPlanPrices(updated);
 
     const saved = await prisma.billingSettings.findUnique({ where: { id: updated.id } });
@@ -875,6 +900,7 @@ adminRouter.put(
     res.json({
       settings: {
         ...updated,
+        exemptFileNames,
         jazzcashQrUrl: jazzcashQrExists ? buildAbsoluteApiUrl(req, "/api/manual-payments/wallet-qr/jazzcash") : null,
         easypaisaQrUrl: easypaisaQrExists ? buildAbsoluteApiUrl(req, "/api/manual-payments/wallet-qr/easypaisa") : null,
       },

@@ -1,5 +1,52 @@
 # FINAL EXECUTION REPORT — FINAL LIVE VERIFICATION
 
+## Mandatory Fix Loop — Money Order Background + Test Filename Exemption (2026-05-08)
+
+Fix objective:
+
+- Repair money-order front background loading when active template `backgroundUrl` is an absolute URL path.
+- Add a configurable filename exemption system so specific test files bypass duplicate-name rejection.
+- Keep duplicate protection unchanged for non-exempt files.
+
+### Code Repairs Applied
+
+- `apps/api/src/money-order/backgrounds.ts`
+  - Added URL pathname extraction that strips query/hash safely.
+  - Added absolute URL support for active-template API background paths (`/api/admin/templates/background/...`) so uploaded template fronts resolve correctly.
+  - Preserved existing behavior for non-local `http/https/data:` sources.
+- `apps/api/src/services/upload-file-exemptions.service.ts` (new)
+  - Added safe runtime settings storage in DB table `app_runtime_settings` (auto-created with `CREATE TABLE IF NOT EXISTS`).
+  - Added default exempt filename: `LCS 15-13-11-2024.xls`.
+  - Added normalization + case-insensitive checks.
+- `apps/api/src/routes/jobs.ts`
+  - Integrated exemption check before duplicate-completed-job block.
+  - If filename is exempt, duplicate block is skipped; otherwise existing `409` behavior remains unchanged.
+- `apps/api/src/routes/admin.ts`
+  - Extended `/api/admin/billing-settings` GET/PUT to include and persist `exemptFileNames`.
+  - Added payload validation for `exemptFileNames`.
+- `apps/web/src/pages/Admin.tsx`
+  - Added Admin UI section: "Allow Test File Names" with line-by-line add/edit/remove behavior.
+  - Included `exemptFileNames` in billing settings save flow.
+
+### Validation Results
+
+- `npm install`: PASS
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS
+- `npm run build`: PASS
+- `npm run test`: PASS (`@labelgen/api smoke:railway` SUCCESS)
+- `npm run dev`: PASS (web + api started successfully)
+
+### Deployment Results
+
+- Api redeploy: `railway up --service Api --detach` (Build Logs id `ae54a2cb-e9c5-4037-8ed0-1ac5a4c6b6f7`)
+- Web redeploy: `railway up --service Web --detach` (Build Logs id `76413156-2732-4de5-b09b-4f3ebd5406d3`)
+- Post-deploy logs:
+  - Api: worker completed job and served generated PDF download endpoint.
+  - Web: static asset and route traffic returning `200`.
+
+---
+
 ## Mandatory Recovery Loop — Post Cleanup Regression Fix (2026-05-08)
 
 Recovery objective:
