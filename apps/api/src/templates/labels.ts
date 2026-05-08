@@ -813,10 +813,39 @@ export function moneyOrderHtml(
   orders: OrderRecord[],
   opts?: { backgrounds?: { frontDataUrl?: string; backDataUrl?: string } },
 ) {
-  return moneyOrderHtmlFromBenchmark(orders, opts?.backgrounds?.frontDataUrl);
+  void opts;
+  return moneyOrderHtmlFromBenchmark(orders, resolveStaticMoFrontDataUrl());
 }
 
 let benchmarkMoHtmlCache: string | null = null;
+let staticMoFrontDataUrlCache: string | null | undefined;
+
+function resolveStaticMoFrontDataUrl() {
+  if (staticMoFrontDataUrlCache !== undefined) {
+    return staticMoFrontDataUrlCache ?? undefined;
+  }
+
+  const candidates = [
+    path.resolve(process.cwd(), "MO", "MO F.png"),
+    path.resolve(process.cwd(), "apps", "api", "templates", "MO F.png"),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      if (!fs.existsSync(candidate)) continue;
+      const buf = fs.readFileSync(candidate);
+      staticMoFrontDataUrlCache = `data:image/png;base64,${buf.toString("base64")}`;
+      console.log("[MO_STATIC_FRONT_IMAGE]", candidate);
+      return staticMoFrontDataUrlCache;
+    } catch {
+      // Continue trying fallbacks.
+    }
+  }
+
+  staticMoFrontDataUrlCache = null;
+  console.warn("[MO_STATIC_FRONT_IMAGE] Missing static front image: MO F.png");
+  return undefined;
+}
 
 function resolveBenchmarkMoTemplatePath() {
   const candidates = [

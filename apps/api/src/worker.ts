@@ -20,7 +20,6 @@ import { parseOrdersFromBuffer } from "./parse/orders.js";
 import { moneyOrderHtml, renderLabelDocumentHtml, type LabelOrder } from "./templates/labels.js";
 import { htmlToPdfBuffer, htmlToPdfBufferInFreshBrowser, launchPuppeteerBrowser } from "./pdf/render.js";
 import { finalizeQueuedToGenerated, finalizeQueuedTrackingToGenerated, releaseQueuedLabels, releaseQueuedTracking } from "./usage/limits.js";
-import { loadMoneyOrderBackgrounds } from "./money-order/backgrounds.js";
 import { prepareLabelOrders } from "./services/labelDocument.js";
 import {
   buildTrackingId,
@@ -1044,10 +1043,9 @@ const worker = new Worker(
           if (printableOrders.length === 0) {
             throw new Error("Money order file was not generated: no printable money-order rows were produced");
           } else {
-          const backgrounds = await loadMoneyOrderBackgrounds().catch(() => null);
           console.log("MoneyOrderData:", printableOrders);
           const renderMoneyOrderPdf = async () => {
-            const moneyHtml = moneyOrderHtml(printableOrders, { backgrounds: backgrounds ?? undefined });
+            const moneyHtml = moneyOrderHtml(printableOrders);
             const moneyHtmlSize = Buffer.byteLength(String(moneyHtml ?? ""), "utf8");
             console.log(`[Worker] Money-order HTML size: ${moneyHtmlSize} bytes`);
             if (!String(moneyHtml ?? "").trim() || moneyHtml.length < 500) {
