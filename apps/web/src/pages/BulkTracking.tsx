@@ -73,7 +73,14 @@ type ComplaintPrefill = {
 };
 
 type ComplaintTemplateKey = "VALUE_PAYABLE" | "NORMAL" | "RETURN";
-type ExtendedStatusFilter = StatusCardFilter | "COMPLAINT_ACTIVE" | "COMPLAINT_CLOSED" | "COMPLAINT_WATCH";
+type ExtendedStatusFilter =
+  | StatusCardFilter
+  | "COMPLAINT_WATCH"
+  | "COMPLAINT_TOTAL"
+  | "COMPLAINT_ACTIVE"
+  | "COMPLAINT_CLOSED"
+  | "COMPLAINT_REOPENED"
+  | "COMPLAINT_IN_PROCESS";
 
 const TRACKING_CACHE_TTL_MS = 60_000;
 const TRACKING_CACHE_STORAGE_KEY = "tracking.workspace.cache.v2";
@@ -291,6 +298,33 @@ function isComplaintActionAllowed(
     || ["ACTIVE", "QUEUED", "PROCESSING", "RETRY PENDING", "MANUAL REVIEW", "SUBMITTED", "DUPLICATE", "RESOLVED"].includes(complaintCardState);
   if (reopenEligible) return true;
   return statusUpper === "PENDING" && !hasKnownComplaint;
+}
+
+function resolveComplaintActionLabel(
+  shipmentStatus: string | null | undefined,
+  lifecycle: ComplaintLifecycle,
+  queueSnapshot: ComplaintQueueSnapshot | undefined,
+) {
+  const statusUpper = normalizeStatus(shipmentStatus).toUpperCase();
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const lifecycleStateUp = String(lifecycle.state ?? "").toUpperCase();
+  const hasComplaint = lifecycle.exists
+    || Boolean(queueSnapshot)
+    || Boolean(String(lifecycle.complaintId ?? "").trim() || String(queueSnapshot?.complaintId ?? "").trim());
+
+  if (!hasComplaint) return "Complaint";
+
+  const dueExpired = lifecycle.dueDateTs != null && lifecycle.dueDateTs < todayStart.getTime();
+  const terminal = ["RESOLVED", "CLOSED", "REJECTED"].includes(lifecycleStateUp) || dueExpired;
+  if (statusUpper === "PENDING" && terminal) return "Reopen Complaint";
+
+  // Reopened (attempt > 1) should still appear as in process until terminal.
+  const reopenedInProgress = lifecycle.latestAttempt > 1 && !terminal;
+  if (reopenedInProgress || isComplaintInProcess(lifecycle)) return "In Process";
+
+  return "In Process";
 }
 
 function complaintStateBadgeClass(stateLabel: string) {
@@ -974,8 +1008,11 @@ export default function BulkTracking() {
       "DELIVERED",
       "PENDING",
       "RETURNED",
+      "COMPLAINT_TOTAL",
       "COMPLAINT_ACTIVE",
       "COMPLAINT_CLOSED",
+      "COMPLAINT_REOPENED",
+      "COMPLAINT_IN_PROCESS",
       "COMPLAINT_WATCH",
     ];
     const resolved = validFilters.includes(rawStatus as ExtendedStatusFilter)
@@ -1908,10 +1945,20 @@ export default function BulkTracking() {
   }, [finalTrackingData]);
 
   const filteredShipments = useMemo(() => {
-    const baseFilter: StatusCardFilter = statusFilter === "COMPLAINT_ACTIVE" || statusFilter === "COMPLAINT_CLOSED" || statusFilter === "COMPLAINT_WATCH"
+    const baseFilter: StatusCardFilter =
+      statusFilter === "COMPLAINT_WATCH"
+      || statusFilter === "COMPLAINT_TOTAL"
+      || statusFilter === "COMPLAINT_ACTIVE"
+      || statusFilter === "COMPLAINT_CLOSED"
+      || statusFilter === "COMPLAINT_REOPENED"
+      || statusFilter === "COMPLAINT_IN_PROCESS"
       ? "ALL"
       : statusFilter;
     const filtered = filterFinalTrackingData(finalTrackingData, baseFilter);
+
+    if (statusFilter === "COMPLAINT_TOTAL") {
+      return filtered.filter((record) => parseComplaintLifecycle(record.shipment).exists);
+    }
 
     if (statusFilter === "COMPLAINT_ACTIVE") {
       return filtered.filter((record) => {
@@ -1948,6 +1995,17 @@ export default function BulkTracking() {
       return filtered.filter((record) => {
         const lifecycle = parseComplaintLifecycle(record.shipment);
         return record.final_status.includes("PENDING") && isComplaintInProcess(lifecycle);
+      });
+    }
+
+    if (statusFilter === "COMPLAINT_REOPENED") {
+      return filtered.filter((record) => parseComplaintLifecycle(record.shipment).latestAttempt > 1);
+    }
+
+    if (statusFilter === "COMPLAINT_IN_PROCESS") {
+      return filtered.filter((record) => {
+        const lifecycle = parseComplaintLifecycle(record.shipment);
+        return lifecycle.exists && lifecycle.state === "IN PROCESS";
       });
     }
 
@@ -2773,12 +2831,12 @@ export default function BulkTracking() {
             label: "Complaints",
             parcels: shipmentStats?.complaints ?? 0,
             amount: shipmentStats?.complaintAmount ?? 0,
-            active: statusFilter === "COMPLAINT_ACTIVE",
+            active: statusFilter === "COMPLAINT_TOTAL",
           },
         ]}
         onSelect={(key) => {
           if (key === "COMPLAINTS") {
-            setStatusFilter("COMPLAINT_ACTIVE");
+            setStatusFilter("COMPLAINT_TOTAL");
             setPage(1);
             return;
           }
@@ -3074,8 +3132,11 @@ export default function BulkTracking() {
                 <option value="DELIVERED">Delivered</option>
                 <option value="RETURNED">Returned</option>
                 <option value="COMPLAINT_WATCH">Complaint Watch</option>
+                <option value="COMPLAINT_TOTAL">Complaint Total</option>
                 <option value="COMPLAINT_ACTIVE">Complaint Active</option>
                 <option value="COMPLAINT_CLOSED">Complaint Closed</option>
+                <option value="COMPLAINT_REOPENED">Complaint Reopened</option>
+                <option value="COMPLAINT_IN_PROCESS">Complaint In Process</option>
               </select>
             </label>
             {selectedIds.length > 0 && (
@@ -3208,13 +3269,8 @@ export default function BulkTracking() {
                 const lifecycle = parseComplaintLifecycle(s);
                 const queueSnapshot = complaintQueueByTracking.get(s.trackingNumber);
                 const complaintCardState = resolveComplaintCardState(lifecycle, queueSnapshot);
-                const hasComplaintId = Boolean(String(lifecycle.complaintId ?? "").trim() || String(queueSnapshot?.complaintId ?? "").trim());
-                const resolvedOrClosed = ["RESOLVED", "CLOSED", "REJECTED"].includes(String(lifecycle.state ?? "").toUpperCase());
-                const complaintInProcess = !resolvedOrClosed && (hasComplaintId || isComplaintInProcess(lifecycle) || ["ACTIVE", "QUEUED", "PROCESSING", "RETRY PENDING"].includes(complaintCardState.toUpperCase()));
                 const isComplaintEnabled = isComplaintActionAllowed(displayStatus, lifecycle, queueSnapshot);
-                const _todayStartTs = new Date().setHours(0, 0, 0, 0);
-                const isReopenEligible = normalizeStatus(displayStatus).toUpperCase() === "PENDING"
-                  && (resolvedOrClosed || (lifecycle.dueDateTs != null && lifecycle.dueDateTs < _todayStartTs));
+                const complaintActionLabel = resolveComplaintActionLabel(displayStatus, lifecycle, queueSnapshot);
 
                 const actionOptions = [
                   { label: "Pending", val: "PENDING" },
@@ -3316,7 +3372,7 @@ export default function BulkTracking() {
                       </div>
                     </td>
                     <td className="px-3 py-3.5 pl-4 align-middle min-w-[160px]">
-                      {hasComplaintId || lifecycle.exists || queueSnapshot ? (() => {
+                      {lifecycle.exists || queueSnapshot ? (() => {
                         const stateStyle = complaintStateBadgeClass(complaintCardState);
                         const complaintId = lifecycle.complaintId || queueSnapshot?.complaintId || "Complaint";
                         const dueDate = lifecycle.dueDateText
@@ -3343,26 +3399,19 @@ export default function BulkTracking() {
                             {complaintCardState === "PROCESSING" ? (
                               <div className="mt-1 text-[9px] font-semibold text-purple-700">Processing... {processingElapsed}</div>
                             ) : null}
-                            {!complaintInProcess ? (
-                              <button
-                                type="button"
-                                onClick={() => openComplaintModal(row)}
-                                disabled={!isComplaintEnabled}
-                                className={cn(
-                                  "mt-1.5 inline-flex w-full items-center justify-center rounded px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset transition-all",
-                                  isComplaintEnabled
-                                    ? "bg-white text-emerald-800 ring-emerald-300 hover:bg-emerald-100"
-                                    : "cursor-not-allowed bg-gray-50 text-gray-400 ring-gray-200"
-                                )}
-                              >
-                                {isReopenEligible ? "Reopen Complaint" : "New Complaint"}
-                              </button>
-                            ) : (
-                              <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">
-                                <Clock className="h-2.5 w-2.5" />
-                                {complaintCardState}
-                              </div>
-                            )}
+                            <button
+                              type="button"
+                              onClick={() => openComplaintModal(row)}
+                              disabled={!isComplaintEnabled || complaintActionLabel === "In Process"}
+                              className={cn(
+                                "mt-1.5 inline-flex w-full items-center justify-center rounded px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset transition-all",
+                                isComplaintEnabled && complaintActionLabel !== "In Process"
+                                  ? "bg-white text-emerald-800 ring-emerald-300 hover:bg-emerald-100"
+                                  : "cursor-not-allowed bg-gray-50 text-gray-400 ring-gray-200"
+                              )}
+                            >
+                              {complaintActionLabel}
+                            </button>
                             {lifecycle.complaintCount > 0 ? (
                               <button
                                 type="button"
@@ -3386,7 +3435,7 @@ export default function BulkTracking() {
                           )}
                         >
                           <MessageSquare className="h-3 w-3" />
-                          {isReopenEligible ? "Reopen Complaint" : "Complaint"}
+                          {resolveComplaintActionLabel(displayStatus, lifecycle, queueSnapshot)}
                         </button>
                       )}
                     </td>
@@ -4094,14 +4143,39 @@ export default function BulkTracking() {
                 >
                   WhatsApp
                 </button>
-                {selectedComplaintEnabled ? (
+                {selectedTracking ? (
+                  (() => {
+                    const selectedQueue = complaintQueueByTracking.get(selectedTracking.shipment.trackingNumber);
+                    const actionLabel = resolveComplaintActionLabel(selectedTracking.final_status, selectedComplaintLifecycle ?? {
+                      exists: false,
+                      active: false,
+                      complaintId: "",
+                      dueDateText: "",
+                      dueDateTs: null,
+                      state: "",
+                      stateLabel: "",
+                      message: "",
+                      complaintCount: 0,
+                      latestAttempt: 0,
+                      previousComplaintReference: "",
+                    }, selectedQueue);
+                    const disabled = actionLabel === "In Process";
+                    return (
                   <button
                     type="button"
                     onClick={() => openComplaintModal(selectedTracking)}
-                    className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 transition-colors"
+                    disabled={disabled || !selectedComplaintEnabled}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition-colors",
+                      disabled || !selectedComplaintEnabled
+                        ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500"
+                        : "border-red-200 bg-red-50 text-red-700 hover:bg-red-100",
+                    )}
                   >
-                    <MessageSquare className="h-3.5 w-3.5" /> {selectedComplaintLifecycle && (["RESOLVED", "CLOSED", "REJECTED"].includes(selectedComplaintLifecycle.state) || (selectedComplaintLifecycle.dueDateTs != null && selectedComplaintLifecycle.dueDateTs < new Date().setHours(0, 0, 0, 0))) ? "Reopen Complaint" : "Complaint"}
+                    <MessageSquare className="h-3.5 w-3.5" /> {actionLabel}
                   </button>
+                    );
+                  })()
                 ) : null}
                 <button
                   type="button"

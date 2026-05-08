@@ -55,8 +55,10 @@ async function main() {
   });
   if (shipmentStatusRect) {
     await page.screenshot({ path: "temp-ui-shots/shipment-status-postfix.png", clip: shipmentStatusRect });
+    await page.screenshot({ path: "temp-ui-shots/complaint-lifecycle-cards-postfix.png", clip: shipmentStatusRect });
   } else {
     await page.screenshot({ path: "temp-ui-shots/shipment-status-postfix.png", fullPage: true });
+    await page.screenshot({ path: "temp-ui-shots/complaint-lifecycle-cards-postfix.png", fullPage: true });
   }
 
   await page.goto(`${BASE}/tracking-workspace`, { waitUntil: "domcontentloaded" });

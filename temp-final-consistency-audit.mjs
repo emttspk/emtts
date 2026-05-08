@@ -340,9 +340,16 @@ async function main() {
   let complaintAmount = 0;
   let complaintWatch = 0;
   let complaintActive = 0;
+  let complaintInProcess = 0;
   let complaintResolved = 0;
   let complaintClosed = 0;
   let complaintReopened = 0;
+  let complaintWatchAmount = 0;
+  let complaintActiveAmount = 0;
+  let complaintInProcessAmount = 0;
+  let complaintResolvedAmount = 0;
+  let complaintClosedAmount = 0;
+  let complaintReopenedAmount = 0;
 
   for (const s of shipments) {
     const parsed = parseComplaintRecord(s.complaintText, s.complaintStatus);
@@ -357,12 +364,31 @@ async function main() {
     complaintAmount += amount;
 
     const lifecycleState = normalizeComplaintLifecycleState(parsed.state);
-    if (lifecycleState === "RESOLVED") complaintResolved += 1;
-    if (lifecycleState === "CLOSED") complaintClosed += 1;
-    if (lifecycleState === "ACTIVE" || lifecycleState === "IN_PROCESS") complaintActive += 1;
-    if (attempts > 1) complaintReopened += 1;
+    if (lifecycleState === "ACTIVE") {
+      complaintActive += 1;
+      complaintActiveAmount += amount;
+    }
+    if (lifecycleState === "IN_PROCESS") {
+      complaintInProcess += 1;
+      complaintInProcessAmount += amount;
+    }
+    if (lifecycleState === "RESOLVED") {
+      complaintResolved += 1;
+      complaintResolvedAmount += amount;
+    }
+    if (lifecycleState === "CLOSED") {
+      complaintClosed += 1;
+      complaintClosedAmount += amount;
+    }
+    if (attempts > 1) {
+      complaintReopened += 1;
+      complaintReopenedAmount += amount;
+    }
 
-    if (parsed.active && shipmentStatuses.get(trackingId) === "PENDING") complaintWatch += 1;
+    if (parsed.active && shipmentStatuses.get(trackingId) === "PENDING") {
+      complaintWatch += 1;
+      complaintWatchAmount += amount;
+    }
   }
 
   const dbAudit = {
@@ -377,10 +403,17 @@ async function main() {
     complaints,
     complaintAmount,
     complaintWatch,
+    complaintWatchAmount,
     complaintActive,
+    complaintInProcess,
     complaintResolved,
     complaintClosed,
     complaintReopened,
+    complaintActiveAmount,
+    complaintInProcessAmount,
+    complaintResolvedAmount,
+    complaintClosedAmount,
+    complaintReopenedAmount,
   };
 
   const apiStats = statsResp.body ?? {};
@@ -388,10 +421,17 @@ async function main() {
     returned: Number(apiStats.returned ?? -1) === returned,
     complaints: Number(apiStats.complaints ?? -1) === complaints,
     complaintWatch: Number(apiStats.complaintWatch ?? -1) === complaintWatch,
+    complaintWatchAmount: Number(apiStats.complaintWatchAmount ?? -1) === complaintWatchAmount,
     complaintActive: Number(apiStats.complaintActive ?? -1) === complaintActive,
+    complaintInProcess: Number(apiStats.complaintInProcess ?? -1) === complaintInProcess,
     complaintResolved: Number(apiStats.complaintResolved ?? -1) === complaintResolved,
     complaintClosed: Number(apiStats.complaintClosed ?? -1) === complaintClosed,
     complaintReopened: Number(apiStats.complaintReopened ?? -1) === complaintReopened,
+    complaintActiveAmount: Number(apiStats.complaintActiveAmount ?? -1) === complaintActiveAmount,
+    complaintInProcessAmount: Number(apiStats.complaintInProcessAmount ?? -1) === complaintInProcessAmount,
+    complaintResolvedAmount: Number(apiStats.complaintResolvedAmount ?? -1) === complaintResolvedAmount,
+    complaintClosedAmount: Number(apiStats.complaintClosedAmount ?? -1) === complaintClosedAmount,
+    complaintReopenedAmount: Number(apiStats.complaintReopenedAmount ?? -1) === complaintReopenedAmount,
   };
 
   const result = {

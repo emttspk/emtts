@@ -9,6 +9,7 @@ export type ShipmentStats = {
   complaints?: number;
   complaintWatch?: number;
   complaintActive?: number;
+  complaintInProcess?: number;
   complaintResolved?: number;
   complaintClosed?: number;
   complaintReopened?: number;
@@ -21,6 +22,11 @@ export type ShipmentStats = {
   delayedAmount?: number;
   complaintAmount?: number;
   complaintWatchAmount?: number;
+  complaintActiveAmount?: number;
+  complaintInProcessAmount?: number;
+  complaintResolvedAmount?: number;
+  complaintClosedAmount?: number;
+  complaintReopenedAmount?: number;
   graphData?: Array<{ date: string; total: number; byStatus: Record<string, number> }>;
 };
 

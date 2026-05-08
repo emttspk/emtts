@@ -36,10 +36,21 @@ async function main() {
   page.setDefaultTimeout(120000);
   await page.setViewport({ width: 1600, height: 1100 });
 
+  const cases = [
+    { label: "Delivered", status: "DELIVERED" },
+    { label: "Pending", status: "PENDING" },
+    { label: "Returned", status: "RETURNED" },
+    { label: "Complaint Watch", status: "COMPLAINT_WATCH" },
+    { label: "Total Complaints", status: "COMPLAINT_TOTAL" },
+    { label: "Active Complaints", status: "COMPLAINT_ACTIVE" },
+    { label: "Closed Complaints", status: "COMPLAINT_CLOSED" },
+    { label: "Reopened Complaints", status: "COMPLAINT_REOPENED" },
+    { label: "In Process Complaints", status: "COMPLAINT_IN_PROCESS" },
+  ];
+
   const proof = {
     generatedAt: new Date().toISOString(),
-    returnedClick: { clicked: false, url: "", hasExpectedStatusQuery: false },
-    complaintWatchClick: { clicked: false, url: "", hasExpectedStatusQuery: false },
+    filterRouting: {},
   };
 
   await page.goto(BASE, { waitUntil: "domcontentloaded" });
@@ -49,27 +60,26 @@ async function main() {
     localStorage.setItem("labelgen_refresh_token", "");
   }, session);
 
-  await page.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" });
-  await new Promise((resolve) => setTimeout(resolve, 15000));
+  for (const item of cases) {
+    await page.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" });
+    await new Promise((resolve) => setTimeout(resolve, 8000));
 
-  proof.returnedClick.clicked = await clickButtonByText(page, "Returned");
-  if (!proof.returnedClick.clicked) throw new Error("Returned button click failed");
-  await page.waitForFunction(() => window.location.pathname.includes("tracking-workspace"), { timeout: 120000 });
-  await new Promise((resolve) => setTimeout(resolve, 1200));
-  proof.returnedClick.url = page.url();
-  proof.returnedClick.hasExpectedStatusQuery = /status=RETURNED/i.test(proof.returnedClick.url);
-  await page.screenshot({ path: "temp-ui-shots/filter-returned-proof.png", fullPage: true });
+    const clicked = await clickButtonByText(page, item.label);
+    if (!clicked) throw new Error(`${item.label} button click failed`);
 
-  await page.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" });
-  await new Promise((resolve) => setTimeout(resolve, 15000));
+    await page.waitForFunction(() => window.location.pathname.includes("tracking-workspace"), { timeout: 120000 });
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    const url = page.url();
+    const hasExpectedStatusQuery = new RegExp(`status=${item.status}`, "i").test(url);
+    proof.filterRouting[item.status] = { label: item.label, clicked, url, hasExpectedStatusQuery };
 
-  proof.complaintWatchClick.clicked = await clickButtonByText(page, "Complaints Watch");
-  if (!proof.complaintWatchClick.clicked) throw new Error("Complaints Watch button click failed");
-  await page.waitForFunction(() => window.location.pathname.includes("tracking-workspace"), { timeout: 120000 });
-  await new Promise((resolve) => setTimeout(resolve, 1200));
-  proof.complaintWatchClick.url = page.url();
-  proof.complaintWatchClick.hasExpectedStatusQuery = /status=COMPLAINT_WATCH/i.test(proof.complaintWatchClick.url);
-  await page.screenshot({ path: "temp-ui-shots/filter-complaint-watch-proof.png", fullPage: true });
+    if (item.status === "RETURNED") {
+      await page.screenshot({ path: "temp-ui-shots/filter-returned-proof.png", fullPage: true });
+    }
+    if (item.status === "COMPLAINT_WATCH") {
+      await page.screenshot({ path: "temp-ui-shots/filter-complaint-watch-proof.png", fullPage: true });
+    }
+  }
 
   await fs.writeFile("temp-click-filter-proof.json", JSON.stringify(proof, null, 2), "utf8");
   await browser.close();

@@ -417,9 +417,15 @@ shipmentsRouter.get("/stats", async (req, res) => {
   let complaintAmount = 0;
   let complaintTotal = 0;
   let complaintActive = 0;
+  let complaintInProcess = 0;
   let complaintResolved = 0;
   let complaintClosed = 0;
   let complaintReopened = 0;
+  let complaintActiveAmount = 0;
+  let complaintInProcessAmount = 0;
+  let complaintResolvedAmount = 0;
+  let complaintClosedAmount = 0;
+  let complaintReopenedAmount = 0;
   let complaintWatch = 0;
   let complaintWatchAmount = 0;
   for (const record of complaintRecords) {
@@ -431,10 +437,26 @@ shipmentsRouter.get("/stats", async (req, res) => {
     complaintTotal += totalAttempts;
 
     const lifecycleState = normalizeComplaintLifecycleState(record.state);
-    if (lifecycleState === "RESOLVED") complaintResolved += 1;
-    if (lifecycleState === "CLOSED") complaintClosed += 1;
-    if (lifecycleState === "ACTIVE" || lifecycleState === "IN_PROCESS") complaintActive += 1;
-    if (totalAttempts > 1) complaintReopened += 1;
+    if (lifecycleState === "ACTIVE") {
+      complaintActive += 1;
+      complaintActiveAmount += amount;
+    }
+    if (lifecycleState === "IN_PROCESS") {
+      complaintInProcess += 1;
+      complaintInProcessAmount += amount;
+    }
+    if (lifecycleState === "RESOLVED") {
+      complaintResolved += 1;
+      complaintResolvedAmount += amount;
+    }
+    if (lifecycleState === "CLOSED") {
+      complaintClosed += 1;
+      complaintClosedAmount += amount;
+    }
+    if (totalAttempts > 1) {
+      complaintReopened += 1;
+      complaintReopenedAmount += amount;
+    }
 
     if (record.active && shipmentStatuses.get(trackingId) === "PENDING") {
       complaintWatch += 1;
@@ -472,9 +494,15 @@ shipmentsRouter.get("/stats", async (req, res) => {
     complaintWatch,
     complaintWatchAmount,
     complaintActive,
+    complaintInProcess,
     complaintResolved,
     complaintClosed,
     complaintReopened,
+    complaintActiveAmount,
+    complaintInProcessAmount,
+    complaintResolvedAmount,
+    complaintClosedAmount,
+    complaintReopenedAmount,
   });
 });
 

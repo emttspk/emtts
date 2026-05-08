@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router-dom";
-import { ArrowRight, Clock3, CreditCard, Package2, RadioTower, Wallet, AlertCircle } from "lucide-react";
+import { ArrowRight, CreditCard, Package2, RadioTower, Wallet, AlertCircle } from "lucide-react";
 import Card from "../components/Card";
 import type { MeResponse } from "../lib/types";
 import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
@@ -49,9 +49,14 @@ export default function Dashboard() {
       returnedAmount: shipmentStats?.returnedAmount ?? 0,
       complaintAmount: shipmentStats?.complaintAmount ?? 0,
       complaintActive: shipmentStats?.complaintActive ?? 0,
-      complaintResolved: shipmentStats?.complaintResolved ?? 0,
+      complaintInProcess: shipmentStats?.complaintInProcess ?? 0,
       complaintClosed: shipmentStats?.complaintClosed ?? 0,
       complaintReopened: shipmentStats?.complaintReopened ?? 0,
+      complaintWatchAmount: shipmentStats?.complaintWatchAmount ?? 0,
+      complaintActiveAmount: shipmentStats?.complaintActiveAmount ?? 0,
+      complaintInProcessAmount: shipmentStats?.complaintInProcessAmount ?? 0,
+      complaintClosedAmount: shipmentStats?.complaintClosedAmount ?? 0,
+      complaintReopenedAmount: shipmentStats?.complaintReopenedAmount ?? 0,
       trackingUsed: shipmentStats?.trackingUsed ?? 0,
       graphData: shipmentStats?.graphData ?? [],
     }),
@@ -136,7 +141,7 @@ export default function Dashboard() {
         items={summaryCards}
         onSelect={(key) => {
           if (key === "COMPLAINTS") {
-            navigateToTrackingFilter("COMPLAINT_ACTIVE");
+            navigateToTrackingFilter("COMPLAINT_TOTAL");
             return;
           }
           navigateToTrackingFilter(key);
@@ -146,46 +151,29 @@ export default function Dashboard() {
       <div className="grid min-w-0 w-full gap-3 overflow-hidden xl:grid-cols-12">
         <Card className="min-w-0 w-full overflow-hidden xl:col-span-8 p-5">
           <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Shipment Status</div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <button type="button" onClick={() => navigateToTrackingFilter("DELIVERED")} className="rounded-xl bg-slate-50 p-3 text-left hover:bg-slate-100">
-              <div className="text-xs text-slate-500">Delivered</div>
-              <div className="mt-1 text-2xl font-bold text-emerald-700">{stats.delivered.toLocaleString()}</div>
-            </button>
-            <button type="button" onClick={() => navigateToTrackingFilter("PENDING")} className="rounded-xl bg-slate-50 p-3 text-left hover:bg-slate-100">
-              <div className="text-xs text-slate-500">Pending</div>
-              <div className="mt-1 text-2xl font-bold text-amber-700">{stats.pending.toLocaleString()}</div>
-            </button>
-            <button type="button" onClick={() => navigateToTrackingFilter("RETURNED")} className="rounded-xl bg-slate-50 p-3 text-left hover:bg-slate-100">
-              <div className="text-xs text-slate-500">Returned</div>
-              <div className="mt-1 text-2xl font-bold text-red-700">{stats.returned.toLocaleString()}</div>
-            </button>
-            <button type="button" onClick={() => navigateToTrackingFilter("COMPLAINT_WATCH")} className="rounded-xl bg-slate-50 p-3 text-left hover:bg-slate-100">
-              <div className="text-xs text-slate-500">Complaints Watch</div>
-              <div className="mt-1 flex items-center gap-2 text-2xl font-bold text-slate-900">
-                <Clock3 className="h-5 w-5 text-brand" />
-                {stats.complaintWatch.toLocaleString()}
-              </div>
-            </button>
-            <button type="button" onClick={() => navigateToTrackingFilter("COMPLAINT_ACTIVE")} className="rounded-xl bg-slate-50 p-3 text-left hover:bg-slate-100">
-              <div className="text-xs text-slate-500">Active Complaints</div>
-              <div className="mt-1 text-2xl font-bold text-amber-800">{stats.complaintActive.toLocaleString()}</div>
-            </button>
-            <button type="button" onClick={() => navigateToTrackingFilter("COMPLAINT_CLOSED")} className="rounded-xl bg-slate-50 p-3 text-left hover:bg-slate-100">
-              <div className="text-xs text-slate-500">Closed Complaints</div>
-              <div className="mt-1 text-2xl font-bold text-emerald-800">{stats.complaintClosed.toLocaleString()}</div>
-            </button>
-            <div className="rounded-xl bg-slate-50 p-3">
-              <div className="text-xs text-slate-500">Resolved Complaints</div>
-              <div className="mt-1 text-2xl font-bold text-sky-700">{stats.complaintResolved.toLocaleString()}</div>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-3">
-              <div className="text-xs text-slate-500">Reopened Complaints</div>
-              <div className="mt-1 text-2xl font-bold text-violet-700">{stats.complaintReopened.toLocaleString()}</div>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-3 sm:col-span-2 lg:col-span-4">
-              <div className="text-xs text-slate-500">Complaint Total Amount</div>
-              <div className="mt-1 text-2xl font-bold text-slate-900">{formatPKR.format(stats.complaintAmount)}</div>
-            </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              { label: "Delivered", count: stats.delivered, amount: stats.deliveredAmount, filter: "DELIVERED", tone: "text-emerald-700" },
+              { label: "Pending", count: stats.pending, amount: stats.pendingAmount, filter: "PENDING", tone: "text-amber-700" },
+              { label: "Returned", count: stats.returned, amount: stats.returnedAmount, filter: "RETURNED", tone: "text-red-700" },
+              { label: "Complaint Watch", count: stats.complaintWatch, amount: stats.complaintWatchAmount, filter: "COMPLAINT_WATCH", tone: "text-slate-900" },
+              { label: "Total Complaints", count: stats.complaints, amount: stats.complaintAmount, filter: "COMPLAINT_TOTAL", tone: "text-violet-700" },
+              { label: "Active Complaints", count: stats.complaintActive, amount: stats.complaintActiveAmount, filter: "COMPLAINT_ACTIVE", tone: "text-amber-800" },
+              { label: "Closed Complaints", count: stats.complaintClosed, amount: stats.complaintClosedAmount, filter: "COMPLAINT_CLOSED", tone: "text-emerald-800" },
+              { label: "Reopened Complaints", count: stats.complaintReopened, amount: stats.complaintReopenedAmount, filter: "COMPLAINT_REOPENED", tone: "text-violet-700" },
+              { label: "In Process Complaints", count: stats.complaintInProcess, amount: stats.complaintInProcessAmount, filter: "COMPLAINT_IN_PROCESS", tone: "text-sky-700" },
+            ].map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => navigateToTrackingFilter(item.filter)}
+                className="rounded-xl bg-slate-50 p-3 text-left hover:bg-slate-100"
+              >
+                <div className="text-xs text-slate-500">{item.label}</div>
+                <div className={`mt-1 text-2xl font-bold ${item.tone}`}>{item.count.toLocaleString()}</div>
+                <div className="mt-1 text-xs font-semibold text-slate-600">{formatPKR.format(item.amount ?? 0)}</div>
+              </button>
+            ))}
           </div>
         </Card>
 
