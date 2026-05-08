@@ -1,0 +1,49 @@
+﻿{
+  "success": true,
+  "total": 1218,
+  "delivered": 19,
+  "pending": 34,
+  "returned": 2,
+  "undelivered": 0,
+  "outForDelivery": 0,
+  "delayed": 1163,
+  "byStatus": {
+    "PENDING": 1197,
+    "RETURN": 2,
+    "DELIVERED": 19
+  },
+  "totalAmount": 1076725,
+  "deliveredAmount": 14825,
+  "pendingAmount": 1059300,
+  "returnedAmount": 2600,
+  "delayedAmount": 0,
+  "trackingUsed": 849,
+  "graphData": [
+    {
+      "date": "2026-04-28",
+      "total": 6,
+      "byStatus": {
+        "PENDING": 6
+      }
+    },
+    {
+      "date": "2026-04-30",
+      "total": 363,
+      "byStatus": {
+        "PENDING": 358,
+        "RETURN": 2,
+        "DELIVERED": 3
+      }
+    },
+    {
+      "date": "2026-05-03",
+      "total": 849,
+      "byStatus": {
+        "PENDING": 833,
+        "DELIVERED": 16
+      }
+    }
+  ],
+  "complaintAmount": 99525,
+  "complaints": 98
+}

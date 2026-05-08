@@ -197,3 +197,86 @@ This reflects the monetary value of shipments currently under active complaint.
 | `View History (N)` | Button shown when `complaintCount > 0` |
 
 The "View History" button opens a modal listing all past complaint attempts from `COMPLAINT_HISTORY_JSON`.
+
+---
+
+## 13. Live Reopen Example (Verified)
+
+The following production reopen cycle was verified live after the final API gating fix.
+
+| Field | Value |
+|---|---|
+| Tracking ID | VPL13688853 |
+| Previous Complaint ID | CMP-312118 |
+| Previous Due Date | 09-05-2026 |
+| Previous Stored State | CLOSED |
+| New Complaint ID | CMP-349225 |
+| New Due Date | 15-05-2026 |
+| Attempt Number | 2 |
+| Previous Complaint Reference | CMP-312118 |
+| New Entry Status | ACTIVE |
+
+### Live Submission Result
+
+```json
+{
+  "success": true,
+  "queued": true,
+  "jobId": "d5bb1afc-f9b2-461f-88aa-450f1c18a5f7",
+  "trackingId": "VPL13688853",
+  "status": "QUEUED",
+  "message": "Complaint queued for worker processing."
+}
+```
+
+### Stored Reopen `complaintText` Excerpt
+
+```text
+COMPLAINT_ID: CMP-349225 | DUE_DATE: 15-05-2026 | COMPLAINT_STATE: ACTIVE
+User complaint:
+FINAL_VERIFICATION_REOPEN 2026-05-08T10:15:05.117Z
+
+Previous Complaint IDs:
+CMP-312118
+
+Previous Due Dates:
+09-05-2026
+
+Previous Remarks:
+1. Dear Complaint Team,
+   ... prior complaint body persisted ...
+
+Repeated unresolved complaint.
+Closing unresolved complaint without written legal response may result in escalation before PMG office, Consumer Court, or Federal Ombudsman.
+```
+
+### Persisted `COMPLAINT_HISTORY_JSON`
+
+```json
+{
+  "entries": [
+    {
+      "complaintId": "CMP-312118",
+      "trackingId": "VPL13688853",
+      "createdAt": "2026-05-08T10:15:49.247Z",
+      "dueDate": "09-05-2026",
+      "status": "CLOSED",
+      "attemptNumber": 1,
+      "previousComplaintReference": "",
+      "userComplaint": "Dear Complaint Team, ..."
+    },
+    {
+      "complaintId": "CMP-349225",
+      "trackingId": "VPL13688853",
+      "createdAt": "2026-05-08T10:15:49.247Z",
+      "dueDate": "15-05-2026",
+      "status": "ACTIVE",
+      "attemptNumber": 2,
+      "previousComplaintReference": "CMP-312118",
+      "userComplaint": "FINAL_VERIFICATION_REOPEN 2026-05-08T10:15:05.117Z"
+    }
+  ]
+}
+```
+
+This confirms the final required behavior: terminal-state complaints can reopen, a new complaint ID and due date are created, previous IDs and due dates are appended, previous remarks are preserved, the mandatory escalation warning is present, and the lifecycle is persisted in the database.

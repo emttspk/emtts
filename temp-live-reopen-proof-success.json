@@ -1,0 +1,43 @@
+﻿{
+  "tracking": "VPL13688853",
+  "submitStatus": 200,
+  "submitBody": {
+    "success": true,
+    "queued": true,
+    "jobId": "d5bb1afc-f9b2-461f-88aa-450f1c18a5f7",
+    "trackingId": "VPL13688853",
+    "tracking_id": "VPL13688853",
+    "status": "QUEUED",
+    "message": "Complaint queued for worker processing."
+  },
+  "before": {
+    "complaintId": "CMP-312118",
+    "dueDate": "09-05-2026",
+    "state": "FILED"
+  },
+  "after": {
+    "complaintId": "CMP-349225",
+    "dueDate": "15-05-2026",
+    "state": "FILED"
+  },
+  "checks": {
+    "newComplaintId": true,
+    "newDueDate": true,
+    "hasPrevIds": true,
+    "hasPrevDue": true,
+    "hasPrevRemarks": true,
+    "hasWarning": true,
+    "historyCount": 2,
+    "lastEntry": {
+      "complaintId": "CMP-349225",
+      "trackingId": "VPL13688853",
+      "createdAt": "2026-05-08T10:15:49.247Z",
+      "dueDate": "15-05-2026",
+      "status": "ACTIVE",
+      "attemptNumber": 2,
+      "previousComplaintReference": "CMP-312118",
+      "userComplaint": "FINAL_VERIFICATION_REOPEN 2026-05-08T10:15:05.117Z"
+    }
+  },
+  "remarksExcerpt": "COMPLAINT_ID: CMP-349225 | DUE_DATE: 15-05-2026 | COMPLAINT_STATE: ACTIVE\nUser complaint:\nFINAL_VERIFICATION_REOPEN 2026-05-08T10:15:05.117Z\n\nPrevious Complaint IDs:\nCMP-312118\n\nPrevious Due Dates:\n09-05-2026\n\nPrevious Remarks:\n1. Dear Complaint Team,\n\nI respectfully request your assistance regarding value payable article VPL13688853. As per tracking, action occurred on February 20, 2025; however, the money order amount of Rs 900 is still not received. Kindly verify delivery and payment processing and update the current complaint status.\n\nSincerely,\nHoja Seeds\nContact Number: 03354299783\n\nRepeated unresolved complaint.\nClosing unresolved complaint without written legal response may result in escalation before PMG office, Consumer Court, or Federal Ombudsman.\n\nResponse:\nYou complaint has been submitted successfully. A Pakistan Post representative will contact you soon. Thanks!\n\nCOMPLAINT_HISTORY_JSON: {\"entries\":[{\"complaintId\":\"CMP-312118\",\"trackingId\":\"VPL13688853\",\"createdAt\":\"2026-05-08T10:15:49.247Z\",\"dueDate\":\"09-05-2026\",\"status\":\"CLOSED\",\"attemptNumber\":1,\"previousComplaintReference\":\"\",\"userComplaint\":\"Dear Complaint Team,\\n\\nI respectfully request your assistance regarding value payable article VPL13688853. As per tracking, action occurred on February 20, 2025; however, the money order amount of Rs 900 is still not received. Kindly verify delivery and payment processing and update the current complaint status.\\n\\nSincerely,\\nHoja Seeds\\nContact Number: 03354299783\"},{\"complaintId\":\"CMP-349225\",\"trackingId\":\"VPL13688853\",\"createdAt\":\"2026-05-08T10:15:49.247Z\",\"dueDate\":\"15-05-2026\",\"status\":\"ACTIVE\",\"attemptNumber\":2,\"previousComplaintReference\":\"CMP-312118\",\"userComplaint\":\"FINAL_VERIFICATION_REOPEN 2026-05-08T10:15:05.117Z\"}]}"
+}

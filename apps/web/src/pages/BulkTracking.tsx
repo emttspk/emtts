@@ -2218,7 +2218,9 @@ export default function BulkTracking() {
 
     // For reopen: append canonical previous complaint history and warning
     const lifecycle = parseComplaintLifecycle(shipment);
-    const isReopeningComplaint = ["RESOLVED", "CLOSED", "REJECTED"].includes(String(lifecycle.state ?? "").toUpperCase());
+    const _reopenTodayStart = new Date(); _reopenTodayStart.setHours(0, 0, 0, 0);
+    const isReopeningComplaint = ["RESOLVED", "CLOSED", "REJECTED"].includes(String(lifecycle.state ?? "").toUpperCase())
+      || (lifecycle.dueDateTs != null && lifecycle.dueDateTs < _reopenTodayStart.getTime());
     let finalRemarks = normalizedFormState.remarks;
     if (isReopeningComplaint) {
       const textBlob = String(shipment.complaintText ?? "").trim();
@@ -3182,8 +3184,9 @@ export default function BulkTracking() {
                 const resolvedOrClosed = ["RESOLVED", "CLOSED", "REJECTED"].includes(String(lifecycle.state ?? "").toUpperCase());
                 const complaintInProcess = !resolvedOrClosed && (hasComplaintId || isComplaintInProcess(lifecycle) || ["ACTIVE", "QUEUED", "PROCESSING", "RETRY PENDING"].includes(complaintCardState.toUpperCase()));
                 const isComplaintEnabled = isComplaintActionAllowed(displayStatus, lifecycle, queueSnapshot);
+                const _todayStartTs = new Date().setHours(0, 0, 0, 0);
                 const isReopenEligible = normalizeStatus(displayStatus).toUpperCase() === "PENDING"
-                  && resolvedOrClosed;
+                  && (resolvedOrClosed || (lifecycle.dueDateTs != null && lifecycle.dueDateTs < _todayStartTs));
 
                 const actionOptions = [
                   { label: "Pending", val: "PENDING" },
@@ -4069,7 +4072,7 @@ export default function BulkTracking() {
                     onClick={() => openComplaintModal(selectedTracking)}
                     className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 transition-colors"
                   >
-                    <MessageSquare className="h-3.5 w-3.5" /> {selectedComplaintLifecycle && ["RESOLVED", "CLOSED", "REJECTED"].includes(selectedComplaintLifecycle.state) ? "Reopen Complaint" : "Complaint"}
+                    <MessageSquare className="h-3.5 w-3.5" /> {selectedComplaintLifecycle && (["RESOLVED", "CLOSED", "REJECTED"].includes(selectedComplaintLifecycle.state) || (selectedComplaintLifecycle.dueDateTs != null && selectedComplaintLifecycle.dueDateTs < new Date().setHours(0, 0, 0, 0))) ? "Reopen Complaint" : "Complaint"}
                   </button>
                 ) : null}
                 <button

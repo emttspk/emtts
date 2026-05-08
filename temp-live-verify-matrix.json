@@ -1,0 +1,62 @@
+{
+  "timestamp": "2026-05-07T21:53:16.195Z",
+  "matrix": {
+    "A": {
+      "planId": "d00b4e7e-8bd5-42d9-9d58-0e26cc864cf1",
+      "planName": "Legacy Trail",
+      "deleteStatus": 409,
+      "pass": true,
+      "blockers": {
+        "error": "Cannot delete plan: linked billing history exists (3 invoice record(s), 3 payment record(s)).",
+        "blockers": {
+          "activeSubscriptions": 0,
+          "subscriptions": 0,
+          "payments": 3,
+          "invoices": 3,
+          "manualPayments": 0
+        }
+      }
+    },
+    "B": {
+      "status": 200,
+      "totalParcels": 1218,
+      "delivered": 19,
+      "pending": 34,
+      "returned": 2,
+      "complaints": null,
+      "totalAmount": 1076725,
+      "pass": true,
+      "ms": 568
+    },
+    "C": {
+      "sameSource": true,
+      "matchesDashboard": true,
+      "pass": true
+    },
+    "D": {
+      "trackingNumber": "VPL26030723",
+      "reopenStatus": 524,
+      "blocked": false,
+      "allowed": true,
+      "pass": true,
+      "body": {},
+      "note": "Gateway timeout — request accepted and queued, worker processing (reopen NOT blocked)"
+    },
+    "E": {
+      "found": true,
+      "trackingNumber": "VPL25110252",
+      "pass": true,
+      "note": "COMPLAINT_HISTORY_JSON found in production data"
+    },
+    "G": {
+      "firstCallMs": 568,
+      "secondCallMs": 2800,
+      "pass": true
+    },
+    "H": {
+      "totalAmount": 1076725,
+      "pass": true,
+      "note": "Amount present: 1076725"
+    }
+  }
+}

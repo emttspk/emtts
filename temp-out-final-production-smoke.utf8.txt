@@ -1,0 +1,13 @@
+﻿registerStatus: 200
+loginStatus: 200
+uploadStatus: 400
+node : FINAL_SMOKE_FAILED Upload failed: {"success":false,"error":"CNIC is required 
+before generating money order.","message":"CNIC is required before generating money 
+order."}
+At line:1 char:359
++ ... -units.txt; node temp-final-production-smoke.mjs *> temp-out-final-pr ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (FINAL_SMOKE_FAI... money order."}:Stri 
+   ng) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
