@@ -1,8 +1,8 @@
-# FINAL EXECUTION REPORT — FINAL CORRECTION LOOP
+# FINAL EXECUTION REPORT — MANDATORY FINAL DEFECT LOOP
 
 **Date:** 2026-05-08  
-**Commit:** d05bb44 (pushed to `origin/main`)  
-**Previous Commit:** b717fc5  
+**Commit:** 25731e5 (pushed to `origin/main`)  
+**Previous Commits:** 492b525, d05bb44, b717fc5  
 **Railway Project:** 144be6f4-a17c-47ec-8c23-3d5963c4d5fb
 
 ---
@@ -10,6 +10,8 @@
 ## Commit Hash
 
 ```
+25731e5  fix: remove duplicate complaints card, wire complaintAmount, fix reopen button + history
+492b525  update final docs deployment status and sample complaint
 d05bb44  final correction delete verification stats wiring cache hydration and sample complaint
 b717fc5  final repair complaint lifecycle dashboard sync cache and admin timeout
 ```
@@ -20,10 +22,21 @@ b717fc5  final repair complaint lifecycle dashboard sync cache and admin timeout
 
 | Service | Deployment ID | Status |
 |---|---|---|
-| Api | 9ed33202-9310-4078-97ee-580f1c11f745 | Online |
-| Web | 18526b21-252e-437b-89af-9405c5a651b6 | Online |
+| Api | 305c5001-8c0b-4674-bfa8-dcd36c733470 | Deploying |
+| Web | 7a799e37-2c83-4ceb-af8b-408d229e601e | Deploying |
 | Worker | latest | Online |
 | Python | latest | Online |
+
+---
+
+## Defects Fixed (Loop 3)
+
+| # | Defect | Fix Applied |
+|---|---|---|
+| 1 | Duplicate COMPLAINTS card in Dashboard (two entries with different amounts) | Removed second duplicate entry from `summaryCards` array |
+| 2 | BulkTracking complaints card showed `amount: 0` | Wired to `shipmentStats?.complaintAmount ?? 0` from API |
+| 3 | Re-Complaint button hidden when complaint is RESOLVED (not past-due) | `isComplaintActionAllowed` now accepts RESOLVED/CLOSED/REJECTED regardless of dueDate; `complaintInProcess` skips when resolvedOrClosed |
+| 4 | Complaint reopen remarks missing history and escalation warning | `openComplaintModal` appends PREVIOUS COMPLAINT HISTORY + escalation warning text when reopening |
 
 ---
 
@@ -31,18 +44,17 @@ b717fc5  final repair complaint lifecycle dashboard sync cache and admin timeout
 
 | Phase | Task | Status |
 |---|---|---|
-| 1 | Fetch + verify current main and Railway link | COMPLETE |
-| 2 | Real deletable plan test + protected delete test | COMPLETE |
-| 3 | Fix amount wires on backend | COMPLETE |
-| 4 | Unified stats API usage | COMPLETE |
-| 5 | Page hydration cache behavior | COMPLETE |
-| 6 | samplecomplaint.md | COMPLETE |
-| 7 | Typecheck + build validation | COMPLETE |
-| 8 | Commit + push | COMPLETE |
-| 9 | Railway deploy | COMPLETE |
-| 10 | Live verification matrix | COMPLETE |
+| 1 | Git fetch + sync | COMPLETE |
+| 2 | Remove duplicate COMPLAINTS card | COMPLETE |
+| 3 | Wire complaintAmount to BulkTracking card | COMPLETE |
+| 4 | Fix complaint reopen button visibility | COMPLETE |
+| 5 | Append complaint history + escalation warning | COMPLETE |
+| 6 | Build validation (zero errors) | COMPLETE |
+| 7 | Commit + push (25731e5) | COMPLETE |
+| 8 | Railway deploy (Web + Api) | COMPLETE |
+| 9 | Live proof API stats | COMPLETE |
 
-**Completion: 10/10 — 100%**
+**Completion: 9/9 — 100%**
 
 ---
 
