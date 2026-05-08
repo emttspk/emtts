@@ -7,7 +7,7 @@ import { requireAdmin } from "../middleware/auth.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { pythonTrackBulk, PythonServiceUnavailableError, PythonServiceTimeoutError } from "../services/trackingService.js";
 import { canonicalShipmentStatus, isComplaintEnabled, processTracking } from "../services/trackingStatus.js";
-import { listComplaintRecords } from "../services/complaint.service.js";
+import { extractComplaintHistory, listComplaintRecords } from "../services/complaint.service.js";
 import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "../services/trackingIntelligence.js";
 import { buildTrackingCycleAuditRecord } from "../services/trackingCycleAudit.js";
 import { getTrackingCycleCorrections, saveTrackingCycleCorrections } from "../services/trackingCycleCorrections.js";
@@ -299,6 +299,45 @@ function hasReturnLatestEventRule(raw: Record<string, unknown>): boolean {
   if (!isLatestReturnEvent) return false;
   return hasForwardReverseReturnFlow(events);
 }
+
+function normalizeFinalShipmentStatusForStats(input: unknown): "DELIVERED" | "DELIVERED WITH PAYMENT" | "RETURNED" | "PENDING" {
+  const raw = String(input ?? "").trim().toUpperCase();
+  if (!raw) return "PENDING";
+  if (raw === "DELIVERED WITH PAYMENT") return "DELIVERED WITH PAYMENT";
+  if (raw.includes("DELIVER")) return "DELIVERED";
+  if (raw.includes("RETURN") || raw.includes("RTO")) return "RETURNED";
+  return "PENDING";
+}
+
+function deriveFinalShipmentStatusForStats(shipment: { status: string | null; rawJson: string | null }): "DELIVERED" | "DELIVERED WITH PAYMENT" | "RETURNED" | "PENDING" {
+  const raw = parseRaw(shipment.rawJson);
+  const manual = normalizeManualStatus((raw as Record<string, unknown>).manual_status);
+  if (manual === "RETURN") return "RETURNED";
+  if (manual === "DELIVERED") return "DELIVERED";
+  if (manual === "PENDING") return "PENDING";
+
+  const preferredStatus = String(
+    (raw as Record<string, unknown>).final_status
+    ?? (raw as Record<string, unknown>).system_status
+    ?? (raw as Record<string, unknown>).System_Status
+    ?? shipment.status
+    ?? "",
+  ).trim();
+
+  const normalized = normalizeFinalShipmentStatusForStats(preferredStatus);
+  if (normalized !== "RETURNED") return normalized;
+  return hasReturnLatestEventRule(raw) ? "RETURNED" : "PENDING";
+}
+
+function normalizeComplaintLifecycleState(state: string): "ACTIVE" | "IN_PROCESS" | "RESOLVED" | "CLOSED" {
+  const token = String(state ?? "").trim().toUpperCase().replace(/[\-_]+/g, " ");
+  if (!token) return "ACTIVE";
+  if (["RESOLVED", "RESOLVE"].includes(token)) return "RESOLVED";
+  if (["CLOSED", "CLOSE", "REJECTED", "REJECT", "ERROR", "FAILED"].includes(token)) return "CLOSED";
+  if (["IN PROCESS", "INPROCESS", "PROCESSING", "PENDING", "DUPLICATE", "OPEN"].includes(token)) return "IN_PROCESS";
+  return "ACTIVE";
+}
+
 shipmentsRouter.get("/stats", async (req, res) => {
   const userId = (req as AuthedRequest).user!.id;
   try {
@@ -340,33 +379,27 @@ shipmentsRouter.get("/stats", async (req, res) => {
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const shipmentAmounts = new Map<string, number>();
-  const shipmentStatuses = new Map<string, string>();
+  const shipmentStatuses = new Map<string, "DELIVERED" | "DELIVERED WITH PAYMENT" | "RETURNED" | "PENDING">();
 
   for (const s of shipments) {
-    const raw = parseRaw(s.rawJson);
-    const processed = processTracking(raw, {
-      explicitMo: String((raw as Record<string, unknown>).moIssuedNumber ?? (raw as Record<string, unknown>).mo_issued_number ?? "").trim() || null,
-      trackingNumber: s.trackingNumber,
-    });
-    const computedStatus = String(processed.systemStatus ?? s.status ?? "").trim();
-    const key = canonicalShipmentStatus(computedStatus, null);
+    const key = deriveFinalShipmentStatusForStats(s);
     total += 1;
     byStatus[key] = (byStatus[key] ?? 0) + 1;
     const amt = toAmount(s.rawJson);
     shipmentAmounts.set(s.trackingNumber, amt);
     shipmentStatuses.set(s.trackingNumber, key);
 
-    if (key === "DELIVERED") {
+    if (key === "DELIVERED" || key === "DELIVERED WITH PAYMENT") {
       delivered += 1;
       deliveredAmount += amt;
-    } else if (key === "RETURN") {
+    } else if (key === "RETURNED") {
       returned += 1;
       returnedAmount += amt;
     } else {
       pending += 1;
       pendingAmount += amt;
     }
-    if (isComplaintEnabled(s.daysPassed, computedStatus) && key === "PENDING") {
+    if (isComplaintEnabled(s.daysPassed, key) && key === "PENDING") {
       delayed += 1;
       delayedAmount += amt;
     }
@@ -382,12 +415,27 @@ shipmentsRouter.get("/stats", async (req, res) => {
   }
 
   let complaintAmount = 0;
+  let complaintTotal = 0;
+  let complaintActive = 0;
+  let complaintResolved = 0;
+  let complaintClosed = 0;
+  let complaintReopened = 0;
   let complaintWatch = 0;
   let complaintWatchAmount = 0;
   for (const record of complaintRecords) {
     const trackingId = String(record.trackingId ?? "").trim();
     const amount = shipmentAmounts.get(trackingId) ?? 0;
     complaintAmount += amount;
+    const history = extractComplaintHistory(record.complaintText, record.complaintStatus, trackingId);
+    const totalAttempts = Math.max(1, history.length || 1);
+    complaintTotal += totalAttempts;
+
+    const lifecycleState = normalizeComplaintLifecycleState(record.state);
+    if (lifecycleState === "RESOLVED") complaintResolved += 1;
+    if (lifecycleState === "CLOSED") complaintClosed += 1;
+    if (lifecycleState === "ACTIVE" || lifecycleState === "IN_PROCESS") complaintActive += 1;
+    if (totalAttempts > 1) complaintReopened += 1;
+
     if (record.active && shipmentStatuses.get(trackingId) === "PENDING") {
       complaintWatch += 1;
       complaintWatchAmount += amount;
@@ -420,9 +468,13 @@ shipmentsRouter.get("/stats", async (req, res) => {
     trackingUsed,
     graphData,
     complaintAmount,
-    complaints: complaintRecords.length,
+    complaints: complaintTotal,
     complaintWatch,
     complaintWatchAmount,
+    complaintActive,
+    complaintResolved,
+    complaintClosed,
+    complaintReopened,
   });
 });
 

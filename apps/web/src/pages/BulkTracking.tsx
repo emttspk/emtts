@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
-import { useOutletContext } from "react-router-dom";
+import { useOutletContext, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { UploadCloud, AlertCircle, Eye, MapPin, PackageSearch, BadgeDollarSign, RefreshCw, Printer, Package, CheckCircle2, Clock, TrendingUp, X, MessageSquare, Activity, ChevronRight, Truck, ArrowUpRight, Search } from "lucide-react";
 import Card from "../components/Card";
@@ -73,7 +73,7 @@ type ComplaintPrefill = {
 };
 
 type ComplaintTemplateKey = "VALUE_PAYABLE" | "NORMAL" | "RETURN";
-type ExtendedStatusFilter = StatusCardFilter | "COMPLAINT_ACTIVE" | "COMPLAINT_CLOSED";
+type ExtendedStatusFilter = StatusCardFilter | "COMPLAINT_ACTIVE" | "COMPLAINT_CLOSED" | "COMPLAINT_WATCH";
 
 const TRACKING_CACHE_TTL_MS = 60_000;
 const TRACKING_CACHE_STORAGE_KEY = "tracking.workspace.cache.v2";
@@ -820,6 +820,7 @@ function isManualOverrideShipment(shipment: Shipment): boolean {
 
 export default function BulkTracking() {
   const { me } = useOutletContext<ShellCtx>();
+  const [searchParams] = useSearchParams();
   const isAdmin = getRole() === "ADMIN";
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -964,6 +965,25 @@ export default function BulkTracking() {
     const timer = window.setInterval(() => setRetryCountdownNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const rawStatus = String(searchParams.get("status") ?? "").trim().toUpperCase();
+    if (!rawStatus) return;
+    const validFilters: ExtendedStatusFilter[] = [
+      "ALL",
+      "DELIVERED",
+      "PENDING",
+      "RETURNED",
+      "COMPLAINT_ACTIVE",
+      "COMPLAINT_CLOSED",
+      "COMPLAINT_WATCH",
+    ];
+    const resolved = validFilters.includes(rawStatus as ExtendedStatusFilter)
+      ? (rawStatus as ExtendedStatusFilter)
+      : "ALL";
+    setStatusFilter((current) => (current === resolved ? current : resolved));
+    setPage(1);
+  }, [searchParams]);
 
   useEffect(() => {
     if (!complaintToast) return;
@@ -1888,7 +1908,7 @@ export default function BulkTracking() {
   }, [finalTrackingData]);
 
   const filteredShipments = useMemo(() => {
-    const baseFilter: StatusCardFilter = statusFilter === "COMPLAINT_ACTIVE" || statusFilter === "COMPLAINT_CLOSED"
+    const baseFilter: StatusCardFilter = statusFilter === "COMPLAINT_ACTIVE" || statusFilter === "COMPLAINT_CLOSED" || statusFilter === "COMPLAINT_WATCH"
       ? "ALL"
       : statusFilter;
     const filtered = filterFinalTrackingData(finalTrackingData, baseFilter);
@@ -1921,6 +1941,13 @@ export default function BulkTracking() {
           lifecycle.dueDateText,
         ].join(" ").toUpperCase();
         return haystack.includes(q);
+      });
+    }
+
+    if (statusFilter === "COMPLAINT_WATCH") {
+      return filtered.filter((record) => {
+        const lifecycle = parseComplaintLifecycle(record.shipment);
+        return record.final_status.includes("PENDING") && isComplaintInProcess(lifecycle);
       });
     }
 
@@ -3038,7 +3065,7 @@ export default function BulkTracking() {
                 className="border-0 bg-transparent text-xs font-semibold text-[#111827] outline-none"
                 value={statusFilter}
                 onChange={(e) => {
-                  setStatusFilter(e.target.value as StatusCardFilter);
+                  setStatusFilter(e.target.value as ExtendedStatusFilter);
                   setPage(1);
                 }}
               >
@@ -3046,6 +3073,7 @@ export default function BulkTracking() {
                 <option value="PENDING">Pending</option>
                 <option value="DELIVERED">Delivered</option>
                 <option value="RETURNED">Returned</option>
+                <option value="COMPLAINT_WATCH">Complaint Watch</option>
                 <option value="COMPLAINT_ACTIVE">Complaint Active</option>
                 <option value="COMPLAINT_CLOSED">Complaint Closed</option>
               </select>

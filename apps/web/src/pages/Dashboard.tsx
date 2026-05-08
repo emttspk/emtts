@@ -1,30 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useOutletContext } from "react-router-dom";
 import { ArrowRight, Clock3, CreditCard, Package2, RadioTower, Wallet, AlertCircle } from "lucide-react";
 import Card from "../components/Card";
-import { api } from "../lib/api";
 import type { MeResponse } from "../lib/types";
-import { getFinalTrackingData } from "../lib/trackingData";
 import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
 import UnifiedShipmentCards from "../components/UnifiedShipmentCards";
 import { useShipmentStats } from "../hooks/useShipmentStats";
-
-type DashboardActivityStats = {
-  trackingUsed: number;
-  graphData: Array<{ date: string; total: number; byStatus: Record<string, number> }>;
-};
-
-type DashboardShipment = {
-  id: string;
-  trackingNumber: string;
-  status?: string | null;
-  rawJson?: string | null;
-  createdAt: string;
-  updatedAt: string;
-  latestDate?: string | null;
-  latestTime?: string | null;
-  complaintStatus?: string | null;
-};
 
 type ShellCtx = { me: MeResponse | null; refreshMe: () => Promise<void> };
 
@@ -38,61 +19,21 @@ const formatPKR = new Intl.NumberFormat("en-PK", {
 
 export default function Dashboard() {
   const { me } = useOutletContext<ShellCtx>();
-  const [activityStats, setActivityStats] = useState<DashboardActivityStats | null>(null);
+  const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const { shipmentStats, refreshShipmentStats } = useShipmentStats();
-
-  const refreshShipments = useCallback(async () => {
-    const hardLimit = 200;
-    let page = 1;
-    const rows: DashboardShipment[] = [];
-
-    while (page <= 50) {
-      const data = await api<{ shipments: DashboardShipment[]; total: number }>(`/api/shipments?page=${page}&limit=${hardLimit}`);
-      const chunk = Array.isArray(data.shipments) ? data.shipments : [];
-      rows.push(...chunk);
-      if (chunk.length < hardLimit) break;
-      if (rows.length >= (data.total ?? 0)) break;
-      page += 1;
-    }
-
-    const finalData = getFinalTrackingData(rows);
-    const byDate: Record<string, { total: number; byStatus: Record<string, number> }> = {};
-    let trackingUsed = 0;
-    const month = new Date().toISOString().slice(0, 7);
-
-    for (const row of finalData) {
-      const created = String(row.shipment.createdAt ?? "");
-      const date = created.split("T")[0] || "-";
-      const key = row.final_status.includes("RETURN") ? "RETURNED" : row.final_status.includes("DELIVER") ? "DELIVERED" : "PENDING";
-      if (!byDate[date]) byDate[date] = { total: 0, byStatus: {} };
-      byDate[date].total += 1;
-      byDate[date].byStatus[key] = (byDate[date].byStatus[key] ?? 0) + 1;
-      if (created.slice(0, 7) === month) trackingUsed += 1;
-    }
-
-    const graphData = Object.keys(byDate)
-      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
-      .map((date) => ({
-        date,
-        total: byDate[date].total,
-        byStatus: byDate[date].byStatus,
-      }));
-
-    setActivityStats({ trackingUsed, graphData });
-  }, []);
 
   useEffect(() => {
     let ok = true;
     setError(null);
-    Promise.all([refreshShipmentStats(), refreshShipments()]).catch((e) => {
+    Promise.all([refreshShipmentStats()]).catch((e) => {
       if (!ok) return;
       setError(e instanceof Error ? e.message : "Failed to load shipments");
     });
     return () => {
       ok = false;
     };
-  }, [refreshShipmentStats, refreshShipments]);
+  }, [refreshShipmentStats]);
 
   const stats = useMemo(
     () => ({
@@ -107,10 +48,14 @@ export default function Dashboard() {
       pendingAmount: shipmentStats?.pendingAmount ?? 0,
       returnedAmount: shipmentStats?.returnedAmount ?? 0,
       complaintAmount: shipmentStats?.complaintAmount ?? 0,
-      trackingUsed: activityStats?.trackingUsed ?? 0,
-      graphData: activityStats?.graphData ?? [],
+      complaintActive: shipmentStats?.complaintActive ?? 0,
+      complaintResolved: shipmentStats?.complaintResolved ?? 0,
+      complaintClosed: shipmentStats?.complaintClosed ?? 0,
+      complaintReopened: shipmentStats?.complaintReopened ?? 0,
+      trackingUsed: shipmentStats?.trackingUsed ?? 0,
+      graphData: shipmentStats?.graphData ?? [],
     }),
-    [shipmentStats, activityStats],
+    [shipmentStats],
   );
 
   const remainingUnits = me?.balances?.unitsRemaining ?? me?.activePackage?.unitsRemaining ?? 0;
@@ -130,6 +75,10 @@ export default function Dashboard() {
     { key: "RETURNED" as const, label: "Returned", parcels: stats.returned, amount: stats.returnedAmount },
     { key: "COMPLAINTS" as const, label: "Complaints", parcels: stats.complaints, amount: stats.complaintAmount },
   ];
+
+  const navigateToTrackingFilter = (filter: string) => {
+    navigate(`/tracking-workspace?status=${encodeURIComponent(filter)}`);
+  };
 
   return (
     <PageShell className="space-y-3">
@@ -183,30 +132,59 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <UnifiedShipmentCards items={summaryCards} />
+      <UnifiedShipmentCards
+        items={summaryCards}
+        onSelect={(key) => {
+          if (key === "COMPLAINTS") {
+            navigateToTrackingFilter("COMPLAINT_ACTIVE");
+            return;
+          }
+          navigateToTrackingFilter(key);
+        }}
+      />
 
       <div className="grid min-w-0 w-full gap-3 overflow-hidden xl:grid-cols-12">
         <Card className="min-w-0 w-full overflow-hidden xl:col-span-8 p-5">
           <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Shipment Status</div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-xl bg-slate-50 p-3">
+            <button type="button" onClick={() => navigateToTrackingFilter("DELIVERED")} className="rounded-xl bg-slate-50 p-3 text-left hover:bg-slate-100">
               <div className="text-xs text-slate-500">Delivered</div>
               <div className="mt-1 text-2xl font-bold text-emerald-700">{stats.delivered.toLocaleString()}</div>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-3">
+            </button>
+            <button type="button" onClick={() => navigateToTrackingFilter("PENDING")} className="rounded-xl bg-slate-50 p-3 text-left hover:bg-slate-100">
               <div className="text-xs text-slate-500">Pending</div>
               <div className="mt-1 text-2xl font-bold text-amber-700">{stats.pending.toLocaleString()}</div>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-3">
+            </button>
+            <button type="button" onClick={() => navigateToTrackingFilter("RETURNED")} className="rounded-xl bg-slate-50 p-3 text-left hover:bg-slate-100">
               <div className="text-xs text-slate-500">Returned</div>
               <div className="mt-1 text-2xl font-bold text-red-700">{stats.returned.toLocaleString()}</div>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-3">
+            </button>
+            <button type="button" onClick={() => navigateToTrackingFilter("COMPLAINT_WATCH")} className="rounded-xl bg-slate-50 p-3 text-left hover:bg-slate-100">
               <div className="text-xs text-slate-500">Complaints Watch</div>
               <div className="mt-1 flex items-center gap-2 text-2xl font-bold text-slate-900">
                 <Clock3 className="h-5 w-5 text-brand" />
                 {stats.complaintWatch.toLocaleString()}
               </div>
+            </button>
+            <button type="button" onClick={() => navigateToTrackingFilter("COMPLAINT_ACTIVE")} className="rounded-xl bg-slate-50 p-3 text-left hover:bg-slate-100">
+              <div className="text-xs text-slate-500">Active Complaints</div>
+              <div className="mt-1 text-2xl font-bold text-amber-800">{stats.complaintActive.toLocaleString()}</div>
+            </button>
+            <button type="button" onClick={() => navigateToTrackingFilter("COMPLAINT_CLOSED")} className="rounded-xl bg-slate-50 p-3 text-left hover:bg-slate-100">
+              <div className="text-xs text-slate-500">Closed Complaints</div>
+              <div className="mt-1 text-2xl font-bold text-emerald-800">{stats.complaintClosed.toLocaleString()}</div>
+            </button>
+            <div className="rounded-xl bg-slate-50 p-3">
+              <div className="text-xs text-slate-500">Resolved Complaints</div>
+              <div className="mt-1 text-2xl font-bold text-sky-700">{stats.complaintResolved.toLocaleString()}</div>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-3">
+              <div className="text-xs text-slate-500">Reopened Complaints</div>
+              <div className="mt-1 text-2xl font-bold text-violet-700">{stats.complaintReopened.toLocaleString()}</div>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-3 sm:col-span-2 lg:col-span-4">
+              <div className="text-xs text-slate-500">Complaint Total Amount</div>
+              <div className="mt-1 text-2xl font-bold text-slate-900">{formatPKR.format(stats.complaintAmount)}</div>
             </div>
           </div>
         </Card>

@@ -8,6 +8,10 @@ export type ShipmentStats = {
   returned: number;
   complaints?: number;
   complaintWatch?: number;
+  complaintActive?: number;
+  complaintResolved?: number;
+  complaintClosed?: number;
+  complaintReopened?: number;
   delayed?: number;
   trackingUsed?: number;
   totalAmount?: number;
@@ -17,6 +21,7 @@ export type ShipmentStats = {
   delayedAmount?: number;
   complaintAmount?: number;
   complaintWatchAmount?: number;
+  graphData?: Array<{ date: string; total: number; byStatus: Record<string, number> }>;
 };
 
 export const SHIPMENT_STATS_CACHE_KEY = "shipment.stats.cache.v1";
