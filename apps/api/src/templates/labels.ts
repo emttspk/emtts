@@ -136,7 +136,7 @@ function resolveMoneyOrderSenderFields(order: OrderRecord) {
   const senderAddress = normalizeAddressLines((order as any)?.senderAddress ?? order.shipperAddress ?? "") || "-";
   const senderPhone = String((order as any)?.senderPhone ?? order.shipperPhone ?? "").trim() || "-";
   const senderCnic = String((order as any)?.senderCnic ?? (order as any)?.shipperCnic ?? (order as any)?.cnic ?? "").trim() || "-";
-  const senderName = baseSenderName !== "-" ? `${baseSenderName} (${senderCnic !== "-" ? senderCnic : "N/A"})` : baseSenderName;
+  const senderName = baseSenderName;
   return { senderName, senderAddress, senderPhone, senderCnic };
 }
 
@@ -603,19 +603,27 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
     const receiverAddress = normalizeAddressLines(o.consigneeAddress);
     const receiverCity = String(o.receiverCity ?? "");
     const receiverPhone = String(o.consigneePhone ?? "");
-    const { senderName, senderAddress, senderPhone, senderCnic } = resolveMoneyOrderSenderFields(o as unknown as OrderRecord);
+    const { senderName, senderAddress, senderPhone } = resolveMoneyOrderSenderFields(o as unknown as OrderRecord);
     const senderCity = String(o.senderCity ?? "");
     const senderAddressInline = compactInlineParts([senderAddress.replace(/\n+/g, ", "), senderCity]).join(", ");
     const weight = formatWeightInGrams(o.Weight);
+    const orderId = String((o as any).ordered ?? "").trim() || "-";
     const dispatchDateLine = `Dispatch Date: ${resolveDispatchDate((o as any)?.issueDate)}`;
     const prefixBadgeText = amountSummary.appliesPakistanPostRules ? `${shipmentLabel} Rs.${amountSummary.moAmount}` : shipmentLabel;
     const formatRs = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
     const amountMarkup = amountSummary.appliesPakistanPostRules
-      ? `<div class="fl-amount-box">
+      ? `<div class="fl-bottom-grid">
+          <div class="fl-card fl-amount-box">
           <div class="fl-amount-title">MONEY ORDER SUMMARY</div>
           <div class="fl-amount-row"><span>MO Amount</span><span>Rs.${escapeHtml(formatRs(amountSummary.moAmount))}</span></div>
           <div class="fl-amount-row"><span>MO Commission</span><span>Rs.${escapeHtml(formatRs(amountSummary.commission))}</span></div>
           <div class="fl-amount-row"><span>Gross Collect Amount</span><span>Rs.${escapeHtml(formatRs(amountSummary.grossAmount))}</span></div>
+          </div>
+          <div class="fl-card fl-product-box">
+            <div class="fl-product-title">PRODUCT DETAILS</div>
+            <div class="fl-product-row"><span>Weight</span><span>${escapeHtml(weight || "-")}</span></div>
+            <div class="fl-product-row"><span>Order ID</span><span>${escapeHtml(orderId)}</span></div>
+          </div>
         </div>`
       : "";
 
@@ -632,20 +640,16 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
           ${barcodeImg}
           <div class="fl-tracking">${escapeHtml(tracking)}</div>
         </div>
-        ${amountMarkup}
         <div class="fl-to">
           <span class="fl-k">TO:</span>
           <span class="fl-name">${escapeHtml(receiverName)}</span>
-          <div class="fl-addr">${escapeHtml(receiverAddress)}</div>
-          <div class="fl-city-phone">${escapeHtml([receiverCity, receiverPhone].filter(Boolean).join(" · "))}</div>
+          <div class="fl-addr">${escapeHtml(receiverAddress || "-")}</div>
+          <div class="fl-city-phone">${escapeHtml(receiverCity || "-")}</div>
+          <div class="fl-city-phone">${escapeHtml(receiverPhone || "-")}</div>
         </div>
+        ${amountMarkup}
         <div class="fl-from">
-          <span class="fl-k">FROM:</span>
-          <span class="fl-from-name">${escapeHtml(senderName)}</span>
-          <div class="fl-from-cnic">CNIC: ${escapeHtml(senderCnic)}</div>
-          <div class="fl-from-address">${escapeHtml(senderAddressInline || "-")}</div>
-          <div class="fl-from-phone">Phone: ${escapeHtml(senderPhone)}</div>
-          ${weight ? `<span class="fl-weight">${escapeHtml(weight)}</span>` : ""}
+          <span class="fl-from-line">FROM: ${escapeHtml(compactInlineParts([senderName, senderAddressInline, senderPhone]).join(" | ") || "-")}</span>
         </div>
       </div>`;
   };
@@ -686,7 +690,7 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
           box-sizing: border-box;
           padding: 2mm;
           display: grid;
-          grid-template-rows: auto auto 1fr auto;
+          grid-template-rows: auto auto 1fr auto auto;
           gap: 1.2mm;
           overflow: hidden;
         }
@@ -700,19 +704,20 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
         .fl-barcode-image { width: 88mm; height: 9mm; object-fit: contain; display: block; }
         .fl-barcode-fallback { width: 88mm; height: 9mm; border: 0.3mm dashed #000; display: grid; place-items: center; font-weight: 900; font-size: 2.5mm; }
         .fl-tracking { font-family: "Courier New", Courier, monospace; font-weight: 900; letter-spacing: 0.24mm; font-size: 2.4mm; text-align: center; }
-        .fl-amount-box { border: 0.35mm solid #000; padding: 0.9mm 1.3mm; display: grid; gap: 0.5mm; background: #fff; }
+        .fl-bottom-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1mm; align-items: stretch; }
+        .fl-card { border: 0.35mm solid #000; padding: 0.9mm 1.2mm; display: grid; gap: 0.45mm; background: #fff; min-height: 15.5mm; align-content: start; }
+        .fl-amount-box { display: grid; gap: 0.5mm; }
         .fl-amount-title { font-size: 2.2mm; font-weight: 900; letter-spacing: 0.2mm; border-bottom: 0.25mm solid #000; padding-bottom: 0.35mm; }
         .fl-amount-row { display: flex; justify-content: space-between; gap: 2mm; font-size: 2.25mm; font-weight: 800; }
-        .fl-to { display: grid; gap: 0.5mm; overflow: hidden; }
+        .fl-product-title { font-size: 2.2mm; font-weight: 900; letter-spacing: 0.2mm; border-bottom: 0.25mm solid #000; padding-bottom: 0.35mm; }
+        .fl-product-row { display: flex; justify-content: space-between; gap: 2mm; font-size: 2.25mm; font-weight: 800; }
+        .fl-to { display: grid; gap: 0.45mm; overflow: hidden; border: 0.3mm solid #000; padding: 0.95mm 1.2mm; }
         .fl-k { font-weight: 900; font-size: 2.5mm; letter-spacing: 0.3mm; }
-        .fl-name { font-weight: 900; font-size: 3.2mm; }
-        .fl-addr { font-size: 2.6mm; line-height: 1.15; white-space: pre-line; overflow: hidden; }
-        .fl-city-phone { font-size: 2.5mm; color: #222; }
-        .fl-from { display: grid; gap: 0.45mm; border-top: 0.3mm solid #000; padding-top: 0.8mm; font-size: 2.4mm; }
-        .fl-from-name { font-weight: 700; }
-        .fl-from-cnic, .fl-from-phone { font-size: 2.2mm; font-weight: 700; }
-        .fl-from-address { font-size: 2.25mm; line-height: 1.15; white-space: pre-line; overflow-wrap: anywhere; word-break: break-word; }
-        .fl-weight { border: 0.25mm solid #000; padding: 0.3mm 0.8mm; font-family: "Courier New", Courier, monospace; font-size: 2.3mm; font-weight: 700; }
+        .fl-name { font-weight: 900; font-size: 3mm; }
+        .fl-addr { font-size: 2.45mm; line-height: 1.15; white-space: pre-line; overflow: hidden; min-height: 6.1mm; }
+        .fl-city-phone { font-size: 2.35mm; color: #111; font-weight: 700; }
+        .fl-from { border-top: 0.3mm solid #000; padding-top: 0.8mm; font-size: 2.25mm; }
+        .fl-from-line { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 800; }
       </style>
     </head>
     <body>${pages.join("")}</body>
@@ -1207,7 +1212,9 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     out,
     /(<div class="field strong en" style="left:47\.56mm;top:105\.69mm;width:65\.06mm;font-size:4\.(?:58|95)mm(?:;line-height:1\.08)?;">)([^<]*)(<\/div>)/g,
     slotIndex,
-    (_m, p1, _old, p3) => `${p1}${escapeHtml(shipperName)}${p3}`,
+    (_m, p1, _old, p3) =>
+      `${p1}${escapeHtml(shipperName)}${p3}` +
+      `<div class="field mono en" style="left:47.56mm;top:109.70mm;width:80.06mm;font-size:3.15mm;white-space:nowrap;overflow:hidden;">CNIC: ${escapeHtml(shipperCnic)}</div>`,
   );
   out = replaceNth(
     out,

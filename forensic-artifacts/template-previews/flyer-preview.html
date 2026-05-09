@@ -23,7 +23,7 @@
           box-sizing: border-box;
           padding: 2mm;
           display: grid;
-          grid-template-rows: auto auto 1fr auto;
+          grid-template-rows: auto auto 1fr auto auto;
           gap: 1.2mm;
           overflow: hidden;
         }
@@ -37,19 +37,20 @@
         .fl-barcode-image { width: 88mm; height: 9mm; object-fit: contain; display: block; }
         .fl-barcode-fallback { width: 88mm; height: 9mm; border: 0.3mm dashed #000; display: grid; place-items: center; font-weight: 900; font-size: 2.5mm; }
         .fl-tracking { font-family: "Courier New", Courier, monospace; font-weight: 900; letter-spacing: 0.24mm; font-size: 2.4mm; text-align: center; }
-        .fl-amount-box { border: 0.35mm solid #000; padding: 0.9mm 1.3mm; display: grid; gap: 0.5mm; background: #fff; }
+        .fl-bottom-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1mm; align-items: stretch; }
+        .fl-card { border: 0.35mm solid #000; padding: 0.9mm 1.2mm; display: grid; gap: 0.45mm; background: #fff; min-height: 15.5mm; align-content: start; }
+        .fl-amount-box { display: grid; gap: 0.5mm; }
         .fl-amount-title { font-size: 2.2mm; font-weight: 900; letter-spacing: 0.2mm; border-bottom: 0.25mm solid #000; padding-bottom: 0.35mm; }
         .fl-amount-row { display: flex; justify-content: space-between; gap: 2mm; font-size: 2.25mm; font-weight: 800; }
-        .fl-to { display: grid; gap: 0.5mm; overflow: hidden; }
+        .fl-product-title { font-size: 2.2mm; font-weight: 900; letter-spacing: 0.2mm; border-bottom: 0.25mm solid #000; padding-bottom: 0.35mm; }
+        .fl-product-row { display: flex; justify-content: space-between; gap: 2mm; font-size: 2.25mm; font-weight: 800; }
+        .fl-to { display: grid; gap: 0.45mm; overflow: hidden; border: 0.3mm solid #000; padding: 0.95mm 1.2mm; }
         .fl-k { font-weight: 900; font-size: 2.5mm; letter-spacing: 0.3mm; }
-        .fl-name { font-weight: 900; font-size: 3.2mm; }
-        .fl-addr { font-size: 2.6mm; line-height: 1.15; white-space: pre-line; overflow: hidden; }
-        .fl-city-phone { font-size: 2.5mm; color: #222; }
-        .fl-from { display: grid; gap: 0.45mm; border-top: 0.3mm solid #000; padding-top: 0.8mm; font-size: 2.4mm; }
-        .fl-from-name { font-weight: 700; }
-        .fl-from-cnic, .fl-from-phone { font-size: 2.2mm; font-weight: 700; }
-        .fl-from-address { font-size: 2.25mm; line-height: 1.15; white-space: pre-line; overflow-wrap: anywhere; word-break: break-word; }
-        .fl-weight { border: 0.25mm solid #000; padding: 0.3mm 0.8mm; font-family: "Courier New", Courier, monospace; font-size: 2.3mm; font-weight: 700; }
+        .fl-name { font-weight: 900; font-size: 3mm; }
+        .fl-addr { font-size: 2.45mm; line-height: 1.15; white-space: pre-line; overflow: hidden; min-height: 6.1mm; }
+        .fl-city-phone { font-size: 2.35mm; color: #111; font-weight: 700; }
+        .fl-from { border-top: 0.3mm solid #000; padding-top: 0.8mm; font-size: 2.25mm; }
+        .fl-from-line { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 800; }
       </style>
     </head>
     <body><div class="fl-page">
@@ -65,25 +66,28 @@
           <div class="fl-barcode-fallback">VPL26030726</div>
           <div class="fl-tracking">VPL26030726</div>
         </div>
-        <div class="fl-amount-box">
-          <div class="fl-amount-title">MONEY ORDER SUMMARY</div>
-          <div class="fl-amount-row"><span>MO Amount</span><span>Rs.800</span></div>
-          <div class="fl-amount-row"><span>MO Commission</span><span>Rs.75</span></div>
-          <div class="fl-amount-row"><span>Gross Collect Amount</span><span>Rs.875</span></div>
-        </div>
         <div class="fl-to">
           <span class="fl-k">TO:</span>
           <span class="fl-name">Receiver Test</span>
           <div class="fl-addr">House 12, Street 3, Model Town</div>
-          <div class="fl-city-phone">Lahore · 03001234567</div>
+          <div class="fl-city-phone">Lahore</div>
+          <div class="fl-city-phone">03001234567</div>
+        </div>
+        <div class="fl-bottom-grid">
+          <div class="fl-card fl-amount-box">
+          <div class="fl-amount-title">MONEY ORDER SUMMARY</div>
+          <div class="fl-amount-row"><span>MO Amount</span><span>Rs.800</span></div>
+          <div class="fl-amount-row"><span>MO Commission</span><span>Rs.75</span></div>
+          <div class="fl-amount-row"><span>Gross Collect Amount</span><span>Rs.875</span></div>
+          </div>
+          <div class="fl-card fl-product-box">
+            <div class="fl-product-title">PRODUCT DETAILS</div>
+            <div class="fl-product-row"><span>Weight</span><span>1000 g</span></div>
+            <div class="fl-product-row"><span>Order ID</span><span>ORDER-9981</span></div>
+          </div>
         </div>
         <div class="fl-from">
-          <span class="fl-k">FROM:</span>
-          <span class="fl-from-name">Sender Test (35202-1234567-1)</span>
-          <div class="fl-from-cnic">CNIC: 35202-1234567-1</div>
-          <div class="fl-from-address">Office 14, Main Boulevard, Karachi</div>
-          <div class="fl-from-phone">Phone: 03112223334</div>
-          <span class="fl-weight">1000 g</span>
+          <span class="fl-from-line">FROM: Sender Business Pvt Ltd | Office 14, Main Boulevard, Karachi | 03112223334</span>
         </div>
       </div><div class="fl-label fl-label-empty"></div><div class="fl-label fl-label-empty"></div><div class="fl-label fl-label-empty"></div><div class="fl-label fl-label-empty"></div><div class="fl-label fl-label-empty"></div><div class="fl-label fl-label-empty"></div><div class="fl-label fl-label-empty"></div></div></body>
   </html>
