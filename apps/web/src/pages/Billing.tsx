@@ -235,10 +235,6 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                   </div>
                   <div className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-emerald-500" />
-                    Complaint Cost: 10 Units Each
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-emerald-500" />
                     Complaint Limits: {plan.dailyComplaintLimit ?? 0}/day, {plan.monthlyComplaintLimit ?? 0}/month
                   </div>
                 </div>

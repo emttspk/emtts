@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createCanvas } from "canvas";
 import JsBarcode from "jsbarcode";
-import { PRINT_MARKETING_LINE } from "../lib/printBranding.js";
+import { PRINT_MARKETING_LINE, PRINTABLE_FOOTER_CLASS_NAME, PRINTABLE_FOOTER_CSS } from "../lib/printBranding.js";
 import {
   buildMoneyOrderNumber,
   buildTrackingId,
@@ -244,6 +244,10 @@ const ESCAPED_PRINT_MARKETING_LINE = escapeHtml(PRINT_MARKETING_LINE);
 
 function marketingFooterTextHtml() {
   return ESCAPED_PRINT_MARKETING_LINE;
+}
+
+function injectSharedFooterCss(head: string) {
+  return head.replace(/<\/head>/i, `<style>${PRINTABLE_FOOTER_CSS}</style></head>`);
 }
 
 type LabelAmountSummary = {
@@ -494,7 +498,7 @@ export function labelsHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?:
         ${renderBoxAmountBlock(amountSummary)}
 
         <div class="footer">
-          <div class="footer-strong">${marketingFooterTextHtml()}</div>
+          <div class="footer-strong ${PRINTABLE_FOOTER_CLASS_NAME}">${marketingFooterTextHtml()}</div>
         </div>
       </div>
     `;
@@ -515,7 +519,7 @@ export function labelsHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?:
     pages.push(`<div class="page">${pageData.map((item) => renderLabelSlot(item)).join("")}</div>`);
   }
 
-  return `${template.head}${pages.join("")}${template.tail}`;
+  return `${injectSharedFooterCss(template.head)}${pages.join("")}${template.tail}`;
 }
 
 export function boxPreviewHtml(opts?: {
@@ -842,7 +846,7 @@ export function envelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking
 
   const template = loadEnvelopeTemplate();
   const pages = orders.map((order) => renderEnvelopePage(template.body, order)).join("");
-  return `${template.head}${pages}${template.tail}`;
+  return `${injectSharedFooterCss(template.head)}${pages}${template.tail}`;
 }
 
 export function moneyOrderHtml(
@@ -1325,7 +1329,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     slotIndex,
     (_m, p1, _old, p3) =>
       `${p1}${escapeHtml(tracking)}${p3}` +
-        `<div class="field en" style="left:70.00mm;top:203.15mm;width:66.00mm;text-align:center;font-weight:900;font-size:1.9mm;line-height:1.1;white-space:normal;">${marketingFooterTextHtml()}</div>`,
+        `<div class="field en ${PRINTABLE_FOOTER_CLASS_NAME}" style="left:70.00mm;top:203.15mm;width:66.00mm;line-height:1.1;white-space:normal;">${marketingFooterTextHtml()}</div>`,
   );
 
   return out;
@@ -1342,7 +1346,7 @@ function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataU
   const tail = bodyMatch[3];
   const headWithPrintGuard = head.replace(
     /<\/head>/i,
-    `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding:0.3mm 1.35mm;max-width:68mm;font:700 2.2mm/1.2 \"Money Order Urdu\",\"Noto Nastaliq Urdu\",\"Jameel Noori Nastaleeq\",\"Noto Naskh Arabic\",serif;text-align:center;direction:rtl;unicode-bidi:isolate;white-space:normal;overflow:visible;text-overflow:clip;font-feature-settings:'kern' 1,'liga' 1,'clig' 1,'calt' 1,'rlig' 1;text-rendering:geometricPrecision;-webkit-font-smoothing:antialiased}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`,
+    `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}${PRINTABLE_FOOTER_CSS}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding-top:4mm;padding-right:1.35mm;padding-bottom:2mm;padding-left:1.35mm;max-width:68mm;font-size:18px;font-family:\"Noto Nastaliq Urdu\",\"Money Order Urdu\",\"Jameel Noori Nastaleeq\",\"Noto Naskh Arabic\",serif;font-weight:700;line-height:1.9;letter-spacing:normal;text-align:center;direction:rtl;unicode-bidi:isolate;white-space:normal;overflow:visible;text-overflow:clip;font-feature-settings:'kern' 1,'liga' 1,'clig' 1,'calt' 1,'rlig' 1;text-rendering:geometricPrecision;-webkit-font-smoothing:antialiased}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`,
   );
   const [frontSheetTemplate, backSheetTemplate] = splitBenchmarkSheets(benchmarkBody);
 
