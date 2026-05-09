@@ -55,27 +55,27 @@ function resolveMoneyOrderCommission(order: Record<string, unknown>) {
 
 function deriveNetCommissionFromGross(grossAmount: number, shipmentType: unknown) {
   const normalizedShipment = String(shipmentType ?? "").trim().toUpperCase();
-  const moAmount = Math.max(0, Math.floor(grossAmount));
+  const gross = Math.max(0, Math.floor(grossAmount));
   
-  // Phase 5: Envelope special calculation rules (separate from VPL/VPP)
-  if (normalizedShipment === "ENVELOPE") {
-    const envelopeCommission = moAmount > 10_000 ? 100 : 75;
-    return { netAmount: moAmount, commission: envelopeCommission };
-  }
-  
-  // Standard VPL/VPP calculation
-  if (normalizedShipment === "VPL" || normalizedShipment === "VPP") {
-    const commission = moAmount > 10_000 ? 100 : 75;
-    return { netAmount: moAmount, commission };
-  }
-
   // COD: no commission — collect amount is the MO amount directly
   if (normalizedShipment === "COD") {
-    return { netAmount: moAmount, commission: 0 };
+    return { netAmount: gross, commission: 0 };
+  }
+
+  // VPL/VPP: Calculate commission based on GROSS amount, then derive net
+  if (normalizedShipment === "VPL" || normalizedShipment === "VPP") {
+    const commission = gross > 10_000 ? 100 : 75;
+    return { netAmount: Math.max(0, gross - commission), commission };
+  }
+
+  // ENVELOPE: Calculate commission based on gross, then derive net
+  if (normalizedShipment === "ENVELOPE") {
+    const commission = gross > 10_000 ? 100 : 75;
+    return { netAmount: Math.max(0, gross - commission), commission };
   }
 
   // All other types (parcel, document, etc.) - no commission
-  return { netAmount: moAmount, commission: 0 };
+  return { netAmount: gross, commission: 0 };
 }
 
 function formatWeightInGrams(value: unknown) {
@@ -329,7 +329,9 @@ function resolveMoneyOrderAmount(order: Pick<LabelOrder, "CollectAmount" | "ship
     return reverseMoneyOrderFromGross(collectAmount, shipmentType).moAmount;
   }
 
-  return collectAmount;
+  // For normal cases, derive net MO amount from collect amount (gross)
+  const { netAmount } = deriveNetCommissionFromGross(collectAmount, shipmentType);
+  return netAmount;
 }
 
 function renderBoxAmountBlock(summary: LabelAmountSummary) {
