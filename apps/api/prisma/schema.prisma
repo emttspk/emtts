@@ -343,7 +343,7 @@ model ManualPaymentRequest {
   userId        String
   planId        String
   invoiceId     String?   // links to Invoice created during plan selection
-  paymentMethod String    // JAZZCASH | EASYPAISA
+  paymentMethod String    // JAZZCASH | EASYPAISA | BANK_TRANSFER
   transactionId String
   screenshotPath String?
   amountCents   Int
@@ -373,6 +373,11 @@ model BillingSettings {
   easypaisaNumber  String
   easypaisaTitle   String
   easypaisaQrPath  String?
+  bankName         String?
+  bankTitle        String?
+  bankAccountNumber String?
+  bankIban         String?
+  bankQrPath       String?
   standardPrice    Int
   businessPrice    Int
   createdAt        DateTime @default(now())

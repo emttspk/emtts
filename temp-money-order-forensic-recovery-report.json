@@ -1,0 +1,64 @@
+{
+  "apiBaseUrl": "https://api.epost.pk",
+  "credentialsSource": "auto",
+  "timestamp": "2026-05-08T22:27:04.020Z",
+  "phase5": {
+    "jobId": "35664778-a105-4a11-a83d-28b852107d56",
+    "jobStatus": "COMPLETED",
+    "labelsPdf": {
+      "kind": "labels",
+      "outPath": "C:\\Users\\Nazim\\Desktop\\P.Post\\Label Generator\\forensic-artifacts\\35664778-a105-4a11-a83d-28b852107d56-labels.pdf",
+      "bytes": 51440,
+      "imageTokenCount": 1
+    },
+    "moneyPdf": {
+      "kind": "money-orders",
+      "outPath": "C:\\Users\\Nazim\\Desktop\\P.Post\\Label Generator\\forensic-artifacts\\35664778-a105-4a11-a83d-28b852107d56-money-orders.pdf",
+      "bytes": 358443,
+      "imageTokenCount": 5
+    },
+    "visualInference": {
+      "labelsHasImageTokens": true,
+      "moneyOrdersHasImageTokens": true,
+      "heuristic": "Money-order PDF contains embedded image resources; verify first page visually in OS PDF viewer if needed."
+    }
+  },
+  "phase6": {
+    "exemptFilename": {
+      "filename": "LCS 15-13-11-2024.xls",
+      "firstUpload": {
+        "ok": true,
+        "status": 200,
+        "jobId": "07b15b54-a61e-47c9-8440-9f1089094d7c"
+      },
+      "secondUpload": {
+        "ok": true,
+        "status": 200,
+        "jobId": "6e84e02a-d5c0-4a57-becb-06823862208d"
+      },
+      "expected": "second upload accepted"
+    },
+    "nonExemptFilename": {
+      "filename": "forensic-non-exempt-1778279244700.csv",
+      "firstUpload": {
+        "ok": true,
+        "status": 200,
+        "jobId": "49c80933-bd1e-4823-8228-8d03c87dfd42"
+      },
+      "secondUpload": {
+        "ok": false,
+        "status": 409,
+        "errorMessage": "This file name already exists."
+      },
+      "expected": "second upload blocked"
+    },
+    "adminExemptionListAccess": {
+      "ok": false,
+      "status": 403,
+      "message": "https://api.epost.pk/api/admin/settings -> Forbidden"
+    }
+  },
+  "notes": [
+    "Admin exemption list update endpoint is not accessible with current token; dynamic admin-list mutation could not be validated in this run."
+  ]
+}

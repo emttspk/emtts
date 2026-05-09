@@ -18,6 +18,7 @@ type InvoiceData = {
 type WalletInfo = {
   jazzcash: { accountNumber: string; accountTitle: string; qrUrl: string | null; qrVersion?: string | null };
   easypaisa: { accountNumber: string; accountTitle: string; qrUrl: string | null; qrVersion?: string | null };
+  bankTransfer: { bankName: string; accountTitle: string; accountNumber: string; iban: string; qrUrl: string | null; qrVersion?: string | null };
 };
 
 type MyPaymentRequest = {
@@ -47,7 +48,7 @@ const formatPKR = new Intl.NumberFormat("en-PK", {
   maximumFractionDigits: 0,
 });
 
-type PaymentMethod = "JAZZCASH" | "EASYPAISA";
+type PaymentMethod = "JAZZCASH" | "EASYPAISA" | "BANK_TRANSFER";
 
 export default function ManualPaymentModal({ plan, invoice, onClose, onSuccess }: Props) {
   const [step, setStep] = useState<"method" | "details" | "submitted">("method");
@@ -87,7 +88,12 @@ export default function ManualPaymentModal({ plan, invoice, onClose, onSuccess }
       .finally(() => setLoadingPending(false));
   }, [plan.id]);
 
-  const selectedInfo = method ? walletInfo?.[method.toLowerCase() as "jazzcash" | "easypaisa"] : null;
+  const selectedInfo = method
+    ? method === "BANK_TRANSFER"
+      ? walletInfo?.bankTransfer
+      : walletInfo?.[method.toLowerCase() as "jazzcash" | "easypaisa"]
+    : null;
+  const selectedBankInfo = method === "BANK_TRANSFER" ? walletInfo?.bankTransfer ?? null : null;
 
   function handleMethodSelect(m: PaymentMethod) {
     setMethod(m);
@@ -180,8 +186,8 @@ export default function ManualPaymentModal({ plan, invoice, onClose, onSuccess }
               <p className="text-sm text-slate-600">
                 Transfer {amountFormatted} to the merchant wallet of your choice, then submit the transaction ID below.
               </p>
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                {(["JAZZCASH", "EASYPAISA"] as PaymentMethod[]).map((m) => (
+              <div className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-3">
+                {(["JAZZCASH", "EASYPAISA", "BANK_TRANSFER"] as PaymentMethod[]).map((m) => (
                   <button
                     key={m}
                     type="button"
@@ -190,7 +196,7 @@ export default function ManualPaymentModal({ plan, invoice, onClose, onSuccess }
                     className="flex flex-col items-center gap-2 rounded-2xl border-2 border-slate-200 bg-white p-5 text-sm font-semibold text-slate-800 transition hover:border-brand hover:bg-brand/5 hover:text-brand"
                   >
                     <Smartphone className="h-7 w-7" />
-                    {m === "JAZZCASH" ? "JazzCash" : "Easypaisa"}
+                    {m === "JAZZCASH" ? "JazzCash" : m === "EASYPAISA" ? "Easypaisa" : "Bank Transfer"}
                   </button>
                 ))}
               </div>
@@ -206,17 +212,40 @@ export default function ManualPaymentModal({ plan, invoice, onClose, onSuccess }
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
                   <Smartphone className="h-4 w-4 text-brand" />
-                  {method === "JAZZCASH" ? "JazzCash" : "Easypaisa"} Details
+                  {method === "JAZZCASH" ? "JazzCash" : method === "EASYPAISA" ? "Easypaisa" : "Bank Transfer"} Details
                 </div>
                 <div className="space-y-1 text-sm text-slate-700">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Account Title</span>
-                    <span className="font-medium">{selectedInfo?.accountTitle ?? "-"}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Account Number</span>
-                    <span className="font-medium font-mono">{selectedInfo?.accountNumber ?? "-"}</span>
-                  </div>
+                  {method === "BANK_TRANSFER" ? (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Bank Name</span>
+                        <span className="font-medium">{selectedBankInfo?.bankName ?? "-"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Account Title</span>
+                        <span className="font-medium">{selectedInfo?.accountTitle ?? "-"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Account Number</span>
+                        <span className="font-medium font-mono">{selectedInfo?.accountNumber ?? "-"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">IBAN</span>
+                        <span className="font-medium font-mono">{selectedBankInfo?.iban ?? "-"}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Account Title</span>
+                        <span className="font-medium">{selectedInfo?.accountTitle ?? "-"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Account Number</span>
+                        <span className="font-medium font-mono">{selectedInfo?.accountNumber ?? "-"}</span>
+                      </div>
+                    </>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-slate-500">Invoice</span>
                     <span className="font-mono font-semibold text-slate-800">{invoice.invoiceNumber}</span>

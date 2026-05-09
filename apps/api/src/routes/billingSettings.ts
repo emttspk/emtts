@@ -17,6 +17,7 @@ billingSettingsRouter.get("/", async (req, res) => {
   const settings = await getOrCreateBillingSettings();
   const jazzcashQrExists = Boolean(settings.jazzcashQrPath && fs.existsSync(resolveStoredPath(settings.jazzcashQrPath)));
   const easypaisaQrExists = Boolean(settings.easypaisaQrPath && fs.existsSync(resolveStoredPath(settings.easypaisaQrPath)));
+  const bankQrExists = Boolean(settings.bankQrPath && fs.existsSync(resolveStoredPath(settings.bankQrPath)));
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.setHeader("Pragma", "no-cache");
   res.setHeader("Expires", "0");
@@ -31,6 +32,12 @@ billingSettingsRouter.get("/", async (req, res) => {
       easypaisaTitle: settings.easypaisaTitle,
       easypaisaQrUrl: easypaisaQrExists ? buildAbsoluteApiUrl(req, "/api/manual-payments/wallet-qr/easypaisa") : null,
       easypaisaQrVersion: easypaisaQrExists ? version : null,
+      bankName: settings.bankName,
+      bankTitle: settings.bankTitle,
+      bankAccountNumber: settings.bankAccountNumber,
+      bankIban: settings.bankIban,
+      bankQrUrl: bankQrExists ? buildAbsoluteApiUrl(req, "/api/manual-payments/wallet-qr/bank-transfer") : null,
+      bankQrVersion: bankQrExists ? version : null,
       standardPrice: settings.standardPrice,
       businessPrice: settings.businessPrice,
     },

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Card from "../components/Card";
-import { api, apiUrl, buildAuthenticatedApiUrl } from "../lib/api";
+import { api, apiUrl, buildAuthenticatedApiUrl, triggerBrowserDownload } from "../lib/api";
 import { TEMPLATE_DESIGNER_ENABLED } from "../lib/featureFlags";
 import { BodyText, CardTitle, PageShell, PageTitle, TableWrap } from "../components/ui/PageSystem";
 
@@ -108,6 +108,11 @@ type BillingSettings = {
   easypaisaNumber: string;
   easypaisaTitle: string;
   easypaisaQrUrl: string | null;
+  bankName: string | null;
+  bankTitle: string | null;
+  bankAccountNumber: string | null;
+  bankIban: string | null;
+  bankQrUrl: string | null;
   standardPrice: number;
   businessPrice: number;
   exemptFileNames: string[];
@@ -122,6 +127,18 @@ const formatPKR = new Intl.NumberFormat("en-PK", {
   minimumFractionDigits: 0,
   maximumFractionDigits: 0,
 });
+
+function getPaymentMethodBadgeClasses(method: string) {
+  if (method === "JAZZCASH") return "bg-red-100 text-red-700";
+  if (method === "EASYPAISA") return "bg-green-100 text-green-700";
+  if (method === "BANK_TRANSFER") return "bg-blue-100 text-blue-700";
+  return "bg-slate-100 text-slate-700";
+}
+
+function getPaymentMethodLabel(method: string) {
+  if (method === "BANK_TRANSFER") return "Bank Transfer";
+  return method;
+}
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -143,14 +160,20 @@ export default function Admin() {
     jazzcashTitle: "",
     easypaisaNumber: "",
     easypaisaTitle: "",
+    bankName: "",
+    bankTitle: "",
+    bankAccountNumber: "",
+    bankIban: "",
     standardPrice: "",
     businessPrice: "",
     exemptFileNamesText: "",
   });
   const [jazzcashQrFile, setJazzcashQrFile] = useState<File | null>(null);
   const [easypaisaQrFile, setEasypaisaQrFile] = useState<File | null>(null);
+  const [bankQrFile, setBankQrFile] = useState<File | null>(null);
   const [clearJazzcashQr, setClearJazzcashQr] = useState(false);
   const [clearEasypaisaQr, setClearEasypaisaQr] = useState(false);
+  const [clearBankQr, setClearBankQr] = useState(false);
   const [savingBillingSettings, setSavingBillingSettings] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [month, setMonth] = useState(() => {
@@ -235,14 +258,20 @@ export default function Admin() {
       jazzcashTitle: bs.settings.jazzcashTitle,
       easypaisaNumber: bs.settings.easypaisaNumber,
       easypaisaTitle: bs.settings.easypaisaTitle,
+      bankName: bs.settings.bankName ?? "",
+      bankTitle: bs.settings.bankTitle ?? "",
+      bankAccountNumber: bs.settings.bankAccountNumber ?? "",
+      bankIban: bs.settings.bankIban ?? "",
       standardPrice: String(bs.settings.standardPrice),
       businessPrice: String(bs.settings.businessPrice),
       exemptFileNamesText: (bs.settings.exemptFileNames ?? []).join("\n"),
     });
     setClearJazzcashQr(false);
     setClearEasypaisaQr(false);
+    setClearBankQr(false);
     setJazzcashQrFile(null);
     setEasypaisaQrFile(null);
+    setBankQrFile(null);
   }
 
   async function updatePlan(plan: Plan) {
@@ -326,6 +355,10 @@ export default function Admin() {
       formData.append("jazzcashTitle", billingDraft.jazzcashTitle.trim());
       formData.append("easypaisaNumber", billingDraft.easypaisaNumber.trim());
       formData.append("easypaisaTitle", billingDraft.easypaisaTitle.trim());
+      formData.append("bankName", billingDraft.bankName.trim());
+      formData.append("bankTitle", billingDraft.bankTitle.trim());
+      formData.append("bankAccountNumber", billingDraft.bankAccountNumber.trim());
+      formData.append("bankIban", billingDraft.bankIban.trim());
       formData.append("standardPrice", billingDraft.standardPrice.trim());
       formData.append("businessPrice", billingDraft.businessPrice.trim());
       formData.append(
@@ -339,8 +372,10 @@ export default function Admin() {
       );
       if (jazzcashQrFile) formData.append("jazzcashQr", jazzcashQrFile);
       if (easypaisaQrFile) formData.append("easypaisaQr", easypaisaQrFile);
+      if (bankQrFile) formData.append("bankQr", bankQrFile);
       if (clearJazzcashQr) formData.append("clearJazzcashQr", "true");
       if (clearEasypaisaQr) formData.append("clearEasypaisaQr", "true");
+      if (clearBankQr) formData.append("clearBankQr", "true");
 
       const json = await api<{ settings?: BillingSettings }>("/api/admin/billing-settings", {
         method: "PUT",
@@ -354,6 +389,10 @@ export default function Admin() {
           jazzcashTitle: json.settings.jazzcashTitle,
           easypaisaNumber: json.settings.easypaisaNumber,
           easypaisaTitle: json.settings.easypaisaTitle,
+          bankName: json.settings.bankName ?? "",
+          bankTitle: json.settings.bankTitle ?? "",
+          bankAccountNumber: json.settings.bankAccountNumber ?? "",
+          bankIban: json.settings.bankIban ?? "",
           standardPrice: String(json.settings.standardPrice),
           businessPrice: String(json.settings.businessPrice),
           exemptFileNamesText: (json.settings.exemptFileNames ?? []).join("\n"),
@@ -361,8 +400,10 @@ export default function Admin() {
       }
       setJazzcashQrFile(null);
       setEasypaisaQrFile(null);
+      setBankQrFile(null);
       setClearJazzcashQr(false);
       setClearEasypaisaQr(false);
+      setClearBankQr(false);
       await refresh();
     } catch (error) {
       setErr(error instanceof Error ? error.message : "Failed to save billing settings");
@@ -434,6 +475,13 @@ export default function Admin() {
     } finally {
       setManualPaymentAction((prev) => ({ ...prev, [id]: false }));
     }
+  }
+
+  function handleDownloadInvoicePdf(invoiceId: string, invoiceNumber: string) {
+    triggerBrowserDownload(
+      `/api/admin/invoices/${invoiceId}/download`,
+      `${invoiceNumber || `invoice-${invoiceId}`}.pdf`,
+    );
   }
 
   useEffect(() => {
@@ -791,14 +839,15 @@ export default function Admin() {
                   <th className="px-4 py-3">Issued</th>
                   <th className="px-4 py-3">Paid</th>
                   <th className="px-4 py-3">Payments</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
                 {loadingInvoices && (
-                  <tr><td className="px-4 py-6 text-center text-sm text-slate-400" colSpan={8}>Loading...</td></tr>
+                  <tr><td className="px-4 py-6 text-center text-sm text-slate-400" colSpan={9}>Loading...</td></tr>
                 )}
                 {!loadingInvoices && invoices.length === 0 && (
-                  <tr><td className="px-4 py-6 text-center text-sm text-slate-400" colSpan={8}>No invoices found.</td></tr>
+                  <tr><td className="px-4 py-6 text-center text-sm text-slate-400" colSpan={9}>No invoices found.</td></tr>
                 )}
                 {paginatedInvoices.map((inv) => (
                   <tr key={inv.id} className="transition-colors hover:bg-gray-50/60">
@@ -828,14 +877,23 @@ export default function Admin() {
                               <span className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${mp.status === "APPROVED" ? "bg-emerald-100 text-emerald-700" : mp.status === "REJECTED" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
                                 {mp.status}
                               </span>
-                              <span className={`rounded-full px-1.5 py-0.5 text-xs ${mp.paymentMethod === "JAZZCASH" ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"}`}>
-                                {mp.paymentMethod}
+                              <span className={`rounded-full px-1.5 py-0.5 text-xs ${getPaymentMethodBadgeClasses(mp.paymentMethod).replace("100", "50").replace("700", "600")}`}>
+                                {getPaymentMethodLabel(mp.paymentMethod)}
                               </span>
                               <span className="font-mono text-xs text-slate-500">{mp.transactionId}</span>
                             </div>
                           ))}
                         </div>
                       )}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadInvoicePdf(inv.id, inv.invoiceNumber)}
+                        className="rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-lg hover:bg-slate-50"
+                      >
+                        Download PDF
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -856,7 +914,7 @@ export default function Admin() {
           <div className="text-xl font-medium text-gray-900">Billing Settings</div>
           <div className="mt-1 text-sm text-gray-600">Configure wallet accounts, optional QR images, and plan prices for Standard/Business.</div>
 
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
             <Card className="p-4">
               <div className="text-sm font-semibold text-slate-900">JazzCash</div>
               <div className="mt-3 space-y-2">
@@ -918,6 +976,49 @@ export default function Admin() {
                 </label>
               </div>
             </Card>
+
+            <Card className="p-4">
+              <div className="text-sm font-semibold text-slate-900">Bank Transfer</div>
+              <div className="mt-3 space-y-2">
+                <input
+                  className="w-full rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg"
+                  value={billingDraft.bankName}
+                  onChange={(e) => setBillingDraft((prev) => ({ ...prev, bankName: e.target.value }))}
+                  placeholder="Bank name"
+                />
+                <input
+                  className="w-full rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg"
+                  value={billingDraft.bankTitle}
+                  onChange={(e) => setBillingDraft((prev) => ({ ...prev, bankTitle: e.target.value }))}
+                  placeholder="Account title"
+                />
+                <input
+                  className="w-full rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg"
+                  value={billingDraft.bankAccountNumber}
+                  onChange={(e) => setBillingDraft((prev) => ({ ...prev, bankAccountNumber: e.target.value }))}
+                  placeholder="Account number"
+                />
+                <input
+                  className="w-full rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg"
+                  value={billingDraft.bankIban}
+                  onChange={(e) => setBillingDraft((prev) => ({ ...prev, bankIban: e.target.value }))}
+                  placeholder="IBAN"
+                />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setBankQrFile(e.target.files?.[0] ?? null)}
+                  className="w-full rounded-2xl border bg-white px-3 py-2 text-sm shadow-lg"
+                />
+                {billingSettings?.bankQrUrl && !clearBankQr ? (
+                  <img src={apiUrl(billingSettings.bankQrUrl)} alt="Bank Transfer QR" className="h-28 w-28 rounded-xl border object-contain" />
+                ) : null}
+                <label className="flex items-center gap-2 text-xs text-slate-600">
+                  <input type="checkbox" checked={clearBankQr} onChange={(e) => setClearBankQr(e.target.checked)} />
+                  Remove Bank QR
+                </label>
+              </div>
+            </Card>
           </div>
 
           <Card className="mt-4 p-4">
@@ -969,7 +1070,7 @@ export default function Admin() {
         <Card className="min-w-0 w-full overflow-hidden">
           <div className="border-b px-6 py-4">
             <div className="text-xl font-medium text-gray-900">Wallet Payment Queue</div>
-            <div className="mt-1 text-sm text-gray-600">Review and approve/reject manual JazzCash &amp; Easypaisa payment submissions.</div>
+            <div className="mt-1 text-sm text-gray-600">Review and approve/reject manual JazzCash, Easypaisa, and Bank Transfer payment submissions.</div>
             <div className="mt-3 flex flex-wrap gap-2">
               {(["PENDING", "APPROVED", "REJECTED", "ALL"] as const).map((f) => (
                 <button
@@ -1022,8 +1123,8 @@ export default function Admin() {
                     </td>
                     <td className="px-4 py-3 text-slate-700">{payment.plan.name}</td>
                     <td className="px-4 py-3">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${payment.paymentMethod === "JAZZCASH" ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
-                        {payment.paymentMethod}
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${getPaymentMethodBadgeClasses(payment.paymentMethod)}`}>
+                        {getPaymentMethodLabel(payment.paymentMethod)}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-slate-700">{payment.transactionId}</td>

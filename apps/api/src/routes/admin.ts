@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import multer from "multer";
 import { z } from "zod";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { monthKeyUTC } from "../usage/month.js";
@@ -763,6 +764,7 @@ adminRouter.get("/billing-settings", async (req, res) => {
   ]);
   const jazzcashQrExists = Boolean(settings.jazzcashQrPath && fs.existsSync(resolveStoredPath(settings.jazzcashQrPath)));
   const easypaisaQrExists = Boolean(settings.easypaisaQrPath && fs.existsSync(resolveStoredPath(settings.easypaisaQrPath)));
+  const bankQrExists = Boolean(settings.bankQrPath && fs.existsSync(resolveStoredPath(settings.bankQrPath)));
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.setHeader("Pragma", "no-cache");
   res.setHeader("Expires", "0");
@@ -772,6 +774,7 @@ adminRouter.get("/billing-settings", async (req, res) => {
       exemptFileNames,
       jazzcashQrUrl: jazzcashQrExists ? buildAbsoluteApiUrl(req, "/api/manual-payments/wallet-qr/jazzcash") : null,
       easypaisaQrUrl: easypaisaQrExists ? buildAbsoluteApiUrl(req, "/api/manual-payments/wallet-qr/easypaisa") : null,
+      bankQrUrl: bankQrExists ? buildAbsoluteApiUrl(req, "/api/manual-payments/wallet-qr/bank-transfer") : null,
     },
   });
 });
@@ -781,6 +784,7 @@ adminRouter.put(
   billingQrUpload.fields([
     { name: "jazzcashQr", maxCount: 1 },
     { name: "easypaisaQr", maxCount: 1 },
+    { name: "bankQr", maxCount: 1 },
   ]),
   async (req, res) => {
     const body = z
@@ -789,6 +793,10 @@ adminRouter.put(
         jazzcashTitle: z.string().trim().min(1),
         easypaisaNumber: z.string().trim().min(1),
         easypaisaTitle: z.string().trim().min(1),
+        bankName: z.string().trim().optional(),
+        bankTitle: z.string().trim().optional(),
+        bankAccountNumber: z.string().trim().optional(),
+        bankIban: z.string().trim().optional(),
         standardPrice: z.coerce.number().int().positive(),
         businessPrice: z.coerce.number().int().positive(),
         clearJazzcashQr: z
@@ -796,6 +804,10 @@ adminRouter.put(
           .optional()
           .transform((v) => v === "true"),
         clearEasypaisaQr: z
+          .string()
+          .optional()
+          .transform((v) => v === "true"),
+        clearBankQr: z
           .string()
           .optional()
           .transform((v) => v === "true"),
@@ -821,6 +833,7 @@ adminRouter.put(
     const files = (req.files ?? {}) as Record<string, Express.Multer.File[]>;
     const jazzcashQr = files.jazzcashQr?.[0];
     const easypaisaQr = files.easypaisaQr?.[0];
+    const bankQr = files.bankQr?.[0];
 
     console.info("[BillingSettings] save request", {
       actor: (req as any).user?.id ?? "unknown",
@@ -828,12 +841,18 @@ adminRouter.put(
       jazzcashTitle: body.jazzcashTitle,
       easypaisaNumber: body.easypaisaNumber,
       easypaisaTitle: body.easypaisaTitle,
+      bankName: body.bankName ?? null,
+      bankTitle: body.bankTitle ?? null,
+      bankAccountNumber: body.bankAccountNumber ?? null,
+      bankIban: body.bankIban ?? null,
       standardPrice: body.standardPrice,
       businessPrice: body.businessPrice,
       hasJazzcashQrUpload: Boolean(jazzcashQr),
       hasEasypaisaQrUpload: Boolean(easypaisaQr),
+      hasBankQrUpload: Boolean(bankQr),
       clearJazzcashQr: body.clearJazzcashQr,
       clearEasypaisaQr: body.clearEasypaisaQr,
+      clearBankQr: body.clearBankQr,
     });
 
     const current = await getOrCreateBillingSettings();
@@ -847,6 +866,11 @@ adminRouter.put(
       : body.clearEasypaisaQr
         ? null
         : current.easypaisaQrPath;
+    const bankQrPath = bankQr
+      ? toStoredPath(bankQr.path)
+      : body.clearBankQr
+        ? null
+        : current.bankQrPath;
 
     const updated = await prisma.billingSettings.upsert({
       where: { id: 1 },
@@ -858,6 +882,11 @@ adminRouter.put(
         easypaisaNumber: body.easypaisaNumber,
         easypaisaTitle: body.easypaisaTitle,
         easypaisaQrPath,
+        bankName: body.bankName ?? null,
+        bankTitle: body.bankTitle ?? null,
+        bankAccountNumber: body.bankAccountNumber ?? null,
+        bankIban: body.bankIban ?? null,
+        bankQrPath,
         standardPrice: body.standardPrice,
         businessPrice: body.businessPrice,
       },
@@ -868,6 +897,11 @@ adminRouter.put(
         easypaisaNumber: body.easypaisaNumber,
         easypaisaTitle: body.easypaisaTitle,
         easypaisaQrPath,
+        bankName: body.bankName ?? null,
+        bankTitle: body.bankTitle ?? null,
+        bankAccountNumber: body.bankAccountNumber ?? null,
+        bankIban: body.bankIban ?? null,
+        bankQrPath,
         standardPrice: body.standardPrice,
         businessPrice: body.businessPrice,
       },
@@ -888,14 +922,20 @@ adminRouter.put(
       jazzcashTitle: saved?.jazzcashTitle ?? updated.jazzcashTitle,
       easypaisaNumber: saved?.easypaisaNumber ?? updated.easypaisaNumber,
       easypaisaTitle: saved?.easypaisaTitle ?? updated.easypaisaTitle,
+      bankName: saved?.bankName ?? updated.bankName,
+      bankTitle: saved?.bankTitle ?? updated.bankTitle,
+      bankAccountNumber: saved?.bankAccountNumber ?? updated.bankAccountNumber,
+      bankIban: saved?.bankIban ?? updated.bankIban,
       jazzcashQrPath: saved?.jazzcashQrPath ?? updated.jazzcashQrPath,
       easypaisaQrPath: saved?.easypaisaQrPath ?? updated.easypaisaQrPath,
+      bankQrPath: saved?.bankQrPath ?? updated.bankQrPath,
       standardPrice: saved?.standardPrice ?? updated.standardPrice,
       businessPrice: saved?.businessPrice ?? updated.businessPrice,
     });
 
     const jazzcashQrExists = Boolean(updated.jazzcashQrPath && fs.existsSync(resolveStoredPath(updated.jazzcashQrPath)));
     const easypaisaQrExists = Boolean(updated.easypaisaQrPath && fs.existsSync(resolveStoredPath(updated.easypaisaQrPath)));
+    const bankQrExists = Boolean(updated.bankQrPath && fs.existsSync(resolveStoredPath(updated.bankQrPath)));
 
     res.json({
       settings: {
@@ -903,6 +943,7 @@ adminRouter.put(
         exemptFileNames,
         jazzcashQrUrl: jazzcashQrExists ? buildAbsoluteApiUrl(req, "/api/manual-payments/wallet-qr/jazzcash") : null,
         easypaisaQrUrl: easypaisaQrExists ? buildAbsoluteApiUrl(req, "/api/manual-payments/wallet-qr/easypaisa") : null,
+        bankQrUrl: bankQrExists ? buildAbsoluteApiUrl(req, "/api/manual-payments/wallet-qr/bank-transfer") : null,
       },
     });
   },
@@ -1157,4 +1198,66 @@ adminRouter.get("/invoices", async (req, res) => {
     take: 200,
   });
   return res.json({ invoices });
+});
+
+adminRouter.get("/invoices/:invoiceId/download", async (req, res) => {
+  const invoiceId = String(req.params.invoiceId ?? "").trim();
+  if (!invoiceId) return res.status(400).json({ error: "Missing invoice id" });
+
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    include: {
+      user: { select: { email: true, companyName: true } },
+      plan: { select: { name: true } },
+      manualPayments: {
+        select: { transactionId: true, paymentMethod: true },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
+    },
+  });
+
+  if (!invoice) return res.status(404).json({ error: "Invoice not found" });
+
+  const latestPayment = invoice.manualPayments[0] ?? null;
+  const customerName = String(invoice.user.companyName ?? invoice.user.email ?? "-").trim() || "-";
+  const paymentMethod = String(latestPayment?.paymentMethod ?? "-").trim() || "-";
+  const transactionId = String(latestPayment?.transactionId ?? "-").trim() || "-";
+  const amount = (invoice.amountCents / 100).toLocaleString("en-PK", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const status = String(invoice.status ?? "-").trim() || "-";
+  const dateText = new Date(invoice.issuedAt ?? invoice.createdAt).toLocaleDateString("en-PK");
+
+  const pdf = await PDFDocument.create();
+  const page = pdf.addPage([595.28, 841.89]);
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+
+  const left = 50;
+  let y = 790;
+
+  page.drawText("Invoice", { x: left, y, size: 24, font: bold, color: rgb(0.12, 0.12, 0.12) });
+  y -= 40;
+
+  const rows: Array<[string, string]> = [
+    ["Invoice ID", invoice.invoiceNumber],
+    ["Customer Name", customerName],
+    ["Plan Name", String(invoice.plan.name ?? "-")],
+    ["Amount", `Rs. ${amount}`],
+    ["Payment Method", paymentMethod],
+    ["Transaction ID", transactionId],
+    ["Status", status],
+    ["Date", dateText],
+  ];
+
+  for (const [label, value] of rows) {
+    page.drawText(`${label}:`, { x: left, y, size: 12, font: bold, color: rgb(0.2, 0.2, 0.2) });
+    page.drawText(String(value || "-"), { x: left + 140, y, size: 12, font, color: rgb(0.25, 0.25, 0.25) });
+    y -= 28;
+  }
+
+  const pdfBytes = await pdf.save();
+  const fileName = `${invoice.invoiceNumber || `invoice-${invoice.id}`}.pdf`;
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+  return res.send(Buffer.from(pdfBytes));
 });

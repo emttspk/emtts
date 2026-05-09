@@ -1,9 +1,43 @@
 # Deployment Status
 
-**Last Updated:** 2026-05-08  
-**Commit:** pending local commit — restore original money order template file and fix front background rendering  
+**Last Updated:** 2026-05-09  
+**Commit:** pending local commit — remove sender profile from workspace add invoice pdf and bank transfer billing option  
 **Railway Project:** 144be6f4-a17c-47ec-8c23-3d5963c4d5fb  
 **Status:** API + WEB DEPLOYED, ONLINE, AND LIVE-VERIFIED
+
+## Mandatory Feature Adjustment Loop — 2026-05-09
+
+### Scope delivered
+- Sender Profile UI removed from Generate Labels and Tracking pages only.
+- Admin Invoices now include `Download PDF` action.
+- Billing Settings now include Bank Transfer details and optional QR.
+- Manual payment flow supports Bank Transfer selection and displays bank details + QR when configured.
+
+### API + Schema updates
+- `GET /api/admin/invoices/:invoiceId/download` added for invoice PDF export.
+- Billing settings API now supports:
+	- `bankName`
+	- `bankTitle`
+	- `bankAccountNumber`
+	- `bankIban`
+	- `bankQrPath`
+- Nullable migration added:
+	- `apps/api/prisma/migrations/20260509090000_add_bank_transfer_billing_fields/migration.sql`
+
+### Validation
+- `npm install`: PASS
+- `npx prisma generate --schema=apps/api/prisma/schema.prisma`: PASS
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS
+- `npm run build`: PASS
+- `npm run dev`: PASS
+- `npm run test`: PASS (`smoke:railway`)
+
+### Deployment proof
+- Api deploy Build Logs id: `326b67c7-c4e2-4751-8966-c0a6648d9891`
+- Web deploy Build Logs id: `d578def8-fc5f-49fb-b438-ed4905f69017`
+- Api logs: auth/login, upload, worker processing, PDF generation complete.
+- Web logs: route and asset requests served successfully.
 
 ## Mandatory Forensic Recovery Loop — Money Order Template Restore
 

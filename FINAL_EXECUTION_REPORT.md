@@ -1,5 +1,57 @@
 # FINAL EXECUTION REPORT — FINAL LIVE VERIFICATION
 
+## Mandatory Feature Adjustment Loop — Sender Profile UI Removal + Invoice PDF + Bank Transfer (2026-05-09)
+
+Objective:
+
+- Remove Sender Profile UI block from Generate Labels and Tracking pages only.
+- Add admin invoice PDF download action from existing invoice source data.
+- Add Bank Transfer support in Billing Settings UI, payment modal, and billing APIs.
+- Keep core business logic and existing backend sender-profile/account flows unchanged.
+
+### Scoped Changes Applied
+
+- Sender Profile UI render removed only from:
+  - `apps/web/src/pages/Upload.tsx`
+  - `apps/web/src/pages/BulkTracking.tsx`
+- Invoice PDF download added:
+  - API endpoint: `GET /api/admin/invoices/:invoiceId/download`
+  - UI action in Admin invoices table (`Download PDF` button)
+  - PDF includes Invoice ID, Customer Name, Plan Name, Amount, Payment Method, Transaction ID, Status, Date
+- Bank Transfer billing settings added:
+  - DB nullable fields: `bankName`, `bankTitle`, `bankAccountNumber`, `bankIban`, `bankQrPath`
+  - Admin settings form fields + optional QR upload/remove
+  - Manual payment method support: `BANK_TRANSFER`
+  - Wallet info endpoint includes `bankTransfer` details + QR URL when present
+
+### Database Migration
+
+- Added safe nullable migration:
+  - `apps/api/prisma/migrations/20260509090000_add_bank_transfer_billing_fields/migration.sql`
+- Prisma schema updated for backward-compatible nullable bank fields.
+
+### Validation Results
+
+- `npm install`: PASS
+- `npx prisma generate --schema=apps/api/prisma/schema.prisma`: PASS
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS (after fixing ManualPaymentModal type narrowing)
+- `npm run build`: PASS
+- `npm run dev`: PASS (web + api startup observed)
+- `npm run test`: PASS (`@labelgen/api smoke:railway` SUCCESS)
+
+### Deployment Results
+
+- Api deploy: `railway up --service Api --detach`
+  - Build Logs id: `326b67c7-c4e2-4751-8966-c0a6648d9891`
+- Web deploy: `railway up --service Web --detach`
+  - Build Logs id: `d578def8-fc5f-49fb-b438-ed4905f69017`
+- Post-deploy verification:
+  - Api logs show live auth/upload/worker/pdf completion traffic.
+  - Web logs show active route and asset responses.
+
+---
+
 ## Mandatory Rollback Loop — Money Order Static Background Restore (2026-05-08)
 
 Rollback objective:

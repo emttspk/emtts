@@ -271,7 +271,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                     disabled={initiatingWalletPlanId === plan.id}
                     onClick={() => initiateWalletPayment(plan)}
                   >
-                    {initiatingWalletPlanId === plan.id ? "Creating invoice…" : "Pay via JazzCash / Easypaisa"}
+                    {initiatingWalletPlanId === plan.id ? "Creating invoice…" : "Pay via JazzCash / Easypaisa / Bank Transfer"}
                   </button>
                 )}
               </div>

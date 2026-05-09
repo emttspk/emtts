@@ -12,6 +12,11 @@ type BillingSettingsShape = {
   easypaisaNumber: string;
   easypaisaTitle: string;
   easypaisaQrPath: string | null;
+  bankName: string | null;
+  bankTitle: string | null;
+  bankAccountNumber: string | null;
+  bankIban: string | null;
+  bankQrPath: string | null;
   standardPrice: number;
   businessPrice: number;
 };
@@ -46,6 +51,11 @@ export async function getOrCreateBillingSettings(client: DbClient = prisma) {
       easypaisaNumber: process.env.EASYPAISA_MERCHANT_ACCOUNT ?? "03xxxxxxxxx",
       easypaisaTitle: process.env.EASYPAISA_MERCHANT_NAME ?? "ePost Pakistan",
       easypaisaQrPath: null,
+      bankName: null,
+      bankTitle: null,
+      bankAccountNumber: null,
+      bankIban: null,
+      bankQrPath: null,
       standardPrice: defaults.standardPrice,
       businessPrice: defaults.businessPrice,
     },

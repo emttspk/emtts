@@ -48,7 +48,7 @@ const upload = multer({
 const submitSchema = z.object({
   planId: z.string().uuid(),
   invoiceId: z.string().uuid().optional(), // links payment to a pre-created Invoice
-  paymentMethod: z.enum(["JAZZCASH", "EASYPAISA"]),
+  paymentMethod: z.enum(["JAZZCASH", "EASYPAISA", "BANK_TRANSFER"]),
   transactionId: z.string().min(4).max(100),
 });
 
@@ -192,6 +192,9 @@ manualPaymentsRouter.get("/wallet-info", async (_req, res) => {
     const easypaisaQrExists = Boolean(
       settings.easypaisaQrPath && fs.existsSync(resolveStoredPath(settings.easypaisaQrPath)),
     );
+    const bankQrExists = Boolean(
+      settings.bankQrPath && fs.existsSync(resolveStoredPath(settings.bankQrPath)),
+    );
     const version = settings.updatedAt.toISOString();
 
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
@@ -210,6 +213,14 @@ manualPaymentsRouter.get("/wallet-info", async (_req, res) => {
         qrUrl: easypaisaQrExists ? buildAbsoluteApiUrl(_req, "/api/manual-payments/wallet-qr/easypaisa") : null,
         qrVersion: easypaisaQrExists ? version : null,
       },
+      bankTransfer: {
+        bankName: settings.bankName ?? "",
+        accountTitle: settings.bankTitle ?? "",
+        accountNumber: settings.bankAccountNumber ?? "",
+        iban: settings.bankIban ?? "",
+        qrUrl: bankQrExists ? buildAbsoluteApiUrl(_req, "/api/manual-payments/wallet-qr/bank-transfer") : null,
+        qrVersion: bankQrExists ? version : null,
+      },
     });
   } catch (error) {
     console.error("[ManualPayment] wallet-info error", error);
@@ -219,12 +230,16 @@ manualPaymentsRouter.get("/wallet-info", async (_req, res) => {
 
 manualPaymentsRouter.get("/wallet-qr/:method", async (req, res) => {
   const method = String(req.params.method ?? "").trim().toLowerCase();
-  if (method !== "jazzcash" && method !== "easypaisa") {
+  if (method !== "jazzcash" && method !== "easypaisa" && method !== "bank-transfer") {
     return res.status(404).json({ error: "Wallet method not found" });
   }
 
   const settings = await getOrCreateBillingSettings();
-  const storedPath = method === "jazzcash" ? settings.jazzcashQrPath : settings.easypaisaQrPath;
+  const storedPath = method === "jazzcash"
+    ? settings.jazzcashQrPath
+    : method === "easypaisa"
+      ? settings.easypaisaQrPath
+      : settings.bankQrPath;
   if (!storedPath) {
     return res.status(404).json({ error: "QR not configured" });
   }
