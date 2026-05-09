@@ -805,9 +805,9 @@ const worker = new Worker(
             amount: (() => {
               const resolvedShipmentType = resolveOrderShipmentType(order, shipmentType);
               const collectAmount = normalizeAmount((order as any).CollectAmount);
-              const barcodeModeValue = String((order as any).barcodeMode ?? "").trim().toLowerCase();
-              const isUploadedGrossRow = barcodeModeValue === "manual" && doAutoGenerateTracking !== true;
-              if (isUploadedGrossRow && (resolvedShipmentType === "VPL" || resolvedShipmentType === "VPP")) {
+              // For VPL/VPP, CollectAmount is always the gross collect amount (receiver pays).
+              // We must store the net MO amount (gross − commission) in the DB.
+              if (resolvedShipmentType === "VPL" || resolvedShipmentType === "VPP") {
                 return reverseMoneyOrderFromGross(collectAmount, resolvedShipmentType).moAmount;
               }
               return collectAmount;

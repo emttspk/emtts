@@ -311,27 +311,26 @@ function getLabelAmountSummary(order: Pick<LabelOrder, "carrierType" | "shipment
 }
 
 function resolveMoneyOrderAmount(order: Pick<LabelOrder, "CollectAmount" | "shipmentType" | "shipmenttype" | "barcodeMode"> & Record<string, unknown>) {
+  // Always derive net MO amount via getLabelAmountSummary (which correctly handles
+  // uploaded-gross vs normal orders and VPL/VPP commission deduction).
+  // Do NOT use the DB-stored amountRs as the primary source — it may have been stored
+  // as the gross collect amount (bug present in pre-fix records).
+  const summary = getLabelAmountSummary(
+    order as Pick<LabelOrder, "carrierType" | "shipmentType" | "shipmenttype" | "CollectAmount" | "barcodeMode">,
+  );
+  if (summary.appliesPakistanPostRules && summary.moAmount > 0) {
+    return summary.moAmount;
+  }
+
+  // Fallback: use the explicit DB-stored amount only for non-Pakistani-Post orders
   const explicitMoAmount = toNum(order.amountRs ?? order.amount ?? 0);
   if (explicitMoAmount > 0) {
     return explicitMoAmount;
   }
 
-  const collectAmount = toNum(
+  return toNum(
     order.CollectAmount ?? order.collect_amount ?? order.collected_amount ?? order.collectAmount ?? 0,
   );
-  if (collectAmount <= 0) {
-    return 0;
-  }
-
-  const shipmentType = resolveOrderShipmentType(order as Pick<LabelOrder, "shipmentType" | "shipmenttype">);
-  const uploadedGrossMode = isUploadedLabelRow(order as Record<string, unknown>) && (shipmentType === "VPL" || shipmentType === "VPP");
-  if (uploadedGrossMode) {
-    return reverseMoneyOrderFromGross(collectAmount, shipmentType).moAmount;
-  }
-
-  // For normal cases, derive net MO amount from collect amount (gross)
-  const { netAmount } = deriveNetCommissionFromGross(collectAmount, shipmentType);
-  return netAmount;
 }
 
 function renderBoxAmountBlock(summary: LabelAmountSummary) {
