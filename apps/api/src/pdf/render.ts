@@ -1,4 +1,5 @@
 import puppeteer, { type Browser } from "puppeteer";
+import { ENVELOPE_DEFAULT_SIZE } from "../lib/printBranding.js";
 
 export async function launchPuppeteerBrowser() {
   const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
@@ -27,8 +28,8 @@ export async function htmlToPdfBuffer(
       await page.setContent(html, { waitUntil: "networkidle0" });
       const pdfOptions = format === "envelope-9x4"
         ? {
-            width: "9in",
-            height: "4in",
+        width: `${ENVELOPE_DEFAULT_SIZE.widthInches}in`,
+        height: `${ENVELOPE_DEFAULT_SIZE.heightInches}in`,
             printBackground: true,
             margin: {
               top: "0mm",
@@ -82,13 +83,23 @@ export async function htmlToPdfBufferInFreshBrowser(
     try {
       await page.setContent(html, { waitUntil: "networkidle0" });
       await page.evaluate(() => document.body.innerHTML.length);
+      const pdfOptions = format === "envelope-9x4"
+        ? {
+            width: `${ENVELOPE_DEFAULT_SIZE.widthInches}in`,
+            height: `${ENVELOPE_DEFAULT_SIZE.heightInches}in`,
+            landscape: false,
+            preferCSSPageSize: false,
+          }
+        : {
+            format: "A4" as const,
+            landscape: true,
+            preferCSSPageSize: true,
+          };
       return await page.pdf({
-        format: "A4",
-        landscape: true,
+        ...pdfOptions,
         printBackground: true,
         tagged: false,
         outline: false,
-        preferCSSPageSize: true,
         margin: {
           top: "0mm",
           bottom: "0mm",

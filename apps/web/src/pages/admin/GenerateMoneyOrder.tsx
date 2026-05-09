@@ -259,7 +259,7 @@ export default function GenerateMoneyOrder() {
               {latestJob?.status === "COMPLETED" ? (
                 <button
                   type="button"
-                  onClick={() => triggerBrowserDownload(`/api/jobs/${latestJob.id}/download/money-orders`, `money-orders-${latestJob.id}.pdf`)}
+                  onClick={() => triggerBrowserDownload(`/api/jobs/${latestJob.id}/download/money-orders`, `Money-Orders-${latestJob.id}.pdf`)}
                   className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:border-brand/40"
                 >
                   Download Result

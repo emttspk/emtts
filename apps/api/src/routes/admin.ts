@@ -29,6 +29,7 @@ import { resolveStoredPath, storageRoot, toStoredPath } from "../storage/paths.j
 import { getOrCreateBillingSettings, syncConfiguredPlanPrices } from "../services/billing-settings.service.js";
 import { getUploadExemptFileNames, saveUploadExemptFileNames } from "../services/upload-file-exemptions.service.js";
 import { ensurePlanManagementColumns, getPlanExtrasByIds } from "./plans.js";
+import { buildPdfAttachmentHeader, PRINT_MARKETING_LINE } from "../lib/printBranding.js";
 
 export const adminRouter = Router();
 
@@ -1255,9 +1256,18 @@ adminRouter.get("/invoices/:invoiceId/download", async (req, res) => {
     y -= 28;
   }
 
+  page.drawText(PRINT_MARKETING_LINE, {
+    x: left,
+    y: 26,
+    size: 9,
+    font,
+    color: rgb(0.35, 0.35, 0.35),
+  });
+
   const pdfBytes = await pdf.save();
-  const fileName = `${invoice.invoiceNumber || `invoice-${invoice.id}`}.pdf`;
+  const invoiceNo = String(invoice.invoiceNumber ?? invoice.id).trim() || invoice.id;
+  const fileName = `Invoice-${invoiceNo}.pdf`;
   res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+  res.setHeader("Content-Disposition", buildPdfAttachmentHeader(fileName));
   return res.send(Buffer.from(pdfBytes));
 });

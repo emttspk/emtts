@@ -14,6 +14,7 @@ import { parseOrdersFromFile } from "../parse/orders.js";
 import { ensureRedisConnection } from "../queue/redis.js";
 import { consumeUnits, getLatestUnitSnapshot, refundUnits } from "../usage/unitConsumption.js";
 import { getQueue } from "../lib/queue.js";
+import { buildPdfAttachmentHeader } from "../lib/printBranding.js";
 import { previewLabelHtml, renderLabelDocumentHtml, type LabelPrintMode } from "../templates/labels.js";
 import { prepareLabelOrders } from "../services/labelDocument.js";
 import { isUploadFileNameExempt } from "../services/upload-file-exemptions.service.js";
@@ -722,9 +723,10 @@ jobsRouter.get("/:jobId/download/labels", requireAuth, async (req, res) => {
     await prisma.labelJob.update({ where: { id: jobId }, data: { labelsPdfPath: relPath } }).catch(() => {});
   }
 
+  const fileName = `Labels-${jobId}.pdf`;
   res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", "attachment");
-  return res.download(resolvedAbsPath, "labels.pdf");
+  res.setHeader("Content-Disposition", buildPdfAttachmentHeader(fileName));
+  return res.download(resolvedAbsPath, fileName);
 });
 
 async function handleMoneyOrdersDownload(req: Request, res: Response) {
@@ -783,9 +785,10 @@ async function handleMoneyOrdersDownload(req: Request, res: Response) {
     await prisma.labelJob.update({ where: { id: jobId }, data: { moneyOrderPdfPath: relPath } }).catch(() => {});
   }
 
+  const fileName = `Money-Orders-${jobId}.pdf`;
   res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", "attachment");
-  return res.download(resolvedAbsPath, `money-orders-${jobId}.pdf`);
+  res.setHeader("Content-Disposition", buildPdfAttachmentHeader(fileName));
+  return res.download(resolvedAbsPath, fileName);
 }
 
 jobsRouter.get("/:jobId/download/money-orders", requireAuth, handleMoneyOrdersDownload);

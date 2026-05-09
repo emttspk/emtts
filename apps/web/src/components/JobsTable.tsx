@@ -30,7 +30,8 @@ function DownloadButton(props: { jobId: string; kind: "labels" | "money-orders" 
     if (busy) return;
     setBusy(true);
     try {
-      triggerBrowserDownload(`/api/jobs/${props.jobId}/download/${props.kind}`, `${props.kind}-${props.jobId}.pdf`);
+      const fallbackName = props.kind === "labels" ? `Labels-${props.jobId}.pdf` : `Money-Orders-${props.jobId}.pdf`;
+      triggerBrowserDownload(`/api/jobs/${props.jobId}/download/${props.kind}`, fallbackName);
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Download failed");
     } finally {

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createCanvas } from "canvas";
 import JsBarcode from "jsbarcode";
+import { PRINT_MARKETING_LINE } from "../lib/printBranding.js";
 import {
   buildMoneyOrderNumber,
   buildTrackingId,
@@ -237,6 +238,12 @@ function compactInlineParts(parts: unknown[]) {
   return parts
     .map((value) => String(value ?? "").replace(/\s+/g, " ").trim())
     .filter(Boolean);
+}
+
+const ESCAPED_PRINT_MARKETING_LINE = escapeHtml(PRINT_MARKETING_LINE);
+
+function marketingFooterTextHtml() {
+  return ESCAPED_PRINT_MARKETING_LINE;
 }
 
 type LabelAmountSummary = {
@@ -487,8 +494,7 @@ export function labelsHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?:
         ${renderBoxAmountBlock(amountSummary)}
 
         <div class="footer">
-          <div class="footer-strong">Free Bulk Dispatch &amp; Tracking</div>
-          <div class="footer-link">www.epost.pk</div>
+          <div class="footer-strong">${marketingFooterTextHtml()}</div>
         </div>
       </div>
     `;
@@ -769,7 +775,6 @@ export function envelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking
     const formatRs = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
     const senderInline = [
       senderName.trim(),
-      `CNIC: ${senderFields.senderCnic}`,
       compactInlineParts([senderAddress.replace(/\n+/g, ", ")]).join(", "),
     ]
       .filter(Boolean)
@@ -827,6 +832,7 @@ export function envelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking
       "{product_details}": escapeHtml(productDetails),
       "{product_class}": productDetails ? "" : "is-hidden",
       "{dispatch_date}": escapeHtml(`Dispatch Date: ${resolveDispatchDate((o as any)?.issueDate)}`),
+      "{marketing_footer}": marketingFooterTextHtml(),
       "{{barcode}}": escapeHtml(barcodePayload),
     };
 
@@ -849,6 +855,33 @@ export function moneyOrderHtml(
 
 let benchmarkMoHtmlCache: string | null = null;
 let staticMoFrontDataUrlCache: string | null | undefined;
+let urduFontFaceCssCache: string | null | undefined;
+
+function resolveUrduFontFaceCss() {
+  if (urduFontFaceCssCache !== undefined) return urduFontFaceCssCache;
+
+  const candidates = [
+    path.resolve(process.cwd(), "apps", "api", "templates", "fonts", "NotoNastaliqUrdu-Regular.ttf"),
+    path.resolve(process.cwd(), "templates", "fonts", "NotoNastaliqUrdu-Regular.ttf"),
+    path.resolve(process.cwd(), "assets", "fonts", "NotoNastaliqUrdu-Regular.ttf"),
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      if (!fs.existsSync(candidate)) continue;
+      const fontBuffer = fs.readFileSync(candidate);
+      const dataUrl = `data:font/ttf;base64,${fontBuffer.toString("base64")}`;
+      urduFontFaceCssCache = `@font-face{font-family:\"Noto Nastaliq Urdu\";src:url('${dataUrl}') format('truetype');font-weight:400;font-style:normal;font-display:swap;}`;
+      return urduFontFaceCssCache;
+    } catch {
+      // Try next path.
+    }
+  }
+
+  // Remote fallback keeps runtime rendering functional when bundled font is absent.
+  urduFontFaceCssCache = "@font-face{font-family:\"Noto Nastaliq Urdu\";src:local('Noto Nastaliq Urdu'),local('Jameel Noori Nastaleeq'),url('https://fonts.gstatic.com/ea/notonastaliqurdu/v1/NotoNastaliqUrdu-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap;}";
+  return urduFontFaceCssCache;
+}
 
 function resolveStaticMoFrontDataUrl() {
   if (staticMoFrontDataUrlCache !== undefined) {
@@ -1134,7 +1167,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
   const consigneeName = String((order as any)?.consigneeName ?? "-").trim() || "-";
   const consigneeAddress = normalizeAddressLines((order as any)?.consigneeAddress ?? "-") || "-";
   const consigneePhone = String((order as any)?.consigneePhone ?? "-").trim() || "-";
-  const { senderName: shipperName, senderAddress: shipperAddress, senderPhone: shipperPhone, senderCnic: shipperCnic } = resolveMoneyOrderSenderFields(order);
+  const { senderName: shipperName, senderAddress: shipperAddress, senderPhone: shipperPhone } = resolveMoneyOrderSenderFields(order);
   const moBarcode = String((order as any)?.mo_barcodeBase64 ?? "").trim();
 
   let out = htmlBody;
@@ -1236,9 +1269,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     out,
     /(<div class="field strong en" style="left:47\.56mm;top:105\.69mm;width:65\.06mm;font-size:4\.(?:58|95)mm(?:;line-height:1\.08)?;">)([^<]*)(<\/div>)/g,
     slotIndex,
-    (_m, p1, _old, p3) =>
-      `${p1}${escapeHtml(shipperName)}${p3}` +
-      `<div class="field mono en" style="left:47.56mm;top:109.70mm;width:80.06mm;font-size:3.15mm;white-space:nowrap;overflow:hidden;">CNIC: ${escapeHtml(shipperCnic)}</div>`,
+    (_m, p1, _old, p3) => `${p1}${escapeHtml(shipperName)}${p3}`,
   );
   out = replaceNth(
     out,
@@ -1269,8 +1300,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     slotIndex,
     (_m, p1, _old, p3) =>
       `${p1}${escapeHtml(tracking)}${p3}` +
-      `<div class="field en" style="left:84.00mm;top:202.20mm;width:49.00mm;text-align:center;font-weight:900;font-size:2.45mm;line-height:1.1;">Free Bulk Dispatch &amp; Tracking</div>` +
-      `<div class="field en" style="left:84.00mm;top:205.00mm;width:49.00mm;text-align:center;font-weight:700;font-size:2.2mm;line-height:1.1;">www.epost.pk</div>`,
+      `<div class="field en" style="left:84.00mm;top:203.60mm;width:49.00mm;text-align:center;font-weight:900;font-size:2.05mm;line-height:1.1;white-space:normal;">${marketingFooterTextHtml()}</div>`,
   );
 
   return out;
@@ -1287,7 +1317,7 @@ function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataU
   const tail = bodyMatch[3];
   const headWithPrintGuard = head.replace(
     /<\/head>/i,
-    "<style>body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding:0.25mm 1.2mm;max-width:66mm;font:700 2.15mm/1.15 \"Noto Nastaliq Urdu\",\"Jameel Noori Nastaleeq\",Arial,sans-serif;text-align:center;direction:rtl;unicode-bidi:plaintext;white-space:nowrap;overflow:visible;text-overflow:clip}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>",
+    `<style>${resolveUrduFontFaceCss()}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding:0.25mm 1.2mm;max-width:66mm;font:700 2.15mm/1.15 \"Noto Nastaliq Urdu\",\"Jameel Noori Nastaleeq\",Arial,sans-serif;text-align:center;direction:rtl;unicode-bidi:plaintext;white-space:nowrap;overflow:visible;text-overflow:clip}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`,
   );
   const [frontSheetTemplate, backSheetTemplate] = splitBenchmarkSheets(benchmarkBody);
 

@@ -19,10 +19,10 @@ export default function Jobs() {
 
   function autoDownload(job: LabelJob) {
     console.log("[AUTO_DOWNLOAD_TRIGGERED]", job.id);
-    triggerBrowserDownload(`/api/jobs/${job.id}/download/labels`, `labels-${job.id}.pdf`);
+    triggerBrowserDownload(`/api/jobs/${job.id}/download/labels`, `Labels-${job.id}.pdf`);
     if (job.includeMoneyOrders) {
       window.setTimeout(() => {
-        triggerBrowserDownload(`/api/jobs/${job.id}/download/money-orders`, `money-orders-${job.id}.pdf`);
+        triggerBrowserDownload(`/api/jobs/${job.id}/download/money-orders`, `Money-Orders-${job.id}.pdf`);
       }, 600);
     }
   }

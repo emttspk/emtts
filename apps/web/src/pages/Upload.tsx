@@ -205,7 +205,8 @@ export default function Upload() {
   }, []);
 
   function downloadPdf(jobId: string, kind: "labels" | "money-orders") {
-    triggerBrowserDownload(`/api/jobs/${jobId}/download/${kind}`, `${kind}-${jobId}.pdf`);
+    const fallbackName = kind === "labels" ? `Labels-${jobId}.pdf` : `Money-Orders-${jobId}.pdf`;
+    triggerBrowserDownload(`/api/jobs/${jobId}/download/${kind}`, fallbackName);
   }
 
   const latest = useMemo(() => jobs[0] ?? null, [jobs]);

@@ -480,7 +480,7 @@ export default function Admin() {
   function handleDownloadInvoicePdf(invoiceId: string, invoiceNumber: string) {
     triggerBrowserDownload(
       `/api/admin/invoices/${invoiceId}/download`,
-      `${invoiceNumber || `invoice-${invoiceId}`}.pdf`,
+      `Invoice-${invoiceNumber || invoiceId}.pdf`,
     );
   }
 
