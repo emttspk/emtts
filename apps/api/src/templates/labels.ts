@@ -1275,7 +1275,7 @@ function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataU
   const tail = bodyMatch[3];
   const headWithPrintGuard = head.replace(
     /<\/head>/i,
-    "<style>body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.mo-page-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding:0.25mm 1.2mm;max-width:192mm;font-size:2.35mm;line-height:1.1;font-weight:700;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}</style></head>",
+    "<style>body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.mo-page-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding:0.25mm 1.2mm;max-width:192mm;font-size:2.35mm;line-height:1.4;font-weight:700;text-align:center;white-space:normal;word-wrap:break-word;word-break:break-word;overflow:visible;text-overflow:clip;direction:rtl}</style></head>",
   );
   const [frontSheetTemplate, backSheetTemplate] = splitBenchmarkSheets(benchmarkBody);
 
