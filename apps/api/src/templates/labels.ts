@@ -136,8 +136,7 @@ function resolveMoneyOrderSenderFields(order: OrderRecord) {
   const senderAddress = normalizeAddressLines((order as any)?.senderAddress ?? order.shipperAddress ?? "") || "-";
   const senderPhone = String((order as any)?.senderPhone ?? order.shipperPhone ?? "").trim() || "-";
   const senderCnic = String((order as any)?.senderCnic ?? (order as any)?.shipperCnic ?? (order as any)?.cnic ?? "").trim() || "-";
-  const senderName = baseSenderName !== "-" ? `${baseSenderName} (${senderCnic !== "-" ? senderCnic : "N/A"})` : baseSenderName;
-  return { senderName, senderAddress, senderPhone, senderCnic };
+  return { senderName: baseSenderName, senderAddress, senderPhone, senderCnic };
 }
 
 function amountToWords(value: number) {
@@ -588,125 +587,33 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
   const autoGenerateTracking = opts?.autoGenerateTracking === true;
 
   const renderFlyerLabel = (o: LabelOrder) => {
-    const carrier = o.carrierType === "courier" ? "Courier" : "Pakistan Post";
-    const shipmentType = resolveOrderShipmentType(o);
-    const shipmentLabel = displayShipmentType(shipmentType);
     const amountSummary = getLabelAmountSummary(o);
-    const tracking = resolveTracking(o, autoGenerateTracking);
-    const barcodeImg = o.skipGlobalBarcode
-      ? ""
-      : o.barcodeBase64
-        ? `<img src="${o.barcodeBase64}" class="fl-barcode-image" alt="Barcode" />`
-        : `<div class="fl-barcode-fallback">${escapeHtml(tracking || "NO TRACKING")}</div>`;
-
-    const receiverName = String(o.consigneeName ?? "");
-    const receiverAddress = normalizeAddressLines(o.consigneeAddress);
-    const receiverCity = String(o.receiverCity ?? "");
-    const receiverPhone = String(o.consigneePhone ?? "");
-    const senderName = String(o.shipperName ?? "");
-    const senderCity = String(o.senderCity ?? "");
-    const weight = formatWeightInGrams(o.Weight);
-    const dispatchDateLine = `Dispatch Date: ${resolveDispatchDate((o as any)?.issueDate)}`;
-    const prefixBadgeText = amountSummary.appliesPakistanPostRules ? `${shipmentLabel} Rs.${amountSummary.moAmount}` : shipmentLabel;
     const formatRs = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
-    const amountMarkup = amountSummary.appliesPakistanPostRules
-      ? `<div class="fl-amount-box"><div class="fl-amount-row"><span>MO Amount</span><span>Rs.${escapeHtml(formatRs(amountSummary.moAmount))}</span></div></div>`
-      : "";
 
     return `
-      <div class="fl-label">
-        <div class="fl-top">
-          <div class="fl-carrier-stack">
-            <div class="fl-carrier">${escapeHtml(carrier)}</div>
-            <div class="fl-dispatch-date">${escapeHtml(dispatchDateLine)}</div>
+      <div class="flyer-label">
+        <div class="flyer-header">
+          <span class="flyer-title">Money Order Summary</span>
+        </div>
+        <div class="flyer-body">
+          <div class="flyer-row">
+            <span class="flyer-label">MO Amount:</span>
+            <span class="flyer-value">Rs. ${escapeHtml(formatRs(amountSummary.moAmount))}</span>
           </div>
-          <div class="fl-badge">${escapeHtml(prefixBadgeText)}</div>
-        </div>
-        <div class="fl-barcode-wrap">
-          ${barcodeImg}
-          <div class="fl-tracking">${escapeHtml(tracking)}</div>
-        </div>
-        ${amountMarkup}
-        <div class="fl-to">
-          <span class="fl-k">TO:</span>
-          <span class="fl-name">${escapeHtml(receiverName)}</span>
-          <div class="fl-addr">${escapeHtml(receiverAddress)}</div>
-          <div class="fl-city-phone">${escapeHtml([receiverCity, receiverPhone].filter(Boolean).join(" · "))}</div>
-        </div>
-        <div class="fl-from">
-          <span class="fl-k">FROM:</span>
-          <span class="fl-from-name">${escapeHtml(senderName)}</span>
-          ${senderCity ? `<span class="fl-from-city">${escapeHtml(senderCity)}</span>` : ""}
-          ${weight ? `<span class="fl-weight">${escapeHtml(weight)}</span>` : ""}
+          <div class="flyer-row">
+            <span class="flyer-label">MO Commission:</span>
+            <span class="flyer-value">Rs. ${escapeHtml(formatRs(amountSummary.commission))}</span>
+          </div>
+          <div class="flyer-row">
+            <span class="flyer-label">Gross Amount:</span>
+            <span class="flyer-value">Rs. ${escapeHtml(formatRs(amountSummary.grossAmount))}</span>
+          </div>
         </div>
       </div>`;
   };
 
-  const emptySlot = () => `<div class="fl-label fl-label-empty"></div>`;
-  const renderSlot = (o: LabelOrder | null) => (o ? renderFlyerLabel(o) : emptySlot());
-
-  const pages: string[] = [];
-  const labelsPerPage = 8;
-  for (let i = 0; i < orders.length; i += labelsPerPage) {
-    const pageData: Array<LabelOrder | null> = orders.slice(i, i + labelsPerPage);
-    while (pageData.length < labelsPerPage) pageData.push(null);
-    pages.push(`<div class="fl-page">${pageData.map(renderSlot).join("")}</div>`);
-  }
-
-  return `<!doctype html>
-  <html>
-    <head>
-      <meta charset="utf-8" />
-      <style>
-        @page { size: A4; margin: 3mm; }
-        html, body { margin: 0; padding: 0; color: #000; font-family: Arial, sans-serif; }
-        .fl-page {
-          width: 204mm;
-          height: 291mm;
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          grid-template-rows: repeat(4, 1fr);
-          gap: 3mm;
-          box-sizing: border-box;
-          page-break-after: always;
-        }
-        .fl-page:last-child { page-break-after: auto; }
-        .fl-label {
-          width: 100%;
-          height: 100%;
-          border: 0.5mm solid #000;
-          box-sizing: border-box;
-          padding: 2mm;
-          display: grid;
-          grid-template-rows: auto auto 1fr auto;
-          gap: 1.2mm;
-          overflow: hidden;
-        }
-        .fl-label-empty { background: #fff; border: 0.3mm dashed #ccc; }
-        .fl-top { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 0.3mm solid #000; padding-bottom: 0.8mm; }
-        .fl-carrier-stack { display: grid; gap: 0.25mm; min-width: 0; }
-        .fl-carrier { font-weight: 900; font-size: 3.5mm; text-transform: uppercase; letter-spacing: 0.12mm; }
-        .fl-dispatch-date { font-size: 2.1mm; font-weight: 700; line-height: 1.05; }
-        .fl-badge { border: 0.3mm solid #000; padding: 0.6mm 1.2mm; font-weight: 900; font-size: 3mm; white-space: nowrap; }
-        .fl-barcode-wrap { display: grid; justify-items: center; gap: 0.5mm; }
-        .fl-barcode-image { width: 88mm; height: 9mm; object-fit: contain; display: block; }
-        .fl-barcode-fallback { width: 88mm; height: 9mm; border: 0.3mm dashed #000; display: grid; place-items: center; font-weight: 900; font-size: 2.5mm; }
-        .fl-tracking { font-family: "Courier New", Courier, monospace; font-weight: 900; letter-spacing: 0.24mm; font-size: 2.4mm; text-align: center; }
-        .fl-amount-box { border: 0.25mm solid #000; padding: 0.8mm 1.2mm; display: grid; gap: 0.5mm; }
-        .fl-amount-row { display: flex; justify-content: space-between; gap: 2mm; font-size: 2.3mm; font-weight: 900; }
-        .fl-to { display: grid; gap: 0.5mm; overflow: hidden; }
-        .fl-k { font-weight: 900; font-size: 2.5mm; letter-spacing: 0.3mm; }
-        .fl-name { font-weight: 900; font-size: 3.2mm; }
-        .fl-addr { font-size: 2.6mm; line-height: 1.15; white-space: pre-line; overflow: hidden; }
-        .fl-city-phone { font-size: 2.5mm; color: #222; }
-        .fl-from { display: flex; flex-wrap: wrap; align-items: center; gap: 1mm; border-top: 0.3mm solid #000; padding-top: 0.8mm; font-size: 2.4mm; }
-        .fl-from-name { font-weight: 700; }
-        .fl-from-city { color: #444; }
-        .fl-weight { border: 0.25mm solid #000; padding: 0.3mm 0.8mm; font-family: "Courier New", Courier, monospace; font-size: 2.3mm; font-weight: 700; }
-      </style>
-    </head>
-    <body>${pages.join("")}</body>
-  </html>`;
+  const pages = orders.map((order) => renderFlyerLabel(order)).join("");
+  return pages;
 }
 
 export function envelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: boolean; includeMoneyOrders?: boolean }) {
@@ -726,79 +633,12 @@ export function envelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking
 
   const renderEnvelopePage = (templateBody: string, o: LabelOrder) => {
     const amountSummary = getLabelAmountSummary(o);
-    const shipmentType = amountSummary.shipmentType;
-    const shipmentLabel = displayShipmentType(shipmentType);
-    const tracking = resolveTracking(o, autoGenerateTracking);
-
-    const senderName = String(o.shipperName ?? "");
-    const senderAddress = compactInlineParts([normalizeAddressLines(o.shipperAddress), String(o.senderCity ?? "")]).join("\n");
-    const senderPhone = String(o.shipperPhone ?? "");
-
-    const receiverName = String(o.consigneeName ?? "");
-    const receiverAddress = compactInlineParts([normalizeAddressLines(o.consigneeAddress), String(o.receiverCity ?? "")]).join("\n");
-    const receiverPhone = String(o.consigneePhone ?? "");
-
     const formatRs = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
-    const senderInline = [
-      senderName.trim(),
-      compactInlineParts([normalizeAddressLines(o.shipperAddress).replace(/\n+/g, ", "), String(o.senderCity ?? ""), senderPhone]).join(", "),
-    ]
-      .filter(Boolean)
-      .join(", ");
-    const senderContact = "";
-    const orderId = String((o as any).ordered ?? "").trim();
-    const productDetails = String((o as any).ProductDescription ?? "").trim();
-
-    const calcDisplay = amountSummary.showCalculation ? "" : "is-hidden";
-    const amountPrimaryLabel = "Money Order";
-    const amountPrimaryValue = amountSummary.showCalculation ? `${formatRs(amountSummary.moAmount)}` : "";
-    const amountPrimaryClass = amountSummary.showCalculation ? "" : "is-hidden";
-    const amountSecondaryLabel = "MO Commission";
-    const amountSecondaryValue = amountSummary.showCalculation ? `${formatRs(amountSummary.commission)}` : "";
-    const amountSecondaryClass = amountSummary.showCalculation ? "" : "is-hidden";
-    const amountTotalLabel = "MO Amount";
-    const amountTotalValue = amountSummary.showCalculation ? `${formatRs(amountSummary.moAmount)}` : "";
-    const amountTotalClass = amountSummary.showCalculation ? "" : "is-hidden";
-
-    const prefixText = amountSummary.showCalculation
-      ? `${shipmentLabel} | Rs. ${formatRs(amountSummary.moAmount)}`
-      : shipmentLabel;
-
-    const barcodeBase64 = String(o.barcodeBase64 ?? "").trim();
-    const barcodePayload = barcodeBase64.replace(/^data:image\/png;base64,/, "");
 
     const valueMap: Record<string, string> = {
-      "{prefix}": escapeHtml(prefixText),
-      "{tracking_id}": escapeHtml(tracking),
-      "{mos_numbers}": "",
-      "{mos_class}": "is-hidden",
-      "{receiver_name}": escapeHtml(receiverName),
-      "{receiver_address}": escapeHtml(receiverAddress),
-      "{receiver_contact}": escapeHtml(receiverPhone),
-      "{sender_name}": escapeHtml(senderName),
-      "{sender_inline}": escapeHtml(senderInline),
-      "{sender_contact}": escapeHtml(senderContact),
-      "{sender_contact_class}": senderContact ? "" : "is-hidden",
-      "{sender_address}": escapeHtml(senderAddress),
-      "{gross_amount}": escapeHtml(formatRs(amountSummary.moAmount)),
+      "{mo_amount}": escapeHtml(formatRs(amountSummary.moAmount)),
       "{mo_commission}": escapeHtml(formatRs(amountSummary.commission)),
-      "{total_amount}": escapeHtml(formatRs(amountSummary.grossAmount)),
-      "{amount_primary_label}": escapeHtml(amountPrimaryLabel),
-      "{amount_primary_value}": escapeHtml(amountPrimaryValue),
-      "{amount_primary_class}": amountPrimaryClass,
-      "{amount_secondary_label}": escapeHtml(amountSecondaryLabel),
-      "{amount_secondary_value}": escapeHtml(amountSecondaryValue),
-      "{amount_secondary_class}": amountSecondaryClass,
-      "{amount_total_label}": escapeHtml(amountTotalLabel),
-      "{amount_total_value}": escapeHtml(amountTotalValue),
-      "{amount_total_class}": amountTotalClass,
-      "{calc_class}": calcDisplay,
-      "{order_id}": escapeHtml(orderId),
-      "{order_class}": orderId ? "" : "is-hidden",
-      "{product_details}": escapeHtml(productDetails),
-      "{product_class}": productDetails ? "" : "is-hidden",
-      "{dispatch_date}": escapeHtml(`Dispatch Date: ${resolveDispatchDate((o as any)?.issueDate)}`),
-      "{{barcode}}": escapeHtml(barcodePayload),
+      "{gross_amount}": escapeHtml(formatRs(amountSummary.grossAmount)),
     };
 
     const rendered = Object.entries(valueMap).reduce((html, [token, value]) => html.split(token).join(value), templateBody);
@@ -807,7 +647,7 @@ export function envelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking
 
   const template = loadEnvelopeTemplate();
   const pages = orders.map((order) => renderEnvelopePage(template.body, order)).join("");
-  return `${template.head}${pages}${template.tail}`;
+  return pages;
 }
 
 export function moneyOrderHtml(
@@ -1046,9 +886,9 @@ function clearBenchmarkSlot(htmlBody: string, slotIndex: number) {
 
   out = replaceNth(
     out,
-    /(<img class="barcode" src=")([^"]*)(" alt="MO Barcode" style=")([^"]*)(" \/>)/g,
+    /(<img class="barcode" src=")([^"]*)(" alt="MO Barcode" style="[^"]*" \/>)/g,
     slotIndex,
-    (_m, p1, _src, p3, style, p5) => `${p1}${transparent}${p3}${style};visibility:hidden${p5}`,
+    (_m, p1, _src, p3) => `${p1}${transparent}${p3}`,
   );
 
   const slotTextPatterns = [
@@ -1392,10 +1232,10 @@ function frontFields(o: OrderRecord) {
   const moBarcode = String((o as any).mo_barcodeBase64 ?? "").trim();
   const issueDate = String((o as any).issueDate ?? "").trim() || formatIssueDate();
   const amountWords = expectedAmountWords(amountRaw);
-  const consigneeName = String((o as any).consigneeName ?? "").trim() || "-";
+  const consigneeName = String((o as any).consigneeName ?? "-").trim() || "-";
   const consigneeAddress = normalizeAddressLines((o as any).consigneeAddress ?? "") || "-";
-  const consigneePhone = String((o as any).consigneePhone ?? "").trim() || "-";
-  const { senderName: shipperName, senderAddress: shipperAddress, senderPhone: shipperPhone } = resolveMoneyOrderSenderFields(o);
+  const consigneePhone = String((o as any).consigneePhone ?? "-").trim() || "-";
+  const { senderName: shipperName, senderAddress: shipperAddress, senderPhone: shipperPhone, senderCnic: shipperCnic } = resolveMoneyOrderSenderFields(o);
 
   return [
     // MOS barcode area with locked final dimensions
@@ -1412,7 +1252,7 @@ function frontFields(o: OrderRecord) {
     `<div class="field mono en" style="left:57.43mm;top:39.03mm;width:28.29mm;font-size:3.73mm;">${escapeHtml(moNumber)}</div>`,
 
     // Date inline after Urdu label (same line)
-    `<div class="field urdu" style="left:40.13mm;top:162.57mm;width:28.99mm;font-size:.16mm;">(تاریخ) <span class="en" style="display:inline-block;font-size:3.25mm;">${escapeHtml(issueDate)}</span></div>`,
+    `<div class="field urdu" style="left:40.13mm;top:162.57mm;width:28.99mm;font-size:\.16mm;">(تاریخ) <span class="en" style="display:inline-block;font-size:3.25mm;">${escapeHtml(issueDate)}</span></div>`,
 
     // Amount inline after Urdu label (same line)
     `<div class="field urdu" style="left:72.73mm;top:140.37mm;width:44.55mm;font-size:2.16mm;">(روپیہ) <span class="en" style="display:inline-block;font-size:5.37mm;">${escapeHtml(amountDisplay)}</span></div>`,
