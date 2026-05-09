@@ -11,7 +11,6 @@ export async function launchPuppeteerBrowser() {
       "--disable-setuid-sandbox",
       "--disable-dev-shm-usage",
       "--disable-gpu",
-      "--single-process",
     ],
   });
   return browser;

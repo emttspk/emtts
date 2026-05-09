@@ -1111,6 +1111,10 @@ function clearBenchmarkSlot(htmlBody: string, slotIndex: number) {
   return out;
 }
 
+function moneyOrderHalfNoticeHtml() {
+  return `<div class="mo-half-notice" aria-hidden="true"><div class="mo-half-notice-line">منی آرڈر مینول بار کوڈ سٹیکر مت لگائیں۔</div><div class="mo-half-notice-line">صرف نیچے لکھا منی آرڈر نمبر ایشو کریں۔ شکریہ</div></div>`;
+}
+
 function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRecord) {
   if (!order) return clearBenchmarkSlot(htmlBody, slotIndex);
 
@@ -1141,6 +1145,14 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     /(<img class="barcode" src=")([^"]*)(" alt="MO Barcode" style="[^"]*" \/>)/g,
     slotIndex,
     (_m, p1, oldSrc, p3) => `${p1}${escapeHtml(moBarcode || oldSrc)}${p3}`,
+  );
+
+  // Half-level Urdu notice, anchored inside each rendered money-order half.
+  out = replaceNth(
+    out,
+    /(<div class="overlay">)/g,
+    slotIndex,
+    (_m, p1) => `${p1}${moneyOrderHalfNoticeHtml()}`,
   );
 
   // Text below barcode (MOS)
@@ -1275,7 +1287,7 @@ function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataU
   const tail = bodyMatch[3];
   const headWithPrintGuard = head.replace(
     /<\/head>/i,
-    "<style>body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.mo-page-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding:0.25mm 1.2mm;max-width:192mm;font-size:2.35mm;line-height:1.4;font-weight:700;text-align:center;white-space:normal;word-wrap:break-word;word-break:break-word;overflow:visible;text-overflow:clip;direction:rtl}</style></head>",
+    "<style>body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding:0.25mm 1.2mm;max-width:66mm;font:700 2.15mm/1.15 \"Noto Nastaliq Urdu\",\"Jameel Noori Nastaleeq\",Arial,sans-serif;text-align:center;direction:rtl;unicode-bidi:plaintext;white-space:nowrap;overflow:visible;text-overflow:clip}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>",
   );
   const [frontSheetTemplate, backSheetTemplate] = splitBenchmarkSheets(benchmarkBody);
 
@@ -1301,8 +1313,8 @@ function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataU
     const frontHTML = frontSheet;
     const backHTML = backSheet;
 
-    pages.push(`<div class="page"><div class="mo-page-notice">منی آرڈر مینول بار کوڈ سٹیکر مت لگائیں۔ صرف نیچے لکھا منی آرڈر نمبر ایشو کریں۔ شکریہ</div>${frontHTML}</div>`);
-    pages.push(`<div class="page"><div class="mo-page-notice">منی آرڈر مینول بار کوڈ سٹیکر مت لگائیں۔ صرف نیچے لکھا منی آرڈر نمبر ایشو کریں۔ شکریہ</div>${backHTML}</div>`);
+    pages.push(`<div class="page">${frontHTML}</div>`);
+    pages.push(`<div class="page">${backHTML}</div>`);
 
     if (!backHTML || backHTML.trim() === "") {
       console.error("BACK PAGE EMPTY - FIX DATA BINDING");
