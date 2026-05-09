@@ -861,26 +861,51 @@ function resolveUrduFontFaceCss() {
   if (urduFontFaceCssCache !== undefined) return urduFontFaceCssCache;
 
   const candidates = [
-    path.resolve(process.cwd(), "apps", "api", "templates", "fonts", "NotoNastaliqUrdu-Regular.ttf"),
-    path.resolve(process.cwd(), "templates", "fonts", "NotoNastaliqUrdu-Regular.ttf"),
-    path.resolve(process.cwd(), "assets", "fonts", "NotoNastaliqUrdu-Regular.ttf"),
+    {
+      family: "Noto Nastaliq Urdu",
+      format: "truetype",
+      filePath: path.resolve(process.cwd(), "apps", "api", "templates", "fonts", "NotoNastaliqUrdu-Regular.ttf"),
+    },
+    {
+      family: "Jameel Noori Nastaleeq",
+      format: "truetype",
+      filePath: path.resolve(process.cwd(), "apps", "api", "templates", "fonts", "JameelNooriNastaleeq.ttf"),
+    },
+    {
+      family: "Noto Naskh Arabic",
+      format: "truetype",
+      filePath: path.resolve(process.cwd(), "apps", "api", "templates", "fonts", "NotoNaskhArabic-Regular.ttf"),
+    },
+    {
+      family: "Noto Nastaliq Urdu",
+      format: "truetype",
+      filePath: path.resolve(process.cwd(), "templates", "fonts", "NotoNastaliqUrdu-Regular.ttf"),
+    },
+    {
+      family: "Jameel Noori Nastaleeq",
+      format: "truetype",
+      filePath: path.resolve(process.cwd(), "templates", "fonts", "JameelNooriNastaleeq.ttf"),
+    },
+    {
+      family: "Noto Naskh Arabic",
+      format: "truetype",
+      filePath: path.resolve(process.cwd(), "templates", "fonts", "NotoNaskhArabic-Regular.ttf"),
+    },
   ];
 
   for (const candidate of candidates) {
     try {
-      if (!fs.existsSync(candidate)) continue;
-      const fontBuffer = fs.readFileSync(candidate);
+      if (!fs.existsSync(candidate.filePath)) continue;
+      const fontBuffer = fs.readFileSync(candidate.filePath);
       const dataUrl = `data:font/ttf;base64,${fontBuffer.toString("base64")}`;
-      urduFontFaceCssCache = `@font-face{font-family:\"Noto Nastaliq Urdu\";src:url('${dataUrl}') format('truetype');font-weight:400;font-style:normal;font-display:swap;}`;
+      urduFontFaceCssCache = `@font-face{font-family:\"${candidate.family}\";src:url('${dataUrl}') format('${candidate.format}');font-weight:400;font-style:normal;font-display:block;}@font-face{font-family:\"Money Order Urdu\";src:local('${candidate.family}'),url('${dataUrl}') format('${candidate.format}');font-weight:400;font-style:normal;font-display:block;}`;
       return urduFontFaceCssCache;
     } catch {
       // Try next path.
     }
   }
 
-  // Remote fallback keeps runtime rendering functional when bundled font is absent.
-  urduFontFaceCssCache = "@font-face{font-family:\"Noto Nastaliq Urdu\";src:local('Noto Nastaliq Urdu'),local('Jameel Noori Nastaleeq'),url('https://fonts.gstatic.com/ea/notonastaliqurdu/v1/NotoNastaliqUrdu-Regular.ttf') format('truetype');font-weight:400;font-style:normal;font-display:swap;}";
-  return urduFontFaceCssCache;
+  throw new Error("URDU_FONT_MISSING: install a local Urdu font file in apps/api/templates/fonts before generating money-order PDFs.");
 }
 
 function resolveStaticMoFrontDataUrl() {
@@ -1145,7 +1170,7 @@ function clearBenchmarkSlot(htmlBody: string, slotIndex: number) {
 }
 
 function moneyOrderHalfNoticeHtml() {
-  return `<div class="mo-half-notice" aria-hidden="true"><div class="mo-half-notice-line">منی آرڈر مینول بار کوڈ سٹیکر مت لگائیں۔</div><div class="mo-half-notice-line">صرف نیچے لکھا منی آرڈر نمبر ایشو کریں۔ شکریہ</div></div>`;
+  return `<div class="mo-half-notice" lang="ur" dir="rtl" aria-hidden="true"><div class="mo-half-notice-line">منی آرڈر مینول بار کوڈ سٹیکر مت لگائیں۔</div><div class="mo-half-notice-line">صرف نیچے لکھا منی آرڈر نمبر ایشو کریں۔ شکریہ</div></div>`;
 }
 
 function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRecord) {
@@ -1300,7 +1325,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     slotIndex,
     (_m, p1, _old, p3) =>
       `${p1}${escapeHtml(tracking)}${p3}` +
-      `<div class="field en" style="left:84.00mm;top:203.60mm;width:49.00mm;text-align:center;font-weight:900;font-size:2.05mm;line-height:1.1;white-space:normal;">${marketingFooterTextHtml()}</div>`,
+        `<div class="field en" style="left:70.00mm;top:203.15mm;width:66.00mm;text-align:center;font-weight:900;font-size:1.9mm;line-height:1.1;white-space:normal;">${marketingFooterTextHtml()}</div>`,
   );
 
   return out;
@@ -1317,7 +1342,7 @@ function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataU
   const tail = bodyMatch[3];
   const headWithPrintGuard = head.replace(
     /<\/head>/i,
-    `<style>${resolveUrduFontFaceCss()}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding:0.25mm 1.2mm;max-width:66mm;font:700 2.15mm/1.15 \"Noto Nastaliq Urdu\",\"Jameel Noori Nastaleeq\",Arial,sans-serif;text-align:center;direction:rtl;unicode-bidi:plaintext;white-space:nowrap;overflow:visible;text-overflow:clip}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`,
+    `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding:0.3mm 1.35mm;max-width:68mm;font:700 2.2mm/1.2 \"Money Order Urdu\",\"Noto Nastaliq Urdu\",\"Jameel Noori Nastaleeq\",\"Noto Naskh Arabic\",serif;text-align:center;direction:rtl;unicode-bidi:isolate;white-space:normal;overflow:visible;text-overflow:clip;font-feature-settings:'kern' 1,'liga' 1,'clig' 1,'calt' 1,'rlig' 1;text-rendering:geometricPrecision;-webkit-font-smoothing:antialiased}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`,
   );
   const [frontSheetTemplate, backSheetTemplate] = splitBenchmarkSheets(benchmarkBody);
 

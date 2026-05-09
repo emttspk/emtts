@@ -70,6 +70,18 @@ function getFilenameFromContentDisposition(header: string | null, fallback?: str
   return plain || fallback || "download";
 }
 
+function formatPrintablePdfDate(value = new Date()) {
+  const day = String(value.getDate()).padStart(2, "0");
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const year = String(value.getFullYear());
+  return `${day}-${month}-${year}`;
+}
+
+export function buildJobDownloadFallbackName(kind: "labels" | "money-orders", value = new Date()) {
+  const date = formatPrintablePdfDate(value);
+  return kind === "labels" ? `Label ${date}.pdf` : `Money Order ${date}.pdf`;
+}
+
 export async function triggerBrowserDownload(path: string, filename?: string) {
   const token = getToken();
   const url = apiUrl(path);

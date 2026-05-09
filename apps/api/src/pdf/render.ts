@@ -1,5 +1,19 @@
-import puppeteer, { type Browser } from "puppeteer";
+import puppeteer, { type Browser, type Page } from "puppeteer";
 import { ENVELOPE_DEFAULT_SIZE } from "../lib/printBranding.js";
+
+async function waitForPdfFonts(page: Page) {
+  await page.evaluate(async () => {
+    if (!("fonts" in document)) return;
+    await document.fonts.ready;
+    await Promise.all(Array.from(document.fonts).map(async (font) => {
+      try {
+        await font.load();
+      } catch {
+        // Ignore individual font load failures so the render can surface the real issue.
+      }
+    }));
+  });
+}
 
 export async function launchPuppeteerBrowser() {
   const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
@@ -26,6 +40,7 @@ export async function htmlToPdfBuffer(
     const page = await browser.newPage();
     try {
       await page.setContent(html, { waitUntil: "networkidle0" });
+      await waitForPdfFonts(page);
       const pdfOptions = format === "envelope-9x4"
         ? {
         width: `${ENVELOPE_DEFAULT_SIZE.widthInches}in`,
@@ -82,6 +97,7 @@ export async function htmlToPdfBufferInFreshBrowser(
     const page = await browser.newPage();
     try {
       await page.setContent(html, { waitUntil: "networkidle0" });
+      await waitForPdfFonts(page);
       await page.evaluate(() => document.body.innerHTML.length);
       const pdfOptions = format === "envelope-9x4"
         ? {

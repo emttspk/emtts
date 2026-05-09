@@ -4,7 +4,7 @@ import Card from "../../components/Card";
 import MoneyOrderForm from "../../components/MoneyOrderForm";
 import UploadDropzone from "../../components/UploadDropzone";
 import SampleDownloadLink from "../../components/SampleDownloadLink";
-import { api, apiHealthCheck, triggerBrowserDownload, uploadFile } from "../../lib/api";
+import { api, apiHealthCheck, buildJobDownloadFallbackName, triggerBrowserDownload, uploadFile } from "../../lib/api";
 import type { LabelJob, MeResponse } from "../../lib/types";
 import { useJobPolling } from "../../lib/useJobPolling";
 import { rowsToCsv, type UploadOrderRow } from "../../shared/orderColumns";
@@ -259,7 +259,7 @@ export default function GenerateMoneyOrder() {
               {latestJob?.status === "COMPLETED" ? (
                 <button
                   type="button"
-                  onClick={() => triggerBrowserDownload(`/api/jobs/${latestJob.id}/download/money-orders`, `Money-Orders-${latestJob.id}.pdf`)}
+                  onClick={() => triggerBrowserDownload(`/api/jobs/${latestJob.id}/download/money-orders`, buildJobDownloadFallbackName("money-orders"))}
                   className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:border-brand/40"
                 >
                   Download Result

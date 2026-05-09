@@ -4,7 +4,7 @@ import { useNavigate, useOutletContext } from "react-router-dom";
 import Card from "../components/Card";
 import SampleDownloadLink from "../components/SampleDownloadLink";
 import UploadDropzone from "../components/UploadDropzone";
-import { api, apiHealthCheck, triggerBrowserDownload, uploadFile } from "../lib/api";
+import { api, apiHealthCheck, buildJobDownloadFallbackName, triggerBrowserDownload, uploadFile } from "../lib/api";
 import type { LabelJob, MeResponse } from "../lib/types";
 import { useJobPolling } from "../lib/useJobPolling";
 import { getMissingOrderColumns, normalizeOrderColumnKey } from "../shared/orderColumns";
@@ -205,7 +205,7 @@ export default function Upload() {
   }, []);
 
   function downloadPdf(jobId: string, kind: "labels" | "money-orders") {
-    const fallbackName = kind === "labels" ? `Labels-${jobId}.pdf` : `Money-Orders-${jobId}.pdf`;
+    const fallbackName = buildJobDownloadFallbackName(kind);
     triggerBrowserDownload(`/api/jobs/${jobId}/download/${kind}`, fallbackName);
   }
 

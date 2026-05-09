@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import Card from "../components/Card";
 import JobsTable from "../components/JobsTable";
 import EmptyState from "../components/EmptyState";
-import { api, triggerBrowserDownload } from "../lib/api";
+import { api, buildJobDownloadFallbackName, triggerBrowserDownload } from "../lib/api";
 import type { LabelJob } from "../lib/types";
 import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
 
@@ -19,10 +19,10 @@ export default function Jobs() {
 
   function autoDownload(job: LabelJob) {
     console.log("[AUTO_DOWNLOAD_TRIGGERED]", job.id);
-    triggerBrowserDownload(`/api/jobs/${job.id}/download/labels`, `Labels-${job.id}.pdf`);
+    triggerBrowserDownload(`/api/jobs/${job.id}/download/labels`, buildJobDownloadFallbackName("labels"));
     if (job.includeMoneyOrders) {
       window.setTimeout(() => {
-        triggerBrowserDownload(`/api/jobs/${job.id}/download/money-orders`, `Money-Orders-${job.id}.pdf`);
+        triggerBrowserDownload(`/api/jobs/${job.id}/download/money-orders`, buildJobDownloadFallbackName("money-orders"));
       }, 600);
     }
   }

@@ -3,7 +3,7 @@ import { ArrowUpDown, Download, Trash2 } from "lucide-react";
 import Card from "./Card";
 import StatusBadge from "./StatusBadge";
 import { cn } from "../lib/cn";
-import { api, triggerBrowserDownload } from "../lib/api";
+import { api, buildJobDownloadFallbackName, triggerBrowserDownload } from "../lib/api";
 import type { LabelJob } from "../lib/types";
 
 type SortKey = "id" | "file" | "rows" | "status" | "createdAt";
@@ -30,7 +30,7 @@ function DownloadButton(props: { jobId: string; kind: "labels" | "money-orders" 
     if (busy) return;
     setBusy(true);
     try {
-      const fallbackName = props.kind === "labels" ? `Labels-${props.jobId}.pdf` : `Money-Orders-${props.jobId}.pdf`;
+      const fallbackName = buildJobDownloadFallbackName(props.kind);
       triggerBrowserDownload(`/api/jobs/${props.jobId}/download/${props.kind}`, fallbackName);
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Download failed");
