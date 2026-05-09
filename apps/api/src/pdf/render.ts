@@ -50,6 +50,11 @@ export async function htmlToPdfBuffer(
           };
       return await page.pdf({
         ...pdfOptions,
+        pageRanges: "", // empty = all pages
+        tagged: false, // disable tagging for smaller output
+        outline: false, // disable outline/bookmarks
+        printBackground: true,
+        preferCSSPageSize: format === "A4",
       });
     } finally {
       await page.close();
