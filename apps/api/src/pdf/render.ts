@@ -81,12 +81,15 @@ export async function htmlToPdfBufferInFreshBrowser(
   try {
     const page = await browser.newPage();
     try {
-      await page.setContent(html, { waitUntil: "domcontentloaded" });
+      await page.setContent(html, { waitUntil: "networkidle0" });
       await page.evaluate(() => document.body.innerHTML.length);
       return await page.pdf({
         format: "A4",
         landscape: true,
         printBackground: true,
+        tagged: false,
+        outline: false,
+        preferCSSPageSize: true,
         margin: {
           top: "0mm",
           bottom: "0mm",

@@ -672,13 +672,25 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
       <style>
         @page { size: A4; margin: 3mm; }
         html, body { margin: 0; padding: 0; color: #000; font-family: Arial, sans-serif; }
+        :root {
+          --a4-width: 210mm;
+          --a4-height: 297mm;
+          --page-margin: 3mm;
+          --page-safe-width-trim: 0.6mm;
+          --fl-col-gap: 3mm;
+          --fl-row-gap: 3mm;
+          --fl-page-width: calc(var(--a4-width) - (var(--page-margin) * 2) - var(--page-safe-width-trim));
+          --fl-page-height: calc(var(--a4-height) - (var(--page-margin) * 2));
+          --fl-label-width: calc((var(--fl-page-width) - var(--fl-col-gap)) / 2);
+        }
         .fl-page {
-          width: 204mm;
-          height: 291mm;
+          width: var(--fl-page-width);
+          height: var(--fl-page-height);
           display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          grid-template-rows: repeat(4, 1fr);
-          gap: 3mm;
+          grid-template-columns: repeat(2, minmax(0, var(--fl-label-width)));
+          grid-template-rows: repeat(4, minmax(0, 1fr));
+          column-gap: var(--fl-col-gap);
+          row-gap: var(--fl-row-gap);
           box-sizing: border-box;
           page-break-after: always;
         }
@@ -695,7 +707,7 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
           overflow: hidden;
         }
         .fl-label-empty { background: #fff; border: 0.3mm dashed #ccc; }
-        .fl-top { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 0.3mm solid #000; padding-bottom: 0.8mm; }
+        .fl-top { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 0.3mm solid #000; padding-bottom: 0.8mm; min-width: 0; }
         .fl-carrier-stack { display: grid; gap: 0.25mm; min-width: 0; }
         .fl-carrier { font-weight: 900; font-size: 3.5mm; text-transform: uppercase; letter-spacing: 0.12mm; }
         .fl-dispatch-date { font-size: 2.1mm; font-weight: 700; line-height: 1.05; }
@@ -1263,7 +1275,7 @@ function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataU
   const tail = bodyMatch[3];
   const headWithPrintGuard = head.replace(
     /<\/head>/i,
-    "<style>body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{page-break-after:always}.page:last-child{page-break-after:auto}</style></head>",
+    "<style>body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.mo-page-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding:0.25mm 1.2mm;max-width:192mm;font-size:2.35mm;line-height:1.1;font-weight:700;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}</style></head>",
   );
   const [frontSheetTemplate, backSheetTemplate] = splitBenchmarkSheets(benchmarkBody);
 
@@ -1289,8 +1301,8 @@ function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataU
     const frontHTML = frontSheet;
     const backHTML = backSheet;
 
-    pages.push(`<div class="page">${frontHTML}</div>`);
-    pages.push(`<div class="page">${backHTML}</div>`);
+    pages.push(`<div class="page"><div class="mo-page-notice">منی آرڈر مینول بار کوڈ سٹیکر مت لگائیں۔ صرف نیچے لکھا منی آرڈر نمبر ایشو کریں۔ شکریہ</div>${frontHTML}</div>`);
+    pages.push(`<div class="page"><div class="mo-page-notice">منی آرڈر مینول بار کوڈ سٹیکر مت لگائیں۔ صرف نیچے لکھا منی آرڈر نمبر ایشو کریں۔ شکریہ</div>${backHTML}</div>`);
 
     if (!backHTML || backHTML.trim() === "") {
       console.error("BACK PAGE EMPTY - FIX DATA BINDING");

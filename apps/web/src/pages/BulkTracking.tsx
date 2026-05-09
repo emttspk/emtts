@@ -576,11 +576,14 @@ function preferredCity(shipment: Shipment): string {
   return computed || "-";
 }
 
-function extractMoReference(rawJson?: string | null, linkedMo?: string | null) {
+function extractMoReference(rawJson?: string | null, linkedMo?: string | null, moneyOrderIssued?: boolean | null) {
+  const issuedFromParam = moneyOrderIssued === true;
   const normalized = String(linkedMo ?? "").trim().toUpperCase();
-  if (normalized) return normalized;
+  if (issuedFromParam && normalized) return normalized;
   try {
     const parsed = rawJson ? JSON.parse(rawJson) : {};
+    const issuedFromRaw = Boolean((parsed as any)?.moneyOrderIssued);
+    if (!issuedFromParam && !issuedFromRaw) return null;
     const rawMo = String((parsed as any)?.moIssuedNumber ?? "").trim().toUpperCase();
     return rawMo || null;
   } catch {
@@ -2016,7 +2019,7 @@ export default function BulkTracking() {
       const lifecycle = parseComplaintLifecycle(shipment);
       const city = preferredCity(shipment);
       const status = normalizeStatus(record.final_status);
-      const moNumber = extractMoReference(shipment.rawJson, shipment.moIssued ?? null);
+      const moNumber = extractMoReference(shipment.rawJson, shipment.moIssued ?? null, shipment.moneyOrderIssued);
       const haystack = [
         shipment.trackingNumber,
         city,
@@ -2054,7 +2057,7 @@ export default function BulkTracking() {
     const rows = filteredShipments.map((record) => {
       const shipment = record.shipment;
       const lifecycle = parseComplaintLifecycle(shipment);
-      const moNumber = extractMoReference(shipment.rawJson, shipment.moIssued ?? null);
+      const moNumber = extractMoReference(shipment.rawJson, shipment.moIssued ?? null, shipment.moneyOrderIssued);
       const moAmount = extractMoValue(shipment.rawJson, shipment.moValue ?? null);
       return [
         shipment.trackingNumber,
@@ -2142,7 +2145,7 @@ export default function BulkTracking() {
     const bookingDate = timeline[0]?.date || "-";
     const lastEvent = timeline[timeline.length - 1] ?? null;
     const lastUpdate = lastEvent ? `${lastEvent.date} ${lastEvent.time}`.trim() : `${detailShipment.latestDate ?? ""} ${detailShipment.latestTime ?? ""}`.trim() || "-";
-    const moIssued = extractMoReference(detailShipment.rawJson, detailShipment.moIssued ?? null);
+    const moIssued = extractMoReference(detailShipment.rawJson, detailShipment.moIssued ?? null, detailShipment.moneyOrderIssued);
     const moValue = extractMoValue(detailShipment.rawJson, detailShipment.moValue ?? null);
     const bookingOffice = String((raw?.tracking as any)?.booking_office ?? raw?.Booking_Office ?? raw?.booking_office ?? raw?.bookingOffice ?? fields.senderCity ?? "").trim() || "-";
     const deliveryOffice = String(raw?.resolved_delivery_office ?? (raw?.tracking as any)?.delivery_office ?? raw?.Delivery_Office ?? raw?.delivery_office ?? raw?.deliveryOffice ?? fields.consigneeCity ?? "").trim() || "-";
@@ -3286,7 +3289,7 @@ export default function BulkTracking() {
                     : normalizedDisplayStatus;
 
                 const isWarning = row.delayed;
-                const fetchedMO = extractMoReference(s.rawJson, s.moIssued ?? null);
+                const fetchedMO = extractMoReference(s.rawJson, s.moIssued ?? null, s.moneyOrderIssued);
                 const moValue = fetchedMO ? fetchedMO : "-";
                 const issuedValue = extractMoValue(s.rawJson, s.moValue ?? null);
                 const complaintStateUpper = complaintCardState.toUpperCase();

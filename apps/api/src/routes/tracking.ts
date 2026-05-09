@@ -433,6 +433,7 @@ async function runInlineTracking(jobId: string, userId: string) {
           MOS_Number: processed.moIssued !== "-" ? processed.moIssued : "-",
           mos_number: processed.moIssued !== "-" ? processed.moIssued : "-",
           moIssuedNumber: processed.moIssued !== "-" ? processed.moIssued : undefined,
+          moneyOrderIssued: processed.moneyOrderIssued,
         });
         try {
           await persistTrackingIntelligence({
@@ -879,6 +880,7 @@ trackingRouter.get("/track/:trackingNumber", requireAuth, async (req, res) => {
       MOS_Number: processed.moIssued !== "-" ? processed.moIssued : "-",
       mos_number: processed.moIssued !== "-" ? processed.moIssued : "-",
       moIssuedNumber: processed.moIssued !== "-" ? processed.moIssued : undefined,
+      moneyOrderIssued: processed.moneyOrderIssued,
     });
 
     try {

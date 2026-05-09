@@ -32,14 +32,27 @@
         font-family: Arial, sans-serif;
       }
 
+      :root {
+        --a4-width: 210mm;
+        --a4-height: 297mm;
+        --page-margin: 3mm;
+        --page-safe-width-trim: 0.6mm;
+        --fl-col-gap: 3mm;
+        --fl-row-gap: 3mm;
+        --fl-page-width: calc(var(--a4-width) - (var(--page-margin) * 2) - var(--page-safe-width-trim));
+        --fl-page-height: calc(var(--a4-height) - (var(--page-margin) * 2));
+        --fl-label-width: calc((var(--fl-page-width) - var(--fl-col-gap)) / 2);
+      }
+
       /* A4 page — 2 × 4 grid (8 labels) */
       .fl-page {
-        width: 204mm;
-        height: 291mm;
+        width: var(--fl-page-width);
+        height: var(--fl-page-height);
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        grid-template-rows: repeat(4, 1fr);
-        gap: 3mm;
+        grid-template-columns: repeat(2, minmax(0, var(--fl-label-width)));
+        grid-template-rows: repeat(4, minmax(0, 1fr));
+        column-gap: var(--fl-col-gap);
+        row-gap: var(--fl-row-gap);
         box-sizing: border-box;
         page-break-after: always;
       }

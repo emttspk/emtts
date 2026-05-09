@@ -26,6 +26,7 @@ export type Shipment = {
   id: string;
   trackingNumber: string;
   moIssued?: string | null;
+  moneyOrderIssued?: boolean | null;
   moValue?: number | null;
   status?: string | null;
   city?: string | null;

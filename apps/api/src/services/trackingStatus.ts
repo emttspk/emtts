@@ -543,6 +543,7 @@ export type ProcessTrackingResult = {
   normalizedStepStatus: "DELIVERED" | "PENDING" | "BOOKED" | "UNKNOWN";
   trackingLifecycle: TrackingLifecycle;
   moneyOrderLinkEligible: boolean;
+  moneyOrderIssued: boolean;
   moIssued: string | "-";
   trackingMo: string | "-";
   systemMo: string | "-";
@@ -713,6 +714,11 @@ export function processTracking(rawData: unknown, opts?: { explicitMo?: string |
   }
 
   const inactivityHours = inactivityHoursFromEvents(events);
+  const moneyOrderIssued =
+    mosDelivered ||
+    normalizedEvents.some((s) =>
+      isMosStep(s) && (s.includes("mos issued") || s.includes("mo issued") || s.includes("money order issued")),
+    );
 
   let finalStatus: ProcessTrackingResult["status"] = "-";
   if (steps.length > 0) {
@@ -741,7 +747,7 @@ export function processTracking(rawData: unknown, opts?: { explicitMo?: string |
     && deliveredStatusReady
     && deliveredCycleReady;
   const detectedMo = trackingMo !== "-" ? trackingMo : (systemMoTokens[0] ?? "-");
-  const moIssuedOut = detectedMo !== "-" ? detectedMo : "-";
+  const moIssuedOut = moneyOrderIssued && detectedMo !== "-" ? detectedMo : "-";
 
   // Keep detailed system status for dashboard truth, while `status` remains canonical tri-state.
   const systemStatusOut = steps.length === 0 ? "PENDING" : systemStatus;
@@ -780,6 +786,7 @@ export function processTracking(rawData: unknown, opts?: { explicitMo?: string |
     normalizedStepStatus,
     trackingLifecycle,
     moneyOrderLinkEligible,
+    moneyOrderIssued,
     moIssued: moIssuedOut,
     trackingMo,
     systemMo,

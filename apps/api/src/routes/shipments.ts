@@ -166,6 +166,7 @@ function normalizeManualStatus(input: unknown): "DELIVERED" | "PENDING" | "RETUR
 }
 
 function resolveMoForDisplay(explicitSystemMo: string | null, processed: ReturnType<typeof processTracking>): string | null {
+  if (!processed.moneyOrderIssued) return null;
   if (explicitSystemMo) return explicitSystemMo;
   if (processed.trackingMo && processed.trackingMo !== "-") return processed.trackingMo;
   return null;
@@ -580,6 +581,7 @@ shipmentsRouter.get("/", async (req, res) => {
       MOS_Number: moIssued ?? "-",
       mos_number: moIssued ?? "-",
       moIssuedNumber: moIssued ?? undefined,
+      moneyOrderIssued: processed.moneyOrderIssued,
       moIssuedValue: moValue ?? undefined,
       trackingMo: processed.trackingMo,
       systemMo: processed.systemMo,
@@ -594,6 +596,7 @@ shipmentsRouter.get("/", async (req, res) => {
       ...consignee,
       rawJson: mergedRaw,
       moIssued,
+      moneyOrderIssued: processed.moneyOrderIssued,
       moValue,
     };
   });
@@ -696,12 +699,14 @@ shipmentsRouter.post("/diff", async (req, res) => {
         MOS_Number: moIssued ?? "-",
         mos_number: moIssued ?? "-",
         moIssuedNumber: moIssued ?? undefined,
+        moneyOrderIssued: processed.moneyOrderIssued,
         moIssuedValue: moValue ?? undefined,
         trackingMo: processed.trackingMo,
         systemMo: processed.systemMo,
         moMatch: processed.moMatch,
       }),
       moIssued,
+      moneyOrderIssued: processed.moneyOrderIssued,
       moValue,
     };
   });
@@ -943,12 +948,14 @@ shipmentsRouter.get("/:id", async (req, res) => {
         MOS_Number: moIssued ?? "-",
         mos_number: moIssued ?? "-",
         moIssuedNumber: moIssued ?? undefined,
+        moneyOrderIssued: processed.moneyOrderIssued,
         moIssuedValue: moValue ?? undefined,
         trackingMo: processed.trackingMo,
         systemMo: processed.systemMo,
         moMatch: processed.moMatch,
       }),
       moIssued,
+      moneyOrderIssued: processed.moneyOrderIssued,
       moValue,
     },
   });
@@ -1172,6 +1179,7 @@ shipmentsRouter.post("/refresh-pending", async (req, res) => {
         systemMo: processed.systemMo,
         moMatch: processed.moMatch,
         moIssuedNumber: moIssued ?? undefined,
+        moneyOrderIssued: processed.moneyOrderIssued,
         moIssuedValue: moIssued ? moValue ?? undefined : undefined,
       };
 

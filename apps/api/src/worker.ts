@@ -1316,6 +1316,7 @@ const trackingWorker = new Worker(
               MOS_Number: processed.moIssued !== "-" ? processed.moIssued : "-",
               mos_number: processed.moIssued !== "-" ? processed.moIssued : "-",
               moIssuedNumber: processed.moIssued !== "-" ? processed.moIssued : undefined,
+              moneyOrderIssued: processed.moneyOrderIssued,
             });
             try {
               await persistTrackingIntelligence({

@@ -5,13 +5,25 @@
       <style>
         @page { size: A4; margin: 3mm; }
         html, body { margin: 0; padding: 0; color: #000; font-family: Arial, sans-serif; }
+        :root {
+          --a4-width: 210mm;
+          --a4-height: 297mm;
+          --page-margin: 3mm;
+          --page-safe-width-trim: 0.6mm;
+          --fl-col-gap: 3mm;
+          --fl-row-gap: 3mm;
+          --fl-page-width: calc(var(--a4-width) - (var(--page-margin) * 2) - var(--page-safe-width-trim));
+          --fl-page-height: calc(var(--a4-height) - (var(--page-margin) * 2));
+          --fl-label-width: calc((var(--fl-page-width) - var(--fl-col-gap)) / 2);
+        }
         .fl-page {
-          width: 204mm;
-          height: 291mm;
+          width: var(--fl-page-width);
+          height: var(--fl-page-height);
           display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          grid-template-rows: repeat(4, 1fr);
-          gap: 3mm;
+          grid-template-columns: repeat(2, minmax(0, var(--fl-label-width)));
+          grid-template-rows: repeat(4, minmax(0, 1fr));
+          column-gap: var(--fl-col-gap);
+          row-gap: var(--fl-row-gap);
           box-sizing: border-box;
           page-break-after: always;
         }
@@ -28,7 +40,7 @@
           overflow: hidden;
         }
         .fl-label-empty { background: #fff; border: 0.3mm dashed #ccc; }
-        .fl-top { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 0.3mm solid #000; padding-bottom: 0.8mm; }
+        .fl-top { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 0.3mm solid #000; padding-bottom: 0.8mm; min-width: 0; }
         .fl-carrier-stack { display: grid; gap: 0.25mm; min-width: 0; }
         .fl-carrier { font-weight: 900; font-size: 3.5mm; text-transform: uppercase; letter-spacing: 0.12mm; }
         .fl-dispatch-date { font-size: 2.1mm; font-weight: 700; line-height: 1.05; }
@@ -60,18 +72,126 @@
             <div class="fl-carrier">Pakistan Post</div>
             <div class="fl-dispatch-date">Dispatch Date: 09-05-2026</div>
           </div>
-          <div class="fl-badge">VPL Rs.800</div>
+          <div class="fl-badge">VPL Rs.425</div>
         </div>
         <div class="fl-barcode-wrap">
-          <div class="fl-barcode-fallback">VPL26030726</div>
-          <div class="fl-tracking">VPL26030726</div>
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPYAAABUCAYAAACxxsotAAAABmJLR0QA/wD/AP+gvaeTAAABVklEQVR4nO3TywqCQABAUe3//9kWEdSQNCoEXc7ZqfPwdddlWbblxbY9Dtd1fTt+2js/eo4b7a0/jt9bf3bd2evfnndv36P7nb2/o+Nmv9fV9zC73ux+R+f9et/Z+Wfnja7+V7ePs4G/JmwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgTdASd3ZKfHO46oAAAAAElFTkSuQmCC" class="fl-barcode-image" alt="Barcode" />
+          <div class="fl-tracking">VPL26050001</div>
         </div>
         <div class="fl-to">
           <span class="fl-k">TO:</span>
-          <span class="fl-name">Receiver Test</span>
-          <div class="fl-addr">House 12, Street 3, Model Town</div>
-          <div class="fl-city-phone">Lahore</div>
-          <div class="fl-city-phone">03001234567</div>
+          <span class="fl-name">Receiver 1</span>
+          <div class="fl-addr">House 10, Block 1</div>
+          <div class="fl-city-phone">Town 1</div>
+          <div class="fl-city-phone">03110000001</div>
+        </div>
+        <div class="fl-bottom-grid">
+          <div class="fl-card fl-amount-box">
+          <div class="fl-amount-title">MONEY ORDER SUMMARY</div>
+          <div class="fl-amount-row"><span>MO Amount</span><span>Rs.425</span></div>
+          <div class="fl-amount-row"><span>MO Commission</span><span>Rs.75</span></div>
+          <div class="fl-amount-row"><span>Gross Collect Amount</span><span>Rs.500</span></div>
+          </div>
+          <div class="fl-card fl-product-box">
+            <div class="fl-product-title">PRODUCT DETAILS</div>
+            <div class="fl-product-row"><span>Weight</span><span>1000 g</span></div>
+            <div class="fl-product-row"><span>Order ID</span><span>ORDER-1</span></div>
+          </div>
+        </div>
+        <div class="fl-from">
+          <span class="fl-from-line">FROM: Sender 1 | Street 1, Example Market, City 1 | 03000000001</span>
+        </div>
+      </div>
+      <div class="fl-label">
+        <div class="fl-top">
+          <div class="fl-carrier-stack">
+            <div class="fl-carrier">Pakistan Post</div>
+            <div class="fl-dispatch-date">Dispatch Date: 09-05-2026</div>
+          </div>
+          <div class="fl-badge">VPL Rs.550</div>
+        </div>
+        <div class="fl-barcode-wrap">
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPYAAABUCAYAAACxxsotAAAABmJLR0QA/wD/AP+gvaeTAAABWUlEQVR4nO3TQQ6CMBRAQfD+d8aFMVFiQ8G48GVmh7S/gHnrsizb8mLbHpfrur5dP41+33uu2xvN368fzZ+dO3v/6H1H55497+rznV03+399+x1m582ed3bfr+9ffd6rc4/2j+aM5t4+7gb+mrAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BB0Bz9HZKcke7roAAAAAElFTkSuQmCC" class="fl-barcode-image" alt="Barcode" />
+          <div class="fl-tracking">VPL26050002</div>
+        </div>
+        <div class="fl-to">
+          <span class="fl-k">TO:</span>
+          <span class="fl-name">Receiver 2</span>
+          <div class="fl-addr">House 11, Block 2</div>
+          <div class="fl-city-phone">Town 2</div>
+          <div class="fl-city-phone">03110000002</div>
+        </div>
+        <div class="fl-bottom-grid">
+          <div class="fl-card fl-amount-box">
+          <div class="fl-amount-title">MONEY ORDER SUMMARY</div>
+          <div class="fl-amount-row"><span>MO Amount</span><span>Rs.550</span></div>
+          <div class="fl-amount-row"><span>MO Commission</span><span>Rs.75</span></div>
+          <div class="fl-amount-row"><span>Gross Collect Amount</span><span>Rs.625</span></div>
+          </div>
+          <div class="fl-card fl-product-box">
+            <div class="fl-product-title">PRODUCT DETAILS</div>
+            <div class="fl-product-row"><span>Weight</span><span>2000 g</span></div>
+            <div class="fl-product-row"><span>Order ID</span><span>ORDER-2</span></div>
+          </div>
+        </div>
+        <div class="fl-from">
+          <span class="fl-from-line">FROM: Sender 2 | Street 2, Example Market, City 2 | 03000000002</span>
+        </div>
+      </div>
+      <div class="fl-label">
+        <div class="fl-top">
+          <div class="fl-carrier-stack">
+            <div class="fl-carrier">Pakistan Post</div>
+            <div class="fl-dispatch-date">Dispatch Date: 09-05-2026</div>
+          </div>
+          <div class="fl-badge">VPL Rs.675</div>
+        </div>
+        <div class="fl-barcode-wrap">
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPYAAABUCAYAAACxxsotAAAABmJLR0QA/wD/AP+gvaeTAAABW0lEQVR4nO3TQQ6CMBRAQfD+d8aFIVEioZWVLzM7sPxWyFuXZdmWN9v2ulzX9eN6d3b/aF93dDb/uP5s/ujc0d+v/u/ZvrP7/Xq+2XWj3+vuexidN7rf7HOj55mdN3re2fdzd/+rcxzXP74+Dfw1YUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIegJ/udkp5b8SDAAAAAASUVORK5CYII=" class="fl-barcode-image" alt="Barcode" />
+          <div class="fl-tracking">VPL26050003</div>
+        </div>
+        <div class="fl-to">
+          <span class="fl-k">TO:</span>
+          <span class="fl-name">Receiver 3</span>
+          <div class="fl-addr">House 12, Block 3</div>
+          <div class="fl-city-phone">Town 3</div>
+          <div class="fl-city-phone">03110000003</div>
+        </div>
+        <div class="fl-bottom-grid">
+          <div class="fl-card fl-amount-box">
+          <div class="fl-amount-title">MONEY ORDER SUMMARY</div>
+          <div class="fl-amount-row"><span>MO Amount</span><span>Rs.675</span></div>
+          <div class="fl-amount-row"><span>MO Commission</span><span>Rs.75</span></div>
+          <div class="fl-amount-row"><span>Gross Collect Amount</span><span>Rs.750</span></div>
+          </div>
+          <div class="fl-card fl-product-box">
+            <div class="fl-product-title">PRODUCT DETAILS</div>
+            <div class="fl-product-row"><span>Weight</span><span>3000 g</span></div>
+            <div class="fl-product-row"><span>Order ID</span><span>ORDER-3</span></div>
+          </div>
+        </div>
+        <div class="fl-from">
+          <span class="fl-from-line">FROM: Sender 3 | Street 3, Example Market, City 3 | 03000000003</span>
+        </div>
+      </div>
+      <div class="fl-label">
+        <div class="fl-top">
+          <div class="fl-carrier-stack">
+            <div class="fl-carrier">Pakistan Post</div>
+            <div class="fl-dispatch-date">Dispatch Date: 09-05-2026</div>
+          </div>
+          <div class="fl-badge">VPL Rs.800</div>
+        </div>
+        <div class="fl-barcode-wrap">
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPYAAABUCAYAAACxxsotAAAABmJLR0QA/wD/AP+gvaeTAAABW0lEQVR4nO3TQQ6CMBRAQfD+d8aFMVFiY4srX2Z2SPsLkrdv23ZsL47jcbnv+9v10+j3s+e6s9H88/rR/Nm5s/e/ve/o3NXzrj7f6rrZ7/Xr/zA7b/a81X2zz7P6Pa/uP8+5+r6r80dzbx93A39N2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCLoDhxdkp80h684AAAAASUVORK5CYII=" class="fl-barcode-image" alt="Barcode" />
+          <div class="fl-tracking">VPL26050004</div>
+        </div>
+        <div class="fl-to">
+          <span class="fl-k">TO:</span>
+          <span class="fl-name">Receiver 4</span>
+          <div class="fl-addr">House 13, Block 4</div>
+          <div class="fl-city-phone">Town 4</div>
+          <div class="fl-city-phone">03110000004</div>
         </div>
         <div class="fl-bottom-grid">
           <div class="fl-card fl-amount-box">
@@ -82,12 +202,156 @@
           </div>
           <div class="fl-card fl-product-box">
             <div class="fl-product-title">PRODUCT DETAILS</div>
-            <div class="fl-product-row"><span>Weight</span><span>1000 g</span></div>
-            <div class="fl-product-row"><span>Order ID</span><span>ORDER-9981</span></div>
+            <div class="fl-product-row"><span>Weight</span><span>4000 g</span></div>
+            <div class="fl-product-row"><span>Order ID</span><span>ORDER-4</span></div>
           </div>
         </div>
         <div class="fl-from">
-          <span class="fl-from-line">FROM: Sender Business Pvt Ltd | Office 14, Main Boulevard, Karachi | 03112223334</span>
+          <span class="fl-from-line">FROM: Sender 4 | Street 4, Example Market, City 4 | 03000000004</span>
         </div>
-      </div><div class="fl-label fl-label-empty"></div><div class="fl-label fl-label-empty"></div><div class="fl-label fl-label-empty"></div><div class="fl-label fl-label-empty"></div><div class="fl-label fl-label-empty"></div><div class="fl-label fl-label-empty"></div><div class="fl-label fl-label-empty"></div></div></body>
+      </div>
+      <div class="fl-label">
+        <div class="fl-top">
+          <div class="fl-carrier-stack">
+            <div class="fl-carrier">Pakistan Post</div>
+            <div class="fl-dispatch-date">Dispatch Date: 09-05-2026</div>
+          </div>
+          <div class="fl-badge">VPL Rs.925</div>
+        </div>
+        <div class="fl-barcode-wrap">
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPYAAABUCAYAAACxxsotAAAABmJLR0QA/wD/AP+gvaeTAAABWklEQVR4nO3TQQ6CMBRAQfD+d8aFMVFiQxE3vszskPJblbcuy7ItL7btcbmu69v10+jzvee6vdH8/frR/Nm5s/ePvu9o37P7fXu+s+tm/6+rv8PsvNn9zj53dJ5fn3d07qvvy9X3fDT39vFp4K8JG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQXdvF2SnZa+cLgAAAABJRU5ErkJggg==" class="fl-barcode-image" alt="Barcode" />
+          <div class="fl-tracking">VPL26050005</div>
+        </div>
+        <div class="fl-to">
+          <span class="fl-k">TO:</span>
+          <span class="fl-name">Receiver 5</span>
+          <div class="fl-addr">House 14, Block 5</div>
+          <div class="fl-city-phone">Town 5</div>
+          <div class="fl-city-phone">03110000005</div>
+        </div>
+        <div class="fl-bottom-grid">
+          <div class="fl-card fl-amount-box">
+          <div class="fl-amount-title">MONEY ORDER SUMMARY</div>
+          <div class="fl-amount-row"><span>MO Amount</span><span>Rs.925</span></div>
+          <div class="fl-amount-row"><span>MO Commission</span><span>Rs.75</span></div>
+          <div class="fl-amount-row"><span>Gross Collect Amount</span><span>Rs.1000</span></div>
+          </div>
+          <div class="fl-card fl-product-box">
+            <div class="fl-product-title">PRODUCT DETAILS</div>
+            <div class="fl-product-row"><span>Weight</span><span>5000 g</span></div>
+            <div class="fl-product-row"><span>Order ID</span><span>ORDER-5</span></div>
+          </div>
+        </div>
+        <div class="fl-from">
+          <span class="fl-from-line">FROM: Sender 5 | Street 5, Example Market, City 5 | 03000000005</span>
+        </div>
+      </div>
+      <div class="fl-label">
+        <div class="fl-top">
+          <div class="fl-carrier-stack">
+            <div class="fl-carrier">Pakistan Post</div>
+            <div class="fl-dispatch-date">Dispatch Date: 09-05-2026</div>
+          </div>
+          <div class="fl-badge">VPL Rs.1050</div>
+        </div>
+        <div class="fl-barcode-wrap">
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPYAAABUCAYAAACxxsotAAAABmJLR0QA/wD/AP+gvaeTAAABWklEQVR4nO3TQQ6CMBRAQfD+d8aFIVGSSlE3vszs0PpbhLcuy7ItT7btcbmu68v1bvT50b7uaDT/uH40f3bu7Pdn9zva9+p+n57v6rrZ5/Xt/zA7b3a/q7/71Xlm7/PTfUZzz9Z/+17d3p4C+EvChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFD0B0u9mSnyFNMHAAAAABJRU5ErkJggg==" class="fl-barcode-image" alt="Barcode" />
+          <div class="fl-tracking">VPL26050006</div>
+        </div>
+        <div class="fl-to">
+          <span class="fl-k">TO:</span>
+          <span class="fl-name">Receiver 6</span>
+          <div class="fl-addr">House 15, Block 6</div>
+          <div class="fl-city-phone">Town 6</div>
+          <div class="fl-city-phone">03110000006</div>
+        </div>
+        <div class="fl-bottom-grid">
+          <div class="fl-card fl-amount-box">
+          <div class="fl-amount-title">MONEY ORDER SUMMARY</div>
+          <div class="fl-amount-row"><span>MO Amount</span><span>Rs.1050</span></div>
+          <div class="fl-amount-row"><span>MO Commission</span><span>Rs.75</span></div>
+          <div class="fl-amount-row"><span>Gross Collect Amount</span><span>Rs.1125</span></div>
+          </div>
+          <div class="fl-card fl-product-box">
+            <div class="fl-product-title">PRODUCT DETAILS</div>
+            <div class="fl-product-row"><span>Weight</span><span>6000 g</span></div>
+            <div class="fl-product-row"><span>Order ID</span><span>ORDER-6</span></div>
+          </div>
+        </div>
+        <div class="fl-from">
+          <span class="fl-from-line">FROM: Sender 6 | Street 6, Example Market, City 6 | 03000000006</span>
+        </div>
+      </div>
+      <div class="fl-label">
+        <div class="fl-top">
+          <div class="fl-carrier-stack">
+            <div class="fl-carrier">Pakistan Post</div>
+            <div class="fl-dispatch-date">Dispatch Date: 09-05-2026</div>
+          </div>
+          <div class="fl-badge">VPL Rs.1175</div>
+        </div>
+        <div class="fl-barcode-wrap">
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPYAAABUCAYAAACxxsotAAAABmJLR0QA/wD/AP+gvaeTAAABWUlEQVR4nO3TSw6CMABAQfD+d8aFMdEmaAE3vszsgNKWz1uXZdmWF9v2OFzX9e34ae/86DlutDf/OH5v/tl5Z69/e969dY+ud3Z/R8fNfq+r72F2vtn1jt53dT+z9//qvZ3d12j2v7p93AXwl4QNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoagO+bnZKdu3G5wAAAAAElFTkSuQmCC" class="fl-barcode-image" alt="Barcode" />
+          <div class="fl-tracking">VPL26050007</div>
+        </div>
+        <div class="fl-to">
+          <span class="fl-k">TO:</span>
+          <span class="fl-name">Receiver 7</span>
+          <div class="fl-addr">House 16, Block 7</div>
+          <div class="fl-city-phone">Town 7</div>
+          <div class="fl-city-phone">03110000007</div>
+        </div>
+        <div class="fl-bottom-grid">
+          <div class="fl-card fl-amount-box">
+          <div class="fl-amount-title">MONEY ORDER SUMMARY</div>
+          <div class="fl-amount-row"><span>MO Amount</span><span>Rs.1175</span></div>
+          <div class="fl-amount-row"><span>MO Commission</span><span>Rs.75</span></div>
+          <div class="fl-amount-row"><span>Gross Collect Amount</span><span>Rs.1250</span></div>
+          </div>
+          <div class="fl-card fl-product-box">
+            <div class="fl-product-title">PRODUCT DETAILS</div>
+            <div class="fl-product-row"><span>Weight</span><span>7000 g</span></div>
+            <div class="fl-product-row"><span>Order ID</span><span>ORDER-7</span></div>
+          </div>
+        </div>
+        <div class="fl-from">
+          <span class="fl-from-line">FROM: Sender 7 | Street 7, Example Market, City 7 | 03000000007</span>
+        </div>
+      </div>
+      <div class="fl-label">
+        <div class="fl-top">
+          <div class="fl-carrier-stack">
+            <div class="fl-carrier">Pakistan Post</div>
+            <div class="fl-dispatch-date">Dispatch Date: 09-05-2026</div>
+          </div>
+          <div class="fl-badge">VPL Rs.1300</div>
+        </div>
+        <div class="fl-barcode-wrap">
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPYAAABUCAYAAACxxsotAAAABmJLR0QA/wD/AP+gvaeTAAABWUlEQVR4nO3TwQqCQBRAUe3//9kWEZQwOSYEXc7ZWeObSbvrsizb8mLbHpfrur5dP40+33uu2xvN368fzZ+dO/v90e8d7Xt2v2/Pd3bd7Pu6+hxm583ud/a+o/Ncvf/s3L1f/c9Hc28fTwf8JWFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCFI2BAkbAgSNgQJG4KEDUHChiBhQ5CwIUjYECRsCBI2BAkbgoQNQcKGIGFDkLAhSNgQJGwIEjYECRuChA1BwoYgYUOQsCHoDj8XZKcdKtNVAAAAAElFTkSuQmCC" class="fl-barcode-image" alt="Barcode" />
+          <div class="fl-tracking">VPL26050008</div>
+        </div>
+        <div class="fl-to">
+          <span class="fl-k">TO:</span>
+          <span class="fl-name">Receiver 8</span>
+          <div class="fl-addr">House 17, Block 8</div>
+          <div class="fl-city-phone">Town 8</div>
+          <div class="fl-city-phone">03110000008</div>
+        </div>
+        <div class="fl-bottom-grid">
+          <div class="fl-card fl-amount-box">
+          <div class="fl-amount-title">MONEY ORDER SUMMARY</div>
+          <div class="fl-amount-row"><span>MO Amount</span><span>Rs.1300</span></div>
+          <div class="fl-amount-row"><span>MO Commission</span><span>Rs.75</span></div>
+          <div class="fl-amount-row"><span>Gross Collect Amount</span><span>Rs.1375</span></div>
+          </div>
+          <div class="fl-card fl-product-box">
+            <div class="fl-product-title">PRODUCT DETAILS</div>
+            <div class="fl-product-row"><span>Weight</span><span>8000 g</span></div>
+            <div class="fl-product-row"><span>Order ID</span><span>ORDER-8</span></div>
+          </div>
+        </div>
+        <div class="fl-from">
+          <span class="fl-from-line">FROM: Sender 8 | Street 8, Example Market, City 8 | 03000000008</span>
+        </div>
+      </div></div></body>
   </html>
