@@ -1,0 +1,89 @@
+<!doctype html>
+  <html>
+    <head>
+      <meta charset="utf-8" />
+      <style>
+        @page { size: A4; margin: 3mm; }
+        html, body { margin: 0; padding: 0; color: #000; font-family: Arial, sans-serif; }
+        .fl-page {
+          width: 204mm;
+          height: 291mm;
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          grid-template-rows: repeat(4, 1fr);
+          gap: 3mm;
+          box-sizing: border-box;
+          page-break-after: always;
+        }
+        .fl-page:last-child { page-break-after: auto; }
+        .fl-label {
+          width: 100%;
+          height: 100%;
+          border: 0.5mm solid #000;
+          box-sizing: border-box;
+          padding: 2mm;
+          display: grid;
+          grid-template-rows: auto auto 1fr auto;
+          gap: 1.2mm;
+          overflow: hidden;
+        }
+        .fl-label-empty { background: #fff; border: 0.3mm dashed #ccc; }
+        .fl-top { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 0.3mm solid #000; padding-bottom: 0.8mm; }
+        .fl-carrier-stack { display: grid; gap: 0.25mm; min-width: 0; }
+        .fl-carrier { font-weight: 900; font-size: 3.5mm; text-transform: uppercase; letter-spacing: 0.12mm; }
+        .fl-dispatch-date { font-size: 2.1mm; font-weight: 700; line-height: 1.05; }
+        .fl-badge { border: 0.3mm solid #000; padding: 0.6mm 1.2mm; font-weight: 900; font-size: 3mm; white-space: nowrap; }
+        .fl-barcode-wrap { display: grid; justify-items: center; gap: 0.5mm; }
+        .fl-barcode-image { width: 88mm; height: 9mm; object-fit: contain; display: block; }
+        .fl-barcode-fallback { width: 88mm; height: 9mm; border: 0.3mm dashed #000; display: grid; place-items: center; font-weight: 900; font-size: 2.5mm; }
+        .fl-tracking { font-family: "Courier New", Courier, monospace; font-weight: 900; letter-spacing: 0.24mm; font-size: 2.4mm; text-align: center; }
+        .fl-amount-box { border: 0.35mm solid #000; padding: 0.9mm 1.3mm; display: grid; gap: 0.5mm; background: #fff; }
+        .fl-amount-title { font-size: 2.2mm; font-weight: 900; letter-spacing: 0.2mm; border-bottom: 0.25mm solid #000; padding-bottom: 0.35mm; }
+        .fl-amount-row { display: flex; justify-content: space-between; gap: 2mm; font-size: 2.25mm; font-weight: 800; }
+        .fl-to { display: grid; gap: 0.5mm; overflow: hidden; }
+        .fl-k { font-weight: 900; font-size: 2.5mm; letter-spacing: 0.3mm; }
+        .fl-name { font-weight: 900; font-size: 3.2mm; }
+        .fl-addr { font-size: 2.6mm; line-height: 1.15; white-space: pre-line; overflow: hidden; }
+        .fl-city-phone { font-size: 2.5mm; color: #222; }
+        .fl-from { display: grid; gap: 0.45mm; border-top: 0.3mm solid #000; padding-top: 0.8mm; font-size: 2.4mm; }
+        .fl-from-name { font-weight: 700; }
+        .fl-from-cnic, .fl-from-phone { font-size: 2.2mm; font-weight: 700; }
+        .fl-from-address { font-size: 2.25mm; line-height: 1.15; white-space: pre-line; overflow-wrap: anywhere; word-break: break-word; }
+        .fl-weight { border: 0.25mm solid #000; padding: 0.3mm 0.8mm; font-family: "Courier New", Courier, monospace; font-size: 2.3mm; font-weight: 700; }
+      </style>
+    </head>
+    <body><div class="fl-page">
+      <div class="fl-label">
+        <div class="fl-top">
+          <div class="fl-carrier-stack">
+            <div class="fl-carrier">Pakistan Post</div>
+            <div class="fl-dispatch-date">Dispatch Date: 09-05-2026</div>
+          </div>
+          <div class="fl-badge">VPL Rs.800</div>
+        </div>
+        <div class="fl-barcode-wrap">
+          <div class="fl-barcode-fallback">VPL26030726</div>
+          <div class="fl-tracking">VPL26030726</div>
+        </div>
+        <div class="fl-amount-box">
+          <div class="fl-amount-title">MONEY ORDER SUMMARY</div>
+          <div class="fl-amount-row"><span>MO Amount</span><span>Rs.800</span></div>
+          <div class="fl-amount-row"><span>MO Commission</span><span>Rs.75</span></div>
+          <div class="fl-amount-row"><span>Gross Collect Amount</span><span>Rs.875</span></div>
+        </div>
+        <div class="fl-to">
+          <span class="fl-k">TO:</span>
+          <span class="fl-name">Receiver Test</span>
+          <div class="fl-addr">House 12, Street 3, Model Town</div>
+          <div class="fl-city-phone">Lahore · 03001234567</div>
+        </div>
+        <div class="fl-from">
+          <span class="fl-k">FROM:</span>
+          <span class="fl-from-name">Sender Test (35202-1234567-1)</span>
+          <div class="fl-from-cnic">CNIC: 35202-1234567-1</div>
+          <div class="fl-from-address">Office 14, Main Boulevard, Karachi</div>
+          <div class="fl-from-phone">Phone: 03112223334</div>
+          <span class="fl-weight">1000 g</span>
+        </div>
+      </div><div class="fl-label fl-label-empty"></div><div class="fl-label fl-label-empty"></div><div class="fl-label fl-label-empty"></div><div class="fl-label fl-label-empty"></div><div class="fl-label fl-label-empty"></div><div class="fl-label fl-label-empty"></div><div class="fl-label fl-label-empty"></div></div></body>
+  </html>

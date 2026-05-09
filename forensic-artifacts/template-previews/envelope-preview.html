@@ -196,7 +196,6 @@
       }
 
       .header-id-line {
-        width: 100%;
         text-align: center;
         font-size: 7.2pt;
         font-weight: 900;
@@ -335,62 +334,62 @@
       }
     </style>
   </head>
-  <body>
-    <div class="label-container">
+  <body><div class="label-container">
       <div class="label-safe-area">
         <div class="label-card">
           <div class="left-panel">
             <div class="header">
               <div class="carrier-stack">
                 <div class="carrier">PAKISTAN POST</div>
-                <div class="dispatch-date">{dispatch_date}</div>
+                <div class="dispatch-date">Dispatch Date: 09-05-2026</div>
               </div>
-              <div class="prefix">{prefix}</div>
+              <div class="prefix">VPL | Rs. 800</div>
             </div>
 
             <div class="to">
               <div class="label-key">TO:</div>
-              <div class="receiver-name">{receiver_name}</div>
-              <div class="receiver-address">{receiver_address}</div>
-              <div class="receiver-contact">{receiver_contact}</div>
+              <div class="receiver-name">Receiver Test</div>
+              <div class="receiver-address">House 12, Street 3, Model Town
+Lahore</div>
+              <div class="receiver-contact">03001234567</div>
             </div>
 
             <div class="from">
               <div class="label-key">FROM:</div>
-              <div class="sender-inline">{sender_inline}</div>
-              <div class="sender-contact {sender_contact_class}">{sender_contact}</div>
+              <div class="sender-inline">Sender Test (35202-1234567-1), CNIC: 35202-1234567-1, Office 14, Main Boulevard, Karachi</div>
+              <div class="sender-contact ">Phone: 03112223334</div>
             </div>
           </div>
 
           <div class="right-panel">
             <div class="header-barcode">
-              <img class="barcode" src="data:image/png;base64,{{barcode}}" alt="Barcode" />
-              <div class="header-id-line">{tracking_id}</div>
-              <div class="header-id-line {mos_class}">{mos_numbers}</div>
+              <img class="barcode" src="data:image/png;base64," alt="Barcode" />
+              <div class="header-id-line">VPL26030726</div>
+              <div class="header-id-line is-hidden"></div>
             </div>
-            <div class="amount {calc_class}">
+            <div class="amount ">
               <div class="amount-rows">
-                <div class="amount-row {amount_primary_class}">
-                  <span class="amount-label">{amount_primary_label}</span>
-                  <span class="amount-value">{amount_primary_value}</span>
+                <div class="amount-row ">
+                  <span class="amount-label">MO Amount</span>
+                  <span class="amount-value">800</span>
                 </div>
-                <div class="amount-row {amount_secondary_class}">
-                  <span class="amount-label">{amount_secondary_label}</span>
-                  <span class="amount-value">{amount_secondary_value}</span>
+                <div class="amount-row ">
+                  <span class="amount-label">MO Commission</span>
+                  <span class="amount-value">75</span>
                 </div>
-                <div class="amount-row {amount_total_class}">
-                  <span class="amount-label">{amount_total_label}</span>
-                  <span class="amount-value">{amount_total_value}</span>
+                <div class="amount-row ">
+                  <span class="amount-label">Gross Collect Amount</span>
+                  <span class="amount-value">875</span>
                 </div>
               </div>
             </div>
-            <div class="meta-row {order_class}">
+            <div class="meta-row ">
               <span class="meta-k">Order</span>
-              <span class="meta-v">{order_id}</span>
+              <span class="meta-v">ORDER-9981</span>
             </div>
-            <div class="meta-row {product_class}">
+            <div class="meta-row ">
               <span class="meta-k">Product</span>
-              <span class="meta-v">{product_details}</span>
+              <span class="meta-v">Premium Documents</span>
             </div>
             <div class="marketing-footer">
               Print Labels, Money Order &amp; Track Parcels at <a href="http://www.bd.pk">www.bd.pk</a>
@@ -398,6 +397,5 @@
           </div>
         </div>
       </div>
-    </div>
-  </body>
+    </div></body>
 </html>
