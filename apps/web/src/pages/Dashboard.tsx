@@ -75,9 +75,6 @@ export default function Dashboard() {
 
   const summaryCards = [
     { key: "ALL" as const, label: "Total", parcels: stats.total, amount: stats.totalAmount },
-    { key: "DELIVERED" as const, label: "Delivered", parcels: stats.delivered, amount: stats.deliveredAmount },
-    { key: "PENDING" as const, label: "Pending", parcels: stats.pending, amount: stats.pendingAmount },
-    { key: "RETURNED" as const, label: "Returned", parcels: stats.returned, amount: stats.returnedAmount },
     { key: "COMPLAINTS" as const, label: "Complaints", parcels: stats.complaints, amount: stats.complaintAmount },
   ];
 
@@ -149,12 +146,9 @@ export default function Dashboard() {
 
       <div className="grid min-w-0 w-full gap-3 overflow-hidden xl:grid-cols-12">
         <Card className="min-w-0 w-full overflow-hidden xl:col-span-8 p-5">
-          <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Shipment Status</div>
+          <div className="text-[28px] font-bold uppercase text-slate-900">Complaint Status</div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              { label: "Delivered", count: stats.delivered, amount: stats.deliveredAmount, filter: "DELIVERED", tone: "text-emerald-700" },
-              { label: "Pending", count: stats.pending, amount: stats.pendingAmount, filter: "PENDING", tone: "text-amber-700" },
-              { label: "Returned", count: stats.returned, amount: stats.returnedAmount, filter: "RETURNED", tone: "text-red-700" },
               { label: "Complaint Watch", count: stats.complaintWatch, amount: stats.complaintWatchAmount, filter: "COMPLAINT_WATCH", tone: "text-slate-900" },
               { label: "Total Complaints", count: stats.complaints, amount: stats.complaintAmount, filter: "COMPLAINT_TOTAL", tone: "text-violet-700" },
               { label: "Active Complaints", count: stats.complaintActive, amount: stats.complaintActiveAmount, filter: "COMPLAINT_ACTIVE", tone: "text-amber-800" },
