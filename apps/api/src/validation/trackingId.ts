@@ -2,6 +2,7 @@
 export const TRACKING_PREFIX_VPL = "VPL"; // Value Payable Letter
 export const TRACKING_PREFIX_VPP = "VPP"; // Value Payable Parcel
 export const TRACKING_PREFIX_COD = "COD"; // Cash on Delivery
+export const TRACKING_PREFIX_PAR = "PAR"; // Parcel
 export const TRACKING_PREFIX_IRL = "IRL"; // Insured Registered Letter
 export const TRACKING_PREFIX_RGL = "RGL"; // Registered Letter
 export const TRACKING_PREFIX_UMS = "UMS"; // Urgent Mail Service
@@ -16,13 +17,15 @@ const allowedTrackingPrefixes = [
   TRACKING_PREFIX_VPL,
   TRACKING_PREFIX_VPP,
   TRACKING_PREFIX_COD,
+  TRACKING_PREFIX_PAR,
   TRACKING_PREFIX_IRL,
   TRACKING_PREFIX_RGL,
   TRACKING_PREFIX_UMS,
 ] as const;
 
-// Pattern: Prefix (3 chars) + Month (2 chars: 01-12) + Sequence (6-7 digits)
-const trackingIdPattern = /^(VPL|VPP|COD|IRL|RGL|UMS)(0[1-9]|1[0-2])\d{6,7}$/;
+// Pattern: Prefix (3 chars) + YY (2 year digits) + MM (2 month digits) + Sequence (4-5 digits) = 11-12 total
+const trackingIdPattern = /^(VPL|VPP|COD|PAR|IRL|RGL|UMS)\d{8,9}$/;
+// Money order pattern: Prefix (3 chars) + MM (2 month digits) + Sequence (6-7 digits) = 11-12 total
 const moneyOrderNumberPattern = /^(MOS|UMO)(0[1-9]|1[0-2])\d{6,7}$/;
 
 export type StrictTrackingValidation = { ok: true; value: string } | { ok: false; reason: string };
@@ -117,6 +120,8 @@ export function getTrackingPrefix(shipmentType?: unknown): string {
       return TRACKING_PREFIX_VPP;
     case "COD":
       return TRACKING_PREFIX_COD;
+    case "PAR":
+      return TRACKING_PREFIX_PAR;
     case "IRL":
       return TRACKING_PREFIX_IRL;
     case "RGL":
@@ -131,8 +136,8 @@ export function getTrackingPrefix(shipmentType?: unknown): string {
 }
 
 /**
- * Build a tracking ID with proper format: XXXMMXXXXXX
- * where XXX is the prefix, MM is the month (01-12), and XXXXXX is the sequence
+ * Build a tracking ID with proper format: XXXYYMMXXXX
+ * where XXX is the prefix, YY is 2-digit year, MM is month (01-12), and XXXX/XXXXX is 4-5 digit sequence
  */
 export function buildTrackingId(sequence: number, value?: string | Date, shipmentType?: unknown) {
   const prefix = getTrackingPrefix(shipmentType);
@@ -171,7 +176,7 @@ export function validateTrackingId(value: unknown): StrictTrackingValidation {
   if (!trackingIdPattern.test(compact)) {
     return {
       ok: false,
-      reason: "trackingId must match XXXMMXXXXXX format (e.g., VPL05000001, COD05000001, RGL05000001)",
+      reason: "trackingId must match XXXYYMMXXXX format (e.g., PAR26050001, VPL26050001, COD26050001) with 11-12 characters",
     };
   }
 
