@@ -1329,9 +1329,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     out,
     /(<div class="field mono en" style="left:15\.56mm;top:198\.83mm;width:63\.64mm;font-size:2\.22mm;">)([^<]*)(<\/div>)/g,
     slotIndex,
-    (_m, p1, _old, p3) =>
-      `${p1}${escapeHtml(tracking)}${p3}` +
-        `<div class="field en ${PRINTABLE_FOOTER_CLASS_NAME}" style="left:70.00mm;top:203.15mm;width:66.00mm;line-height:1.1;white-space:normal;">${marketingFooterTextHtml()}</div>`,
+    (_m, p1, _old, p3) => `${p1}${escapeHtml(tracking)}${p3}`
   );
 
   return out;
@@ -1348,7 +1346,7 @@ function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataU
   const tail = bodyMatch[3];
   const headWithPrintGuard = head.replace(
     /<\/head>/i,
-    `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}${PRINTABLE_FOOTER_CSS}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding-top:1.5mm;padding-right:1.35mm;padding-bottom:1mm;padding-left:1.35mm;max-width:68mm;max-height:14mm;font-size:13px;font-family:\"Noto Nastaliq Urdu\",\"Money Order Urdu\",\"Jameel Noori Nastaleeq\",\"Noto Naskh Arabic\",serif;font-weight:700;line-height:1.45;letter-spacing:normal;text-align:center;direction:rtl;unicode-bidi:isolate;white-space:normal;overflow:hidden;text-overflow:clip;font-feature-settings:'kern' 1,'liga' 1,'clig' 1,'calt' 1,'rlig' 1;text-rendering:geometricPrecision;-webkit-font-smoothing:antialiased}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`,
+    `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}${PRINTABLE_FOOTER_CSS}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.half{position:relative;}.page .${PRINTABLE_FOOTER_CLASS_NAME}{position:absolute;bottom:6mm;left:0;width:100%;padding:0 8mm;text-align:center;font-size:10px;font-weight:600;line-height:1.3;box-sizing:border-box;white-space:normal;overflow-wrap:break-word;word-break:normal;z-index:10;}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding-top:1.5mm;padding-right:1.35mm;padding-bottom:1mm;padding-left:1.35mm;max-width:68mm;max-height:14mm;font-size:13px;font-family:\"Noto Nastaliq Urdu\",\"Money Order Urdu\",\"Jameel Noori Nastaleeq\",\"Noto Naskh Arabic\",serif;font-weight:700;line-height:1.45;letter-spacing:normal;text-align:center;direction:rtl;unicode-bidi:isolate;white-space:normal;overflow:hidden;text-overflow:clip;font-feature-settings:'kern' 1,'liga' 1,'clig' 1,'calt' 1,'rlig' 1;text-rendering:geometricPrecision;-webkit-font-smoothing:antialiased}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`
   );
   const [frontSheetTemplate, backSheetTemplate] = splitBenchmarkSheets(benchmarkBody);
 
@@ -1387,17 +1385,21 @@ function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataU
     chunks.push(pages.join(""));
   }
 
-  const footerHtml = `<div class="${PRINTABLE_FOOTER_CLASS_NAME}" style="position:fixed;bottom:0;left:0;right:0;width:100%;max-width:100%;display:block;text-align:center;font-size:11px;font-weight:600;line-height:1.3;white-space:normal;overflow:visible;overflow-wrap:anywhere;word-break:normal;box-sizing:border-box;padding:0 12px;background:#fff;border-top:1px solid #eee;page-break-inside:avoid;margin-top:auto;">${PRINT_MARKETING_LINE}</div>`;
-  const tailWithFooter = tail.replace(/<\/body>/i, `${footerHtml}</body>`);
-
-  return `${headWithPrintGuard}${chunks.join("")}${tailWithFooter}`;
+  return `${headWithPrintGuard}${chunks.join("")}${tail}`;
 }
 
 function moneyOrderDuplexHtml(orders: OrderRecord[], bg: { frontBg?: string; backBg?: string }) {
   // Each half: 148.5mm (W) × 210mm (H) — portrait, fills one side of A4 landscape
   const renderHalf = (o: OrderRecord, side: "front" | "back") => {
     const bgUrl = side === "front" ? bg.frontBg : bg.backBg;
-    return compactHtmlFragment(`<div class="half ${side}"><div class="bg" style="${bgUrl ? `background-image:url('${bgUrl}')` : ""}"></div><div class="overlay">${side === "front" ? frontFields(o) : backFields(o)}</div></div>`);
+    // Insert unified footer at bottom of each half
+    return compactHtmlFragment(`
+      <div class="half ${side}">
+        <div class="bg" style="${bgUrl ? `background-image:url('${bgUrl}')` : ""}"></div>
+        <div class="overlay">${side === "front" ? frontFields(o) : backFields(o)}</div>
+        <div class="${PRINTABLE_FOOTER_CLASS_NAME}">${PRINT_MARKETING_LINE}</div>
+      </div>
+    `);
   };
 
   const blankHalf = () => `<div class="half"></div>`;

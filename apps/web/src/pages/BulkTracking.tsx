@@ -740,7 +740,7 @@ function escapePrintHtml(value: unknown): string {
     .replace(/'/g, "&#39;");
 }
 
-const TRACKING_PRINT_MARKETING_LINE = "Free Print Labels, Money Order, Track Parcels & Complaints, Visit www.ePost.pk";
+// TRACKING_PRINT_MARKETING_LINE moved to backend printBranding.ts as source of truth
 
 function buildTrackingPrintFileName(now = new Date()) {
   const dd = String(now.getDate()).padStart(2, "0");
