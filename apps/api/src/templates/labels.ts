@@ -1546,7 +1546,7 @@ function frontFields(o: OrderRecord) {
 
     // Locked text block below MOS barcode
     showMoText
-      ? `<div class="field mono en" style="left:9.10mm;top:80.33mm;width:41.01mm;font-size:3.28mm;text-align:center;">${escapeHtml(moNumber)}</div>`
+      ? `<div class="field mono en" style="left:9.10mm;top:80.33mm;width:41.01mm;font-size:3.28mm;text-align:left;">${escapeHtml(moNumber)}</div>`
       : "",
 
     // Locked MO number field next to M.O No.
@@ -1559,7 +1559,7 @@ function frontFields(o: OrderRecord) {
     `<div class="field urdu" style="left:72.73mm;top:140.37mm;width:44.55mm;font-size:2.16mm;">(روپیہ) <span class="en" style="display:inline-block;font-size:5.37mm;">${escapeHtml(amountDisplay)}</span></div>`,
 
     // Amount box: amount only, fixed decimal, bold, large
-    `<div class="field mono en" style="left:28.5mm;top:52.45mm;width:39.60mm;text-align:center;font-size:8.53mm;font-weight:900;">${escapeHtml(amountDisplay)}</div>`,
+    `<div class="field mono en" style="left:28.5mm;top:52.45mm;width:39.60mm;text-align:left;font-size:8.53mm;font-weight:900;">${escapeHtml(amountDisplay)}</div>`,
 
     // VP article inline after Urdu label (same line) with tracking ID
     `<div class="field urdu" style="left:90.27mm;top:48.04mm;width:45.26mm;font-size:2.10mm;">(نمبر وی پی) <span class="mono en" style="display:inline-block;font-size:4.28mm;">${escapeHtml(tracking)}</span></div>`,

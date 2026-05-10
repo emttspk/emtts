@@ -109,7 +109,7 @@ export default function Upload() {
     if (ppCategory === "general_post" && (shipmentType === null || shipmentType === "VPL" || shipmentType === "VPP" || shipmentType === "COD")) {
       setShipmentType("RGL");
     }
-    if (ppCategory === "value_payable" && (shipmentType === null || shipmentType === "RGL" || shipmentType === "IRL" || shipmentType === "UMS" || shipmentType === "PAR" || shipmentType === "COD")) {
+    if (ppCategory === "value_payable" && (shipmentType === null || shipmentType === "VPL" || shipmentType === "VPP" || shipmentType === "COD")) {
       setShipmentType("VPL");
     }
     if (ppCategory === "cod_articles" && shipmentType !== "COD") {
