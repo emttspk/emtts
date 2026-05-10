@@ -2796,7 +2796,7 @@ export default function BulkTracking() {
               <Activity className="h-3 w-3" />
               Tracking Workspace
             </div>
-              <div className="mt-2 text-[28px] font-bold uppercase text-slate-900">SHIPMENT STATUS</div>
+              <div className="mt-2 text-[28px] font-bold uppercase text-slate-900">COMPLAINT STATUS</div>
             <div className="mt-1 text-sm leading-relaxed text-slate-600">Real-time visibility into every shipment.</div>
           </div>
           <div className="flex shrink-0 items-center gap-3">
@@ -2822,27 +2822,6 @@ export default function BulkTracking() {
             parcels: shipmentStats?.total ?? 0,
             amount: shipmentStats?.totalAmount ?? 0,
             active: statusFilter === "ALL",
-          },
-          {
-            key: "DELIVERED",
-            label: "Delivered",
-            parcels: shipmentStats?.delivered ?? 0,
-            amount: shipmentStats?.deliveredAmount ?? 0,
-            active: statusFilter === "DELIVERED",
-          },
-          {
-            key: "PENDING",
-            label: "Pending",
-            parcels: shipmentStats?.pending ?? 0,
-            amount: shipmentStats?.pendingAmount ?? 0,
-            active: statusFilter === "PENDING",
-          },
-          {
-            key: "RETURNED",
-            label: "Returned",
-            parcels: shipmentStats?.returned ?? 0,
-            amount: shipmentStats?.returnedAmount ?? 0,
-            active: statusFilter === "RETURNED",
           },
           {
             key: "COMPLAINTS",
