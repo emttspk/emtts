@@ -39,6 +39,28 @@ function isLocalHost(host: string): boolean {
   return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "0.0.0.0";
 }
 
+function normalizeOrigin(value: string | undefined): string {
+  return String(value ?? "").trim().replace(/\/+$/, "").toLowerCase();
+}
+
+const allowedCorsOrigins = new Set(
+  [
+    env.WEB_ORIGIN,
+    "https://www.epost.pk",
+    "https://epost.pk",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+  ]
+    .map(normalizeOrigin)
+    .filter(Boolean),
+);
+
+function isAllowedCorsOrigin(origin: string | undefined): boolean {
+  return allowedCorsOrigins.has(normalizeOrigin(origin));
+}
+
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
   console.log("[STARTUP] Uploads directory created:", UPLOAD_DIR);
@@ -232,10 +254,16 @@ app.use(
 );
 app.use(
   cors({
-    origin: "*",
+    origin(origin, callback) {
+      if (!origin || isAllowedCorsOrigin(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Authorization", "Content-Type"],
     exposedHeaders: ["Content-Disposition"],
+    credentials: true,
   }),
 );
 app.use(express.json({ limit: "2mb" }));
