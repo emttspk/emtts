@@ -141,6 +141,13 @@ function resolveMoneyOrderSenderFields(order: OrderRecord) {
   return { senderName, senderAddress, senderPhone, senderCnic };
 }
 
+function formatMoneyOrderSenderLine(senderName: string, senderCnic: string) {
+  if (senderCnic && senderCnic !== "-") {
+    return `${senderName} | CNIC: ${senderCnic}`;
+  }
+  return senderName;
+}
+
 function amountToWords(value: number) {
   const n = Math.max(0, Math.floor(value));
   if (n === 0) return "Zero";
@@ -1196,7 +1203,13 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
   const consigneeName = String((order as any)?.consigneeName ?? "-").trim() || "-";
   const consigneeAddress = normalizeAddressLines((order as any)?.consigneeAddress ?? "-") || "-";
   const consigneePhone = String((order as any)?.consigneePhone ?? "-").trim() || "-";
-  const { senderName: shipperName, senderAddress: shipperAddress, senderPhone: shipperPhone } = resolveMoneyOrderSenderFields(order);
+  const {
+    senderName: shipperName,
+    senderAddress: shipperAddress,
+    senderPhone: shipperPhone,
+    senderCnic: shipperCnic,
+  } = resolveMoneyOrderSenderFields(order);
+  const senderLine = formatMoneyOrderSenderLine(shipperName, shipperCnic);
   const moBarcode = String((order as any)?.mo_barcodeBase64 ?? "").trim();
 
   let out = htmlBody;
@@ -1298,9 +1311,9 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
   // Sender fields
   out = replaceNth(
     out,
-    /(<div class="field strong en" style="left:47\.56mm;top:105\.69mm;width:65\.06mm;font-size:4\.(?:58|95)mm(?:;line-height:1\.08)?;">)([^<]*)(<\/div>)/g,
+    /<div class="field strong en" style="left:47\.56mm;top:105\.69mm;width:65\.06mm;font-size:4\.(?:58|95)mm(?:;line-height:1\.08)?;">[^<]*<\/div>/g,
     slotIndex,
-    (_m, p1, _old, p3) => `${p1}${escapeHtml(shipperName)}${p3}`,
+    () => `<div class="field strong en" style="left:47.56mm;top:105.69mm;width:86.06mm;font-size:4.25mm;line-height:1.08;white-space:normal;overflow:visible;">${escapeHtml(senderLine)}</div>`,
   );
   out = replaceNth(
     out,
@@ -1349,9 +1362,14 @@ function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataU
   const head = bodyMatch[1];
   const benchmarkBody = applyFrontBackgroundToBenchmarkHtml(bodyMatch[2].trim(), frontBackgroundDataUrl);
   const tail = bodyMatch[3];
+  const injectFooterIntoFrontHalves = (sheetHtml: string) =>
+    sheetHtml.replace(
+      /(<div class="half front">[\s\S]*?<div class="overlay">[\s\S]*?<\/div>)(\s*<\/div>)/g,
+      `$1${footerHtml}$2`,
+    );
   const headWithPrintGuard = head.replace(
     /<\/head>/i,
-    `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}${PRINTABLE_FOOTER_CSS}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.half{position:relative;}.page .${PRINTABLE_FOOTER_CLASS_NAME}, .half .${PRINTABLE_FOOTER_CLASS_NAME}{position:absolute;bottom:6mm;left:0;width:100%;padding:0 8mm;text-align:center;font-size:10px;font-weight:600;line-height:1.3;box-sizing:border-box;white-space:normal;overflow-wrap:break-word;word-break:normal;z-index:10;}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding-top:1.5mm;padding-right:1.35mm;padding-bottom:1mm;padding-left:1.35mm;max-width:68mm;max-height:14mm;font-size:13px;font-family:\"Noto Nastaliq Urdu\",\"Money Order Urdu\",\"Jameel Noori Nastaleeq\",\"Noto Naskh Arabic\",serif;font-weight:700;line-height:1.45;letter-spacing:normal;text-align:center;direction:rtl;unicode-bidi:isolate;white-space:normal;overflow:hidden;text-overflow:clip;font-feature-settings:'kern' 1,'liga' 1,'clig' 1,'calt' 1,'rlig' 1;text-rendering:geometricPrecision;-webkit-font-smoothing:antialiased}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`
+    `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}${PRINTABLE_FOOTER_CSS}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.half{position:relative;}.page .${PRINTABLE_FOOTER_CLASS_NAME}, .half .${PRINTABLE_FOOTER_CLASS_NAME}{position:absolute;bottom:8mm;left:50%;transform:translateX(-50%);width:80%;text-align:center;font-size:12px;font-weight:600;line-height:1.25;box-sizing:border-box;white-space:normal;overflow-wrap:break-word;word-break:normal;z-index:10;}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding-top:1.5mm;padding-right:1.35mm;padding-bottom:1mm;padding-left:1.35mm;max-width:68mm;max-height:14mm;font-size:13px;font-family:\"Noto Nastaliq Urdu\",\"Money Order Urdu\",\"Jameel Noori Nastaleeq\",\"Noto Naskh Arabic\",serif;font-weight:700;line-height:1.45;letter-spacing:normal;text-align:center;direction:rtl;unicode-bidi:isolate;white-space:normal;overflow:hidden;text-overflow:clip;font-feature-settings:'kern' 1,'liga' 1,'clig' 1,'calt' 1,'rlig' 1;text-rendering:geometricPrecision;-webkit-font-smoothing:antialiased}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`
   );
   const [frontSheetTemplate, backSheetTemplate] = splitBenchmarkSheets(benchmarkBody);
 
@@ -1367,19 +1385,12 @@ function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataU
     frontSheet = fillBenchmarkSlot(frontSheet, 0, o1, true);
     frontSheet = fillBenchmarkSlot(frontSheet, 1, o2, true);
     frontSheet = compactHtmlFragment(frontSheet);
-    frontSheet = frontSheet.replace(
-      "</div>",
-      `${footerHtml}</div>`
-    );
+    frontSheet = injectFooterIntoFrontHalves(frontSheet);
 
     let backSheet = backSheetTemplate;
     backSheet = fillBenchmarkSlot(backSheet, 0, o1, false);
     backSheet = fillBenchmarkSlot(backSheet, 1, o2, false);
     backSheet = compactHtmlFragment(backSheet);
-    backSheet = backSheet.replace(
-      "</div>",
-      `${footerHtml}</div>`
-    );
 
     const consigneeName: string = o1.consigneeName || "";
     const consigneePhone: string = o1.consigneePhone || "";
@@ -1523,7 +1534,13 @@ function frontFields(o: OrderRecord) {
   const consigneeName = String((o as any).consigneeName ?? "").trim() || "-";
   const consigneeAddress = normalizeAddressLines((o as any).consigneeAddress ?? "") || "-";
   const consigneePhone = String((o as any).consigneePhone ?? "").trim() || "-";
-  const { senderName: shipperName, senderAddress: shipperAddress, senderPhone: shipperPhone } = resolveMoneyOrderSenderFields(o);
+  const {
+    senderName: shipperName,
+    senderAddress: shipperAddress,
+    senderPhone: shipperPhone,
+    senderCnic: shipperCnic,
+  } = resolveMoneyOrderSenderFields(o);
+  const senderLine = formatMoneyOrderSenderLine(shipperName, shipperCnic);
 
   return [
     // MOS barcode area with locked final dimensions
@@ -1560,12 +1577,12 @@ function frontFields(o: OrderRecord) {
     `<div class="field mono en" style="left:97.56mm;top:100.27mm;width:65.06mm;font-size:2.13mm;">${escapeHtml(consigneePhone)}</div>`,
 
     // Sender block
-    `<div class="field strong en" style="left:47.56mm;top:105.69mm;width:65.06mm;font-size:4.95mm;line-height:1.08;">${escapeHtml(shipperName)}</div>`,
+    `<div class="field strong en" style="left:47.56mm;top:105.69mm;width:86.06mm;font-size:4.25mm;line-height:1.08;white-space:normal;overflow:visible;">${escapeHtml(senderLine)}</div>`,
     `<div class="field regular en" style="left:15.56mm;top:112.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;">${escapeHtml(shipperAddress)}</div>`,
     `<div class="field mono en" style="left:82.56mm;top:116.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;">${escapeHtml(shipperPhone)}</div>`,
 
     // Sender block (second half)
-    `<div class="field strong en" style="left:47.56mm;top:183.69mm;width:65.06mm;font-size:4.95mm;line-height:1.08;">${escapeHtml(shipperName)}</div>`,
+    `<div class="field strong en" style="left:47.56mm;top:183.69mm;width:86.06mm;font-size:4.25mm;line-height:1.08;white-space:normal;overflow:visible;">${escapeHtml(senderLine)}</div>`,
     `<div class="field regular en" style="left:15.56mm;top:190.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;">${escapeHtml(shipperAddress)}</div>`,
     `<div class="field mono en" style="left:82.56mm;top:194.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;">${escapeHtml(shipperPhone)}</div>`,
 
