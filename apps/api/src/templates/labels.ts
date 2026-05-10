@@ -1177,7 +1177,7 @@ function moneyOrderHalfNoticeHtml() {
   return `<div class="mo-half-notice" lang="ur" dir="rtl" aria-hidden="true"><div class="mo-half-notice-line">منی آرڈر مینول بار کوڈ سٹیکر مت لگائیں۔</div><div class="mo-half-notice-line">صرف نیچے لکھا منی آرڈر نمبر ایشو کریں۔ شکریہ</div></div>`;
 }
 
-function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRecord) {
+function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRecord, includeUrduNotice = true) {
   if (!order) return clearBenchmarkSlot(htmlBody, slotIndex);
 
   const moNumber = strictMoneyOrderNumber((order as any)?.mo_number);
@@ -1209,13 +1209,15 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     (_m, p1, oldSrc, p3) => `${p1}${escapeHtml(moBarcode || oldSrc)}${p3}`,
   );
 
-  // Half-level Urdu notice, anchored inside each rendered money-order half.
-  out = replaceNth(
-    out,
-    /(<div class="overlay">)/g,
-    slotIndex,
-    (_m, p1) => `${p1}${moneyOrderHalfNoticeHtml()}`,
-  );
+  if (includeUrduNotice) {
+    // Half-level Urdu notice, anchored inside each rendered money-order half.
+    out = replaceNth(
+      out,
+      /(<div class="overlay">)/g,
+      slotIndex,
+      (_m, p1) => `${p1}${moneyOrderHalfNoticeHtml()}`,
+    );
+  }
 
   // Text below barcode (MOS)
   out = replaceNth(
@@ -1346,7 +1348,7 @@ function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataU
   const tail = bodyMatch[3];
   const headWithPrintGuard = head.replace(
     /<\/head>/i,
-    `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}${PRINTABLE_FOOTER_CSS}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding-top:4mm;padding-right:1.35mm;padding-bottom:2mm;padding-left:1.35mm;max-width:68mm;font-size:18px;font-family:\"Noto Nastaliq Urdu\",\"Money Order Urdu\",\"Jameel Noori Nastaleeq\",\"Noto Naskh Arabic\",serif;font-weight:700;line-height:1.9;letter-spacing:normal;text-align:center;direction:rtl;unicode-bidi:isolate;white-space:normal;overflow:visible;text-overflow:clip;font-feature-settings:'kern' 1,'liga' 1,'clig' 1,'calt' 1,'rlig' 1;text-rendering:geometricPrecision;-webkit-font-smoothing:antialiased}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`,
+    `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}${PRINTABLE_FOOTER_CSS}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding-top:1.5mm;padding-right:1.35mm;padding-bottom:1mm;padding-left:1.35mm;max-width:68mm;max-height:14mm;font-size:13px;font-family:\"Noto Nastaliq Urdu\",\"Money Order Urdu\",\"Jameel Noori Nastaleeq\",\"Noto Naskh Arabic\",serif;font-weight:700;line-height:1.45;letter-spacing:normal;text-align:center;direction:rtl;unicode-bidi:isolate;white-space:normal;overflow:hidden;text-overflow:clip;font-feature-settings:'kern' 1,'liga' 1,'clig' 1,'calt' 1,'rlig' 1;text-rendering:geometricPrecision;-webkit-font-smoothing:antialiased}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`,
   );
   const [frontSheetTemplate, backSheetTemplate] = splitBenchmarkSheets(benchmarkBody);
 
@@ -1359,13 +1361,13 @@ function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataU
     const o1 = expandedOrders[i];
     const o2 = expandedOrders[i + 1];
     let frontSheet = frontSheetTemplate;
-    frontSheet = fillBenchmarkSlot(frontSheet, 0, o1);
-    frontSheet = fillBenchmarkSlot(frontSheet, 1, o2);
+    frontSheet = fillBenchmarkSlot(frontSheet, 0, o1, true);
+    frontSheet = fillBenchmarkSlot(frontSheet, 1, o2, true);
     frontSheet = compactHtmlFragment(frontSheet);
 
     let backSheet = backSheetTemplate;
-    backSheet = fillBenchmarkSlot(backSheet, 0, o1);
-    backSheet = fillBenchmarkSlot(backSheet, 1, o2);
+    backSheet = fillBenchmarkSlot(backSheet, 0, o1, false);
+    backSheet = fillBenchmarkSlot(backSheet, 1, o2, false);
     backSheet = compactHtmlFragment(backSheet);
 
     const pages: string[] = [];

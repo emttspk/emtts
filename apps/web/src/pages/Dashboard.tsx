@@ -108,7 +108,6 @@ export default function Dashboard() {
           </div>
           <div className="mt-3 space-y-1 text-sm text-slate-700">
             <div>Services Included: ✔ Labels ✔ Tracking ✔ Money Orders ✔ Complaints</div>
-            <div>Complaint Cost: 10 Units Each</div>
             <div>Complaint Limits: {complaintDaily}/day, {complaintMonthly}/month</div>
           </div>
           <Link to="/update-package" className="mt-4 inline-flex items-center gap-2 rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white">
