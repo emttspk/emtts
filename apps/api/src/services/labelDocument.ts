@@ -3,18 +3,21 @@ import { buildTrackingId, validateTrackingId, validateUploadedTrackingId } from 
 
 type TrackingScheme = "standard" | "rl" | "ums";
 type CarrierType = "pakistan_post" | "courier";
-type ShipmentType = "RL" | "UMS" | "VPL" | "VPP" | "PAR" | "COD" | "COURIER" | null;
+type ShipmentType = "RGL" | "IRL" | "UMS" | "VPL" | "VPP" | "PAR" | "COD" | "COURIER" | "RL" | null;
 
-const KNOWN_SHIPMENT_TYPES = new Set(["RL", "UMS", "VPL", "VPP", "PAR", "COD", "COURIER"]);
+const KNOWN_SHIPMENT_TYPES = new Set(["RGL", "IRL", "UMS", "VPL", "VPP", "PAR", "COD", "COURIER", "RL"]);
 
 function resolveShipmentType(order: Record<string, unknown>, fallback: ShipmentType): string | undefined {
-  const rowShipmentType = String(order.shipmentType ?? order.shipmenttype ?? "").trim().toUpperCase();
+  const rowShipmentTypeRaw = String(order.shipmentType ?? order.shipmenttype ?? "").trim().toUpperCase();
+  const rowShipmentType = rowShipmentTypeRaw === "RL" ? "RGL" : rowShipmentTypeRaw;
+  const fallbackNormalized = String(fallback ?? "").trim().toUpperCase();
+  const fallbackValue = fallbackNormalized === "RL" ? "RGL" : fallbackNormalized;
   // Only accept known shipment type values from the row; unrecognized values (e.g. "DOCUMENTS")
   // must NOT override the job-level selection — they silently break badge text and calculation rendering.
   if (rowShipmentType && KNOWN_SHIPMENT_TYPES.has(rowShipmentType)) {
     return rowShipmentType;
   }
-  return fallback ?? undefined;
+  return fallbackValue || undefined;
 }
 
 export function prepareLabelOrders(

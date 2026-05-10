@@ -263,7 +263,7 @@ export const labelPreviewUploadMiddleware = (req: Request, res: Response, next: 
 
 jobsRouter.get("/preview/labels", requireAuth, (req, res) => {
   const carrierType = String(req.query?.carrierType ?? "pakistan_post").toLowerCase() === "courier" ? "courier" : "pakistan_post";
-  const shipmentType = String(req.query?.shipmentType ?? "VPL").trim().toUpperCase() || "VPL";
+  const shipmentType = String(req.query?.shipmentType ?? "PAR").trim().toUpperCase() || "PAR";
   const includeMoneyOrders = String(req.query?.includeMoneyOrders ?? "false").toLowerCase() === "true";
   const printMode = parsePrintMode(req.query?.outputMode);
 
@@ -283,7 +283,7 @@ jobsRouter.post("/preview/labels", requireAuth, labelPreviewUploadMiddleware, as
   const carrierType = String(req.body?.carrierType ?? "pakistan_post").toLowerCase() === "courier" ? "courier" : "pakistan_post";
   const shipmentTypeRaw = String(req.body?.shipmentType ?? "").trim().toUpperCase();
   const shipmentType =
-    shipmentTypeRaw === "RL" || shipmentTypeRaw === "UMS" || shipmentTypeRaw === "VPL" || shipmentTypeRaw === "VPP" || shipmentTypeRaw === "PAR" || shipmentTypeRaw === "COD" || shipmentTypeRaw === "COURIER"
+    shipmentTypeRaw === "RL" || shipmentTypeRaw === "RGL" || shipmentTypeRaw === "IRL" || shipmentTypeRaw === "UMS" || shipmentTypeRaw === "VPL" || shipmentTypeRaw === "VPP" || shipmentTypeRaw === "PAR" || shipmentTypeRaw === "COD" || shipmentTypeRaw === "COURIER"
       ? shipmentTypeRaw
       : null;
   const includeMoneyOrders = String(req.body?.includeMoneyOrders ?? "false").toLowerCase() === "true";
@@ -294,7 +294,7 @@ jobsRouter.post("/preview/labels", requireAuth, labelPreviewUploadMiddleware, as
   if (!tempPath) {
     return res.json({
       success: true,
-      html: previewLabelHtml({ carrierType, shipmentType: shipmentType ?? "VPL", includeMoneyOrders, outputMode: printMode }),
+      html: previewLabelHtml({ carrierType, shipmentType: shipmentType ?? "PAR", includeMoneyOrders, outputMode: printMode }),
     });
   }
 
@@ -442,7 +442,7 @@ export async function handleLabelUpload(req: Request, res: Response) {
   const carrierType = String(req.body?.carrierType ?? "pakistan_post").toLowerCase() === "courier" ? "courier" : "pakistan_post";
   const shipmentTypeRaw = String(req.body?.shipmentType ?? "").trim().toUpperCase();
   const shipmentType =
-    shipmentTypeRaw === "RL" || shipmentTypeRaw === "UMS" || shipmentTypeRaw === "VPL" || shipmentTypeRaw === "VPP" || shipmentTypeRaw === "PAR" || shipmentTypeRaw === "COD" || shipmentTypeRaw === "COURIER"
+    shipmentTypeRaw === "RL" || shipmentTypeRaw === "RGL" || shipmentTypeRaw === "IRL" || shipmentTypeRaw === "UMS" || shipmentTypeRaw === "VPL" || shipmentTypeRaw === "VPP" || shipmentTypeRaw === "PAR" || shipmentTypeRaw === "COD" || shipmentTypeRaw === "COURIER"
       ? shipmentTypeRaw
       : null;
   const eligibleForMoneyOrder = carrierType !== "courier" && shouldShowValuePayableAmount(shipmentType);

@@ -34,7 +34,7 @@ export default function Upload() {
   // Tracking & Barcode Configuration (structured)
   const [carrierType, setCarrierType] = useState<"pakistan_post" | "courier" | null>(null);
   const [ppCategory, setPpCategory] = useState<"general_post" | "value_payable" | "cod_articles" | null>(null);
-  const [shipmentType, setShipmentType] = useState<"RL" | "UMS" | "PAR" | "VPL" | "VPP" | "COD" | "COURIER" | null>(null);
+  const [shipmentType, setShipmentType] = useState<"RGL" | "IRL" | "UMS" | "PAR" | "VPL" | "VPP" | "COD" | "COURIER" | null>(null);
   const [barcodeMode, setBarcodeMode] = useState<"manual" | "auto" | null>(null);
   const [outputMode, setOutputMode] = useState<"envelope" | "envelope-9x4" | "box" | "a4-multi" | "flyer" | null>(null);
   const [previewHtml, setPreviewHtml] = useState("");
@@ -107,9 +107,9 @@ export default function Upload() {
     if (!ppCategory) return;
     // Default shipment type per category
     if (ppCategory === "general_post" && (shipmentType === null || shipmentType === "VPL" || shipmentType === "VPP" || shipmentType === "COD")) {
-      setShipmentType("RL");
+      setShipmentType("RGL");
     }
-    if (ppCategory === "value_payable" && (shipmentType === null || shipmentType === "RL" || shipmentType === "UMS" || shipmentType === "PAR" || shipmentType === "COD")) {
+    if (ppCategory === "value_payable" && (shipmentType === null || shipmentType === "RGL" || shipmentType === "IRL" || shipmentType === "UMS" || shipmentType === "PAR" || shipmentType === "COD")) {
       setShipmentType("VPL");
     }
     if (ppCategory === "cod_articles" && shipmentType !== "COD") {
@@ -142,7 +142,7 @@ export default function Upload() {
       ? uploadFile("/api/jobs/preview/labels", file, {
           outputMode,
           carrierType: carrierType ?? "pakistan_post",
-          shipmentType: shipmentType ?? "VPL",
+          shipmentType: shipmentType ?? "PAR",
           includeMoneyOrders: String(Boolean(includeMoneyOrders && eligibleForMoneyOrder)),
           barcodeMode: barcodeMode ?? "manual",
         })
@@ -150,7 +150,7 @@ export default function Upload() {
           `/api/jobs/preview/labels?${new URLSearchParams({
             outputMode,
             carrierType: carrierType ?? "pakistan_post",
-            shipmentType: shipmentType ?? "VPL",
+            shipmentType: shipmentType ?? "PAR",
             includeMoneyOrders: String(Boolean(includeMoneyOrders && eligibleForMoneyOrder)),
           }).toString()}`,
         );
@@ -507,8 +507,8 @@ export default function Upload() {
               ) : carrierType !== "pakistan_post" ? (
                 <div className="mt-2 text-sm text-gray-600">Select a carrier first.</div>
               ) : ppCategory === "general_post" ? (
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  {(["RL", "UMS", "PAR"] as const).map((t) => (
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {(["RGL", "IRL", "UMS", "PAR"] as const).map((t) => (
                     <button
                       key={t}
                       type="button"
@@ -517,7 +517,7 @@ export default function Upload() {
                         shipmentType === t ? "border-brand bg-brand/10 text-brand" : "bg-white text-gray-700 hover:bg-gray-50"
                       }`}
                     >
-                      {t === "RL" ? "RGL" : t}
+                      {t}
                     </button>
                   ))}
                 </div>
@@ -579,7 +579,7 @@ export default function Upload() {
               </div>
               {barcodeMode === "auto" && (
                 <div className="mt-2 rounded-2xl border border-brand/20 bg-brand/10 px-3 py-2 text-xs text-brand">
-                  <span className="font-semibold">Auto Generate Tracking ID / Barcode:</span> When enabled, the system preserves any valid uploaded TrackingID and only fills missing TrackingID values with a strict VPLYYMM0001 barcode.
+                  <span className="font-semibold">Auto Generate Tracking ID / Barcode:</span> When enabled, the system preserves any valid uploaded TrackingID and only fills missing TrackingID values using the selected shipment type prefix.
                 </div>
               )}
             </div>

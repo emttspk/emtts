@@ -1091,7 +1091,7 @@ adminRouter.get("/shipments", async (req, res) => {
 adminRouter.patch("/shipments/:shipmentId", async (req, res) => {
   const body = z
     .object({
-      shipmentType: z.enum(["RL", "UMS", "VPL", "VPP", "PAR", "COD", "COURIER"]).nullable().optional(),
+      shipmentType: z.enum(["RGL", "IRL", "UMS", "VPL", "VPP", "PAR", "COD", "COURIER", "RL"]).nullable().optional(),
       status: z.string().min(1).max(60).nullable().optional(),
       city: z.string().min(1).max(80).nullable().optional(),
       latestDate: z.string().min(1).max(40).nullable().optional(),

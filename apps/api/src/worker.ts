@@ -304,7 +304,8 @@ function hasMoneyOrderAmount(order: { CollectAmount?: unknown; amount?: unknown 
 
 function resolveOrderShipmentType(order: { shipmentType?: unknown; shipmenttype?: unknown }, fallback?: unknown) {
   const normalized = String(order.shipmentType ?? order.shipmenttype ?? fallback ?? "").trim().toUpperCase();
-  return normalized || null;
+  if (!normalized) return null;
+  return normalized === "RL" ? "RGL" : normalized;
 }
 
 type MoneyOrderRow = {
@@ -556,7 +557,7 @@ const worker = new Worker(
       trackingScheme?: "standard" | "rl" | "ums";
       trackAfterGenerate?: boolean;
       carrierType?: "pakistan_post" | "courier";
-      shipmentType?: "RL" | "UMS" | "VPL" | "VPP" | "PAR" | "COD" | "COURIER" | null;
+      shipmentType?: "RGL" | "IRL" | "UMS" | "VPL" | "VPP" | "PAR" | "COD" | "COURIER" | "RL" | null;
     };
     const job = await prisma.labelJob.findUnique({
       where: { id: jobId },

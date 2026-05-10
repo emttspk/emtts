@@ -38,8 +38,12 @@ function createEmptyRow(): ManualMoneyOrderRow {
 
 function inferShipmentType(trackingId: string) {
   const value = trackingId.trim().toUpperCase();
+  if (value.startsWith("PAR")) return "PAR";
   if (value.startsWith("COD")) return "COD";
   if (value.startsWith("VPP")) return "VPP";
+  if (value.startsWith("IRL")) return "IRL";
+  if (value.startsWith("RGL") || value.startsWith("RL")) return "RGL";
+  if (value.startsWith("UMS")) return "UMS";
   return "VPL";
 }
 
@@ -66,7 +70,7 @@ function toUploadRow(row: ManualMoneyOrderRow, me: MeResponse | null): UploadOrd
     consigneeAddress: row.receiverAddress.trim(),
     receiverCity: row.city.trim(),
     CollectAmount: row.amount.trim() || "0",
-    ordered: row.articleNumber.trim(),
+    ordered: row.articleNumber.trim() || row.trackingId.trim().toUpperCase(),
     ProductDescription: "Money Order",
     Weight: "0.5",
     shipmenttype: inferShipmentType(row.trackingId),
@@ -181,7 +185,7 @@ export default function GenerateMoneyOrder() {
         barcodeMode: "auto",
         autoGenerateTracking: "true",
         carrierType: "pakistan_post",
-        shipmentType: "VPL",
+        shipmentType: rows.length > 0 ? inferShipmentType(rows[0]?.trackingId ?? "") : "PAR",
         printMode: "box",
         generateMoneyOrder: "true",
         trackAfterGenerate: "false",

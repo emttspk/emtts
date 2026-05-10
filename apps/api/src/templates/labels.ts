@@ -558,7 +558,7 @@ export function previewLabelHtml(opts?: {
   outputMode?: LabelPrintMode;
 }) {
   const carrierType = opts?.carrierType === "courier" ? "courier" : "pakistan_post";
-  const shipmentType = String(opts?.shipmentType ?? "VPL").trim().toUpperCase() || "VPL";
+  const shipmentType = String(opts?.shipmentType ?? "PAR").trim().toUpperCase() || "PAR";
   const includeMoneyOrders = opts?.includeMoneyOrders === true;
   const outputMode = opts?.outputMode ?? "labels";
   const sampleCount = outputMode === "flyer" ? 8 : outputMode === "envelope" ? 2 : 4;
@@ -1365,7 +1365,7 @@ function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataU
   const tail = bodyMatch[3];
   const headWithPrintGuard = head.replace(
     /<\/head>/i,
-    `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}${PRINTABLE_FOOTER_CSS}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.half{position:relative;}.page .${PRINTABLE_FOOTER_CLASS_NAME}, .half .${PRINTABLE_FOOTER_CLASS_NAME}{position:absolute;bottom:8mm;left:50%;transform:translateX(-50%);width:80%;text-align:center;font-size:12px;font-weight:600;line-height:1.25;box-sizing:border-box;white-space:normal;overflow-wrap:break-word;word-break:normal;z-index:10;}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding-top:1.5mm;padding-right:1.35mm;padding-bottom:1mm;padding-left:1.35mm;max-width:68mm;max-height:14mm;font-size:13px;font-family:\"Noto Nastaliq Urdu\",\"Money Order Urdu\",\"Jameel Noori Nastaleeq\",\"Noto Naskh Arabic\",serif;font-weight:700;line-height:1.45;letter-spacing:normal;text-align:center;direction:rtl;unicode-bidi:isolate;white-space:normal;overflow:hidden;text-overflow:clip;font-feature-settings:'kern' 1,'liga' 1,'clig' 1,'calt' 1,'rlig' 1;text-rendering:geometricPrecision;-webkit-font-smoothing:antialiased}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`
+    `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}${PRINTABLE_FOOTER_CSS}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.half{position:relative;}.page .${PRINTABLE_FOOTER_CLASS_NAME}, .half .${PRINTABLE_FOOTER_CLASS_NAME}{position:absolute;bottom:1.8mm;left:50%;transform:translateX(-50%);width:74%;text-align:center;font-size:9px;font-weight:600;line-height:1.1;box-sizing:border-box;white-space:normal;overflow-wrap:break-word;word-break:normal;z-index:10;}.barcode{left:50% !important;transform:translateX(-50%) !important;}div[style*='left:9.10mm'][style*='top:80.33mm']{left:50% !important;transform:translateX(-50%) !important;text-align:center !important;}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding-top:1.5mm;padding-right:1.35mm;padding-bottom:1mm;padding-left:1.35mm;max-width:68mm;max-height:14mm;font-size:13px;font-family:\"Noto Nastaliq Urdu\",\"Money Order Urdu\",\"Jameel Noori Nastaleeq\",\"Noto Naskh Arabic\",serif;font-weight:700;line-height:1.45;letter-spacing:normal;text-align:center;direction:rtl;unicode-bidi:isolate;white-space:normal;overflow:hidden;text-overflow:clip;font-feature-settings:'kern' 1,'liga' 1,'clig' 1,'calt' 1,'rlig' 1;text-rendering:geometricPrecision;-webkit-font-smoothing:antialiased}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`
   );
   const [frontSheetTemplate, backSheetTemplate] = splitBenchmarkSheets(benchmarkBody);
 
@@ -1493,7 +1493,7 @@ function moneyOrderDuplexHtml(orders: OrderRecord[], bg: { frontBg?: string; bac
         /* Overlay anchored to top-left of the half */
         .overlay {
           position: absolute;
-          inset: 0;
+          inset: 0 0 8mm 0;
           z-index: 2;
         }
 
@@ -1509,7 +1509,8 @@ function moneyOrderDuplexHtml(orders: OrderRecord[], bg: { frontBg?: string; bac
         .strong  { font-weight: 700; }
         .urdu { direction: rtl; text-align: right; font-weight: 700; }
         .en { direction: ltr; text-align: left; }
-        .barcode { position: absolute; z-index: 5; object-fit: contain; }
+        .barcode { position: absolute; z-index: 5; object-fit: contain; left: 50%; transform: translateX(-50%); }
+        .half .${PRINTABLE_FOOTER_CLASS_NAME} { position: absolute; left: 50%; bottom: 1.8mm; transform: translateX(-50%); width: 74%; text-align: center; font-size: 9px; font-weight: 600; line-height: 1.1; z-index: 10; }
       </style>
     </head>
     <body>${sheets.join("")}</body>
