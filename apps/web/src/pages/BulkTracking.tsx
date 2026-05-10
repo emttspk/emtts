@@ -21,6 +21,7 @@ import {
 } from "../lib/trackingData";
 import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
 import { useShipmentStats } from "../hooks/useShipmentStats";
+import { PRINT_MARKETING_LINE } from "../../../api/src/lib/printBranding";
 
 type Shipment = BaseShipment & {
   shipmentType?: string | null;
@@ -773,7 +774,7 @@ function buildPrintMarkup(record: FinalTrackingRecord, detail: TrackingDetailDat
 
   return `
     <section class="print-doc print-container">
-      <div class="print-branding print-branding-top"><strong>${escapePrintHtml(TRACKING_PRINT_MARKETING_LINE)}</strong></div>
+      <div class="print-branding print-branding-top"><strong>${escapePrintHtml(PRINT_MARKETING_LINE)}</strong></div>
       <div class="print-panel no-break">
         <div class="print-title">Epost.pk Tracking Print</div>
         <div class="print-subtitle">${escapePrintHtml(record.shipment.trackingNumber)}</div>

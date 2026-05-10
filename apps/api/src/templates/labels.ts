@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createCanvas } from "canvas";
 import JsBarcode from "jsbarcode";
-import { PRINT_MARKETING_LINE, PRINTABLE_FOOTER_CLASS_NAME, PRINTABLE_FOOTER_CSS } from "../lib/printBranding.js";
+import { getSharedPrintFooter, PRINT_MARKETING_LINE, PRINTABLE_FOOTER_CLASS_NAME, PRINTABLE_FOOTER_CSS } from "../lib/printBranding.js";
 import {
   buildMoneyOrderNumber,
   buildTrackingId,
@@ -1137,9 +1137,9 @@ function clearBenchmarkSlot(htmlBody: string, slotIndex: number) {
 
   out = replaceNth(
     out,
-    /(<img class="barcode" src=")([^"]*)(" alt="MO Barcode" style=")([^"]*)(" \/>)/g,
+    /(<img class="barcode" src=")([^"]*)(" alt="MO Barcode" style="[^"]*" \/>)/g,
     slotIndex,
-    (_m, p1, _src, p3, style, p5) => `${p1}${transparent}${p3}${style};visibility:hidden${p5}`,
+    (_m, p1, _src, p3) => `${p1}${transparent}${p3}`,
   );
 
   const slotTextPatterns = [
@@ -1174,7 +1174,7 @@ function clearBenchmarkSlot(htmlBody: string, slotIndex: number) {
 }
 
 function moneyOrderHalfNoticeHtml() {
-  return `<div class="mo-half-notice" lang="ur" dir="rtl" aria-hidden="true"><div class="mo-half-notice-line">منی آرڈر مینول بار کوڈ سٹیکر مت لگائیں۔</div><div class="mo-half-notice-line">صرف نیچے لکھا منی آرڈر نمبر ایشو کریں۔ شکریہ</div></div>`;
+  return `<div class="mo-half-notice" lang="ur" dir="rtl" aria-hidden="true"><div class="mo-half-notice-line">منی آرڈر مینول بار کوڈ سٹیکر مت لگائیں۔</div><div class="mo-half-notice-line">صرف نیچے لکھا منی آرڈر نمبر ایشو کریں۔ شکریہ</div></div>`;
 }
 
 function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRecord, includeUrduNotice = true) {
@@ -1318,10 +1318,14 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
   // Bottom summary block (receiver + MOS + amount)
   out = replaceNth(
     out,
-    /(<div class="field en" style="left:15\.56mm;top:174\.79mm;width:67\.18mm;font-size:1\.83mm;line-height:1\.12;white-space:normal;">)([\s\S]*?)(<\/div>)/g,
+    /<div class="field en" style="left:15\.56mm;top:174\.79mm;width:67\.18mm;font-size:1\.83mm;line-height:1\.12;white-space:normal;">[\s\S]*?<\/div>/g,
     slotIndex,
-    (_m, p1, _old, p3) =>
-      `${p1}\n      ${escapeHtml(consigneeName)} | ${escapeHtml(consigneePhone)}<br/>\n      ${escapeHtml(consigneeAddress)}<br/>\n      MO: ${escapeHtml(moNumber)} | ${escapeHtml(amountDisplay)}\n    ${p3}`,
+    (_m: string) =>
+      `<div class="field en" style="left:15.56mm;top:174.79mm;width:67.18mm;font-size:1.83mm;line-height:1.12;white-space:normal;">
+      ${escapeHtml(consigneeName)} | ${escapeHtml(consigneePhone)}<br/>
+      ${escapeHtml(consigneeAddress)}<br/>
+      MO: ${escapeHtml(moNumber)} | ${escapeHtml(amountDisplay)}
+      </div>`,
   );
 
   // Bottom tracking line
@@ -1336,6 +1340,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
 }
 
 function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataUrl?: string) {
+  const footerHtml = getSharedPrintFooter();
   const expandedOrders = expandBenchmarkOrders(orders);
   const benchmarkHtml = loadBenchmarkMoHtml();
   const bodyMatch = benchmarkHtml.match(/([\s\S]*?<body>)([\s\S]*)(<\/body>[\s\S]*)/i);
@@ -1362,11 +1367,25 @@ function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataU
     frontSheet = fillBenchmarkSlot(frontSheet, 0, o1, true);
     frontSheet = fillBenchmarkSlot(frontSheet, 1, o2, true);
     frontSheet = compactHtmlFragment(frontSheet);
+    frontSheet = frontSheet.replace(
+      "</div>",
+      `${footerHtml}</div>`
+    );
 
     let backSheet = backSheetTemplate;
     backSheet = fillBenchmarkSlot(backSheet, 0, o1, false);
     backSheet = fillBenchmarkSlot(backSheet, 1, o2, false);
     backSheet = compactHtmlFragment(backSheet);
+    backSheet = backSheet.replace(
+      "</div>",
+      `${footerHtml}</div>`
+    );
+
+    const consigneeName: string = o1.consigneeName || "";
+    const consigneePhone: string = o1.consigneePhone || "";
+    const consigneeAddress: string = o1.consigneeAddress || "";
+    const moNumber: string = o1.moNumber || "";
+    const amountDisplay: string = o1.amountDisplay || "";
 
     const pages: string[] = [];
     const frontHTML = frontSheet;
@@ -1521,7 +1540,7 @@ function frontFields(o: OrderRecord) {
     `<div class="field mono en" style="left:57.43mm;top:39.03mm;width:28.29mm;font-size:3.73mm;">${escapeHtml(moNumber)}</div>`,
 
     // Date inline after Urdu label (same line)
-    `<div class="field urdu" style="left:40.13mm;top:162.57mm;width:28.99mm;font-size:.16mm;">(تاریخ) <span class="en" style="display:inline-block;font-size:3.25mm;">${escapeHtml(issueDate)}</span></div>`,
+    `<div class="field urdu" style="left:40.13mm;top:162.57mm;width:28.99mm;font-size:\.16mm;">(تاریخ) <span class="en" style="display:inline-block;font-size:3.25mm;">${escapeHtml(issueDate)}</span></div>`,
 
     // Amount inline after Urdu label (same line)
     `<div class="field urdu" style="left:72.73mm;top:140.37mm;width:44.55mm;font-size:2.16mm;">(روپیہ) <span class="en" style="display:inline-block;font-size:5.37mm;">${escapeHtml(amountDisplay)}</span></div>`,
@@ -1554,7 +1573,7 @@ function frontFields(o: OrderRecord) {
     `<div class="field en" style="left:15.56mm;top:174.79mm;width:67.18mm;font-size:1.83mm;line-height:1.12;white-space:normal;">
       ${escapeHtml(consigneeName)} | ${escapeHtml(consigneePhone)}<br/>
       ${escapeHtml(consigneeAddress)}<br/>
-      MOS: ${escapeHtml(moNumber)} | ${escapeHtml(amountDisplay)}
+      MO: ${escapeHtml(moNumber)} | ${escapeHtml(amountDisplay)}
     </div>`,
 
     // Bottom-left tracking text only
