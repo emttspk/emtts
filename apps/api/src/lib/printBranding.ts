@@ -1,6 +1,6 @@
 export const PRINT_MARKETING_LINE = "Free Print Labels, Money Order, Track Parcels & Complaints, Visit www.ePost.pk";
 export const PRINTABLE_FOOTER_CLASS_NAME = "print-shared-footer";
-export const PRINTABLE_FOOTER_CSS = `.${PRINTABLE_FOOTER_CLASS_NAME}{width:100%;max-width:100%;text-align:center;font-size:13px;font-weight:600;line-height:1.4;white-space:normal;word-break:normal;overflow-wrap:break-word;display:flex;justify-content:center;align-items:center;}`;
+export const PRINTABLE_FOOTER_CSS = `.${PRINTABLE_FOOTER_CLASS_NAME}{width:100%;max-width:100%;text-align:center;font-size:12px;font-weight:600;line-height:1.4;white-space:normal;overflow-wrap:break-word;word-break:normal;display:flex;justify-content:center;align-items:center;padding:4px 10px;box-sizing:border-box;}`;
 
 export const ENVELOPE_DEFAULT_SIZE = {
   widthInches: 9.5,
