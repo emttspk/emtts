@@ -1,11 +1,28 @@
-export const TRACKING_PREFIX = "VPL";
-export const MONEY_ORDER_PREFIX = "MOS";
-export const MONEY_ORDER_PREFIX_COD = "UMO";
+// Tracking prefixes as per Pakistan Post standards
+export const TRACKING_PREFIX_VPL = "VPL"; // Value Payable Letter
+export const TRACKING_PREFIX_VPP = "VPP"; // Value Payable Parcel
+export const TRACKING_PREFIX_COD = "COD"; // Cash on Delivery
+export const TRACKING_PREFIX_IRL = "IRL"; // Insured Registered Letter
+export const TRACKING_PREFIX_RGL = "RGL"; // Registered Letter
+export const TRACKING_PREFIX_UMS = "UMS"; // Urgent Mail Service
+
+// Money order prefixes
+export const MONEY_ORDER_PREFIX = "MOS";     // For VPL, VPP, IRL
+export const MONEY_ORDER_PREFIX_COD = "UMO"; // For COD
+
 export const MONEY_ORDER_SPLIT_LIMIT = 20_000;
 
-const allowedTrackingPrefixes = [TRACKING_PREFIX] as const;
+const allowedTrackingPrefixes = [
+  TRACKING_PREFIX_VPL,
+  TRACKING_PREFIX_VPP,
+  TRACKING_PREFIX_COD,
+  TRACKING_PREFIX_IRL,
+  TRACKING_PREFIX_RGL,
+  TRACKING_PREFIX_UMS,
+] as const;
 
-const trackingIdPattern = /^VPL\d{8,9}$/;
+// Pattern: Prefix (3 chars) + Month (2 chars: 01-12) + Sequence (6-7 digits)
+const trackingIdPattern = /^(VPL|VPP|COD|IRL|RGL|UMS)(0[1-9]|1[0-2])\d{6,7}$/;
 const moneyOrderNumberPattern = /^(MOS|UMO)(0[1-9]|1[0-2])\d{6,7}$/;
 
 export type StrictTrackingValidation = { ok: true; value: string } | { ok: false; reason: string };
@@ -83,14 +100,43 @@ export function formatIdentifierSequence(sequence: number) {
     throw new Error("Identifier sequence must be a positive integer.");
   }
   if (sequence > 99_999) {
-    throw new Error("Daily identifier sequence exceeded the supported 5-digit overflow range.");
+    throw new Error("Tracking sequence exceeded the supported 5-digit overflow range.");
   }
   const width = sequence > 9_999 ? 5 : 4;
   return String(sequence).padStart(width, "0");
 }
 
-export function buildTrackingId(sequence: number, value?: string | Date) {
-  return `${TRACKING_PREFIX}${formatIdentifierDateCode(value)}${formatIdentifierSequence(sequence)}`;
+/**
+ * Get the tracking prefix for a given shipment type.
+ * Defaults to VPL if shipment type is not recognized.
+ */
+export function getTrackingPrefix(shipmentType?: unknown): string {
+  const normalized = String(shipmentType ?? "").trim().toUpperCase();
+  switch (normalized) {
+    case "VPP":
+      return TRACKING_PREFIX_VPP;
+    case "COD":
+      return TRACKING_PREFIX_COD;
+    case "IRL":
+      return TRACKING_PREFIX_IRL;
+    case "RGL":
+    case "RL": // Accept "RL" as alias for RGL
+      return TRACKING_PREFIX_RGL;
+    case "UMS":
+      return TRACKING_PREFIX_UMS;
+    case "VPL":
+    default:
+      return TRACKING_PREFIX_VPL;
+  }
+}
+
+/**
+ * Build a tracking ID with proper format: XXXMMXXXXXX
+ * where XXX is the prefix, MM is the month (01-12), and XXXXXX is the sequence
+ */
+export function buildTrackingId(sequence: number, value?: string | Date, shipmentType?: unknown) {
+  const prefix = getTrackingPrefix(shipmentType);
+  return `${prefix}${formatIdentifierDateCode(value)}${formatIdentifierSequence(sequence)}`;
 }
 
 export function buildMoneyOrderNumber(sequence: number, value?: string | Date, shipmentType?: unknown) {
@@ -125,7 +171,7 @@ export function validateTrackingId(value: unknown): StrictTrackingValidation {
   if (!trackingIdPattern.test(compact)) {
     return {
       ok: false,
-      reason: "trackingId must match VPLYYMM0001 format, with 12 characters allowed only after sequence overflow",
+      reason: "trackingId must match XXXMMXXXXXX format (e.g., VPL05000001, COD05000001, RGL05000001)",
     };
   }
 

@@ -650,10 +650,10 @@ const worker = new Worker(
           if (dbDuplicate || batchDuplicate) {
             if (doAutoGenerateTracking) {
               let offset = generatedReplacementCount + 1;
-              let replacement = buildTrackingId(offset, new Date());
+              let replacement = buildTrackingId(offset, new Date(), shipmentType);
               while (allKnownTrackingIds.has(replacement)) {
                 offset += 1;
-                replacement = buildTrackingId(offset, new Date());
+                replacement = buildTrackingId(offset, new Date(), shipmentType);
               }
               row.order.TrackingID = replacement;
               allKnownTrackingIds.add(replacement);

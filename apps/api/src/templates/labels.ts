@@ -563,10 +563,10 @@ export function previewLabelHtml(opts?: {
   const outputMode = opts?.outputMode ?? "labels";
   const sampleCount = outputMode === "flyer" ? 8 : outputMode === "envelope" ? 2 : 4;
   const sampleOrders = Array.from({ length: sampleCount }, (_, index) => {
-    const trackingNumber = buildTrackingId(index + 1, new Date());
+    const trackingNumber = buildTrackingId(index + 1, new Date(), shipmentType);
     const grossAmount = 500 + index * 125;
     const moneyOrderNumbers = includeMoneyOrders && shouldShowValuePayableAmount(shipmentType)
-      ? moneyOrderBreakdown(grossAmount, shipmentType).map((_, moIndex) => buildMoneyOrderNumber(index + moIndex + 1, new Date()))
+      ? moneyOrderBreakdown(grossAmount, shipmentType).map((_, moIndex) => buildMoneyOrderNumber(index + moIndex + 1, new Date(), shipmentType))
       : [];
     return {
       shipperName: `Sender ${index + 1}`,

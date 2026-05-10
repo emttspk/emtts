@@ -39,6 +39,7 @@ export function prepareLabelOrders(
 
       // Step 2: Resolve tracking number - use manual if valid, else generate or skip
       let trackingNumber: string;
+      const resolvedShipmentType = resolveShipmentType(order, opts.shipmentType);
 
       if (manualTracking) {
         // Manual mode: uploaded tracking ID — accept any non-empty format
@@ -48,8 +49,8 @@ export function prepareLabelOrders(
         }
         trackingNumber = validated.value;
       } else if (opts.autoGenerateTracking) {
-        // Auto mode: generate new ID
-        trackingNumber = buildTrackingId(serial++);
+        // Auto mode: generate new ID with correct prefix for shipment type
+        trackingNumber = buildTrackingId(serial++, new Date(), resolvedShipmentType);
       } else {
         // Manual mode but no ID provided and auto is disabled - skip this row
         console.warn(
@@ -84,7 +85,7 @@ export function prepareLabelOrders(
         barcodeBase64: generateLabelBarcodeBase64(trackingId),
         skipGlobalBarcode: opts.outputMode === "envelope",
         carrierType: opts.carrierType,
-        shipmentType: resolveShipmentType(order, opts.shipmentType),
+        shipmentType: resolvedShipmentType,
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
