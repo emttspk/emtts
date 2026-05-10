@@ -1387,7 +1387,10 @@ function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataU
     chunks.push(pages.join(""));
   }
 
-  return `${headWithPrintGuard}${chunks.join("")}${tail}`;
+  const footerHtml = `<div class="${PRINTABLE_FOOTER_CLASS_NAME}" style="position:fixed;bottom:0;left:0;right:0;width:100%;max-width:100%;display:block;text-align:center;font-size:11px;font-weight:600;line-height:1.3;white-space:normal;overflow:visible;overflow-wrap:anywhere;word-break:normal;box-sizing:border-box;padding:0 12px;background:#fff;border-top:1px solid #eee;page-break-inside:avoid;margin-top:auto;">${PRINT_MARKETING_LINE}</div>`;
+  const tailWithFooter = tail.replace(/<\/body>/i, `${footerHtml}</body>`);
+
+  return `${headWithPrintGuard}${chunks.join("")}${tailWithFooter}`;
 }
 
 function moneyOrderDuplexHtml(orders: OrderRecord[], bg: { frontBg?: string; backBg?: string }) {
