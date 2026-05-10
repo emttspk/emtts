@@ -1187,6 +1187,7 @@ function moneyOrderHalfNoticeHtml() {
 function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRecord, includeUrduNotice = true) {
   if (!order) return clearBenchmarkSlot(htmlBody, slotIndex);
 
+  const footerHtml = getSharedPrintFooter();
   const moNumber = strictMoneyOrderNumber((order as any)?.mo_number);
   const generatedTrackingId = String((order as any)?.barcodeValue ?? "").trim();
   const tracking = String((order as any)?.trackingNumber ?? (order as any)?.TrackingID ?? generatedTrackingId).trim() || "-";
@@ -1313,7 +1314,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     out,
     /<div class="field strong en" style="left:47\.56mm;top:105\.69mm;width:65\.06mm;font-size:4\.(?:58|95)mm(?:;line-height:1\.08)?;">[^<]*<\/div>/g,
     slotIndex,
-    () => `<div class="field strong en" style="left:47.56mm;top:105.69mm;width:86.06mm;font-size:4.25mm;line-height:1.08;white-space:normal;overflow:visible;">${escapeHtml(senderLine)}</div>`,
+    () => `<div class="field strong en" style="left:47.56mm;top:105.69mm;width:100.06mm;font-size:3.35mm;line-height:1.08;white-space:nowrap;overflow:hidden;">${escapeHtml(senderLine)}</div>`,
   );
   out = replaceNth(
     out,
@@ -1346,7 +1347,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     out,
     /(<div class="field mono en" style="left:15\.56mm;top:198\.83mm;width:63\.64mm;font-size:2\.22mm;">)([^<]*)(<\/div>)/g,
     slotIndex,
-    (_m, p1, _old, p3) => `${p1}${escapeHtml(tracking)}${p3}`
+    (_m, p1, _old, p3) => `${p1}${escapeHtml(tracking)}${p3}${includeUrduNotice ? footerHtml : ""}`
   );
 
   return out;
@@ -1362,11 +1363,6 @@ function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataU
   const head = bodyMatch[1];
   const benchmarkBody = applyFrontBackgroundToBenchmarkHtml(bodyMatch[2].trim(), frontBackgroundDataUrl);
   const tail = bodyMatch[3];
-  const injectFooterIntoFrontHalves = (sheetHtml: string) =>
-    sheetHtml.replace(
-      /(<div class="half front">[\s\S]*?<div class="overlay">[\s\S]*?<\/div>)(\s*<\/div>)/g,
-      `$1${footerHtml}$2`,
-    );
   const headWithPrintGuard = head.replace(
     /<\/head>/i,
     `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}${PRINTABLE_FOOTER_CSS}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.half{position:relative;}.page .${PRINTABLE_FOOTER_CLASS_NAME}, .half .${PRINTABLE_FOOTER_CLASS_NAME}{position:absolute;bottom:8mm;left:50%;transform:translateX(-50%);width:80%;text-align:center;font-size:12px;font-weight:600;line-height:1.25;box-sizing:border-box;white-space:normal;overflow-wrap:break-word;word-break:normal;z-index:10;}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding-top:1.5mm;padding-right:1.35mm;padding-bottom:1mm;padding-left:1.35mm;max-width:68mm;max-height:14mm;font-size:13px;font-family:\"Noto Nastaliq Urdu\",\"Money Order Urdu\",\"Jameel Noori Nastaleeq\",\"Noto Naskh Arabic\",serif;font-weight:700;line-height:1.45;letter-spacing:normal;text-align:center;direction:rtl;unicode-bidi:isolate;white-space:normal;overflow:hidden;text-overflow:clip;font-feature-settings:'kern' 1,'liga' 1,'clig' 1,'calt' 1,'rlig' 1;text-rendering:geometricPrecision;-webkit-font-smoothing:antialiased}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`
@@ -1385,7 +1381,6 @@ function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataU
     frontSheet = fillBenchmarkSlot(frontSheet, 0, o1, true);
     frontSheet = fillBenchmarkSlot(frontSheet, 1, o2, true);
     frontSheet = compactHtmlFragment(frontSheet);
-    frontSheet = injectFooterIntoFrontHalves(frontSheet);
 
     let backSheet = backSheetTemplate;
     backSheet = fillBenchmarkSlot(backSheet, 0, o1, false);
@@ -1577,12 +1572,12 @@ function frontFields(o: OrderRecord) {
     `<div class="field mono en" style="left:97.56mm;top:100.27mm;width:65.06mm;font-size:2.13mm;">${escapeHtml(consigneePhone)}</div>`,
 
     // Sender block
-    `<div class="field strong en" style="left:47.56mm;top:105.69mm;width:86.06mm;font-size:4.25mm;line-height:1.08;white-space:normal;overflow:visible;">${escapeHtml(senderLine)}</div>`,
+    `<div class="field strong en" style="left:47.56mm;top:105.69mm;width:100.06mm;font-size:3.35mm;line-height:1.08;white-space:nowrap;overflow:hidden;">${escapeHtml(senderLine)}</div>`,
     `<div class="field regular en" style="left:15.56mm;top:112.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;">${escapeHtml(shipperAddress)}</div>`,
     `<div class="field mono en" style="left:82.56mm;top:116.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;">${escapeHtml(shipperPhone)}</div>`,
 
     // Sender block (second half)
-    `<div class="field strong en" style="left:47.56mm;top:183.69mm;width:86.06mm;font-size:4.25mm;line-height:1.08;white-space:normal;overflow:visible;">${escapeHtml(senderLine)}</div>`,
+    `<div class="field strong en" style="left:47.56mm;top:183.69mm;width:100.06mm;font-size:3.35mm;line-height:1.08;white-space:nowrap;overflow:hidden;">${escapeHtml(senderLine)}</div>`,
     `<div class="field regular en" style="left:15.56mm;top:190.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;">${escapeHtml(shipperAddress)}</div>`,
     `<div class="field mono en" style="left:82.56mm;top:194.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;">${escapeHtml(shipperPhone)}</div>`,
 
