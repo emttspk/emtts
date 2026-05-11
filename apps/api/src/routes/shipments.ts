@@ -7,6 +7,8 @@ import { requireAdmin } from "../middleware/auth.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { pythonTrackBulk, PythonServiceUnavailableError, PythonServiceTimeoutError } from "../services/trackingService.js";
 import { canonicalShipmentStatus, isComplaintEnabled, processTracking } from "../services/trackingStatus.js";
+import { applyTrackingPatchLayer } from "../services/trackingPatch.js";
+import { buildTrackingLifecycleResolution, extractTrackingEventsFromRaw } from "../services/trackingLifecycle.js";
 import { extractComplaintHistory, listComplaintRecords } from "../services/complaint.service.js";
 import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "../services/trackingIntelligence.js";
 import { buildTrackingCycleAuditRecord } from "../services/trackingCycleAudit.js";
@@ -124,6 +126,32 @@ function parseRaw(rawJson?: string | null): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+function buildShipmentTrackingLifecycle(
+  trackingNumber: string,
+  sourceStatus: string,
+  raw: Record<string, unknown>,
+  manualPendingOverride: boolean,
+) {
+  const patched = applyTrackingPatchLayer(
+    {
+      tracking_number: trackingNumber,
+      status: sourceStatus,
+      events: extractTrackingEventsFromRaw(raw),
+      raw,
+    },
+    { manualPendingOverride },
+  );
+
+  return buildTrackingLifecycleResolution({
+    trackingNumber,
+    sourceStatus: patched.status,
+    events: patched.events,
+    raw,
+    meta: patched.meta,
+    cycleInterpretation: patched.cycle_interpretation,
+  });
 }
 
 function toAmount(rawJson?: string | null): number {
@@ -566,6 +594,12 @@ shipmentsRouter.get("/", async (req, res) => {
     const canonicalStatus = resolvePersistedStatus(raw, preferredStatus);
     const manualStatus = normalizeManualStatus((raw as any).manual_status);
     const manualOverrideActive = Boolean((raw as any).manual_override) && Boolean(manualStatus);
+    const trackingLifecycle = buildShipmentTrackingLifecycle(
+      shipment.trackingNumber,
+      preferredStatus,
+      raw,
+      manualOverrideActive && manualStatus === "PENDING",
+    );
     const statusForRaw = manualOverrideActive ? canonicalStatus : processed.systemStatus;
     const moIssued = resolveMoForDisplay(explicitSystemMo, processed);
     const moValue = resolveMoValueForDisplay(fromDb?.value ?? null, processed);
@@ -586,6 +620,11 @@ shipmentsRouter.get("/", async (req, res) => {
       trackingMo: processed.trackingMo,
       systemMo: processed.systemMo,
       moMatch: processed.moMatch,
+      tracking_lifecycle: trackingLifecycle,
+      delivery_progress: trackingLifecycle.progress,
+      lifecycle_status: trackingLifecycle.normalized_status,
+      status_display: trackingLifecycle.display_status,
+      latest_tracking_event: trackingLifecycle.latest_event ?? undefined,
     });
     return {
       ...shipment,
@@ -595,6 +634,7 @@ shipmentsRouter.get("/", async (req, res) => {
         : shipment.city,
       ...consignee,
       rawJson: mergedRaw,
+      trackingLifecycle,
       moIssued,
       moneyOrderIssued: processed.moneyOrderIssued,
       moValue,
@@ -677,6 +717,12 @@ shipmentsRouter.post("/diff", async (req, res) => {
     const canonicalStatus = resolvePersistedStatus(raw, preferredStatus);
     const manualStatus = normalizeManualStatus((raw as any).manual_status);
     const manualOverrideActive = Boolean((raw as any).manual_override) && Boolean(manualStatus);
+    const trackingLifecycle = buildShipmentTrackingLifecycle(
+      shipment.trackingNumber,
+      preferredStatus,
+      raw,
+      manualOverrideActive && manualStatus === "PENDING",
+    );
     const statusForRaw = manualOverrideActive ? canonicalStatus : processed.systemStatus;
     const moIssued = resolveMoForDisplay(explicitSystemMo, processed);
     const moValue = resolveMoValueForDisplay(fromDb?.value ?? null, processed);
@@ -704,7 +750,13 @@ shipmentsRouter.post("/diff", async (req, res) => {
         trackingMo: processed.trackingMo,
         systemMo: processed.systemMo,
         moMatch: processed.moMatch,
+        tracking_lifecycle: trackingLifecycle,
+        delivery_progress: trackingLifecycle.progress,
+        lifecycle_status: trackingLifecycle.normalized_status,
+        status_display: trackingLifecycle.display_status,
+        latest_tracking_event: trackingLifecycle.latest_event ?? undefined,
       }),
+      trackingLifecycle,
       moIssued,
       moneyOrderIssued: processed.moneyOrderIssued,
       moValue,

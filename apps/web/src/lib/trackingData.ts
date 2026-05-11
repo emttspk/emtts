@@ -1,4 +1,4 @@
-import type { Shipment } from "./types";
+import type { Shipment, TrackingLifecycle } from "./types";
 
 export type StatusCardFilter = "ALL" | "DELIVERED" | "PENDING" | "RETURNED" | "DELAYED";
 
@@ -523,6 +523,9 @@ export function getStatusDisplayColor(status: string): string {
   const s = String(status ?? "").toLowerCase();
   if (s.includes("deliver")) return "bg-emerald-50 text-emerald-700 border-emerald-200";
   if (s.includes("return")) return "bg-red-50 text-red-700 border-red-200";
+  if (s === "rts") return "bg-red-50 text-red-700 border-red-200";
+  if (s.includes("failed")) return "bg-rose-50 text-rose-700 border-rose-200";
+  if (s.includes("stuck")) return "bg-orange-50 text-orange-700 border-orange-200";
   if (s.includes("transit") || s.includes("in_transit") || s.includes("pending")) {
     return "bg-amber-50 text-amber-700 border-amber-200";
   }
@@ -542,6 +545,7 @@ export function getStatusIconName(status: string): "check_circle" | "alert_circl
   const s = String(status ?? "").toLowerCase();
   if (s.includes("deliver")) return "check_circle";
   if (s.includes("return")) return "alert_circle";
+  if (s === "rts" || s.includes("failed")) return "alert_circle";
   if (s.includes("out_for_delivery") || s.includes("out for delivery")) return "truck";
   if (s.includes("hub") || s.includes("at_hub")) return "map_pin";
   return "clock";
@@ -550,6 +554,13 @@ export function getStatusIconName(status: string): "check_circle" | "alert_circl
 export function getStatusStageIndex(status: string): number {
   const s = String(status ?? "").toLowerCase();
   if (s.includes("deliver")) return 4;
+  if (s.includes("return") || s === "rts") return 4;
+  if (s.includes("failed")) return 3;
+  if (s.includes("stuck")) {
+    if (s.includes("hub")) return 2;
+    if (s.includes("delivery")) return 3;
+    return 1;
+  }
   if (s.includes("out_for_delivery") || s.includes("out for delivery")) return 3;
   if (s.includes("hub") || s.includes("at_hub") || s.includes("dispatch")) return 2;
   if (s.includes("transit") || s.includes("in_transit") || s.includes("pending")) return 1;
@@ -578,6 +589,9 @@ function clampProgress(value: number): number {
 
 function getDisplayStatusLabel(activeStage: number, status: string): string {
   const s = String(status ?? "").toLowerCase();
+  if (s === "rts") return "RTS";
+  if (s.includes("failed")) return "Failed Delivery";
+  if (s.includes("stuck")) return "Stuck";
   if (s.includes("return")) return "Returned";
   if (s.includes("deliver")) return "Delivered";
   if (activeStage <= 0) return "Booked";
@@ -591,6 +605,7 @@ export function resolveTrackingPresentation(
   status: string,
   events: TrackingDisplayEventInput[] | undefined,
   deliveryProgress?: number | null,
+  lifecycle?: TrackingLifecycle | null,
 ): TrackingPresentationModel {
   const timeline = Array.isArray(events)
     ? events
@@ -612,16 +627,34 @@ export function resolveTrackingPresentation(
         .sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0))
     : [];
 
-  const latestEvent = timeline[timeline.length - 1] ?? null;
-  let activeStage = latestEvent ? getStatusStageIndex(latestEvent.description) : getStatusStageIndex(status);
+  const lifecycleLatestEvent = lifecycle?.latest_event
+    ? {
+        date: text(lifecycle.latest_event.date),
+        time: text(lifecycle.latest_event.time) || "00:00",
+        location: text(lifecycle.latest_event.location),
+        description: text(lifecycle.latest_event.description),
+        timestamp: toTimestampMs(text(lifecycle.latest_event.date), text(lifecycle.latest_event.time) || "00:00"),
+        stageLabel: getEventStageLabel(text(lifecycle.latest_event.description) || text(lifecycle.current_stage)),
+      }
+    : null;
+
+  const latestEvent = lifecycleLatestEvent ?? timeline[timeline.length - 1] ?? null;
+  let activeStage = Number.isFinite(Number(lifecycle?.active_stage))
+    ? Math.max(0, Math.min(4, Number(lifecycle?.active_stage)))
+    : latestEvent
+      ? getStatusStageIndex(latestEvent.description)
+      : getStatusStageIndex(status);
   if (timeline.length > 0 && activeStage === 0 && String(status ?? "").toLowerCase().includes("pending")) {
     activeStage = 1;
   }
 
-  const displayStatus = getDisplayStatusLabel(activeStage, status);
+  const lifecycleDisplayStatus = text(lifecycle?.display_status);
+  const displayStatus = lifecycleDisplayStatus || getDisplayStatusLabel(activeStage, status);
   const terminal = displayStatus === "Delivered" || displayStatus === "Returned";
   const derivedProgress = TRACKING_STAGE_PROGRESS[Math.max(0, Math.min(activeStage, TRACKING_STAGE_PROGRESS.length - 1))] ?? 10;
-  const numericProgress = typeof deliveryProgress === "number" && Number.isFinite(deliveryProgress)
+  const numericProgress = Number.isFinite(Number(lifecycle?.progress))
+    ? clampProgress(Number(lifecycle?.progress))
+    : typeof deliveryProgress === "number" && Number.isFinite(deliveryProgress)
     ? clampProgress(deliveryProgress)
     : null;
   const progress = terminal ? 100 : clampProgress(Math.max(derivedProgress, numericProgress ?? 0));

@@ -22,6 +22,33 @@ export type TrackingJob = {
   createdAt: string;
 };
 
+export type TrackingLifecycleEvent = {
+  date: string;
+  time: string;
+  location: string;
+  description: string;
+};
+
+export type TrackingLifecycle = {
+  normalized_status: string;
+  underlying_status: string;
+  canonical_status: "DELIVERED" | "RETURNED" | "PENDING";
+  display_status: string;
+  progress: number;
+  active_stage: number;
+  current_stage: string;
+  latest_event: TrackingLifecycleEvent | null;
+  is_terminal: boolean;
+  stuck_bucket: string;
+  inactivity_days: number;
+  complaint_enabled: boolean;
+  money_order_status: string;
+  cycle_type: string;
+  cycle_status: string;
+  decision_reason: string;
+  source_status: string;
+};
+
 export type Shipment = {
   id: string;
   trackingNumber: string;
@@ -39,6 +66,7 @@ export type Shipment = {
   daysPassed?: number | null;
   complaintStatus?: string | null;
   complaintText?: string | null;
+  trackingLifecycle?: TrackingLifecycle | null;
   updatedAt: string;
   createdAt: string;
 };
@@ -46,6 +74,9 @@ export type Shipment = {
 export type TrackResult = {
   tracking_number: string;
   status: string;
+  current_status?: string;
+  delivery_progress?: number | null;
+  lifecycle?: TrackingLifecycle | null;
   city?: string | null;
   latest_date?: string | null;
   latest_time?: string | null;

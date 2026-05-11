@@ -26,6 +26,7 @@ import {
   PythonServiceTimeoutError,
   PythonServiceUnavailableError,
 } from "../services/trackingService.js";
+import { buildTrackingLifecycleResolution, type TrackingLifecycleResolution } from "../services/trackingLifecycle.js";
 import { logComplaintAudit } from "../services/complaint-audit.service.js";
 import { enqueueComplaint, findActiveComplaintDuplicate, type ComplaintQueuePayload } from "../services/complaint-queue.service.js";
 import { extractComplaintHistory } from "../services/complaint.service.js";
@@ -48,8 +49,8 @@ type PublicTrackingResponse = {
   degraded?: boolean;
   warning?: string;
   tracking_number: string;
-  status: "Delivered" | "Pending" | "Return";
-  current_status: "Delivered" | "Pending" | "Return";
+  status: string;
+  current_status: string;
   booking_office: string | null;
   delivery_office: string | null;
   consignee_name: string | null;
@@ -61,6 +62,7 @@ type PublicTrackingResponse = {
   delivery_progress: number;
   history: PublicTrackingEvent[];
   events: PublicTrackingEvent[];
+  lifecycle: TrackingLifecycleResolution;
   meta: Record<string, unknown> | null;
   error?: string;
 };
@@ -123,8 +125,15 @@ function buildPublicTrackingResponse(
         description: String(event?.description ?? "").trim(),
       }))
     : [];
-  const finalStatus = enforceFinalStatus((result.meta as any)?.final_status ?? result.status);
-  const latestEvent = events.length > 0 ? events[events.length - 1] : null;
+  const lifecycle = buildTrackingLifecycleResolution({
+    trackingNumber: String(result.tracking_number ?? opts?.fallbackTrackingNumber ?? "").trim().toUpperCase(),
+    sourceStatus: String((result.meta as any)?.final_status ?? result.status ?? "").trim(),
+    events,
+    raw,
+    meta: (result.meta as any) ?? null,
+    cycleInterpretation: (result as any)?.cycle_interpretation ?? null,
+  });
+  const latestEvent = lifecycle.latest_event ?? (events.length > 0 ? events[events.length - 1] : null);
   const origin = String(trackingNode.booking_office ?? raw.booking_office ?? "").trim() || null;
   const destination = String(trackingNode.delivery_office ?? raw.delivery_office ?? "").trim() || null;
   const currentLocation =
@@ -142,8 +151,8 @@ function buildPublicTrackingResponse(
     degraded: opts?.degraded,
     warning: opts?.warning,
     tracking_number: String(result.tracking_number ?? opts?.fallbackTrackingNumber ?? "").trim().toUpperCase(),
-    status: finalStatus,
-    current_status: finalStatus,
+    status: lifecycle.canonical_status,
+    current_status: lifecycle.canonical_status,
     booking_office: origin,
     delivery_office: destination,
     consignee_name: String(trackingNode.consignee_name ?? raw.consignee_name ?? "").trim() || null,
@@ -157,9 +166,10 @@ function buildPublicTrackingResponse(
       raw.estimated_delivery ??
       "",
     ).trim() || null,
-    delivery_progress: resolveDeliveryProgress(finalStatus, events),
+    delivery_progress: lifecycle.progress,
     history: events,
     events,
+    lifecycle,
     meta: (result.meta as Record<string, unknown> | null) ?? null,
   };
 }
@@ -780,11 +790,20 @@ trackingRouter.post("/live-bulk", requireAuth, async (req, res) => {
     const bulkResults = await pythonTrackBulk(ids, { includeRaw: false, batchSize: 100, batchTimeoutMs: 120_000 });
     const resultsMap: Record<string, unknown> = {};
     for (const r of bulkResults) {
-      const enforced = enforceFinalStatus((r as any)?.meta?.final_status ?? r.status);
+      const lifecycle = buildTrackingLifecycleResolution({
+        trackingNumber: r.tracking_number,
+        sourceStatus: String((r as any)?.meta?.final_status ?? r.status ?? "").trim(),
+        events: r.events,
+        raw: r.raw,
+        meta: (r as any)?.meta ?? null,
+        cycleInterpretation: (r as any)?.cycle_interpretation ?? null,
+      });
       resultsMap[r.tracking_number.trim().toUpperCase()] = {
         ...r,
-        status: enforced,
-        current_status: enforced,
+        status: lifecycle.canonical_status,
+        current_status: lifecycle.canonical_status,
+        delivery_progress: lifecycle.progress,
+        lifecycle,
       };
     }
     return res.json({ success: true, results: resultsMap, fetched: bulkResults.length });
@@ -915,9 +934,35 @@ trackingRouter.get("/track/:trackingNumber", requireAuth, async (req, res) => {
       responseEventCount > 0
         ? `${String(result.events?.[responseEventCount - 1]?.date ?? "")} ${String(result.events?.[responseEventCount - 1]?.time ?? "")}`.trim()
         : "-";
-    const statusAfterPatch = enforceFinalStatus((result as any)?.meta?.final_status ?? result.status);
-    if (!STRICT_FINAL_STATUSES.has(String((result as any)?.meta?.final_status ?? "").trim())) {
+    const lifecycle = buildTrackingLifecycleResolution({
+      trackingNumber: result.tracking_number,
+      sourceStatus: String((result as any)?.meta?.final_status ?? result.status ?? "").trim(),
+      events: result.events,
+      raw,
+      meta: (result as any)?.meta ?? null,
+      cycleInterpretation: (result as any)?.cycle_interpretation ?? null,
+    });
+    const statusAfterPatch = lifecycle.canonical_status;
+    if (!STRICT_FINAL_STATUSES.has(String(statusAfterPatch ?? "").trim())) {
       console.error(`[TrackingAPI] invalid status for ${result.tracking_number}: ${(result as any)?.meta?.final_status ?? result.status ?? "-"}`);
+    }
+
+    const mergedRawWithLifecycle = JSON.stringify({
+      ...JSON.parse(mergedRaw),
+      tracking_lifecycle: lifecycle,
+      delivery_progress: lifecycle.progress,
+      lifecycle_status: lifecycle.normalized_status,
+      status_display: lifecycle.display_status,
+      latest_tracking_event: lifecycle.latest_event ?? undefined,
+    });
+
+    try {
+      await prisma.shipment.update({
+        where: { userId_trackingNumber: { userId, trackingNumber: result.tracking_number } },
+        data: { rawJson: mergedRawWithLifecycle },
+      });
+    } catch {
+      // Ignore lifecycle persistence failures on the response path.
     }
 
     return res.json({
@@ -935,6 +980,8 @@ trackingRouter.get("/track/:trackingNumber", requireAuth, async (req, res) => {
       complaint_eligible: result.complaint_eligible,
       complaint_remaining_hours: (result as any).complaint_remaining_hours ?? null,
       events: result.events ?? [],
+      delivery_progress: lifecycle.progress,
+      lifecycle,
       meta: (result as any).meta ?? null,
       raw,
     });

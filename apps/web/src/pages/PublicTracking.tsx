@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Clock, MapPin, MessageSquare, RefreshCw, Search, Truck } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import type { TrackingLifecycle } from "../lib/types";
 import {
   buildTrackingWhatsAppShareUrl,
   getStatusDisplayColor,
@@ -48,6 +49,7 @@ type TrackingResult = {
   current_location?: string | null;
   estimated_delivery?: string | null;
   delivery_progress?: number;
+  lifecycle?: TrackingLifecycle | null;
   history?: TrackingEvent[];
   events: TrackingEvent[];
   meta?: Record<string, unknown> | null;
@@ -89,7 +91,7 @@ function statusIcon(status: string) {
 function TrackingResultCard({ result }: { result: TrackingResult }) {
   const [waModalOpen, setWaModalOpen] = useState(false);
   const [waPhone, setWaPhone] = useState("");
-  const presentation = resolveTrackingPresentation(result.status, result.history ?? result.events ?? [], result.delivery_progress);
+  const presentation = resolveTrackingPresentation(result.status, result.history ?? result.events ?? [], result.delivery_progress, result.lifecycle);
   const newestFirstTimeline = [...presentation.timeline].reverse();
   const progress = presentation.progress;
   const activeStage = presentation.activeStage;

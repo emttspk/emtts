@@ -2161,9 +2161,10 @@ export default function BulkTracking() {
     const fields = getUnifiedFields(detailShipment.rawJson);
     const consignee = getRecordConsignee(detailShipment);
     const timeline = extractTimeline(detailShipment.rawJson);
-    const rawDeliveryProgress = Number((raw?.tracking as any)?.delivery_progress ?? raw?.delivery_progress);
+    const trackingLifecycle = detailShipment.trackingLifecycle ?? ((raw?.tracking_lifecycle as any) ?? null);
+    const rawDeliveryProgress = Number((raw?.tracking as any)?.delivery_progress ?? raw?.delivery_progress ?? trackingLifecycle?.progress);
     const deliveryProgress = Number.isFinite(rawDeliveryProgress) ? rawDeliveryProgress : undefined;
-    const presentation = resolveTrackingPresentation(selectedTracking.final_status, timeline, deliveryProgress);
+    const presentation = resolveTrackingPresentation(selectedTracking.final_status, timeline, deliveryProgress, trackingLifecycle);
     const bookingDate = timeline[0]?.date || "-";
     const lastEvent = timeline[timeline.length - 1] ?? null;
     const lastUpdate = lastEvent ? `${lastEvent.date} ${lastEvent.time}`.trim() : `${detailShipment.latestDate ?? ""} ${detailShipment.latestTime ?? ""}`.trim() || "-";
@@ -3286,15 +3287,16 @@ export default function BulkTracking() {
             <tbody className="divide-y divide-[#E5E7EB]">
               {paginatedShipments.map((row, index) => {
                 const s = row.shipment;
-                const displayStatus = row.final_status;
+                const displayStatus = s.trackingLifecycle?.display_status ?? row.final_status;
+                const actionStatus = row.final_status;
                 const days = s.daysPassed ?? Math.floor((Date.now() - new Date(s.createdAt).getTime()) / (1000 * 60 * 60 * 24));
 
                 const statusUpper = normalizeStatus(displayStatus).toUpperCase();
                 const lifecycle = parseComplaintLifecycle(s);
                 const queueSnapshot = complaintQueueByTracking.get(s.trackingNumber);
                 const complaintCardState = resolveComplaintCardState(lifecycle, queueSnapshot);
-                const isComplaintEnabled = isComplaintActionAllowed(displayStatus, lifecycle, queueSnapshot);
-                const complaintActionLabel = resolveComplaintActionLabel(displayStatus, lifecycle, queueSnapshot);
+                const isComplaintEnabled = isComplaintActionAllowed(actionStatus, lifecycle, queueSnapshot);
+                const complaintActionLabel = resolveComplaintActionLabel(actionStatus, lifecycle, queueSnapshot);
 
                 const actionOptions = [
                   { label: "Pending", val: "PENDING" },
@@ -3302,9 +3304,9 @@ export default function BulkTracking() {
                   { label: "Return", val: "RETURNED" },
                 ];
                 const validActionValues = new Set(actionOptions.map((opt) => opt.val));
-                const normalizedDisplayStatus = String(displayStatus ?? "").trim().toUpperCase().includes("RETURN")
+                const normalizedDisplayStatus = String(actionStatus ?? "").trim().toUpperCase().includes("RETURN")
                   ? "RETURNED"
-                  : String(displayStatus ?? "").trim().toUpperCase();
+                  : String(actionStatus ?? "").trim().toUpperCase();
                 const effectiveActionOptions = actionOptions;
                 const actionValue =
                   !normalizedDisplayStatus || !validActionValues.has(normalizedDisplayStatus)

@@ -525,10 +525,18 @@ async function refreshPredictionAndBusinessLayer(userId: string) {
   const metricMap = new Map(metrics.map((m) => [String(m.tracking_id), m]));
   const routeMap = new Map(routes.map((r) => [`${txt(r.origin_city)}|${txt(r.destination_city)}`, r]));
   const sellerAvg = avg(metrics.map((m) => Number(m.total_delivery_time_hours)).filter((v) => Number.isFinite(v)) as number[]) ?? 0;
+  const uniqueCore = new Map<string, any>();
+  for (const row of core) {
+    const trackingId = txt(row.tracking_id);
+    if (!trackingId || uniqueCore.has(trackingId)) continue;
+    uniqueCore.set(trackingId, row);
+  }
 
   await prisma.$transaction(async (tx) => {
     await execRaw(tx, `DELETE FROM tracking_predictions_intelligence WHERE user_id = ?`, userId);
-    for (const c of core) {
+    for (const c of uniqueCore.values()) {
+      const trackingId = txt(c.tracking_id);
+      if (!trackingId) continue;
       const route = routeMap.get(`${txt(c.origin_city)}|${txt(c.destination_city)}`);
       const expectedDelivery = route ? Number(route.avg_delivery_time ?? sellerAvg) : sellerAvg;
       const delayProb = Math.min(0.95, Math.max(0.05, Number(route?.delay_rate ?? 20) / 100));
@@ -538,9 +546,9 @@ async function refreshPredictionAndBusinessLayer(userId: string) {
         `INSERT INTO tracking_predictions_intelligence
          (id, user_id, tracking_id, expected_delivery_time_hours, delay_probability, return_probability, risk_band, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-        randomUUID(), userId, txt(c.tracking_id), expectedDelivery, delayProb, returnProb, riskBand,
+        randomUUID(), userId, trackingId, expectedDelivery, delayProb, returnProb, riskBand,
       );
-      const m = metricMap.get(txt(c.tracking_id));
+      const m = metricMap.get(trackingId);
       if (m && !Number.isFinite(Number(m.total_delivery_time_hours))) {
         // keep reference for future predictive calibration
       }
