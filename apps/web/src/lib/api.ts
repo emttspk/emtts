@@ -33,6 +33,7 @@ function resolveBaseUrl() {
 }
 
 const resolvedBase = resolveBaseUrl();
+const inFlightGetRequests = new Map<string, Promise<unknown>>();
 
 // Log API configuration for debugging
 console.log(`[API] Base URL configured: "${resolvedBase}" (empty means same-origin requests to /api)`);
@@ -112,15 +113,7 @@ export async function triggerBrowserDownload(path: string, filename?: string) {
   }
 }
 
-export async function api<T>(path: string, init: RequestInit = {}) {
-  const headers = new Headers(init.headers);
-  if (!headers.has("content-type") && init.body && typeof init.body === "string") {
-    headers.set("content-type", "application/json");
-  }
-  const token = getToken();
-  if (token) headers.set("authorization", `Bearer ${token}`);
-
-  const url = apiUrl(path);
+async function executeApiRequest<T>(path: string, url: string, init: RequestInit, headers: Headers) {
   let res: Response;
   try {
     res = await fetch(url, { ...init, headers });
@@ -132,7 +125,6 @@ export async function api<T>(path: string, init: RequestInit = {}) {
   try {
     body = JSON.parse(text);
   } catch (parseError) {
-    // Log detailed error info when JSON parsing fails
     console.error(`[API] Non-JSON response from ${url}`);
     console.error(`[API] Status: ${res.status} ${res.statusText}`);
     console.error(`[API] Content-Type: ${res.headers.get("content-type")}`);
@@ -154,6 +146,34 @@ export async function api<T>(path: string, init: RequestInit = {}) {
     );
   }
   return body as T;
+}
+
+export async function api<T>(path: string, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  if (!headers.has("content-type") && init.body && typeof init.body === "string") {
+    headers.set("content-type", "application/json");
+  }
+  const token = getToken();
+  if (token) headers.set("authorization", `Bearer ${token}`);
+
+  const url = apiUrl(path);
+  const method = String(init.method ?? "GET").trim().toUpperCase() || "GET";
+  const shouldDedupe = method === "GET" && !init.body;
+  if (!shouldDedupe) {
+    return executeApiRequest<T>(path, url, init, headers);
+  }
+
+  const dedupeKey = `${method}:${url}:${token ?? ""}`;
+  const existing = inFlightGetRequests.get(dedupeKey) as Promise<T> | undefined;
+  if (existing) {
+    return existing;
+  }
+
+  const request = executeApiRequest<T>(path, url, init, headers).finally(() => {
+    inFlightGetRequests.delete(dedupeKey);
+  });
+  inFlightGetRequests.set(dedupeKey, request as Promise<unknown>);
+  return request;
 }
 
 export async function uploadFile(path: string, file: File, fields?: Record<string, string>) {

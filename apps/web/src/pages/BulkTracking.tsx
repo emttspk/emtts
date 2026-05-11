@@ -26,6 +26,16 @@ import {
 import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
 import { useShipmentStats } from "../hooks/useShipmentStats";
 import { PRINT_MARKETING_LINE } from "../lib/printBranding";
+import {
+  readTrackingWorkspaceRenderCache,
+  readTrackingWorkspaceSnapshot,
+  readTrackingWorkspaceViewState,
+  writeTrackingWorkspaceRenderCache,
+  writeTrackingWorkspaceSnapshot,
+  writeTrackingWorkspaceViewState,
+  type TrackingWorkspaceRenderCache,
+  type TrackingWorkspaceViewState,
+} from "../lib/trackingWorkspaceCache";
 
 type Shipment = BaseShipment & {
   shipmentType?: string | null;
@@ -88,7 +98,9 @@ type ExtendedStatusFilter =
   | "COMPLAINT_IN_PROCESS";
 
 const TRACKING_CACHE_TTL_MS = 60_000;
-const TRACKING_CACHE_STORAGE_KEY = "tracking.workspace.cache.v2";
+const COMPLAINT_QUEUE_CACHE_TTL_MS = 45_000;
+const WORKSPACE_RENDER_CACHE_PERSIST_MS = 150;
+const WORKSPACE_FULL_SNAPSHOT_PERSIST_MS = 300;
 const BACKGROUND_BATCH_SIZE = 100;
 const COMPLAINT_PHONE_STORAGE_KEY = "complaint.manual.phone";
 const COMPLAINT_EMAIL_STORAGE_KEY = "complaint.manual.email";
@@ -158,6 +170,36 @@ type ComplaintQueueSnapshot = {
   retryCount: number;
   updatedAt: string;
 };
+
+function complaintQueueRowsToMap(rows: ComplaintQueueSnapshot[]): Map<string, ComplaintQueueSnapshot> {
+  const next = new Map<string, ComplaintQueueSnapshot>();
+  for (const row of rows) {
+    const trackingId = String(row.trackingId ?? "").trim();
+    if (!trackingId || next.has(trackingId)) continue;
+    next.set(trackingId, row);
+  }
+  return next;
+}
+
+function complaintQueueMapToRows(map: Map<string, ComplaintQueueSnapshot>) {
+  return Array.from(map.values());
+}
+
+let initialWorkspaceRenderCache: TrackingWorkspaceRenderCache<Shipment, ComplaintQueueSnapshot> | null | undefined;
+
+function readInitialWorkspaceRenderCache() {
+  if (initialWorkspaceRenderCache !== undefined) return initialWorkspaceRenderCache;
+  initialWorkspaceRenderCache = readTrackingWorkspaceRenderCache<Shipment, ComplaintQueueSnapshot>();
+  return initialWorkspaceRenderCache;
+}
+
+let initialWorkspaceViewState: TrackingWorkspaceViewState<ExtendedStatusFilter> | null | undefined;
+
+function readInitialWorkspaceViewState() {
+  if (initialWorkspaceViewState !== undefined) return initialWorkspaceViewState;
+  initialWorkspaceViewState = readTrackingWorkspaceViewState<ExtendedStatusFilter>();
+  return initialWorkspaceViewState;
+}
 
 function parseDueDateToTs(input: string): number | null {
   const value = String(input ?? "").trim();
@@ -883,7 +925,7 @@ export default function BulkTracking() {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<TrackResult[] | null>(null);
-  const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [shipments, setShipments] = useState<Shipment[]>(() => readInitialWorkspaceRenderCache()?.shipments ?? []);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [uiState, setUiState] = useState<"idle" | "uploading" | "processing" | "completed" | "failed">("idle");
   const [progress, setProgress] = useState(0);
@@ -893,16 +935,20 @@ export default function BulkTracking() {
   const [serviceFailureCount, setServiceFailureCount] = useState(0);
   const [jobStartTime, setJobStartTime] = useState<number | null>(null);
   const [recordCount, setRecordCount] = useState(0);
-  const [refreshSummary, setRefreshSummary] = useState<string | null>(null);
+  const [refreshSummary, setRefreshSummary] = useState<string | null>(() => {
+    const cached = readInitialWorkspaceRenderCache();
+    if (!cached?.shipments.length) return null;
+    return `Restored ${cached.shipments.length} cached rows. Syncing latest updates in the background.`;
+  });
   const [refreshingPending, setRefreshingPending] = useState(false);
   const [selectedTracking, setSelectedTracking] = useState<FinalTrackingRecord | null>(null);
-  const { shipmentStats, refreshShipmentStats } = useShipmentStats();
-  const [pageSize, setPageSize] = useState<20 | 50 | 100>(20);
-  const [statusFilter, setStatusFilter] = useState<ExtendedStatusFilter>("ALL");
-  const [searchInput, setSearchInput] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [page, setPage] = useState(1);
-  const [totalShipments, setTotalShipments] = useState(0);
+  const { shipmentStats, refreshShipmentStats, shipmentStatsFetchedAt } = useShipmentStats();
+  const [pageSize, setPageSize] = useState<20 | 50 | 100>(() => readInitialWorkspaceViewState()?.pageSize ?? 20);
+  const [statusFilter, setStatusFilter] = useState<ExtendedStatusFilter>(() => readInitialWorkspaceViewState()?.statusFilter ?? "ALL");
+  const [searchInput, setSearchInput] = useState(() => readInitialWorkspaceViewState()?.searchInput ?? "");
+  const [searchTerm, setSearchTerm] = useState(() => readInitialWorkspaceViewState()?.searchTerm ?? "");
+  const [page, setPage] = useState(() => Math.max(1, readInitialWorkspaceViewState()?.page ?? 1));
+  const [totalShipments, setTotalShipments] = useState(() => readInitialWorkspaceRenderCache()?.total ?? 0);
   const [auditRows, setAuditRows] = useState<CycleAuditRecord[]>([]);
   const [auditError, setAuditError] = useState<string | null>(null);
   const [auditLoading, setAuditLoading] = useState(false);
@@ -936,7 +982,7 @@ export default function BulkTracking() {
   } | null>(null);
   const [complaintSubmitNotice, setComplaintSubmitNotice] = useState<{ kind: "info" | "warning" | "error"; message: string } | null>(null);
   const [complaintToast, setComplaintToast] = useState<{ kind: "info" | "warning" | "error"; message: string } | null>(null);
-  const [complaintQueueByTracking, setComplaintQueueByTracking] = useState<Map<string, ComplaintQueueSnapshot>>(new Map());
+  const [complaintQueueByTracking, setComplaintQueueByTracking] = useState<Map<string, ComplaintQueueSnapshot>>(() => complaintQueueRowsToMap(readInitialWorkspaceRenderCache()?.complaintQueue ?? []));
   const [retryCountdownNow, setRetryCountdownNow] = useState(Date.now());
   const [complaintSelectionMode, setComplaintSelectionMode] = useState<"district" | "tehsil" | "location">("location");
   const [complaintSelectionLocked, setComplaintSelectionLocked] = useState(false);
@@ -957,8 +1003,14 @@ export default function BulkTracking() {
   const backgroundSeenRef = useRef(new Set<string>());
   const backgroundRunningRef = useRef(false);
   const trackingCacheRef = useRef<{ shipments: Shipment[]; total: number; fetchedAt: number } | null>(null);
+  const complaintQueueCacheRef = useRef<{ rows: ComplaintQueueSnapshot[]; fetchedAt: number; inFlight: Promise<Map<string, ComplaintQueueSnapshot>> | null }>({
+    rows: readInitialWorkspaceRenderCache()?.complaintQueue ?? [],
+    fetchedAt: readInitialWorkspaceRenderCache()?.latestSyncAt ?? 0,
+    inFlight: null,
+  });
   const shipmentsRefreshInFlightRef = useRef(false);
   const shipmentsRefreshPendingRef = useRef(false);
+  const scrollRestorePendingRef = useRef(Boolean(readInitialWorkspaceViewState()?.scrollY));
   const submitTrackingRef = useRef(false);
   const complaintPrefillRequestRef = useRef(0);
   const complaintModalRef = useRef<HTMLDivElement | null>(null);
@@ -995,29 +1047,93 @@ export default function BulkTracking() {
   }, []);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(TRACKING_CACHE_STORAGE_KEY);
-      if (!raw) {
-        void refreshShipments();
-        return;
+    let active = true;
+    const cached = readInitialWorkspaceRenderCache();
+    if (cached?.shipments.length) {
+      trackingCacheRef.current = {
+        shipments: cached.shipments,
+        total: cached.total || cached.shipments.length,
+        fetchedAt: cached.fetchedAt,
+      };
+      complaintQueueCacheRef.current = {
+        rows: cached.complaintQueue ?? [],
+        fetchedAt: cached.latestSyncAt || cached.fetchedAt,
+        inFlight: null,
+      };
+      applyShipmentsSnapshot(cached.shipments, cached.total);
+      if (isAdmin && cached.complaintQueue?.length) {
+        setComplaintQueueByTracking(complaintQueueRowsToMap(cached.complaintQueue));
       }
-      const parsed = JSON.parse(raw) as { shipments?: Shipment[]; total?: number; fetchedAt?: number };
-      const cachedShipments = Array.isArray(parsed?.shipments) ? parsed.shipments : [];
-      const cachedTotal = Number(parsed?.total ?? cachedShipments.length);
-      const fetchedAt = Number(parsed?.fetchedAt ?? 0);
-      if (cachedShipments.length > 0 && Number.isFinite(fetchedAt) && fetchedAt > 0) {
-        trackingCacheRef.current = {
-          shipments: cachedShipments,
-          total: Number.isFinite(cachedTotal) ? cachedTotal : cachedShipments.length,
-          fetchedAt,
-        };
-        applyShipmentsSnapshot(cachedShipments, cachedTotal);
-      }
-    } catch {
-      // Ignore malformed cache and continue with live refresh.
     }
-    void refreshShipments();
-  }, []);
+
+    async function hydrateFullWorkspaceSnapshot() {
+      const snapshot = await readTrackingWorkspaceSnapshot<Shipment, ComplaintQueueSnapshot>();
+      if (!active || !snapshot?.shipments.length) return;
+      trackingCacheRef.current = {
+        shipments: snapshot.shipments,
+        total: snapshot.total || snapshot.shipments.length,
+        fetchedAt: snapshot.fetchedAt,
+      };
+      complaintQueueCacheRef.current = {
+        rows: snapshot.complaintQueue ?? [],
+        fetchedAt: snapshot.latestSyncAt || snapshot.fetchedAt,
+        inFlight: null,
+      };
+      applyShipmentsSnapshot(snapshot.shipments, snapshot.total);
+      if (isAdmin && snapshot.complaintQueue?.length) {
+        setComplaintQueueByTracking(complaintQueueRowsToMap(snapshot.complaintQueue));
+      }
+      setRefreshSummary(`Loaded ${snapshot.shipments.length.toLocaleString()} cached rows. Syncing latest updates in the background.`);
+    }
+
+    void hydrateFullWorkspaceSnapshot().finally(() => {
+      if (active) {
+        void refreshShipments();
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [isAdmin]);
+
+  useEffect(() => {
+    const state = readInitialWorkspaceViewState();
+    if (!state?.scrollY || !scrollRestorePendingRef.current || shipments.length === 0) return;
+    const raf = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: state.scrollY, behavior: "auto" });
+      scrollRestorePendingRef.current = false;
+    });
+    return () => window.cancelAnimationFrame(raf);
+  }, [shipments.length]);
+
+  useEffect(() => {
+    writeTrackingWorkspaceViewState<ExtendedStatusFilter>({
+      page,
+      pageSize,
+      statusFilter,
+      searchInput,
+      searchTerm,
+      scrollY: typeof window !== "undefined" ? window.scrollY : 0,
+      savedAt: Date.now(),
+    });
+  }, [page, pageSize, searchInput, searchTerm, statusFilter]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      writeTrackingWorkspaceViewState<ExtendedStatusFilter>({
+        page,
+        pageSize,
+        statusFilter,
+        searchInput,
+        searchTerm,
+        scrollY: window.scrollY,
+        savedAt: Date.now(),
+      });
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [page, pageSize, searchInput, searchTerm, statusFilter]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setRetryCountdownNow(Date.now()), 1000);
@@ -1118,23 +1234,46 @@ export default function BulkTracking() {
     }
   }, [shipments, uiState, jobStartTime]);
 
-  async function refreshComplaintQueueSnapshot() {
+  async function refreshComplaintQueueSnapshot(options?: { force?: boolean }) {
     if (!isAdmin) {
       setComplaintQueueByTracking(new Map());
-      return;
+      complaintQueueCacheRef.current = { rows: [], fetchedAt: Date.now(), inFlight: null };
+      return new Map<string, ComplaintQueueSnapshot>();
     }
-    try {
-      const data = await api<{ queue: ComplaintQueueSnapshot[] }>("/api/admin/complaints/monitor");
-      const map = new Map<string, ComplaintQueueSnapshot>();
-      for (const row of data.queue ?? []) {
-        const trackingId = String(row.trackingId ?? "").trim();
-        if (!trackingId || map.has(trackingId)) continue;
-        map.set(trackingId, row);
+    const cachedRows = complaintQueueCacheRef.current.rows;
+    const cacheFresh = Boolean(
+      cachedRows.length > 0
+      && complaintQueueCacheRef.current.fetchedAt > 0
+      && Date.now() - complaintQueueCacheRef.current.fetchedAt < COMPLAINT_QUEUE_CACHE_TTL_MS,
+    );
+    if (!options?.force && cacheFresh) {
+      const cachedMap = complaintQueueRowsToMap(cachedRows);
+      if (complaintQueueByTracking.size === 0) {
+        setComplaintQueueByTracking(cachedMap);
       }
-      setComplaintQueueByTracking(map);
-    } catch {
-      // Monitor snapshots should not block tracking workspace operations.
+      return cachedMap;
     }
+    if (complaintQueueCacheRef.current.inFlight) {
+      return complaintQueueCacheRef.current.inFlight;
+    }
+
+    const request = (async () => {
+      try {
+        const data = await api<{ queue: ComplaintQueueSnapshot[] }>("/api/admin/complaints/monitor");
+        const rows = Array.isArray(data.queue) ? data.queue : [];
+        const map = complaintQueueRowsToMap(rows);
+        complaintQueueCacheRef.current = { rows, fetchedAt: Date.now(), inFlight: null };
+        setComplaintQueueByTracking(map);
+        return map;
+      } catch {
+        return complaintQueueRowsToMap(complaintQueueCacheRef.current.rows);
+      } finally {
+        complaintQueueCacheRef.current.inFlight = null;
+      }
+    })();
+
+    complaintQueueCacheRef.current.inFlight = request;
+    return request;
   }
 
   function applyShipmentsSnapshot(allRows: Shipment[], total: number) {
@@ -1162,34 +1301,24 @@ export default function BulkTracking() {
     });
   }
 
-  function persistShipmentsCache(allRows: Shipment[], total: number, fetchedAt: number) {
-    try {
-      window.localStorage.setItem(
-        TRACKING_CACHE_STORAGE_KEY,
-        JSON.stringify({ shipments: allRows, total: total || allRows.length, fetchedAt }),
-      );
-    } catch {
-      // Storage quota issues should never break rendering.
-    }
-  }
-
   async function fetchShipmentsFromServer() {
     const hardLimit = 200;
-    let currentPage = 1;
-    let total = 0;
-    const allRows: Shipment[] = [];
-
-    while (currentPage <= 50) {
-      const data = await api<{ shipments: Shipment[]; total: number; page: number; limit: number }>(`/api/shipments?page=${currentPage}&limit=${hardLimit}`);
-      if (currentPage === 1) {
-        total = Math.max(0, Number(data.total ?? 0));
-      }
-      const rows = Array.isArray(data.shipments) ? data.shipments : [];
-      allRows.push(...rows);
-      if (rows.length < hardLimit) break;
-      if (total > 0 && allRows.length >= total) break;
-      currentPage += 1;
+    const firstPage = await api<{ shipments: Shipment[]; total: number; page: number; limit: number }>(`/api/shipments?page=1&limit=${hardLimit}`);
+    const total = Math.max(0, Number(firstPage.total ?? 0));
+    const firstRows = Array.isArray(firstPage.shipments) ? firstPage.shipments : [];
+    if (firstRows.length < hardLimit || total <= firstRows.length) {
+      return { allRows: firstRows, total: total || firstRows.length };
     }
+
+    const totalPages = Math.min(50, Math.ceil(total / hardLimit));
+    const remainingPages = Array.from({ length: Math.max(0, totalPages - 1) }, (_, index) => index + 2);
+    const remainingResults = await Promise.all(
+      remainingPages.map((pageNumber) => api<{ shipments: Shipment[]; total: number; page: number; limit: number }>(`/api/shipments?page=${pageNumber}&limit=${hardLimit}`)),
+    );
+    const allRows = [
+      ...firstRows,
+      ...remainingResults.flatMap((pageResult) => Array.isArray(pageResult.shipments) ? pageResult.shipments : []),
+    ];
 
     return { allRows, total };
   }
@@ -1238,7 +1367,14 @@ export default function BulkTracking() {
     return next;
   }
 
-  async function revalidateShipmentsInBackground() {
+  async function refreshSupportingWorkspaceData(options?: { force?: boolean }) {
+    await Promise.all([
+      refreshShipmentStats({ force: options?.force }),
+      refreshComplaintQueueSnapshot({ force: options?.force }),
+    ]);
+  }
+
+  async function revalidateShipmentsInBackground(options?: { forceFull?: boolean }) {
     if (shipmentsRefreshInFlightRef.current) {
       shipmentsRefreshPendingRef.current = true;
       return;
@@ -1251,7 +1387,7 @@ export default function BulkTracking() {
       let nextRows: Shipment[];
       let nextTotal: number;
 
-      if (hasCachedRows) {
+      if (hasCachedRows && !options?.forceFull) {
         try {
           const diff = await fetchShipmentsDiff(cachedRows);
           nextRows = applyChangedRows(cachedRows, Array.isArray(diff.changedRows) ? diff.changedRows : []);
@@ -1269,7 +1405,6 @@ export default function BulkTracking() {
 
       const fetchedAt = Date.now();
       trackingCacheRef.current = { shipments: nextRows, total: nextTotal, fetchedAt };
-      persistShipmentsCache(nextRows, nextTotal, fetchedAt);
 
       console.log(`[TRACE] stage=FRONTEND_RECEIVED_DATA shipments=${nextRows.length}`);
       for (const row of getFinalTrackingData(nextRows)) {
@@ -1277,8 +1412,8 @@ export default function BulkTracking() {
       }
 
       applyShipmentsSnapshot(nextRows, nextTotal);
-      void refreshShipmentStats();
-      void refreshComplaintQueueSnapshot();
+      setRefreshSummary(`Synced ${nextRows.length.toLocaleString()} rows at ${new Date(fetchedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}.`);
+      void refreshSupportingWorkspaceData({ force: options?.forceFull });
     } finally {
       shipmentsRefreshInFlightRef.current = false;
       if (shipmentsRefreshPendingRef.current) {
@@ -1288,19 +1423,19 @@ export default function BulkTracking() {
     }
   }
 
-  async function refreshShipments() {
+  async function refreshShipments(options?: { force?: boolean }) {
     const cached = trackingCacheRef.current;
     const cacheFresh = Boolean(cached && Date.now() - cached.fetchedAt < TRACKING_CACHE_TTL_MS);
 
-    if (cacheFresh && cached) {
+    if (cached) {
       applyShipmentsSnapshot(cached.shipments, cached.total);
-      void refreshShipmentStats();
-      void refreshComplaintQueueSnapshot();
-      void revalidateShipmentsInBackground();
-      return;
+      void refreshSupportingWorkspaceData({ force: options?.force });
+      if (!options?.force && cacheFresh) {
+        return;
+      }
     }
 
-    await revalidateShipmentsInBackground();
+    await revalidateShipmentsInBackground({ forceFull: options?.force });
   }
 
   async function refreshAllPending() {
@@ -1586,9 +1721,9 @@ export default function BulkTracking() {
             total: total || allRows.length,
             fetchedAt,
           };
-          persistShipmentsCache(allRows, total, fetchedAt);
           applyShipmentsSnapshot(allRows, total);
-          await refreshShipmentStats();
+          setRefreshSummary(`Background sync refreshed ${allRows.length.toLocaleString()} rows.`);
+          await refreshSupportingWorkspaceData({ force: true });
         } catch {
           // Ignore background sync failures.
         }
@@ -2123,6 +2258,34 @@ export default function BulkTracking() {
     const pageRows = filteredShipments.slice(start, end);
     return pageRows;
   }, [filteredShipments, page, pageSize, statusFilter]);
+
+  useEffect(() => {
+    if (shipments.length === 0) return;
+    const timer = window.setTimeout(() => {
+      writeTrackingWorkspaceRenderCache<Shipment, ComplaintQueueSnapshot>({
+        shipments: paginatedShipments.map((record) => record.shipment),
+        total: totalShipments || shipments.length,
+        complaintQueue: complaintQueueMapToRows(complaintQueueByTracking),
+        fetchedAt: trackingCacheRef.current?.fetchedAt ?? Date.now(),
+        latestSyncAt: Math.max(trackingCacheRef.current?.fetchedAt ?? 0, shipmentStatsFetchedAt ?? 0, complaintQueueCacheRef.current.fetchedAt ?? 0),
+      });
+    }, WORKSPACE_RENDER_CACHE_PERSIST_MS);
+    return () => window.clearTimeout(timer);
+  }, [complaintQueueByTracking, paginatedShipments, shipmentStatsFetchedAt, shipments.length, totalShipments]);
+
+  useEffect(() => {
+    if (shipments.length === 0) return;
+    const timer = window.setTimeout(() => {
+      void writeTrackingWorkspaceSnapshot<Shipment, ComplaintQueueSnapshot>({
+        shipments,
+        total: totalShipments || shipments.length,
+        complaintQueue: complaintQueueMapToRows(complaintQueueByTracking),
+        fetchedAt: trackingCacheRef.current?.fetchedAt ?? Date.now(),
+        latestSyncAt: Math.max(trackingCacheRef.current?.fetchedAt ?? 0, shipmentStatsFetchedAt ?? 0, complaintQueueCacheRef.current.fetchedAt ?? 0),
+      });
+    }, WORKSPACE_FULL_SNAPSHOT_PERSIST_MS);
+    return () => window.clearTimeout(timer);
+  }, [complaintQueueByTracking, shipmentStatsFetchedAt, shipments, totalShipments]);
 
   const remaining = useMemo(() => {
     if (estimatedTotalSec == null) return null;
@@ -3104,7 +3267,7 @@ export default function BulkTracking() {
 
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}>
       <Card className="w-full min-w-0 overflow-hidden rounded-[24px] border border-[#E5E7EB] bg-white p-0 shadow-sm">
-        <div className="border-b border-[#E5E7EB] bg-white/90 px-4 py-3 backdrop-blur-md md:px-4 md:py-4">
+        <div className="border-b border-[#E5E7EB] bg-[linear-gradient(180deg,rgba(248,250,252,0.96),rgba(255,255,255,0.92))] px-4 py-3 backdrop-blur-md md:px-4 md:py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/10">
@@ -3191,8 +3354,8 @@ export default function BulkTracking() {
               Refresh Pending
             </button>
             <button
-              onClick={refreshShipments}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-semibold text-[#111827] shadow-sm hover:bg-[#F8FAF9] transition-colors"
+              onClick={() => void refreshShipments({ force: true })}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-sm hover:border-brand/40 hover:bg-slate-50 transition-colors"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Refresh
@@ -3209,11 +3372,11 @@ export default function BulkTracking() {
         {refreshSummary ? <div className="border-t border-[#E5E7EB] bg-[#F8FAF9] px-4 py-2 text-xs text-[#6B7280]">{refreshSummary}</div> : null}
         </div>
         <div className="p-0">
-          <div className="flex items-center justify-between border-y border-[#E5E7EB] bg-[#F8FAFC] px-4 py-2 text-xs text-slate-600">
+          <div className="flex items-center justify-between border-y border-[#E5E7EB] bg-[linear-gradient(180deg,#f8fafc,#f1f5f9)] px-4 py-2 text-xs text-slate-600">
             <div className="text-slate-500">
               Page <span className="font-semibold text-slate-700">{page}</span> of <span className="font-semibold text-slate-700">{totalPages}</span> &nbsp;·&nbsp; <span className="font-semibold text-slate-700">{paginatedShipments.length}</span> of <span className="font-semibold text-slate-700">{totalFilteredShipments}</span> filtered
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/80 px-1.5 py-1 shadow-sm backdrop-blur-sm">
               <button
                 className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
                 disabled={page <= 1}
@@ -3244,9 +3407,9 @@ export default function BulkTracking() {
               </button>
             </div>
           </div>
-          <div className="w-full max-h-[72vh] overflow-y-auto overflow-x-auto md:overflow-x-hidden rounded-[20px] border border-[#E5E7EB] bg-white">
+          <div className="w-full max-h-[72vh] overflow-y-auto overflow-x-auto rounded-[20px] border border-[#E5E7EB] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] md:overflow-x-hidden">
             <table className="w-full table-fixed text-[12px] leading-4">
-              <thead className="sticky top-0 z-10 border-b border-[#E5E7EB] bg-[#F8FAFC]">
+              <thead className="sticky top-0 z-10 border-b border-[#E5E7EB] bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(241,245,249,0.98))] backdrop-blur-md">
               <tr>
                 <th className="w-9 border-r border-[#E5E7EB] px-3 py-3.5">
                   <input
@@ -3354,7 +3517,7 @@ export default function BulkTracking() {
                 const rowBaseTone = index % 2 === 0 ? "bg-white" : "bg-[#FAFAFA]";
 
                 return (
-                  <tr key={s.id} className={cn("group border-b border-[#E5E7EB] transition-colors hover:bg-slate-50", rowBaseTone)}>
+                  <tr key={s.id} className={cn("group border-b border-[#E5E7EB] transition-colors duration-150 hover:bg-[#F8FAFC]", rowBaseTone)}>
                     <td className={cn("border-r border-[#E5E7EB] border-l-4 px-3 py-3.5 align-middle", rowVisual.left)}>
                       <input
                         type="checkbox"
@@ -3430,7 +3593,7 @@ export default function BulkTracking() {
                           ? formatProcessingElapsed(queueSnapshot?.updatedAt, retryCountdownNow)
                           : "";
                         return (
-                          <div className="w-full rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-2 text-left text-[10px] shadow-sm">
+                          <div className="w-full rounded-xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff,#f8fafc)] px-2.5 py-2 text-left text-[10px] shadow-sm">
                             <div className="truncate font-semibold text-[#111827]" title={complaintId}>{complaintId}</div>
                             <div className="mt-0.5 text-[#6B7280]">Due: {dueDate}</div>
                             <div className="mt-0.5 text-[#6B7280]">Complaint Count: {lifecycle.complaintCount.toLocaleString()}</div>
@@ -3498,11 +3661,11 @@ export default function BulkTracking() {
             </tbody>
           </table>
         </div>
-          <div className="flex items-center justify-between border-t border-[#E5E7EB] px-4 py-3 text-xs text-slate-600">
+          <div className="flex items-center justify-between border-t border-[#E5E7EB] bg-[linear-gradient(180deg,#ffffff,#f8fafc)] px-4 py-3 text-xs text-slate-600">
             <div className="text-slate-500">
               Page <span className="font-semibold text-slate-700">{page}</span> of <span className="font-semibold text-slate-700">{totalPages}</span> &nbsp;·&nbsp; <span className="font-semibold text-slate-700">{paginatedShipments.length}</span> of <span className="font-semibold text-slate-700">{totalFilteredShipments}</span> filtered &nbsp;·&nbsp; <span className="font-semibold text-slate-700">{totalShipments}</span> total
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/80 px-1.5 py-1 shadow-sm backdrop-blur-sm">
               <button
                 className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
                 disabled={page <= 1}
