@@ -66,7 +66,7 @@ export default function Login() {
       ) : null}
 
       <form
-        className="space-y-5"
+        className="space-y-4"
         onSubmit={async (e) => {
           e.preventDefault();
           setErr(null);
@@ -115,7 +115,7 @@ export default function Login() {
           }
         }}
       >
-        <div className="space-y-4">
+        <div className="space-y-3.5">
           <AuthInputField
             label="Username or Email"
             icon={Mail}
@@ -167,14 +167,14 @@ export default function Login() {
           </Link>
         </div>
 
-        <button disabled={loading} className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#0F9D58,#16C75A)] px-6 text-base font-semibold text-white shadow-[0_18px_40px_rgba(18,179,71,0.28)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_50px_rgba(18,179,71,0.34)] disabled:cursor-not-allowed disabled:opacity-70">
+        <button disabled={loading} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#0F9D58,#16C75A)] px-5 text-[15px] font-semibold text-white shadow-[0_16px_34px_rgba(18,179,71,0.26)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(18,179,71,0.3)] disabled:cursor-not-allowed disabled:opacity-70">
           <span>{loading ? "Signing in..." : "Login"}</span>
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20">
             <ArrowRight className="h-4.5 w-4.5" />
           </span>
         </button>
 
-        <div className="flex items-center gap-3 py-1 text-sm text-slate-400">
+        <div className="flex items-center gap-3 py-0.5 text-sm text-slate-400">
           <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-200 to-slate-200" />
           <span className="font-medium">or</span>
           <div className="h-px flex-1 bg-gradient-to-l from-transparent via-slate-200 to-slate-200" />
@@ -189,7 +189,7 @@ export default function Login() {
           </Link>
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-slate-200/70 pt-4 text-sm">
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-slate-200/70 pt-3 text-sm">
           <Link to="/forgot-username" className="font-medium text-slate-500 transition hover:text-slate-800">
             Forgot Username?
           </Link>

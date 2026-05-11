@@ -20,9 +20,9 @@ export default function Navbar() {
         <div className="flex min-w-0 items-center gap-3.5">
           <a
             href="/"
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#081225,#10B981)] text-sm font-extrabold text-white shadow-[0_12px_30px_rgba(16,185,129,0.28)]"
+            className="inline-flex shrink-0 items-center justify-center rounded-2xl border border-[color:var(--line)] bg-white px-2 py-2 shadow-[0_12px_30px_rgba(16,185,129,0.12)]"
           >
-            EP
+            <img src="/assets/pakistan-post-logo.png" alt="Pakistan Post" className="h-8 w-auto object-contain" />
           </a>
           <div className="min-w-0 leading-tight">
             <div className="whitespace-nowrap text-[15px] font-extrabold tracking-[0.01em] text-slate-900">Epost.pk</div>

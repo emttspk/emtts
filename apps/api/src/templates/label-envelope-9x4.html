@@ -4,15 +4,12 @@
     <meta charset="utf-8" />
     <title>Envelope Label #10</title>
     <style>
-      @page { size: 9.5in 4.125in; margin: 0; }
+      @page { size: 9in 4in; margin: 0; }
 
       html, body {
-        margin: 0;
-        padding: 0;
-        width: 9.5in;
-        min-width: 9.5in;
-        color: #000;
-        font-family: Arial, sans-serif;
+        width: 9in;
+        min-width: 9in;
+        height: 4in;
         background: #fff;
       }
 
@@ -21,268 +18,269 @@
       }
 
       .label-container {
-        width: 9.5in;
-        height: 4.125in;
+        width: 9in;
+        height: 4in;
         margin: 0;
         padding: 0;
-        box-sizing: border-box;
-        break-inside: avoid;
-        page-break-inside: avoid;
         overflow: hidden;
-        display: grid;
-        place-items: center;
+        page-break-after: always;
+        break-after: page;
+      }
+
+      .label-container:last-child {
+        page-break-after: auto;
+        break-after: auto;
       }
 
       .label-safe-area {
-        width: 210mm;
-        height: 83mm;
-        box-sizing: border-box;
-        overflow: hidden;
+        width: 100%;
+        height: 100%;
+        padding: 0.16in 0.2in 0.12in;
       }
 
       .label-card {
         width: 100%;
         height: 100%;
-        margin: 0;
-        box-sizing: border-box;
-        border: 0.5mm solid #000;
-        padding: 1.8mm 2mm;
+        border: 0.35mm solid #000;
+        padding: 0.12in 0.14in 0.1in;
         display: grid;
-        grid-template-columns: minmax(0, 60fr) minmax(0, 40fr);
-        gap: 1.6mm;
-        overflow: hidden;
-      }
-
-      .left-panel {
-        display: grid;
-        grid-template-rows: auto 1fr auto;
-        gap: 1.2mm;
-        min-width: 0;
-        min-height: 0;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        gap: 0.08in;
+        background: #fff;
       }
 
       .header {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: minmax(0, 1.3fr) auto minmax(0, 1.18fr);
         align-items: center;
-        border: 0.35mm solid #000;
-        padding: 1.35mm 1.9mm;
-        min-height: 10.2mm;
-        column-gap: 1.2mm;
-        box-sizing: border-box;
+        gap: 0.1in;
+        padding-bottom: 0.08in;
+        border-bottom: 0.35mm solid #000;
       }
 
-      .carrier-stack {
-        display: grid;
-        align-content: center;
-        gap: 0.3mm;
+      .brand-block {
+        display: flex;
+        align-items: center;
         min-width: 0;
       }
 
-      .carrier {
-        font-size: 10pt;
+      .brand-logo {
+        width: 2.1in;
+        max-height: 0.62in;
+        object-fit: contain;
+      }
+
+      .type-block {
+        display: grid;
+        justify-items: center;
+        gap: 0.08in;
+      }
+
+      .type-pill {
+        font-size: 0.3in;
         font-weight: 900;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-        white-space: nowrap;
+        letter-spacing: 0.02em;
+        line-height: 1;
       }
 
-      .dispatch-date {
-        font-size: 6.8pt;
-        font-weight: 700;
-        letter-spacing: 0.01em;
-        line-height: 1.05;
-      }
-
-      .prefix {
+      .rate-pill {
+        min-width: 1.6in;
+        padding: 0.09in 0.14in;
         border: 0.35mm solid #000;
-        padding: 1mm 2.2mm;
-        font-size: 9.6pt;
+        text-align: center;
+        font-size: 0.24in;
         font-weight: 900;
         line-height: 1;
-        white-space: nowrap;
-        justify-self: end;
-      }
-
-      .to,
-      .from {
-        border: 0.35mm solid #000;
-        padding: 1.7mm 2.4mm;
-        display: grid;
-        gap: 0.65mm;
-        align-content: start;
-        min-width: 0;
-        min-height: 0;
-        box-sizing: border-box;
-      }
-
-      .to {
-        overflow: hidden;
-      }
-
-      .from {
-        align-self: end;
-      }
-
-      .label-key {
-        font-size: 7.9pt;
-        font-weight: 900;
-        letter-spacing: 0.05em;
-      }
-
-      .receiver-name {
-        font-size: 9.6pt;
-        font-weight: 900;
-        line-height: 1.14;
-      }
-
-      .receiver-address {
-        font-size: 7.9pt;
-        line-height: 1.2;
-        white-space: pre-line;
-        overflow-wrap: anywhere;
-        word-break: break-word;
-      }
-
-      .receiver-contact {
-        font-size: 7.9pt;
-        font-weight: 700;
-        font-family: "Courier New", monospace;
-      }
-
-      .sender-inline {
-        font-size: 7.4pt;
-        font-weight: 900;
-        line-height: 1.16;
-        white-space: pre-line;
-        overflow-wrap: anywhere;
-        word-break: break-word;
-      }
-
-      .sender-contact {
-        font-size: 7.1pt;
-        font-weight: 700;
-        font-family: "Courier New", monospace;
-      }
-
-      .right-panel {
-        display: grid;
-        gap: 0.9mm;
-        align-content: start;
-        min-width: 0;
-        min-height: 0;
       }
 
       .header-barcode {
         display: grid;
         justify-items: center;
-        align-content: start;
-        gap: 0.45mm;
-        overflow: hidden;
+        gap: 0.05in;
+        min-width: 0;
       }
 
       .barcode {
         width: 100%;
-        max-width: 45mm;
-        height: 10.4mm;
+        max-width: 2.7in;
+        height: 0.62in;
         object-fit: contain;
-        display: block;
-        margin: 0 auto;
-      }
-
-      .header-identifiers {
-        width: 100%;
-        display: contents;
       }
 
       .header-id-line {
         text-align: center;
-        font-size: 7.2pt;
+        font-size: 10.2pt;
         font-weight: 900;
-        letter-spacing: 0.03em;
+        letter-spacing: 0.04em;
         font-family: "Courier New", monospace;
-        line-height: 1.1;
-        margin: 0;
+        line-height: 1;
         overflow-wrap: anywhere;
       }
 
-      .amount {
-        border: 0.35mm solid #000;
-        padding: 1.25mm 1.6mm;
+      .content {
         display: grid;
-        gap: 0.45mm;
-        box-sizing: border-box;
-        align-content: start;
-        overflow: hidden;
+        grid-template-columns: minmax(0, 1.28fr) minmax(0, 1fr);
+        gap: 0.1in;
+        min-height: 0;
       }
 
-      .amount-rows {
+      .left-panel {
         display: grid;
-        gap: 0.55mm;
+        grid-template-rows: minmax(0, 1fr) auto;
+        gap: 0.08in;
+        min-width: 0;
+      }
+
+      .right-panel {
+        display: grid;
+        grid-template-rows: auto auto auto 1fr;
+        gap: 0.07in;
+        min-width: 0;
+      }
+
+      .panel-card {
+        border: 0.3mm solid #000;
+        padding: 0.08in 0.12in;
+        background: #fff;
+        min-width: 0;
+        min-height: 0;
+      }
+
+      .address-card {
+        display: grid;
+        align-content: start;
+        gap: 0.04in;
+      }
+
+      .label-badge {
+        display: inline-flex;
+        align-items: center;
+        align-self: start;
+        padding: 0.03in 0.1in;
+        border: 0.35mm solid #000;
+        font-size: 9.4pt;
+        font-weight: 900;
+        letter-spacing: 0.02em;
+        line-height: 1;
+      }
+
+      .receiver-name {
+        font-size: 0.27in;
+        font-weight: 900;
+        line-height: 1.04;
+      }
+
+      .receiver-address,
+      .sender-inline,
+      .sender-contact {
+        font-size: 10.6pt;
+        line-height: 1.22;
+        white-space: pre-line;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
+
+      .receiver-contact,
+      .sender-contact {
+        font-weight: 800;
+        font-family: "Courier New", monospace;
+      }
+
+      .amount {
+        display: grid;
+        gap: 0.04in;
       }
 
       .amount-row {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.12in;
         align-items: baseline;
-        gap: 2.2mm;
+        padding-bottom: 0.03in;
+        border-bottom: 0.2mm dashed #b8b8b8;
       }
 
-      .amount-label {
-        font-size: 7.7pt;
+      .amount-row:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+      }
+
+      .amount-label,
+      .amount-value {
+        font-size: 9.8pt;
         font-weight: 800;
-        line-height: 1.1;
-        text-align: left;
+        line-height: 1.15;
       }
 
       .amount-value {
-        min-width: 21mm;
-        font-size: 7.7pt;
-        font-weight: 800;
-        line-height: 1.1;
         text-align: right;
         font-family: "Courier New", monospace;
       }
 
+      .amount-row--total .amount-label,
+      .amount-row--total .amount-value {
+        font-size: 10.8pt;
+        font-weight: 900;
+      }
+
       .meta-row {
-        border: 0.3mm solid #000;
-        padding: 1.05mm 1.35mm;
         display: grid;
-        grid-template-columns: minmax(0, 30fr) minmax(0, 70fr);
-        gap: 0.9mm;
+        grid-template-columns: minmax(0, 0.78in) minmax(0, 1fr);
+        gap: 0.1in;
         align-items: start;
-        box-sizing: border-box;
-        overflow: hidden;
       }
 
       .meta-k {
-        font-size: 6.9pt;
+        font-size: 9.2pt;
         font-weight: 900;
         text-transform: uppercase;
-        letter-spacing: 0.02em;
+        line-height: 1.1;
       }
 
       .meta-v {
-        font-size: 7pt;
+        font-size: 9pt;
         font-weight: 700;
-        line-height: 1.1;
-        white-space: normal;
+        line-height: 1.2;
         overflow-wrap: anywhere;
         word-break: break-word;
       }
 
       .marketing-footer {
-        border: 0.3mm solid #000;
-        padding: 1.1mm 1.4mm;
-        text-align: center;
-        font-size: 7.6pt;
-        font-weight: 900;
-        line-height: 1.2;
+        display: grid;
+        align-content: center;
+        font-size: 9.1pt;
+        font-weight: 700;
+        line-height: 1.28;
       }
 
-      .marketing-footer a {
-        color: inherit;
-        text-decoration: underline;
+      .marketing-footer strong {
+        font-weight: 900;
+      }
+
+      .footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.12in;
+        padding-top: 0.08in;
+        border-top: 0.3mm dashed #b8b8b8;
+        font-size: 9.2pt;
+        font-weight: 800;
+        line-height: 1.15;
+      }
+
+      .footer-inline {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 0.08in;
+      }
+
+      .footer-track {
+        text-align: right;
+      }
+
+      .footer-track strong {
+        font-weight: 900;
       }
 
       .is-hidden {
@@ -291,47 +289,15 @@
 
       @media screen {
         body::before {
-          content: "Print settings: 9x4 envelope, scale 100%, fit to page off, shrink to printable area off.";
+          content: "Envelope #10 print: 9in × 4in, scale 100%, fit-to-page off.";
           display: block;
-          margin: 0 0 2mm;
-          padding: 1.4mm 2mm;
+          margin: 0 0 6px;
+          padding: 6px 10px;
           border: 0.3mm solid #000;
-          font-size: 7.6pt;
+          font-size: 10px;
           font-weight: 700;
           background: #fff;
         }
-
-        .label-container {
-          margin-bottom: 2mm;
-        }
-      }
-
-      @media print {
-        html, body {
-          width: 9in;
-          min-width: 9in;
-          margin: 0 !important;
-          padding: 0 !important;
-        }
-
-        body {
-          display: block;
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
-        }
-
-        .label-container {
-          margin: 0 auto;
-          page-break-after: always;
-          break-after: page;
-        }
-
-        .label-container:last-child {
-          page-break-after: auto;
-          break-after: auto;
-        }
-
-        .label-safe-area { margin: 0; }
       }
     </style>
   </head>
@@ -339,37 +305,38 @@
     <div class="label-container">
       <div class="label-safe-area">
         <div class="label-card">
-          <div class="left-panel">
-            <div class="header">
-              <div class="carrier-stack">
-                <div class="carrier">PAKISTAN POST</div>
-                <div class="dispatch-date">{dispatch_date}</div>
-              </div>
-              <div class="prefix">{prefix}</div>
+          <div class="header">
+            <div class="brand-block">
+              <img class="brand-logo" src="{logo_src}" alt="Pakistan Post" />
             </div>
-
-            <div class="to">
-              <div class="label-key">TO:</div>
-              <div class="receiver-name">{receiver_name}</div>
-              <div class="receiver-address">{receiver_address}</div>
-              <div class="receiver-contact">{receiver_contact}</div>
+            <div class="type-block">
+              <div class="type-pill">{shipment_label}</div>
+              <div class="rate-pill">{header_rate}</div>
             </div>
-
-            <div class="from">
-              <div class="label-key">FROM:</div>
-              <div class="sender-inline">{sender_inline}</div>
-              <div class="sender-contact {sender_contact_class}">{sender_contact}</div>
+            <div class="header-barcode BarcodeBlock">
+              <img class="barcode" src="data:image/png;base64,{{barcode}}" alt="Barcode" />
+              <div class="header-id-line">{tracking_id}</div>
             </div>
           </div>
 
-          <div class="right-panel">
-            <div class="header-barcode">
-              <img class="barcode" src="data:image/png;base64,{{barcode}}" alt="Barcode" />
-              <div class="header-id-line">{tracking_id}</div>
-              <div class="header-id-line {mos_class}">{mos_numbers}</div>
+          <div class="content">
+            <div class="left-panel">
+              <div class="panel-card address-card AddressBlock">
+                <div class="label-badge">TO:</div>
+                <div class="receiver-name">{receiver_name}</div>
+                <div class="receiver-address">{receiver_address}</div>
+                <div class="receiver-contact">{receiver_contact}</div>
+              </div>
+
+              <div class="panel-card address-card AddressBlock">
+                <div class="label-badge">FROM:</div>
+                <div class="sender-inline">{sender_inline}</div>
+                <div class="sender-contact {sender_contact_class}">{sender_contact}</div>
+              </div>
             </div>
-            <div class="amount {calc_class}">
-              <div class="amount-rows">
+
+            <div class="right-panel">
+              <div class="panel-card amount {calc_class}">
                 <div class="amount-row {amount_primary_class}">
                   <span class="amount-label">{amount_primary_label}</span>
                   <span class="amount-value">{amount_primary_value}</span>
@@ -383,18 +350,28 @@
                   <span class="amount-value">{amount_total_value}</span>
                 </div>
               </div>
+
+              <div class="panel-card meta-row {order_class}">
+                <span class="meta-k">Order</span>
+                <span class="meta-v">{order_source}</span>
+              </div>
+
+              <div class="panel-card meta-row {product_class}">
+                <span class="meta-k">Product</span>
+                <span class="meta-v">{product_details}</span>
+              </div>
+
+              <div class="panel-card marketing-footer">
+                Free Print Labels, Money Order,<br />
+                Track Parcels &amp; Complaints,<br />
+                Visit <strong>www.ePost.pk</strong>
+              </div>
             </div>
-            <div class="meta-row {order_class}">
-              <span class="meta-k">Order</span>
-              <span class="meta-v">{order_id}</span>
-            </div>
-            <div class="meta-row {product_class}">
-              <span class="meta-k">Product</span>
-              <span class="meta-v">{product_details}</span>
-            </div>
-            <div class="marketing-footer">
-              {marketing_footer}
-            </div>
+          </div>
+
+          <div class="footer FooterBlock">
+            <div class="footer-inline FooterBlock--inline">SAFE | SECURE | FAST | INSURED</div>
+            <div class="footer-track">Track your parcel: <strong>www.ePost.pk</strong></div>
           </div>
         </div>
       </div>

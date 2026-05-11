@@ -74,11 +74,11 @@ export default function Sidebar(props: {
           props.isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="border-b border-white/10 px-4 pb-4 pt-5">
+        <div className="border-b border-white/10 px-4 pb-3 pt-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#10B981,#2563EB)] text-sm font-bold text-white shadow-[0_12px_30px_rgba(16,185,129,0.3)]">
-                EP
+              <div className="flex rounded-2xl border border-white/10 bg-white px-2 py-2 shadow-[0_12px_30px_rgba(16,185,129,0.16)]">
+                <img src="/assets/pakistan-post-logo.png" alt="Pakistan Post" className="h-8 w-10 object-contain md:h-8 md:w-10 lg:h-9 lg:w-[90px]" />
               </div>
               <div className="min-w-0 leading-tight md:hidden lg:block">
                 <div className="text-sm font-semibold text-white">Epost.pk</div>
@@ -90,9 +90,9 @@ export default function Sidebar(props: {
             </button>
           </div>
 
-          <div className="mt-4 rounded-[20px] border border-white/10 bg-white/5 p-3 md:hidden lg:block">
+          <div className="mt-3 rounded-[20px] border border-white/10 bg-white/5 p-2.5 md:hidden lg:block">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-xs font-semibold text-white">
+              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white/10 text-xs font-semibold text-white">
                 {props.userEmail?.slice(0, 2).toUpperCase() ?? "EP"}
               </div>
               <div className="min-w-0">
@@ -103,11 +103,11 @@ export default function Sidebar(props: {
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-4">
-          <div className="mb-3 hidden px-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400 md:hidden lg:block">
+        <nav className="flex-1 overflow-y-auto px-3 py-3.5">
+          <div className="mb-2.5 hidden px-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400 md:hidden lg:block">
             Workspace
           </div>
-          <div className="grid gap-2">
+          <div className="grid gap-1.5">
             {nav.map((n) => (
               <NavItem key={n.to} {...n} />
             ))}
@@ -115,8 +115,8 @@ export default function Sidebar(props: {
           </div>
         </nav>
 
-        <div className="border-t border-white/10 px-3 py-4">
-          <div className="mb-3 hidden rounded-[18px] border border-white/10 bg-white/5 p-3 md:hidden lg:block">
+        <div className="border-t border-white/10 px-3 py-3">
+          <div className="mb-2.5 hidden rounded-[18px] border border-white/10 bg-white/5 p-2.5 md:hidden lg:block">
             <div className="flex items-center gap-3 text-slate-300">
               <Bell className="h-4 w-4" />
               <div>

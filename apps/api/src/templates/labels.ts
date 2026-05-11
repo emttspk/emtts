@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createCanvas } from "canvas";
 import JsBarcode from "jsbarcode";
-import { getSharedPrintFooter, PRINT_MARKETING_LINE, PRINTABLE_FOOTER_CLASS_NAME, PRINTABLE_FOOTER_CSS } from "../lib/printBranding.js";
+import { getSharedPrintFooter, LABEL_STANDARD_CSS, PRINT_MARKETING_LINE, PRINTABLE_FOOTER_CLASS_NAME, PRINTABLE_FOOTER_CSS } from "../lib/printBranding.js";
 import {
   buildMoneyOrderNumber,
   buildTrackingId,
@@ -248,13 +248,35 @@ function compactInlineParts(parts: unknown[]) {
 }
 
 const ESCAPED_PRINT_MARKETING_LINE = escapeHtml(PRINT_MARKETING_LINE);
+let pakistanPostLogoDataUrlCache: string | null | undefined;
 
 function marketingFooterTextHtml() {
   return ESCAPED_PRINT_MARKETING_LINE;
 }
 
-function injectSharedFooterCss(head: string) {
-  return head.replace(/<\/head>/i, `<style>${PRINTABLE_FOOTER_CSS}</style></head>`);
+function injectSharedPrintCss(head: string) {
+  return head.replace(/<\/head>/i, `<style>${LABEL_STANDARD_CSS}${PRINTABLE_FOOTER_CSS}</style></head>`);
+}
+
+function resolvePakistanPostLogoDataUrl() {
+  if (pakistanPostLogoDataUrlCache !== undefined) return pakistanPostLogoDataUrlCache ?? "";
+
+  const candidates = [
+    path.resolve(process.cwd(), "images", "logo.png"),
+    path.resolve(process.cwd(), "apps", "web", "public", "assets", "pakistan-post-logo.png"),
+  ];
+
+  const logoPath = candidates.find((candidate) => fs.existsSync(candidate));
+  if (!logoPath) {
+    pakistanPostLogoDataUrlCache = null;
+    return "";
+  }
+
+  const extension = path.extname(logoPath).toLowerCase();
+  const mime = extension === ".jpg" || extension === ".jpeg" ? "image/jpeg" : extension === ".webp" ? "image/webp" : "image/png";
+  const content = fs.readFileSync(logoPath);
+  pakistanPostLogoDataUrlCache = `data:${mime};base64,${content.toString("base64")}`;
+  return pakistanPostLogoDataUrlCache;
 }
 
 type LabelAmountSummary = {
@@ -419,6 +441,7 @@ export function generateLabelBarcodeBase64(text: string) {
 export function labelsHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: boolean; includeMoneyOrders?: boolean }) {
   const autoGenerateTracking = opts?.autoGenerateTracking === true;
   const template = loadBoxTemplate();
+  const logoSrc = resolvePakistanPostLogoDataUrl();
 
   const renderSingleLabel = (o: LabelOrder) => {
     const carrier = o.carrierType === "courier" ? "Courier" : "Pakistan Post";
@@ -454,24 +477,30 @@ export function labelsHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?:
         : shipmentLabel;
     const dispatchDateLine = `Dispatch Date: ${resolveDispatchDate((o as any)?.issueDate)}`;
     const trackingLine = tracking || "-";
+    const logoMarkup = logoSrc ? `<img src="${logoSrc}" class="pp-logo" alt="Pakistan Post" />` : `<div class="carrier">Pakistan Post</div>`;
 
     return `
       <div class="label-core">
         <div class="topbar">
           <div class="topbar-left">
-            <div class="carrier">${escapeHtml(carrier)}</div>
-            <div class="dispatch-date">${escapeHtml(dispatchDateLine)}</div>
+            <div class="brand-row">
+              ${logoMarkup}
+              <div class="brand-copy">
+                <div class="carrier">${escapeHtml(carrier)}</div>
+                <div class="dispatch-date">${escapeHtml(dispatchDateLine)}</div>
+              </div>
+            </div>
           </div>
           <div class="prefix-badge">${escapeHtml(prefixBadgeText)}</div>
         </div>
 
-        <div class="barcode-wrap">
+        <div class="BarcodeBlock barcode-wrap">
           ${barcodeImg}
           <div class="tracking-line">${escapeHtml(trackingLine)}</div>
         </div>
 
         <div class="blocks">
-          <div class="block to-block">
+          <div class="LabelWrapper AddressBlock block to-block">
             <div class="k">TO:</div>
             <div class="v strong receiver-name">${escapeHtml(receiverName)}</div>
             <div class="v address">${escapeHtml(receiverAddress)}</div>
@@ -479,7 +508,7 @@ export function labelsHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?:
             <div class="v">${escapeHtml(receiverPhone)}</div>
           </div>
 
-          <div class="block from-block">
+          <div class="LabelWrapper AddressBlock block from-block">
             <div class="k">FROM:</div>
             <div class="v strong from-name">${escapeHtml(senderName || "-")}</div>
             <div class="v address">${escapeHtml(senderAddress || "-")}</div>
@@ -504,7 +533,7 @@ export function labelsHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?:
 
         ${renderBoxAmountBlock(amountSummary)}
 
-        <div class="footer">
+        <div class="FooterBlock footer">
           <div class="footer-strong ${PRINTABLE_FOOTER_CLASS_NAME}">${marketingFooterTextHtml()}</div>
         </div>
       </div>
@@ -523,10 +552,10 @@ export function labelsHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?:
   for (let i = 0; i < orders.length; i += labelsPerPage) {
     const pageData: Array<LabelOrder | null> = orders.slice(i, i + labelsPerPage);
     while (pageData.length < labelsPerPage) pageData.push(null);
-    pages.push(`<div class="page">${pageData.map((item) => renderLabelSlot(item)).join("")}</div>`);
+    pages.push(`<div class="PrintContainer LabelGrid page">${pageData.map((item) => renderLabelSlot(item)).join("")}</div>`);
   }
 
-  return `${injectSharedFooterCss(template.head)}${pages.join("")}${template.tail}`;
+  return `${injectSharedPrintCss(template.head)}${pages.join("")}${template.tail}`;
 }
 
 export function boxPreviewHtml(opts?: {
@@ -603,6 +632,7 @@ export function previewLabelHtml(opts?: {
 
 export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: boolean; includeMoneyOrders?: boolean }) {
   const autoGenerateTracking = opts?.autoGenerateTracking === true;
+  const logoSrc = resolvePakistanPostLogoDataUrl();
 
   const renderFlyerLabel = (o: LabelOrder) => {
     const carrier = o.carrierType === "courier" ? "Courier" : "Pakistan Post";
@@ -627,6 +657,7 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
     const orderId = String((o as any).ordered ?? "").trim() || "-";
     const dispatchDateLine = `Dispatch Date: ${resolveDispatchDate((o as any)?.issueDate)}`;
     const prefixBadgeText = amountSummary.appliesPakistanPostRules ? `${shipmentLabel} Rs.${amountSummary.moAmount}` : shipmentLabel;
+    const logoMarkup = logoSrc ? `<img src="${logoSrc}" class="fl-logo" alt="Pakistan Post" />` : `<div class="fl-carrier">${escapeHtml(carrier)}</div>`;
     const formatRs = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
     const amountMarkup = amountSummary.appliesPakistanPostRules
       ? `<div class="fl-bottom-grid">
@@ -648,16 +679,21 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
       <div class="fl-label">
         <div class="fl-top">
           <div class="fl-carrier-stack">
-            <div class="fl-carrier">${escapeHtml(carrier)}</div>
-            <div class="fl-dispatch-date">${escapeHtml(dispatchDateLine)}</div>
+            <div class="fl-brand-row">
+              ${logoMarkup}
+              <div class="fl-brand-copy">
+                <div class="fl-carrier">${escapeHtml(carrier)}</div>
+                <div class="fl-dispatch-date">${escapeHtml(dispatchDateLine)}</div>
+              </div>
+            </div>
           </div>
           <div class="fl-badge">${escapeHtml(prefixBadgeText)}</div>
         </div>
-        <div class="fl-barcode-wrap">
+        <div class="BarcodeBlock fl-barcode-wrap">
           ${barcodeImg}
           <div class="fl-tracking">${escapeHtml(tracking)}</div>
         </div>
-        <div class="fl-to">
+        <div class="LabelWrapper AddressBlock fl-to">
           <span class="fl-k">TO:</span>
           <span class="fl-name">${escapeHtml(receiverName)}</span>
           <div class="fl-addr">${escapeHtml(receiverAddress || "-")}</div>
@@ -665,7 +701,7 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
           <div class="fl-city-phone">${escapeHtml(receiverPhone || "-")}</div>
         </div>
         ${amountMarkup}
-        <div class="fl-from">
+        <div class="FooterBlock fl-from">
           <span class="fl-from-line">FROM: ${escapeHtml(compactInlineParts([senderName, senderAddressInline, senderPhone]).join(" | ") || "-")}</span>
         </div>
       </div>`;
@@ -687,13 +723,13 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
     <head>
       <meta charset="utf-8" />
       <style>
+        ${LABEL_STANDARD_CSS}${PRINTABLE_FOOTER_CSS}
         @page { size: A4; margin: 3mm; }
-        html, body { margin: 0; padding: 0; color: #000; font-family: Arial, sans-serif; }
         :root {
           --a4-width: 210mm;
           --a4-height: 297mm;
           --page-margin: 3mm;
-          --page-safe-width-trim: 2mm;
+          --page-safe-width-trim: 3mm;
           --fl-col-gap: 3mm;
           --fl-row-gap: 3mm;
           --fl-page-width: calc(var(--a4-width) - (var(--page-margin) * 2) - var(--page-safe-width-trim));
@@ -726,6 +762,9 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
         .fl-label-empty { background: #fff; border: 0.3mm dashed #ccc; }
         .fl-top { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 0.3mm solid #000; padding-bottom: 0.8mm; min-width: 0; }
         .fl-carrier-stack { display: grid; gap: 0.25mm; min-width: 0; }
+        .fl-brand-row { display: flex; align-items: center; gap: 1.2mm; min-width: 0; }
+        .fl-brand-copy { display: grid; gap: 0.25mm; min-width: 0; }
+        .fl-logo { width: 22mm; max-height: 8mm; object-fit: contain; }
         .fl-carrier { font-weight: 900; font-size: 3.5mm; text-transform: uppercase; letter-spacing: 0.12mm; }
         .fl-dispatch-date { font-size: 2.1mm; font-weight: 700; line-height: 1.05; }
         .fl-badge { border: 0.3mm solid #000; padding: 0.6mm 1.2mm; font-weight: 900; font-size: 3mm; white-space: nowrap; }
@@ -755,6 +794,7 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
 
 export function envelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: boolean; includeMoneyOrders?: boolean }) {
   const autoGenerateTracking = opts?.autoGenerateTracking === true;
+  const logoSrc = resolvePakistanPostLogoDataUrl();
 
   const loadEnvelopeTemplate = () => {
     return loadHtmlTemplate(
@@ -792,6 +832,7 @@ export function envelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking
       .join(", ");
     const senderContact = senderPhone && senderPhone !== "-" ? `Phone: ${senderPhone}` : "";
     const orderId = String((o as any).ordered ?? "").trim();
+    const orderSource = String(o.reference ?? (o as any)?.source ?? (o as any)?.Source ?? "ePost Workspace").trim() || "ePost Workspace";
     const productDetails = String((o as any).ProductDescription ?? "").trim();
 
     const calcDisplay = amountSummary.showCalculation ? "" : "is-hidden";
@@ -805,15 +846,19 @@ export function envelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking
     const amountTotalValue = amountSummary.showCalculation ? `${formatRs(amountSummary.grossAmount)}` : "";
     const amountTotalClass = amountSummary.showCalculation ? "" : "is-hidden";
 
-    const prefixText = amountSummary.showCalculation
-      ? `${shipmentLabel} | Rs. ${formatRs(amountSummary.moAmount)}`
-      : shipmentLabel;
+    const headerRate = amountSummary.showCalculation
+      ? `Rs. ${formatRs(amountSummary.moAmount)}`
+      : amountSummary.grossAmount > 0
+        ? `Rs. ${formatRs(amountSummary.grossAmount)}`
+        : "Rs. 0";
 
     const barcodeBase64 = String(o.barcodeBase64 ?? "").trim();
     const barcodePayload = barcodeBase64.replace(/^data:image\/png;base64,/, "");
 
     const valueMap: Record<string, string> = {
-      "{prefix}": escapeHtml(prefixText),
+      "{logo_src}": escapeHtml(logoSrc),
+      "{shipment_label}": escapeHtml(shipmentLabel),
+      "{header_rate}": escapeHtml(headerRate),
       "{tracking_id}": escapeHtml(tracking),
       "{mos_numbers}": "",
       "{mos_class}": "is-hidden",
@@ -839,6 +884,7 @@ export function envelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking
       "{amount_total_class}": amountTotalClass,
       "{calc_class}": calcDisplay,
       "{order_id}": escapeHtml(orderId),
+      "{order_source}": escapeHtml(orderSource),
       "{order_class}": orderId ? "" : "is-hidden",
       "{product_details}": escapeHtml(productDetails),
       "{product_class}": productDetails ? "" : "is-hidden",
@@ -853,7 +899,7 @@ export function envelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking
 
   const template = loadEnvelopeTemplate();
   const pages = orders.map((order) => renderEnvelopePage(template.body, order)).join("");
-  return `${injectSharedFooterCss(template.head)}${pages}${template.tail}`;
+  return `${injectSharedPrintCss(template.head)}${pages}${template.tail}`;
 }
 
 export function moneyOrderHtml(
