@@ -39,6 +39,7 @@ export type TrackingLifecycleResolution = {
   inactivity_days: number;
   complaint_enabled: boolean;
   money_order_status: "NOT_REQUIRED" | "PENDING" | "IN_PROGRESS" | "COMPLETED";
+  money_order_number: string;
   cycle_type: string;
   cycle_status: string;
   decision_reason: string;
@@ -376,11 +377,34 @@ function isOriginReturnPending(event: NormalizedEvent | null, originCity: string
   return false;
 }
 
+function extractMoneyOrderNumber(raw: unknown, events: NormalizedEvent[]): string {
+  if (raw && typeof raw === "object") {
+    const record = raw as Record<string, unknown>;
+    const tracking = (record.tracking && typeof record.tracking === "object" ? record.tracking : record) as Record<string, unknown>;
+    const candidates = [
+      tracking.money_order_number, tracking.moneyOrderNumber, tracking.mos_number,
+      tracking.MOS_Number, tracking.mo_issued_number,
+      record.money_order_number, record.moneyOrderNumber, record.mos_number,
+      record.MOS_Number, record.mo_issued_number,
+    ];
+    for (const v of candidates) {
+      const s = text(v);
+      if (s && /^MOS/i.test(s)) return s.toUpperCase();
+    }
+  }
+  for (const event of events) {
+    const match = event.description.match(/\b(MOS\d+)\b/i);
+    if (match) return match[1].toUpperCase();
+  }
+  return "";
+}
+
 function resolveBaseStatus(
   sourceStatus: string,
   meta: PatchedTrackingMeta | null | undefined,
   events: NormalizedEvent[],
   cycleInterpretation: TrackingCycleInterpretation | null | undefined,
+  isValuePayable: boolean,
 ): SequenceResolution {
   const source = normalizeSourceStatus(sourceStatus);
   const latestEvent = events[events.length - 1] ?? null;
@@ -460,7 +484,12 @@ function resolveBaseStatus(
     cycleInterpretation?.final_status === "DELIVERED WITH PAYMENT" &&
     cycleInterpretation?.mos_status === "COMPLETED" &&
     deliveredIndex >= 0;
-  const deliveredIsStillValid = deliveredWithMoneyOrderComplete || (deliveredIndex >= 0 && deliveredIndex > Math.max(deliveryInvalidatedIndex, failedDeliveryIndex, rtsIndex, reverseMovementIndex, returnCompletedIndex));
+  // For value-payable articles (VPL/VPP/COD), delivery is only closed when MOS is COMPLETED.
+  // An attempted delivery with pending/missing MOS stays operationally pending (not DELIVERED).
+  const plainDeliveredIsValid = deliveredIndex >= 0 && deliveredIndex > Math.max(deliveryInvalidatedIndex, failedDeliveryIndex, rtsIndex, reverseMovementIndex, returnCompletedIndex);
+  const deliveredIsStillValid = isValuePayable
+    ? deliveredWithMoneyOrderComplete
+    : deliveredWithMoneyOrderComplete || plainDeliveredIsValid;
   const latestSemantic = latestMeaningfulEvent?.semantic ?? "UNKNOWN";
   const returnFlowDetected = returnCompletedIndex >= 0 || rtsIndex >= 0 || reverseMovementIndex >= 0 || latestSemantic === "RETURN_IN_TRANSIT" || latestSemantic === "RETURN_ARRIVED";
   const latestTargetsDeliveryOffice = latestMeaningfulEvent?.to_role === "DELIVERY_OFFICE" || latestMeaningfulEvent?.office_role === "DELIVERY_OFFICE";
@@ -786,7 +815,8 @@ export function buildTrackingLifecycleResolution(input: {
   cycleInterpretation?: TrackingCycleInterpretation | null;
 }): TrackingLifecycleResolution {
   const normalizedEvents = normalizeEvents(input.events);
-  const baseResolution = resolveBaseStatus(input.sourceStatus ?? "", input.meta, normalizedEvents, input.cycleInterpretation);
+  const isValuePayable = /^(VPL|VPP|COD)/i.test(text(input.trackingNumber));
+  const baseResolution = resolveBaseStatus(input.sourceStatus ?? "", input.meta, normalizedEvents, input.cycleInterpretation, isValuePayable);
   const underlyingStatus = baseResolution.status;
   const inactivityDays = resolveInactivityDays(normalizedEvents, input.meta);
   const stuckBucket = resolveStuckBucket(inactivityDays);
@@ -826,6 +856,7 @@ export function buildTrackingLifecycleResolution(input: {
     inactivity_days: inactivityDays,
     complaint_enabled: Boolean(input.meta?.complaint_enabled),
     money_order_status: resolveMoneyOrderStatus(input.trackingNumber, input.raw, input.cycleInterpretation, normalizedEvents),
+    money_order_number: extractMoneyOrderNumber(input.raw, normalizedEvents),
     cycle_type: text(input.cycleInterpretation?.cycle_type) || "UNKNOWN",
     cycle_status: text(input.cycleInterpretation?.cycle_status) || "IN_PROGRESS",
     decision_reason: baseResolution.reason || text(input.meta?.decision_reason) || `Resolved from ${underlyingStatus} event sequence.`,

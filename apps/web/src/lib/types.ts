@@ -43,6 +43,7 @@ export type TrackingLifecycle = {
   inactivity_days: number;
   complaint_enabled: boolean;
   money_order_status: string;
+  money_order_number?: string | null;
   cycle_type: string;
   cycle_status: string;
   decision_reason: string;

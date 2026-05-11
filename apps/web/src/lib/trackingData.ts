@@ -506,7 +506,7 @@ export type TrackingPresentationEvent = {
   location: string;
   description: string;
   timestamp: number | null;
-  stageLabel: TrackingStageLabel;
+  stageLabel: string;
 };
 
 export type TrackingPresentationModel = {
@@ -567,6 +567,79 @@ export function getStatusStageIndex(status: string): number {
   return 0;
 }
 
+export function getEventBadgeLabel(description: string): string {
+  const t = String(description ?? "").toLowerCase();
+  if (!t) return "Booked";
+
+  // Return completion (check before delivery to avoid false-positive match)
+  if (
+    t.includes("delivered to sender") ||
+    t.includes("returned to booking office") ||
+    t.includes("received at booking dmo after return") ||
+    t.includes("to rts")
+  ) return "Returned to Sender";
+
+  // MOS / UMO / FMO payment settled
+  if (
+    t.includes("mos") ||
+    t.includes("money order") ||
+    t.includes("payment settled") ||
+    t.includes("fmo") ||
+    (t.includes("umo") && !t.includes("undelivered"))
+  ) return "Payment Settled";
+
+  // Explicit delivery to addressee only (not to delivery office)
+  if (
+    t === "delivered" ||
+    t.includes("delivered to addressee") ||
+    (t.includes("delivered") && t.includes("to addresse"))
+  ) return "Delivered";
+
+  // Failed / undelivered
+  if (
+    t.includes("undelivered") ||
+    t.includes("refused") ||
+    (t.includes("not found") && t.includes("address")) ||
+    t.includes("failed delivery")
+  ) return "Failed Delivery";
+
+  // Out for delivery
+  if (t.includes("sent out for delivery") || t.includes("out for delivery")) return "Out for Delivery";
+
+  // Return in transit (return dispatch movements)
+  if (
+    (t.includes("return") && t.includes("dispatch")) ||
+    (t.includes("return") && t.includes("transit")) ||
+    t.includes("return to sender") ||
+    t.includes("returned to sender")
+  ) return "Return In Transit";
+
+  // Arrival at delivery office — could be return pending or regular in-transit arrival
+  if (
+    (t.includes("arrival") || t.includes("arrived") || t.includes("received at")) &&
+    t.includes("delivery office")
+  ) return "Return Pending";
+
+  // Standard dispatch to delivery office
+  if (t.includes("dispatch") && (t.includes("delivery office") || t.includes("dmo"))) return "In Transit";
+
+  // Booking
+  if (t.includes("booked") || t.includes("booking") || t.includes("acceptance")) return "Booked";
+
+  // Hub / mail office processing
+  if (
+    t.includes("arrival") ||
+    t.includes("arrived") ||
+    t.includes("received at") ||
+    t.includes("hub")
+  ) return "At Hub";
+
+  // General dispatch / in-transit
+  if (t.includes("dispatch") || t.includes("in transit") || t.includes("movement")) return "In Transit";
+
+  return "Booked";
+}
+
 export function getEventStageLabel(description: string): TrackingStageLabel {
   const t = String(description ?? "").toLowerCase();
   if (!t) return TRACKING_STAGE_LABELS[0];
@@ -620,7 +693,7 @@ export function resolveTrackingPresentation(
             location,
             description,
             timestamp: toTimestampMs(date, time),
-            stageLabel: getEventStageLabel(description),
+            stageLabel: getEventBadgeLabel(description),
           };
         })
         .filter((event) => event.date || event.time || event.location || event.description)
@@ -634,7 +707,7 @@ export function resolveTrackingPresentation(
         location: text(lifecycle.latest_event.location),
         description: text(lifecycle.latest_event.description),
         timestamp: toTimestampMs(text(lifecycle.latest_event.date), text(lifecycle.latest_event.time) || "00:00"),
-        stageLabel: getEventStageLabel(text(lifecycle.latest_event.description) || text(lifecycle.current_stage)),
+        stageLabel: getEventBadgeLabel(text(lifecycle.latest_event.description) || text(lifecycle.current_stage)),
       }
     : null;
 

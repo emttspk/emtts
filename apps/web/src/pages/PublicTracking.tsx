@@ -9,7 +9,6 @@ import {
   getStatusDisplayColor,
   getStatusIconName,
   resolveTrackingPresentation,
-  SHARED_STAGE_LABELS,
 } from "../lib/trackingData";
 
 const API_BASE =
@@ -62,8 +61,6 @@ type TrackingCollectionResponse = {
   results: TrackingResult[];
 };
 
-const STAGE_LABELS = SHARED_STAGE_LABELS;
-
 function normalizeTrackingIds(value: string) {
   return Array.from(
     new Set(
@@ -92,10 +89,32 @@ function TrackingResultCard({ result }: { result: TrackingResult }) {
   const [waModalOpen, setWaModalOpen] = useState(false);
   const [waPhone, setWaPhone] = useState("");
   const presentation = resolveTrackingPresentation(result.status, result.history ?? result.events ?? [], result.delivery_progress, result.lifecycle);
-  const newestFirstTimeline = [...presentation.timeline].reverse();
+  // Ascending chronology: oldest at top, latest at bottom
+  const timeline = presentation.timeline;
   const progress = presentation.progress;
   const activeStage = presentation.activeStage;
   const currentLocation = result.current_location || presentation.latestEvent?.location || "-";
+
+  // Value-payable article info (VPL / VPP / COD)
+  const isValuePayable = /^(VPL|VPP|COD)/i.test(result.tracking_number);
+  const moNumber = result.lifecycle?.money_order_number ?? "";
+  const moStatus = result.lifecycle?.money_order_status ?? "NOT_REQUIRED";
+  const showMoSection = isValuePayable && moStatus !== "NOT_REQUIRED";
+  const moStatusLabel =
+    moStatus === "COMPLETED" ? "MOS Settled" :
+    moStatus === "IN_PROGRESS" ? "MOS Pending" :
+    moStatus === "PENDING" ? "MOS Pending" :
+    null;
+
+  // Dynamic stage labels based on article lifecycle
+  const lifecycleStatus = (result.lifecycle?.normalized_status ?? result.lifecycle?.underlying_status ?? "").toUpperCase();
+  const isReturnFlow = lifecycleStatus.includes("RETURN") || lifecycleStatus === "RTS" || lifecycleStatus === "RETURNED";
+  const isFailedFlow = lifecycleStatus.includes("FAILED");
+  const dynamicStageLabels: string[] = isReturnFlow
+    ? ["Booked", "In Transit", "Out for Delivery", "Failed Delivery", "Return In Transit", "Return Pending", "Returned to Sender"]
+    : isFailedFlow
+    ? ["Booked", "In Transit", "Out for Delivery", "Failed Delivery", "Re-routed / Return In Transit"]
+    : ["Booked", "In Transit", "At Hub", "Out for Delivery", "Delivered"];
   const whatsappShareUrl = buildTrackingWhatsAppShareUrl({
     trackingNumber: result.tracking_number,
     displayStatus: presentation.displayStatus,
@@ -134,6 +153,26 @@ function TrackingResultCard({ result }: { result: TrackingResult }) {
           </div>
         </div>
       </div>
+
+      {showMoSection ? (
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 flex flex-wrap items-center gap-3">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">Value Payable</div>
+          {moNumber ? (
+            <span className="rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800">
+              MO # {moNumber}
+            </span>
+          ) : null}
+          {moStatusLabel ? (
+            <span className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
+              moStatus === "COMPLETED"
+                ? "border-emerald-300 bg-emerald-100 text-emerald-800"
+                : "border-amber-300 bg-amber-100 text-amber-800"
+            }`}>
+              {moStatusLabel}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       {result.degraded ? (
         <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
@@ -177,16 +216,16 @@ function TrackingResultCard({ result }: { result: TrackingResult }) {
 
       <div className="mt-5 rounded-2xl border border-slate-200 bg-white">
         <div className="border-b border-slate-200 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">History</div>
-        {newestFirstTimeline.length > 0 ? (
+        {timeline.length > 0 ? (
           <div className="grid gap-4 p-4 lg:grid-cols-[200px_1fr]">
             <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Shipment Stages</div>
               <ol className="relative mt-3 space-y-2.5">
-                {STAGE_LABELS.map((stage, idx) => {
+                {dynamicStageLabels.map((stage, idx) => {
                   const isDone = idx <= activeStage;
                   return (
                     <li key={`${result.tracking_number}-${stage}`} className="relative pl-6 text-xs font-semibold text-slate-600">
-                      {idx < STAGE_LABELS.length - 1 ? (
+                      {idx < dynamicStageLabels.length - 1 ? (
                         <span className={`absolute left-[8px] top-4 h-7 w-[2px] ${idx < activeStage ? "bg-emerald-400" : "bg-slate-300"}`} />
                       ) : null}
                       <span className={`absolute left-0 top-1.5 h-4 w-4 rounded-full border ${isDone ? "border-emerald-500 bg-emerald-500 animate-pulse" : "border-slate-300 bg-white"}`} />
@@ -199,7 +238,7 @@ function TrackingResultCard({ result }: { result: TrackingResult }) {
 
             <ol className="relative space-y-3">
               <li aria-hidden="true" className="pointer-events-none absolute bottom-1 top-1 left-[7px] w-[2px] list-none bg-gradient-to-b from-emerald-400 to-emerald-200" />
-              {newestFirstTimeline.map((event, index) => {
+              {timeline.map((event, index) => {
                 return (
                   <li
                     key={`${result.tracking_number}-${event.date}-${event.time}-${index}`}
