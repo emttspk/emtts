@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Clock, MapPin, RefreshCw, Search } from "lucide-react";
+import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Clock, MapPin, MessageSquare, RefreshCw, Search } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
@@ -109,6 +109,35 @@ function stageIndexForStatus(status: string) {
   if (text.includes("hub") || text.includes("dispatch")) return 2;
   if (text.includes("transit") || text.includes("pending")) return 1;
   return 0;
+}
+
+function buildWhatsAppShareUrl(result: TrackingResult): string {
+  const origin = result.origin || result.booking_office || "—";
+  const destination = result.destination || result.delivery_office || "—";
+  const currentLocation = result.current_location || "—";
+  const timeline = result.history ?? result.events ?? [];
+  const latest = [...timeline].reverse()[0];
+  const latestEvent = latest?.description ? `${latest.description}${latest.location ? ` (${latest.location})` : ""}` : "—";
+  const message = [
+    "ePost.pk Tracking Update",
+    "",
+    `Tracking ID:\n${result.tracking_number}`,
+    "",
+    `Status:\n${result.status}`,
+    "",
+    `Origin:\n${origin}`,
+    "",
+    `Destination:\n${destination}`,
+    "",
+    `Current Location:\n${currentLocation}`,
+    "",
+    `Latest Update:\n${latestEvent}`,
+    "",
+    `Track Online:\nhttps://www.epost.pk/track/${result.tracking_number}`,
+    "",
+    "www.ePost.pk",
+  ].join("\n");
+  return `https://wa.me/?text=${encodeURIComponent(message)}`;
 }
 
 function TrackingResultCard({ result }: { result: TrackingResult }) {
@@ -221,6 +250,17 @@ function TrackingResultCard({ result }: { result: TrackingResult }) {
         ) : (
           <div className="px-4 py-5 text-sm text-slate-500">No tracking history recorded yet for this shipment.</div>
         )}
+      </div>
+      <div className="mt-5 flex justify-end">
+        <a
+          href={buildWhatsAppShareUrl(result)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+        >
+          <MessageSquare className="h-4 w-4" />
+          Share via WhatsApp
+        </a>
       </div>
     </section>
   );

@@ -49,6 +49,13 @@ export default function Upload() {
   const [showMoUnitNotice, setShowMoUnitNotice] = useState(false);
   const [showTrackUnitNotice, setShowTrackUnitNotice] = useState(false);
   const [showCnicRequiredModal, setShowCnicRequiredModal] = useState(false);
+  const [prefixMismatchInfo, setPrefixMismatchInfo] = useState<{
+    detected: string;
+    expected: string;
+    shipmentType: string;
+    affected: Array<{ row: number; id: string }>;
+    total: number;
+  } | null>(null);
 
   const lastAutoDownloadId = useRef<string | null>(null);
   const previewViewportRef = useRef<HTMLDivElement | null>(null);
@@ -373,11 +380,17 @@ export default function Upload() {
           }
           if (mismatchedRows.length > 0) {
             const detectedPrefixes = [...new Set(mismatchedRows.map((r) => r.prefix))].join(", ");
-            const affectedRows = mismatchedRows.slice(0, 5).map((r) => `Row ${r.row} (${r.trackingId})`).join("; ");
-            const more = mismatchedRows.length > 5 ? ` and ${mismatchedRows.length - 5} more` : "";
-            throw new Error(
-              `Tracking ID prefix mismatch detected. Uploaded file contains ${detectedPrefixes} tracking IDs while selected shipment type is ${shipmentType}. Affected: ${affectedRows}${more}.`,
-            );
+            setPrefixMismatchInfo({
+              detected: detectedPrefixes,
+              expected: expectedPrefix,
+              shipmentType: String(shipmentType),
+              affected: mismatchedRows.slice(0, 5).map((r) => ({ row: r.row, id: r.trackingId })),
+              total: mismatchedRows.length,
+            });
+            setUiState("idle");
+            setProgress(0);
+            if (progressTimer.current) window.clearInterval(progressTimer.current);
+            return;
           }
         }
       }
@@ -801,6 +814,46 @@ export default function Upload() {
         </Card>
         </div>
       </div>
+      {prefixMismatchInfo ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-[0_30px_80px_rgba(15,23,42,0.28)]">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
+                <svg className="h-5 w-5 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-lg font-semibold text-slate-900">Tracking ID Prefix Mismatch</div>
+                <div className="mt-1 text-sm text-slate-600">
+                  Your file contains <span className="font-semibold text-red-700">{prefixMismatchInfo.detected}</span> tracking IDs, but the selected shipment type <span className="font-semibold">{prefixMismatchInfo.shipmentType}</span> requires the prefix <span className="font-semibold text-emerald-700">{prefixMismatchInfo.expected}…</span>
+                </div>
+                <div className="mt-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2">
+                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-red-600">Affected Rows</div>
+                  <ul className="space-y-0.5">
+                    {prefixMismatchInfo.affected.map((r) => (
+                      <li key={`${r.row}-${r.id}`} className="font-mono text-xs text-red-800">
+                        Row {r.row} &mdash; {r.id}
+                      </li>
+                    ))}
+                  </ul>
+                  {prefixMismatchInfo.total > 5 ? (
+                    <div className="mt-1 text-xs text-red-600">…and {prefixMismatchInfo.total - 5} more row(s)</div>
+                  ) : null}
+                </div>
+                <div className="mt-3 text-xs text-slate-500">Please update your file or change the shipment type, then try again.</div>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setPrefixMismatchInfo(null)}
+                className="rounded-2xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white shadow-md hover:bg-slate-800"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {showCnicRequiredModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-[0_30px_80px_rgba(15,23,42,0.28)]">
