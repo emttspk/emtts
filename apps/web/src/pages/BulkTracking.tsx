@@ -627,10 +627,14 @@ function normalizeStatus(status?: string | null) {
 }
 
 function statusBadgeClass(status?: string | null) {
+  const raw = String(status ?? "").trim().toUpperCase();
   const normalized = normalizeStatus(status);
-  if (normalized.includes("MOS")) return "bg-fuchsia-100 text-fuchsia-700 ring-fuchsia-200";
-  if (normalized === "DELIVERED") return "bg-emerald-100 text-emerald-700 ring-emerald-200";
-  if (normalized === "DELIVERED WITH PAYMENT") return "bg-emerald-100 text-emerald-700 ring-emerald-200";
+  if (raw.includes("INVESTIGATION") || raw.includes("PROCESS") || raw.includes("ACTIVE")) return "bg-blue-100 text-blue-700 ring-blue-200";
+  if (raw.includes("PAYMENT") || raw.includes("MOS") || raw.includes("UMO") || raw.includes("FMO")) return "bg-fuchsia-100 text-fuchsia-700 ring-fuchsia-200";
+  if (raw.includes("OUT FOR DELIVERY")) return "bg-violet-100 text-violet-700 ring-violet-200";
+  if (raw.includes("FAILED")) return "bg-rose-100 text-rose-700 ring-rose-200";
+  if (raw.includes("RETURN")) return "bg-red-100 text-red-700 ring-red-200";
+  if (raw.includes("DELIVER")) return "bg-emerald-100 text-emerald-700 ring-emerald-200";
   if (normalized === "PENDING") return "bg-orange-100 text-orange-700 ring-orange-200";
   if (normalized === "RETURNED") return "bg-red-100 text-red-700 ring-red-200";
   return "bg-slate-100 text-slate-700 ring-slate-200";
@@ -2162,7 +2166,14 @@ export default function BulkTracking() {
     const trackingLifecycle = detailShipment.trackingLifecycle ?? ((raw?.tracking_lifecycle as any) ?? null);
     const rawDeliveryProgress = Number((raw?.tracking as any)?.delivery_progress ?? raw?.delivery_progress ?? trackingLifecycle?.progress);
     const deliveryProgress = Number.isFinite(rawDeliveryProgress) ? rawDeliveryProgress : undefined;
-    const presentation = resolveTrackingPresentation(selectedTracking.final_status, timeline, deliveryProgress, trackingLifecycle);
+    const complaintLifecycle = parseComplaintLifecycle(detailShipment);
+    const queueSnapshot = complaintQueueByTracking.get(detailShipment.trackingNumber);
+    const complaintCardState = resolveComplaintCardState(complaintLifecycle, queueSnapshot);
+    const presentation = resolveTrackingPresentation(selectedTracking.final_status, timeline, deliveryProgress, trackingLifecycle, {
+      operationalStatus: selectedTracking.final_status,
+      complaintActive: isComplaintInProcess(complaintLifecycle) || ["ACTIVE", "PROCESSING", "RETRY PENDING", "MANUAL REVIEW", "QUEUED"].includes(complaintCardState.toUpperCase()),
+      complaintStateLabel: complaintCardState === "ACTIVE" ? "Under Investigation" : complaintCardState,
+    });
     const bookingDate = timeline[0]?.date || "-";
     const lastEvent = timeline[timeline.length - 1] ?? null;
     const lastUpdate = lastEvent ? `${lastEvent.date} ${lastEvent.time}`.trim() : `${detailShipment.latestDate ?? ""} ${detailShipment.latestTime ?? ""}`.trim() || "-";
@@ -2184,7 +2195,7 @@ export default function BulkTracking() {
       consigneeAddress: consignee.consigneeAddress,
       consigneePhone: consignee.consigneePhone,
     };
-  }, [selectedTracking]);
+  }, [selectedTracking, complaintQueueByTracking]);
 
   const selectedComplaintLifecycle = selectedTracking ? parseComplaintLifecycle(selectedTracking.shipment) : null;
   const selectedComplaintQueueSnapshot = selectedTracking ? complaintQueueByTracking.get(selectedTracking.shipment.trackingNumber) : undefined;
@@ -3285,14 +3296,25 @@ export default function BulkTracking() {
             <tbody className="divide-y divide-[#E5E7EB]">
               {paginatedShipments.map((row, index) => {
                 const s = row.shipment;
-                const displayStatus = s.trackingLifecycle?.display_status ?? row.final_status;
                 const actionStatus = row.final_status;
                 const days = s.daysPassed ?? Math.floor((Date.now() - new Date(s.createdAt).getTime()) / (1000 * 60 * 60 * 24));
 
-                const statusUpper = normalizeStatus(displayStatus).toUpperCase();
                 const lifecycle = parseComplaintLifecycle(s);
                 const queueSnapshot = complaintQueueByTracking.get(s.trackingNumber);
                 const complaintCardState = resolveComplaintCardState(lifecycle, queueSnapshot);
+                const rowPresentation = resolveTrackingPresentation(
+                  row.final_status,
+                  extractTimeline(s.rawJson),
+                  s.trackingLifecycle?.progress,
+                  s.trackingLifecycle ?? (((parseRaw(s.rawJson) as any)?.tracking_lifecycle as any) ?? null),
+                  {
+                    operationalStatus: row.final_status,
+                    complaintActive: isComplaintInProcess(lifecycle) || ["ACTIVE", "PROCESSING", "RETRY PENDING", "MANUAL REVIEW", "QUEUED"].includes(complaintCardState.toUpperCase()),
+                    complaintStateLabel: complaintCardState === "ACTIVE" ? "Under Investigation" : complaintCardState,
+                  },
+                );
+                const displayStatus = rowPresentation.displayStatus;
+                const statusUpper = normalizeStatus(displayStatus).toUpperCase();
                 const isComplaintEnabled = isComplaintActionAllowed(actionStatus, lifecycle, queueSnapshot);
                 const complaintActionLabel = resolveComplaintActionLabel(actionStatus, lifecycle, queueSnapshot);
 
@@ -3362,7 +3384,7 @@ export default function BulkTracking() {
                     <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle whitespace-nowrap">
                       <div className="flex flex-col">
                         <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset", isWarning ? "bg-red-100 text-red-700 ring-red-200" : statusBadgeClass(displayStatus))}>
-                          {normalizeStatus(displayStatus)}
+                          {displayStatus}
                         </span>
                           <span className="mt-0.5 text-[10px] text-slate-500">{days}d</span>
                       </div>
@@ -3459,7 +3481,7 @@ export default function BulkTracking() {
                           )}
                         >
                           <MessageSquare className="h-3 w-3" />
-                          {resolveComplaintActionLabel(displayStatus, lifecycle, queueSnapshot)}
+                          {resolveComplaintActionLabel(actionStatus, lifecycle, queueSnapshot)}
                         </button>
                       )}
                     </td>

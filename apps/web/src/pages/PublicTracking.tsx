@@ -61,6 +61,43 @@ type TrackingCollectionResponse = {
   results: TrackingResult[];
 };
 
+type PublicTrackingCacheEntry = {
+  results: TrackingResult[];
+  cachedAt: number;
+};
+
+const PUBLIC_TRACKING_CACHE_PREFIX = "public-tracking-cache-v1";
+const PUBLIC_TRACKING_CACHE_TTL_MS = 10 * 60 * 1000;
+
+function buildPublicTrackingCacheKey(ids: string[]) {
+  return `${PUBLIC_TRACKING_CACHE_PREFIX}:${ids.join(",")}`;
+}
+
+function readPublicTrackingCache(ids: string[]): PublicTrackingCacheEntry | null {
+  if (typeof window === "undefined" || ids.length === 0) return null;
+  try {
+    const raw = window.localStorage.getItem(buildPublicTrackingCacheKey(ids));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PublicTrackingCacheEntry;
+    if (!Array.isArray(parsed?.results) || !Number.isFinite(parsed?.cachedAt)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writePublicTrackingCache(ids: string[], results: TrackingResult[]) {
+  if (typeof window === "undefined" || ids.length === 0) return;
+  try {
+    window.localStorage.setItem(
+      buildPublicTrackingCacheKey(ids),
+      JSON.stringify({ results, cachedAt: Date.now() } satisfies PublicTrackingCacheEntry),
+    );
+  } catch {
+    // Cache write failures should never block tracking rendering.
+  }
+}
+
 function normalizeTrackingIds(value: string) {
   return Array.from(
     new Set(
@@ -88,7 +125,9 @@ function statusIcon(status: string) {
 function TrackingResultCard({ result }: { result: TrackingResult }) {
   const [waModalOpen, setWaModalOpen] = useState(false);
   const [waPhone, setWaPhone] = useState("");
-  const presentation = resolveTrackingPresentation(result.status, result.history ?? result.events ?? [], result.delivery_progress, result.lifecycle);
+  const presentation = resolveTrackingPresentation(result.status, result.history ?? result.events ?? [], result.delivery_progress, result.lifecycle, {
+    operationalStatus: result.status,
+  });
   // Ascending chronology: oldest at top, latest at bottom
   const timeline = presentation.timeline;
   const progress = presentation.progress;
@@ -344,9 +383,17 @@ export default function PublicTracking() {
 
     let active = true;
     const controller = new AbortController();
+    const cached = readPublicTrackingCache(requestedIds);
+    const hasCachedResults = Boolean(cached && cached.results.length > 0);
+
+    if (hasCachedResults) {
+      setResults(cached!.results);
+      setError(null);
+      setLoading(false);
+    }
 
     async function load() {
-      setLoading(true);
+      setLoading(!hasCachedResults);
       setError(null);
       try {
         const base = resolveApiBase();
@@ -356,12 +403,20 @@ export default function PublicTracking() {
         if (!res.ok) throw new Error(body.error ?? `Server error ${res.status}`);
         if (!body.success || !Array.isArray(body.results)) throw new Error("Tracking failed");
         if (!active) return;
-        setResults(body.results);
+        const nextResults = body.results as TrackingResult[];
+        setResults((prev) => {
+          const prevSerialized = JSON.stringify(prev);
+          const nextSerialized = JSON.stringify(nextResults);
+          return prevSerialized === nextSerialized ? prev : nextResults;
+        });
+        writePublicTrackingCache(requestedIds, nextResults);
       } catch (err) {
         if (!active) return;
         if (err instanceof DOMException && err.name === "AbortError") return;
-        setResults([]);
-        setError(err instanceof Error ? err.message : "Tracking failed. Please try again.");
+        if (!hasCachedResults) {
+          setResults([]);
+          setError(err instanceof Error ? err.message : "Tracking failed. Please try again.");
+        }
       } finally {
         if (active) setLoading(false);
       }

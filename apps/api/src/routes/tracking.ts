@@ -67,11 +67,37 @@ type PublicTrackingResponse = {
   error?: string;
 };
 
+type PublicTrackingCacheEntry = {
+  response: PublicTrackingResponse;
+  cachedAt: number;
+};
+
+const PUBLIC_TRACKING_CACHE_TTL_MS = 2 * 60 * 1000;
+const publicTrackingResponseCache = new Map<string, PublicTrackingCacheEntry>();
+
 type ComplaintOfficeMatch = {
   district: string;
   tehsil: string;
   location: string;
 };
+
+function readPublicTrackingResponseCache(trackingNumber: string): PublicTrackingResponse | null {
+  const key = String(trackingNumber ?? "").trim().toUpperCase();
+  if (!key) return null;
+  const cached = publicTrackingResponseCache.get(key);
+  if (!cached) return null;
+  if ((Date.now() - cached.cachedAt) > PUBLIC_TRACKING_CACHE_TTL_MS) {
+    publicTrackingResponseCache.delete(key);
+    return null;
+  }
+  return cached.response;
+}
+
+function writePublicTrackingResponseCache(trackingNumber: string, response: PublicTrackingResponse) {
+  const key = String(trackingNumber ?? "").trim().toUpperCase();
+  if (!key || !response?.success) return;
+  publicTrackingResponseCache.set(key, { response, cachedAt: Date.now() });
+}
 
 function enforceFinalStatus(status: unknown): "Delivered" | "Pending" | "Return" {
   const raw = String(status ?? "").trim();
@@ -1140,8 +1166,12 @@ trackingRouter.get("/public", async (req: Request, res: Response) => {
   const results = await Promise.all(
     ids.map(async (trackingNumber) => {
       try {
+        const cached = readPublicTrackingResponseCache(trackingNumber);
+        if (cached) return cached;
         const result = await pythonTrackOne(trackingNumber, { includeRaw: true });
-        return buildPublicTrackingResponse(result);
+        const response = buildPublicTrackingResponse(result);
+        writePublicTrackingResponseCache(trackingNumber, response);
+        return response;
       } catch (error) {
         if (error instanceof PythonServiceUnavailableError || error instanceof PythonServiceTimeoutError) {
           return buildPublicTrackingResponse(
@@ -1194,8 +1224,12 @@ trackingRouter.get("/public/:trackingNumber", async (req: Request, res: Response
   if (!trackingNumber) return res.status(400).json({ success: false, error: "Invalid tracking number" });
 
   try {
+    const cached = readPublicTrackingResponseCache(trackingNumber);
+    if (cached) return res.json(cached);
     const result = await pythonTrackOne(trackingNumber, { includeRaw: true });
-    return res.json(buildPublicTrackingResponse(result));
+    const response = buildPublicTrackingResponse(result);
+    writePublicTrackingResponseCache(trackingNumber, response);
+    return res.json(response);
   } catch (e) {
     if (e instanceof PythonServiceUnavailableError || e instanceof PythonServiceTimeoutError) {
       return res.json(

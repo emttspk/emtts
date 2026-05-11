@@ -511,6 +511,7 @@ export type TrackingPresentationEvent = {
 
 export type TrackingPresentationModel = {
   displayStatus: string;
+  effectiveStatus: string;
   progress: number;
   activeStage: number;
   stageLabels: string[];
@@ -519,6 +520,12 @@ export type TrackingPresentationModel = {
   showMoneyOrderPanel: boolean;
   moneyOrderNumber: string;
   moneyOrderStatusLabel: string | null;
+};
+
+export type TrackingPresentationOptions = {
+  complaintActive?: boolean;
+  complaintStateLabel?: string | null;
+  operationalStatus?: string | null;
 };
 
 export const SHARED_STAGE_LABELS = TRACKING_STAGE_LABELS;
@@ -636,8 +643,74 @@ function resolveStageModel(status: string, lifecycle?: TrackingLifecycle | null)
   return { activeStage: 4, stageLabels: [...TRACKING_STAGE_LABELS] };
 }
 
+function normalizeOperationalStatus(status: string | null | undefined): string {
+  const upper = text(status).toUpperCase();
+  if (!upper || upper === "-") return "PENDING";
+  if (upper === "DELIVERED WITH PAYMENT") return "DELIVERED";
+  if (upper.includes("DELIVER")) return "DELIVERED";
+  if (upper.includes("RETURN") || upper.includes("RTO")) return "RETURNED";
+  return "PENDING";
+}
+
+function resolveEffectiveDisplayStatus(
+  baseDisplayStatus: string,
+  status: string,
+  lifecycle: TrackingLifecycle | null | undefined,
+  moneyOrderDisplay: { moneyOrderStatusLabel: string | null },
+  options?: TrackingPresentationOptions,
+): string {
+  const complaintActive = Boolean(options?.complaintActive);
+  const operationalStatus = normalizeOperationalStatus(options?.operationalStatus ?? status);
+  const lifecycleDisplay = text(baseDisplayStatus);
+  const lifecycleCurrentStage = text(lifecycle?.current_stage);
+  const state = lifecycleState(status, lifecycle);
+
+  if (complaintActive) {
+    if (isReturnLifecycleState(state)) return lifecycleCurrentStage || lifecycleDisplay || "Under Investigation";
+    return text(options?.complaintStateLabel) || "Under Investigation";
+  }
+
+  if (isReturnLifecycleState(state)) {
+    return lifecycleCurrentStage || lifecycleDisplay || "Return In Transit";
+  }
+
+  if (moneyOrderDisplay.moneyOrderStatusLabel && state !== "DELIVERED") {
+    return moneyOrderDisplay.moneyOrderStatusLabel;
+  }
+
+  if (state === "FAILED_DELIVERY" || state === "FAILED_DELIVERY_PENDING") {
+    return lifecycleCurrentStage || lifecycleDisplay || "Failed Delivery";
+  }
+
+  if (state === "RE_ROUTED_IN_TRANSIT") {
+    return lifecycleCurrentStage || lifecycleDisplay || "Re-routed in Transit";
+  }
+
+  if (state === "OUT_FOR_DELIVERY") {
+    return lifecycleCurrentStage || lifecycleDisplay || "Out for Delivery";
+  }
+
+  if (state === "DELIVERED") {
+    if (operationalStatus !== "DELIVERED") {
+      return moneyOrderDisplay.moneyOrderStatusLabel || "Pending";
+    }
+    return lifecycleDisplay || lifecycleCurrentStage || "Delivered";
+  }
+
+  if (operationalStatus === "RETURNED") return "Returned";
+  if (operationalStatus === "DELIVERED") return moneyOrderDisplay.moneyOrderStatusLabel || lifecycleDisplay || "Delivered";
+
+  return lifecycleCurrentStage || lifecycleDisplay || "Pending";
+}
+
 export function getStatusDisplayColor(status: string): string {
   const s = String(status ?? "").toLowerCase();
+  if (s.includes("investigation") || s.includes("process") || s.includes("active")) {
+    return "bg-blue-50 text-blue-700 border-blue-200";
+  }
+  if (s.includes("payment") || s.includes("mos") || s.includes("umo") || s.includes("fmo")) {
+    return "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200";
+  }
   if (s.includes("deliver")) return "bg-emerald-50 text-emerald-700 border-emerald-200";
   if (s.includes("return")) return "bg-red-50 text-red-700 border-red-200";
   if (s === "rts") return "bg-red-50 text-red-700 border-red-200";
@@ -660,6 +733,8 @@ export function getStatusDisplayColor(status: string): string {
  */
 export function getStatusIconName(status: string): "check_circle" | "alert_circle" | "clock" | "map_pin" | "truck" {
   const s = String(status ?? "").toLowerCase();
+  if (s.includes("investigation") || s.includes("process") || s.includes("active")) return "alert_circle";
+  if (s.includes("payment") || s.includes("mos") || s.includes("umo") || s.includes("fmo")) return "clock";
   if (s.includes("deliver")) return "check_circle";
   if (s.includes("return")) return "alert_circle";
   if (s === "rts" || s.includes("failed")) return "alert_circle";
@@ -814,6 +889,7 @@ export function resolveTrackingPresentation(
   events: TrackingDisplayEventInput[] | undefined,
   deliveryProgress?: number | null,
   lifecycle?: TrackingLifecycle | null,
+  options?: TrackingPresentationOptions,
 ): TrackingPresentationModel {
   const timeline = Array.isArray(events)
     ? events
@@ -848,15 +924,26 @@ export function resolveTrackingPresentation(
 
   const latestEvent = lifecycleLatestEvent ?? timeline[timeline.length - 1] ?? null;
   const stageModel = resolveStageModel(status, lifecycle);
-  const activeStage = stageModel.activeStage;
+  const operationalStatus = normalizeOperationalStatus(options?.operationalStatus ?? status);
+  const complaintActive = Boolean(options?.complaintActive);
+  const state = lifecycleState(status, lifecycle);
+  let stageLabels = [...stageModel.stageLabels];
+  let activeStage = stageModel.activeStage;
+  if (complaintActive && operationalStatus === "PENDING" && !isReturnLifecycleState(state)) {
+    if (!stageLabels.includes("Under Investigation")) {
+      stageLabels.push("Under Investigation");
+    }
+    activeStage = stageLabels.length - 1;
+  }
   const moneyOrderDisplay = resolveMoneyOrderDisplay(lifecycle);
 
   const lifecycleDisplayStatus = text(lifecycle?.display_status);
-  const displayStatus = lifecycleDisplayStatus || getDisplayStatusLabel(activeStage, status);
-  const terminalState = lifecycleState(status, lifecycle);
+  const baseDisplayStatus = lifecycleDisplayStatus || getDisplayStatusLabel(activeStage, status);
+  const displayStatus = resolveEffectiveDisplayStatus(baseDisplayStatus, status, lifecycle, moneyOrderDisplay, options);
+  const terminalState = state;
   const terminal = terminalState === "DELIVERED" || terminalState === "RETURNED";
-  const derivedProgress = stageModel.stageLabels.length > 1
-    ? clampProgress((activeStage / (stageModel.stageLabels.length - 1)) * 100)
+  const derivedProgress = stageLabels.length > 1
+    ? clampProgress((activeStage / (stageLabels.length - 1)) * 100)
     : (TRACKING_STAGE_PROGRESS[Math.max(0, Math.min(activeStage, TRACKING_STAGE_PROGRESS.length - 1))] ?? 10);
   const numericProgress = Number.isFinite(Number(lifecycle?.progress))
     ? clampProgress(Number(lifecycle?.progress))
@@ -867,9 +954,10 @@ export function resolveTrackingPresentation(
 
   return {
     displayStatus,
+    effectiveStatus: displayStatus,
     progress,
     activeStage,
-    stageLabels: stageModel.stageLabels,
+    stageLabels,
     latestEvent,
     timeline,
     showMoneyOrderPanel: moneyOrderDisplay.showMoneyOrderPanel,
