@@ -488,6 +488,32 @@ export async function handleLabelUpload(req: Request, res: Response) {
     if (ordersCount === 0) throw new Error("No rows found");
     if (ordersCount > 5000) throw new Error("Max upload size is 5000 records");
 
+    // Backend guard: block manual uploads where tracking ID prefixes don't match selected shipment type
+    if (barcodeMode === "manual" && shipmentType && shipmentType !== "COURIER") {
+      const prefixForType: Record<string, string> = {
+        COD: "COD", VPL: "VPL", VPP: "VPP", IRL: "IRL", RGL: "RGL", UMS: "UMS", PAR: "PAR",
+      };
+      const expectedPrefix = prefixForType[shipmentType];
+      if (expectedPrefix) {
+        const mismatchedOrders = orders.filter((order) => {
+          const id = String((order as any).TrackingID ?? (order as any).trackingId ?? (order as any).barcode ?? "").trim().toUpperCase();
+          if (!id) return false;
+          return !id.startsWith(expectedPrefix);
+        });
+        if (mismatchedOrders.length > 0) {
+          const detectedPrefixes = [
+            ...new Set(
+              mismatchedOrders.map((o) => {
+                const id = String((o as any).TrackingID ?? (o as any).trackingId ?? (o as any).barcode ?? "").trim().toUpperCase();
+                return id.match(/^([A-Z]+)/)?.[1] ?? "UNKNOWN";
+              }),
+            ),
+          ].join(", ");
+          throw new Error(`Tracking ID prefix mismatch detected. Uploaded file contains ${detectedPrefixes} tracking IDs while selected shipment type is ${shipmentType}.`);
+        }
+      }
+    }
+
     const month = new Date().toISOString().slice(0, 7);
     const usageBefore = await withReconnectRetry(async () => prisma.usageMonthly.findUnique({ where: { userId_month: { userId, month } } }));
     const unitsBefore = (usageBefore?.labelsGenerated ?? 0) + (usageBefore?.labelsQueued ?? 0);

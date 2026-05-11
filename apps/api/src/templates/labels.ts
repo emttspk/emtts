@@ -693,7 +693,7 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
           --a4-width: 210mm;
           --a4-height: 297mm;
           --page-margin: 3mm;
-          --page-safe-width-trim: 0.6mm;
+          --page-safe-width-trim: 2mm;
           --fl-col-gap: 3mm;
           --fl-row-gap: 3mm;
           --fl-page-width: calc(var(--a4-width) - (var(--page-margin) * 2) - var(--page-safe-width-trim));
@@ -730,7 +730,7 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
         .fl-dispatch-date { font-size: 2.1mm; font-weight: 700; line-height: 1.05; }
         .fl-badge { border: 0.3mm solid #000; padding: 0.6mm 1.2mm; font-weight: 900; font-size: 3mm; white-space: nowrap; }
         .fl-barcode-wrap { display: grid; justify-items: center; gap: 0.5mm; }
-        .fl-barcode-image { width: 88mm; height: 9mm; object-fit: contain; display: block; }
+        .fl-barcode-image { width: 100%; max-width: 88mm; height: 9mm; object-fit: contain; display: block; }
         .fl-barcode-fallback { width: 88mm; height: 9mm; border: 0.3mm dashed #000; display: grid; place-items: center; font-weight: 900; font-size: 2.5mm; }
         .fl-tracking { font-family: "Courier New", Courier, monospace; font-weight: 900; letter-spacing: 0.24mm; font-size: 2.4mm; text-align: center; }
         .fl-bottom-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1mm; align-items: stretch; }
@@ -1160,7 +1160,7 @@ function clearBenchmarkSlot(htmlBody: string, slotIndex: number) {
     /(<div class="field strong en" style="left:14\.56mm;top:93\.39mm;width:65\.06mm;font-size:2\.58mm;">)([^<]*)(<\/div>)/g,
     /(<div class="field regular en" style="left:14\.56mm;top:96\.86mm;width:65\.06mm;font-size:2\.13mm;white-space:normal;line-height:1\.06;">)([^<]*)(<\/div>)/g,
     /(<div class="field mono en" style="left:97\.56mm;top:100\.27mm;width:65\.06mm;font-size:2\.13mm;">)([^<]*)(<\/div>)/g,
-    /(<div class="field strong en" style="left:47\.56mm;top:105\.69mm;width:65\.06mm;font-size:4\.(?:58|95)mm(?:;line-height:1\.08)?;">)([^<]*)(<\/div>)/g,
+    /(<div class="field strong en" style="left:47\.56mm;top:105\.69mm;[^"]*">)([^<]*)(<\/div>)/g,
     /(<div class="field regular en" style="left:[0-9.]+mm;top:112\.15mm;width:65\.06mm;font-size:3\.(?:13|35)mm;white-space:normal;line-height:1\.(?:06|12);">)([^<]*)(<\/div>)/g,
     /(<div class="field mono en" style="left:82\.56mm;top:116\.57mm;width:65\.06mm;font-size:4\.(?:13|35)mm(?:;line-height:1\.06)?;">)([^<]*)(<\/div>)/g,
     /(<div class="field mono en" style="left:15\.56mm;top:198\.83mm;width:63\.64mm;font-size:2\.22mm;">)([^<]*)(<\/div>)/g,
@@ -1312,7 +1312,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
   // Sender fields
   out = replaceNth(
     out,
-    /<div class="field strong en" style="left:47\.56mm;top:105\.69mm;width:65\.06mm;font-size:4\.(?:58|95)mm(?:;line-height:1\.08)?;">[^<]*<\/div>/g,
+    /<div class="field strong en" style="left:47\.56mm;top:105\.69mm;[^"]*">[^<]*<\/div>/g,
     slotIndex,
     () => `<div class="field strong en" style="left:47.56mm;top:105.69mm;width:100.06mm;font-size:3.35mm;line-height:1.08;white-space:nowrap;overflow:hidden;">${escapeHtml(senderLine)}</div>`,
   );
@@ -1365,7 +1365,7 @@ function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataU
   const tail = bodyMatch[3];
   const headWithPrintGuard = head.replace(
     /<\/head>/i,
-    `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}${PRINTABLE_FOOTER_CSS}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.half{position:relative;}.page .${PRINTABLE_FOOTER_CLASS_NAME}, .half .${PRINTABLE_FOOTER_CLASS_NAME}{position:absolute;bottom:1.8mm;left:50%;transform:translateX(-50%);width:74%;text-align:center;font-size:9px;font-weight:600;line-height:1.1;box-sizing:border-box;white-space:normal;overflow-wrap:break-word;word-break:normal;z-index:10;}.barcode{left:50% !important;transform:translateX(-50%) !important;}div[style*='left:9.10mm'][style*='top:80.33mm']{left:50% !important;transform:translateX(-50%) !important;text-align:center !important;}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding-top:1.5mm;padding-right:1.35mm;padding-bottom:1mm;padding-left:1.35mm;max-width:68mm;max-height:14mm;font-size:13px;font-family:\"Noto Nastaliq Urdu\",\"Money Order Urdu\",\"Jameel Noori Nastaleeq\",\"Noto Naskh Arabic\",serif;font-weight:700;line-height:1.45;letter-spacing:normal;text-align:center;direction:rtl;unicode-bidi:isolate;white-space:normal;overflow:hidden;text-overflow:clip;font-feature-settings:'kern' 1,'liga' 1,'clig' 1,'calt' 1,'rlig' 1;text-rendering:geometricPrecision;-webkit-font-smoothing:antialiased}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`
+    `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}${PRINTABLE_FOOTER_CSS}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.half{position:relative;}.page .${PRINTABLE_FOOTER_CLASS_NAME}, .half .${PRINTABLE_FOOTER_CLASS_NAME}{position:absolute;bottom:1.8mm;left:50%;transform:translateX(-50%);width:74%;text-align:center;font-size:9px;font-weight:600;line-height:1.1;box-sizing:border-box;white-space:normal;overflow-wrap:break-word;word-break:normal;z-index:10;}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding-top:1.5mm;padding-right:1.35mm;padding-bottom:1mm;padding-left:1.35mm;max-width:68mm;max-height:14mm;font-size:13px;font-family:\"Noto Nastaliq Urdu\",\"Money Order Urdu\",\"Jameel Noori Nastaleeq\",\"Noto Naskh Arabic\",serif;font-weight:700;line-height:1.45;letter-spacing:normal;text-align:center;direction:rtl;unicode-bidi:isolate;white-space:normal;overflow:hidden;text-overflow:clip;font-feature-settings:'kern' 1,'liga' 1,'clig' 1,'calt' 1,'rlig' 1;text-rendering:geometricPrecision;-webkit-font-smoothing:antialiased}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`
   );
   const [frontSheetTemplate, backSheetTemplate] = splitBenchmarkSheets(benchmarkBody);
 

@@ -109,7 +109,7 @@ export default function Upload() {
     if (ppCategory === "general_post" && (shipmentType === null || shipmentType === "VPL" || shipmentType === "VPP" || shipmentType === "COD")) {
       setShipmentType("RGL");
     }
-    if (ppCategory === "value_payable" && (shipmentType === null || shipmentType === "VPL" || shipmentType === "VPP" || shipmentType === "COD")) {
+    if (ppCategory === "value_payable" && shipmentType !== "VPL" && shipmentType !== "VPP") {
       setShipmentType("VPL");
     }
     if (ppCategory === "cod_articles" && shipmentType !== "COD") {
@@ -346,6 +346,39 @@ export default function Upload() {
         const consigneeAddress = String(find("consigneeAddress") ?? "").trim();
         if (!consigneeName || !consigneePhone || !consigneeAddress) {
           throw new Error(`Row ${i + 2}: consigneeName, consigneePhone, and consigneeAddress are required.`);
+        }
+      }
+
+      // Prefix mismatch validation: only when barcodeMode=manual and shipmentType is known
+      if (barcodeMode === "manual" && shipmentType && shipmentType !== "COURIER") {
+        const prefixForType: Record<string, string> = {
+          COD: "COD", VPL: "VPL", VPP: "VPP", IRL: "IRL", RGL: "RGL", UMS: "UMS", PAR: "PAR",
+        };
+        const expectedPrefix = prefixForType[String(shipmentType)];
+        if (expectedPrefix) {
+          const mismatchedRows: Array<{ row: number; trackingId: string; prefix: string }> = [];
+          for (let i = 0; i < rows.length; i += 1) {
+            const row = rows[i] ?? {};
+            const findCol = (name: string) => {
+              const n = normalizeOrderColumnKey(name);
+              const key = Object.keys(row).find((k) => normalizeOrderColumnKey(k) === n);
+              return key ? String(row[key] ?? "") : "";
+            };
+            const rawTracking = (findCol("TrackingID") || findCol("tracking_id") || findCol("barcode")).trim().toUpperCase().replace(/\s+/g, "");
+            if (!rawTracking) continue;
+            const detectedPrefix = rawTracking.match(/^([A-Z]+)/)?.[1] ?? "";
+            if (detectedPrefix && !rawTracking.startsWith(expectedPrefix)) {
+              mismatchedRows.push({ row: i + 2, trackingId: rawTracking, prefix: detectedPrefix });
+            }
+          }
+          if (mismatchedRows.length > 0) {
+            const detectedPrefixes = [...new Set(mismatchedRows.map((r) => r.prefix))].join(", ");
+            const affectedRows = mismatchedRows.slice(0, 5).map((r) => `Row ${r.row} (${r.trackingId})`).join("; ");
+            const more = mismatchedRows.length > 5 ? ` and ${mismatchedRows.length - 5} more` : "";
+            throw new Error(
+              `Tracking ID prefix mismatch detected. Uploaded file contains ${detectedPrefixes} tracking IDs while selected shipment type is ${shipmentType}. Affected: ${affectedRows}${more}.`,
+            );
+          }
         }
       }
 
