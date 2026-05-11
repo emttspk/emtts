@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -7,27 +7,30 @@
 @layer base {
   :root {
     color-scheme: light;
-    --bg: #f8fafc;
-    --surface: rgba(255, 255, 255, 0.82);
+    --bg: #f7f9fc;
+    --surface: rgba(255, 255, 255, 0.9);
     --surface-strong: #ffffff;
-    --text-strong: #0f172a;
-    --text-muted: #475569;
-    --brand: #0b6b3a;
-    --brand-dark: #07552e;
-    --line: #e2e8f0;
+    --text-strong: #111827;
+    --text-muted: #6b7280;
+    --brand: #10b981;
+    --brand-dark: #059669;
+    --line: #e8edf5;
+    --blue: #2563eb;
+    --sidebar: #0a1325;
+    --sidebar-strong: #081225;
   }
 
   html {
-    font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
     background: var(--bg);
     overflow-x: hidden;
   }
 
   body {
     background:
-      radial-gradient(circle at top left, rgba(11, 107, 58, 0.16), transparent 28%),
-      radial-gradient(circle at top right, rgba(15, 23, 42, 0.10), transparent 22%),
-      linear-gradient(180deg, #f8fafc 0%, #eef7f1 54%, #f8fafc 100%);
+      radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 22%),
+      radial-gradient(circle at top right, rgba(16, 185, 129, 0.08), transparent 18%),
+      linear-gradient(180deg, #f7f9fc 0%, #f4f7fb 54%, #f7f9fc 100%);
     color: var(--text-strong);
     overflow-x: hidden;
     @apply antialiased;
@@ -54,26 +57,26 @@
   h4,
   h5,
   h6 {
-    font-family: "Space Grotesk", "Plus Jakarta Sans", ui-sans-serif, sans-serif;
-    letter-spacing: -0.03em;
+    font-family: "Inter", ui-sans-serif, sans-serif;
+    letter-spacing: -0.035em;
   }
 }
 
 @layer components {
   .ui-page {
-    @apply w-full max-w-none px-6 py-10 md:px-8 md:py-12 xl:px-10;
+    @apply w-full max-w-none px-4 py-6 md:px-6 md:py-8 xl:px-8;
   }
 
   .ui-card {
-    @apply rounded-[28px] border border-[color:var(--line)] bg-[color:var(--surface-strong)] shadow-card transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-cardHover;
+    @apply rounded-[20px] border border-[color:var(--line)] bg-[color:var(--surface-strong)] shadow-card transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-cardHover;
   }
 
   .ui-glass {
-    @apply rounded-[28px] border border-white/60 bg-white/70 backdrop-blur-2xl shadow-glass;
+    @apply rounded-[20px] border border-white/80 bg-white/72 backdrop-blur-2xl shadow-glass;
   }
 
   .ui-panel {
-    @apply rounded-[32px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(255,255,255,0.88))] shadow-card;
+    @apply rounded-[24px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,255,255,0.92))] shadow-card;
   }
 
   .ui-section-title {
@@ -81,27 +84,31 @@
   }
 
   .ui-kicker {
-    @apply inline-flex items-center gap-2 rounded-full border border-brand/15 bg-white/80 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-brand shadow-sm backdrop-blur;
+    @apply inline-flex items-center gap-2 rounded-full border border-brand/20 bg-white/90 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-brand shadow-sm backdrop-blur;
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-full bg-brand px-6 py-3.5 text-base font-semibold text-white shadow-glow transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex items-center justify-center rounded-xl border border-transparent bg-[linear-gradient(135deg,#10B981,#0EA5A4)] px-5 py-3 text-sm font-semibold text-white shadow-glow transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-cardHover disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-full border border-slate-200 bg-white/90 px-6 py-3.5 text-base font-semibold text-slate-700 shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-card;
+    @apply inline-flex items-center justify-center rounded-xl border border-[color:var(--line)] bg-white px-5 py-3 text-sm font-semibold text-[color:var(--text-strong)] shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-card;
   }
 
   .btn-ghost {
-    @apply inline-flex items-center justify-center rounded-full border border-white/50 bg-white/60 px-5 py-3 text-sm font-semibold text-slate-700 backdrop-blur-xl transition-all duration-300 hover:border-white hover:bg-white/80;
+    @apply inline-flex items-center justify-center rounded-xl border border-transparent bg-transparent px-4 py-2.5 text-sm font-semibold text-[color:var(--text-muted)] transition-all duration-200 hover:bg-slate-100 hover:text-[color:var(--text-strong)];
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center rounded-xl border border-transparent bg-[linear-gradient(135deg,#EF4444,#DC2626)] px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_38px_rgba(239,68,68,0.2)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_42px_rgba(239,68,68,0.3)];
   }
 
   .field-input {
-    @apply w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-sm outline-none transition-all duration-300 focus:border-brand focus:ring-4 focus:ring-brand/10 placeholder:text-slate-500;
+    @apply w-full rounded-xl border border-[color:var(--line)] bg-white px-4 py-3 text-sm font-medium text-[color:var(--text-strong)] shadow-[0_10px_24px_rgba(8,18,37,0.04)] outline-none transition-all duration-200 focus:border-[#BFDBFE] focus:ring-4 focus:ring-[#DBEAFE] placeholder:text-slate-400;
   }
 
   .ui-table {
-    @apply overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-card;
+    @apply overflow-hidden rounded-[20px] border border-[color:var(--line)] bg-white shadow-card;
   }
 
   .ui-table table {
@@ -157,6 +164,7 @@
 @media (max-width: 768px) {
   .btn-primary,
   .btn-secondary,
+  .btn-danger,
   .btn-ghost {
     @apply min-h-[44px] px-4 py-2.5 text-sm;
   }

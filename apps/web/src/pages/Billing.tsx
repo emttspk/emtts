@@ -6,7 +6,8 @@ import ManualPaymentModal from "../components/ManualPaymentModal";
 import { changePackage, fetchPlans, type Plan } from "../lib/PackageService";
 import type { MeResponse } from "../lib/types";
 import { apiUrl } from "../lib/api";
-import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
+import ActionButton from "../components/ui/ActionButton";
+import { BodyText, CardTitle, PageHeader, PageShell } from "../components/ui/PageSystem";
 
 type ShellCtx = { me: MeResponse | null; refreshMe: () => Promise<void> };
 
@@ -49,10 +50,10 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
   const modeTitle = entryMode === "select" ? "Select Package" : entryMode === "update" ? "Update Package" : "Pricing & Billing";
   const modeSubtitle =
     entryMode === "select"
-      ? "Select a package to start dispatch operations."
+      ? "Choose a package to start dispatching."
       : entryMode === "update"
-        ? "Upgrade or switch your package based on current usage."
-        : "Choose a package built for dispatch teams.";
+        ? "Upgrade or switch based on usage."
+        : "Choose a package for your team.";
 
   useEffect(() => {
     setLoadingPlans(true);
@@ -145,26 +146,23 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
   return (
     <>
       <PageShell className="space-y-6">
-        <div>
-          <PageTitle>{modeTitle}</PageTitle>
-          <BodyText className="mt-1">{modeSubtitle}</BodyText>
-        </div>
+        <PageHeader eyebrow="Billing" title={modeTitle} subtitle={modeSubtitle} />
 
-      <Card className="overflow-hidden border-slate-200 bg-white p-5 shadow-sm">
+      <Card className="overflow-hidden border-slate-200 bg-white p-6 shadow-sm">
         <div className="grid gap-6 lg:grid-cols-[1.35fr_0.65fr] lg:items-center">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-4 py-2 text-sm font-semibold text-brand">
               <Sparkles className="h-4 w-4" />
               {modeTitle}
             </div>
-            <div className="mt-5 text-xl font-semibold text-slate-900">Package Summary</div>
-            <div className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Your current package, usage limits, billing status, and upgrade path are shown here in one surface.</div>
+            <div className="mt-5 text-xl font-semibold text-slate-900">Package summary</div>
+            <div className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Plan, usage, and billing status in one place.</div>
 
             {error ? <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
             {success ? <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div> : null}
             {me?.pendingPayment ? (
               <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                Pending payment for {me.pendingPayment.planName} is waiting for completion. Invoice {me.pendingPayment.invoiceNumber ?? "pending"}.
+                Pending payment for {me.pendingPayment.planName}. Invoice {me.pendingPayment.invoiceNumber ?? "pending"}.
                 <button
                   className="ml-3 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
                   type="button"
@@ -175,7 +173,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
               </div>
             ) : null}
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="rounded-[20px] border border-[color:var(--line)] bg-[#F8FAFC] p-6 shadow-sm">
             <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Active package</div>
             <div className="mt-3 text-3xl font-semibold text-slate-900">{activePlanName}</div>
             <div className="mt-4 grid gap-3 text-sm text-slate-600">
@@ -217,7 +215,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                         <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-700">{discountPct}% OFF</span>
                       </div>
                     ) : null}
-                    <div className="mt-2 text-sm text-gray-600">Total Shared Units: {(plan.unitsIncluded ?? plan.monthlyLabelLimit).toLocaleString()}</div>
+                    <div className="mt-2 text-sm text-gray-600">Shared units: {(plan.unitsIncluded ?? plan.monthlyLabelLimit).toLocaleString()}</div>
                   </div>
                   {isCurrent ? (
                     <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-medium text-white">Current Plan</span>
@@ -231,17 +229,17 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                 <div className="mt-5 space-y-2 text-sm text-gray-600">
                   <div className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-emerald-500" />
-                    Services Included: ✔ Labels ✔ Tracking ✔ Money Orders ✔ Complaints
+                    Labels, tracking, money orders, complaints
                   </div>
                   <div className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-emerald-500" />
-                    Complaint Limits: {plan.dailyComplaintLimit ?? 0}/day, {plan.monthlyComplaintLimit ?? 0}/month
+                    Complaint limits: {plan.dailyComplaintLimit ?? 0}/day, {plan.monthlyComplaintLimit ?? 0}/month
                   </div>
                 </div>
                 {plan.isSuspended ? <div className="mt-3 text-xs font-medium text-red-600">Temporarily suspended by admin.</div> : null}
 
-                <button
-                  className="mt-6 w-full rounded-2xl bg-brand px-4 py-3 text-sm font-medium text-white shadow-lg transition-all duration-300 ease-in-out hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-60"
+                <ActionButton
+                  className="mt-6 w-full"
                   type="button"
                   onClick={() => choosePlan(plan)}
                   disabled={(isCurrent && !canRenewCurrentPlan) || submittingPlanId === plan.id || Boolean(plan.isSuspended)}
@@ -259,16 +257,17 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                             : plan.isSuspended
                               ? "Temporarily Unavailable"
                               : `Buy Now`}
-                </button>
+                </ActionButton>
                 {discountedPrice > 0 && !isCurrent && !plan.isSuspended && (
-                  <button
+                  <ActionButton
                     type="button"
-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
+                    variant="secondary"
+                    className="mt-2 w-full text-xs"
                     disabled={initiatingWalletPlanId === plan.id}
                     onClick={() => initiateWalletPayment(plan)}
                   >
                     {initiatingWalletPlanId === plan.id ? "Creating invoice…" : "Pay via JazzCash / Easypaisa / Bank Transfer"}
-                  </button>
+                  </ActionButton>
                 )}
               </div>
             </Card>

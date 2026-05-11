@@ -5,7 +5,9 @@ import JobsTable from "../components/JobsTable";
 import EmptyState from "../components/EmptyState";
 import { api, buildJobDownloadFallbackName, triggerBrowserDownload } from "../lib/api";
 import type { LabelJob } from "../lib/types";
-import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
+import { Download, FolderKanban } from "lucide-react";
+import ActionButton from "../components/ui/ActionButton";
+import { PageHeader, PageShell } from "../components/ui/PageSystem";
 
 export default function Jobs() {
   const nav = useNavigate();
@@ -64,12 +66,26 @@ export default function Jobs() {
   if (!loading && visibleJobs.length === 0) return <EmptyState onUploadClick={() => nav("/upload")} />;
 
   return (
-    <PageShell className="space-y-3">
+    <PageShell className="space-y-6">
+      <PageHeader
+        eyebrow="Files"
+        title="Jobs and downloads"
+        subtitle="Check processing status and download completed files."
+        actions={
+          <ActionButton variant="secondary" leadingIcon={<Download className="h-4 w-4" />} onClick={() => setParams({ filter: "completed" })}>
+            Ready downloads
+          </ActionButton>
+        }
+      />
+
       <Card className="border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <CardTitle>Jobs</CardTitle>
-            <div className="mt-1 text-sm font-normal text-slate-500">Downloads are now part of the same jobs workflow. Switch between all activity and ready files here.</div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#DCEBFF] bg-[#EFF6FF] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#2563EB]">
+              <FolderKanban className="h-3.5 w-3.5" />
+              Jobs
+            </div>
+            <div className="mt-3 text-sm font-normal text-slate-500">Switch between all jobs and completed downloads.</div>
           </div>
           <div className="inline-flex rounded-2xl border border-[#E5E7EB] bg-[#F8FAF9] p-1 shadow-lg">
             <button

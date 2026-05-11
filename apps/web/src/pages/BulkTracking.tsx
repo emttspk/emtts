@@ -4,6 +4,7 @@ import { useOutletContext, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { UploadCloud, AlertCircle, Eye, MapPin, PackageSearch, BadgeDollarSign, RefreshCw, Printer, Package, CheckCircle2, Clock, TrendingUp, X, MessageSquare, Activity, ChevronRight, Truck, ArrowUpRight, Search } from "lucide-react";
 import Card from "../components/Card";
+import ActionButton from "../components/ui/ActionButton";
 import UnifiedShipmentCards from "../components/UnifiedShipmentCards";
 import SampleDownloadLink from "../components/SampleDownloadLink";
 import { cn } from "../lib/cn";
@@ -23,7 +24,7 @@ import {
   type TrackingPresentationModel,
   type StatusCardFilter,
 } from "../lib/trackingData";
-import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
+import { BodyText, CardTitle, PageHeader, PageShell } from "../components/ui/PageSystem";
 import { useShipmentStats } from "../hooks/useShipmentStats";
 import { PRINT_MARKETING_LINE } from "../lib/printBranding";
 import {
@@ -2968,16 +2969,22 @@ export default function BulkTracking() {
       </button>
       <div className="grid gap-3">
         <div className="min-w-0 w-full flex-1 space-y-3">
+      <PageHeader
+        eyebrow="Tracking"
+        title="Tracking workspace"
+        subtitle="Upload a file and review shipment status, complaints, and delivery progress."
+        actions={<SampleDownloadLink />}
+      />
       <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-      <Card className="w-full min-w-0 overflow-hidden border border-[#E5E7EB] bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_56%,#eefbf3_100%)] p-4 shadow-[0_12px_30px_rgba(15,23,42,0.08)] md:p-5">
+      <Card className="w-full min-w-0 overflow-hidden border border-[color:var(--line)] bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_56%,#eefbf3_100%)] p-5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] md:p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="min-w-0">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
               <Activity className="h-3 w-3" />
               Tracking Workspace
             </div>
-              <div className="mt-2 text-[28px] font-bold uppercase text-slate-900">SHIPMENT STATUS</div>
-            <div className="mt-1 text-sm leading-relaxed text-slate-600">Real-time visibility into every shipment.</div>
+              <div className="mt-2 text-[28px] font-bold tracking-[-0.04em] text-slate-900">Shipment status</div>
+            <div className="mt-1 text-sm leading-relaxed text-slate-600">Live view of every shipment.</div>
           </div>
           <div className="flex shrink-0 items-center gap-3">
             <div className="min-w-[130px] rounded-2xl border border-[#E5E7EB] bg-white p-3">
@@ -3066,9 +3073,8 @@ export default function BulkTracking() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle className="text-xl">Bulk Tracking</CardTitle>
-              <div className="mt-1 text-sm font-normal text-slate-500">Upload CSV/XLS/XLSX using the strict shared sample structure.</div>
+              <div className="mt-1 text-sm font-normal text-slate-500">Upload CSV, XLS, or XLSX using the sample format.</div>
             </div>
-            <SampleDownloadLink />
           </div>
         </div>
 
@@ -3085,11 +3091,11 @@ export default function BulkTracking() {
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50">
                 <UploadCloud className="h-6 w-6 text-gray-600" />
               </div>
-              <div className="mt-4 text-base font-medium text-[#0F172A]">Drag & drop Excel/CSV</div>
+              <div className="mt-4 text-base font-medium text-[#0F172A]">Drop your Excel or CSV file</div>
               <div className="mt-1 text-sm text-gray-600">
                 or{" "}
                 <button type="button" className="font-medium text-brand hover:text-brand" onClick={open}>
-                  click to upload
+                  browse files
                 </button>
               </div>
 
@@ -3134,8 +3140,8 @@ export default function BulkTracking() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              className="btn-secondary text-sm"
+            <ActionButton
+              variant="secondary"
               onClick={() => {
                 submitTrackingRef.current = false;
                 setFile(null);
@@ -3152,9 +3158,8 @@ export default function BulkTracking() {
               }}
             >
               Reset
-            </button>
-            <button
-              className="btn-primary text-sm disabled:opacity-50"
+            </ActionButton>
+            <ActionButton
               disabled={!file || polling.jobStatus === "PROCESSING" || polling.jobStatus === "QUEUED" || uiState === "uploading"}
               onClick={async () => {
                 if (!file) return;
@@ -3195,8 +3200,8 @@ export default function BulkTracking() {
                 }
               }}
             >
-              Start Tracking
-            </button>
+              Start tracking
+            </ActionButton>
           </div>
         </div>
       </Card>

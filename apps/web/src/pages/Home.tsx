@@ -12,7 +12,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7fbf8] text-slate-900">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#F7F9FC,#F4F7FB)] text-slate-900">
       <Navbar />
       <main>
         <HomeHero />

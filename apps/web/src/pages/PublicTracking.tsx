@@ -452,13 +452,13 @@ export default function PublicTracking() {
   const activeResult = results[safeActiveIndex] ?? null;
 
   return (
-    <div className="min-h-screen bg-[#f7fbf8] text-slate-900">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#F7F9FC,#F4F7FB)] text-slate-900">
       <Navbar />
-      <main className="mx-auto w-full max-w-[1080px] px-4 py-10 sm:px-6">
-        <div className="rounded-[28px] border border-emerald-100 bg-white/95 p-6 shadow-[0_20px_50px_rgba(15,23,42,0.10)]">
-          <div className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Parcel Tracking</div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Track Your Shipment</h1>
-          <p className="mt-1 text-sm text-slate-500">Enter one tracking ID or up to 5 comma-separated IDs to view parcel movement without login.</p>
+      <main className="mx-auto w-full max-w-[1120px] px-4 py-10 sm:px-6">
+        <div className="rounded-[28px] border border-[color:var(--line)] bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_60%,#eefbf3_100%)] p-6 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
+          <div className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#2563EB]">Parcel Tracking</div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Track your shipment</h1>
+          <p className="mt-1 text-sm text-slate-500">Enter one tracking ID or up to 5 IDs separated by commas.</p>
           <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-2 sm:flex-row">
             <input
               type="text"
@@ -470,7 +470,7 @@ export default function PublicTracking() {
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(15,23,42,0.22)] transition-all hover:-translate-y-0.5 disabled:opacity-60"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#081225,#10B981)] px-5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)] transition-all hover:-translate-y-0.5 disabled:opacity-60"
             >
               {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
               {loading ? "Tracking..." : "Track"}
@@ -553,10 +553,10 @@ export default function PublicTracking() {
             )}
 
             <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4">
-              <div className="flex-1 text-sm text-slate-600">Need to file a complaint or manage your dispatches?</div>
+              <div className="flex-1 text-sm text-slate-600">Need complaints or dispatch tools?</div>
               <a
                 href="/register"
-                className="inline-flex items-center gap-1.5 rounded-full bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-transform hover:-translate-y-0.5"
+                className="inline-flex items-center gap-1.5 rounded-full bg-[linear-gradient(135deg,#081225,#10B981)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-transform hover:-translate-y-0.5"
               >
                 Create Free Account <ArrowRight className="h-3.5 w-3.5" />
               </a>

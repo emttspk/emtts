@@ -5,6 +5,7 @@ import StatusBadge from "./StatusBadge";
 import { cn } from "../lib/cn";
 import { api, buildJobDownloadFallbackName, triggerBrowserDownload } from "../lib/api";
 import type { LabelJob } from "../lib/types";
+import ActionButton from "./ui/ActionButton";
 
 type SortKey = "id" | "file" | "rows" | "status" | "createdAt";
 type SortDir = "asc" | "desc";
@@ -44,7 +45,7 @@ function DownloadButton(props: { jobId: string; kind: "labels" | "money-orders" 
       type="button"
       onClick={handleDownload}
       disabled={busy}
-      className="inline-flex items-center gap-2 rounded-2xl border bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-lg transition-all duration-300 ease-in-out hover:bg-[#F8FAF9] hover:text-gray-900"
+      className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--line)] bg-white px-3 py-2 text-xs font-semibold text-[color:var(--text-strong)] shadow-sm transition-all duration-200 hover:border-slate-300 hover:bg-slate-50"
     >
       <Download className="h-4 w-4" />
       {busy ? "Preparing..." : label}
@@ -116,37 +117,37 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
   );
 
   return (
-    <Card className="overflow-hidden">
-      <div className="flex items-center justify-between border-b bg-white px-6 py-4">
+    <Card className="overflow-hidden border-[color:var(--line)]">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[color:var(--line)] bg-white px-6 py-5">
         <div>
-          <div className="text-xl font-medium text-gray-900">{props.title ?? "Jobs"}</div>
-          <div className="mt-1 text-sm text-gray-600">Track status and download completed PDFs.</div>
+          <div className="text-xl font-semibold tracking-[-0.03em] text-[color:var(--text-strong)]">{props.title ?? "Jobs"}</div>
+          <div className="mt-1 text-sm text-[color:var(--text-muted)]">Track status and download ready files.</div>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2 text-sm text-gray-600">
-          <div>
-            Sorting: <span className="font-medium text-gray-900">{sortKey}</span> ({sortDir})
+        <div className="flex flex-wrap items-center justify-end gap-2 text-sm text-[color:var(--text-muted)]">
+          <div className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+            {sortKey} {sortDir}
           </div>
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-2xl border bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-lg hover:bg-[#F8FAF9] disabled:opacity-50"
+          <ActionButton
+            variant="danger"
+            className="min-h-[40px] px-3 py-2 text-xs"
+            leadingIcon={<Trash2 className="h-3.5 w-3.5" />}
             onClick={() => submitDeletion(0)}
             disabled={selectedIds.length === 0 || submitting}
           >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete permanently
-          </button>
-          <button
-            type="button"
-            className="rounded-2xl border bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-lg hover:bg-[#F8FAF9] disabled:opacity-50"
+            Delete
+          </ActionButton>
+          <ActionButton
+            variant="secondary"
+            className="min-h-[40px] px-3 py-2 text-xs"
             onClick={() => submitDeletion(7)}
             disabled={selectedIds.length === 0 || submitting}
           >
             Auto-delete in 7 days
-          </button>
+          </ActionButton>
         </div>
       </div>
 
-      <div className="flex items-center justify-between border-b bg-slate-50 px-6 py-3 text-xs text-slate-600">
+      <div className="flex items-center justify-between border-b border-[color:var(--line)] bg-[#F8FAFC] px-6 py-3 text-xs text-slate-600">
         <label className="inline-flex items-center gap-2 font-medium text-slate-700">
           <input
             type="checkbox"
@@ -160,8 +161,8 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
       </div>
 
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+        <table className="min-w-full divide-y divide-[color:var(--line)]">
+          <thead className="sticky top-0 z-10 bg-[#F8FAFC]">
             <tr>
               <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Select</th>
               <Th label="Job ID" k="id" />
@@ -172,12 +173,12 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
               <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wide text-gray-500">Download</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 bg-white">
+          <tbody className="divide-y divide-[color:var(--line)] bg-white">
             {sorted.map((job) => {
               const created = new Date(job.createdAt).toLocaleString();
               const canDelete = job.status !== "QUEUED" && job.status !== "PROCESSING";
               return (
-                <tr key={job.id} className="transition-colors hover:bg-[#F8FAF9]/60">
+                <tr key={job.id} className="transition-colors hover:bg-[#F8FAFC]">
                   <td className="px-5 py-3 text-sm text-gray-600">
                     <input
                       type="checkbox"
@@ -187,8 +188,8 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
                       className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand disabled:opacity-40"
                     />
                   </td>
-                  <td className="px-5 py-3 text-sm font-mono text-gray-600">{job.id}</td>
-                  <td className="px-5 py-3 text-sm font-medium text-gray-900">{job.originalFilename}</td>
+                  <td className="px-5 py-3 text-sm font-mono text-slate-600">{job.id}</td>
+                  <td className="px-5 py-3 text-sm font-semibold text-[color:var(--text-strong)]">{job.originalFilename}</td>
                   <td className="px-5 py-3 text-right text-sm text-gray-700">{job.recordCount.toLocaleString()}</td>
                   <td className="px-5 py-3 text-sm">
                     <StatusBadge status={job.status} />
