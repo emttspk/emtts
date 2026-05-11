@@ -1279,7 +1279,6 @@ export default function BulkTracking() {
   function applyShipmentsSnapshot(allRows: Shipment[], total: number) {
     setShipments(allRows);
     setTotalShipments(total || allRows.length);
-    enqueueBackgroundRefresh(allRows);
   }
 
   function queueOptimisticComplaintState(input: { trackingId: string; status: ComplaintQueueSnapshot["complaintStatus"]; complaintId?: string; dueDate?: string }) {
