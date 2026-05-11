@@ -21,7 +21,7 @@ import {
 } from "../lib/trackingData";
 import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
 import { useShipmentStats } from "../hooks/useShipmentStats";
-import { PRINT_MARKETING_LINE } from "../../../api/src/lib/printBranding";
+import { PRINT_MARKETING_LINE } from "../lib/printBranding";
 
 type Shipment = BaseShipment & {
   shipmentType?: string | null;
