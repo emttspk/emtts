@@ -17,10 +17,8 @@ import {
   computeStats,
   filterFinalTrackingData,
   getFinalTrackingData,
-  getEventStageLabel,
   getStatusDisplayColor,
   resolveTrackingPresentation,
-  SHARED_STAGE_LABELS,
   type FinalTrackingRecord,
   type TrackingPresentationModel,
   type StatusCardFilter,
@@ -2174,7 +2172,7 @@ export default function BulkTracking() {
     const deliveryOffice = String(raw?.resolved_delivery_office ?? (raw?.tracking as any)?.delivery_office ?? raw?.Delivery_Office ?? raw?.delivery_office ?? raw?.deliveryOffice ?? fields.consigneeCity ?? "").trim() || "-";
     return {
       fields,
-      timeline,
+      timeline: presentation.timeline,
       presentation,
       bookingDate,
       lastUpdate,
@@ -4233,6 +4231,7 @@ export default function BulkTracking() {
                 <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Last Update</div><div className="mt-1 text-xs font-semibold text-slate-900">{trackingDetailData.lastUpdate}</div></div>
                 <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Latest Event</div><div className="mt-1 text-xs font-semibold text-slate-900">{trackingDetailData.presentation.latestEvent?.description || "-"}</div></div>
                 <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">MO Value</div><div className="mt-1 text-xs font-semibold text-emerald-700">{trackingDetailData.moValue != null ? `Rs ${trackingDetailData.moValue.toLocaleString()}` : "-"}</div></div>
+                {trackingDetailData.presentation.showMoneyOrderPanel ? <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Value Payable State</div><div className="mt-1 text-xs font-semibold text-slate-900">{trackingDetailData.presentation.moneyOrderStatusLabel}</div></div> : null}
                 <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Origin City</div><div className="mt-1 text-xs font-semibold text-slate-900">{trackingDetailData.bookingOffice}</div></div>
                 <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Delivery City</div><div className="mt-1 text-xs font-semibold text-slate-900">{trackingDetailData.deliveryOffice}</div></div>
                 <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Complaint Count</div><div className="mt-1 text-xs font-semibold text-slate-900">{selectedComplaintLifecycle?.complaintCount ?? 0}</div></div>
@@ -4277,11 +4276,11 @@ export default function BulkTracking() {
                   <aside className="rounded-2xl border border-[#E5E7EB] bg-slate-50 p-3">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Shipment Stages</div>
                     <ol className="relative mt-3 space-y-2.5">
-                      {SHARED_STAGE_LABELS.map((stage, idx) => {
+                      {trackingDetailData.presentation.stageLabels.map((stage, idx) => {
                         const isDone = idx <= trackingDetailData.presentation.activeStage;
                         return (
                           <li key={`${selectedTracking.shipment.trackingNumber}-${stage}`} className="relative pl-6 text-xs font-semibold text-slate-600">
-                            {idx < SHARED_STAGE_LABELS.length - 1 ? (
+                            {idx < trackingDetailData.presentation.stageLabels.length - 1 ? (
                               <span className={cn("absolute left-[8px] top-4 h-7 w-[2px]", idx < trackingDetailData.presentation.activeStage ? "bg-emerald-400" : "bg-slate-300")} />
                             ) : null}
                             <span className={cn("absolute left-0 top-1.5 h-4 w-4 rounded-full border", isDone ? "border-emerald-500 bg-emerald-500" : "border-slate-300 bg-white")} />
@@ -4301,7 +4300,7 @@ export default function BulkTracking() {
                           <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 shadow-sm">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <div className="text-xs font-semibold text-slate-800">{item.description || "Update"}</div>
-                              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">{getEventStageLabel(item.description)}</span>
+                              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">{item.stageLabel}</span>
                             </div>
                             <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
                               {item.date ? <span>{item.date}</span> : null}

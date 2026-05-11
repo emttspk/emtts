@@ -399,6 +399,24 @@ function extractMoneyOrderNumber(raw: unknown, events: NormalizedEvent[]): strin
   return "";
 }
 
+function isMoneyOrderOnlyEvent(event: NormalizedEvent): boolean {
+  const description = lower(event.description);
+  const hasMoneyOrderSignal = /\b(?:mos|umo|fmo|money order)\b/i.test(description);
+  if (!hasMoneyOrderSignal) return false;
+  return !(
+    description.includes("to rts") ||
+    description.includes("returned to sender") ||
+    description.includes("returned to booking office") ||
+    description.includes("received at booking dmo after return") ||
+    description.includes("delivered to sender") ||
+    description.includes("return to sender")
+  );
+}
+
+function isReturnFlowStatus(status: NonStuckLifecycleStatus): boolean {
+  return ["RTS", "RETURN_IN_TRANSIT", "RETURN_PENDING_AT_BOOKING_CITY", "RETURNED"].includes(status);
+}
+
 function resolveBaseStatus(
   sourceStatus: string,
   meta: PatchedTrackingMeta | null | undefined,
@@ -428,6 +446,7 @@ function resolveBaseStatus(
   const deliveryOfficesSeen = new Set<string>();
 
   for (const event of events) {
+    const moneyOrderOnlyEvent = isMoneyOrderOnlyEvent(event);
     const deliveryOfficeKey = cleanOfficeText(event.to_role === "DELIVERY_OFFICE" ? event.to_office : event.office_role === "DELIVERY_OFFICE" ? event.location : "");
 
     if (event.semantic === "DELIVERED") {
@@ -459,37 +478,33 @@ function resolveBaseStatus(
       continue;
     }
 
-    if (["DMO_DISPATCH", "DISTRICT_TRANSIT", "HUB_PROCESSING", "DELIVERY_OFFICE_RECEIVED", "OUT_FOR_DELIVERY", "RETURN_ARRIVED", "RETURN_IN_TRANSIT"].includes(event.semantic)) {
+    if (!moneyOrderOnlyEvent && ["DMO_DISPATCH", "DISTRICT_TRANSIT", "HUB_PROCESSING", "DELIVERY_OFFICE_RECEIVED", "OUT_FOR_DELIVERY", "RETURN_ARRIVED", "RETURN_IN_TRANSIT"].includes(event.semantic)) {
       if (deliveredIndex >= 0 && event.index > deliveredIndex) deliveryInvalidatedIndex = event.index;
     }
 
-    if (deliveryOfficeKey) {
+    if (deliveryOfficeKey && !moneyOrderOnlyEvent) {
       if (deliveryOfficesSeen.size > 0 && !deliveryOfficesSeen.has(deliveryOfficeKey) && failedDeliveryIndex >= 0) {
         rerouteCount += 1;
       }
       deliveryOfficesSeen.add(deliveryOfficeKey);
     }
 
-    if ((event.semantic === "DMO_DISPATCH" || event.semantic === "DISTRICT_TRANSIT") && event.to_role === "DELIVERY_OFFICE" && failedDeliveryIndex >= 0) {
+    if (!moneyOrderOnlyEvent && (event.semantic === "DMO_DISPATCH" || event.semantic === "DISTRICT_TRANSIT") && event.to_role === "DELIVERY_OFFICE" && failedDeliveryIndex >= 0) {
       forwardDeliveryOfficeAfterFailure = true;
       rerouteCount += 1;
     }
 
-    if (failedDeliveryIndex >= 0 && event.index > failedDeliveryIndex && eventMovesTowardOrigin(event, originCity)) {
+    if (!moneyOrderOnlyEvent && failedDeliveryIndex >= 0 && event.index > failedDeliveryIndex && eventMovesTowardOrigin(event, originCity)) {
       reverseMovementIndex = Math.max(reverseMovementIndex, event.index);
     }
   }
 
-  const deliveredWithMoneyOrderComplete =
-    cycleInterpretation?.final_status === "DELIVERED WITH PAYMENT" &&
-    cycleInterpretation?.mos_status === "COMPLETED" &&
-    deliveredIndex >= 0;
-  // For value-payable articles (VPL/VPP/COD), delivery is only closed when MOS is COMPLETED.
-  // An attempted delivery with pending/missing MOS stays operationally pending (not DELIVERED).
   const plainDeliveredIsValid = deliveredIndex >= 0 && deliveredIndex > Math.max(deliveryInvalidatedIndex, failedDeliveryIndex, rtsIndex, reverseMovementIndex, returnCompletedIndex);
-  const deliveredIsStillValid = isValuePayable
-    ? deliveredWithMoneyOrderComplete
-    : deliveredWithMoneyOrderComplete || plainDeliveredIsValid;
+  const paymentSettled =
+    cycleInterpretation?.final_status === "DELIVERED WITH PAYMENT" ||
+    cycleInterpretation?.mos_status === "COMPLETED";
+  // Value-payable delivery can close only if the delivery event is still valid and payment settled.
+  const deliveredIsStillValid = plainDeliveredIsValid && (!isValuePayable || paymentSettled);
   const latestSemantic = latestMeaningfulEvent?.semantic ?? "UNKNOWN";
   const returnFlowDetected = returnCompletedIndex >= 0 || rtsIndex >= 0 || reverseMovementIndex >= 0 || latestSemantic === "RETURN_IN_TRANSIT" || latestSemantic === "RETURN_ARRIVED";
   const latestTargetsDeliveryOffice = latestMeaningfulEvent?.to_role === "DELIVERY_OFFICE" || latestMeaningfulEvent?.office_role === "DELIVERY_OFFICE";
@@ -692,13 +707,14 @@ function resolveStage(baseStatus: NonStuckLifecycleStatus): { activeStage: numbe
 
 function displayStatusFor(status: TrackingLifecycleStatus, underlyingStatus: NonStuckLifecycleStatus): string {
   if (status === "STUCK") {
+    if (underlyingStatus === "RTS") return "RTS in Progress";
+    if (underlyingStatus === "RETURN_IN_TRANSIT") return "Return in Transit";
+    if (underlyingStatus === "RETURN_PENDING_AT_BOOKING_CITY") return "Return Pending at Booking City";
     if (underlyingStatus === "AT_HUB") return "Stuck at Hub";
     if (underlyingStatus === "IN_TRANSIT_TO_DELIVERY_OFFICE") return "Stuck in Transit to Delivery Office";
     if (underlyingStatus === "OUT_FOR_DELIVERY") return "Stuck Out for Delivery";
     if (underlyingStatus === "BOOKED") return "Stuck after Booking";
     if (underlyingStatus === "RE_ROUTED_IN_TRANSIT") return "Stuck in Re-route Transit";
-    if (underlyingStatus === "RETURN_IN_TRANSIT") return "Stuck in Return Transit";
-    if (underlyingStatus === "RETURN_PENDING_AT_BOOKING_CITY") return "Stuck at Booking City During Return";
     return "Stuck in Transit";
   }
   if (status === "IN_TRANSIT_TO_DELIVERY_OFFICE") return "In Transit to Delivery Office";
@@ -749,14 +765,19 @@ function resolveMoneyOrderStatus(
   raw: unknown,
   cycleInterpretation: TrackingCycleInterpretation | null | undefined,
   events: NormalizedEvent[],
+  underlyingStatus: NonStuckLifecycleStatus,
 ): "NOT_REQUIRED" | "PENDING" | "IN_PROGRESS" | "COMPLETED" {
+  if (isReturnFlowStatus(underlyingStatus)) {
+    return "NOT_REQUIRED";
+  }
+
   if (cycleInterpretation?.final_status === "DELIVERED WITH PAYMENT" || cycleInterpretation?.mos_status === "COMPLETED") {
     return "COMPLETED";
   }
 
   const moSignals = events.some((event) => {
     const description = lower(event.description);
-    return description.includes("mos") || description.includes("money order") || description.includes("delivered to sender");
+    return /\b(?:mos|umo|fmo|money order)\b/i.test(description);
   });
   if (moSignals || cycleInterpretation?.mos_status === "IN_PROGRESS") return "IN_PROGRESS";
   if (resolveMoneyOrderRequired(trackingNumber, raw)) return "PENDING";
@@ -855,7 +876,7 @@ export function buildTrackingLifecycleResolution(input: {
     stuck_bucket: shouldMarkStuck ? stuckBucket : "NONE",
     inactivity_days: inactivityDays,
     complaint_enabled: Boolean(input.meta?.complaint_enabled),
-    money_order_status: resolveMoneyOrderStatus(input.trackingNumber, input.raw, input.cycleInterpretation, normalizedEvents),
+    money_order_status: resolveMoneyOrderStatus(input.trackingNumber, input.raw, input.cycleInterpretation, normalizedEvents, underlyingStatus),
     money_order_number: extractMoneyOrderNumber(input.raw, normalizedEvents),
     cycle_type: text(input.cycleInterpretation?.cycle_type) || "UNKNOWN",
     cycle_status: text(input.cycleInterpretation?.cycle_status) || "IN_PROGRESS",

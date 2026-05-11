@@ -513,11 +513,128 @@ export type TrackingPresentationModel = {
   displayStatus: string;
   progress: number;
   activeStage: number;
+  stageLabels: string[];
   latestEvent: TrackingPresentationEvent | null;
   timeline: TrackingPresentationEvent[];
+  showMoneyOrderPanel: boolean;
+  moneyOrderNumber: string;
+  moneyOrderStatusLabel: string | null;
 };
 
 export const SHARED_STAGE_LABELS = TRACKING_STAGE_LABELS;
+
+const RETURN_STAGE_LABELS = [
+  "Booked",
+  "In Transit",
+  "Out for Delivery",
+  "Failed Delivery",
+  "Return In Transit",
+  "Return Pending at Booking City",
+  "Returned to Sender",
+] as const;
+
+const FAILURE_STAGE_LABELS = [
+  "Booked",
+  "In Transit",
+  "Out for Delivery",
+  "Failed Delivery",
+] as const;
+
+const RE_ROUTED_STAGE_LABELS = [
+  "Booked",
+  "In Transit",
+  "Out for Delivery",
+  "Failed Delivery",
+  "Re-routed in Transit",
+] as const;
+
+function lifecycleState(status: string, lifecycle?: TrackingLifecycle | null): string {
+  return text(lifecycle?.underlying_status || lifecycle?.normalized_status || status).toUpperCase();
+}
+
+function isReturnLifecycleState(state: string): boolean {
+  return ["RTS", "RETURN_IN_TRANSIT", "RETURN_PENDING_AT_BOOKING_CITY", "RETURNED"].includes(state);
+}
+
+function resolveMoneyOrderTypeLabel(lifecycle?: TrackingLifecycle | null): string {
+  const moneyOrderNumber = text(lifecycle?.money_order_number).toUpperCase();
+  if (/^(MOS|UMO|FMO)/.test(moneyOrderNumber)) return moneyOrderNumber.slice(0, 3);
+  return "Payment";
+}
+
+function resolveMoneyOrderDisplay(lifecycle?: TrackingLifecycle | null): {
+  showMoneyOrderPanel: boolean;
+  moneyOrderNumber: string;
+  moneyOrderStatusLabel: string | null;
+} {
+  const moneyOrderStatus = text(lifecycle?.money_order_status).toUpperCase();
+  const state = lifecycleState("", lifecycle);
+  if (!lifecycle || !moneyOrderStatus || moneyOrderStatus === "NOT_REQUIRED" || isReturnLifecycleState(state)) {
+    return {
+      showMoneyOrderPanel: false,
+      moneyOrderNumber: text(lifecycle?.money_order_number),
+      moneyOrderStatusLabel: null,
+    };
+  }
+
+  const typeLabel = resolveMoneyOrderTypeLabel(lifecycle);
+  const pendingLabel = typeLabel === "Payment" ? "Payment Pending" : `${typeLabel} Pending`;
+  const settledLabel = typeLabel === "Payment" ? "Payment Settled" : `${typeLabel} Settled`;
+
+  return {
+    showMoneyOrderPanel: true,
+    moneyOrderNumber: text(lifecycle?.money_order_number),
+    moneyOrderStatusLabel: moneyOrderStatus === "COMPLETED" ? settledLabel : pendingLabel,
+  };
+}
+
+function resolveStageModel(status: string, lifecycle?: TrackingLifecycle | null): { activeStage: number; stageLabels: string[] } {
+  const state = lifecycleState(status, lifecycle);
+  const moneyOrderStatus = text(lifecycle?.money_order_status).toUpperCase();
+  const latestDescription = text(lifecycle?.latest_event?.description).toLowerCase();
+  const hasDeliveredToAddressee = latestDescription.includes("delivered") && latestDescription.includes("addresse");
+
+  if (isReturnLifecycleState(state)) {
+    if (state === "RETURNED") return { activeStage: 6, stageLabels: [...RETURN_STAGE_LABELS] };
+    if (state === "RETURN_PENDING_AT_BOOKING_CITY") return { activeStage: 5, stageLabels: [...RETURN_STAGE_LABELS] };
+    return { activeStage: 4, stageLabels: [...RETURN_STAGE_LABELS] };
+  }
+
+  if (state === "RE_ROUTED_IN_TRANSIT") {
+    return { activeStage: 4, stageLabels: [...RE_ROUTED_STAGE_LABELS] };
+  }
+
+  if (state === "FAILED_DELIVERY" || state === "FAILED_DELIVERY_PENDING") {
+    return { activeStage: 3, stageLabels: [...FAILURE_STAGE_LABELS] };
+  }
+
+  if (moneyOrderStatus && moneyOrderStatus !== "NOT_REQUIRED") {
+    const typeLabel = resolveMoneyOrderTypeLabel(lifecycle);
+    const pendingLabel = typeLabel === "Payment" ? "Payment Pending" : `${typeLabel} Pending`;
+    const settledLabel = typeLabel === "Payment" ? "Payment Settled" : `${typeLabel} Settled`;
+    const stageLabels = ["Booked", "In Transit", "Out for Delivery", "Delivered", pendingLabel, settledLabel];
+
+    if (moneyOrderStatus === "COMPLETED") {
+      return { activeStage: 5, stageLabels };
+    }
+    if (state === "DELIVERED" || hasDeliveredToAddressee) {
+      return { activeStage: 4, stageLabels };
+    }
+    if (state === "OUT_FOR_DELIVERY") {
+      return { activeStage: 2, stageLabels };
+    }
+    if (state === "BOOKED") {
+      return { activeStage: 0, stageLabels };
+    }
+    return { activeStage: 1, stageLabels };
+  }
+
+  if (state === "BOOKED") return { activeStage: 0, stageLabels: [...TRACKING_STAGE_LABELS] };
+  if (["IN_TRANSIT", "PENDING"].includes(state)) return { activeStage: 1, stageLabels: [...TRACKING_STAGE_LABELS] };
+  if (["IN_TRANSIT_TO_DELIVERY_OFFICE", "AT_HUB"].includes(state)) return { activeStage: 2, stageLabels: [...TRACKING_STAGE_LABELS] };
+  if (state === "OUT_FOR_DELIVERY") return { activeStage: 3, stageLabels: [...TRACKING_STAGE_LABELS] };
+  return { activeStage: 4, stageLabels: [...TRACKING_STAGE_LABELS] };
+}
 
 export function getStatusDisplayColor(status: string): string {
   const s = String(status ?? "").toLowerCase();
@@ -579,14 +696,32 @@ export function getEventBadgeLabel(description: string): string {
     t.includes("to rts")
   ) return "Returned to Sender";
 
-  // MOS / UMO / FMO payment settled
+  const hasMoneyOrderSignal = /\b(?:mos|umo|fmo|money order)\b/i.test(t);
+
   if (
-    t.includes("mos") ||
-    t.includes("money order") ||
-    t.includes("payment settled") ||
-    t.includes("fmo") ||
-    (t.includes("umo") && !t.includes("undelivered"))
+    hasMoneyOrderSignal && (
+      t.includes("payment settled") ||
+      (t.includes("delivered") && t.includes("to addresse"))
+    )
   ) return "Payment Settled";
+
+  if (hasMoneyOrderSignal && (t.includes("sent out for delivery") || t.includes("out for delivery"))) {
+    return "Out for Delivery";
+  }
+
+  if (hasMoneyOrderSignal && (t.includes("dispatch") || t.includes("movement") || t.includes("in transit"))) {
+    return "In Transit";
+  }
+
+  if (hasMoneyOrderSignal && (t.includes("booked") || t.includes("booking"))) {
+    return "Booked";
+  }
+
+  if (
+    (t.includes("arrival") || t.includes("arrived") || t.includes("received at")) &&
+    t.includes("delivery office") &&
+    (t.includes("return") || t.includes("rts") || t.includes("booking"))
+  ) return "Return Pending at Booking City";
 
   // Explicit delivery to addressee only (not to delivery office)
   if (
@@ -610,15 +745,15 @@ export function getEventBadgeLabel(description: string): string {
   if (
     (t.includes("return") && t.includes("dispatch")) ||
     (t.includes("return") && t.includes("transit")) ||
+    (t.includes("dispatch") && t.includes("rts")) ||
     t.includes("return to sender") ||
     t.includes("returned to sender")
   ) return "Return In Transit";
 
-  // Arrival at delivery office — could be return pending or regular in-transit arrival
   if (
     (t.includes("arrival") || t.includes("arrived") || t.includes("received at")) &&
     t.includes("delivery office")
-  ) return "Return Pending";
+  ) return "In Transit";
 
   // Standard dispatch to delivery office
   if (t.includes("dispatch") && (t.includes("delivery office") || t.includes("dmo"))) return "In Transit";
@@ -712,19 +847,17 @@ export function resolveTrackingPresentation(
     : null;
 
   const latestEvent = lifecycleLatestEvent ?? timeline[timeline.length - 1] ?? null;
-  let activeStage = Number.isFinite(Number(lifecycle?.active_stage))
-    ? Math.max(0, Math.min(4, Number(lifecycle?.active_stage)))
-    : latestEvent
-      ? getStatusStageIndex(latestEvent.description)
-      : getStatusStageIndex(status);
-  if (timeline.length > 0 && activeStage === 0 && String(status ?? "").toLowerCase().includes("pending")) {
-    activeStage = 1;
-  }
+  const stageModel = resolveStageModel(status, lifecycle);
+  const activeStage = stageModel.activeStage;
+  const moneyOrderDisplay = resolveMoneyOrderDisplay(lifecycle);
 
   const lifecycleDisplayStatus = text(lifecycle?.display_status);
   const displayStatus = lifecycleDisplayStatus || getDisplayStatusLabel(activeStage, status);
-  const terminal = displayStatus === "Delivered" || displayStatus === "Returned";
-  const derivedProgress = TRACKING_STAGE_PROGRESS[Math.max(0, Math.min(activeStage, TRACKING_STAGE_PROGRESS.length - 1))] ?? 10;
+  const terminalState = lifecycleState(status, lifecycle);
+  const terminal = terminalState === "DELIVERED" || terminalState === "RETURNED";
+  const derivedProgress = stageModel.stageLabels.length > 1
+    ? clampProgress((activeStage / (stageModel.stageLabels.length - 1)) * 100)
+    : (TRACKING_STAGE_PROGRESS[Math.max(0, Math.min(activeStage, TRACKING_STAGE_PROGRESS.length - 1))] ?? 10);
   const numericProgress = Number.isFinite(Number(lifecycle?.progress))
     ? clampProgress(Number(lifecycle?.progress))
     : typeof deliveryProgress === "number" && Number.isFinite(deliveryProgress)
@@ -736,8 +869,12 @@ export function resolveTrackingPresentation(
     displayStatus,
     progress,
     activeStage,
+    stageLabels: stageModel.stageLabels,
     latestEvent,
     timeline,
+    showMoneyOrderPanel: moneyOrderDisplay.showMoneyOrderPanel,
+    moneyOrderNumber: moneyOrderDisplay.moneyOrderNumber,
+    moneyOrderStatusLabel: moneyOrderDisplay.moneyOrderStatusLabel,
   };
 }
 
