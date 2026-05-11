@@ -553,7 +553,7 @@ const worker = new Worker(
       autoGenerateTracking?: boolean;
       generateMoneyOrder?: boolean;
         barcodeMode?: "manual" | "auto";
-      printMode?: "labels" | "envelope" | "flyer";
+      printMode?: "labels" | "envelope" | "envelope-premium" | "flyer";
       trackingScheme?: "standard" | "rl" | "ums";
       trackAfterGenerate?: boolean;
       carrierType?: "pakistan_post" | "courier";
@@ -765,7 +765,13 @@ const worker = new Worker(
         console.warn(`[BarcodeValidation] ${preValidationWarnings.length} rows with missing tracking IDs:`, preValidationWarnings.slice(0, 10));
       }
 
-      const outputMode = printMode === "envelope" ? "envelope" : printMode === "flyer" ? "flyer" : "labels";
+      const outputMode = printMode === "envelope"
+        ? "envelope"
+        : printMode === "envelope-premium"
+          ? "envelope-premium"
+          : printMode === "flyer"
+            ? "flyer"
+            : "labels";
       const labelOrders = prepareLabelOrders(orders, {
         autoGenerateTracking: autoGenerateTracking === true,
         barcodeMode: barcodeMode === "manual" ? "manual" : "auto",
@@ -978,7 +984,7 @@ const worker = new Worker(
       if (doGenerateLabels) {
         console.log(`[Worker] Generating Labels PDF for job ${jobId}`);
         console.log("TEMPLATE:", printMode);
-        console.log("TEMPLATE USED:", outputMode === "envelope" ? "label-envelope-9x4.html via envelopeHtml(labels.ts)" : outputMode === "flyer" ? "label-flyer-a4.html via flyerHtml(labels.ts)" : "label-box-a4.html via labelsHtml(labels.ts)");
+        console.log("TEMPLATE USED:", outputMode === "envelope-premium" ? "label-envelope-10-premium-9x4.html via premiumEnvelopeHtml(labels.ts)" : outputMode === "envelope" ? "label-envelope-9x4.html via envelopeHtml(labels.ts)" : outputMode === "flyer" ? "label-flyer-a4.html via flyerHtml(labels.ts)" : "label-box-a4.html via labelsHtml(labels.ts)");
         ensureGeneratedOutputDirSync();
         console.log(`[Worker] Labels generation starting. Output directory: ${outputsDir()}`);
         const html = renderLabelDocumentHtml(labelOrdersForRender, {
@@ -991,7 +997,7 @@ const worker = new Worker(
         if (!String(html ?? "").trim() || labelsHtmlSize < 200) {
           throw new Error(`Labels HTML is empty or too small (${labelsHtmlSize} bytes)`);
         }
-        const pdfData = await htmlToPdfBuffer(html, browser, outputMode === "envelope" ? "envelope-9x4" : "A4");
+        const pdfData = await htmlToPdfBuffer(html, browser, outputMode === "envelope" || outputMode === "envelope-premium" ? "envelope-9x4" : "A4");
         const pdfBuffer = Buffer.from(pdfData);
         console.log(`[Worker] Labels PDF buffer size: ${pdfBuffer.length} bytes`);
         if (pdfBuffer.length <= 0) {

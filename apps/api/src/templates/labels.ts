@@ -27,7 +27,7 @@ export type LabelOrder = OrderRecord & {
   moneyOrderNumbers?: string[];
 };
 
-export type LabelPrintMode = "labels" | "envelope" | "flyer";
+export type LabelPrintMode = "labels" | "envelope" | "envelope-premium" | "flyer";
 
 function escapeHtml(input: unknown) {
   return String(input ?? "")
@@ -438,6 +438,24 @@ export function generateLabelBarcodeBase64(text: string) {
   }
 }
 
+function generatePremiumEnvelopeBarcodeBase64(text: string) {
+  try {
+    const value = String(text ?? "").trim();
+    if (!value || value === "-") return "";
+    const canvas = createCanvas(560, 100);
+    JsBarcode(canvas, value, {
+      format: "CODE128",
+      displayValue: false,
+      margin: 0,
+      height: 74,
+      width: 2,
+    });
+    return canvas.toDataURL("image/png");
+  } catch {
+    return "";
+  }
+}
+
 export function labelsHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: boolean; includeMoneyOrders?: boolean }) {
   const autoGenerateTracking = opts?.autoGenerateTracking === true;
   const template = loadBoxTemplate();
@@ -571,6 +589,9 @@ export function renderLabelDocumentHtml(
   opts?: { autoGenerateTracking?: boolean; includeMoneyOrders?: boolean; outputMode?: LabelPrintMode },
 ) {
   const outputMode = opts?.outputMode ?? "labels";
+  if (outputMode === "envelope-premium") {
+    return premiumEnvelopeHtml(orders, opts);
+  }
   if (outputMode === "envelope") {
     return envelopeHtml(orders, opts);
   }
@@ -590,7 +611,7 @@ export function previewLabelHtml(opts?: {
   const shipmentType = String(opts?.shipmentType ?? "PAR").trim().toUpperCase() || "PAR";
   const includeMoneyOrders = opts?.includeMoneyOrders === true;
   const outputMode = opts?.outputMode ?? "labels";
-  const sampleCount = outputMode === "flyer" ? 8 : outputMode === "envelope" ? 2 : 4;
+  const sampleCount = outputMode === "flyer" ? 8 : outputMode === "envelope" || outputMode === "envelope-premium" ? 2 : 4;
   const sampleOrders = Array.from({ length: sampleCount }, (_, index) => {
     const trackingNumber = buildTrackingId(index + 1, new Date(), shipmentType);
     const grossAmount = 500 + index * 125;
@@ -1561,6 +1582,77 @@ function moneyOrderDuplexHtml(orders: OrderRecord[], bg: { frontBg?: string; bac
     </head>
     <body>${sheets.join("")}</body>
   </html>`;
+}
+
+export function premiumEnvelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: boolean; includeMoneyOrders?: boolean }) {
+  const autoGenerateTracking = opts?.autoGenerateTracking === true;
+  const logoSrc = resolvePakistanPostLogoDataUrl();
+
+  const loadPremiumEnvelopeTemplate = () => {
+    return loadHtmlTemplate(
+      [
+        path.resolve(process.cwd(), "apps", "api", "src", "templates", "label-envelope-10-premium-9x4.html"),
+        path.resolve(process.cwd(), "src", "templates", "label-envelope-10-premium-9x4.html"),
+      ],
+      "Envelope premium template not found: label-envelope-10-premium-9x4.html",
+    );
+  };
+
+  const renderPremiumEnvelopePage = (templateBody: string, o: LabelOrder) => {
+    const amountSummary = getLabelAmountSummary(o);
+    const shipmentType = amountSummary.shipmentType;
+    const shipmentLabel = displayShipmentType(shipmentType);
+    const tracking = resolveTracking(o, autoGenerateTracking);
+
+    const senderFields = resolveMoneyOrderSenderFields(o as unknown as OrderRecord);
+    const senderName = senderFields.senderName;
+    const senderAddress = normalizeAddressLines(senderFields.senderAddress);
+    const senderCity = String(o.senderCity ?? "").trim();
+    const senderPhone = senderFields.senderPhone;
+
+    const customerName = String(o.consigneeName ?? "").trim() || "-";
+    const customerAddress = normalizeAddressLines(o.consigneeAddress);
+    const customerCity = String(o.receiverCity ?? "").trim();
+    const customerPhone = String(o.consigneePhone ?? "").trim() || "-";
+
+    const orderSource = String(o.reference ?? (o as any)?.source ?? (o as any)?.Source ?? "METAFORM").trim() || "METAFORM";
+    const productDetails = String((o as any).ProductDescription ?? "").trim() || "-";
+    const barcodeDataUrl = generatePremiumEnvelopeBarcodeBase64(tracking);
+
+    const moneyOrderAmount = amountSummary.showCalculation ? amountSummary.moAmount : amountSummary.grossAmount;
+    const commission = amountSummary.showCalculation ? amountSummary.commission : 0;
+    const grossAmount = amountSummary.showCalculation ? amountSummary.grossAmount : amountSummary.grossAmount;
+    const formatAmount = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
+
+    const replacements: Record<string, string> = {
+      "{{logo_src}}": escapeHtml(logoSrc),
+      "{{barcode_data_url}}": escapeHtml(barcodeDataUrl),
+      "{{tracking_no}}": escapeHtml(tracking),
+      "{{shipment_label}}": escapeHtml(shipmentLabel),
+      "{{amount}}": escapeHtml(formatAmount(moneyOrderAmount)),
+      "{{commission}}": escapeHtml(formatAmount(commission)),
+      "{{gross_amount}}": escapeHtml(formatAmount(grossAmount)),
+      "{{customer_name}}": escapeHtml(customerName),
+      "{{customer_address}}": escapeHtml(customerAddress),
+      "{{customer_city}}": escapeHtml(customerCity),
+      "{{customer_phone}}": escapeHtml(customerPhone),
+      "{{sender_name}}": escapeHtml(senderName || "-"),
+      "{{sender_address}}": escapeHtml(senderAddress || "-"),
+      "{{sender_city}}": escapeHtml(senderCity || "-"),
+      "{{sender_phone}}": escapeHtml(senderPhone || "-"),
+      "{{order_source}}": escapeHtml(orderSource),
+      "{{product_details}}": escapeHtml(productDetails),
+    };
+
+    return Object.entries(replacements).reduce(
+      (html, [token, value]) => html.split(token).join(value),
+      templateBody,
+    );
+  };
+
+  const template = loadPremiumEnvelopeTemplate();
+  const pages = orders.map((order) => renderPremiumEnvelopePage(template.body, order)).join("");
+  return `${injectSharedPrintCss(template.head)}${pages}${template.tail}`;
 }
 
 function frontFields(o: OrderRecord) {

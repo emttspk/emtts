@@ -86,7 +86,7 @@ export function prepareLabelOrders(
         trackingNumber: trackingId,
         barcodeValue: trackingId,
         barcodeBase64: generateLabelBarcodeBase64(trackingId),
-        skipGlobalBarcode: opts.outputMode === "envelope",
+        skipGlobalBarcode: opts.outputMode === "envelope" || opts.outputMode === "envelope-premium",
         carrierType: opts.carrierType,
         shipmentType: resolvedShipmentType,
       };
