@@ -477,3 +477,72 @@ export function computeStats(records: FinalTrackingRecord[]): TrackingStats {
     delayedAmount,
   };
 }
+
+// ─── Shared display helpers ───────────────────────────────────────────────────
+// Used by both PublicTracking (live Python API) and BulkTracking (dashboard DB).
+// Handles both raw Python API status strings (IN_TRANSIT, AT_HUB, etc.) and
+// normalized dashboard statuses (DELIVERED, RETURNED, PENDING).
+
+const TRACKING_STAGE_LABELS = [
+  "Booked",
+  "In Transit",
+  "At Hub",
+  "Out for Delivery",
+  "Delivered",
+] as const;
+
+export type TrackingStageLabel = (typeof TRACKING_STAGE_LABELS)[number];
+
+export const SHARED_STAGE_LABELS = TRACKING_STAGE_LABELS;
+
+export function getStatusDisplayColor(status: string): string {
+  const s = String(status ?? "").toLowerCase();
+  if (s.includes("deliver")) return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  if (s.includes("return")) return "bg-red-50 text-red-700 border-red-200";
+  if (s.includes("transit") || s.includes("in_transit") || s.includes("pending")) {
+    return "bg-amber-50 text-amber-700 border-amber-200";
+  }
+  if (s.includes("hub") || s.includes("at_hub")) return "bg-sky-50 text-sky-700 border-sky-200";
+  if (s.includes("out_for_delivery") || s.includes("out for delivery")) {
+    return "bg-purple-50 text-purple-700 border-purple-200";
+  }
+  return "bg-sky-50 text-sky-700 border-sky-200";
+}
+
+/**
+ * Returns a string key identifying which icon to render.
+ * Callers map this to their icon library (Lucide, etc.).
+ * Values: "check_circle" | "alert_circle" | "clock" | "map_pin" | "truck"
+ */
+export function getStatusIconName(status: string): "check_circle" | "alert_circle" | "clock" | "map_pin" | "truck" {
+  const s = String(status ?? "").toLowerCase();
+  if (s.includes("deliver")) return "check_circle";
+  if (s.includes("return")) return "alert_circle";
+  if (s.includes("out_for_delivery") || s.includes("out for delivery")) return "truck";
+  if (s.includes("hub") || s.includes("at_hub")) return "map_pin";
+  return "clock";
+}
+
+export function getStatusStageIndex(status: string): number {
+  const s = String(status ?? "").toLowerCase();
+  if (s.includes("deliver")) return 4;
+  if (s.includes("out_for_delivery") || s.includes("out for delivery")) return 3;
+  if (s.includes("hub") || s.includes("at_hub") || s.includes("dispatch")) return 2;
+  if (s.includes("transit") || s.includes("in_transit") || s.includes("pending")) return 1;
+  return 0;
+}
+
+export function getEventStageLabel(description: string): TrackingStageLabel {
+  const t = String(description ?? "").toLowerCase();
+  if (!t) return TRACKING_STAGE_LABELS[0];
+  if (t.includes("deliver")) return TRACKING_STAGE_LABELS[4];
+  if (t.includes("out for delivery") || t.includes("out_for_delivery")) return TRACKING_STAGE_LABELS[3];
+  if (t.includes("hub") || t.includes("dispatch") || t.includes("arrival") || t.includes("arrived")) {
+    return TRACKING_STAGE_LABELS[2];
+  }
+  if (t.includes("transit") || t.includes("in route") || t.includes("moving") || t.includes("in_transit")) {
+    return TRACKING_STAGE_LABELS[1];
+  }
+  return TRACKING_STAGE_LABELS[0];
+}
+

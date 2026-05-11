@@ -816,39 +816,38 @@ export default function Upload() {
       </div>
       {prefixMismatchInfo ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-[0_30px_80px_rgba(15,23,42,0.28)]">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-[0_30px_80px_rgba(15,23,42,0.28)]">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
-                <svg className="h-5 w-5 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
+                <svg className="h-5 w-5 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-lg font-semibold text-slate-900">Tracking ID Prefix Mismatch</div>
-                <div className="mt-1 text-sm text-slate-600">
-                  Your file contains <span className="font-semibold text-red-700">{prefixMismatchInfo.detected}</span> tracking IDs, but the selected shipment type <span className="font-semibold">{prefixMismatchInfo.shipmentType}</span> requires the prefix <span className="font-semibold text-emerald-700">{prefixMismatchInfo.expected}…</span>
-                </div>
-                <div className="mt-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2">
-                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-red-600">Affected Rows</div>
-                  <ul className="space-y-0.5">
-                    {prefixMismatchInfo.affected.map((r) => (
-                      <li key={`${r.row}-${r.id}`} className="font-mono text-xs text-red-800">
-                        Row {r.row} &mdash; {r.id}
-                      </li>
-                    ))}
-                  </ul>
-                  {prefixMismatchInfo.total > 5 ? (
-                    <div className="mt-1 text-xs text-red-600">…and {prefixMismatchInfo.total - 5} more row(s)</div>
-                  ) : null}
-                </div>
-                <div className="mt-3 text-xs text-slate-500">Please update your file or change the shipment type, then try again.</div>
+                <div className="text-base font-bold text-slate-900">Tracking ID Type Mismatch</div>
+                <div className="mt-1 text-sm text-slate-600">Uploaded tracking IDs do not match the selected shipment type.</div>
               </div>
             </div>
-            <div className="mt-6 flex justify-end">
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Selected Type</div>
+                <div className="mt-1 text-lg font-extrabold text-slate-900">{prefixMismatchInfo.shipmentType}</div>
+              </div>
+              <div className="rounded-xl border border-red-100 bg-red-50 p-3">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-red-500">Found in File</div>
+                <div className="mt-1 text-lg font-extrabold text-red-700">{prefixMismatchInfo.detected}</div>
+              </div>
+            </div>
+            <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              Please either upload <span className="font-bold">{prefixMismatchInfo.shipmentType}</span> tracking IDs,
+              or change the shipment type to <span className="font-bold">{prefixMismatchInfo.detected}</span>.
+            </div>
+            <div className="mt-2 text-xs text-slate-400">{prefixMismatchInfo.total} row{prefixMismatchInfo.total !== 1 ? "s" : ""} affected</div>
+            <div className="mt-5 flex justify-end">
               <button
                 type="button"
                 onClick={() => setPrefixMismatchInfo(null)}
                 className="rounded-2xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white shadow-md hover:bg-slate-800"
               >
-                Dismiss
+                OK, Got It
               </button>
             </div>
           </div>

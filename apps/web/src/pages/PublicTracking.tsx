@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Clock, MapPin, MessageSquare, RefreshCw, Search } from "lucide-react";
+import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Clock, MapPin, MessageSquare, RefreshCw, Search, Truck } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import {
+  getStatusDisplayColor,
+  getStatusIconName,
+  getStatusStageIndex,
+  getEventStageLabel,
+  SHARED_STAGE_LABELS,
+} from "../lib/trackingData";
 
 const API_BASE =
   (import.meta.env.VITE_API_URL as string | undefined)?.trim() ||
@@ -53,7 +60,7 @@ type TrackingCollectionResponse = {
   results: TrackingResult[];
 };
 
-const STAGE_LABELS = ["Booked", "In Transit", "At Hub", "Out for Delivery", "Delivered"] as const;
+const STAGE_LABELS = SHARED_STAGE_LABELS;
 
 function normalizeTrackingIds(value: string) {
   return Array.from(
@@ -67,17 +74,15 @@ function normalizeTrackingIds(value: string) {
 }
 
 function statusColor(status: string) {
-  const s = (status ?? "").toLowerCase();
-  if (s.includes("deliver")) return "bg-emerald-50 text-emerald-700 border-emerald-200";
-  if (s.includes("return")) return "bg-red-50 text-red-700 border-red-200";
-  if (s.includes("transit") || s.includes("pending")) return "bg-amber-50 text-amber-700 border-amber-200";
-  return "bg-sky-50 text-sky-700 border-sky-200";
+  return getStatusDisplayColor(status);
 }
 
 function statusIcon(status: string) {
-  const s = (status ?? "").toLowerCase();
-  if (s.includes("deliver")) return <CheckCircle2 className="h-5 w-5 text-emerald-600" />;
-  if (s.includes("return")) return <AlertCircle className="h-5 w-5 text-red-500" />;
+  const name = getStatusIconName(status);
+  if (name === "check_circle") return <CheckCircle2 className="h-5 w-5 text-emerald-600" />;
+  if (name === "alert_circle") return <AlertCircle className="h-5 w-5 text-red-500" />;
+  if (name === "truck") return <Truck className="h-5 w-5 text-purple-500" />;
+  if (name === "map_pin") return <MapPin className="h-5 w-5 text-sky-500" />;
   return <Clock className="h-5 w-5 text-amber-500" />;
 }
 
@@ -93,25 +98,14 @@ function getDisplayProgress(result: TrackingResult) {
 }
 
 function inferEventStage(description: string) {
-  const text = String(description ?? "").toLowerCase();
-  if (!text) return STAGE_LABELS[0];
-  if (text.includes("deliver")) return STAGE_LABELS[4];
-  if (text.includes("out for delivery")) return STAGE_LABELS[3];
-  if (text.includes("hub") || text.includes("dispatch") || text.includes("arrival")) return STAGE_LABELS[2];
-  if (text.includes("transit") || text.includes("in route") || text.includes("moving")) return STAGE_LABELS[1];
-  return STAGE_LABELS[0];
+  return getEventStageLabel(description);
 }
 
 function stageIndexForStatus(status: string) {
-  const text = String(status ?? "").toLowerCase();
-  if (text.includes("deliver")) return 4;
-  if (text.includes("out for delivery")) return 3;
-  if (text.includes("hub") || text.includes("dispatch")) return 2;
-  if (text.includes("transit") || text.includes("pending")) return 1;
-  return 0;
+  return getStatusStageIndex(status);
 }
 
-function buildWhatsAppShareUrl(result: TrackingResult): string {
+function buildWhatsAppShareUrl(result: TrackingResult, phone?: string): string {
   const origin = result.origin || result.booking_office || "—";
   const destination = result.destination || result.delivery_office || "—";
   const currentLocation = result.current_location || "—";
@@ -137,7 +131,12 @@ function buildWhatsAppShareUrl(result: TrackingResult): string {
     "",
     "www.ePost.pk",
   ].join("\n");
-  return `https://wa.me/?text=${encodeURIComponent(message)}`;
+  const encoded = encodeURIComponent(message);
+  if (phone) {
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length >= 7) return `https://wa.me/${digits}?text=${encoded}`;
+  }
+  return `https://wa.me/?text=${encoded}`;
 }
 
 function TrackingResultCard({ result }: { result: TrackingResult }) {
@@ -145,6 +144,8 @@ function TrackingResultCard({ result }: { result: TrackingResult }) {
   const newestFirstTimeline = [...timeline].reverse();
   const progress = getDisplayProgress(result);
   const activeStage = stageIndexForStatus(result.status);
+  const [waModalOpen, setWaModalOpen] = useState(false);
+  const [waPhone, setWaPhone] = useState("");
 
   return (
     <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
@@ -252,16 +253,63 @@ function TrackingResultCard({ result }: { result: TrackingResult }) {
         )}
       </div>
       <div className="mt-5 flex justify-end">
-        <a
-          href={buildWhatsAppShareUrl(result)}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
+          onClick={() => { setWaPhone(""); setWaModalOpen(true); }}
           className="inline-flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
         >
           <MessageSquare className="h-4 w-4" />
           Share via WhatsApp
-        </a>
+        </button>
       </div>
+      {waModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-[0_30px_80px_rgba(15,23,42,0.28)]">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                <MessageSquare className="h-5 w-5 text-emerald-600" />
+              </div>
+              <div>
+                <div className="font-bold text-slate-900">Send Tracking via WhatsApp</div>
+                <div className="mt-0.5 text-xs text-slate-500">Tracking ID: {result.tracking_number}</div>
+              </div>
+            </div>
+            <div className="mt-4">
+              <label htmlFor="wa-phone" className="block text-sm font-medium text-slate-700">
+                WhatsApp Number <span className="text-slate-400">(optional)</span>
+              </label>
+              <input
+                id="wa-phone"
+                type="tel"
+                value={waPhone}
+                onChange={(e) => setWaPhone(e.target.value)}
+                placeholder="e.g. 03001234567 or +923001234567"
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+              />
+              <p className="mt-1 text-xs text-slate-400">Leave blank to let the recipient choose their number on WhatsApp.</p>
+            </div>
+            <div className="mt-5 flex flex-col gap-2">
+              <a
+                href={buildWhatsAppShareUrl(result, waPhone)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setWaModalOpen(false)}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-emerald-700"
+              >
+                <MessageSquare className="h-4 w-4" />
+                {waPhone.replace(/\D/g, "").length >= 7 ? `Send to ${waPhone}` : "Share on WhatsApp"}
+              </a>
+              <button
+                type="button"
+                onClick={() => setWaModalOpen(false)}
+                className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
