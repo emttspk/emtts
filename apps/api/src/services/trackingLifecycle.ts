@@ -120,7 +120,7 @@ function toTimestampMs(dateRaw: string, timeRaw: string): number | null {
 
 function isStrictDelivered(description: string): boolean {
   const t = lower(description);
-  if (t.includes("undelivered") || t.includes("return") || t.includes("refused")) return false;
+  if (t.includes("undelivered") || t.includes("return") || t.includes("refused") || t.includes("to rts")) return false;
   if (
     t.includes("dispatch to delivery office") ||
     t.includes("received at delivery office") ||
@@ -139,6 +139,7 @@ function isReturnCompleted(description: string): boolean {
   const t = lower(description);
   return (
     t.includes("delivered to sender") ||
+    t.includes("to rts") ||
     t.includes("returned to booking office") ||
     t.includes("received at booking dmo after return")
   );
@@ -379,6 +380,7 @@ function resolveBaseStatus(
   sourceStatus: string,
   meta: PatchedTrackingMeta | null | undefined,
   events: NormalizedEvent[],
+  cycleInterpretation: TrackingCycleInterpretation | null | undefined,
 ): SequenceResolution {
   const source = normalizeSourceStatus(sourceStatus);
   const latestEvent = events[events.length - 1] ?? null;
@@ -421,6 +423,12 @@ function resolveBaseStatus(
       if (deliveredIndex >= 0 && event.index > deliveredIndex) deliveryInvalidatedIndex = event.index;
     }
 
+    if (event.semantic === "RETURN_IN_TRANSIT" || event.semantic === "RETURN_ARRIVED") {
+      rtsIndex = Math.max(rtsIndex, event.index);
+      reverseMovementIndex = Math.max(reverseMovementIndex, event.index);
+      if (deliveredIndex >= 0 && event.index > deliveredIndex) deliveryInvalidatedIndex = event.index;
+    }
+
     if (event.semantic === "RETURN_COMPLETED") {
       returnCompletedIndex = event.index;
       if (deliveredIndex >= 0 && event.index > deliveredIndex) deliveryInvalidatedIndex = event.index;
@@ -448,9 +456,13 @@ function resolveBaseStatus(
     }
   }
 
-  const deliveredIsStillValid = deliveredIndex >= 0 && deliveredIndex > Math.max(deliveryInvalidatedIndex, failedDeliveryIndex, rtsIndex, reverseMovementIndex, returnCompletedIndex);
-  const returnFlowDetected = returnCompletedIndex >= 0 || rtsIndex >= 0 || reverseMovementIndex >= 0;
+  const deliveredWithMoneyOrderComplete =
+    cycleInterpretation?.final_status === "DELIVERED WITH PAYMENT" &&
+    cycleInterpretation?.mos_status === "COMPLETED" &&
+    deliveredIndex >= 0;
+  const deliveredIsStillValid = deliveredWithMoneyOrderComplete || (deliveredIndex >= 0 && deliveredIndex > Math.max(deliveryInvalidatedIndex, failedDeliveryIndex, rtsIndex, reverseMovementIndex, returnCompletedIndex));
   const latestSemantic = latestMeaningfulEvent?.semantic ?? "UNKNOWN";
+  const returnFlowDetected = returnCompletedIndex >= 0 || rtsIndex >= 0 || reverseMovementIndex >= 0 || latestSemantic === "RETURN_IN_TRANSIT" || latestSemantic === "RETURN_ARRIVED";
   const latestTargetsDeliveryOffice = latestMeaningfulEvent?.to_role === "DELIVERY_OFFICE" || latestMeaningfulEvent?.office_role === "DELIVERY_OFFICE";
   const originReturnPending = isOriginReturnPending(latestMeaningfulEvent ?? null, originCity);
 
@@ -774,7 +786,7 @@ export function buildTrackingLifecycleResolution(input: {
   cycleInterpretation?: TrackingCycleInterpretation | null;
 }): TrackingLifecycleResolution {
   const normalizedEvents = normalizeEvents(input.events);
-  const baseResolution = resolveBaseStatus(input.sourceStatus ?? "", input.meta, normalizedEvents);
+  const baseResolution = resolveBaseStatus(input.sourceStatus ?? "", input.meta, normalizedEvents, input.cycleInterpretation);
   const underlyingStatus = baseResolution.status;
   const inactivityDays = resolveInactivityDays(normalizedEvents, input.meta);
   const stuckBucket = resolveStuckBucket(inactivityDays);
