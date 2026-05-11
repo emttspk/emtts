@@ -493,6 +493,30 @@ const TRACKING_STAGE_LABELS = [
 
 export type TrackingStageLabel = (typeof TRACKING_STAGE_LABELS)[number];
 
+export type TrackingDisplayEventInput = {
+  date?: string | null;
+  time?: string | null;
+  location?: string | null;
+  description?: string | null;
+};
+
+export type TrackingPresentationEvent = {
+  date: string;
+  time: string;
+  location: string;
+  description: string;
+  timestamp: number | null;
+  stageLabel: TrackingStageLabel;
+};
+
+export type TrackingPresentationModel = {
+  displayStatus: string;
+  progress: number;
+  activeStage: number;
+  latestEvent: TrackingPresentationEvent | null;
+  timeline: TrackingPresentationEvent[];
+};
+
 export const SHARED_STAGE_LABELS = TRACKING_STAGE_LABELS;
 
 export function getStatusDisplayColor(status: string): string {
@@ -544,5 +568,115 @@ export function getEventStageLabel(description: string): TrackingStageLabel {
     return TRACKING_STAGE_LABELS[1];
   }
   return TRACKING_STAGE_LABELS[0];
+}
+
+const TRACKING_STAGE_PROGRESS = [10, 35, 65, 90, 100] as const;
+
+function clampProgress(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function getDisplayStatusLabel(activeStage: number, status: string): string {
+  const s = String(status ?? "").toLowerCase();
+  if (s.includes("return")) return "Returned";
+  if (s.includes("deliver")) return "Delivered";
+  if (activeStage <= 0) return "Booked";
+  if (activeStage === 1) return "In Transit";
+  if (activeStage === 2) return "At Hub";
+  if (activeStage === 3) return "Out for Delivery";
+  return "Delivered";
+}
+
+export function resolveTrackingPresentation(
+  status: string,
+  events: TrackingDisplayEventInput[] | undefined,
+  deliveryProgress?: number | null,
+): TrackingPresentationModel {
+  const timeline = Array.isArray(events)
+    ? events
+        .map((event) => {
+          const date = text(event?.date);
+          const time = text(event?.time) || "00:00";
+          const location = text(event?.location);
+          const description = text(event?.description);
+          return {
+            date,
+            time,
+            location,
+            description,
+            timestamp: toTimestampMs(date, time),
+            stageLabel: getEventStageLabel(description),
+          };
+        })
+        .filter((event) => event.date || event.time || event.location || event.description)
+        .sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0))
+    : [];
+
+  const latestEvent = timeline[timeline.length - 1] ?? null;
+  let activeStage = latestEvent ? getStatusStageIndex(latestEvent.description) : getStatusStageIndex(status);
+  if (timeline.length > 0 && activeStage === 0 && String(status ?? "").toLowerCase().includes("pending")) {
+    activeStage = 1;
+  }
+
+  const displayStatus = getDisplayStatusLabel(activeStage, status);
+  const terminal = displayStatus === "Delivered" || displayStatus === "Returned";
+  const derivedProgress = TRACKING_STAGE_PROGRESS[Math.max(0, Math.min(activeStage, TRACKING_STAGE_PROGRESS.length - 1))] ?? 10;
+  const numericProgress = typeof deliveryProgress === "number" && Number.isFinite(deliveryProgress)
+    ? clampProgress(deliveryProgress)
+    : null;
+  const progress = terminal ? 100 : clampProgress(Math.max(derivedProgress, numericProgress ?? 0));
+
+  return {
+    displayStatus,
+    progress,
+    activeStage,
+    latestEvent,
+    timeline,
+  };
+}
+
+export function buildTrackingWhatsAppShareUrl(options: {
+  trackingNumber: string;
+  displayStatus: string;
+  origin?: string | null;
+  destination?: string | null;
+  currentLocation?: string | null;
+  latestEvent?: Pick<TrackingPresentationEvent, "description" | "location"> | null;
+  phone?: string | null;
+  trackUrl?: string | null;
+}): string {
+  const origin = text(options.origin) || "-";
+  const destination = text(options.destination) || "-";
+  const currentLocation = text(options.currentLocation || options.latestEvent?.location) || "-";
+  const latestDescription = text(options.latestEvent?.description);
+  const latestLocation = text(options.latestEvent?.location);
+  const latestUpdate = latestDescription
+    ? `${latestDescription}${latestLocation ? ` (${latestLocation})` : ""}`
+    : "-";
+  const trackUrl = text(options.trackUrl) || `https://www.epost.pk/track/${encodeURIComponent(text(options.trackingNumber))}`;
+  const message = [
+    "ePost.pk Tracking Update",
+    "",
+    `Tracking ID:\n${text(options.trackingNumber) || "-"}`,
+    "",
+    `Status:\n${text(options.displayStatus) || "-"}`,
+    "",
+    `Origin:\n${origin}`,
+    "",
+    `Destination:\n${destination}`,
+    "",
+    `Current Location:\n${currentLocation}`,
+    "",
+    `Latest Update:\n${latestUpdate}`,
+    "",
+    `Track Online:\n${trackUrl}`,
+    "",
+    "www.ePost.pk",
+  ].join("\n");
+
+  const encoded = encodeURIComponent(message);
+  const digits = text(options.phone).replace(/\D/g, "");
+  if (digits.length >= 7) return `https://wa.me/${digits}?text=${encoded}`;
+  return `https://wa.me/?text=${encoded}`;
 }
 

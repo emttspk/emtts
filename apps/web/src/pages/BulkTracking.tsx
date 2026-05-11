@@ -13,10 +13,16 @@ import { collectComplaintBrowserBootstrap } from "../components/ComplaintModal";
 import { getRole } from "../lib/auth";
 import type { MeResponse, Shipment as BaseShipment, TrackResult } from "../lib/types";
 import {
+  buildTrackingWhatsAppShareUrl,
   computeStats,
   filterFinalTrackingData,
   getFinalTrackingData,
+  getEventStageLabel,
+  getStatusDisplayColor,
+  resolveTrackingPresentation,
+  SHARED_STAGE_LABELS,
   type FinalTrackingRecord,
+  type TrackingPresentationModel,
   type StatusCardFilter,
 } from "../lib/trackingData";
 import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
@@ -642,6 +648,7 @@ type TimelineEvent = {
 type TrackingDetailData = {
   fields: ReturnType<typeof getUnifiedFields>;
   timeline: TimelineEvent[];
+  presentation: TrackingPresentationModel;
   bookingDate: string;
   lastUpdate: string;
   moIssued: string | null;
@@ -2154,6 +2161,9 @@ export default function BulkTracking() {
     const fields = getUnifiedFields(detailShipment.rawJson);
     const consignee = getRecordConsignee(detailShipment);
     const timeline = extractTimeline(detailShipment.rawJson);
+    const rawDeliveryProgress = Number((raw?.tracking as any)?.delivery_progress ?? raw?.delivery_progress);
+    const deliveryProgress = Number.isFinite(rawDeliveryProgress) ? rawDeliveryProgress : undefined;
+    const presentation = resolveTrackingPresentation(selectedTracking.final_status, timeline, deliveryProgress);
     const bookingDate = timeline[0]?.date || "-";
     const lastEvent = timeline[timeline.length - 1] ?? null;
     const lastUpdate = lastEvent ? `${lastEvent.date} ${lastEvent.time}`.trim() : `${detailShipment.latestDate ?? ""} ${detailShipment.latestTime ?? ""}`.trim() || "-";
@@ -2164,6 +2174,7 @@ export default function BulkTracking() {
     return {
       fields,
       timeline,
+      presentation,
       bookingDate,
       lastUpdate,
       moIssued,
@@ -2242,19 +2253,15 @@ export default function BulkTracking() {
       return;
     }
 
-    const waNumber = formatted.replace(/^\+/, "");
-    const text = [
-      "Shipment Update",
-      "",
-      `Tracking ID: ${detailShipment.trackingNumber}`,
-      `Status: ${selectedTracking.final_status}`,
-      `City: ${preferredCity(detailShipment)}`,
-      `MO Value: ${trackingDetailData.moValue != null ? `Rs ${trackingDetailData.moValue.toLocaleString()}` : "-"}`,
-      "",
-      "Thank you.",
-    ].join("\n");
-
-    const url = `https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`;
+    const url = buildTrackingWhatsAppShareUrl({
+      trackingNumber: detailShipment.trackingNumber,
+      displayStatus: trackingDetailData.presentation.displayStatus,
+      origin: trackingDetailData.bookingOffice,
+      destination: trackingDetailData.deliveryOffice,
+      currentLocation: trackingDetailData.presentation.latestEvent?.location || preferredCity(detailShipment),
+      latestEvent: trackingDetailData.presentation.latestEvent,
+      phone: formatted,
+    });
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
@@ -4207,13 +4214,13 @@ export default function BulkTracking() {
 
             <div className="flex-1 overflow-y-auto p-5">
               {/* Status banner */}
-              <div className={cn("mb-4 flex items-center justify-between rounded-2xl px-4 py-3", statusBadgeClass(selectedTracking.final_status).replace("ring-1", "").replace("ring-inset", ""))}>
+              <div className={cn("mb-4 flex items-center justify-between rounded-2xl border px-4 py-3", getStatusDisplayColor(trackingDetailData.presentation.displayStatus))}>
                 <div>
                   <div className="text-[10px] font-semibold uppercase tracking-wider opacity-70">Current Status</div>
-                  <div className={cn("mt-0.5 text-base font-bold", statusBadgeClass(selectedTracking.final_status))}>{normalizeStatus(selectedTracking.final_status)}</div>
+                  <div className="mt-0.5 text-base font-bold text-current">{trackingDetailData.presentation.displayStatus}</div>
                 </div>
-                <div className={cn("inline-flex rounded-full px-3 py-1 text-xs font-bold ring-1 ring-inset", statusBadgeClass(selectedTracking.final_status))}>
-                  {normalizeStatus(selectedTracking.final_status)}
+                <div className={cn("inline-flex rounded-full border px-3 py-1 text-xs font-bold", getStatusDisplayColor(trackingDetailData.presentation.displayStatus))}>
+                  {trackingDetailData.presentation.displayStatus}
                 </div>
               </div>
 
@@ -4222,10 +4229,21 @@ export default function BulkTracking() {
                 <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Tracking ID</div><div className="mt-1 font-mono text-xs font-bold text-slate-900">{selectedTracking.shipment.trackingNumber}</div></div>
                 <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Booking Date</div><div className="mt-1 text-xs font-semibold text-slate-900">{trackingDetailData.bookingDate}</div></div>
                 <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Last Update</div><div className="mt-1 text-xs font-semibold text-slate-900">{trackingDetailData.lastUpdate}</div></div>
+                <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Latest Event</div><div className="mt-1 text-xs font-semibold text-slate-900">{trackingDetailData.presentation.latestEvent?.description || "-"}</div></div>
                 <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">MO Value</div><div className="mt-1 text-xs font-semibold text-emerald-700">{trackingDetailData.moValue != null ? `Rs ${trackingDetailData.moValue.toLocaleString()}` : "-"}</div></div>
                 <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Origin City</div><div className="mt-1 text-xs font-semibold text-slate-900">{trackingDetailData.bookingOffice}</div></div>
                 <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Delivery City</div><div className="mt-1 text-xs font-semibold text-slate-900">{trackingDetailData.deliveryOffice}</div></div>
                 <div className="rounded-xl border border-[#E5E7EB] bg-slate-50 p-3"><div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Complaint Count</div><div className="mt-1 text-xs font-semibold text-slate-900">{selectedComplaintLifecycle?.complaintCount ?? 0}</div></div>
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-[#E5E7EB] bg-slate-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Delivery Progress</div>
+                  <div className="text-sm font-semibold text-slate-700">{trackingDetailData.presentation.progress}%</div>
+                </div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
+                  <div className="h-full rounded-full bg-[linear-gradient(135deg,#0f172a,#0b6b3a)]" style={{ width: `${trackingDetailData.presentation.progress}%` }} />
+                </div>
               </div>
 
               {/* Consignee */}
@@ -4253,25 +4271,48 @@ export default function BulkTracking() {
                   <div className="text-sm font-bold text-slate-900">Status Timeline</div>
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{trackingDetailData.timeline.length}</span>
                 </div>
-                <div className="relative space-y-0">
-                  <div className="pointer-events-none absolute bottom-2 left-[7px] top-2 w-[2px] bg-gradient-to-b from-brand/60 to-brand/10" />
-                  {trackingDetailData.timeline.length > 0 ? (
-                    trackingDetailData.timeline.map((item, idx) => (
-                      <div key={`${item.date}-${item.time}-${idx}`} className="relative pl-6 pb-3 last:pb-0">
-                        <span className={cn("absolute left-0 top-1.5 h-3.5 w-3.5 rounded-full border-2 border-white shadow", idx === 0 ? "bg-brand" : "bg-slate-300")} />
-                        <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 shadow-sm">
-                          <div className="text-xs font-semibold text-slate-800">{item.description || "Update"}</div>
-                          <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
-                            {item.date ? <span>{item.date}</span> : null}
-                            {item.time ? <span>{item.time}</span> : null}
-                            {item.location ? <span className="flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{item.location}</span> : null}
+                <div className="grid gap-4 lg:grid-cols-[180px_1fr]">
+                  <aside className="rounded-2xl border border-[#E5E7EB] bg-slate-50 p-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Shipment Stages</div>
+                    <ol className="relative mt-3 space-y-2.5">
+                      {SHARED_STAGE_LABELS.map((stage, idx) => {
+                        const isDone = idx <= trackingDetailData.presentation.activeStage;
+                        return (
+                          <li key={`${selectedTracking.shipment.trackingNumber}-${stage}`} className="relative pl-6 text-xs font-semibold text-slate-600">
+                            {idx < SHARED_STAGE_LABELS.length - 1 ? (
+                              <span className={cn("absolute left-[8px] top-4 h-7 w-[2px]", idx < trackingDetailData.presentation.activeStage ? "bg-emerald-400" : "bg-slate-300")} />
+                            ) : null}
+                            <span className={cn("absolute left-0 top-1.5 h-4 w-4 rounded-full border", isDone ? "border-emerald-500 bg-emerald-500" : "border-slate-300 bg-white")} />
+                            <span className={isDone ? "text-slate-800" : "text-slate-500"}>{stage}</span>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </aside>
+
+                  <div className="relative space-y-0">
+                    <div className="pointer-events-none absolute bottom-2 left-[7px] top-2 w-[2px] bg-gradient-to-b from-brand/60 to-brand/10" />
+                    {trackingDetailData.timeline.length > 0 ? (
+                      trackingDetailData.timeline.map((item, idx) => (
+                        <div key={`${item.date}-${item.time}-${idx}`} className="relative pl-6 pb-3 last:pb-0">
+                          <span className={cn("absolute left-0 top-1.5 h-3.5 w-3.5 rounded-full border-2 border-white shadow", idx === trackingDetailData.timeline.length - 1 ? "bg-brand" : "bg-slate-300")} />
+                          <div className="rounded-xl border border-[#E5E7EB] bg-white p-2.5 shadow-sm">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="text-xs font-semibold text-slate-800">{item.description || "Update"}</div>
+                              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">{getEventStageLabel(item.description)}</span>
+                            </div>
+                            <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
+                              {item.date ? <span>{item.date}</span> : null}
+                              {item.time ? <span>{item.time}</span> : null}
+                              {item.location ? <span className="flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{item.location}</span> : null}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="rounded-xl border border-[#E5E7EB] p-3 text-xs text-slate-500">No status history available.</div>
-                  )}
+                      ))
+                    ) : (
+                      <div className="rounded-xl border border-[#E5E7EB] p-3 text-xs text-slate-500">No status history available.</div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
