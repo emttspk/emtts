@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -125,16 +125,16 @@
   }
 
   .google-auth-btn {
-    @apply relative flex h-11 w-full items-center justify-between rounded-md border border-[#dadce0] bg-white px-3 text-[14px] font-medium text-[#3c4043] shadow-sm transition-colors;
+    @apply relative flex h-14 w-full items-center justify-between rounded-2xl border border-slate-200/90 bg-white/90 px-4 text-[15px] font-semibold text-slate-700 shadow-[0_12px_32px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#12B347]/30 hover:bg-white hover:shadow-[0_18px_40px_rgba(15,23,42,0.09)];
   }
 
   .google-auth-btn:hover {
-    border-color: #c7cbd1;
-    background: #ffffff;
+    border-color: rgba(18, 179, 71, 0.28);
+    background: rgba(255, 255, 255, 0.98);
   }
 
   .google-auth-btn:focus-visible {
-    outline: 2px solid #1a73e8;
+    outline: 2px solid rgba(18, 179, 71, 0.5);
     outline-offset: 2px;
   }
 
@@ -149,8 +149,8 @@
   }
 
   .google-auth-btn__label {
-    @apply flex-1 text-center font-medium;
-    font-family: Roboto, Arial, sans-serif;
+    @apply flex-1 text-center font-semibold tracking-[-0.01em];
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
   }
 }
 

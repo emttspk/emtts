@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { Mail, SendHorizonal } from "lucide-react";
 import { Link } from "react-router-dom";
 import { sendPasswordResetEmail } from "firebase/auth";
 import AuthShell from "../components/AuthShell";
+import AuthInputField from "../components/auth/AuthInputField";
 import { auth, firebaseReady } from "../firebase";
 
 const PASSWORD_RESET_REDIRECT = "https://www.epost.pk/login";
@@ -44,20 +46,21 @@ export default function ForgotPassword() {
           }
         }}
       >
-        <label className="block text-sm">
-          <div className="mb-2 font-medium text-slate-900">Email</div>
-          <input
-            className="field-input focus:ring-emerald-200"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            type="email"
-            placeholder="you@company.com"
-            required
-          />
-        </label>
+        <AuthInputField
+          label="Email"
+          icon={Mail}
+          value={email}
+          onChange={setEmail}
+          type="email"
+          placeholder="you@company.com"
+          required
+          autoComplete="email"
+          name="email"
+        />
 
-        <button disabled={loading} className="btn-primary mt-1 w-full rounded-xl">
-          {loading ? "Sending..." : "Send reset email"}
+        <button disabled={loading} className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#0F9D58,#16C75A)] px-6 text-base font-semibold text-white shadow-[0_18px_40px_rgba(18,179,71,0.28)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_50px_rgba(18,179,71,0.34)] disabled:cursor-not-allowed disabled:opacity-70">
+          <span>{loading ? "Sending..." : "Send reset email"}</span>
+          <SendHorizonal className="h-4.5 w-4.5" />
         </button>
 
         <div className="pt-1 text-sm">

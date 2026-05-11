@@ -1,10 +1,12 @@
 import { GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup, signOut } from "firebase/auth";
 import { useState } from "react";
+import { ArrowRight, Eye, EyeOff, KeyRound, Mail, SquareArrowOutUpRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, apiUrl } from "../lib/api";
 import { setSession } from "../lib/auth";
 import AuthShell from "../components/AuthShell";
 import GoogleAuthButton from "../components/GoogleAuthButton";
+import AuthInputField from "../components/auth/AuthInputField";
 import { auth, firebaseReady } from "../firebase";
 
 export default function Login() {
@@ -13,6 +15,8 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
 
   async function loginWithFirebaseToken(idToken: string) {
     const data = await api<{ token: string; refreshToken?: string; user: { role: string } }>("/api/auth/firebase-login", {
@@ -51,10 +55,18 @@ export default function Login() {
       title="Sign in"
       subtitle="Access your shipment workspace."
     >
-      {err ? <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{err}</div> : null}
+      {err ? (
+        <div
+          className="mb-5 rounded-[24px] border border-red-200/80 bg-red-50/90 px-4 py-3.5 text-sm font-medium text-red-700 shadow-[0_12px_24px_rgba(239,68,68,0.08)]"
+          role="alert"
+          aria-live="polite"
+        >
+          {err}
+        </div>
+      ) : null}
 
       <form
-        className="space-y-3.5"
+        className="space-y-5"
         onSubmit={async (e) => {
           e.preventDefault();
           setErr(null);
@@ -103,34 +115,87 @@ export default function Login() {
           }
         }}
       >
-        <label className="block text-sm">
-          <div className="mb-2 font-medium text-slate-900">Username or Email</div>
-          <input className="field-input focus:ring-emerald-200" value={identifier} onChange={(e) => setIdentifier(e.target.value)} type="text" placeholder="username or you@company.com" required autoComplete="username" />
-        </label>
+        <div className="space-y-4">
+          <AuthInputField
+            label="Username or Email"
+            icon={Mail}
+            value={identifier}
+            onChange={setIdentifier}
+            type="text"
+            placeholder="username or you@company.com"
+            required
+            autoComplete="username"
+            name="identifier"
+          />
 
-        <label className="block text-sm">
-          <div className="mb-2 font-medium text-slate-900">Password</div>
-          <input className="field-input focus:ring-emerald-200" value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="********" required />
-        </label>
+          <AuthInputField
+            label="Password"
+            icon={KeyRound}
+            value={password}
+            onChange={setPassword}
+            type={showPassword ? "text" : "password"}
+            placeholder="Enter your password"
+            required
+            autoComplete="current-password"
+            name="password"
+            rightAdornment={
+              <button
+                type="button"
+                onClick={() => setShowPassword((current) => !current)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#12B347]"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            }
+          />
+        </div>
 
-        <button disabled={loading} className="btn-primary mt-1 w-full rounded-xl">
-          {loading ? "Signing in..." : "Login"}
+        <div className="flex items-center justify-between gap-3 pt-1 text-sm">
+          <label className="inline-flex cursor-pointer items-center gap-3 text-slate-600">
+            <input
+              checked={rememberMe}
+              onChange={(event) => setRememberMe(event.target.checked)}
+              type="checkbox"
+              className="h-4.5 w-4.5 rounded border-slate-300 text-[#12B347] focus:ring-[#12B347]/20"
+            />
+            <span className="font-medium">Remember me</span>
+          </label>
+
+          <Link to="/forgot-password" className="font-semibold text-[#0F9D58] transition hover:text-[#0b7d46]">
+            Forgot Password?
+          </Link>
+        </div>
+
+        <button disabled={loading} className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#0F9D58,#16C75A)] px-6 text-base font-semibold text-white shadow-[0_18px_40px_rgba(18,179,71,0.28)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_50px_rgba(18,179,71,0.34)] disabled:cursor-not-allowed disabled:opacity-70">
+          <span>{loading ? "Signing in..." : "Login"}</span>
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
+            <ArrowRight className="h-4.5 w-4.5" />
+          </span>
         </button>
+
+        <div className="flex items-center gap-3 py-1 text-sm text-slate-400">
+          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-200 to-slate-200" />
+          <span className="font-medium">or</span>
+          <div className="h-px flex-1 bg-gradient-to-l from-transparent via-slate-200 to-slate-200" />
+        </div>
 
         <GoogleAuthButton className="mt-1" label="Sign in with Google" disabled={loading} loading={loading} onClick={handleGoogleLogin} />
 
-        <div className="flex items-center justify-between gap-2 pt-1 text-sm">
-          <Link to="/forgot-password" className="font-medium text-slate-500 transition-colors hover:text-slate-700">
-            Forgot Password?
+        <div className="pt-1 text-center text-sm text-slate-500">
+          Don&apos;t have an account?{" "}
+          <Link to="/register" className="font-semibold text-[#0F9D58] transition hover:text-[#0b7d46]">
+            Register now
           </Link>
-          <Link to="/forgot-username" className="font-medium text-slate-500 transition-colors hover:text-slate-700">
+        </div>
+
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-slate-200/70 pt-4 text-sm">
+          <Link to="/forgot-username" className="font-medium text-slate-500 transition hover:text-slate-800">
             Forgot Username?
           </Link>
-          <Link to="/email-otp-login" className="font-medium text-slate-500 transition-colors hover:text-slate-700">
+          <Link to="/email-otp-login" className="inline-flex items-center gap-1.5 font-medium text-slate-500 transition hover:text-slate-800">
             Email OTP
-          </Link>
-          <Link to="/register" className="font-semibold text-brand transition-colors hover:text-brand-dark">
-            Register
+            <SquareArrowOutUpRight className="h-3.5 w-3.5" />
           </Link>
         </div>
       </form>

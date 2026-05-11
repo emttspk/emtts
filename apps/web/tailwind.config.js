@@ -19,6 +19,7 @@ export default {
       fontFamily: {
         sans: ["Plus Jakarta Sans", "ui-sans-serif", "system-ui", "sans-serif"],
         display: ["Space Grotesk", "Plus Jakarta Sans", "ui-sans-serif", "sans-serif"],
+        auth: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       boxShadow: {
         card: "0 24px 60px rgba(15, 23, 42, 0.08)",
