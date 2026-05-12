@@ -89,11 +89,11 @@ export default function Dashboard() {
   };
 
   return (
-    <PageShell className="space-y-5">
+    <PageShell className="space-y-4">
       <PageHeader
         eyebrow="Dashboard"
         title="Logistics overview"
-        subtitle="Monitor units, shipment flow, and complaint workload from one place."
+        subtitle="Monitor units, shipment flow, and complaint workload from one control view."
         actions={
           <>
             <Link to="/generate-labels">
@@ -106,16 +106,16 @@ export default function Dashboard() {
         }
       />
 
-      <div className="grid gap-3 xl:grid-cols-4">
+      <div className="grid gap-2.5 xl:grid-cols-4">
         <StatsCard title="Active package" value={activePlanName} detail={`Status: ${billingStatus}`} icon={Boxes} tone="blue" />
         <StatsCard title="Remaining units" value={remainingUnits.toLocaleString()} detail={`${usedUnits.toLocaleString()} used of ${packageLimit.toLocaleString()}`} icon={Package2} tone="green" />
         <StatsCard title="Complaint limits" value={`${complaintDaily}/${complaintMonthly}`} detail="Daily / monthly" icon={ShieldCheck} tone="amber" />
         <StatsCard title="Tracking used" value={stats.trackingUsed.toLocaleString()} detail="Tracking actions" icon={Clock3} tone="purple" />
       </div>
 
-      <div className="grid min-w-0 w-full gap-3 overflow-hidden xl:grid-cols-12">
-        <Card className="min-w-0 w-full overflow-hidden xl:col-span-7 p-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="grid min-w-0 w-full gap-2.5 overflow-hidden xl:grid-cols-12">
+        <Card className="min-w-0 w-full overflow-hidden xl:col-span-7 p-[18px]">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle>Package summary</CardTitle>
               <BodyText className="mt-1">Plan, usage, and limits.</BodyText>
@@ -124,29 +124,29 @@ export default function Dashboard() {
               <ActionButton variant="secondary" trailingIcon={<ArrowRight className="h-4 w-4" />}>Update package</ActionButton>
             </Link>
           </div>
-          <div className="mt-4 grid gap-2.5 md:grid-cols-3">
-            <div className="rounded-2xl border border-[color:var(--line)] bg-[#F8FAFC] p-3.5">
+          <div className="mt-3.5 grid gap-2 md:grid-cols-3">
+            <div className="rounded-2xl border border-[color:var(--line)] bg-[#F8FAFC] p-3">
               <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Plan</div>
-              <div className="mt-2 text-lg font-semibold text-[color:var(--text-strong)]">{activePlanName}</div>
+              <div className="mt-1.5 text-base font-semibold text-[color:var(--text-strong)]">{activePlanName}</div>
             </div>
-            <div className="rounded-2xl border border-[color:var(--line)] bg-[#F8FAFC] p-3.5">
+            <div className="rounded-2xl border border-[color:var(--line)] bg-[#F8FAFC] p-3">
               <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Shared units</div>
-              <div className="mt-2 text-lg font-semibold text-[color:var(--text-strong)]">{packageLimit.toLocaleString()}</div>
+              <div className="mt-1.5 text-base font-semibold text-[color:var(--text-strong)]">{packageLimit.toLocaleString()}</div>
             </div>
-            <div className="rounded-2xl border border-[color:var(--line)] bg-[#F8FAFC] p-3.5">
+            <div className="rounded-2xl border border-[color:var(--line)] bg-[#F8FAFC] p-3">
               <div className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Used</div>
-              <div className="mt-2 text-lg font-semibold text-[color:var(--text-strong)]">{usedUnits.toLocaleString()}</div>
+              <div className="mt-1.5 text-base font-semibold text-[color:var(--text-strong)]">{usedUnits.toLocaleString()}</div>
             </div>
           </div>
-          <div className="mt-4 h-2 rounded-full bg-emerald-100">
+          <div className="mt-3.5 h-2 rounded-full bg-emerald-100">
             <div className="h-2 rounded-full bg-[linear-gradient(90deg,#10B981,#2563EB)]" style={{ width: `${Math.max(0, Math.min(100, packageLimit ? Math.round((remainingUnits / packageLimit) * 100) : 0))}%` }} />
           </div>
         </Card>
 
-        <Card className="min-w-0 w-full overflow-hidden xl:col-span-5 p-5">
+        <Card className="min-w-0 w-full overflow-hidden xl:col-span-5 p-[18px]">
           <CardTitle>Quick actions</CardTitle>
           <BodyText className="mt-1">Common tasks.</BodyText>
-          <div className="mt-4 grid gap-2.5 sm:grid-cols-3 xl:grid-cols-1">
+          <div className="mt-3.5 grid gap-2 sm:grid-cols-3 xl:grid-cols-1">
             <Link to="/generate-labels"><ActionButton variant="secondary" className="w-full justify-between" trailingIcon={<ArrowRight className="h-4 w-4" />}>Generate labels</ActionButton></Link>
             <Link to="/generate-money-orders"><ActionButton variant="secondary" className="w-full justify-between" trailingIcon={<ArrowRight className="h-4 w-4" />}>Generate money order</ActionButton></Link>
             <Link to="/tracking-workspace"><ActionButton variant="secondary" className="w-full justify-between" trailingIcon={<ArrowRight className="h-4 w-4" />}>Tracking workspace</ActionButton></Link>
@@ -165,10 +165,10 @@ export default function Dashboard() {
         }}
       />
 
-      <div className="grid min-w-0 w-full gap-3 overflow-hidden xl:grid-cols-12">
-        <Card className="min-w-0 w-full overflow-hidden xl:col-span-8 p-5">
+      <div className="grid min-w-0 w-full gap-2.5 overflow-hidden xl:grid-cols-12">
+        <Card className="min-w-0 w-full overflow-hidden xl:col-span-8 p-[18px]">
           <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Shipment Status</div>
-          <div className="mt-3.5 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {[
               { label: "Delivered", count: stats.delivered, amount: stats.deliveredAmount, filter: "DELIVERED", tone: "text-emerald-700" },
               { label: "Pending", count: stats.pending, amount: stats.pendingAmount, filter: "PENDING", tone: "text-amber-700" },
@@ -184,19 +184,19 @@ export default function Dashboard() {
                 key={item.label}
                 type="button"
                 onClick={() => navigateToTrackingFilter(item.filter)}
-                className="rounded-2xl border border-[color:var(--line)] bg-[#F8FAFC] p-3.5 text-left transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
+                className="rounded-2xl border border-[color:var(--line)] bg-[#F8FAFC] p-3 text-left transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white"
               >
                 <div className="text-xs text-slate-500">{item.label}</div>
-                <div className={`mt-1 text-[1.6rem] font-bold ${item.tone}`}>{item.count.toLocaleString()}</div>
-                <div className="mt-1 text-xs font-semibold text-slate-600">{formatPKR.format(item.amount ?? 0)}</div>
+                <div className={`mt-1 text-[1.4rem] font-bold ${item.tone}`}>{item.count.toLocaleString()}</div>
+                <div className="mt-0.5 text-xs font-semibold text-slate-600">{formatPKR.format(item.amount ?? 0)}</div>
               </button>
             ))}
           </div>
         </Card>
 
-        <Card className="min-w-0 w-full overflow-hidden xl:col-span-4 p-5">
+        <Card className="min-w-0 w-full overflow-hidden xl:col-span-4 p-[18px]">
           <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">6 Day Activity</div>
-          <div className="mt-3.5 flex items-end gap-1.5">
+          <div className="mt-3 flex items-end gap-1.5">
             {activity.length > 0 ? activity.map((item) => {
               const height = Math.max(16, Math.round((item.total / maxActivity) * 120));
               return (

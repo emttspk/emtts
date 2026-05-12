@@ -29,7 +29,7 @@ export default function StatsCard({ title, value, detail, icon: Icon, tone = "bl
       type={onClick ? "button" : undefined}
       onClick={onClick}
       className={cn(
-        "w-full rounded-[18px] border border-[color:var(--line)] bg-[linear-gradient(135deg,var(--tw-gradient-stops))] p-4 text-left shadow-[0_12px_30px_rgba(8,18,37,0.06)] transition-all duration-200 hover:-translate-y-0.5",
+        "w-full rounded-[18px] border border-[color:var(--line)] bg-[linear-gradient(135deg,var(--tw-gradient-stops))] p-3.5 text-left shadow-[0_12px_30px_rgba(8,18,37,0.06)] transition-all duration-200 hover:-translate-y-0.5",
         toneClass.shell,
         toneClass.ring,
         onClick ? "cursor-pointer" : "cursor-default",
@@ -38,11 +38,11 @@ export default function StatsCard({ title, value, detail, icon: Icon, tone = "bl
     >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--text-muted)]">{title}</div>
-          <div className="mt-2.5 text-[1.7rem] font-extrabold tracking-[-0.04em] text-[color:var(--text-strong)]">{value}</div>
-          {detail ? <div className="mt-1.5 text-[13px] leading-5 text-[color:var(--text-muted)]">{detail}</div> : null}
+          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--text-muted)]">{title}</div>
+          <div className="mt-2 text-[1.45rem] font-extrabold tracking-[-0.04em] text-[color:var(--text-strong)]">{value}</div>
+          {detail ? <div className="mt-1 text-[12px] leading-[18px] text-[color:var(--text-muted)]">{detail}</div> : null}
         </div>
-        <div className={cn("flex h-10 w-10 items-center justify-center rounded-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]", toneClass.icon)}>
+        <div className={cn("flex h-9 w-9 items-center justify-center rounded-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]", toneClass.icon)}>
           <Icon className="h-4.5 w-4.5" strokeWidth={2.1} />
         </div>
       </div>

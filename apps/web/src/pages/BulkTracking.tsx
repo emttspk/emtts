@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { UploadCloud, AlertCircle, Eye, MapPin, PackageSearch, BadgeDollarSign, RefreshCw, Printer, Package, CheckCircle2, Clock, TrendingUp, X, MessageSquare, Activity, ChevronRight, Truck, ArrowUpRight, Search } from "lucide-react";
+import { UploadCloud, AlertCircle, Eye, MapPin, PackageSearch, BadgeDollarSign, RefreshCw, Printer, Package, CheckCircle2, Clock, TrendingUp, X, MessageSquare, Activity, ChevronRight, Truck, ArrowUpRight, Search, ArrowUpDown } from "lucide-react";
 import Card from "../components/Card";
 import ActionButton from "../components/ui/ActionButton";
 import UnifiedShipmentCards from "../components/UnifiedShipmentCards";
@@ -98,6 +98,40 @@ type ExtendedStatusFilter =
   | "COMPLAINT_REOPENED"
   | "COMPLAINT_IN_PROCESS";
 
+type TrackingSortKey = "updatedAt" | "bookingDate" | "trackingNumber" | "status" | "city" | "moNumber" | "moValue" | "complaintState";
+type SortDir = "asc" | "desc";
+
+type TrackingTableRowModel = {
+  record: FinalTrackingRecord;
+  shipment: Shipment;
+  serialNumber: number;
+  lifecycle: ComplaintLifecycle;
+  queueSnapshot: ComplaintQueueSnapshot | undefined;
+  complaintCardState: string;
+  complaintStateUpper: string;
+  presentation: TrackingPresentationModel;
+  displayStatus: string;
+  statusUpper: string;
+  isComplaintEnabled: boolean;
+  complaintActionLabel: string;
+  actionValue: "PENDING" | "DELIVERED" | "RETURNED";
+  isWarning: boolean;
+  moNumber: string;
+  moAmount: number | null;
+  city: string;
+  bookingDateLabel: string;
+  bookingTimeLabel: string;
+  bookingDateMs: number;
+  updatedDateLabel: string;
+  updatedTimeLabel: string;
+  updatedAtMs: number;
+  days: number;
+  complaintId: string;
+  complaintDueDate: string;
+  complaintCount: number;
+  rowVisualLeft: string;
+};
+
 const TRACKING_CACHE_TTL_MS = 60_000;
 const COMPLAINT_QUEUE_CACHE_TTL_MS = 45_000;
 const WORKSPACE_RENDER_CACHE_PERSIST_MS = 150;
@@ -117,6 +151,17 @@ const TRACKING_SERVICE_TYPE_MAP: Record<string, string> = {
   RL: "RGL",
   PR: "PAR",
 };
+
+const TRACKING_SORT_KEYS: TrackingSortKey[] = ["updatedAt", "bookingDate", "trackingNumber", "status", "city", "moNumber", "moValue", "complaintState"];
+const TRACKING_TEXT_COLLATOR = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
+
+function isTrackingSortKey(value: string | null | undefined): value is TrackingSortKey {
+  return TRACKING_SORT_KEYS.includes(value as TrackingSortKey);
+}
+
+function defaultTrackingSortDir(sortKey: TrackingSortKey): SortDir {
+  return sortKey === "updatedAt" || sortKey === "bookingDate" || sortKey === "moValue" ? "desc" : "asc";
+}
 
 function formatLastDate(shipment: Shipment): string {
   return String(shipment.latestDate ?? "").trim() || new Date(shipment.updatedAt).toLocaleDateString("en-GB");
@@ -712,6 +757,33 @@ function parseTimelineTimestamp(dateRaw: string, timeRaw: string) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function formatTrackingTableTimestampParts(timestampMs: number) {
+  if (!Number.isFinite(timestampMs) || timestampMs <= 0) {
+    return { date: "-", time: "-" };
+  }
+  const date = new Date(timestampMs);
+  return {
+    date: date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }),
+    time: date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+  };
+}
+
+function resolveShipmentBookingMeta(shipment: Shipment) {
+  const timeline = extractTimeline(shipment.rawJson);
+  const firstEvent = timeline[0] ?? null;
+  const firstEventMs = firstEvent ? parseTimelineTimestamp(firstEvent.date, firstEvent.time)?.getTime() ?? null : null;
+  const createdAtMs = new Date(shipment.createdAt).getTime();
+  const fallbackMs = Number.isFinite(createdAtMs) ? createdAtMs : 0;
+  const effectiveMs = firstEventMs ?? fallbackMs;
+  const fallbackParts = formatTrackingTableTimestampParts(effectiveMs);
+
+  return {
+    date: firstEvent?.date || fallbackParts.date,
+    time: firstEvent?.time || fallbackParts.time,
+    ms: effectiveMs,
+  };
+}
+
 function logTimelineValidation(stage: string, trackingNumber: string, events: TimelineEvent[]) {
   const first = events[0] ? `${events[0].date} ${events[0].time}`.trim() : "-";
   const last = events[events.length - 1] ? `${events[events.length - 1].date} ${events[events.length - 1].time}`.trim() : "-";
@@ -919,6 +991,93 @@ function isManualOverrideShipment(shipment: Shipment): boolean {
   return Boolean(raw?.manual_override) && Boolean(String(raw?.manual_status ?? "").trim());
 }
 
+function buildTrackingTableRowModel(
+  record: FinalTrackingRecord,
+  serialNumber: number,
+  complaintQueueByTracking: Map<string, ComplaintQueueSnapshot>,
+): TrackingTableRowModel {
+  const shipment = record.shipment;
+  const lifecycle = parseComplaintLifecycle(shipment);
+  const queueSnapshot = complaintQueueByTracking.get(shipment.trackingNumber);
+  const complaintCardState = resolveComplaintCardState(lifecycle, queueSnapshot);
+  const complaintStateUpper = complaintCardState.toUpperCase();
+  const timeline = extractTimeline(shipment.rawJson);
+  const raw = parseRaw(shipment.rawJson);
+  const presentation = resolveTrackingPresentation(
+    record.final_status,
+    timeline,
+    shipment.trackingLifecycle?.progress,
+    shipment.trackingLifecycle ?? (((raw?.tracking_lifecycle as any) ?? null)),
+    {
+      operationalStatus: record.final_status,
+      complaintActive: isComplaintInProcess(lifecycle) || ["ACTIVE", "PROCESSING", "RETRY PENDING", "MANUAL REVIEW", "QUEUED"].includes(complaintStateUpper),
+      complaintStateLabel: complaintCardState === "ACTIVE" ? "Under Investigation" : complaintCardState,
+    },
+  );
+  const displayStatus = presentation.displayStatus;
+  const statusUpper = normalizeStatus(displayStatus).toUpperCase();
+  const isComplaintEnabled = isComplaintActionAllowed(record.final_status, lifecycle, queueSnapshot);
+  const complaintActionLabel = resolveComplaintActionLabel(record.final_status, lifecycle, queueSnapshot);
+  const normalizedDisplayStatus = String(record.final_status ?? "").trim().toUpperCase().includes("RETURN")
+    ? "RETURNED"
+    : String(record.final_status ?? "").trim().toUpperCase();
+  const actionValue: "PENDING" | "DELIVERED" | "RETURNED" = normalizedDisplayStatus === "DELIVERED" || normalizedDisplayStatus === "RETURNED"
+    ? normalizedDisplayStatus
+    : "PENDING";
+  const isWarning = record.delayed;
+  const moNumber = extractMoReference(shipment.rawJson, shipment.moIssued ?? null, shipment.moneyOrderIssued) || "-";
+  const moAmount = extractMoValue(shipment.rawJson, shipment.moValue ?? null);
+  const city = preferredCity(shipment);
+  const bookingMeta = resolveShipmentBookingMeta(shipment);
+  const updatedAtMs = new Date(shipment.updatedAt).getTime();
+  const updatedParts = formatTrackingTableTimestampParts(updatedAtMs);
+  const days = shipment.daysPassed ?? Math.floor((Date.now() - new Date(shipment.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+  const rowVisualLeft = complaintStateUpper === "PROCESSING"
+    ? "border-l-purple-500"
+    : complaintStateUpper === "RETRY PENDING"
+      ? "border-l-yellow-500"
+      : complaintStateUpper === "ACTIVE"
+        ? "border-l-blue-500"
+        : statusUpper.includes("DELIVERED")
+          ? "border-l-emerald-500"
+          : statusUpper.includes("RETURN")
+            ? "border-l-red-500"
+            : isWarning
+              ? "border-l-purple-400"
+              : "border-l-amber-500";
+
+  return {
+    record,
+    shipment,
+    serialNumber,
+    lifecycle,
+    queueSnapshot,
+    complaintCardState,
+    complaintStateUpper,
+    presentation,
+    displayStatus,
+    statusUpper,
+    isComplaintEnabled,
+    complaintActionLabel,
+    actionValue,
+    isWarning,
+    moNumber,
+    moAmount,
+    city,
+    bookingDateLabel: bookingMeta.date,
+    bookingTimeLabel: bookingMeta.time,
+    bookingDateMs: bookingMeta.ms,
+    updatedDateLabel: updatedParts.date,
+    updatedTimeLabel: updatedParts.time,
+    updatedAtMs,
+    days,
+    complaintId: lifecycle.complaintId || queueSnapshot?.complaintId || "Complaint",
+    complaintDueDate: lifecycle.dueDateText || (queueSnapshot?.dueDate ? new Date(queueSnapshot.dueDate).toLocaleDateString("en-GB") : "-"),
+    complaintCount: lifecycle.complaintCount,
+    rowVisualLeft,
+  };
+}
+
 export default function BulkTracking() {
   const { me } = useOutletContext<ShellCtx>();
   const [searchParams] = useSearchParams();
@@ -948,6 +1107,15 @@ export default function BulkTracking() {
   const [statusFilter, setStatusFilter] = useState<ExtendedStatusFilter>(() => readInitialWorkspaceViewState()?.statusFilter ?? "ALL");
   const [searchInput, setSearchInput] = useState(() => readInitialWorkspaceViewState()?.searchInput ?? "");
   const [searchTerm, setSearchTerm] = useState(() => readInitialWorkspaceViewState()?.searchTerm ?? "");
+  const [sortKey, setSortKey] = useState<TrackingSortKey>(() => {
+    const cachedSortKey = readInitialWorkspaceViewState()?.sortKey;
+    return isTrackingSortKey(cachedSortKey) ? cachedSortKey : "updatedAt";
+  });
+  const [sortDir, setSortDir] = useState<SortDir>(() => {
+    const state = readInitialWorkspaceViewState();
+    const cachedSortKey = isTrackingSortKey(state?.sortKey) ? state.sortKey : "updatedAt";
+    return state?.sortDir === "asc" || state?.sortDir === "desc" ? state.sortDir : defaultTrackingSortDir(cachedSortKey);
+  });
   const [page, setPage] = useState(() => Math.max(1, readInitialWorkspaceViewState()?.page ?? 1));
   const [totalShipments, setTotalShipments] = useState(() => readInitialWorkspaceRenderCache()?.total ?? 0);
   const [auditRows, setAuditRows] = useState<CycleAuditRecord[]>([]);
@@ -1115,10 +1283,12 @@ export default function BulkTracking() {
       statusFilter,
       searchInput,
       searchTerm,
+      sortKey,
+      sortDir,
       scrollY: typeof window !== "undefined" ? window.scrollY : 0,
       savedAt: Date.now(),
     });
-  }, [page, pageSize, searchInput, searchTerm, statusFilter]);
+  }, [page, pageSize, searchInput, searchTerm, sortDir, sortKey, statusFilter]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -1128,13 +1298,15 @@ export default function BulkTracking() {
         statusFilter,
         searchInput,
         searchTerm,
+        sortKey,
+        sortDir,
         scrollY: window.scrollY,
         savedAt: Date.now(),
       });
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [page, pageSize, searchInput, searchTerm, statusFilter]);
+  }, [page, pageSize, searchInput, searchTerm, sortDir, sortKey, statusFilter]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setRetryCountdownNow(Date.now()), 1000);
@@ -2192,6 +2364,32 @@ export default function BulkTracking() {
     setPage(1);
   }, [searchInput]);
 
+  const toggleTrackingSort = useCallback((nextKey: TrackingSortKey) => {
+    setPage(1);
+    if (sortKey === nextKey) {
+      setSortDir((current) => (current === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(nextKey);
+    setSortDir(defaultTrackingSortDir(nextKey));
+  }, [sortKey]);
+
+  const renderTrackingHeader = (nextKey: TrackingSortKey, label: string, icon?: JSX.Element) => (
+    <button
+      type="button"
+      onClick={() => toggleTrackingSort(nextKey)}
+      className={cn(
+        "inline-flex items-center gap-1 text-left transition-colors hover:text-slate-900",
+        sortKey === nextKey ? "text-slate-900" : "text-[#6B7280]",
+      )}
+    >
+      {icon ? icon : null}
+      <span>{label}</span>
+      <ArrowUpDown className={cn("h-3 w-3", sortKey === nextKey ? "text-brand" : "text-slate-400")} />
+      {sortKey === nextKey ? <span className="text-[9px] font-bold tracking-[0.12em] text-brand">{sortDir === "asc" ? "ASC" : "DESC"}</span> : null}
+    </button>
+  );
+
   const exportFilteredTrackingCsv = useCallback(() => {
     const escapeCsv = (val: unknown) => {
       const s = String(val ?? "");
@@ -2201,10 +2399,11 @@ export default function BulkTracking() {
     const headers = [
       "Tracking Number",
       "Updated At",
+      "Booking Date",
       "Status",
       "City",
-      "Money Order No",
-      "Money Order Amount",
+      "MO #",
+      "MO Rs.",
       "Complaint ID",
       "Complaint State",
       "Complaint Due Date",
@@ -2213,11 +2412,13 @@ export default function BulkTracking() {
     const rows = filteredShipments.map((record) => {
       const shipment = record.shipment;
       const lifecycle = parseComplaintLifecycle(shipment);
+      const bookingMeta = resolveShipmentBookingMeta(shipment);
       const moNumber = extractMoReference(shipment.rawJson, shipment.moIssued ?? null, shipment.moneyOrderIssued);
       const moAmount = extractMoValue(shipment.rawJson, shipment.moValue ?? null);
       return [
         shipment.trackingNumber,
         new Date(shipment.updatedAt).toISOString(),
+        `${bookingMeta.date} ${bookingMeta.time}`.trim(),
         normalizeStatus(record.final_status),
         preferredCity(shipment),
         moNumber,
@@ -2243,7 +2444,67 @@ export default function BulkTracking() {
     URL.revokeObjectURL(url);
   }, [filteredShipments]);
 
-  const totalFilteredShipments = filteredShipments.length;
+  const sortedTrackingRecords = useMemo(() => {
+    const next = filteredShipments.map((record, stableIndex) => {
+      const shipment = record.shipment;
+      const bookingMeta = sortKey === "bookingDate" ? resolveShipmentBookingMeta(shipment) : null;
+      const lifecycle = sortKey === "complaintState" ? parseComplaintLifecycle(shipment) : null;
+      const queueSnapshot = sortKey === "complaintState" ? complaintQueueByTracking.get(shipment.trackingNumber) : undefined;
+
+      return {
+        record,
+        stableIndex,
+        updatedAtMs: new Date(shipment.updatedAt).getTime() || 0,
+        bookingDateMs: bookingMeta?.ms ?? 0,
+        trackingNumber: shipment.trackingNumber,
+        status: normalizeStatus(record.final_status),
+        city: preferredCity(shipment),
+        moNumber: extractMoReference(shipment.rawJson, shipment.moIssued ?? null, shipment.moneyOrderIssued) || "",
+        moValue: extractMoValue(shipment.rawJson, shipment.moValue ?? null) ?? -1,
+        complaintState: lifecycle ? resolveComplaintCardState(lifecycle, queueSnapshot) : "",
+      };
+    });
+
+    const multiplier = sortDir === "asc" ? 1 : -1;
+    next.sort((left, right) => {
+      let result = 0;
+      switch (sortKey) {
+        case "updatedAt":
+          result = left.updatedAtMs - right.updatedAtMs;
+          break;
+        case "bookingDate":
+          result = left.bookingDateMs - right.bookingDateMs;
+          break;
+        case "trackingNumber":
+          result = TRACKING_TEXT_COLLATOR.compare(left.trackingNumber, right.trackingNumber);
+          break;
+        case "status":
+          result = TRACKING_TEXT_COLLATOR.compare(left.status, right.status);
+          break;
+        case "city":
+          result = TRACKING_TEXT_COLLATOR.compare(left.city, right.city);
+          break;
+        case "moNumber":
+          result = TRACKING_TEXT_COLLATOR.compare(left.moNumber || "-", right.moNumber || "-");
+          break;
+        case "moValue":
+          result = left.moValue - right.moValue;
+          break;
+        case "complaintState":
+          result = TRACKING_TEXT_COLLATOR.compare(left.complaintState || "-", right.complaintState || "-");
+          break;
+        default:
+          result = 0;
+      }
+
+      if (result !== 0) return result * multiplier;
+      return left.stableIndex - right.stableIndex;
+    });
+
+    return next.map((item) => item.record);
+  }, [complaintQueueByTracking, filteredShipments, sortDir, sortKey]);
+
+  const totalFilteredShipments = sortedTrackingRecords.length;
   const totalPages = Math.max(1, Math.ceil(totalFilteredShipments / pageSize));
 
   useEffect(() => {
@@ -2255,15 +2516,15 @@ export default function BulkTracking() {
   const paginatedShipments = useMemo(() => {
     const start = (page - 1) * pageSize;
     const end = page * pageSize;
-    const pageRows = filteredShipments.slice(start, end);
-    return pageRows;
-  }, [filteredShipments, page, pageSize, statusFilter]);
+    const pageRows = sortedTrackingRecords.slice(start, end);
+    return pageRows.map((record, index) => buildTrackingTableRowModel(record, start + index + 1, complaintQueueByTracking));
+  }, [complaintQueueByTracking, page, pageSize, sortedTrackingRecords]);
 
   useEffect(() => {
     if (shipments.length === 0) return;
     const timer = window.setTimeout(() => {
       writeTrackingWorkspaceRenderCache<Shipment, ComplaintQueueSnapshot>({
-        shipments: paginatedShipments.map((record) => record.shipment),
+        shipments: paginatedShipments.map((row) => row.shipment),
         total: totalShipments || shipments.length,
         complaintQueue: complaintQueueMapToRows(complaintQueueByTracking),
         fetchedAt: trackingCacheRef.current?.fetchedAt ?? Date.now(),
@@ -3411,18 +3672,18 @@ export default function BulkTracking() {
               </button>
             </div>
           </div>
-          <div className="w-full max-h-[72vh] overflow-y-auto overflow-x-auto rounded-[20px] border border-[#E5E7EB] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] md:overflow-x-hidden">
-            <table className="w-full table-fixed text-[12px] leading-4">
+          <div className="w-full max-h-[72vh] overflow-y-auto overflow-x-auto rounded-[20px] border border-[#E5E7EB] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+            <table className="min-w-[1088px] w-full table-fixed text-[11px] leading-4">
               <thead className="sticky top-0 z-10 border-b border-[#E5E7EB] bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(241,245,249,0.98))] backdrop-blur-md">
               <tr>
-                <th className="w-9 border-r border-[#E5E7EB] px-3 py-3.5">
+                <th className="w-9 border-r border-[#E5E7EB] px-2.5 py-2.5">
                   <input
                     type="checkbox"
                     className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
-                    checked={paginatedShipments.length > 0 && paginatedShipments.every((s) => selectedIds.includes(s.shipment.id))}
+                    checked={paginatedShipments.length > 0 && paginatedShipments.every((row) => selectedIds.includes(row.shipment.id))}
                     onChange={(e) =>
                       setSelectedIds((prev) => {
-                        const pageIds = paginatedShipments.map((s) => s.shipment.id);
+                        const pageIds = paginatedShipments.map((row) => row.shipment.id);
                         if (!e.target.checked) {
                           return prev.filter((id) => !pageIds.includes(id));
                         }
@@ -3431,224 +3692,181 @@ export default function BulkTracking() {
                     }
                   />
                 </th>
-                <th className="w-14 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+                <th className="w-14 border-r border-[#E5E7EB] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
                   S.No
                 </th>
-                <th className="w-20 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-                  Updated
+                <th className="w-[160px] border-r border-[#E5E7EB] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+                  <button
+                    type="button"
+                    onClick={() => toggleTrackingSort("updatedAt")}
+                    className={cn(
+                      "inline-flex items-center gap-1 text-left transition-colors hover:text-slate-900",
+                      sortKey === "updatedAt" || sortKey === "bookingDate" ? "text-slate-900" : "text-[#6B7280]",
+                    )}
+                  >
+                    <span>Date</span>
+                    <ArrowUpDown className={cn("h-3 w-3", sortKey === "updatedAt" || sortKey === "bookingDate" ? "text-brand" : "text-slate-400")} />
+                    {sortKey === "updatedAt" || sortKey === "bookingDate" ? (
+                      <span className="text-[9px] font-bold tracking-[0.12em] text-brand">{sortDir === "asc" ? "ASC" : "DESC"}</span>
+                    ) : null}
+                  </button>
                 </th>
-                <th className="w-32 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-                  <span className="inline-flex items-center gap-1"><PackageSearch className="h-3 w-3" /> Tracking</span>
+                <th className="w-32 border-r border-[#E5E7EB] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+                  {renderTrackingHeader("trackingNumber", "Tracking", <PackageSearch className="h-3 w-3" />)}
                 </th>
-                <th className="w-20 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-                  Status
+                <th className="w-[104px] border-r border-[#E5E7EB] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+                  {renderTrackingHeader("status", "Status")}
                 </th>
-                <th className="w-28 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-                  <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> City</span>
+                <th className="w-[120px] border-r border-[#E5E7EB] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+                  {renderTrackingHeader("city", "City", <MapPin className="h-3 w-3" />)}
                 </th>
-                <th className="w-28 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-                  <span className="inline-flex items-center gap-1"><BadgeDollarSign className="h-3 w-3" /> Money Order No</span>
+                <th className="w-[118px] border-r border-[#E5E7EB] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+                  {renderTrackingHeader("moNumber", "MO #", <BadgeDollarSign className="h-3 w-3" />)}
                 </th>
-                <th className="w-24 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-                  Money Order Amount
+                <th className="w-[92px] border-r border-[#E5E7EB] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+                  {renderTrackingHeader("moValue", "MO Rs.")}
                 </th>
-                <th className="w-24 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+                <th className="w-[116px] border-r border-[#E5E7EB] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
                   Action
                 </th>
-                <th className="w-[132px] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-                  Complaint
+                <th className="w-[176px] px-2.5 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+                  {renderTrackingHeader("complaintState", "Complaint")}
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E5E7EB]">
               {paginatedShipments.map((row, index) => {
-                const s = row.shipment;
-                const actionStatus = row.final_status;
-                const days = s.daysPassed ?? Math.floor((Date.now() - new Date(s.createdAt).getTime()) / (1000 * 60 * 60 * 24));
-
-                const lifecycle = parseComplaintLifecycle(s);
-                const queueSnapshot = complaintQueueByTracking.get(s.trackingNumber);
-                const complaintCardState = resolveComplaintCardState(lifecycle, queueSnapshot);
-                const rowPresentation = resolveTrackingPresentation(
-                  row.final_status,
-                  extractTimeline(s.rawJson),
-                  s.trackingLifecycle?.progress,
-                  s.trackingLifecycle ?? (((parseRaw(s.rawJson) as any)?.tracking_lifecycle as any) ?? null),
-                  {
-                    operationalStatus: row.final_status,
-                    complaintActive: isComplaintInProcess(lifecycle) || ["ACTIVE", "PROCESSING", "RETRY PENDING", "MANUAL REVIEW", "QUEUED"].includes(complaintCardState.toUpperCase()),
-                    complaintStateLabel: complaintCardState === "ACTIVE" ? "Under Investigation" : complaintCardState,
-                  },
-                );
-                const displayStatus = rowPresentation.displayStatus;
-                const statusUpper = normalizeStatus(displayStatus).toUpperCase();
-                const isComplaintEnabled = isComplaintActionAllowed(actionStatus, lifecycle, queueSnapshot);
-                const complaintActionLabel = resolveComplaintActionLabel(actionStatus, lifecycle, queueSnapshot);
-
-                const actionOptions = [
-                  { label: "Pending", val: "PENDING" },
-                  { label: "Delivered", val: "DELIVERED" },
-                  { label: "Return", val: "RETURNED" },
-                ];
-                const validActionValues = new Set(actionOptions.map((opt) => opt.val));
-                const normalizedDisplayStatus = String(actionStatus ?? "").trim().toUpperCase().includes("RETURN")
-                  ? "RETURNED"
-                  : String(actionStatus ?? "").trim().toUpperCase();
-                const effectiveActionOptions = actionOptions;
-                const actionValue =
-                  !normalizedDisplayStatus || !validActionValues.has(normalizedDisplayStatus)
-                    ? "PENDING"
-                    : normalizedDisplayStatus;
-
-                const isWarning = row.delayed;
-                const fetchedMO = extractMoReference(s.rawJson, s.moIssued ?? null, s.moneyOrderIssued);
-                const moValue = fetchedMO ? fetchedMO : "-";
-                const issuedValue = extractMoValue(s.rawJson, s.moValue ?? null);
-                const complaintStateUpper = complaintCardState.toUpperCase();
-                const rowVisual = complaintStateUpper === "PROCESSING"
-                  ? { left: "border-l-purple-500" }
-                  : complaintStateUpper === "RETRY PENDING"
-                    ? { left: "border-l-yellow-500" }
-                    : complaintStateUpper === "ACTIVE"
-                      ? { left: "border-l-blue-500" }
-                      : statusUpper.includes("DELIVERED")
-                        ? { left: "border-l-emerald-500" }
-                        : statusUpper.includes("RETURN")
-                          ? { left: "border-l-red-500" }
-                          : isWarning
-                            ? { left: "border-l-purple-400" }
-                            : { left: "border-l-amber-500" };
+                const shipment = row.shipment;
+                const retryHint = row.complaintCardState === "RETRY PENDING"
+                  ? formatRetryCountdown(row.queueSnapshot?.nextRetryAt, retryCountdownNow)
+                  : "";
+                const processingElapsed = row.complaintCardState === "PROCESSING"
+                  ? formatProcessingElapsed(row.queueSnapshot?.updatedAt, retryCountdownNow)
+                  : "";
+                const stateStyle = complaintStateBadgeClass(row.complaintCardState);
                 const rowBaseTone = index % 2 === 0 ? "bg-white" : "bg-[#FAFAFA]";
 
                 return (
-                  <tr key={s.id} className={cn("group border-b border-[#E5E7EB] transition-colors duration-150 hover:bg-[#F8FAFC]", rowBaseTone)}>
-                    <td className={cn("border-r border-[#E5E7EB] border-l-4 px-3 py-3.5 align-middle", rowVisual.left)}>
+                  <tr key={shipment.id} className={cn("group border-b border-[#E5E7EB] transition-colors duration-150 hover:bg-[#F8FAFC]", rowBaseTone)}>
+                    <td className={cn("border-r border-[#E5E7EB] border-l-4 px-2.5 py-2.5 align-middle", row.rowVisualLeft)}>
                       <input
                         type="checkbox"
                         className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
-                        checked={selectedIds.includes(s.id)}
+                        checked={selectedIds.includes(shipment.id)}
                         onChange={() =>
                           setSelectedIds((prev) =>
-                            prev.includes(s.id) ? prev.filter((id) => id !== s.id) : [...prev, s.id]
+                            prev.includes(shipment.id) ? prev.filter((id) => id !== shipment.id) : [...prev, shipment.id]
                           )
                         }
                       />
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle text-[11px] font-semibold text-slate-700">{(page - 1) * pageSize + index + 1}</td>
-                    <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle whitespace-nowrap">
-                      <div className="flex flex-col">
-                        <span className="text-xs font-semibold text-slate-900">
-                          {new Date(s.updatedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}
-                        </span>
-                        <span className="text-[10px] text-slate-500">
-                          {new Date(s.updatedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
-                        </span>
+                    <td className="border-r border-[#E5E7EB] px-2.5 py-2.5 align-middle text-[11px] font-semibold text-slate-700">{row.serialNumber}</td>
+                    <td className="border-r border-[#E5E7EB] px-2.5 py-2 align-middle">
+                      <div className="grid gap-1 text-[10px] leading-[1.25]">
+                        <div className="min-w-0">
+                          <span className="font-semibold text-slate-700">Booked:</span>{" "}
+                          <span className="font-semibold text-slate-900">{`${row.bookingDateLabel} ${row.bookingTimeLabel}`.trim()}</span>
+                        </div>
+                        <div className="min-w-0 text-slate-500">
+                          <span className="font-medium text-slate-500">Updated:</span>{" "}
+                          <span>{`${row.updatedDateLabel} ${row.updatedTimeLabel}`.trim()}</span>
+                        </div>
                       </div>
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle font-mono text-[11px] font-bold text-slate-800 group-hover:text-brand truncate whitespace-nowrap" title={s.trackingNumber}>
-                      {s.trackingNumber}
+                    <td className="border-r border-[#E5E7EB] px-2.5 py-2 align-middle font-mono text-[11px] font-bold text-slate-800 group-hover:text-brand break-all" title={shipment.trackingNumber}>
+                      {shipment.trackingNumber}
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle whitespace-nowrap">
+                    <td className="border-r border-[#E5E7EB] px-2.5 py-2 align-middle whitespace-nowrap">
                       <div className="flex flex-col">
-                        <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset", isWarning ? "bg-red-100 text-red-700 ring-red-200" : statusBadgeClass(displayStatus))}>
-                          {displayStatus}
+                        <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset", row.isWarning ? "bg-red-100 text-red-700 ring-red-200" : statusBadgeClass(row.displayStatus))}>
+                          {row.displayStatus}
                         </span>
-                          <span className="mt-0.5 text-[10px] text-slate-500">{days}d</span>
+                        <span className="mt-0.5 text-[10px] text-slate-500">{row.days}d</span>
                       </div>
                     </td>
-                      <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle text-[11px] text-slate-600 truncate whitespace-nowrap" title={preferredCity(s)}>{preferredCity(s)}</td>
-                      <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle text-[11px] font-semibold text-slate-700 truncate whitespace-nowrap" title={moValue || undefined}>{moValue}</td>
-                      <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle text-[11px] font-medium text-slate-700 whitespace-nowrap">
-                      {issuedValue != null ? `Rs ${issuedValue.toLocaleString()}` : "-"}
+                    <td className="border-r border-[#E5E7EB] px-2.5 py-2 align-middle text-[11px] leading-4 text-slate-600 break-words" title={row.city}>{row.city}</td>
+                    <td className="border-r border-[#E5E7EB] px-2.5 py-2 align-middle text-[11px] font-semibold text-slate-700 break-all" title={row.moNumber || undefined}>{row.moNumber}</td>
+                    <td className="border-r border-[#E5E7EB] px-2.5 py-2 align-middle text-[11px] font-medium text-slate-700 whitespace-nowrap">
+                      {row.moAmount != null ? `Rs ${row.moAmount.toLocaleString()}` : "-"}
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-3 py-3.5 pr-4 align-middle min-w-[104px]">
-                      <div className="flex items-center gap-2">
+                    <td className="border-r border-[#E5E7EB] px-2.5 py-2 align-middle">
+                      <div className="grid gap-1.5">
                         <select
-                            className="w-20 rounded border-[#E5E7EB] bg-white px-2 py-1.5 text-[10px] font-medium text-slate-700 shadow-sm focus:border-brand focus:ring-brand"
-                          value={actionValue}
-                          onChange={(e) => updateStatus(s.trackingNumber, e.target.value.includes("RETURN") ? "RETURNED" : e.target.value)}
+                          className="w-full rounded-lg border-[#E5E7EB] bg-white px-2 py-1.5 text-[10px] font-medium text-slate-700 shadow-sm focus:border-brand focus:ring-brand"
+                          value={row.actionValue}
+                          onChange={(e) => updateStatus(shipment.trackingNumber, e.target.value.includes("RETURN") ? "RETURNED" : e.target.value)}
                         >
-                          {effectiveActionOptions.map((opt) => (
-                            <option key={opt.val} value={opt.val}>
-                              {opt.label}
-                            </option>
-                          ))}
+                          <option value="PENDING">Pending</option>
+                          <option value="DELIVERED">Delivered</option>
+                          <option value="RETURNED">Return</option>
                         </select>
                         <button
                           type="button"
-                          onClick={() => setSelectedTracking(row)}
-                          className="rounded border border-brand/30 bg-brand/10 p-1 text-brand hover:bg-brand/20"
+                          onClick={() => setSelectedTracking(row.record)}
+                          className="inline-flex items-center justify-center rounded-lg border border-brand/30 bg-brand/10 px-2 py-1 text-[10px] font-semibold text-brand hover:bg-brand/20"
                           title="View details"
                         >
-                          <Eye className="h-3.5 w-3.5" />
+                          <Eye className="mr-1 h-3.5 w-3.5" />
+                          Detail
                         </button>
                       </div>
                     </td>
-                    <td className="px-3 py-3.5 pl-4 align-middle min-w-[160px]">
-                      {lifecycle.exists || queueSnapshot ? (() => {
-                        const stateStyle = complaintStateBadgeClass(complaintCardState);
-                        const complaintId = lifecycle.complaintId || queueSnapshot?.complaintId || "Complaint";
-                        const dueDate = lifecycle.dueDateText
-                          || (queueSnapshot?.dueDate ? new Date(queueSnapshot.dueDate).toLocaleDateString("en-GB") : "-");
-                        const retryHint = complaintCardState === "RETRY PENDING"
-                          ? formatRetryCountdown(queueSnapshot?.nextRetryAt, retryCountdownNow)
-                          : "";
-                        const processingElapsed = complaintCardState === "PROCESSING"
-                          ? formatProcessingElapsed(queueSnapshot?.updatedAt, retryCountdownNow)
-                          : "";
+                    <td className="px-2.5 py-2 align-middle">
+                      {row.lifecycle.exists || row.queueSnapshot ? (() => {
                         return (
                           <div className="w-full rounded-xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff,#f8fafc)] px-2.5 py-2 text-left text-[10px] shadow-sm">
-                            <div className="truncate font-semibold text-[#111827]" title={complaintId}>{complaintId}</div>
-                            <div className="mt-0.5 text-[#6B7280]">Due: {dueDate}</div>
-                            <div className="mt-0.5 text-[#6B7280]">Complaint Count: {lifecycle.complaintCount.toLocaleString()}</div>
-                            <div className="mt-0.5">
+                            <div className="truncate font-semibold text-[#111827]" title={row.complaintId}>{row.complaintId}</div>
+                            <div className="mt-0.5 text-[#6B7280]">Due: {row.complaintDueDate}</div>
+                            <div className="mt-0.5 text-[#6B7280]">Count: {row.complaintCount.toLocaleString()}</div>
+                            <div className="mt-1 flex flex-wrap items-center gap-1">
                               <span className={cn("inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ring-1 ring-inset", stateStyle)}>
-                                {complaintCardState}
+                                {row.complaintCardState}
                               </span>
+                              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-semibold text-slate-600">{row.statusUpper}</span>
                             </div>
-                            {complaintCardState === "RETRY PENDING" ? (
+                            {row.complaintCardState === "RETRY PENDING" ? (
                               <div className="mt-1 text-[9px] font-semibold text-amber-700">{retryHint}</div>
                             ) : null}
-                            {complaintCardState === "PROCESSING" ? (
+                            {row.complaintCardState === "PROCESSING" ? (
                               <div className="mt-1 text-[9px] font-semibold text-purple-700">Processing... {processingElapsed}</div>
                             ) : null}
                             <button
                               type="button"
-                              onClick={() => openComplaintModal(row)}
-                              disabled={!isComplaintEnabled || complaintActionLabel === "In Process"}
+                              onClick={() => openComplaintModal(row.record)}
+                              disabled={!row.isComplaintEnabled || row.complaintActionLabel === "In Process"}
                               className={cn(
-                                "mt-1.5 inline-flex w-full items-center justify-center rounded px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset transition-all",
-                                isComplaintEnabled && complaintActionLabel !== "In Process"
+                                "mt-1.5 inline-flex w-full items-center justify-center rounded px-2 py-1 text-[10px] font-semibold ring-1 ring-inset transition-all",
+                                row.isComplaintEnabled && row.complaintActionLabel !== "In Process"
                                   ? "bg-white text-emerald-800 ring-emerald-300 hover:bg-emerald-100"
                                   : "cursor-not-allowed bg-gray-50 text-gray-400 ring-gray-200"
                               )}
                             >
-                              {complaintActionLabel}
+                              {row.complaintActionLabel}
                             </button>
-                            {lifecycle.complaintCount > 0 ? (
+                            {row.complaintCount > 0 ? (
                               <button
                                 type="button"
-                                onClick={() => setHistoryModalRecord(row)}
+                                onClick={() => setHistoryModalRecord(row.record)}
                                 className="mt-1 inline-flex w-full items-center justify-center rounded px-2 py-0.5 text-[9px] font-medium ring-1 ring-inset transition-all bg-slate-50 text-slate-600 ring-slate-200 hover:bg-slate-100"
                               >
-                                View History ({lifecycle.complaintCount})
+                                View History ({row.complaintCount})
                               </button>
                             ) : null}
                           </div>
                         );
                       })() : (
                         <button
-                          disabled={!isComplaintEnabled}
-                          onClick={() => openComplaintModal(row)}
+                          disabled={!row.isComplaintEnabled}
+                          onClick={() => openComplaintModal(row.record)}
                           className={cn(
                             "inline-flex w-full items-center justify-center gap-1 rounded-xl px-2 py-1 text-[11px] font-semibold shadow-sm ring-1 ring-inset transition-all",
-                            isComplaintEnabled
+                            row.isComplaintEnabled
                               ? "bg-red-50 text-red-700 ring-red-200 hover:bg-red-100"
                               : "cursor-not-allowed bg-gray-50 text-gray-400 ring-gray-200"
                           )}
                         >
                           <MessageSquare className="h-3 w-3" />
-                          {resolveComplaintActionLabel(actionStatus, lifecycle, queueSnapshot)}
+                          {row.complaintActionLabel}
                         </button>
                       )}
                     </td>

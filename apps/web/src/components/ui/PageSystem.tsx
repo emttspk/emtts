@@ -18,11 +18,11 @@ export function PageShell(props: Classy) {
 }
 
 export function SurfaceCard(props: Classy) {
-  return <Card className={cn("border border-[color:var(--line)] bg-white p-5", props.className)}>{props.children}</Card>;
+  return <Card className={cn("border border-[color:var(--line)] bg-white p-4", props.className)}>{props.children}</Card>;
 }
 
 export function PageTitle(props: Classy) {
-  return <h1 className={cn("text-3xl font-extrabold tracking-[-0.04em] text-[color:var(--text-strong)]", props.className)}>{props.children}</h1>;
+  return <h1 className={cn("text-[2rem] font-extrabold tracking-[-0.04em] text-[color:var(--text-strong)]", props.className)}>{props.children}</h1>;
 }
 
 export function SectionTitle(props: Classy) {
@@ -30,11 +30,11 @@ export function SectionTitle(props: Classy) {
 }
 
 export function CardTitle(props: Classy) {
-  return <h3 className={cn("text-base font-semibold tracking-[-0.02em] text-[color:var(--text-strong)]", props.className)}>{props.children}</h3>;
+  return <h3 className={cn("text-[15px] font-semibold tracking-[-0.02em] text-[color:var(--text-strong)]", props.className)}>{props.children}</h3>;
 }
 
 export function BodyText(props: Classy) {
-  return <p className={cn("text-sm font-medium leading-6 text-[color:var(--text-muted)]", props.className)}>{props.children}</p>;
+  return <p className={cn("text-[13px] font-medium leading-5 text-[color:var(--text-muted)]", props.className)}>{props.children}</p>;
 }
 
 export function MutedText(props: Classy) {

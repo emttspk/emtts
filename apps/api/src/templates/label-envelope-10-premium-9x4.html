@@ -2,8 +2,17 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Envelope #10 Premium (9x4)</title>
     <style>
+  :root {
+    --ink: #0f172a;
+    --muted: #475569;
+    --line: #0f172a;
+    --panel: #f8fafc;
+    --panel-brand: #eef7f1;
+    --brand: #0f9d58;
+    --accent: #e1261c;
+  }
+
   @page {
     size: 9in 4in;
     margin: 0;
@@ -16,13 +25,9 @@
     height: 384px;
     margin: 0;
     padding: 0;
-    background: #fff;
-    font-family: Arial, Helvetica, sans-serif;
-    color: #000;
-  }
-
-  body {
-    background: #fff;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+    color: var(--ink);
   }
 
   .premium-envelope-page {
@@ -32,7 +37,7 @@
     break-after: page;
     box-sizing: border-box;
     padding: 0;
-    background: #fff;
+    background: transparent;
   }
 
   .premium-envelope-page:last-child {
@@ -41,25 +46,37 @@
   }
 
   .premium-envelope-card {
+    position: relative;
     width: 864px;
     height: 384px;
     box-sizing: border-box;
-    padding: 12px 16px 10px;
-    border: 1px solid #000;
-    border-radius: 6px;
+    padding: 10px 14px 8px;
+    border: 1.25px solid var(--line);
+    border-radius: 10px;
     display: grid;
     grid-template-rows: 69px 254px 49px;
     gap: 0;
     overflow: hidden;
-    background: #fff;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 78%, #f3f7fb 100%);
+  }
+
+  .premium-envelope-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
+    pointer-events: none;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.65);
   }
 
   .premium-header {
     display: grid;
     grid-template-columns: 35% 20% 45%;
     align-items: center;
-    border-bottom: 1px solid #000;
     min-height: 69px;
+    border-bottom: 1.25px solid var(--line);
+    background: linear-gradient(90deg, rgba(15, 157, 88, 0.08) 0%, rgba(255, 255, 255, 0) 24%, rgba(225, 38, 28, 0.08) 100%);
+    border-radius: 8px 8px 0 0;
   }
 
   .premium-header-col {
@@ -73,7 +90,7 @@
   }
 
   .premium-header-col + .premium-header-col {
-    border-left: 1px solid #000;
+    border-left: 1px solid var(--line);
   }
 
   .premium-header-left {
@@ -82,42 +99,50 @@
 
   .premium-logo {
     max-width: 100%;
-    max-height: 54px;
+    max-height: 52px;
     object-fit: contain;
   }
 
   .premium-vpl {
-    font-size: 32px;
-    font-weight: 700;
+    font-size: 30px;
+    font-weight: 800;
     line-height: 1;
+    letter-spacing: 0.14em;
     text-align: center;
+    color: var(--ink);
   }
 
   .premium-header-right {
     flex-direction: row;
     justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
   }
 
   .premium-rate-pill {
     flex: 0 0 auto;
-    min-width: 160px;
-    padding: 10px 16px;
-    border: 1px solid #000;
-    border-radius: 4px;
+    min-width: 154px;
+    padding: 10px 14px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
     text-align: center;
-    font-size: 24px;
-    font-weight: 700;
+    font-size: 22px;
+    font-weight: 800;
     line-height: 1;
     white-space: nowrap;
+    background: linear-gradient(135deg, var(--panel-brand) 0%, #ffffff 85%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
   }
 
   .premium-barcode-wrap {
     min-width: 0;
     display: grid;
     justify-items: center;
-    gap: 6px;
+    gap: 4px;
     flex: 1 1 auto;
+    padding: 5px 8px 4px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 10px;
+    background: linear-gradient(180deg, #ffffff 0%, var(--panel) 100%);
   }
 
   .premium-barcode {
@@ -128,49 +153,51 @@
   }
 
   .premium-tracking {
-    font-size: 18px;
-    font-weight: 400;
+    font-size: 17px;
+    font-weight: 700;
     line-height: 1;
+    letter-spacing: 0.08em;
     text-align: center;
   }
 
   .premium-body {
     display: grid;
-    grid-template-columns: calc(60% - 5px) calc(40% - 5px);
-    gap: 10px;
-    padding: 10px 0;
+    grid-template-columns: calc(60% - 4.5px) calc(40% - 4.5px);
+    gap: 9px;
+    padding: 9px 0;
     box-sizing: border-box;
     min-height: 254px;
   }
 
   .premium-left-col {
     display: grid;
-    grid-template-rows: 70% calc(30% - 10px);
-    gap: 10px;
+    grid-template-rows: 70% calc(30% - 9px);
+    gap: 9px;
     min-height: 0;
   }
 
   .premium-right-col {
     display: grid;
     grid-template-rows: auto auto auto 1fr;
-    gap: 10px;
+    gap: 9px;
     min-height: 0;
   }
 
   .premium-section {
-    border: 1px solid #000;
-    border-radius: 6px;
-    padding: 10px 14px;
+    border: 1.1px solid var(--line);
+    border-radius: 10px;
+    padding: 9px 12px;
     box-sizing: border-box;
     overflow: hidden;
-    background: #fff;
+    background: linear-gradient(180deg, #ffffff 0%, var(--panel) 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
   }
 
   .premium-to-section,
   .premium-from-section {
     display: grid;
     align-content: start;
-    gap: 8px;
+    gap: 6px;
   }
 
   .premium-label-row {
@@ -181,52 +208,56 @@
   .premium-label-chip {
     display: inline-flex;
     align-items: center;
-    border: 1px solid #000;
+    border: 1px solid var(--line);
     border-radius: 999px;
     padding: 4px 12px;
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 800;
     line-height: 1;
+    background: linear-gradient(135deg, var(--panel-brand) 0%, #ffffff 100%);
   }
 
   .premium-customer-name {
-    font-size: 28px;
-    font-weight: 700;
-    line-height: 1.1;
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1.08;
   }
 
   .premium-address-line {
-    font-size: 16px;
-    font-weight: 400;
-    line-height: 1.3;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.25;
     white-space: pre-line;
     overflow-wrap: anywhere;
+    color: var(--ink);
   }
 
   .premium-phone,
   .premium-from-phone {
-    font-size: 18px;
-    font-weight: 700;
-    line-height: 1.3;
+    font-size: 17px;
+    font-weight: 800;
+    line-height: 1.25;
   }
 
   .premium-from-name {
-    font-size: 16px;
-    font-weight: 700;
-    line-height: 1.3;
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.25;
   }
 
   .premium-from-line {
-    font-size: 14px;
-    font-weight: 400;
-    line-height: 1.3;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.25;
     white-space: pre-line;
     overflow-wrap: anywhere;
+    color: var(--muted);
   }
 
   .premium-amount-block {
-    padding-top: 12px;
-    padding-bottom: 12px;
+    padding-top: 11px;
+    padding-bottom: 11px;
+    background: linear-gradient(180deg, var(--panel) 0%, var(--panel-brand) 100%);
   }
 
   .premium-amount-row {
@@ -234,57 +265,56 @@
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 10px;
     align-items: center;
-    font-size: 14px;
+    font-size: 13px;
     line-height: 1.3;
   }
 
   .premium-amount-row + .premium-amount-row {
-    margin-top: 6px;
+    margin-top: 5px;
   }
 
   .premium-amount-row strong {
-    font-weight: 400;
+    font-weight: 700;
     text-align: right;
   }
 
   .premium-amount-total {
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px solid #000;
-    font-weight: 700;
-  }
-
-  .premium-amount-total strong {
-    font-weight: 700;
+    margin-top: 7px;
+    padding-top: 7px;
+    border-top: 1px dashed rgba(15, 23, 42, 0.7);
+    font-weight: 800;
   }
 
   .premium-meta-grid {
     display: grid;
-    grid-template-columns: 120px 1fr;
-    align-items: center;
+    grid-template-columns: 116px 1fr;
+    align-items: stretch;
     padding: 0;
   }
 
   .premium-meta-cell {
-    padding: 10px 12px;
+    padding: 9px 10px;
     box-sizing: border-box;
   }
 
   .premium-meta-cell + .premium-meta-cell {
-    border-left: 1px solid #000;
+    border-left: 1px solid var(--line);
   }
 
   .premium-meta-k {
-    font-size: 14px;
-    font-weight: 700;
+    display: grid;
+    place-items: center;
+    font-size: 13px;
+    font-weight: 800;
     text-align: center;
+    background: linear-gradient(180deg, #ffffff 0%, var(--panel) 100%);
   }
 
   .premium-meta-v {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     text-align: center;
-    line-height: 1.3;
+    line-height: 1.25;
     overflow-wrap: anywhere;
   }
 
@@ -293,7 +323,8 @@
   }
 
   .premium-product-text {
-    font-weight: 400;
+    font-weight: 500;
+    color: var(--muted);
   }
 
   .premium-promo-block {
@@ -301,13 +332,15 @@
     align-content: center;
     justify-items: center;
     text-align: center;
-    font-size: 14px;
-    font-weight: 400;
-    line-height: 1.3;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.35;
+    background: linear-gradient(180deg, #ffffff 0%, var(--panel-brand) 100%);
   }
 
   .premium-promo-block strong {
-    font-weight: 700;
+    font-weight: 800;
+    color: var(--brand);
   }
 
   .premium-footer {
@@ -315,16 +348,19 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    border-top: 1px solid #000;
-    font-size: 14px;
-    line-height: 1.3;
-    padding-top: 8px;
+    border-top: 1.25px solid var(--line);
+    font-size: 13px;
+    line-height: 1.25;
+    padding-top: 7px;
     box-sizing: border-box;
+    background: linear-gradient(90deg, var(--panel) 0%, var(--panel-brand) 52%, #ffffff 100%);
   }
 
   .premium-footer-inline {
     text-align: center;
     flex: 1 1 auto;
+    font-weight: 700;
+    letter-spacing: 0.04em;
   }
 
   .premium-footer-track {
@@ -333,7 +369,8 @@
   }
 
   .premium-footer-track strong {
-    font-weight: 700;
+    font-weight: 800;
+    color: var(--brand);
   }
     </style>
   </head>
@@ -406,16 +443,16 @@
             </div>
 
             <div class="premium-section premium-promo-block FooterBlock">
-              Free Print Labels, Money Order,<br />
-              Track Parcels &amp; Complaints,<br />
-              Visit <strong>www.ePost.pk</strong>
+              Premium labels, money orders,<br />
+              tracking and complaint tools<br />
+              at <strong>www.ePost.pk</strong>
             </div>
           </div>
         </div>
 
         <div class="premium-footer FooterBlock">
-          <div class="premium-footer-inline">Safe | Secure | Fast | Insured</div>
-          <div class="premium-footer-track">Track your parcel: <strong>www.ePost.pk</strong></div>
+          <div class="premium-footer-inline">Secure | Tracked | Insured | Nationwide</div>
+          <div class="premium-footer-track">Track parcel: <strong>www.ePost.pk</strong></div>
         </div>
       </div>
     </div>

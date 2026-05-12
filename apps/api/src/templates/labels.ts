@@ -410,12 +410,20 @@ function loadHtmlTemplate(candidates: string[], notFoundMessage: string) {
   };
 }
 
+function resolveTemplateCandidates(...fileNames: string[]) {
+  const templateRoots = [
+    path.resolve(process.cwd(), "dist", "templates"),
+    path.resolve(process.cwd(), "apps", "api", "dist", "templates"),
+    path.resolve(process.cwd(), "src", "templates"),
+    path.resolve(process.cwd(), "apps", "api", "src", "templates"),
+  ];
+
+  return [...new Set(templateRoots.flatMap((root) => fileNames.map((fileName) => path.join(root, fileName))))];
+}
+
 function loadBoxTemplate() {
   return loadHtmlTemplate(
-    [
-      path.resolve(process.cwd(), "apps", "api", "src", "templates", "label-box-a4.html"),
-      path.resolve(process.cwd(), "src", "templates", "label-box-a4.html"),
-    ],
+    resolveTemplateCandidates("label-box-a4.html"),
     "Box shipment template not found: label-box-a4.html",
   );
 }
@@ -819,12 +827,7 @@ export function envelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking
 
   const loadEnvelopeTemplate = () => {
     return loadHtmlTemplate(
-      [
-        path.resolve(process.cwd(), "apps", "api", "src", "templates", "label-envelope-9x4.html"),
-        path.resolve(process.cwd(), "apps", "api", "src", "templates", "label-envelope.html"),
-        path.resolve(process.cwd(), "src", "templates", "label-envelope-9x4.html"),
-        path.resolve(process.cwd(), "src", "templates", "label-envelope.html"),
-      ],
+      resolveTemplateCandidates("label-envelope-9x4.html", "label-envelope.html"),
       "Envelope template not found: label-envelope.html",
     );
   };
@@ -1590,10 +1593,7 @@ export function premiumEnvelopeHtml(orders: LabelOrder[], opts?: { autoGenerateT
 
   const loadPremiumEnvelopeTemplate = () => {
     return loadHtmlTemplate(
-      [
-        path.resolve(process.cwd(), "apps", "api", "src", "templates", "label-envelope-10-premium-9x4.html"),
-        path.resolve(process.cwd(), "src", "templates", "label-envelope-10-premium-9x4.html"),
-      ],
+      resolveTemplateCandidates("label-envelope-10-premium-9x4.html"),
       "Envelope premium template not found: label-envelope-10-premium-9x4.html",
     );
   };

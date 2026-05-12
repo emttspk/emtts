@@ -53,11 +53,10 @@ export default function Login() {
     <AuthShell
       mode="login"
       title="Sign in"
-      subtitle="Access your shipment workspace."
     >
       {err ? (
         <div
-          className="mb-5 rounded-[24px] border border-red-200/80 bg-red-50/90 px-4 py-3.5 text-sm font-medium text-red-700 shadow-[0_12px_24px_rgba(239,68,68,0.08)]"
+          className="mb-4 rounded-[22px] border border-red-200/80 bg-red-50/90 px-4 py-3 text-sm font-medium text-red-700 shadow-[0_12px_24px_rgba(239,68,68,0.08)]"
           role="alert"
           aria-live="polite"
         >
@@ -66,7 +65,7 @@ export default function Login() {
       ) : null}
 
       <form
-        className="space-y-4"
+        className="space-y-3.5"
         onSubmit={async (e) => {
           e.preventDefault();
           setErr(null);
@@ -115,7 +114,7 @@ export default function Login() {
           }
         }}
       >
-        <div className="space-y-3.5">
+        <div className="space-y-3">
           <AuthInputField
             label="Username or Email"
             icon={Mail}
@@ -151,7 +150,7 @@ export default function Login() {
           />
         </div>
 
-        <div className="flex items-center justify-between gap-3 pt-1 text-sm">
+        <div className="flex items-center justify-between gap-3 pt-0.5 text-sm">
           <label className="inline-flex cursor-pointer items-center gap-3 text-slate-600">
             <input
               checked={rememberMe}
@@ -167,9 +166,9 @@ export default function Login() {
           </Link>
         </div>
 
-        <button disabled={loading} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#0F9D58,#16C75A)] px-5 text-[15px] font-semibold text-white shadow-[0_16px_34px_rgba(18,179,71,0.26)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(18,179,71,0.3)] disabled:cursor-not-allowed disabled:opacity-70">
-          <span>{loading ? "Signing in..." : "Login"}</span>
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20">
+        <button disabled={loading} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#0F9D58,#16C75A)] px-5 text-[15px] font-semibold text-white shadow-[0_16px_34px_rgba(18,179,71,0.26)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(18,179,71,0.3)] disabled:cursor-not-allowed disabled:opacity-70">
+          <span>{loading ? "Signing in..." : "Sign in"}</span>
+          <span className="flex h-6.5 w-6.5 items-center justify-center rounded-full bg-white/20">
             <ArrowRight className="h-4.5 w-4.5" />
           </span>
         </button>
@@ -182,14 +181,14 @@ export default function Login() {
 
         <GoogleAuthButton className="mt-1" label="Sign in with Google" disabled={loading} loading={loading} onClick={handleGoogleLogin} />
 
-        <div className="pt-1 text-center text-sm text-slate-500">
+        <div className="pt-0.5 text-center text-sm text-slate-500">
           Don&apos;t have an account?{" "}
           <Link to="/register" className="font-semibold text-[#0F9D58] transition hover:text-[#0b7d46]">
             Register now
           </Link>
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-slate-200/70 pt-3 text-sm">
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t border-slate-200/70 pt-2.5 text-sm">
           <Link to="/forgot-username" className="font-medium text-slate-500 transition hover:text-slate-800">
             Forgot Username?
           </Link>

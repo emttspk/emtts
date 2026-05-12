@@ -69,20 +69,20 @@ export default function Sidebar(props: {
       <aside
         className={cn(
           "fixed left-0 top-0 z-50 flex h-screen shrink-0 flex-col border-r border-white/5 bg-[linear-gradient(180deg,#081225,#0A1325_55%,#0E1B33)] text-white shadow-[20px_0_60px_rgba(2,6,23,0.28)]",
-          "w-[284px] md:w-[96px] lg:w-[284px]",
+          "w-[272px] md:w-[92px] lg:w-[272px]",
           "transition-transform duration-300 ease-in-out md:translate-x-0",
           props.isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="border-b border-white/10 px-4 pb-3 pt-4">
+        <div className="border-b border-white/10 px-4 pb-2.5 pt-3.5">
           <div className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex rounded-2xl border border-white/10 bg-white px-2 py-2 shadow-[0_12px_30px_rgba(16,185,129,0.16)]">
-                <img src="/assets/pakistan-post-logo.png" alt="Pakistan Post" className="h-8 w-10 object-contain md:h-8 md:w-10 lg:h-9 lg:w-[90px]" />
+              <div className="flex rounded-2xl border border-white/10 bg-white px-2 py-1.5 shadow-[0_12px_30px_rgba(16,185,129,0.16)]">
+                <img src="/assets/pakistan-post-logo.png" alt="Pakistan Post" className="h-7 w-10 object-contain md:h-7 md:w-10 lg:h-8 lg:w-[84px]" />
               </div>
               <div className="min-w-0 leading-tight md:hidden lg:block">
                 <div className="text-sm font-semibold text-white">Epost.pk</div>
-                <div className="truncate text-xs font-medium text-slate-300">Pakistan Post workspace</div>
+                <div className="truncate text-xs font-medium text-slate-300">Pakistan Post</div>
               </div>
             </div>
             <button className="rounded-lg p-2 text-gray-300 transition hover:bg-white/10 hover:text-white md:hidden" onClick={() => props.setIsOpen(false)}>
@@ -90,21 +90,21 @@ export default function Sidebar(props: {
             </button>
           </div>
 
-          <div className="mt-3 rounded-[20px] border border-white/10 bg-white/5 p-2.5 md:hidden lg:block">
+          <div className="mt-2.5 rounded-[20px] border border-white/10 bg-white/5 p-2 md:hidden lg:block">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white/10 text-xs font-semibold text-white">
                 {props.userEmail?.slice(0, 2).toUpperCase() ?? "EP"}
               </div>
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold text-white">{props.userEmail ?? "Operations team"}</div>
-                <div className="text-xs text-slate-300">Enterprise logistics</div>
+                <div className="text-xs text-slate-300">Shipment operations</div>
               </div>
             </div>
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-3.5">
-          <div className="mb-2.5 hidden px-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400 md:hidden lg:block">
+        <nav className="flex-1 overflow-y-auto px-3 py-3">
+          <div className="mb-2 hidden px-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400 md:hidden lg:block">
             Workspace
           </div>
           <div className="grid gap-1.5">
@@ -116,12 +116,12 @@ export default function Sidebar(props: {
         </nav>
 
         <div className="border-t border-white/10 px-3 py-3">
-          <div className="mb-2.5 hidden rounded-[18px] border border-white/10 bg-white/5 p-2.5 md:hidden lg:block">
+          <div className="mb-2 hidden rounded-[18px] border border-white/10 bg-white/5 p-2 md:hidden lg:block">
             <div className="flex items-center gap-3 text-slate-300">
               <Bell className="h-4 w-4" />
               <div>
                 <div className="text-sm font-semibold text-white">Workspace ready</div>
-                <div className="text-xs">Track, print, and manage delivery flow.</div>
+                <div className="text-xs">Track, print, and manage shipments.</div>
               </div>
             </div>
           </div>

@@ -6,6 +6,8 @@ export type TrackingWorkspaceViewState<TStatus extends string = string> = {
   statusFilter: TStatus;
   searchInput: string;
   searchTerm: string;
+  sortKey?: string;
+  sortDir?: "asc" | "desc";
   scrollY: number;
   savedAt: number;
 };
