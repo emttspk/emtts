@@ -1,0 +1,396 @@
+﻿{
+  "audited_at": "2026-05-11T09:19:13.223Z",
+  "supported_prefixes": [
+    "VPL",
+    "VPP",
+    "COD",
+    "IRL",
+    "RGL",
+    "PAR",
+    "UMS"
+  ],
+  "source_rows_total": 1230,
+  "duplicate_tracking_rows_removed": 12,
+  "audited_unique_articles": 1218,
+  "minimum_target_met": false,
+  "lifecycle_summary": {
+    "DELIVERED": 202,
+    "RTS": 160,
+    "STUCK": 689,
+    "PENDING": 32,
+    "FAILED_DELIVERY": 131,
+    "OUT_FOR_DELIVERY": 1,
+    "AT_HUB": 1,
+    "IN_TRANSIT": 2
+  },
+  "status_matrix": {
+    "PENDING": {
+      "DELIVERED": 167,
+      "RTS": 46,
+      "STUCK": 689,
+      "PENDING": 32,
+      "FAILED_DELIVERY": 131,
+      "OUT_FOR_DELIVERY": 1,
+      "AT_HUB": 1,
+      "IN_TRANSIT": 2
+    },
+    "RETURNED": {
+      "RTS": 114,
+      "DELIVERED": 16
+    },
+    "DELIVERED": {
+      "DELIVERED": 19
+    }
+  },
+  "by_prefix": {
+    "VPL": {
+      "count": 1201,
+      "statuses": {
+        "STUCK": 683,
+        "DELIVERED": 192,
+        "RTS": 159,
+        "PENDING": 32,
+        "FAILED_DELIVERY": 131,
+        "OUT_FOR_DELIVERY": 1,
+        "AT_HUB": 1,
+        "IN_TRANSIT": 2
+      },
+      "canonicalStatuses": {
+        "PENDING": 850,
+        "DELIVERED": 192,
+        "RETURNED": 159
+      },
+      "falseDelivered": 0,
+      "falsePending": 202,
+      "incorrectRts": 61,
+      "incorrectMo": 173,
+      "stuck3": 7,
+      "stuck7": 36,
+      "stuck15": 640
+    },
+    "VPP": {
+      "count": 0,
+      "statuses": {},
+      "canonicalStatuses": {},
+      "falseDelivered": 0,
+      "falsePending": 0,
+      "incorrectRts": 0,
+      "incorrectMo": 0,
+      "stuck3": 0,
+      "stuck7": 0,
+      "stuck15": 0
+    },
+    "COD": {
+      "count": 0,
+      "statuses": {},
+      "canonicalStatuses": {},
+      "falseDelivered": 0,
+      "falsePending": 0,
+      "incorrectRts": 0,
+      "incorrectMo": 0,
+      "stuck3": 0,
+      "stuck7": 0,
+      "stuck15": 0
+    },
+    "IRL": {
+      "count": 0,
+      "statuses": {},
+      "canonicalStatuses": {},
+      "falseDelivered": 0,
+      "falsePending": 0,
+      "incorrectRts": 0,
+      "incorrectMo": 0,
+      "stuck3": 0,
+      "stuck7": 0,
+      "stuck15": 0
+    },
+    "RGL": {
+      "count": 17,
+      "statuses": {
+        "DELIVERED": 10,
+        "RTS": 1,
+        "STUCK": 6
+      },
+      "canonicalStatuses": {
+        "DELIVERED": 10,
+        "RETURNED": 1,
+        "PENDING": 6
+      },
+      "falseDelivered": 0,
+      "falsePending": 11,
+      "incorrectRts": 1,
+      "incorrectMo": 0,
+      "stuck3": 0,
+      "stuck7": 0,
+      "stuck15": 6
+    },
+    "PAR": {
+      "count": 0,
+      "statuses": {},
+      "canonicalStatuses": {},
+      "falseDelivered": 0,
+      "falsePending": 0,
+      "incorrectRts": 0,
+      "incorrectMo": 0,
+      "stuck3": 0,
+      "stuck7": 0,
+      "stuck15": 0
+    },
+    "UMS": {
+      "count": 0,
+      "statuses": {},
+      "canonicalStatuses": {},
+      "falseDelivered": 0,
+      "falsePending": 0,
+      "incorrectRts": 0,
+      "incorrectMo": 0,
+      "stuck3": 0,
+      "stuck7": 0,
+      "stuck15": 0
+    }
+  },
+  "delivery_cycle_summary": {
+    "complete_successful_delivery_cycle": 202,
+    "partial_or_incomplete_delivery_cycle": 693,
+    "stuck_delivery_flow": 689,
+    "multi_hub_routing": 44,
+    "invalid_delivery_flow": 8
+  },
+  "money_order_summary": {
+    "not_required": 17,
+    "required": 1201,
+    "pending_or_missing": 1180,
+    "delivered_without_mo_completion": 173,
+    "completed": 19,
+    "in_progress": 2
+  },
+  "return_rts_summary": {
+    "rts_initiated": 160,
+    "failed_or_stalled_return": 157,
+    "return_loops": 17,
+    "duplicate_return_scans": 2
+  },
+  "stuck_summary": {
+    "total_stuck": 689,
+    "inactive_transit": 582,
+    "threshold_15_days": 646,
+    "possible_lost_article": 646,
+    "stuck_at_hub": 107,
+    "threshold_3_days": 7,
+    "threshold_7_days": 36
+  },
+  "issues": {
+    "falseDelivered": 0,
+    "falsePending": 213,
+    "incorrectRts": 62,
+    "incorrectMoState": 173,
+    "duplicateConflict": 27
+  },
+  "issue_samples": {
+    "falsePending": [
+      "RGL20260012",
+      "RGL20260013",
+      "RGL20260014",
+      "RGL20260015",
+      "RGL20260016",
+      "RGL20260020",
+      "RGL20260022",
+      "RGL20260024",
+      "RGL20260025",
+      "RGL20260026"
+    ],
+    "incorrectRts": [
+      "RGL20260015",
+      "VPL13683554",
+      "VPL13683900",
+      "VPL13688233",
+      "VPL14690111",
+      "VPL14690649",
+      "VPL25040359",
+      "VPL25040763",
+      "VPL25041000",
+      "VPL25080234"
+    ],
+    "incorrectMoState": [
+      "VPL12510826",
+      "VPL13683376",
+      "VPL13683751",
+      "VPL13683900",
+      "VPL13687252",
+      "VPL13687858",
+      "VPL13687918",
+      "VPL13688067",
+      "VPL13688192",
+      "VPL13688233"
+    ],
+    "duplicateConflict": [
+      "VPL13683554",
+      "VPL14689817",
+      "VPL25120225",
+      "VPL25120366",
+      "VPL26010088",
+      "VPL26010161",
+      "VPL26020467",
+      "VPL26030077"
+    ]
+  },
+  "event_dictionary": {
+    "HUB_RECEIPT": 1225,
+    "DISPATCH": 5996,
+    "OUT_FOR_DELIVERY": 846,
+    "DELIVERED": 328,
+    "RTS": 85,
+    "FAILED_DELIVERY": 267,
+    "BOOKED": 67,
+    "OTHER": 59,
+    "DELIVERY_OFFICE_RECEIPT": 4
+  },
+  "event_examples": {
+    "HUB_RECEIPT": [
+      "Received at Sahiwal DMO",
+      "Received at district mail office Karachi",
+      "Received at Rawalpindi DMO",
+      "Received at district mail office Quetta",
+      "Received at Sukkur DMO",
+      "Received at Kasur DMO"
+    ],
+    "DISPATCH": [
+      "Dispatch from district mail office Sahiwal to district mail office Gujrat",
+      "Dispatch from DMO Gujrat to delivery office Kharian P O",
+      "Dispatch from DMO Sahiwal to delivery office Sahiwal GPO",
+      "Dispatch from district mail office Sahiwal to district mail office Batkhela",
+      "Dispatch from DMO Batkhela to delivery office Saidu Sharif GPO",
+      "Dispatch from district mail office Sahiwal to district mail office Lahore"
+    ],
+    "OUT_FOR_DELIVERY": [
+      "Sent out for delivery",
+      "MOS Sent out for delivery"
+    ],
+    "DELIVERED": [
+      "Delivered at delivery office Kharian P O to ADDRESSEE",
+      "Delivered at delivery office Sahiwal GPO to ADDRESSEE",
+      "Delivered at delivery office Saidu sharif GPO to ADDRESSEE",
+      "Delivered at delivery office Shahdra Bagh PO to ADDRESSEE",
+      "Delivered at delivery office Sahiwal GPO to PO BOX 06",
+      "Delivered at delivery office Kotli GPO to ADDRESSEE"
+    ],
+    "RTS": [
+      "Return to sender reason : rp bag lhr dmo in",
+      "Return to sender reason : Incomplete Address",
+      "Return to sender reason : Remarks SEND MIR WAH P/O",
+      "Return to sender reason : RCO TO DMO",
+      "Return to sender reason : un claimed",
+      "Return to sender reason : LIFT"
+    ],
+    "FAILED_DELIVERY": [
+      "Undelivered reason : Deposit",
+      "Return to sender reason : Refused To Received",
+      "Return to sender reason : Address not found",
+      "Return to sender reason : Deposit",
+      "Undelivered reason : Remarks FREE-SENDER",
+      "Return to sender reason : Addressee not found"
+    ],
+    "BOOKED": [
+      "Booked at Sahiwal City",
+      "Booked at Kharian City HSG Gujrat",
+      "Dispatch from booking office Kharian City HSG Gujrat to district mail office Gujrat",
+      "MOS Booked at Kharian City HSG Gujrat",
+      "MOS Dispatch from booking office Kharian City HSG Gujrat to district mail office Gujrat",
+      "Booked at Jhelum GPO"
+    ],
+    "OTHER": [
+      "MissSent : Miss Sent",
+      "MissSent : ROHRI",
+      "MissSent : Redirect",
+      "MissSent : Addressee not at home",
+      "MissSent : Missent",
+      "MissSent : SADIQABAD"
+    ],
+    "DELIVERY_OFFICE_RECEIPT": [
+      "Received at delivery office Abbottabad GPO",
+      "Received at delivery office JARANWALA"
+    ]
+  },
+  "top_offices": [
+    {
+      "office": "Sahiwal",
+      "count": 4037
+    },
+    {
+      "office": "Karachi",
+      "count": 331
+    },
+    {
+      "office": "Rawalpindi",
+      "count": 265
+    },
+    {
+      "office": "Lahore",
+      "count": 225
+    },
+    {
+      "office": "Sahiwal GPO",
+      "count": 128
+    },
+    {
+      "office": "Batkhela",
+      "count": 126
+    },
+    {
+      "office": "Quetta",
+      "count": 120
+    },
+    {
+      "office": "Faisalabad",
+      "count": 112
+    },
+    {
+      "office": "Peshawar",
+      "count": 107
+    },
+    {
+      "office": "Muzaffargarh",
+      "count": 97
+    },
+    {
+      "office": "Bahawalpur",
+      "count": 95
+    },
+    {
+      "office": "Islamabad",
+      "count": 90
+    },
+    {
+      "office": "Gujranwala",
+      "count": 86
+    },
+    {
+      "office": "Kasur",
+      "count": 85
+    },
+    {
+      "office": "Khanewal",
+      "count": 85
+    },
+    {
+      "office": "Multan",
+      "count": 79
+    },
+    {
+      "office": "D.G.Khan",
+      "count": 77
+    },
+    {
+      "office": "Abbottabad",
+      "count": 75
+    },
+    {
+      "office": "Nowshera",
+      "count": 74
+    },
+    {
+      "office": "Sukkur",
+      "count": 73
+    }
+  ]
+}

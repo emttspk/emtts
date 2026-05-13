@@ -93,7 +93,7 @@ export default function Dashboard() {
       <PageHeader
         eyebrow="Dashboard"
         title="Logistics overview"
-        subtitle="Monitor units, shipment flow, and complaint workload from one control view."
+        subtitle="Units, shipment flow, and complaint workload in one compact view."
         actions={
           <>
             <Link to="/generate-labels">

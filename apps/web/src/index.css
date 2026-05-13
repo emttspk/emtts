@@ -24,6 +24,9 @@
     font-family: "Inter", ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
     background: var(--bg);
     overflow-x: hidden;
+    scrollbar-gutter: stable;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   body {
@@ -33,12 +36,16 @@
       linear-gradient(180deg, #f7f9fc 0%, #f4f7fb 54%, #f7f9fc 100%);
     color: var(--text-strong);
     overflow-x: hidden;
+    margin: 0;
+    min-width: 320px;
     @apply antialiased;
   }
 
   body,
   #root {
     min-height: 100vh;
+    min-height: 100svh;
+    width: 100%;
     max-width: 100%;
     overflow-x: hidden;
   }
@@ -47,7 +54,10 @@
     @apply text-inherit;
   }
 
-  * {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
     @apply border-slate-200;
   }
 
