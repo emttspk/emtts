@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { UploadCloud, AlertCircle, Eye, MapPin, PackageSearch, BadgeDollarSign, RefreshCw, Printer, Package, CheckCircle2, Clock, TrendingUp, X, MessageSquare, Activity, ChevronRight, Truck, ArrowUpRight, ArrowUpDown, Search } from "lucide-react";
+import { UploadCloud, AlertCircle, MapPin, PackageSearch, BadgeDollarSign, RefreshCw, Printer, Package, CheckCircle2, Clock, TrendingUp, X, MessageSquare, Activity, ChevronRight, Truck, ArrowUpRight, ArrowUpDown, Search } from "lucide-react";
 import Card from "../components/Card";
 import ActionButton from "../components/ui/ActionButton";
 import UnifiedShipmentCards from "../components/UnifiedShipmentCards";
@@ -2353,11 +2353,10 @@ export default function BulkTracking() {
   }, [filteredTrackingTableRows]);
 
   // PROTECTED_SCOPE_START
-  // Stable enterprise tracking workspace.
-  // Restored from commit 996eaac.
-  // Includes performance hydration + compact rendering.
-  // Do not remove cache hydration or row precomputation.
-  // Regression-sensitive rendering path.
+  // Stable pagination/cache restoration from 996eaac.
+  // Pagination must always operate on full filtered dataset.
+  // Do not persist paginated slices into render cache.
+  // PROTECTED_SCOPE_END
 
   const totalFilteredShipments = sortedTrackingTableRows.length;
   const totalPages = Math.max(1, Math.ceil(totalFilteredShipments / pageSize));
@@ -2373,20 +2372,18 @@ export default function BulkTracking() {
     const end = page * pageSize;
     return sortedTrackingTableRows.slice(start, end);
   }, [page, pageSize, sortedTrackingTableRows, statusFilter]);
-  // PROTECTED_SCOPE_END
 
   // PROTECTED_SCOPE_START
-  // Stable enterprise tracking workspace.
-  // Restored from commit 996eaac.
-  // Includes performance hydration + compact rendering.
-  // Do not remove cache hydration or row precomputation.
-  // Regression-sensitive rendering path.
+  // Stable pagination/cache restoration from 996eaac.
+  // Pagination must always operate on full filtered dataset.
+  // Do not persist paginated slices into render cache.
+  // PROTECTED_SCOPE_END
 
   useEffect(() => {
     if (shipments.length === 0) return;
     const timer = window.setTimeout(() => {
       writeTrackingWorkspaceRenderCache<Shipment, ComplaintQueueSnapshot>({
-        shipments: paginatedTrackingTableRows.map((row) => row.record.shipment),
+        shipments: sortedTrackingTableRows.map((row) => row.record.shipment),
         total: totalShipments || shipments.length,
         complaintQueue: complaintQueueMapToRows(complaintQueueByTracking),
         fetchedAt: trackingCacheRef.current?.fetchedAt ?? Date.now(),
@@ -2394,7 +2391,7 @@ export default function BulkTracking() {
       });
     }, WORKSPACE_RENDER_CACHE_PERSIST_MS);
     return () => window.clearTimeout(timer);
-  }, [complaintQueueByTracking, paginatedTrackingTableRows, shipmentStatsFetchedAt, shipments.length, totalShipments]);
+  }, [complaintQueueByTracking, shipmentStatsFetchedAt, shipments.length, sortedTrackingTableRows, totalShipments]);
 
   useEffect(() => {
     if (shipments.length === 0) return;
@@ -3683,7 +3680,17 @@ export default function BulkTracking() {
                       </div>
                     </td>
                     <td className="border-r border-[#E5E7EB] px-2 py-2 align-middle font-mono text-[11px] font-bold text-slate-800 group-hover:text-brand truncate whitespace-nowrap" title={s.trackingNumber}>
-                      {s.trackingNumber}
+                      <div className="inline-flex items-center gap-1.5">
+                        <span>{s.trackingNumber}</span>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTracking(row.record)}
+                          className="rounded border border-brand/30 bg-brand/10 px-1.5 py-0.5 text-[9px] font-semibold text-brand hover:bg-brand/20"
+                          title="Track"
+                        >
+                          Track
+                        </button>
+                      </div>
                     </td>
                     <td className="border-r border-[#E5E7EB] px-2 py-2 align-middle whitespace-nowrap">
                       <div className="flex flex-col">
@@ -3711,14 +3718,6 @@ export default function BulkTracking() {
                             </option>
                           ))}
                         </select>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTracking(row.record)}
-                          className="rounded border border-brand/30 bg-brand/10 p-1 text-brand hover:bg-brand/20"
-                          title="View details"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                        </button>
                       </div>
                     </td>
                     <td className="px-2 py-2 pl-3 align-middle min-w-[160px]">
