@@ -2008,7 +2008,7 @@ export default function BulkTracking() {
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     if (!hydrated) {
-      const cached = readTrackingWorkspaceRenderCache();
+      const cached = readTrackingWorkspaceRenderCache<Shipment, ComplaintQueueSnapshot>();
       if (cached?.shipments.length) {
         setShipments(cached.shipments);
         setTotalShipments(cached.total || cached.shipments.length);
@@ -2260,7 +2260,8 @@ export default function BulkTracking() {
       "Complaint Due Date",
     ];
 
-    const rows = filteredShipments.map((record) => {
+    const rows = filteredTrackingTableRows.map((row) => {
+      const record = row.record;
       const shipment = record.shipment;
       const lifecycle = parseComplaintLifecycle(shipment);
       const moNumber = extractMoReference(shipment.rawJson, shipment.moIssued ?? null, shipment.moneyOrderIssued);
@@ -2291,7 +2292,7 @@ export default function BulkTracking() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [filteredShipments]);
+  }, [filteredTrackingTableRows]);
 
   // PROTECTED_SCOPE_START
   // Stable enterprise tracking workspace.
@@ -3443,7 +3444,7 @@ export default function BulkTracking() {
         <div className="p-0">
           <div className="flex items-center justify-between border-y border-[#E5E7EB] bg-[linear-gradient(180deg,#f8fafc,#f1f5f9)] px-4 py-2 text-xs text-slate-600">
             <div className="text-slate-500">
-              Page <span className="font-semibold text-slate-700">{page}</span> of <span className="font-semibold text-slate-700">{totalPages}</span> &nbsp;·&nbsp; <span className="font-semibold text-slate-700">{paginatedShipments.length}</span> of <span className="font-semibold text-slate-700">{totalFilteredShipments}</span> filtered
+              Page <span className="font-semibold text-slate-700">{page}</span> of <span className="font-semibold text-slate-700">{totalPages}</span> &nbsp;·&nbsp; <span className="font-semibold text-slate-700">{paginatedTrackingTableRows.length}</span> of <span className="font-semibold text-slate-700">{totalFilteredShipments}</span> filtered
             </div>
             <div className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/80 px-1.5 py-1 shadow-sm backdrop-blur-sm">
               <button
@@ -3477,17 +3478,17 @@ export default function BulkTracking() {
             </div>
           </div>
           <div className="w-full max-h-[72vh] overflow-y-auto overflow-x-auto rounded-[20px] border border-[#E5E7EB] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] md:overflow-x-hidden">
-            <table className="w-full table-fixed text-[12px] leading-4">
+            <table className="w-full table-fixed text-[11px] leading-4">
               <thead className="sticky top-0 z-10 border-b border-[#E5E7EB] bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(241,245,249,0.98))] backdrop-blur-md">
               <tr>
                 <th className="w-9 border-r border-[#E5E7EB] px-3 py-3.5">
                   <input
                     type="checkbox"
                     className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
-                    checked={paginatedShipments.length > 0 && paginatedShipments.every((s) => selectedIds.includes(s.shipment.id))}
+                    checked={paginatedTrackingTableRows.length > 0 && paginatedTrackingTableRows.every((s) => selectedIds.includes(s.record.shipment.id))}
                     onChange={(e) =>
                       setSelectedIds((prev) => {
-                        const pageIds = paginatedShipments.map((s) => s.shipment.id);
+                        const pageIds = paginatedTrackingTableRows.map((s) => s.record.shipment.id);
                         if (!e.target.checked) {
                           return prev.filter((id) => !pageIds.includes(id));
                         }
@@ -3517,7 +3518,7 @@ export default function BulkTracking() {
                 <th className="w-24 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
                   Money Order Amount
                 </th>
-                <th className="w-24 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+                <th className="w-28 border-r border-[#E5E7EB] px-2 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
                   Action
                 </th>
                 <th className="w-[132px] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
@@ -3582,7 +3583,7 @@ export default function BulkTracking() {
 
                 return (
                   <tr key={s.id} className={cn("group border-b border-[#E5E7EB] transition-colors duration-150 hover:bg-[#F8FAFC]", rowBaseTone)}>
-                    <td className={cn("border-r border-[#E5E7EB] border-l-4 px-3 py-2.5 align-middle", rowVisual.left)}>
+                    <td className={cn("border-r border-[#E5E7EB] border-l-4 px-2 py-2 align-middle", rowVisual.left)}>
                       <input
                         type="checkbox"
                         className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
@@ -3594,8 +3595,8 @@ export default function BulkTracking() {
                         }
                       />
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-3 py-2.5 align-middle text-[11px] font-semibold text-slate-700">{(page - 1) * pageSize + index + 1}</td>
-                    <td className="border-r border-[#E5E7EB] px-3 py-2.5 align-middle whitespace-nowrap">
+                    <td className="border-r border-[#E5E7EB] px-2 py-2 align-middle text-[11px] font-semibold text-slate-700">{(page - 1) * pageSize + index + 1}</td>
+                    <td className="border-r border-[#E5E7EB] px-2 py-2 align-middle whitespace-nowrap">
                       <div className="flex flex-col">
                         <span className="text-xs font-semibold text-slate-900">
                           {new Date(s.updatedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}
@@ -3605,10 +3606,10 @@ export default function BulkTracking() {
                         </span>
                       </div>
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-3 py-2.5 align-middle font-mono text-[11px] font-bold text-slate-800 group-hover:text-brand truncate whitespace-nowrap" title={s.trackingNumber}>
+                    <td className="border-r border-[#E5E7EB] px-2 py-2 align-middle font-mono text-[11px] font-bold text-slate-800 group-hover:text-brand truncate whitespace-nowrap" title={s.trackingNumber}>
                       {s.trackingNumber}
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-3 py-2.5 align-middle whitespace-nowrap">
+                    <td className="border-r border-[#E5E7EB] px-2 py-2 align-middle whitespace-nowrap">
                       <div className="flex flex-col">
                         <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset", isWarning ? "bg-red-100 text-red-700 ring-red-200" : row.statusBadge)}>
                           {displayStatus}
@@ -3616,15 +3617,15 @@ export default function BulkTracking() {
                         <span className="mt-0.5 text-[10px] text-slate-500">{days}d</span>
                       </div>
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-3 py-2.5 align-middle text-[11px] text-slate-600 truncate whitespace-nowrap" title={row.displayCity}>{row.displayCity}</td>
-                    <td className="border-r border-[#E5E7EB] px-3 py-2.5 align-middle text-[11px] font-semibold text-slate-700 truncate whitespace-nowrap" title={moValue || undefined}>{moValue}</td>
-                    <td className="border-r border-[#E5E7EB] px-3 py-2.5 align-middle text-[11px] font-medium text-slate-700 whitespace-nowrap">
+                    <td className="border-r border-[#E5E7EB] px-2 py-2 align-middle text-[11px] leading-4 text-slate-600 whitespace-normal break-words" title={row.displayCity}>{row.displayCity}</td>
+                    <td className="border-r border-[#E5E7EB] px-2 py-2 align-middle text-[11px] font-semibold text-slate-700 truncate whitespace-nowrap" title={moValue || undefined}>{moValue}</td>
+                    <td className="border-r border-[#E5E7EB] px-2 py-2 align-middle text-[11px] font-medium text-slate-700 whitespace-nowrap">
                       {issuedValue != null ? `Rs ${issuedValue.toLocaleString()}` : "-"}
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-3 py-2.5 pr-4 align-middle min-w-[104px]">
-                      <div className="flex items-center gap-2">
+                    <td className="border-r border-[#E5E7EB] px-2 py-2 align-middle min-w-[112px] whitespace-nowrap">
+                      <div className="inline-flex items-center gap-1.5">
                         <select
-                          className="w-20 rounded border-[#E5E7EB] bg-white px-2 py-1.5 text-[10px] font-medium text-slate-700 shadow-sm focus:border-brand focus:ring-brand"
+                          className="w-20 rounded border-[#E5E7EB] bg-white px-1.5 py-1 text-[10px] font-medium text-slate-700 shadow-sm focus:border-brand focus:ring-brand"
                           value={actionValue}
                           onChange={(e) => updateStatus(s.trackingNumber, e.target.value.includes("RETURN") ? "RETURNED" : e.target.value)}
                         >
@@ -3644,7 +3645,7 @@ export default function BulkTracking() {
                         </button>
                       </div>
                     </td>
-                    <td className="px-3 py-2.5 pl-4 align-middle min-w-[160px]">
+                    <td className="px-2 py-2 pl-3 align-middle min-w-[160px]">
                       {lifecycle.exists || queueSnapshot ? (() => {
                         const stateStyle = complaintStateBadgeClass(complaintCardState);
                         const complaintId = lifecycle.complaintId || queueSnapshot?.complaintId || "Complaint";
@@ -3727,7 +3728,7 @@ export default function BulkTracking() {
         </div>
           <div className="flex items-center justify-between border-t border-[#E5E7EB] bg-[linear-gradient(180deg,#ffffff,#f8fafc)] px-4 py-3 text-xs text-slate-600">
             <div className="text-slate-500">
-              Page <span className="font-semibold text-slate-700">{page}</span> of <span className="font-semibold text-slate-700">{totalPages}</span> &nbsp;·&nbsp; <span className="font-semibold text-slate-700">{paginatedShipments.length}</span> of <span className="font-semibold text-slate-700">{totalFilteredShipments}</span> filtered &nbsp;·&nbsp; <span className="font-semibold text-slate-700">{totalShipments}</span> total
+              Page <span className="font-semibold text-slate-700">{page}</span> of <span className="font-semibold text-slate-700">{totalPages}</span> &nbsp;·&nbsp; <span className="font-semibold text-slate-700">{paginatedTrackingTableRows.length}</span> of <span className="font-semibold text-slate-700">{totalFilteredShipments}</span> filtered &nbsp;·&nbsp; <span className="font-semibold text-slate-700">{totalShipments}</span> total
             </div>
             <div className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white/80 px-1.5 py-1 shadow-sm backdrop-blur-sm">
               <button
