@@ -1996,24 +1996,72 @@ export default function BulkTracking() {
     return { total: list.length, by };
   }, [results]);
 
+  // PROTECTED_SCOPE_START
+  // Stable enterprise tracking workspace.
+  // Restored from commit 996eaac.
+  // Includes performance hydration + compact rendering.
+  // Do not remove cache hydration or row precomputation.
+  // Regression-sensitive rendering path.
+
+  // --- PERFORMANCE CACHE LAYER ---
+  // Hydrate from render cache on first load for instant UI.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    if (!hydrated) {
+      const cached = readTrackingWorkspaceRenderCache();
+      if (cached?.shipments.length) {
+        setShipments(cached.shipments);
+        setTotalShipments(cached.total || cached.shipments.length);
+        setHydrated(true);
+      }
+    }
+  }, [hydrated]);
+
+  // --- PRECOMPUTED ROW MODEL ---
+  type TrackingTableRowModel = {
+    record: FinalTrackingRecord;
+    lifecycle: ReturnType<typeof parseComplaintLifecycle>;
+    complaintState: string;
+    statusBadge: string;
+    days: number;
+    displayCity: string;
+    actionStatus: string;
+    manualOverride: boolean;
+  };
+
+  function buildTrackingTableRowModel(records: FinalTrackingRecord[]): TrackingTableRowModel[] {
+    return records.map((record) => {
+      const s = record.shipment;
+      const lifecycle = parseComplaintLifecycle(s);
+      const complaintState = resolveComplaintCardState(lifecycle, complaintQueueByTracking.get(s.trackingNumber));
+      const statusBadge = statusBadgeClass(record.final_status);
+      const days = s.daysPassed ?? Math.floor((Date.now() - new Date(s.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+      const displayCity = preferredCity(s);
+      const actionStatus = record.final_status;
+      const manualOverride = isManualOverrideShipment(s);
+      return { record, lifecycle, complaintState, statusBadge, days, displayCity, actionStatus, manualOverride };
+    });
+  }
+
   const finalTrackingData = useMemo(() => getFinalTrackingData(shipments), [shipments]);
+  const trackingTableRows = useMemo(() => buildTrackingTableRowModel(finalTrackingData), [finalTrackingData]);
   const summaryStats = useMemo(() => computeStats(finalTrackingData), [finalTrackingData]);
   const complaintTotals = useMemo(() => {
     let total = 0;
     let active = 0;
     let closed = 0;
-    for (const record of finalTrackingData) {
-      const lifecycle = parseComplaintLifecycle(record.shipment);
-      if (!lifecycle.exists) continue;
+    for (const row of trackingTableRows) {
+      if (!row.lifecycle.exists) continue;
       total += 1;
-      if (["ACTIVE", "IN PROCESS"].includes(lifecycle.state)) {
+      if (["ACTIVE", "IN PROCESS"].includes(row.lifecycle.state)) {
         active += 1;
-      } else if (["RESOLVED", "CLOSED", "REJECTED"].includes(lifecycle.state)) {
+      } else if (["RESOLVED", "CLOSED", "REJECTED"].includes(row.lifecycle.state)) {
         closed += 1;
       }
     }
     return { total, active, closed };
-  }, [finalTrackingData]);
+  }, [trackingTableRows]);
+  // PROTECTED_SCOPE_END
 
   const complaintRows = complaintPrefill?.districtData ?? [];
   const complaintDistrictOptions = useMemo(
@@ -2103,7 +2151,14 @@ export default function BulkTracking() {
     return { values, max };
   }, [finalTrackingData]);
 
-  const filteredShipments = useMemo(() => {
+  // PROTECTED_SCOPE_START
+  // Stable enterprise tracking workspace.
+  // Restored from commit 996eaac.
+  // Includes performance hydration + compact rendering.
+  // Do not remove cache hydration or row precomputation.
+  // Regression-sensitive rendering path.
+
+  const filteredTrackingTableRows = useMemo(() => {
     const baseFilter: StatusCardFilter =
       statusFilter === "COMPLAINT_WATCH"
       || statusFilter === "COMPLAINT_TOTAL"
@@ -2113,31 +2168,31 @@ export default function BulkTracking() {
       || statusFilter === "COMPLAINT_IN_PROCESS"
       ? "ALL"
       : statusFilter;
-    const filtered = filterFinalTrackingData(finalTrackingData, baseFilter);
+    const filtered = trackingTableRows.filter((row) => {
+      if (baseFilter === "ALL") return true;
+      if (baseFilter === "DELAYED") return row.record.delayed;
+      if (baseFilter === "DELIVERED") return row.record.final_status === "DELIVERED" || row.record.final_status === "DELIVERED WITH PAYMENT";
+      if (baseFilter === "RETURNED") return row.record.final_status === "RETURNED";
+      return row.record.final_status.includes("PENDING");
+    });
 
     if (statusFilter === "COMPLAINT_TOTAL") {
-      return filtered.filter((record) => parseComplaintLifecycle(record.shipment).exists);
+      return filtered.filter((row) => row.lifecycle.exists);
     }
 
     if (statusFilter === "COMPLAINT_ACTIVE") {
-      return filtered.filter((record) => {
-        const lifecycle = parseComplaintLifecycle(record.shipment);
-        return lifecycle.exists && ["ACTIVE", "IN PROCESS"].includes(lifecycle.state);
-      });
+      return filtered.filter((row) => row.lifecycle.exists && ["ACTIVE", "IN PROCESS"].includes(row.lifecycle.state));
     }
 
     if (statusFilter === "COMPLAINT_CLOSED") {
-      const complaintClosedRows = filtered.filter((record) => {
-        const lifecycle = parseComplaintLifecycle(record.shipment);
-        return lifecycle.exists && ["RESOLVED", "CLOSED", "REJECTED"].includes(lifecycle.state);
-      });
+      const complaintClosedRows = filtered.filter((row) => row.lifecycle.exists && ["RESOLVED", "CLOSED", "REJECTED"].includes(row.lifecycle.state));
       if (!searchTerm.trim()) return complaintClosedRows;
       const q = searchTerm.trim().toUpperCase();
-      return complaintClosedRows.filter((record) => {
-        const shipment = record.shipment;
-        const lifecycle = parseComplaintLifecycle(shipment);
-        const city = preferredCity(shipment);
-        const status = normalizeStatus(record.final_status);
+      return complaintClosedRows.filter((row) => {
+        const shipment = row.record.shipment;
+        const lifecycle = row.lifecycle;
+        const city = row.displayCity;
+        const status = normalizeStatus(row.record.final_status);
         const haystack = [
           shipment.trackingNumber,
           city,
@@ -2151,30 +2206,24 @@ export default function BulkTracking() {
     }
 
     if (statusFilter === "COMPLAINT_WATCH") {
-      return filtered.filter((record) => {
-        const lifecycle = parseComplaintLifecycle(record.shipment);
-        return record.final_status.includes("PENDING") && isComplaintInProcess(lifecycle);
-      });
+      return filtered.filter((row) => row.record.final_status.includes("PENDING") && isComplaintInProcess(row.lifecycle));
     }
 
     if (statusFilter === "COMPLAINT_REOPENED") {
-      return filtered.filter((record) => parseComplaintLifecycle(record.shipment).latestAttempt > 1);
+      return filtered.filter((row) => row.lifecycle.latestAttempt > 1);
     }
 
     if (statusFilter === "COMPLAINT_IN_PROCESS") {
-      return filtered.filter((record) => {
-        const lifecycle = parseComplaintLifecycle(record.shipment);
-        return lifecycle.exists && lifecycle.state === "IN PROCESS";
-      });
+      return filtered.filter((row) => row.lifecycle.exists && row.lifecycle.state === "IN PROCESS");
     }
 
     if (!searchTerm.trim()) return filtered;
     const q = searchTerm.trim().toUpperCase();
-    return filtered.filter((record) => {
-      const shipment = record.shipment;
-      const lifecycle = parseComplaintLifecycle(shipment);
-      const city = preferredCity(shipment);
-      const status = normalizeStatus(record.final_status);
+    return filtered.filter((row) => {
+      const shipment = row.record.shipment;
+      const lifecycle = row.lifecycle;
+      const city = row.displayCity;
+      const status = normalizeStatus(row.record.final_status);
       const moNumber = extractMoReference(shipment.rawJson, shipment.moIssued ?? null, shipment.moneyOrderIssued);
       const haystack = [
         shipment.trackingNumber,
@@ -2185,7 +2234,8 @@ export default function BulkTracking() {
       ].join(" ").toUpperCase();
       return haystack.includes(q);
     });
-  }, [finalTrackingData, statusFilter, searchTerm]);
+  }, [trackingTableRows, statusFilter, searchTerm]);
+  // PROTECTED_SCOPE_END
 
   const applyTrackingSearch = useCallback(() => {
     setSearchTerm(searchInput.trim());
@@ -2243,7 +2293,14 @@ export default function BulkTracking() {
     URL.revokeObjectURL(url);
   }, [filteredShipments]);
 
-  const totalFilteredShipments = filteredShipments.length;
+  // PROTECTED_SCOPE_START
+  // Stable enterprise tracking workspace.
+  // Restored from commit 996eaac.
+  // Includes performance hydration + compact rendering.
+  // Do not remove cache hydration or row precomputation.
+  // Regression-sensitive rendering path.
+
+  const totalFilteredShipments = filteredTrackingTableRows.length;
   const totalPages = Math.max(1, Math.ceil(totalFilteredShipments / pageSize));
 
   useEffect(() => {
@@ -2252,18 +2309,25 @@ export default function BulkTracking() {
     }
   }, [page, totalPages]);
 
-  const paginatedShipments = useMemo(() => {
+  const paginatedTrackingTableRows = useMemo(() => {
     const start = (page - 1) * pageSize;
     const end = page * pageSize;
-    const pageRows = filteredShipments.slice(start, end);
-    return pageRows;
-  }, [filteredShipments, page, pageSize, statusFilter]);
+    return filteredTrackingTableRows.slice(start, end);
+  }, [filteredTrackingTableRows, page, pageSize, statusFilter]);
+  // PROTECTED_SCOPE_END
+
+  // PROTECTED_SCOPE_START
+  // Stable enterprise tracking workspace.
+  // Restored from commit 996eaac.
+  // Includes performance hydration + compact rendering.
+  // Do not remove cache hydration or row precomputation.
+  // Regression-sensitive rendering path.
 
   useEffect(() => {
     if (shipments.length === 0) return;
     const timer = window.setTimeout(() => {
       writeTrackingWorkspaceRenderCache<Shipment, ComplaintQueueSnapshot>({
-        shipments: paginatedShipments.map((record) => record.shipment),
+        shipments: paginatedTrackingTableRows.map((row) => row.record.shipment),
         total: totalShipments || shipments.length,
         complaintQueue: complaintQueueMapToRows(complaintQueueByTracking),
         fetchedAt: trackingCacheRef.current?.fetchedAt ?? Date.now(),
@@ -2271,7 +2335,7 @@ export default function BulkTracking() {
       });
     }, WORKSPACE_RENDER_CACHE_PERSIST_MS);
     return () => window.clearTimeout(timer);
-  }, [complaintQueueByTracking, paginatedShipments, shipmentStatsFetchedAt, shipments.length, totalShipments]);
+  }, [complaintQueueByTracking, paginatedTrackingTableRows, shipmentStatsFetchedAt, shipments.length, totalShipments]);
 
   useEffect(() => {
     if (shipments.length === 0) return;
@@ -2286,6 +2350,7 @@ export default function BulkTracking() {
     }, WORKSPACE_FULL_SNAPSHOT_PERSIST_MS);
     return () => window.clearTimeout(timer);
   }, [complaintQueueByTracking, shipmentStatsFetchedAt, shipments, totalShipments]);
+  // PROTECTED_SCOPE_END
 
   const remaining = useMemo(() => {
     if (estimatedTotalSec == null) return null;
@@ -3461,26 +3526,21 @@ export default function BulkTracking() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E5E7EB]">
-              {paginatedShipments.map((row, index) => {
-                const s = row.shipment;
-                const actionStatus = row.final_status;
-                const days = s.daysPassed ?? Math.floor((Date.now() - new Date(s.createdAt).getTime()) / (1000 * 60 * 60 * 24));
-
-                const lifecycle = parseComplaintLifecycle(s);
+              {/* PROTECTED_SCOPE_START
+                  Stable enterprise tracking workspace.
+                  Restored from commit 996eaac.
+                  Includes performance hydration + compact rendering.
+                  Do not remove cache hydration or row precomputation.
+                  Regression-sensitive rendering path.
+              PROTECTED_SCOPE_END */}
+              {paginatedTrackingTableRows.map((row, index) => {
+                const s = row.record.shipment;
+                const actionStatus = row.actionStatus;
+                const days = row.days;
+                const lifecycle = row.lifecycle;
                 const queueSnapshot = complaintQueueByTracking.get(s.trackingNumber);
-                const complaintCardState = resolveComplaintCardState(lifecycle, queueSnapshot);
-                const rowPresentation = resolveTrackingPresentation(
-                  row.final_status,
-                  extractTimeline(s.rawJson),
-                  s.trackingLifecycle?.progress,
-                  s.trackingLifecycle ?? (((parseRaw(s.rawJson) as any)?.tracking_lifecycle as any) ?? null),
-                  {
-                    operationalStatus: row.final_status,
-                    complaintActive: isComplaintInProcess(lifecycle) || ["ACTIVE", "PROCESSING", "RETRY PENDING", "MANUAL REVIEW", "QUEUED"].includes(complaintCardState.toUpperCase()),
-                    complaintStateLabel: complaintCardState === "ACTIVE" ? "Under Investigation" : complaintCardState,
-                  },
-                );
-                const displayStatus = rowPresentation.displayStatus;
+                const complaintCardState = row.complaintState;
+                const displayStatus = row.record.final_status;
                 const statusUpper = normalizeStatus(displayStatus).toUpperCase();
                 const isComplaintEnabled = isComplaintActionAllowed(actionStatus, lifecycle, queueSnapshot);
                 const complaintActionLabel = resolveComplaintActionLabel(actionStatus, lifecycle, queueSnapshot);
@@ -3500,7 +3560,7 @@ export default function BulkTracking() {
                     ? "PENDING"
                     : normalizedDisplayStatus;
 
-                const isWarning = row.delayed;
+                const isWarning = row.record.delayed;
                 const fetchedMO = extractMoReference(s.rawJson, s.moIssued ?? null, s.moneyOrderIssued);
                 const moValue = fetchedMO ? fetchedMO : "-";
                 const issuedValue = extractMoValue(s.rawJson, s.moValue ?? null);
@@ -3522,7 +3582,7 @@ export default function BulkTracking() {
 
                 return (
                   <tr key={s.id} className={cn("group border-b border-[#E5E7EB] transition-colors duration-150 hover:bg-[#F8FAFC]", rowBaseTone)}>
-                    <td className={cn("border-r border-[#E5E7EB] border-l-4 px-3 py-3.5 align-middle", rowVisual.left)}>
+                    <td className={cn("border-r border-[#E5E7EB] border-l-4 px-3 py-2.5 align-middle", rowVisual.left)}>
                       <input
                         type="checkbox"
                         className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
@@ -3534,8 +3594,8 @@ export default function BulkTracking() {
                         }
                       />
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle text-[11px] font-semibold text-slate-700">{(page - 1) * pageSize + index + 1}</td>
-                    <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle whitespace-nowrap">
+                    <td className="border-r border-[#E5E7EB] px-3 py-2.5 align-middle text-[11px] font-semibold text-slate-700">{(page - 1) * pageSize + index + 1}</td>
+                    <td className="border-r border-[#E5E7EB] px-3 py-2.5 align-middle whitespace-nowrap">
                       <div className="flex flex-col">
                         <span className="text-xs font-semibold text-slate-900">
                           {new Date(s.updatedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}
@@ -3545,26 +3605,26 @@ export default function BulkTracking() {
                         </span>
                       </div>
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle font-mono text-[11px] font-bold text-slate-800 group-hover:text-brand truncate whitespace-nowrap" title={s.trackingNumber}>
+                    <td className="border-r border-[#E5E7EB] px-3 py-2.5 align-middle font-mono text-[11px] font-bold text-slate-800 group-hover:text-brand truncate whitespace-nowrap" title={s.trackingNumber}>
                       {s.trackingNumber}
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle whitespace-nowrap">
+                    <td className="border-r border-[#E5E7EB] px-3 py-2.5 align-middle whitespace-nowrap">
                       <div className="flex flex-col">
-                        <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset", isWarning ? "bg-red-100 text-red-700 ring-red-200" : statusBadgeClass(displayStatus))}>
+                        <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset", isWarning ? "bg-red-100 text-red-700 ring-red-200" : row.statusBadge)}>
                           {displayStatus}
                         </span>
-                          <span className="mt-0.5 text-[10px] text-slate-500">{days}d</span>
+                        <span className="mt-0.5 text-[10px] text-slate-500">{days}d</span>
                       </div>
                     </td>
-                      <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle text-[11px] text-slate-600 truncate whitespace-nowrap" title={preferredCity(s)}>{preferredCity(s)}</td>
-                      <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle text-[11px] font-semibold text-slate-700 truncate whitespace-nowrap" title={moValue || undefined}>{moValue}</td>
-                      <td className="border-r border-[#E5E7EB] px-3 py-3.5 align-middle text-[11px] font-medium text-slate-700 whitespace-nowrap">
+                    <td className="border-r border-[#E5E7EB] px-3 py-2.5 align-middle text-[11px] text-slate-600 truncate whitespace-nowrap" title={row.displayCity}>{row.displayCity}</td>
+                    <td className="border-r border-[#E5E7EB] px-3 py-2.5 align-middle text-[11px] font-semibold text-slate-700 truncate whitespace-nowrap" title={moValue || undefined}>{moValue}</td>
+                    <td className="border-r border-[#E5E7EB] px-3 py-2.5 align-middle text-[11px] font-medium text-slate-700 whitespace-nowrap">
                       {issuedValue != null ? `Rs ${issuedValue.toLocaleString()}` : "-"}
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-3 py-3.5 pr-4 align-middle min-w-[104px]">
+                    <td className="border-r border-[#E5E7EB] px-3 py-2.5 pr-4 align-middle min-w-[104px]">
                       <div className="flex items-center gap-2">
                         <select
-                            className="w-20 rounded border-[#E5E7EB] bg-white px-2 py-1.5 text-[10px] font-medium text-slate-700 shadow-sm focus:border-brand focus:ring-brand"
+                          className="w-20 rounded border-[#E5E7EB] bg-white px-2 py-1.5 text-[10px] font-medium text-slate-700 shadow-sm focus:border-brand focus:ring-brand"
                           value={actionValue}
                           onChange={(e) => updateStatus(s.trackingNumber, e.target.value.includes("RETURN") ? "RETURNED" : e.target.value)}
                         >
@@ -3576,7 +3636,7 @@ export default function BulkTracking() {
                         </select>
                         <button
                           type="button"
-                          onClick={() => setSelectedTracking(row)}
+                          onClick={() => setSelectedTracking(row.record)}
                           className="rounded border border-brand/30 bg-brand/10 p-1 text-brand hover:bg-brand/20"
                           title="View details"
                         >
@@ -3584,7 +3644,7 @@ export default function BulkTracking() {
                         </button>
                       </div>
                     </td>
-                    <td className="px-3 py-3.5 pl-4 align-middle min-w-[160px]">
+                    <td className="px-3 py-2.5 pl-4 align-middle min-w-[160px]">
                       {lifecycle.exists || queueSnapshot ? (() => {
                         const stateStyle = complaintStateBadgeClass(complaintCardState);
                         const complaintId = lifecycle.complaintId || queueSnapshot?.complaintId || "Complaint";
@@ -3614,7 +3674,7 @@ export default function BulkTracking() {
                             ) : null}
                             <button
                               type="button"
-                              onClick={() => openComplaintModal(row)}
+                              onClick={() => openComplaintModal(row.record)}
                               disabled={!isComplaintEnabled || complaintActionLabel === "In Process"}
                               className={cn(
                                 "mt-1.5 inline-flex w-full items-center justify-center rounded px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset transition-all",
@@ -3628,7 +3688,7 @@ export default function BulkTracking() {
                             {lifecycle.complaintCount > 0 ? (
                               <button
                                 type="button"
-                                onClick={() => setHistoryModalRecord(row)}
+                                onClick={() => setHistoryModalRecord(row.record)}
                                 className="mt-1 inline-flex w-full items-center justify-center rounded px-2 py-0.5 text-[9px] font-medium ring-1 ring-inset transition-all bg-slate-50 text-slate-600 ring-slate-200 hover:bg-slate-100"
                               >
                                 View History ({lifecycle.complaintCount})
@@ -3639,7 +3699,7 @@ export default function BulkTracking() {
                       })() : (
                         <button
                           disabled={!isComplaintEnabled}
-                          onClick={() => openComplaintModal(row)}
+                          onClick={() => openComplaintModal(row.record)}
                           className={cn(
                             "inline-flex w-full items-center justify-center gap-1 rounded-xl px-2 py-1 text-[11px] font-semibold shadow-sm ring-1 ring-inset transition-all",
                             isComplaintEnabled
@@ -3655,7 +3715,7 @@ export default function BulkTracking() {
                   </tr>
                 );
               })}
-              {paginatedShipments.length === 0 ? (
+              {paginatedTrackingTableRows.length === 0 ? (
                 <tr>
                   <td className="px-4 py-8 text-center text-sm text-slate-500" colSpan={10}>
                     No shipments found.
