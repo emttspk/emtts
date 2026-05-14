@@ -124,7 +124,7 @@ function formatLastDate(shipment: Shipment): string {
 
 function detectTemplateType(record: FinalTrackingRecord): ComplaintTemplateKey {
   const tn = String(record.shipment.trackingNumber ?? "").toUpperCase();
-  if (record.final_status.includes("RETURN")) return "RETURN";
+  if (normalizeStatus(getAuthoritativeRecordStatus(record)).includes("RETURN")) return "RETURN";
   if (record.amount > 0 || tn.startsWith("VPL") || tn.startsWith("VPP") || tn.startsWith("COD")) return "VALUE_PAYABLE";
   return "NORMAL";
 }
@@ -807,6 +807,7 @@ function buildTrackingPrintFileName(now = new Date()) {
 }
 
 function buildPrintMarkup(record: FinalTrackingRecord, detail: TrackingDetailData): string {
+  const authoritativeStatus = getAuthoritativeRecordStatus(record);
   const clippedTimeline = detail.timeline.length > 10 ? detail.timeline.slice(0, 10) : detail.timeline;
   const timelineRows = clippedTimeline.length > 0
     ? clippedTimeline.map((item, index) => `
@@ -823,7 +824,7 @@ function buildPrintMarkup(record: FinalTrackingRecord, detail: TrackingDetailDat
           <td>-</td>
           <td>-</td>
           <td>${escapePrintHtml(preferredCity(record.shipment) || "-")}</td>
-          <td>${escapePrintHtml(record.final_status)}</td>
+          <td>${escapePrintHtml(authoritativeStatus)}</td>
         </tr>`;
 
   return `
@@ -834,7 +835,7 @@ function buildPrintMarkup(record: FinalTrackingRecord, detail: TrackingDetailDat
         <div class="print-subtitle">${escapePrintHtml(record.shipment.trackingNumber)}</div>
         <div class="print-meta-grid">
           <div class="print-meta-card"><div class="print-meta-label">Tracking</div><div class="print-meta-value">${escapePrintHtml(record.shipment.trackingNumber)}</div></div>
-          <div class="print-meta-card"><div class="print-meta-label">Status</div><div class="print-meta-value">${escapePrintHtml(record.final_status)}</div></div>
+          <div class="print-meta-card"><div class="print-meta-label">Status</div><div class="print-meta-value">${escapePrintHtml(authoritativeStatus)}</div></div>
           <div class="print-meta-card"><div class="print-meta-label">Booking Date</div><div class="print-meta-value">${escapePrintHtml(detail.bookingDate)}</div></div>
           <div class="print-meta-card"><div class="print-meta-label">Last Update</div><div class="print-meta-value">${escapePrintHtml(detail.lastUpdate)}</div></div>
           <div class="print-meta-card"><div class="print-meta-label">Sender</div><div class="print-meta-value">${escapePrintHtml(detail.fields.shipperName || "-")}</div></div>
@@ -1451,10 +1452,10 @@ export default function BulkTracking() {
     const cacheFresh = Boolean(cached && Date.now() - cached.fetchedAt < TRACKING_CACHE_TTL_MS);
     const cappedCache = Boolean(cached && cached.shipments.length > 0 && cached.shipments.length < (cached.total || cached.shipments.length));
 
-    if (cached) {
+    if (cached && !options?.force) {
       applyShipmentsSnapshot(cached.shipments, cached.total);
       void refreshSupportingWorkspaceData({ force: options?.force });
-      if (!options?.force && cacheFresh && !cappedCache) {
+      if (cacheFresh && !cappedCache) {
         return;
       }
     }
@@ -1469,7 +1470,7 @@ export default function BulkTracking() {
       // Get the final tracking data to identify pending shipments
       const finalData = getFinalTrackingData(shipments);
       const pendingShipments = finalData
-        .filter(record => record.final_status.includes("PENDING"))
+        .filter(record => normalizeStatus(getAuthoritativeRecordStatus(record)) === "PENDING")
         .map(record => record.shipment);
       if (pendingShipments.length === 0) return;
       enqueueBackgroundRefresh(pendingShipments);
@@ -1832,20 +1833,26 @@ export default function BulkTracking() {
 
   async function updateStatus(trackingNumber: string, status: string) {
     const target = shipments.find((x) => x.trackingNumber === trackingNumber);
-    // Optimistic update
-    setShipments((prev) => prev.map((item) => (
+    const optimisticRows = shipments.map((item) => (
       item.trackingNumber === trackingNumber
         ? { ...item, status, rawJson: applyLocalStatusOverride(item.rawJson, status) }
         : item
-    )));
+    ));
+    // Optimistic update
+    setShipments(optimisticRows);
+    trackingCacheRef.current = {
+      shipments: optimisticRows,
+      total: trackingCacheRef.current?.total || optimisticRows.length,
+      fetchedAt: Date.now(),
+    };
     try {
       if (target) {
         await api(`/api/shipments/${target.id}`, { method: "PATCH", body: JSON.stringify({ status }) });
       }
-      await refreshShipments();
+      await refreshShipments({ force: true });
     } catch (e) {
       console.error(e);
-      await refreshShipments();
+      await refreshShipments({ force: true });
     }
   }
 
@@ -2133,6 +2140,14 @@ export default function BulkTracking() {
     }
     return map;
   }, [finalTrackingData]);
+
+  useEffect(() => {
+    if (!selectedTracking) return;
+    const latest = shipmentByTracking.get(selectedTracking.shipment.trackingNumber);
+    if (latest && latest !== selectedTracking) {
+      setSelectedTracking(latest);
+    }
+  }, [selectedTracking, shipmentByTracking]);
 
   const pieSlices = useMemo(() => {
     const delivered = summaryStats.delivered;
