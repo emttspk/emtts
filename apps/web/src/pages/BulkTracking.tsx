@@ -2050,16 +2050,29 @@ export default function BulkTracking() {
     manualOverride: boolean;
   };
 
+  // --- MANUAL STATUS PRECEDENCE LOGIC ---
+  // If a shipment has a manual override, always use it for all UI, search, sort, and filter.
+  function getManualOrSystemStatus(s: Shipment, fallback: string) {
+    const raw = parseRaw(s.rawJson);
+    if (isManualOverrideShipment(s)) {
+      // Use the manual status field if present
+      return String(raw?.manual_status ?? "").trim() || fallback;
+    }
+    return fallback;
+  }
+
   function buildTrackingTableRowModel(records: FinalTrackingRecord[]): TrackingTableRowModel[] {
     return records.map((record) => {
       const s = record.shipment;
       const lifecycle = parseComplaintLifecycle(s);
       const complaintState = resolveComplaintCardState(lifecycle, complaintQueueByTracking.get(s.trackingNumber));
-      const statusBadge = statusBadgeClass(record.final_status);
+      // Use manual status if present for all UI, search, sort, and filter
+      const manualOverride = isManualOverrideShipment(s);
+      const authoritativeStatus = getManualOrSystemStatus(s, record.final_status);
+      const statusBadge = statusBadgeClass(authoritativeStatus);
       const days = s.daysPassed ?? Math.floor((Date.now() - new Date(s.createdAt).getTime()) / (1000 * 60 * 60 * 24));
       const displayCity = preferredCity(s);
-      const actionStatus = record.final_status;
-      const manualOverride = isManualOverrideShipment(s);
+      const actionStatus = authoritativeStatus;
       return { record, lifecycle, complaintState, statusBadge, days, displayCity, actionStatus, manualOverride };
     });
   }
@@ -2190,11 +2203,13 @@ export default function BulkTracking() {
       ? "ALL"
       : statusFilter;
     const filtered = trackingTableRows.filter((row) => {
+      // Use manual override status for all filtering
+      const authoritativeStatus = row.actionStatus;
       if (baseFilter === "ALL") return true;
       if (baseFilter === "DELAYED") return row.record.delayed;
-      if (baseFilter === "DELIVERED") return row.record.final_status === "DELIVERED" || row.record.final_status === "DELIVERED WITH PAYMENT";
-      if (baseFilter === "RETURNED") return row.record.final_status === "RETURNED";
-      return row.record.final_status.includes("PENDING");
+      if (baseFilter === "DELIVERED") return authoritativeStatus === "DELIVERED" || authoritativeStatus === "DELIVERED WITH PAYMENT";
+      if (baseFilter === "RETURNED") return authoritativeStatus === "RETURNED";
+      return authoritativeStatus.includes("PENDING");
     });
 
     if (statusFilter === "COMPLAINT_TOTAL") {
@@ -2213,7 +2228,8 @@ export default function BulkTracking() {
         const shipment = row.record.shipment;
         const lifecycle = row.lifecycle;
         const city = row.displayCity;
-        const status = normalizeStatus(row.record.final_status);
+        // Use manual override status for search
+        const status = normalizeStatus(row.actionStatus);
         const haystack = [
           shipment.trackingNumber,
           city,
@@ -2227,7 +2243,7 @@ export default function BulkTracking() {
     }
 
     if (statusFilter === "COMPLAINT_WATCH") {
-      return filtered.filter((row) => row.record.final_status.includes("PENDING") && isComplaintInProcess(row.lifecycle));
+      return filtered.filter((row) => row.actionStatus.includes("PENDING") && isComplaintInProcess(row.lifecycle));
     }
 
     if (statusFilter === "COMPLAINT_REOPENED") {
@@ -2244,7 +2260,8 @@ export default function BulkTracking() {
       const shipment = row.record.shipment;
       const lifecycle = row.lifecycle;
       const city = row.displayCity;
-      const status = normalizeStatus(row.record.final_status);
+      // Use manual override status for search
+      const status = normalizeStatus(row.actionStatus);
       const moNumber = extractMoReference(shipment.rawJson, shipment.moIssued ?? null, shipment.moneyOrderIssued);
       const haystack = [
         shipment.trackingNumber,
@@ -2277,7 +2294,8 @@ export default function BulkTracking() {
       } else if (sortKey === "trackingNumber") {
         cmp = String(a.record.shipment.trackingNumber ?? "").localeCompare(String(b.record.shipment.trackingNumber ?? ""));
       } else if (sortKey === "status") {
-        cmp = String(a.record.final_status ?? "").localeCompare(String(b.record.final_status ?? ""));
+        // Use manual override status for sorting
+        cmp = String(a.actionStatus ?? "").localeCompare(String(b.actionStatus ?? ""));
       } else if (sortKey === "city") {
         cmp = String(a.displayCity ?? "").localeCompare(String(b.displayCity ?? ""));
       } else if (sortKey === "moNumber") {
