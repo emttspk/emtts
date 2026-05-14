@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { UploadCloud, AlertCircle, Eye, MapPin, PackageSearch, BadgeDollarSign, RefreshCw, Printer, Package, CheckCircle2, Clock, TrendingUp, X, MessageSquare, Activity, ChevronRight, Truck, ArrowUpRight, Search } from "lucide-react";
+import { UploadCloud, AlertCircle, Eye, MapPin, PackageSearch, BadgeDollarSign, RefreshCw, Printer, Package, CheckCircle2, Clock, TrendingUp, X, MessageSquare, Activity, ChevronRight, Truck, ArrowUpRight, ArrowUpDown, Search } from "lucide-react";
 import Card from "../components/Card";
 import ActionButton from "../components/ui/ActionButton";
 import UnifiedShipmentCards from "../components/UnifiedShipmentCards";
@@ -705,6 +705,8 @@ type TrackingDetailData = {
   consigneePhone: string;
 };
 
+type TrackingSortKey = "updatedAt" | "trackingNumber" | "status" | "city" | "moNumber" | "moAmount";
+
 function parseTimelineTimestamp(dateRaw: string, timeRaw: string) {
   const date = String(dateRaw ?? "").trim();
   const time = String(timeRaw ?? "").trim() || "00:00";
@@ -948,6 +950,12 @@ export default function BulkTracking() {
   const [statusFilter, setStatusFilter] = useState<ExtendedStatusFilter>(() => readInitialWorkspaceViewState()?.statusFilter ?? "ALL");
   const [searchInput, setSearchInput] = useState(() => readInitialWorkspaceViewState()?.searchInput ?? "");
   const [searchTerm, setSearchTerm] = useState(() => readInitialWorkspaceViewState()?.searchTerm ?? "");
+  const [sortKey, setSortKey] = useState<TrackingSortKey>(() => {
+    const value = String(readInitialWorkspaceViewState()?.sortKey ?? "updatedAt").trim();
+    const allowed: TrackingSortKey[] = ["updatedAt", "trackingNumber", "status", "city", "moNumber", "moAmount"];
+    return allowed.includes(value as TrackingSortKey) ? (value as TrackingSortKey) : "updatedAt";
+  });
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(() => readInitialWorkspaceViewState()?.sortDir ?? "desc");
   const [page, setPage] = useState(() => Math.max(1, readInitialWorkspaceViewState()?.page ?? 1));
   const [totalShipments, setTotalShipments] = useState(() => readInitialWorkspaceRenderCache()?.total ?? 0);
   const [auditRows, setAuditRows] = useState<CycleAuditRecord[]>([]);
@@ -1115,10 +1123,12 @@ export default function BulkTracking() {
       statusFilter,
       searchInput,
       searchTerm,
+      sortKey,
+      sortDir,
       scrollY: typeof window !== "undefined" ? window.scrollY : 0,
       savedAt: Date.now(),
     });
-  }, [page, pageSize, searchInput, searchTerm, statusFilter]);
+  }, [page, pageSize, searchInput, searchTerm, sortDir, sortKey, statusFilter]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -1128,13 +1138,15 @@ export default function BulkTracking() {
         statusFilter,
         searchInput,
         searchTerm,
+        sortKey,
+        sortDir,
         scrollY: window.scrollY,
         savedAt: Date.now(),
       });
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [page, pageSize, searchInput, searchTerm, statusFilter]);
+  }, [page, pageSize, searchInput, searchTerm, sortDir, sortKey, statusFilter]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setRetryCountdownNow(Date.now()), 1000);
@@ -2242,6 +2254,52 @@ export default function BulkTracking() {
     setPage(1);
   }, [searchInput]);
 
+  // PROTECTED_SCOPE_START
+  // Stable enterprise sorting/pagination layer restored from 996eaac.
+  // Regression-sensitive render pipeline.
+  // Do not remove sorting memoization or persisted view-state logic.
+  const sortedTrackingTableRows = useMemo(() => {
+    const rows = [...filteredTrackingTableRows];
+    const multiplier = sortDir === "asc" ? 1 : -1;
+    rows.sort((a, b) => {
+      let cmp = 0;
+      if (sortKey === "updatedAt") {
+        cmp = new Date(a.record.shipment.updatedAt).getTime() - new Date(b.record.shipment.updatedAt).getTime();
+      } else if (sortKey === "trackingNumber") {
+        cmp = String(a.record.shipment.trackingNumber ?? "").localeCompare(String(b.record.shipment.trackingNumber ?? ""));
+      } else if (sortKey === "status") {
+        cmp = String(a.record.final_status ?? "").localeCompare(String(b.record.final_status ?? ""));
+      } else if (sortKey === "city") {
+        cmp = String(a.displayCity ?? "").localeCompare(String(b.displayCity ?? ""));
+      } else if (sortKey === "moNumber") {
+        const aMo = String(extractMoReference(a.record.shipment.rawJson, a.record.shipment.moIssued ?? null, a.record.shipment.moneyOrderIssued) ?? "");
+        const bMo = String(extractMoReference(b.record.shipment.rawJson, b.record.shipment.moIssued ?? null, b.record.shipment.moneyOrderIssued) ?? "");
+        cmp = aMo.localeCompare(bMo);
+      } else {
+        const aAmount = Number(extractMoValue(a.record.shipment.rawJson, a.record.shipment.moValue ?? null) ?? -1);
+        const bAmount = Number(extractMoValue(b.record.shipment.rawJson, b.record.shipment.moValue ?? null) ?? -1);
+        cmp = aAmount - bAmount;
+      }
+
+      if (cmp === 0) {
+        cmp = String(a.record.shipment.trackingNumber ?? "").localeCompare(String(b.record.shipment.trackingNumber ?? ""));
+      }
+      return cmp * multiplier;
+    });
+    return rows;
+  }, [filteredTrackingTableRows, sortDir, sortKey]);
+
+  const toggleTrackingSort = useCallback((nextKey: TrackingSortKey) => {
+    setPage(1);
+    if (sortKey === nextKey) {
+      setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(nextKey);
+    setSortDir("desc");
+  }, [sortKey]);
+  // PROTECTED_SCOPE_END
+
   const exportFilteredTrackingCsv = useCallback(() => {
     const escapeCsv = (val: unknown) => {
       const s = String(val ?? "");
@@ -2301,7 +2359,7 @@ export default function BulkTracking() {
   // Do not remove cache hydration or row precomputation.
   // Regression-sensitive rendering path.
 
-  const totalFilteredShipments = filteredTrackingTableRows.length;
+  const totalFilteredShipments = sortedTrackingTableRows.length;
   const totalPages = Math.max(1, Math.ceil(totalFilteredShipments / pageSize));
 
   useEffect(() => {
@@ -2313,8 +2371,8 @@ export default function BulkTracking() {
   const paginatedTrackingTableRows = useMemo(() => {
     const start = (page - 1) * pageSize;
     const end = page * pageSize;
-    return filteredTrackingTableRows.slice(start, end);
-  }, [filteredTrackingTableRows, page, pageSize, statusFilter]);
+    return sortedTrackingTableRows.slice(start, end);
+  }, [page, pageSize, sortedTrackingTableRows, statusFilter]);
   // PROTECTED_SCOPE_END
 
   // PROTECTED_SCOPE_START
@@ -3501,22 +3559,40 @@ export default function BulkTracking() {
                   S.No
                 </th>
                 <th className="w-20 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-                  Updated
+                  <button type="button" onClick={() => toggleTrackingSort("updatedAt")} className="inline-flex items-center gap-1 hover:text-slate-900">
+                    Updated
+                    <ArrowUpDown className="h-3 w-3" />
+                  </button>
                 </th>
                 <th className="w-32 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-                  <span className="inline-flex items-center gap-1"><PackageSearch className="h-3 w-3" /> Tracking</span>
+                  <button type="button" onClick={() => toggleTrackingSort("trackingNumber")} className="inline-flex items-center gap-1 hover:text-slate-900">
+                    <PackageSearch className="h-3 w-3" /> Tracking
+                    <ArrowUpDown className="h-3 w-3" />
+                  </button>
                 </th>
                 <th className="w-20 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-                  Status
+                  <button type="button" onClick={() => toggleTrackingSort("status")} className="inline-flex items-center gap-1 hover:text-slate-900">
+                    Status
+                    <ArrowUpDown className="h-3 w-3" />
+                  </button>
                 </th>
                 <th className="w-28 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-                  <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> City</span>
+                  <button type="button" onClick={() => toggleTrackingSort("city")} className="inline-flex items-center gap-1 hover:text-slate-900">
+                    <MapPin className="h-3 w-3" /> City
+                    <ArrowUpDown className="h-3 w-3" />
+                  </button>
                 </th>
                 <th className="w-28 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-                  <span className="inline-flex items-center gap-1"><BadgeDollarSign className="h-3 w-3" /> Money Order No</span>
+                  <button type="button" onClick={() => toggleTrackingSort("moNumber")} className="inline-flex items-center gap-1 hover:text-slate-900">
+                    <BadgeDollarSign className="h-3 w-3" /> Money Order No
+                    <ArrowUpDown className="h-3 w-3" />
+                  </button>
                 </th>
                 <th className="w-24 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-                  Money Order Amount
+                  <button type="button" onClick={() => toggleTrackingSort("moAmount")} className="inline-flex items-center gap-1 hover:text-slate-900">
+                    Money Order Amount
+                    <ArrowUpDown className="h-3 w-3" />
+                  </button>
                 </th>
                 <th className="w-28 border-r border-[#E5E7EB] px-2 py-2.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
                   Action
