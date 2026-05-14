@@ -921,6 +921,15 @@ function isManualOverrideShipment(shipment: Shipment): boolean {
   return Boolean(raw?.manual_override) && Boolean(String(raw?.manual_status ?? "").trim());
 }
 
+function getAuthoritativeRecordStatus(record: FinalTrackingRecord): string {
+  const shipment = record.shipment;
+  if (!isManualOverrideShipment(shipment)) {
+    return String(record.final_status ?? "").trim() || "PENDING";
+  }
+  const manualStatus = String(parseRaw(shipment.rawJson)?.manual_status ?? "").trim();
+  return manualStatus ? normalizeStatus(manualStatus) : normalizeStatus(record.final_status);
+}
+
 export default function BulkTracking() {
   const { me } = useOutletContext<ShellCtx>();
   const [searchParams] = useSearchParams();
@@ -2050,28 +2059,13 @@ export default function BulkTracking() {
     manualOverride: boolean;
   };
 
-  // --- MANUAL STATUS PRECEDENCE LOGIC ---
-  // If a shipment has a manual override, always use it for all UI, search, sort, and filter.
-  function getManualOrSystemStatus(s: Shipment, fallback: string) {
-    const raw = parseRaw(s.rawJson);
-    if (isManualOverrideShipment(s)) {
-      // Use the manual status field if present
-      return String(raw?.manual_status ?? "").trim() || fallback;
-    }
-    return fallback;
-  }
-
   function buildTrackingTableRowModel(records: FinalTrackingRecord[]): TrackingTableRowModel[] {
     return records.map((record) => {
       const s = record.shipment;
       const lifecycle = parseComplaintLifecycle(s);
       const complaintState = resolveComplaintCardState(lifecycle, complaintQueueByTracking.get(s.trackingNumber));
-      // Use manual status if present for all UI, search, sort, and filter
       const manualOverride = isManualOverrideShipment(s);
-      // --- FIX: Always use manual override status if present, for all UI/search/sort/filter ---
-      const authoritativeStatus = manualOverride
-        ? String(parseRaw(s.rawJson)?.manual_status ?? "").trim() || record.final_status
-        : record.final_status;
+      const authoritativeStatus = getAuthoritativeRecordStatus(record);
       const statusBadge = statusBadgeClass(authoritativeStatus);
       const days = s.daysPassed ?? Math.floor((Date.now() - new Date(s.createdAt).getTime()) / (1000 * 60 * 60 * 24));
       const displayCity = preferredCity(s);
@@ -2206,13 +2200,12 @@ export default function BulkTracking() {
       ? "ALL"
       : statusFilter;
     const filtered = trackingTableRows.filter((row) => {
-      // Use manual override status for all filtering
-      const authoritativeStatus = row.actionStatus;
+      const authoritativeStatus = normalizeStatus(row.actionStatus);
       if (baseFilter === "ALL") return true;
       if (baseFilter === "DELAYED") return row.record.delayed;
       if (baseFilter === "DELIVERED") return authoritativeStatus === "DELIVERED" || authoritativeStatus === "DELIVERED WITH PAYMENT";
       if (baseFilter === "RETURNED") return authoritativeStatus === "RETURNED";
-      return authoritativeStatus.includes("PENDING");
+      return authoritativeStatus === "PENDING";
     });
 
     if (statusFilter === "COMPLAINT_TOTAL") {
@@ -2246,7 +2239,7 @@ export default function BulkTracking() {
     }
 
     if (statusFilter === "COMPLAINT_WATCH") {
-      return filtered.filter((row) => row.actionStatus.includes("PENDING") && isComplaintInProcess(row.lifecycle));
+      return filtered.filter((row) => normalizeStatus(row.actionStatus) === "PENDING" && isComplaintInProcess(row.lifecycle));
     }
 
     if (statusFilter === "COMPLAINT_REOPENED") {
@@ -2297,8 +2290,7 @@ export default function BulkTracking() {
       } else if (sortKey === "trackingNumber") {
         cmp = String(a.record.shipment.trackingNumber ?? "").localeCompare(String(b.record.shipment.trackingNumber ?? ""));
       } else if (sortKey === "status") {
-        // Use manual override status for sorting
-        cmp = String(a.actionStatus ?? "").localeCompare(String(b.actionStatus ?? ""));
+        cmp = normalizeStatus(a.actionStatus).localeCompare(normalizeStatus(b.actionStatus));
       } else if (sortKey === "city") {
         cmp = String(a.displayCity ?? "").localeCompare(String(b.displayCity ?? ""));
       } else if (sortKey === "moNumber") {
@@ -2357,7 +2349,7 @@ export default function BulkTracking() {
       return [
         shipment.trackingNumber,
         new Date(shipment.updatedAt).toISOString(),
-        normalizeStatus(record.final_status),
+        normalizeStatus(row.actionStatus),
         preferredCity(shipment),
         moNumber,
         moAmount != null ? moAmount : "",
@@ -2507,6 +2499,7 @@ export default function BulkTracking() {
   const trackingDetailData = useMemo(() => {
     if (!selectedTracking) return null;
     const detailShipment = selectedTracking.shipment;
+    const selectedTrackingStatus = getAuthoritativeRecordStatus(selectedTracking);
     const raw = parseRaw(detailShipment.rawJson);
     const fields = getUnifiedFields(detailShipment.rawJson);
     const consignee = getRecordConsignee(detailShipment);
@@ -2517,8 +2510,8 @@ export default function BulkTracking() {
     const complaintLifecycle = parseComplaintLifecycle(detailShipment);
     const queueSnapshot = complaintQueueByTracking.get(detailShipment.trackingNumber);
     const complaintCardState = resolveComplaintCardState(complaintLifecycle, queueSnapshot);
-    const presentation = resolveTrackingPresentation(selectedTracking.final_status, timeline, deliveryProgress, trackingLifecycle, {
-      operationalStatus: selectedTracking.final_status,
+    const presentation = resolveTrackingPresentation(selectedTrackingStatus, timeline, deliveryProgress, trackingLifecycle, {
+      operationalStatus: selectedTrackingStatus,
       complaintActive: isComplaintInProcess(complaintLifecycle) || ["ACTIVE", "PROCESSING", "RETRY PENDING", "MANUAL REVIEW", "QUEUED"].includes(complaintCardState.toUpperCase()),
       complaintStateLabel: complaintCardState === "ACTIVE" ? "Under Investigation" : complaintCardState,
     });
@@ -2545,10 +2538,14 @@ export default function BulkTracking() {
     };
   }, [selectedTracking, complaintQueueByTracking]);
 
+  const selectedTrackingStatus = useMemo(
+    () => (selectedTracking ? getAuthoritativeRecordStatus(selectedTracking) : "PENDING"),
+    [selectedTracking],
+  );
   const selectedComplaintLifecycle = selectedTracking ? parseComplaintLifecycle(selectedTracking.shipment) : null;
   const selectedComplaintQueueSnapshot = selectedTracking ? complaintQueueByTracking.get(selectedTracking.shipment.trackingNumber) : undefined;
   const selectedComplaintEnabled = selectedTracking && selectedComplaintLifecycle
-    ? isComplaintActionAllowed(selectedTracking.final_status, selectedComplaintLifecycle, selectedComplaintQueueSnapshot)
+    ? isComplaintActionAllowed(selectedTrackingStatus, selectedComplaintLifecycle, selectedComplaintQueueSnapshot)
     : false;
 
   function printShipmentPdf() {
@@ -2897,7 +2894,7 @@ export default function BulkTracking() {
       return;
     }
     const serviceType = detectServiceType(trackingNumber);
-    const finalStatus = normalizeStatus(complaintRecord.final_status).toUpperCase();
+    const finalStatus = normalizeStatus(getAuthoritativeRecordStatus(complaintRecord)).toUpperCase();
     if (finalStatus !== "PENDING") {
       alert("Complaint is available only for pending shipments.");
       return;
@@ -3696,7 +3693,7 @@ export default function BulkTracking() {
                 const lifecycle = row.lifecycle;
                 const queueSnapshot = complaintQueueByTracking.get(s.trackingNumber);
                 const complaintCardState = row.complaintState;
-                const displayStatus = row.record.final_status;
+                const displayStatus = row.actionStatus;
                 const statusUpper = normalizeStatus(displayStatus).toUpperCase();
                 const isComplaintEnabled = isComplaintActionAllowed(actionStatus, lifecycle, queueSnapshot);
                 const complaintActionLabel = resolveComplaintActionLabel(actionStatus, lifecycle, queueSnapshot);
@@ -4595,7 +4592,7 @@ export default function BulkTracking() {
                 {selectedTracking ? (
                   (() => {
                     const selectedQueue = complaintQueueByTracking.get(selectedTracking.shipment.trackingNumber);
-                    const actionLabel = resolveComplaintActionLabel(selectedTracking.final_status, selectedComplaintLifecycle ?? {
+                    const actionLabel = resolveComplaintActionLabel(selectedTrackingStatus, selectedComplaintLifecycle ?? {
                       exists: false,
                       active: false,
                       complaintId: "",
