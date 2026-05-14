@@ -1396,10 +1396,12 @@ export default function BulkTracking() {
     try {
       const cachedRows = trackingCacheRef.current?.shipments ?? [];
       const hasCachedRows = cachedRows.length > 0;
+      const cachedTotal = trackingCacheRef.current?.total || cachedRows.length;
+      const cappedCache = hasCachedRows && cachedRows.length < cachedTotal;
       let nextRows: Shipment[];
       let nextTotal: number;
 
-      if (hasCachedRows && !options?.forceFull) {
+      if (hasCachedRows && !options?.forceFull && !cappedCache) {
         try {
           const diff = await fetchShipmentsDiff(cachedRows);
           nextRows = applyChangedRows(cachedRows, Array.isArray(diff.changedRows) ? diff.changedRows : []);
