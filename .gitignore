@@ -1,5 +1,6 @@
 node_modules
 dist
+.venv/
 .env
 .env.*
 !.env.example
@@ -29,3 +30,4 @@ LCS*.xlsx
 tracking/credentials.json
 EP Gateway/
 EP Gateway/.venv/
+.aider*

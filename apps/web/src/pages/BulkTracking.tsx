@@ -1438,11 +1438,12 @@ export default function BulkTracking() {
   async function refreshShipments(options?: { force?: boolean }) {
     const cached = trackingCacheRef.current;
     const cacheFresh = Boolean(cached && Date.now() - cached.fetchedAt < TRACKING_CACHE_TTL_MS);
+    const cappedCache = Boolean(cached && cached.shipments.length > 0 && cached.shipments.length < (cached.total || cached.shipments.length));
 
     if (cached) {
       applyShipmentsSnapshot(cached.shipments, cached.total);
       void refreshSupportingWorkspaceData({ force: options?.force });
-      if (!options?.force && cacheFresh) {
+      if (!options?.force && cacheFresh && !cappedCache) {
         return;
       }
     }
@@ -2022,12 +2023,18 @@ export default function BulkTracking() {
     if (!hydrated) {
       const cached = readTrackingWorkspaceRenderCache<Shipment, ComplaintQueueSnapshot>();
       if (cached?.shipments.length) {
-        setShipments(cached.shipments);
-        setTotalShipments(cached.total || cached.shipments.length);
+        const cachedCount = cached.shipments.length;
+        const cachedTotal = cached.total || cachedCount;
+        const currentCount = shipments.length;
+        const currentTotal = totalShipments || currentCount;
+        if (currentCount === 0 || cachedCount >= currentCount || cachedTotal >= currentTotal) {
+          setShipments(cached.shipments);
+          setTotalShipments(cachedTotal);
+        }
         setHydrated(true);
       }
     }
-  }, [hydrated]);
+  }, [hydrated, shipments.length, totalShipments]);
 
   // --- PRECOMPUTED ROW MODEL ---
   type TrackingTableRowModel = {
@@ -2373,6 +2380,40 @@ export default function BulkTracking() {
     return sortedTrackingTableRows.slice(start, end);
   }, [page, pageSize, sortedTrackingTableRows, statusFilter]);
 
+  const paginationWindow = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1) as Array<number | string>;
+    }
+
+    let start = Math.max(1, page - 2);
+    let end = Math.min(totalPages, page + 2);
+
+    if (start <= 2) {
+      start = 1;
+      end = 5;
+    } else if (end >= totalPages - 1) {
+      end = totalPages;
+      start = totalPages - 4;
+    }
+
+    const items: Array<number | string> = [];
+    if (start > 1) {
+      items.push(1);
+      if (start > 2) items.push("ellipsis-left");
+    }
+
+    for (let p = start; p <= end; p += 1) {
+      items.push(p);
+    }
+
+    if (end < totalPages) {
+      if (end < totalPages - 1) items.push("ellipsis-right");
+      items.push(totalPages);
+    }
+
+    return items;
+  }, [page, totalPages]);
+
   // PROTECTED_SCOPE_START
   // Stable pagination/cache restoration from 996eaac.
   // Pagination must always operate on full filtered dataset.
@@ -2383,7 +2424,7 @@ export default function BulkTracking() {
     if (shipments.length === 0) return;
     const timer = window.setTimeout(() => {
       writeTrackingWorkspaceRenderCache<Shipment, ComplaintQueueSnapshot>({
-        shipments: sortedTrackingTableRows.map((row) => row.record.shipment),
+        shipments,
         total: totalShipments || shipments.length,
         complaintQueue: complaintQueueMapToRows(complaintQueueByTracking),
         fetchedAt: trackingCacheRef.current?.fetchedAt ?? Date.now(),
@@ -2391,7 +2432,7 @@ export default function BulkTracking() {
       });
     }, WORKSPACE_RENDER_CACHE_PERSIST_MS);
     return () => window.clearTimeout(timer);
-  }, [complaintQueueByTracking, shipmentStatsFetchedAt, shipments.length, sortedTrackingTableRows, totalShipments]);
+  }, [complaintQueueByTracking, shipmentStatsFetchedAt, shipments, totalShipments]);
 
   useEffect(() => {
     if (shipments.length === 0) return;
@@ -3516,6 +3557,24 @@ export default function BulkTracking() {
               >
                 Previous
               </button>
+              {paginationWindow.map((item, index) => (
+                typeof item === "number" ? (
+                  <button
+                    key={`top-page-${item}`}
+                    className={cn(
+                      "rounded-lg border px-2.5 py-1 text-xs font-medium shadow-sm transition-colors",
+                      page === item
+                        ? "border-brand bg-brand/10 text-brand"
+                        : "border-[#E5E7EB] bg-white hover:bg-slate-50",
+                    )}
+                    onClick={() => setPage(item)}
+                  >
+                    {item}
+                  </button>
+                ) : (
+                  <span key={`top-ellipsis-${index}`} className="px-1 text-xs text-slate-500">...</span>
+                )
+              ))}
               <button
                 className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
                 disabled={page >= totalPages}
@@ -3656,7 +3715,7 @@ export default function BulkTracking() {
 
                 return (
                   <tr key={s.id} className={cn("group border-b border-[#E5E7EB] transition-colors duration-150 hover:bg-[#F8FAFC]", rowBaseTone)}>
-                    <td className={cn("border-r border-[#E5E7EB] border-l-4 px-2 py-2 align-middle", rowVisual.left)}>
+                    <td className={cn("border-r border-[#E5E7EB] border-l-4 px-2 py-2.5 align-middle", rowVisual.left)}>
                       <input
                         type="checkbox"
                         className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
@@ -3668,8 +3727,8 @@ export default function BulkTracking() {
                         }
                       />
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-2 py-2 align-middle text-[11px] font-semibold text-slate-700">{(page - 1) * pageSize + index + 1}</td>
-                    <td className="border-r border-[#E5E7EB] px-2 py-2 align-middle whitespace-nowrap">
+                    <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle text-xs font-semibold text-slate-700">{(page - 1) * pageSize + index + 1}</td>
+                    <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle whitespace-nowrap">
                       <div className="flex flex-col">
                         <span className="text-xs font-semibold text-slate-900">
                           {new Date(s.updatedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}
@@ -3679,20 +3738,20 @@ export default function BulkTracking() {
                         </span>
                       </div>
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-2 py-2 align-middle font-mono text-[11px] font-bold text-slate-800 group-hover:text-brand truncate whitespace-nowrap" title={s.trackingNumber}>
+                    <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle font-mono text-xs font-bold text-slate-800 group-hover:text-brand truncate whitespace-nowrap" title={s.trackingNumber}>
                       <div className="inline-flex items-center gap-1.5">
                         <span>{s.trackingNumber}</span>
                         <button
                           type="button"
                           onClick={() => setSelectedTracking(row.record)}
-                          className="rounded border border-brand/30 bg-brand/10 px-1.5 py-0.5 text-[9px] font-semibold text-brand hover:bg-brand/20"
+                          className="rounded border border-brand/30 bg-brand/10 px-2 py-1 text-[10px] font-semibold text-brand hover:bg-brand/20"
                           title="Track"
                         >
                           Track
                         </button>
                       </div>
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-2 py-2 align-middle whitespace-nowrap">
+                    <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle whitespace-nowrap">
                       <div className="flex flex-col">
                         <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset", isWarning ? "bg-red-100 text-red-700 ring-red-200" : row.statusBadge)}>
                           {displayStatus}
@@ -3700,15 +3759,15 @@ export default function BulkTracking() {
                         <span className="mt-0.5 text-[10px] text-slate-500">{days}d</span>
                       </div>
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-2 py-2 align-middle text-[11px] leading-4 text-slate-600 whitespace-normal break-words" title={row.displayCity}>{row.displayCity}</td>
-                    <td className="border-r border-[#E5E7EB] px-2 py-2 align-middle text-[11px] font-semibold text-slate-700 truncate whitespace-nowrap" title={moValue || undefined}>{moValue}</td>
-                    <td className="border-r border-[#E5E7EB] px-2 py-2 align-middle text-[11px] font-medium text-slate-700 whitespace-nowrap">
+                    <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle text-xs leading-4 text-slate-600 whitespace-normal break-words" title={row.displayCity}>{row.displayCity}</td>
+                    <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle text-xs font-semibold text-slate-700 truncate whitespace-nowrap" title={moValue || undefined}>{moValue}</td>
+                    <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle text-xs font-medium text-slate-700 whitespace-nowrap">
                       {issuedValue != null ? `Rs ${issuedValue.toLocaleString()}` : "-"}
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-2 py-2 align-middle min-w-[112px] whitespace-nowrap">
+                    <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle min-w-[120px] whitespace-nowrap">
                       <div className="inline-flex items-center gap-1.5">
                         <select
-                          className="w-20 rounded border-[#E5E7EB] bg-white px-1.5 py-1 text-[10px] font-medium text-slate-700 shadow-sm focus:border-brand focus:ring-brand"
+                          className="w-24 rounded border-[#E5E7EB] bg-white px-2 py-1.5 text-[11px] font-medium text-slate-700 shadow-sm focus:border-brand focus:ring-brand"
                           value={actionValue}
                           onChange={(e) => updateStatus(s.trackingNumber, e.target.value.includes("RETURN") ? "RETURNED" : e.target.value)}
                         >
@@ -3720,7 +3779,7 @@ export default function BulkTracking() {
                         </select>
                       </div>
                     </td>
-                    <td className="px-2 py-2 pl-3 align-middle min-w-[160px]">
+                    <td className="px-2 py-2.5 pl-3 align-middle min-w-[160px]">
                       {lifecycle.exists || queueSnapshot ? (() => {
                         const stateStyle = complaintStateBadgeClass(complaintCardState);
                         const complaintId = lifecycle.complaintId || queueSnapshot?.complaintId || "Complaint";
@@ -3820,6 +3879,24 @@ export default function BulkTracking() {
               >
                 Previous
               </button>
+              {paginationWindow.map((item, index) => (
+                typeof item === "number" ? (
+                  <button
+                    key={`bottom-page-${item}`}
+                    className={cn(
+                      "rounded-lg border px-2.5 py-1 text-xs font-medium shadow-sm transition-colors",
+                      page === item
+                        ? "border-brand bg-brand/10 text-brand"
+                        : "border-[#E5E7EB] bg-white hover:bg-slate-50",
+                    )}
+                    onClick={() => setPage(item)}
+                  >
+                    {item}
+                  </button>
+                ) : (
+                  <span key={`bottom-ellipsis-${index}`} className="px-1 text-xs text-slate-500">...</span>
+                )
+              ))}
               <button
                 className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
                 disabled={page >= totalPages}
