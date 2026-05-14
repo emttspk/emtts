@@ -2068,7 +2068,10 @@ export default function BulkTracking() {
       const complaintState = resolveComplaintCardState(lifecycle, complaintQueueByTracking.get(s.trackingNumber));
       // Use manual status if present for all UI, search, sort, and filter
       const manualOverride = isManualOverrideShipment(s);
-      const authoritativeStatus = getManualOrSystemStatus(s, record.final_status);
+      // --- FIX: Always use manual override status if present, for all UI/search/sort/filter ---
+      const authoritativeStatus = manualOverride
+        ? String(parseRaw(s.rawJson)?.manual_status ?? "").trim() || record.final_status
+        : record.final_status;
       const statusBadge = statusBadgeClass(authoritativeStatus);
       const days = s.daysPassed ?? Math.floor((Date.now() - new Date(s.createdAt).getTime()) / (1000 * 60 * 60 * 24));
       const displayCity = preferredCity(s);
