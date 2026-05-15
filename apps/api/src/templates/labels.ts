@@ -1153,13 +1153,14 @@ function expandBenchmarkOrders(orders: OrderRecord[]): OrderRecord[] {
     const explicitMoNumber = strictMoneyOrderNumber((order as any)?.mo_number);
     const explicitMoAmount = toNum((order as any)?.amountRs ?? (order as any)?.amount ?? 0);
     if (explicitMoNumber !== "-" && explicitMoAmount > 0) {
+      const canonicalMoAmount = resolveMoneyOrderAmount(order as any);
       expanded.push({
         ...(order as any),
         mo_number: explicitMoNumber,
         mo_barcodeBase64: generateMoBarcodeBase64(explicitMoNumber),
         amount: String(explicitMoAmount),
         amountRs: explicitMoAmount,
-        amountWords: expectedAmountWords(explicitMoAmount),
+        amountWords: expectedAmountWords(canonicalMoAmount),
       });
       continue;
     }
