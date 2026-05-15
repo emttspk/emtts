@@ -1624,24 +1624,81 @@ export function premiumEnvelopeHtml(orders: LabelOrder[], opts?: { autoGenerateT
     const grossAmount = amountSummary.showCalculation ? amountSummary.grossAmount : amountSummary.grossAmount;
     const formatAmount = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
 
+    const estimateSingleLineFontPx = (
+      text: string,
+      maxWidthPx: number,
+      basePx: number,
+      minPx: number,
+      avgCharWidthEm: number,
+    ) => {
+      const value = String(text ?? "").replace(/\s+/g, " ").trim();
+      if (!value || value === "-") return basePx;
+      const estimated = Math.floor(maxWidthPx / (Math.max(4, value.length) * avgCharWidthEm));
+      return Math.max(minPx, Math.min(basePx, estimated));
+    };
+
+    const estimateMultiLineFontPx = (
+      text: string,
+      maxCharsPerLine: number,
+      maxLines: number,
+      basePx: number,
+      minPx: number,
+    ) => {
+      const value = String(text ?? "").trim();
+      if (!value || value === "-") return basePx;
+      const parts = value.split(/\r?\n+/).map((line) => line.trim()).filter(Boolean);
+      const explicitLineCount = Math.max(1, parts.length);
+      const estimatedLineCount = Math.ceil(value.replace(/\s+/g, " ").length / Math.max(1, maxCharsPerLine));
+      const demandLines = Math.max(explicitLineCount, estimatedLineCount);
+      if (demandLines <= maxLines) return basePx;
+      const ratio = maxLines / demandLines;
+      return Math.max(minPx, Math.floor(basePx * ratio));
+    };
+
+    const trackingFontPx = estimateSingleLineFontPx(tracking, 286, 16, 11, 0.6);
+    const customerNameFontPx = estimateSingleLineFontPx(customerName, 470, 28, 11, 0.58);
+    const customerAddressFontPx = estimateMultiLineFontPx(customerAddress, 58, 2, 16, 11);
+    const customerCityFontPx = estimateSingleLineFontPx(customerCity || "-", 470, 16, 11, 0.58);
+    const senderNameFontPx = estimateSingleLineFontPx(senderName || "-", 470, 16, 11, 0.58);
+    const senderAddressFontPx = estimateMultiLineFontPx(senderAddress || "-", 58, 1, 14, 10);
+    const senderCityFontPx = estimateSingleLineFontPx(senderCity || "-", 470, 14, 10, 0.58);
+    const productDetailsFontPx = estimateMultiLineFontPx(productDetails, 38, 3, 14, 11);
+
+    const trackingStyle = `font-size:${trackingFontPx}px;line-height:1.08;white-space:nowrap;`;
+    const customerNameStyle = `font-size:${customerNameFontPx}px;line-height:1.05;white-space:nowrap;`;
+    const customerAddressStyle = `font-size:${customerAddressFontPx}px;line-height:1.2;white-space:pre-line;`;
+    const customerCityStyle = `font-size:${customerCityFontPx}px;line-height:1.15;white-space:pre-line;`;
+    const senderNameStyle = `font-size:${senderNameFontPx}px;line-height:1.15;white-space:nowrap;`;
+    const senderAddressStyle = `font-size:${senderAddressFontPx}px;line-height:1.15;white-space:pre-line;`;
+    const senderCityStyle = `font-size:${senderCityFontPx}px;line-height:1.15;white-space:pre-line;`;
+    const productDetailsStyle = `font-size:${productDetailsFontPx}px;line-height:1.2;white-space:normal;`;
+
     const replacements: Record<string, string> = {
       "{{logo_src}}": escapeHtml(logoSrc),
       "{{barcode_data_url}}": escapeHtml(barcodeDataUrl),
       "{{tracking_no}}": escapeHtml(tracking),
+      "{{tracking_style}}": trackingStyle,
       "{{shipment_label}}": escapeHtml(shipmentLabel),
       "{{amount}}": escapeHtml(formatAmount(moneyOrderAmount)),
       "{{commission}}": escapeHtml(formatAmount(commission)),
       "{{gross_amount}}": escapeHtml(formatAmount(grossAmount)),
       "{{customer_name}}": escapeHtml(customerName),
+      "{{customer_name_style}}": customerNameStyle,
       "{{customer_address}}": escapeHtml(customerAddress),
+      "{{customer_address_style}}": customerAddressStyle,
       "{{customer_city}}": escapeHtml(customerCity),
+      "{{customer_city_style}}": customerCityStyle,
       "{{customer_phone}}": escapeHtml(customerPhone),
       "{{sender_name}}": escapeHtml(senderName || "-"),
+      "{{sender_name_style}}": senderNameStyle,
       "{{sender_address}}": escapeHtml(senderAddress || "-"),
+      "{{sender_address_style}}": senderAddressStyle,
       "{{sender_city}}": escapeHtml(senderCity || "-"),
+      "{{sender_city_style}}": senderCityStyle,
       "{{sender_phone}}": escapeHtml(senderPhone || "-"),
       "{{order_source}}": escapeHtml(orderSource),
       "{{product_details}}": escapeHtml(productDetails),
+      "{{product_details_style}}": productDetailsStyle,
     };
 
     return Object.entries(replacements).reduce(
