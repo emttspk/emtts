@@ -1397,26 +1397,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     slotIndex,
     () => `<div class="field mono en" style="left:82.56mm;top:116.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;text-align:left;">${escapeHtml(shipperPhone)}</div>`,
   );
-
-  // Sender fields (lower-right half, no duplicate)
-  out = replaceNth(
-    out,
-    /(<div class="field strong en" style="left:47\.56mm;top:183\.69mm;width:86\.06mm;font-size:4\.25mm;white-space:normal;overflow:visible;text-align:left;">)[^<]*(<\/div>)/g,
-    slotIndex,
-    (_m, p1, p2) => `${p1}${escapeHtml(senderLine)}${p2}`,
-  );
-  out = replaceNth(
-    out,
-    /(<div class="field regular en" style="left:15\.56mm;top:190\.15mm;width:65\.06mm;font-size:3\.35mm;white-space:normal;line-height:1\.12;text-align:left;">)[^<]*(<\/div>)/g,
-    slotIndex,
-    (_m, p1, p2) => `${p1}${escapeHtml(shipperAddress)}${p2}`,
-  );
-  out = replaceNth(
-    out,
-    /(<div class="field mono en" style="left:82\.56mm;top:194\.57mm;width:65\.06mm;font-size:4\.35mm;line-height:1\.06;text-align:left;">)[^<]*(<\/div>)/g,
-    slotIndex,
-    (_m, p1, p2) => `${p1}${escapeHtml(shipperPhone)}${p2}`,
-  );
+  // (No duplicate sender block injection here)
 
   // Bottom summary block (receiver + MOS + amount)
   out = replaceNth(
