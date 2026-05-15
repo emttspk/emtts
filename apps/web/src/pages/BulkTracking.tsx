@@ -705,13 +705,63 @@ type TrackingDetailData = {
   consigneePhone: string;
 };
 
-type TrackingSortKey = "updatedAt" | "trackingNumber" | "status" | "city" | "moNumber" | "moAmount";
+type TrackingSortKey = "updatedAt" | "bookingDate" | "updatedBy" | "trackingNumber" | "status" | "city" | "moNumber" | "moAmount";
 
 function parseTimelineTimestamp(dateRaw: string, timeRaw: string) {
   const date = String(dateRaw ?? "").trim();
   const time = String(timeRaw ?? "").trim() || "00:00";
   const parsed = new Date(`${date} ${time}`);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatTrackingTableTimestampParts(ms: number) {
+  const safe = Number.isFinite(ms) && ms > 0 ? ms : Date.now();
+  const date = new Date(safe);
+  return {
+    date: date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }),
+    time: date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+  };
+}
+
+function resolveShipmentBookingMeta(shipment: Shipment) {
+  const timeline = extractTimeline(shipment.rawJson);
+  const firstEvent = timeline[0] ?? null;
+  const firstEventMs = firstEvent ? parseTimelineTimestamp(firstEvent.date, firstEvent.time)?.getTime() ?? null : null;
+  const createdAtMs = new Date(shipment.createdAt).getTime();
+  const fallbackMs = Number.isFinite(createdAtMs) ? createdAtMs : 0;
+  const effectiveMs = firstEventMs ?? fallbackMs;
+  const fallbackParts = formatTrackingTableTimestampParts(effectiveMs);
+
+  return {
+    date: firstEvent?.date || fallbackParts.date,
+    time: firstEvent?.time || fallbackParts.time,
+    ms: effectiveMs,
+  };
+}
+
+function resolveShipmentUpdatedBy(shipment: Shipment) {
+  const raw = parseRaw(shipment.rawJson);
+  const trackingRaw = raw?.tracking ?? {};
+  const candidates = [
+    raw?.updated_by,
+    raw?.updatedBy,
+    raw?.last_updated_by,
+    raw?.lastUpdatedBy,
+    raw?.manual_updated_by,
+    raw?.manualUpdatedBy,
+    raw?.override_by,
+    raw?.overrideBy,
+    trackingRaw?.updated_by,
+    trackingRaw?.updatedBy,
+    trackingRaw?.last_updated_by,
+    trackingRaw?.lastUpdatedBy,
+  ];
+  for (const candidate of candidates) {
+    const value = String(candidate ?? "").trim();
+    if (value) return value;
+  }
+  if (Boolean(raw?.manual_override)) return "Admin Override";
+  return "System";
 }
 
 function logTimelineValidation(stage: string, trackingNumber: string, events: TimelineEvent[]) {
@@ -962,7 +1012,7 @@ export default function BulkTracking() {
   const [searchTerm, setSearchTerm] = useState(() => readInitialWorkspaceViewState()?.searchTerm ?? "");
   const [sortKey, setSortKey] = useState<TrackingSortKey>(() => {
     const value = String(readInitialWorkspaceViewState()?.sortKey ?? "updatedAt").trim();
-    const allowed: TrackingSortKey[] = ["updatedAt", "trackingNumber", "status", "city", "moNumber", "moAmount"];
+    const allowed: TrackingSortKey[] = ["updatedAt", "bookingDate", "updatedBy", "trackingNumber", "status", "city", "moNumber", "moAmount"];
     return allowed.includes(value as TrackingSortKey) ? (value as TrackingSortKey) : "updatedAt";
   });
   const [sortDir, setSortDir] = useState<"asc" | "desc">(() => readInitialWorkspaceViewState()?.sortDir ?? "desc");
@@ -2064,6 +2114,13 @@ export default function BulkTracking() {
     displayCity: string;
     actionStatus: string;
     manualOverride: boolean;
+    bookingDateLabel: string;
+    bookingTimeLabel: string;
+    bookingDateMs: number;
+    updatedDateLabel: string;
+    updatedTimeLabel: string;
+    updatedDateMs: number;
+    updatedBy: string;
   };
 
   function buildTrackingTableRowModel(records: FinalTrackingRecord[]): TrackingTableRowModel[] {
@@ -2077,7 +2134,26 @@ export default function BulkTracking() {
       const days = s.daysPassed ?? Math.floor((Date.now() - new Date(s.createdAt).getTime()) / (1000 * 60 * 60 * 24));
       const displayCity = preferredCity(s);
       const actionStatus = authoritativeStatus;
-      return { record, lifecycle, complaintState, statusBadge, days, displayCity, actionStatus, manualOverride };
+      const bookingMeta = resolveShipmentBookingMeta(s);
+      const updatedAtMs = new Date(s.updatedAt).getTime();
+      const updatedParts = formatTrackingTableTimestampParts(updatedAtMs);
+      return {
+        record,
+        lifecycle,
+        complaintState,
+        statusBadge,
+        days,
+        displayCity,
+        actionStatus,
+        manualOverride,
+        bookingDateLabel: bookingMeta.date,
+        bookingTimeLabel: bookingMeta.time,
+        bookingDateMs: bookingMeta.ms,
+        updatedDateLabel: updatedParts.date,
+        updatedTimeLabel: updatedParts.time,
+        updatedDateMs: Number.isFinite(updatedAtMs) ? updatedAtMs : 0,
+        updatedBy: resolveShipmentUpdatedBy(s),
+      };
     });
   }
 
@@ -2301,7 +2377,11 @@ export default function BulkTracking() {
     rows.sort((a, b) => {
       let cmp = 0;
       if (sortKey === "updatedAt") {
-        cmp = new Date(a.record.shipment.updatedAt).getTime() - new Date(b.record.shipment.updatedAt).getTime();
+        cmp = a.updatedDateMs - b.updatedDateMs;
+      } else if (sortKey === "bookingDate") {
+        cmp = a.bookingDateMs - b.bookingDateMs;
+      } else if (sortKey === "updatedBy") {
+        cmp = String(a.updatedBy ?? "").localeCompare(String(b.updatedBy ?? ""));
       } else if (sortKey === "trackingNumber") {
         cmp = String(a.record.shipment.trackingNumber ?? "").localeCompare(String(b.record.shipment.trackingNumber ?? ""));
       } else if (sortKey === "status") {
@@ -3650,8 +3730,20 @@ export default function BulkTracking() {
                   S.No
                 </th>
                 <th className="w-20 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+                  <button type="button" onClick={() => toggleTrackingSort("bookingDate")} className="inline-flex items-center gap-1 hover:text-slate-900">
+                    Booking Date
+                    <ArrowUpDown className="h-3 w-3" />
+                  </button>
+                </th>
+                <th className="w-24 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+                  <button type="button" onClick={() => toggleTrackingSort("updatedBy")} className="inline-flex items-center gap-1 hover:text-slate-900">
+                    Updated By
+                    <ArrowUpDown className="h-3 w-3" />
+                  </button>
+                </th>
+                <th className="w-20 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
                   <button type="button" onClick={() => toggleTrackingSort("updatedAt")} className="inline-flex items-center gap-1 hover:text-slate-900">
-                    Updated
+                    Updated Date
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>
@@ -3766,10 +3858,23 @@ export default function BulkTracking() {
                     <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle whitespace-nowrap">
                       <div className="flex flex-col">
                         <span className="text-xs font-semibold text-slate-900">
-                          {new Date(s.updatedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}
+                          {row.bookingDateLabel}
                         </span>
                         <span className="text-[10px] text-slate-500">
-                          {new Date(s.updatedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                          {row.bookingTimeLabel}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle text-xs font-medium text-slate-700 truncate whitespace-nowrap" title={row.updatedBy}>
+                      {row.updatedBy}
+                    </td>
+                    <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle whitespace-nowrap">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-semibold text-slate-900">
+                          {row.updatedDateLabel}
+                        </span>
+                        <span className="text-[10px] text-slate-500">
+                          {row.updatedTimeLabel}
                         </span>
                       </div>
                     </td>

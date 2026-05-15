@@ -1381,7 +1381,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     out,
     /<div class="field strong en" style="left:47\.56mm;top:105\.69mm;[^"]*">[^<]*<\/div>/g,
     slotIndex,
-    () => `<div class="field strong en" style="left:47.56mm;top:105.69mm;width:100.06mm;font-size:3.35mm;line-height:1.08;white-space:nowrap;overflow:hidden;text-align:left;">${escapeHtml(senderLine)}</div>`,
+    () => `<div class="field strong en" style="left:47.56mm;top:105.69mm;width:86.06mm;font-size:4.25mm;white-space:normal;overflow:visible;text-align:left;">${escapeHtml(senderLine)}</div>`,
   );
   out = replaceNth(
     out,
@@ -1711,12 +1711,12 @@ function frontFields(o: OrderRecord) {
     `<div class="field mono en" style="left:97.56mm;top:100.27mm;width:65.06mm;font-size:2.13mm;">${escapeHtml(consigneePhone)}</div>`,
 
     // Sender block
-    `<div class="field strong en" style="left:47.56mm;top:105.69mm;width:100.06mm;font-size:3.35mm;line-height:1.08;white-space:nowrap;overflow:hidden;text-align:left;">${escapeHtml(senderLine)}</div>`,
+    `<div class="field strong en" style="left:47.56mm;top:105.69mm;width:86.06mm;font-size:4.25mm;white-space:normal;overflow:visible;text-align:left;">${escapeHtml(senderLine)}</div>`,
     `<div class="field regular en" style="left:15.56mm;top:112.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;text-align:left;">${escapeHtml(shipperAddress)}</div>`,
     `<div class="field mono en" style="left:82.56mm;top:116.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;text-align:left;">${escapeHtml(shipperPhone)}</div>`,
 
     // Sender block (second half)
-    `<div class="field strong en" style="left:47.56mm;top:183.69mm;width:100.06mm;font-size:3.35mm;line-height:1.08;white-space:nowrap;overflow:hidden;text-align:left;">${escapeHtml(senderLine)}</div>`,
+    `<div class="field strong en" style="left:47.56mm;top:183.69mm;width:86.06mm;font-size:4.25mm;white-space:normal;overflow:visible;text-align:left;">${escapeHtml(senderLine)}</div>`,
     `<div class="field regular en" style="left:15.56mm;top:190.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;text-align:left;">${escapeHtml(shipperAddress)}</div>`,
     `<div class="field mono en" style="left:82.56mm;top:194.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;text-align:left;">${escapeHtml(shipperPhone)}</div>`,
 
