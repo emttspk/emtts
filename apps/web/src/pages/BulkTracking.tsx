@@ -714,13 +714,52 @@ function parseTimelineTimestamp(dateRaw: string, timeRaw: string) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function formatTrackingTableTimestampParts(ms: number) {
-  const safe = Number.isFinite(ms) && ms > 0 ? ms : Date.now();
-  const date = new Date(safe);
-  return {
-    date: date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" }),
-    time: date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
-  };
+function formatTrackingTableDateOnly(value: string | number | null | undefined, fallbackMs?: number) {
+  const raw = typeof value === "string" ? value.trim() : "";
+  const asNumber = typeof value === "number" ? value : Number.NaN;
+  let ms: number | null = null;
+
+  if (Number.isFinite(asNumber) && asNumber > 0) {
+    ms = asNumber;
+  }
+
+  if (ms == null && raw) {
+    const normalized = raw.replace(/\./g, "/").replace(/-/g, "/");
+    const parts = normalized.split("/").map((p) => p.trim());
+    if (parts.length === 3 && parts.every((p) => /^\d+$/.test(p))) {
+      let day = parts[0];
+      let month = parts[1];
+      let year = parts[2];
+      if (parts[0].length === 4) {
+        year = parts[0];
+        month = parts[1];
+        day = parts[2];
+      }
+      const dayNum = Number(day);
+      const monthNum = Number(month);
+      const yearNum = Number(year);
+      if (yearNum >= 1900 && monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31) {
+        const dt = new Date(yearNum, monthNum - 1, dayNum);
+        if (!Number.isNaN(dt.getTime())) {
+          ms = dt.getTime();
+        }
+      }
+    }
+    if (ms == null) {
+      const parsed = new Date(raw);
+      if (!Number.isNaN(parsed.getTime())) {
+        ms = parsed.getTime();
+      }
+    }
+  }
+
+  if (ms == null && Number.isFinite(fallbackMs) && (fallbackMs as number) > 0) {
+    ms = fallbackMs as number;
+  }
+
+  if (ms == null) return "-";
+  const date = new Date(ms);
+  return date.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-");
 }
 
 function resolveShipmentBookingMeta(shipment: Shipment) {
@@ -730,11 +769,9 @@ function resolveShipmentBookingMeta(shipment: Shipment) {
   const createdAtMs = new Date(shipment.createdAt).getTime();
   const fallbackMs = Number.isFinite(createdAtMs) ? createdAtMs : 0;
   const effectiveMs = firstEventMs ?? fallbackMs;
-  const fallbackParts = formatTrackingTableTimestampParts(effectiveMs);
 
   return {
-    date: firstEvent?.date || fallbackParts.date,
-    time: firstEvent?.time || fallbackParts.time,
+    date: formatTrackingTableDateOnly(firstEvent?.date, effectiveMs),
     ms: effectiveMs,
   };
 }
@@ -2115,10 +2152,8 @@ export default function BulkTracking() {
     actionStatus: string;
     manualOverride: boolean;
     bookingDateLabel: string;
-    bookingTimeLabel: string;
     bookingDateMs: number;
     updatedDateLabel: string;
-    updatedTimeLabel: string;
     updatedDateMs: number;
     updatedBy: string;
   };
@@ -2136,7 +2171,6 @@ export default function BulkTracking() {
       const actionStatus = authoritativeStatus;
       const bookingMeta = resolveShipmentBookingMeta(s);
       const updatedAtMs = new Date(s.updatedAt).getTime();
-      const updatedParts = formatTrackingTableTimestampParts(updatedAtMs);
       return {
         record,
         lifecycle,
@@ -2147,10 +2181,8 @@ export default function BulkTracking() {
         actionStatus,
         manualOverride,
         bookingDateLabel: bookingMeta.date,
-        bookingTimeLabel: bookingMeta.time,
         bookingDateMs: bookingMeta.ms,
-        updatedDateLabel: updatedParts.date,
-        updatedTimeLabel: updatedParts.time,
+        updatedDateLabel: formatTrackingTableDateOnly(updatedAtMs),
         updatedDateMs: Number.isFinite(updatedAtMs) ? updatedAtMs : 0,
         updatedBy: resolveShipmentUpdatedBy(s),
       };
@@ -3706,8 +3738,8 @@ export default function BulkTracking() {
               </button>
             </div>
           </div>
-          <div className="w-full max-h-[72vh] overflow-y-auto overflow-x-auto rounded-[20px] border border-[#E5E7EB] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] md:overflow-x-hidden">
-            <table className="w-full table-fixed text-[11px] leading-4">
+          <div className="w-full max-h-[72vh] overflow-y-auto overflow-x-auto rounded-[20px] border border-[#E5E7EB] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+            <table className="min-w-[980px] w-full table-fixed text-[11px] leading-4">
               <thead className="sticky top-0 z-10 border-b border-[#E5E7EB] bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(241,245,249,0.98))] backdrop-blur-md">
               <tr>
                 <th className="w-9 border-r border-[#E5E7EB] px-3 py-3.5">
@@ -3729,21 +3761,9 @@ export default function BulkTracking() {
                 <th className="w-14 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
                   S.No
                 </th>
-                <th className="w-20 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-                  <button type="button" onClick={() => toggleTrackingSort("bookingDate")} className="inline-flex items-center gap-1 hover:text-slate-900">
-                    Booking Date
-                    <ArrowUpDown className="h-3 w-3" />
-                  </button>
-                </th>
                 <th className="w-24 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-                  <button type="button" onClick={() => toggleTrackingSort("updatedBy")} className="inline-flex items-center gap-1 hover:text-slate-900">
-                    Updated By
-                    <ArrowUpDown className="h-3 w-3" />
-                  </button>
-                </th>
-                <th className="w-20 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-                  <button type="button" onClick={() => toggleTrackingSort("updatedAt")} className="inline-flex items-center gap-1 hover:text-slate-900">
-                    Updated Date
+                  <button type="button" onClick={() => toggleTrackingSort("bookingDate")} className="inline-flex items-center gap-1 hover:text-slate-900">
+                    Booking / Updated
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>
@@ -3857,34 +3877,23 @@ export default function BulkTracking() {
                     <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle text-xs font-semibold text-slate-700">{(page - 1) * pageSize + index + 1}</td>
                     <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle whitespace-nowrap">
                       <div className="flex flex-col">
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                          Booking
+                        </span>
                         <span className="text-xs font-semibold text-slate-900">
                           {row.bookingDateLabel}
                         </span>
-                        <span className="text-[10px] text-slate-500">
-                          {row.bookingTimeLabel}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle text-xs font-medium text-slate-700 truncate whitespace-nowrap" title={row.updatedBy}>
-                      {row.updatedBy}
-                    </td>
-                    <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle whitespace-nowrap">
-                      <div className="flex flex-col">
-                        <span className="text-xs font-semibold text-slate-900">
-                          {row.updatedDateLabel}
-                        </span>
-                        <span className="text-[10px] text-slate-500">
-                          {row.updatedTimeLabel}
-                        </span>
+                        <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Updated</span>
+                        <span className="text-xs font-semibold text-slate-900">{row.updatedDateLabel}</span>
                       </div>
                     </td>
                     <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle font-mono text-xs font-bold text-slate-800 group-hover:text-brand truncate whitespace-nowrap" title={s.trackingNumber}>
-                      <div className="inline-flex items-center gap-1.5">
+                      <div className="flex flex-col items-start gap-1.5">
                         <span>{s.trackingNumber}</span>
                         <button
                           type="button"
                           onClick={() => setSelectedTracking(row.record)}
-                          className="rounded border border-brand/30 bg-brand/10 px-2 py-1 text-[10px] font-semibold text-brand hover:bg-brand/20"
+                          className="inline-flex items-center justify-center rounded-md bg-brand px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm hover:bg-brand-dark"
                           title="Track"
                         >
                           Track

@@ -404,6 +404,7 @@ function loadHtmlTemplate(candidates: string[], notFoundMessage: string) {
     throw new Error(`${notFoundMessage} (malformed body tag)`);
   }
   return {
+    templatePath,
     head: template.slice(0, openTagEnd + 1),
     body: template.slice(openTagEnd + 1, bodyClose).trim(),
     tail: template.slice(bodyClose),
@@ -1396,6 +1397,14 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     () => `<div class="field mono en" style="left:82.56mm;top:116.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;text-align:left;">${escapeHtml(shipperPhone)}</div>`,
   );
 
+  out = replaceNth(
+    out,
+    /(<div class="field mono en" style="left:82\.56mm;top:116\.57mm;width:65\.06mm;font-size:4\.(?:13|35)mm(?:;line-height:1\.06)?;">[^<]*<\/div>)/g,
+    slotIndex,
+    (_m, p1) =>
+      `${p1}<div class="field strong en" style="left:47.56mm;top:183.69mm;width:86.06mm;font-size:4.25mm;white-space:normal;overflow:visible;text-align:left;">${escapeHtml(senderLine)}</div><div class="field regular en" style="left:15.56mm;top:190.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;text-align:left;">${escapeHtml(shipperAddress)}</div><div class="field mono en" style="left:82.56mm;top:194.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;text-align:left;">${escapeHtml(shipperPhone)}</div>`,
+  );
+
   // Bottom summary block (receiver + MOS + amount)
   out = replaceNth(
     out,
@@ -1587,6 +1596,8 @@ function moneyOrderDuplexHtml(orders: OrderRecord[], bg: { frontBg?: string; bac
 export function premiumEnvelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: boolean; includeMoneyOrders?: boolean }) {
   const autoGenerateTracking = opts?.autoGenerateTracking === true;
   const logoSrc = resolvePakistanPostLogoDataUrl();
+  const textMeasureCanvas = createCanvas(8, 8);
+  const textMeasureCtx = textMeasureCanvas.getContext("2d");
 
   const loadPremiumEnvelopeTemplate = () => {
     return loadHtmlTemplate(
@@ -1624,45 +1635,110 @@ export function premiumEnvelopeHtml(orders: LabelOrder[], opts?: { autoGenerateT
     const grossAmount = amountSummary.showCalculation ? amountSummary.grossAmount : amountSummary.grossAmount;
     const formatAmount = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
 
-    const estimateSingleLineFontPx = (
+    const measureTextWidthPx = (text: string, fontPx: number, weight = 600) => {
+      const value = String(text ?? "");
+      textMeasureCtx.font = `${weight} ${fontPx}px Arial, Helvetica, sans-serif`;
+      return textMeasureCtx.measureText(value).width;
+    };
+
+    const wrapLineCount = (text: string, maxWidthPx: number, fontPx: number, weight = 400) => {
+      const normalized = String(text ?? "").replace(/\r/g, "").trim();
+      if (!normalized || normalized === "-") return 1;
+      const paragraphs = normalized.split("\n").map((line) => line.trim()).filter(Boolean);
+      if (paragraphs.length === 0) return 1;
+
+      let totalLines = 0;
+      for (const paragraph of paragraphs) {
+        const words = paragraph.split(/\s+/).filter(Boolean);
+        if (words.length === 0) {
+          totalLines += 1;
+          continue;
+        }
+
+        let currentLine = "";
+        for (const word of words) {
+          const candidate = currentLine ? `${currentLine} ${word}` : word;
+          if (measureTextWidthPx(candidate, fontPx, weight) <= maxWidthPx) {
+            currentLine = candidate;
+            continue;
+          }
+
+          if (currentLine) {
+            totalLines += 1;
+            currentLine = "";
+          }
+
+          if (measureTextWidthPx(word, fontPx, weight) <= maxWidthPx) {
+            currentLine = word;
+            continue;
+          }
+
+          let segment = "";
+          for (const ch of word) {
+            const next = `${segment}${ch}`;
+            if (measureTextWidthPx(next, fontPx, weight) <= maxWidthPx) {
+              segment = next;
+            } else {
+              totalLines += 1;
+              segment = ch;
+            }
+          }
+          currentLine = segment;
+        }
+
+        totalLines += currentLine ? 1 : 0;
+      }
+
+      return Math.max(1, totalLines);
+    };
+
+    const fitSingleLineFontPx = (
       text: string,
       maxWidthPx: number,
       basePx: number,
       minPx: number,
-      avgCharWidthEm: number,
+      weight = 700,
     ) => {
       const value = String(text ?? "").replace(/\s+/g, " ").trim();
       if (!value || value === "-") return basePx;
-      const estimated = Math.floor(maxWidthPx / (Math.max(4, value.length) * avgCharWidthEm));
-      return Math.max(minPx, Math.min(basePx, estimated));
+      for (let size = basePx; size >= minPx; size -= 1) {
+        if (measureTextWidthPx(value, size, weight) <= maxWidthPx) {
+          return size;
+        }
+      }
+      return minPx;
     };
 
-    const estimateMultiLineFontPx = (
+    const fitMultiLineFontPx = (
       text: string,
-      maxCharsPerLine: number,
+      maxWidthPx: number,
       maxLines: number,
       basePx: number,
       minPx: number,
+      lineHeight: number,
+      maxHeightPx: number,
+      weight = 400,
     ) => {
       const value = String(text ?? "").trim();
       if (!value || value === "-") return basePx;
-      const parts = value.split(/\r?\n+/).map((line) => line.trim()).filter(Boolean);
-      const explicitLineCount = Math.max(1, parts.length);
-      const estimatedLineCount = Math.ceil(value.replace(/\s+/g, " ").length / Math.max(1, maxCharsPerLine));
-      const demandLines = Math.max(explicitLineCount, estimatedLineCount);
-      if (demandLines <= maxLines) return basePx;
-      const ratio = maxLines / demandLines;
-      return Math.max(minPx, Math.floor(basePx * ratio));
+      for (let size = basePx; size >= minPx; size -= 1) {
+        const lines = wrapLineCount(value, maxWidthPx, size, weight);
+        const contentHeight = lines * size * lineHeight;
+        if (lines <= maxLines && contentHeight <= maxHeightPx) {
+          return size;
+        }
+      }
+      return minPx;
     };
 
-    const trackingFontPx = estimateSingleLineFontPx(tracking, 286, 16, 11, 0.6);
-    const customerNameFontPx = estimateSingleLineFontPx(customerName, 470, 28, 11, 0.58);
-    const customerAddressFontPx = estimateMultiLineFontPx(customerAddress, 58, 2, 16, 11);
-    const customerCityFontPx = estimateSingleLineFontPx(customerCity || "-", 470, 16, 11, 0.58);
-    const senderNameFontPx = estimateSingleLineFontPx(senderName || "-", 470, 16, 11, 0.58);
-    const senderAddressFontPx = estimateMultiLineFontPx(senderAddress || "-", 58, 1, 14, 10);
-    const senderCityFontPx = estimateSingleLineFontPx(senderCity || "-", 470, 14, 10, 0.58);
-    const productDetailsFontPx = estimateMultiLineFontPx(productDetails, 38, 3, 14, 11);
+    const trackingFontPx = fitSingleLineFontPx(tracking, 286, 16, 9, 600);
+    const customerNameFontPx = fitSingleLineFontPx(customerName, 470, 28, 10, 700);
+    const customerAddressFontPx = fitMultiLineFontPx(customerAddress, 470, 2, 16, 10, 1.2, 44, 400);
+    const customerCityFontPx = fitSingleLineFontPx(customerCity || "-", 470, 16, 10, 500);
+    const senderNameFontPx = fitSingleLineFontPx(senderName || "-", 470, 16, 10, 700);
+    const senderAddressFontPx = fitMultiLineFontPx(senderAddress || "-", 470, 2, 14, 9, 1.15, 34, 400);
+    const senderCityFontPx = fitSingleLineFontPx(senderCity || "-", 470, 14, 9, 500);
+    const productDetailsFontPx = fitMultiLineFontPx(productDetails, 190, 3, 14, 10, 1.2, 56, 400);
 
     const trackingStyle = `font-size:${trackingFontPx}px;line-height:1.08;white-space:nowrap;`;
     const customerNameStyle = `font-size:${customerNameFontPx}px;line-height:1.05;white-space:nowrap;`;
@@ -1708,6 +1784,7 @@ export function premiumEnvelopeHtml(orders: LabelOrder[], opts?: { autoGenerateT
   };
 
   const template = loadPremiumEnvelopeTemplate();
+  console.log("[PREMIUM_TEMPLATE_RESOLVED]", template.templatePath);
   const pages = orders.map((order) => renderPremiumEnvelopePage(template.body, order)).join("");
   return `${injectSharedPrintCss(template.head)}${pages}${template.tail}`;
 }
