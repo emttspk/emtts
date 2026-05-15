@@ -89,7 +89,7 @@ body {
 .f-receiver-name { top: 45mm; left: 10mm; }
 .f-sender-name {
   top: 45mm;
-  left: 107mm;
+  left: 105mm; /* Adjusted for alignment with left slip */
   width: 83mm;
   font-size: 0.95em;
   white-space: normal;
@@ -97,7 +97,7 @@ body {
 }
 .f-sender-address {
   top: 49mm;
-  left: 107mm;
+  left: 105mm; /* Adjusted for alignment with left slip */
   width: 83mm;
   font-size: 0.9em;
   white-space: normal;
@@ -106,7 +106,7 @@ body {
 /* Ensure sender CNIC field is wide and wraps if needed */
 .f-sender-city {
   top: 54mm;
-  left: 107mm;
+  left: 105mm; /* Adjusted for alignment with left slip */
   width: 83mm;
   font-size: 0.85em;
   white-space: normal;
