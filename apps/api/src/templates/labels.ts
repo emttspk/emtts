@@ -27,7 +27,7 @@ export type LabelOrder = OrderRecord & {
   moneyOrderNumbers?: string[];
 };
 
-export type LabelPrintMode = "labels" | "envelope" | "envelope-premium" | "flyer";
+export type LabelPrintMode = "labels" | "envelope" | "flyer";
 
 function escapeHtml(input: unknown) {
   return String(input ?? "")
@@ -439,24 +439,6 @@ export function generateLabelBarcodeBase64(text: string) {
   }
 }
 
-function generatePremiumEnvelopeBarcodeBase64(text: string) {
-  try {
-    const value = String(text ?? "").trim();
-    if (!value || value === "-") return "";
-    const canvas = createCanvas(560, 100);
-    JsBarcode(canvas, value, {
-      format: "CODE128",
-      displayValue: false,
-      margin: 0,
-      height: 74,
-      width: 2,
-    });
-    return canvas.toDataURL("image/png");
-  } catch {
-    return "";
-  }
-}
-
 export function labelsHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: boolean; includeMoneyOrders?: boolean }) {
   const autoGenerateTracking = opts?.autoGenerateTracking === true;
   const template = loadBoxTemplate();
@@ -590,9 +572,6 @@ export function renderLabelDocumentHtml(
   opts?: { autoGenerateTracking?: boolean; includeMoneyOrders?: boolean; outputMode?: LabelPrintMode },
 ) {
   const outputMode = opts?.outputMode ?? "labels";
-  if (outputMode === "envelope-premium") {
-    return premiumEnvelopeHtml(orders, opts);
-  }
   if (outputMode === "envelope") {
     return envelopeHtml(orders, opts);
   }
@@ -612,7 +591,7 @@ export function previewLabelHtml(opts?: {
   const shipmentType = String(opts?.shipmentType ?? "PAR").trim().toUpperCase() || "PAR";
   const includeMoneyOrders = opts?.includeMoneyOrders === true;
   const outputMode = opts?.outputMode ?? "labels";
-  const sampleCount = outputMode === "flyer" ? 8 : outputMode === "envelope" || outputMode === "envelope-premium" ? 2 : 4;
+  const sampleCount = outputMode === "flyer" ? 8 : outputMode === "envelope" ? 2 : 4;
   const sampleOrders = Array.from({ length: sampleCount }, (_, index) => {
     const trackingNumber = buildTrackingId(index + 1, new Date(), shipmentType);
     const grossAmount = 500 + index * 125;
@@ -1591,202 +1570,6 @@ function moneyOrderDuplexHtml(orders: OrderRecord[], bg: { frontBg?: string; bac
     </head>
     <body>${sheets.join("")}</body>
   </html>`;
-}
-
-export function premiumEnvelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: boolean; includeMoneyOrders?: boolean }) {
-  const autoGenerateTracking = opts?.autoGenerateTracking === true;
-  const logoSrc = resolvePakistanPostLogoDataUrl();
-  const textMeasureCanvas = createCanvas(8, 8);
-  const textMeasureCtx = textMeasureCanvas.getContext("2d");
-
-  const loadPremiumEnvelopeTemplate = () => {
-    return loadHtmlTemplate(
-      [
-        path.resolve(process.cwd(), "apps", "api", "src", "templates", "label-envelope-10-premium-9x4.html"),
-        path.resolve(process.cwd(), "src", "templates", "label-envelope-10-premium-9x4.html"),
-      ],
-      "Envelope premium template not found: label-envelope-10-premium-9x4.html",
-    );
-  };
-
-  const renderPremiumEnvelopePage = (templateBody: string, o: LabelOrder) => {
-    const amountSummary = getLabelAmountSummary(o);
-    const shipmentType = amountSummary.shipmentType;
-    const shipmentLabel = displayShipmentType(shipmentType);
-    const tracking = resolveTracking(o, autoGenerateTracking);
-
-    const senderFields = resolveMoneyOrderSenderFields(o as unknown as OrderRecord);
-    const senderName = senderFields.senderName;
-    const senderAddress = normalizeAddressLines(senderFields.senderAddress);
-    const senderCity = String(o.senderCity ?? "").trim();
-    const senderPhone = senderFields.senderPhone;
-
-    const customerName = String(o.consigneeName ?? "").trim() || "-";
-    const customerAddress = normalizeAddressLines(o.consigneeAddress);
-    const customerCity = String(o.receiverCity ?? "").trim();
-    const customerPhone = String(o.consigneePhone ?? "").trim() || "-";
-
-    const orderSource = String(o.reference ?? (o as any)?.source ?? (o as any)?.Source ?? "METAFORM").trim() || "METAFORM";
-    const productDetails = String((o as any).ProductDescription ?? "").trim() || "-";
-    const barcodeDataUrl = generatePremiumEnvelopeBarcodeBase64(tracking);
-
-    const moneyOrderAmount = amountSummary.showCalculation ? amountSummary.moAmount : amountSummary.grossAmount;
-    const commission = amountSummary.showCalculation ? amountSummary.commission : 0;
-    const grossAmount = amountSummary.showCalculation ? amountSummary.grossAmount : amountSummary.grossAmount;
-    const formatAmount = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
-
-    const measureTextWidthPx = (text: string, fontPx: number, weight = 600) => {
-      const value = String(text ?? "");
-      textMeasureCtx.font = `${weight} ${fontPx}px Arial, Helvetica, sans-serif`;
-      return textMeasureCtx.measureText(value).width;
-    };
-
-    const wrapLineCount = (text: string, maxWidthPx: number, fontPx: number, weight = 400) => {
-      const normalized = String(text ?? "").replace(/\r/g, "").trim();
-      if (!normalized || normalized === "-") return 1;
-      const paragraphs = normalized.split("\n").map((line) => line.trim()).filter(Boolean);
-      if (paragraphs.length === 0) return 1;
-
-      let totalLines = 0;
-      for (const paragraph of paragraphs) {
-        const words = paragraph.split(/\s+/).filter(Boolean);
-        if (words.length === 0) {
-          totalLines += 1;
-          continue;
-        }
-
-        let currentLine = "";
-        for (const word of words) {
-          const candidate = currentLine ? `${currentLine} ${word}` : word;
-          if (measureTextWidthPx(candidate, fontPx, weight) <= maxWidthPx) {
-            currentLine = candidate;
-            continue;
-          }
-
-          if (currentLine) {
-            totalLines += 1;
-            currentLine = "";
-          }
-
-          if (measureTextWidthPx(word, fontPx, weight) <= maxWidthPx) {
-            currentLine = word;
-            continue;
-          }
-
-          let segment = "";
-          for (const ch of word) {
-            const next = `${segment}${ch}`;
-            if (measureTextWidthPx(next, fontPx, weight) <= maxWidthPx) {
-              segment = next;
-            } else {
-              totalLines += 1;
-              segment = ch;
-            }
-          }
-          currentLine = segment;
-        }
-
-        totalLines += currentLine ? 1 : 0;
-      }
-
-      return Math.max(1, totalLines);
-    };
-
-    const fitSingleLineFontPx = (
-      text: string,
-      maxWidthPx: number,
-      basePx: number,
-      minPx: number,
-      weight = 700,
-    ) => {
-      const value = String(text ?? "").replace(/\s+/g, " ").trim();
-      if (!value || value === "-") return basePx;
-      for (let size = basePx; size >= minPx; size -= 1) {
-        if (measureTextWidthPx(value, size, weight) <= maxWidthPx) {
-          return size;
-        }
-      }
-      return minPx;
-    };
-
-    const fitMultiLineFontPx = (
-      text: string,
-      maxWidthPx: number,
-      maxLines: number,
-      basePx: number,
-      minPx: number,
-      lineHeight: number,
-      maxHeightPx: number,
-      weight = 400,
-    ) => {
-      const value = String(text ?? "").trim();
-      if (!value || value === "-") return basePx;
-      for (let size = basePx; size >= minPx; size -= 1) {
-        const lines = wrapLineCount(value, maxWidthPx, size, weight);
-        const contentHeight = lines * size * lineHeight;
-        if (lines <= maxLines && contentHeight <= maxHeightPx) {
-          return size;
-        }
-      }
-      return minPx;
-    };
-
-    const trackingFontPx = fitSingleLineFontPx(tracking, 286, 16, 9, 600);
-    const customerNameFontPx = fitSingleLineFontPx(customerName, 470, 28, 10, 700);
-    const customerAddressFontPx = fitMultiLineFontPx(customerAddress, 470, 2, 16, 10, 1.2, 44, 400);
-    const customerCityFontPx = fitSingleLineFontPx(customerCity || "-", 470, 16, 10, 500);
-    const senderNameFontPx = fitSingleLineFontPx(senderName || "-", 470, 16, 10, 700);
-    const senderAddressFontPx = fitMultiLineFontPx(senderAddress || "-", 470, 2, 14, 9, 1.15, 34, 400);
-    const senderCityFontPx = fitSingleLineFontPx(senderCity || "-", 470, 14, 9, 500);
-    const productDetailsFontPx = fitMultiLineFontPx(productDetails, 190, 3, 14, 10, 1.2, 56, 400);
-
-    const trackingStyle = `font-size:${trackingFontPx}px;line-height:1.08;white-space:nowrap;`;
-    const customerNameStyle = `font-size:${customerNameFontPx}px;line-height:1.05;white-space:nowrap;`;
-    const customerAddressStyle = `font-size:${customerAddressFontPx}px;line-height:1.2;white-space:pre-line;`;
-    const customerCityStyle = `font-size:${customerCityFontPx}px;line-height:1.15;white-space:pre-line;`;
-    const senderNameStyle = `font-size:${senderNameFontPx}px;line-height:1.15;white-space:nowrap;`;
-    const senderAddressStyle = `font-size:${senderAddressFontPx}px;line-height:1.15;white-space:pre-line;`;
-    const senderCityStyle = `font-size:${senderCityFontPx}px;line-height:1.15;white-space:pre-line;`;
-    const productDetailsStyle = `font-size:${productDetailsFontPx}px;line-height:1.2;white-space:normal;`;
-
-    const replacements: Record<string, string> = {
-      "{{logo_src}}": escapeHtml(logoSrc),
-      "{{barcode_data_url}}": escapeHtml(barcodeDataUrl),
-      "{{tracking_no}}": escapeHtml(tracking),
-      "{{tracking_style}}": trackingStyle,
-      "{{shipment_label}}": escapeHtml(shipmentLabel),
-      "{{amount}}": escapeHtml(formatAmount(moneyOrderAmount)),
-      "{{commission}}": escapeHtml(formatAmount(commission)),
-      "{{gross_amount}}": escapeHtml(formatAmount(grossAmount)),
-      "{{customer_name}}": escapeHtml(customerName),
-      "{{customer_name_style}}": customerNameStyle,
-      "{{customer_address}}": escapeHtml(customerAddress),
-      "{{customer_address_style}}": customerAddressStyle,
-      "{{customer_city}}": escapeHtml(customerCity),
-      "{{customer_city_style}}": customerCityStyle,
-      "{{customer_phone}}": escapeHtml(customerPhone),
-      "{{sender_name}}": escapeHtml(senderName || "-"),
-      "{{sender_name_style}}": senderNameStyle,
-      "{{sender_address}}": escapeHtml(senderAddress || "-"),
-      "{{sender_address_style}}": senderAddressStyle,
-      "{{sender_city}}": escapeHtml(senderCity || "-"),
-      "{{sender_city_style}}": senderCityStyle,
-      "{{sender_phone}}": escapeHtml(senderPhone || "-"),
-      "{{order_source}}": escapeHtml(orderSource),
-      "{{product_details}}": escapeHtml(productDetails),
-      "{{product_details_style}}": productDetailsStyle,
-    };
-
-    return Object.entries(replacements).reduce(
-      (html, [token, value]) => html.split(token).join(value),
-      templateBody,
-    );
-  };
-
-  const template = loadPremiumEnvelopeTemplate();
-  console.log("[PREMIUM_TEMPLATE_RESOLVED]", template.templatePath);
-  const pages = orders.map((order) => renderPremiumEnvelopePage(template.body, order)).join("");
-  return `${injectSharedPrintCss(template.head)}${pages}${template.tail}`;
 }
 
 function frontFields(o: OrderRecord) {
