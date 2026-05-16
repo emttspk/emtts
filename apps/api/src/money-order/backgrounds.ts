@@ -28,6 +28,24 @@ export async function loadMoneyOrderBackgrounds(): Promise<MoneyOrderBackgrounds
   return { frontDataUrl: front, backDataUrl: back };
 }
 
+function getPathnameFromUrlInput(input: string) {
+  try {
+    if (input.startsWith("http://") || input.startsWith("https://")) {
+      return new URL(input).pathname;
+    }
+    if (input.startsWith("/")) {
+      return new URL(input, "http://local").pathname;
+    }
+  } catch {
+    // Fallback to best-effort path normalization below.
+  }
+
+  const hashIndex = input.indexOf("#");
+  const withoutHash = hashIndex >= 0 ? input.slice(0, hashIndex) : input;
+  const queryIndex = withoutHash.indexOf("?");
+  return queryIndex >= 0 ? withoutHash.slice(0, queryIndex) : withoutHash;
+}
+
 async function resolveActiveTemplateFrontDataUrl() {
   try {
     const activeTemplate = await prisma.moneyOrderTemplate.findFirst({
@@ -37,9 +55,10 @@ async function resolveActiveTemplateFrontDataUrl() {
 
     const backgroundUrl = String(activeTemplate?.backgroundUrl ?? "").trim();
     if (!backgroundUrl) return undefined;
+    const pathname = getPathnameFromUrlInput(backgroundUrl);
 
-    if (backgroundUrl.startsWith("/api/admin/templates/background/")) {
-      const fileName = sanitizeFilename(decodeURIComponent(backgroundUrl.split("/").pop() ?? ""));
+    if (pathname.startsWith("/api/admin/templates/background/")) {
+      const fileName = sanitizeFilename(decodeURIComponent(pathname.split("/").pop() ?? ""));
       if (!fileName) return undefined;
       const abs = path.resolve(uploadsDir(), "templates", fileName);
       return fileToDataUrl(abs);
@@ -47,6 +66,15 @@ async function resolveActiveTemplateFrontDataUrl() {
 
     if (backgroundUrl.startsWith("http://") || backgroundUrl.startsWith("https://") || backgroundUrl.startsWith("data:")) {
       return undefined;
+    }
+
+    if (pathname.startsWith("/")) {
+      const normalized = pathname.replace(/^\/+/, "");
+      const candidateFromWebPublic = await resolveDefaultPath(`apps/web/public/${normalized}`);
+      if (candidateFromWebPublic) return fileToDataUrl(candidateFromWebPublic);
+
+      const candidateFromApiTemplates = await resolveDefaultPath(`apps/api/templates/${normalized}`);
+      if (candidateFromApiTemplates) return fileToDataUrl(candidateFromApiTemplates);
     }
 
     return fileToDataUrl(backgroundUrl);
