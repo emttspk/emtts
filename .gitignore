@@ -23,6 +23,24 @@ outputs/
 tmp-*.pdf
 smoke-*.pdf
 
+# Generated runtime validation outputs and Puppeteer artifacts
+storage/generated/
+forensic-artifacts/
+**/render-proof-*/
+**/render-proof-*.html
+**/render-proof-*.pdf
+**/render-proof-*.png
+**/premium-envelope*.html
+**/premium-envelope*.pdf
+**/premium-envelope*.png
+**/money-order-benchmark*.html
+**/money-order-benchmark*.pdf
+**/money-order-benchmark*.png
+**/live-*-runtime.*
+**/mo-static-front-proof.*
+**/money-order-final-runtime.*
+**/tracking-workspace-cache.*
+
 # Excel / CSV test artifacts (local only)
 LCS*.xls
 LCS*.xlsx

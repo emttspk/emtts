@@ -3885,11 +3885,13 @@ export default function BulkTracking() {
                         </span>
                       </div>
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle font-mono text-xs font-bold text-slate-800 group-hover:text-brand truncate whitespace-nowrap" title={s.trackingNumber}>
-                      <div className="flex flex-col items-start gap-1.5">
-                        <span>{s.trackingNumber}</span>
+                    <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle overflow-hidden min-w-0">
+                      <div className="flex w-full min-w-0 flex-col items-start gap-1.5">
+                        <span className="block w-full min-w-0 truncate font-mono text-xs font-bold text-slate-800 group-hover:text-brand" title={s.trackingNumber}>
+                          {s.trackingNumber}
+                        </span>
                       </div>
-                      <div className="mt-1">
+                      <div className="mt-1 w-full">
                         <button
                           type="button"
                           onClick={() => setSelectedTracking(row.record)}
