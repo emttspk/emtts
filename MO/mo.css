@@ -87,31 +87,7 @@ body {
 .f-mo-number { top: 15mm; left: 30mm; }
 .f-date { top: 15mm; right: 20mm; }
 .f-receiver-name { top: 45mm; left: 10mm; }
-.f-sender-name {
-  top: 45mm;
-  left: 105mm; /* Adjusted for alignment with left slip */
-  width: 83mm;
-  font-size: 0.95em;
-  white-space: normal;
-  word-break: break-word;
-}
-.f-sender-address {
-  top: 49mm;
-  left: 105mm; /* Adjusted for alignment with left slip */
-  width: 83mm;
-  font-size: 0.9em;
-  white-space: normal;
-  word-break: break-word;
-}
-/* Ensure sender CNIC field is wide and wraps if needed */
-.f-sender-city {
-  top: 54mm;
-  left: 105mm; /* Adjusted for alignment with left slip */
-  width: 83mm;
-  font-size: 0.85em;
-  white-space: normal;
-  word-break: break-word;
-}
+.f-sender-name { top: 45mm; left: 105mm; }
 
 .urdu-text, .urdu-list {
   font-family: 'Noto Nastaliq Urdu', serif;
