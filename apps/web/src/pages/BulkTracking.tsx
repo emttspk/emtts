@@ -3763,7 +3763,7 @@ export default function BulkTracking() {
                 </th>
                 <th className="w-24 border-r border-[#E5E7EB] px-3 py-3.5 text-left text-[10px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
                   <button type="button" onClick={() => toggleTrackingSort("bookingDate")} className="inline-flex items-center gap-1 hover:text-slate-900">
-                    Booking &amp; Updated
+                    Booking / Updated
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>
@@ -3878,20 +3878,18 @@ export default function BulkTracking() {
                     <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle whitespace-nowrap">
                       <div className="flex flex-col">
                         <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-                          Booking / Updated
+                          Booking
                         </span>
                         <span className="text-xs font-semibold text-slate-900">
-                          {row.bookingDateLabel} / {row.updatedDateLabel}
+                          {row.bookingDateLabel}
                         </span>
+                        <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Updated</span>
+                        <span className="text-xs font-semibold text-slate-900">{row.updatedDateLabel}</span>
                       </div>
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle overflow-hidden min-w-0">
-                      <div className="flex w-full min-w-0 flex-col items-start gap-1.5">
-                        <span className="block w-full min-w-0 truncate font-mono text-xs font-bold text-slate-800 group-hover:text-brand" title={s.trackingNumber}>
-                          {s.trackingNumber}
-                        </span>
-                      </div>
-                      <div className="mt-1 w-full">
+                    <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle font-mono text-xs font-bold text-slate-800 group-hover:text-brand truncate whitespace-nowrap" title={s.trackingNumber}>
+                      <div className="flex flex-col items-start gap-1.5">
+                        <span>{s.trackingNumber}</span>
                         <button
                           type="button"
                           onClick={() => setSelectedTracking(row.record)}

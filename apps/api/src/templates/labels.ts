@@ -1153,14 +1153,13 @@ function expandBenchmarkOrders(orders: OrderRecord[]): OrderRecord[] {
     const explicitMoNumber = strictMoneyOrderNumber((order as any)?.mo_number);
     const explicitMoAmount = toNum((order as any)?.amountRs ?? (order as any)?.amount ?? 0);
     if (explicitMoNumber !== "-" && explicitMoAmount > 0) {
-      const canonicalMoAmount = resolveMoneyOrderAmount(order as any);
       expanded.push({
         ...(order as any),
         mo_number: explicitMoNumber,
         mo_barcodeBase64: generateMoBarcodeBase64(explicitMoNumber),
         amount: String(explicitMoAmount),
         amountRs: explicitMoAmount,
-        amountWords: expectedAmountWords(canonicalMoAmount),
+        amountWords: expectedAmountWords(explicitMoAmount),
       });
       continue;
     }
@@ -1262,7 +1261,6 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
   const tracking = String((order as any)?.trackingNumber ?? (order as any)?.TrackingID ?? generatedTrackingId).trim() || "-";
   const amountMo = resolveMoneyOrderAmount(order as any);
   const amountDisplay = `${amountMo.toFixed(2)}`;
-  // Always DD-MM-YYYY
   const issueDate = toDisplayDate((order as any)?.issueDate ?? "");
   const dispatchDate = issueDate;
   const providedAmountWords = String((order as any)?.amountWords ?? "").trim();
@@ -1379,7 +1377,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     (_m, p1, _old, p3) => `${p1}${escapeHtml(consigneePhone)}${p3}`,
   );
 
-  // Sender fields (top-right half)
+  // Sender fields
   out = replaceNth(
     out,
     /<div class="field strong en" style="left:47\.56mm;top:105\.69mm;[^"]*">[^<]*<\/div>/g,
@@ -1398,7 +1396,14 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     slotIndex,
     () => `<div class="field mono en" style="left:82.56mm;top:116.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;text-align:left;">${escapeHtml(shipperPhone)}</div>`,
   );
-  // (No duplicate sender block injection here)
+
+  out = replaceNth(
+    out,
+    /(<div class="field mono en" style="left:82\.56mm;top:116\.57mm;width:65\.06mm;font-size:4\.(?:13|35)mm(?:;line-height:1\.06)?;">[^<]*<\/div>)/g,
+    slotIndex,
+    (_m, p1) =>
+      `${p1}<div class="field strong en" style="left:47.56mm;top:183.69mm;width:86.06mm;font-size:4.25mm;white-space:normal;overflow:visible;text-align:left;">${escapeHtml(senderLine)}</div><div class="field regular en" style="left:15.56mm;top:190.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;text-align:left;">${escapeHtml(shipperAddress)}</div><div class="field mono en" style="left:82.56mm;top:194.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;text-align:left;">${escapeHtml(shipperPhone)}</div>`,
+  );
 
   // Bottom summary block (receiver + MOS + amount)
   out = replaceNth(
@@ -1687,7 +1692,6 @@ export function premiumEnvelopeHtml(orders: LabelOrder[], opts?: { autoGenerateT
       return Math.max(1, totalLines);
     };
 
-    // Tighter font scaling for premium envelope to avoid overflow/clipping
     const fitSingleLineFontPx = (
       text: string,
       maxWidthPx: number,
@@ -1727,15 +1731,14 @@ export function premiumEnvelopeHtml(orders: LabelOrder[], opts?: { autoGenerateT
       return minPx;
     };
 
-    // Reduce max font size and allow more shrink for long text
-    const trackingFontPx = fitSingleLineFontPx(tracking, 286, 15, 8, 600);
-    const customerNameFontPx = fitSingleLineFontPx(customerName, 470, 22, 9, 700);
-    const customerAddressFontPx = fitMultiLineFontPx(customerAddress, 470, 2, 13, 8, 1.2, 38, 400);
-    const customerCityFontPx = fitSingleLineFontPx(customerCity || "-", 470, 13, 8, 500);
-    const senderNameFontPx = fitSingleLineFontPx(senderName || "-", 470, 13, 8, 700);
-    const senderAddressFontPx = fitMultiLineFontPx(senderAddress || "-", 470, 2, 12, 8, 1.15, 28, 400);
-    const senderCityFontPx = fitSingleLineFontPx(senderCity || "-", 470, 12, 8, 500);
-    const productDetailsFontPx = fitMultiLineFontPx(productDetails, 190, 3, 12, 8, 1.2, 40, 400);
+    const trackingFontPx = fitSingleLineFontPx(tracking, 286, 16, 9, 600);
+    const customerNameFontPx = fitSingleLineFontPx(customerName, 470, 28, 10, 700);
+    const customerAddressFontPx = fitMultiLineFontPx(customerAddress, 470, 2, 16, 10, 1.2, 44, 400);
+    const customerCityFontPx = fitSingleLineFontPx(customerCity || "-", 470, 16, 10, 500);
+    const senderNameFontPx = fitSingleLineFontPx(senderName || "-", 470, 16, 10, 700);
+    const senderAddressFontPx = fitMultiLineFontPx(senderAddress || "-", 470, 2, 14, 9, 1.15, 34, 400);
+    const senderCityFontPx = fitSingleLineFontPx(senderCity || "-", 470, 14, 9, 500);
+    const productDetailsFontPx = fitMultiLineFontPx(productDetails, 190, 3, 14, 10, 1.2, 56, 400);
 
     const trackingStyle = `font-size:${trackingFontPx}px;line-height:1.08;white-space:nowrap;`;
     const customerNameStyle = `font-size:${customerNameFontPx}px;line-height:1.05;white-space:nowrap;`;
