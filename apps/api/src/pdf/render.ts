@@ -15,8 +15,8 @@ async function waitForPdfFonts(page: Page) {
   });
 }
 
-async function applyUniversal9x4MeasurementGuard(page: Page) {
-  const report = await page.evaluate(() => {
+export async function applyUniversal9x4MeasurementGuard(page: Page) {
+  const report = (await page.evaluate(`(() => {
     const PAGE_HEIGHT_LIMIT = 384;
     const labels = Array.from(document.querySelectorAll(".universal-page .label"));
     if (labels.length === 0) {
@@ -29,43 +29,44 @@ async function applyUniversal9x4MeasurementGuard(page: Page) {
       };
     }
 
-    const toNum = (value: string | null | undefined) => {
-      const parsed = Number.parseFloat(String(value ?? "0"));
-      return Number.isFinite(parsed) ? parsed : 0;
-    };
+    function toNum(value) {
+      const parsed = parseFloat(String(value ?? "0"));
+      return isFinite(parsed) ? parsed : 0;
+    }
 
-    const outerHeight = (el: Element | null) => {
+    function outerHeight(el) {
       if (!el) return 0;
       const rect = el.getBoundingClientRect();
       const style = getComputedStyle(el);
       return rect.height + toNum(style.marginTop) + toNum(style.marginBottom);
-    };
+    }
 
-    const adjustStylePx = (el: HTMLElement | null, cssProp: string, delta: number, min: number) => {
+    function adjustStylePx(el, cssProp, delta, min) {
       if (!el) return;
       const computed = getComputedStyle(el);
       const current = toNum(computed.getPropertyValue(cssProp));
-      if (!Number.isFinite(current) || current <= 0) return;
+      if (!isFinite(current) || current <= 0) return;
       const next = Math.max(min, Number((current + delta).toFixed(2)));
       if (next < current) {
-        el.style.setProperty(cssProp, `${next}px`);
+        el.style.setProperty(cssProp, next + "px");
       }
-    };
+    }
 
     const pageReports = labels.map((label, index) => {
       const header = label.querySelector(".header");
-      const body = label.querySelector(".body") as HTMLElement | null;
-      const footer = label.querySelector(".footer") as HTMLElement | null;
+      const body = label.querySelector(".body");
+      const footer = label.querySelector(".footer");
+      const leftCol = label.querySelector(".left-column");
       const toBox = label.querySelector(".left-column .box:first-child");
-      const fromBox = label.querySelector(".left-column .box:nth-child(2)") as HTMLElement | null;
-      const promoBox = label.querySelector(".promo-box") as HTMLElement | null;
-      const fromInline = label.querySelector(".from-inline") as HTMLElement | null;
-      const toName = label.querySelector(".to-name") as HTMLElement | null;
-      const toAddress = label.querySelector(".to-address") as HTMLElement | null;
-      const toCity = label.querySelector(".to-city") as HTMLElement | null;
-      const toPhone = label.querySelector(".to-phone") as HTMLElement | null;
-      const promoContent = label.querySelector(".promo-content") as HTMLElement | null;
-      const promoWebsite = label.querySelector(".promo-website") as HTMLElement | null;
+      const fromBox = label.querySelector(".left-column .box:nth-child(2)");
+      const promoBox = label.querySelector(".promo-box");
+      const fromInline = label.querySelector(".from-inline");
+      const toName = label.querySelector(".to-name");
+      const toAddress = label.querySelector(".to-address");
+      const toCity = label.querySelector(".to-city");
+      const toPhone = label.querySelector(".to-phone");
+      const promoContent = label.querySelector(".promo-content");
+      const promoWebsite = label.querySelector(".promo-website");
 
       if (fromInline) {
         fromInline.style.whiteSpace = "nowrap";
@@ -74,84 +75,103 @@ async function applyUniversal9x4MeasurementGuard(page: Page) {
         fromInline.style.display = "block";
       }
 
-      const measure = () => {
+      function measure() {
         const labelRect = label.getBoundingClientRect();
-        const headerRect = header?.getBoundingClientRect() ?? null;
-        const bodyRect = body?.getBoundingClientRect() ?? null;
-        const footerRect = footer?.getBoundingClientRect() ?? null;
-        const toRect = toBox?.getBoundingClientRect() ?? null;
-        const fromRect = fromBox?.getBoundingClientRect() ?? null;
-        const promoRect = promoBox?.getBoundingClientRect() ?? null;
+        const headerRect = header ? header.getBoundingClientRect() : null;
+        const bodyRect = body ? body.getBoundingClientRect() : null;
+        const footerRect = footer ? footer.getBoundingClientRect() : null;
+        
+        const bodyScrollHeight = body ? body.scrollHeight : 0;
+        const bodyOffsetHeight = body ? body.offsetHeight : 0;
+        const internalOverflow = Math.max(0, bodyScrollHeight - bodyOffsetHeight);
 
-        const consumed = outerHeight(header) + outerHeight(body) + outerHeight(footer);
+        const consumed = outerHeight(header) + bodyScrollHeight + outerHeight(footer);
         const safeSpace = Number((PAGE_HEIGHT_LIMIT - consumed).toFixed(2));
-        const fromFooterOverlap = fromRect && footerRect ? Math.max(0, fromRect.bottom - footerRect.top) : 0;
-        const promoFooterOverlap = promoRect && footerRect ? Math.max(0, promoRect.bottom - footerRect.top) : 0;
-        const bodyFooterOverlap = bodyRect && footerRect ? Math.max(0, bodyRect.bottom - footerRect.top) : 0;
+        
+        let maxBoxOverlap = 0;
+        const boxes = Array.from(label.querySelectorAll(".box"));
+        boxes.forEach(box => {
+            const boxOverflow = (box as any).scrollHeight - (box as any).offsetHeight;
+            if (boxOverflow > 1) maxBoxOverlap = Math.max(maxBoxOverlap, boxOverflow);
+        });
+
+        console.log("[Guard Page " + index + "] Consumed: " + consumed + ", InternalOverflow: " + internalOverflow + ", MaxBoxOverlap: " + maxBoxOverlap);
 
         return {
           pageIndex: index,
           pageHeight: Number(labelRect.height.toFixed(2)),
-          headerHeight: Number((headerRect?.height ?? 0).toFixed(2)),
-          bodyHeight: Number((bodyRect?.height ?? 0).toFixed(2)),
-          footerHeight: Number((footerRect?.height ?? 0).toFixed(2)),
-          toHeight: Number((toRect?.height ?? 0).toFixed(2)),
-          fromHeight: Number((fromRect?.height ?? 0).toFixed(2)),
-          promoHeight: Number((promoRect?.height ?? 0).toFixed(2)),
+          headerHeight: Number((headerRect ? headerRect.height : 0).toFixed(2)),
+          bodyHeight: Number((bodyRect ? bodyRect.height : 0).toFixed(2)),
+          bodyScrollHeight: bodyScrollHeight,
           totalConsumed: Number(consumed.toFixed(2)),
-          safeSpace,
-          fromFooterOverlap: Number(fromFooterOverlap.toFixed(2)),
-          promoFooterOverlap: Number(promoFooterOverlap.toFixed(2)),
-          bodyFooterOverlap: Number(bodyFooterOverlap.toFixed(2)),
+          safeSpace: safeSpace,
+          internalOverflow: Number(internalOverflow.toFixed(2)),
+          maxBoxOverlap: Number(maxBoxOverlap.toFixed(2)),
         };
-      };
+      }
 
       let metrics = measure();
       let passes = 0;
 
       while (
-        passes < 8
-        && (
-          metrics.totalConsumed > PAGE_HEIGHT_LIMIT
-          || metrics.pageHeight > PAGE_HEIGHT_LIMIT + 0.25
-          || metrics.fromFooterOverlap > 0
-          || metrics.promoFooterOverlap > 0
-          || metrics.bodyFooterOverlap > 0
-        )
+        passes < 25 && 
+        (metrics.totalConsumed > PAGE_HEIGHT_LIMIT || 
+         metrics.internalOverflow > 1 ||
+         metrics.maxBoxOverlap > 1)
       ) {
         passes += 1;
 
-        adjustStylePx(body, "padding-top", -1, 6);
-        adjustStylePx(body, "padding-bottom", -1, 6);
-        adjustStylePx(fromBox, "padding-top", -1, 6);
-        adjustStylePx(fromBox, "padding-bottom", -1, 6);
-        adjustStylePx(promoBox, "padding-top", -0.8, 5);
-        adjustStylePx(promoBox, "padding-bottom", -0.8, 5);
-        adjustStylePx(promoBox, "font-size", -0.35, 10);
-        adjustStylePx(promoWebsite, "font-size", -0.35, 11.5);
-        adjustStylePx(footer, "height", -1, 34);
-        adjustStylePx(footer, "font-size", -0.2, 8.5);
-        adjustStylePx(toName, "font-size", -0.4, 20);
-        adjustStylePx(toAddress, "font-size", -0.2, 12);
-        adjustStylePx(toCity, "font-size", -0.2, 12);
-        adjustStylePx(toPhone, "font-size", -0.2, 13);
-        adjustStylePx(promoContent, "gap", -0.4, 1);
+        adjustStylePx(body, "gap", -1, 4);
+        adjustStylePx(body, "padding-top", -1, 4);
+        adjustStylePx(body, "padding-bottom", -1, 4);
+        adjustStylePx(leftCol, "gap", -1, 4);
+        
+        // Shrink boxes and their internal tables
+        const allBoxes = Array.from(label.querySelectorAll(".box"));
+        allBoxes.forEach(box => {
+            adjustStylePx(box, "padding", -1, 4);
+            const tables = Array.from(box.querySelectorAll(".info-table td"));
+            tables.forEach(td => adjustStylePx(td, "padding", -0.5, 3));
+            tables.forEach(td => adjustStylePx(td, "font-size", -0.2, 10));
+        });
+
+        adjustStylePx(fromBox, "margin-top", -1, 0);
+        
+        // Shrink Left side fonts
+        adjustStylePx(toName, "font-size", -0.5, 16);
+        adjustStylePx(toAddress, "font-size", -0.3, 10);
+        adjustStylePx(toCity, "font-size", -0.3, 10);
+        adjustStylePx(toPhone, "font-size", -0.3, 11);
+        
+        // Shrink Right side
+        const amountBox = label.querySelector(".amount-box");
+        adjustStylePx(amountBox, "padding", -1, 4);
+        const amountRows = Array.from(label.querySelectorAll(".amount-row"));
+        amountRows.forEach(row => adjustStylePx(row, "font-size", -0.2, 11));
+
+        adjustStylePx(promoBox, "padding-top", -1, 4);
+        adjustStylePx(promoBox, "padding-bottom", -1, 4);
+        adjustStylePx(promoBox, "font-size", -0.5, 9);
+        adjustStylePx(promoWebsite, "font-size", -0.5, 10);
+        adjustStylePx(promoContent, "gap", -0.5, 0);
+
+        if (passes > 5) {
+          adjustStylePx(footer, "height", -1, 30);
+          adjustStylePx(footer, "font-size", -0.2, 8);
+          adjustStylePx(header, "height", -1, 44);
+          const vplAmount = label.querySelector(".vpl-amount");
+          adjustStylePx(vplAmount, "font-size", -0.5, 14);
+        }
 
         metrics = measure();
       }
 
-      return {
-        ...metrics,
-        passes,
-      };
+      return Object.assign({}, metrics, { passes: passes });
     });
 
     const maxConsumed = pageReports.reduce((max, row) => Math.max(max, row.totalConsumed), 0);
     const minSafeSpace = pageReports.reduce((min, row) => Math.min(min, row.safeSpace), PAGE_HEIGHT_LIMIT);
-    const maxOverlap = pageReports.reduce(
-      (max, row) => Math.max(max, row.fromFooterOverlap, row.promoFooterOverlap, row.bodyFooterOverlap),
-      0,
-    );
+    const maxOverlap = pageReports.reduce((max, row) => Math.max(max, row.internalOverflow, row.maxBoxOverlap), 0);
 
     return {
       applied: true,
@@ -160,16 +180,15 @@ async function applyUniversal9x4MeasurementGuard(page: Page) {
       minSafeSpace: Number(minSafeSpace.toFixed(2)),
       maxOverlap: Number(maxOverlap.toFixed(2)),
     };
-  });
+  })()`) as any);
 
   if (report.applied) {
     const hasOverflow = report.pages.some(
-      (pageReport: { totalConsumed: number; pageHeight: number; fromFooterOverlap: number; promoFooterOverlap: number; bodyFooterOverlap: number }) => (
-        pageReport.totalConsumed > 384
-        || pageReport.pageHeight > 384.25
-        || pageReport.fromFooterOverlap > 0
-        || pageReport.promoFooterOverlap > 0
-        || pageReport.bodyFooterOverlap > 0
+      (pageReport: { totalConsumed: number; pageHeight: number; internalOverflow: number; maxBoxOverlap: number }) => (
+        pageReport.totalConsumed > 384.5
+        || pageReport.pageHeight > 384.5
+        || pageReport.internalOverflow > 1.5
+        || pageReport.maxBoxOverlap > 1.5
       ),
     );
     if (hasOverflow) {
@@ -244,12 +263,9 @@ export async function htmlToPdfBuffer(
 
   try {
     return await renderOnce();
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err ?? "");
-    if (!message.toLowerCase().includes("frame was detached")) {
-      throw err;
-    }
-    console.warn("[PDF] Retrying render after detached frame...");
+  } catch (err: any) {
+    console.error(`PDF render error (attempt 1): ${err.message}`);
+    // Optional: retry logic
     return await renderOnce();
   }
 }
@@ -260,40 +276,7 @@ export async function htmlToPdfBufferInFreshBrowser(
 ) {
   const browser = await launchPuppeteerBrowser();
   try {
-    const page = await browser.newPage();
-    try {
-      await page.setContent(html, { waitUntil: "networkidle0" });
-      await waitForPdfFonts(page);
-      if (format === "envelope-9x4") {
-        await applyUniversal9x4MeasurementGuard(page);
-      }
-      const pdfOptions = format === "envelope-9x4"
-        ? {
-            width: `${ENVELOPE_DEFAULT_SIZE.widthInches}in`,
-            height: `${ENVELOPE_DEFAULT_SIZE.heightInches}in`,
-            landscape: false,
-            preferCSSPageSize: false,
-          }
-        : {
-            format: "A4" as const,
-            landscape: true,
-            preferCSSPageSize: true,
-          };
-      return await page.pdf({
-        ...pdfOptions,
-        printBackground: true,
-        tagged: false,
-        outline: false,
-        margin: {
-          top: "0mm",
-          bottom: "0mm",
-          left: "0mm",
-          right: "0mm",
-        },
-      });
-    } finally {
-      await page.close();
-    }
+    return await htmlToPdfBuffer(html, browser, format);
   } finally {
     await browser.close();
   }
