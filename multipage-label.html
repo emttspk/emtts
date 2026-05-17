@@ -337,42 +337,24 @@ body{
 /* FROM BLOCK */
 
 .from-row{
-    display:flex;
-    align-items:center;
-    flex-wrap:nowrap;
-    gap:6px;
+    display:block;
     min-width:0;
     width:100%;
     font-size:12px;
-    line-height:1.05;
+    line-height:1.1;
+    white-space:normal;
+    overflow-wrap:normal;
+    word-break:normal;
 }
 
-.from-part{
+.from-inline{
     min-width:0;
-    overflow-wrap:anywhere;
-    word-break:break-word;
-}
-
-.from-name{
-    flex:0 1 auto;
-    font-size:13px;
-    font-weight:700;
-    line-height:1.05;
-}
-
-.from-address,
-.from-city,
-.from-phone{
-    flex:1 1 0;
     font-size:12px;
     font-weight:400;
-    line-height:1.05;
-}
-
-.from-sep{
-    flex:0 0 auto;
-    font-size:12px;
-    line-height:1;
+    line-height:1.1;
+    white-space:normal;
+    overflow-wrap:normal;
+    word-break:normal;
 }
 
 /* =========================================
@@ -723,13 +705,7 @@ body{
                 </div>
 
                 <div class="from-row">
-                    <span class="from-part from-name">{{sender_name}}</span>
-                    <span class="from-sep">|</span>
-                    <span class="from-part from-address">{{sender_address}}</span>
-                    <span class="from-sep">|</span>
-                    <span class="from-part from-city">{{sender_city}}</span>
-                    <span class="from-sep">|</span>
-                    <span class="from-part from-phone">{{sender_phone}}</span>
+                    <span class="from-inline">{{sender_inline}}</span>
                 </div>
 
             </div>

@@ -660,6 +660,12 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
     const shipmentLabel = displayShipmentType(resolveOrderShipmentType(o));
     const orderSource = String(o.reference ?? (o as any)?.source ?? (o as any)?.Source ?? (o as any)?.ordered ?? "").trim();
     const productDetails = String(o.ProductDescription ?? "").trim();
+    const senderInline = compactInlineParts([
+      String((o as any)?.senderName ?? o.shipperName ?? ""),
+      normalizeAddressLines((o as any)?.senderAddress ?? o.shipperAddress ?? "").replace(/\n+/g, ", "),
+      String(o.senderCity ?? ""),
+      String((o as any)?.senderPhone ?? o.shipperPhone ?? ""),
+    ]).join(", ");
 
     const amountValue = summary.appliesPakistanPostRules
       ? summary.moAmount
@@ -689,10 +695,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
       ["{{gross_amount}}", escapeHtml(formatAmount(grossValue))],
       ["{{order_source}}", escapeHtml(orderSource)],
       ["{{product_details}}", escapeHtml(productDetails)],
-      ["{{sender_name}}", escapeHtml(String((o as any)?.senderName ?? o.shipperName ?? "").trim())],
-      ["{{sender_address}}", escapeHtml(normalizeAddressLines((o as any)?.senderAddress ?? o.shipperAddress ?? ""))],
-      ["{{sender_city}}", escapeHtml(String(o.senderCity ?? "").trim())],
-      ["{{sender_phone}}", escapeHtml(String((o as any)?.senderPhone ?? o.shipperPhone ?? "").trim())],
+      ["{{sender_inline}}", escapeHtml(senderInline || "-")],
     ];
 
     for (const [token, value] of replacements) {
