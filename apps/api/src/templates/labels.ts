@@ -636,6 +636,7 @@ export function previewLabelHtml(opts?: {
 
 export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTracking?: boolean; includeMoneyOrders?: boolean }) {
   const autoGenerateTracking = opts?.autoGenerateTracking === true;
+  const logoSrc = resolvePakistanPostLogoDataUrl();
 
   const template = loadHtmlTemplate(
     [
@@ -685,6 +686,8 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
     let html = templateBody;
 
     const replacements: Array<[string, string]> = [
+      ["{{logo_src}}", escapeHtml(logoSrc || "")],
+      ["{{logo_image_class}}", logoSrc ? "" : "is-hidden"],
       ["{{amount}}", escapeHtml(formatAmount(amountValue))],
       ["{{tracking_no}}", escapeHtml(tracking || "-")],
       ["{{customer_name}}", escapeHtml(String(o.consigneeName ?? "").trim())],
