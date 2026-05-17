@@ -91,7 +91,7 @@ export async function applyUniversal9x4MeasurementGuard(page: Page) {
         let maxBoxOverlap = 0;
         const boxes = Array.from(label.querySelectorAll(".box"));
         boxes.forEach(box => {
-            const boxOverflow = (box as any).scrollHeight - (box as any).offsetHeight;
+            const boxOverflow = box.scrollHeight - box.offsetHeight;
             if (boxOverflow > 1) maxBoxOverlap = Math.max(maxBoxOverlap, boxOverflow);
         });
 
