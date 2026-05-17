@@ -15,6 +15,169 @@ async function waitForPdfFonts(page: Page) {
   });
 }
 
+async function applyUniversal9x4MeasurementGuard(page: Page) {
+  const report = await page.evaluate(() => {
+    const PAGE_HEIGHT_LIMIT = 384;
+    const labels = Array.from(document.querySelectorAll(".universal-page .label"));
+    if (labels.length === 0) {
+      return {
+        applied: false,
+        pages: [],
+        maxConsumed: 0,
+        minSafeSpace: PAGE_HEIGHT_LIMIT,
+        maxOverlap: 0,
+      };
+    }
+
+    const toNum = (value: string | null | undefined) => {
+      const parsed = Number.parseFloat(String(value ?? "0"));
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const outerHeight = (el: Element | null) => {
+      if (!el) return 0;
+      const rect = el.getBoundingClientRect();
+      const style = getComputedStyle(el);
+      return rect.height + toNum(style.marginTop) + toNum(style.marginBottom);
+    };
+
+    const adjustStylePx = (el: HTMLElement | null, cssProp: string, delta: number, min: number) => {
+      if (!el) return;
+      const computed = getComputedStyle(el);
+      const current = toNum(computed.getPropertyValue(cssProp));
+      if (!Number.isFinite(current) || current <= 0) return;
+      const next = Math.max(min, Number((current + delta).toFixed(2)));
+      if (next < current) {
+        el.style.setProperty(cssProp, `${next}px`);
+      }
+    };
+
+    const pageReports = labels.map((label, index) => {
+      const header = label.querySelector(".header");
+      const body = label.querySelector(".body") as HTMLElement | null;
+      const footer = label.querySelector(".footer") as HTMLElement | null;
+      const toBox = label.querySelector(".left-column .box:first-child");
+      const fromBox = label.querySelector(".left-column .box:nth-child(2)") as HTMLElement | null;
+      const promoBox = label.querySelector(".promo-box") as HTMLElement | null;
+      const fromInline = label.querySelector(".from-inline") as HTMLElement | null;
+      const toName = label.querySelector(".to-name") as HTMLElement | null;
+      const toAddress = label.querySelector(".to-address") as HTMLElement | null;
+      const toCity = label.querySelector(".to-city") as HTMLElement | null;
+      const toPhone = label.querySelector(".to-phone") as HTMLElement | null;
+      const promoContent = label.querySelector(".promo-content") as HTMLElement | null;
+      const promoWebsite = label.querySelector(".promo-website") as HTMLElement | null;
+
+      if (fromInline) {
+        fromInline.style.whiteSpace = "nowrap";
+        fromInline.style.overflow = "hidden";
+        fromInline.style.textOverflow = "ellipsis";
+        fromInline.style.display = "block";
+      }
+
+      const measure = () => {
+        const labelRect = label.getBoundingClientRect();
+        const headerRect = header?.getBoundingClientRect() ?? null;
+        const bodyRect = body?.getBoundingClientRect() ?? null;
+        const footerRect = footer?.getBoundingClientRect() ?? null;
+        const toRect = toBox?.getBoundingClientRect() ?? null;
+        const fromRect = fromBox?.getBoundingClientRect() ?? null;
+        const promoRect = promoBox?.getBoundingClientRect() ?? null;
+
+        const consumed = outerHeight(header) + outerHeight(body) + outerHeight(footer);
+        const safeSpace = Number((PAGE_HEIGHT_LIMIT - consumed).toFixed(2));
+        const fromFooterOverlap = fromRect && footerRect ? Math.max(0, fromRect.bottom - footerRect.top) : 0;
+        const promoFooterOverlap = promoRect && footerRect ? Math.max(0, promoRect.bottom - footerRect.top) : 0;
+        const bodyFooterOverlap = bodyRect && footerRect ? Math.max(0, bodyRect.bottom - footerRect.top) : 0;
+
+        return {
+          pageIndex: index,
+          pageHeight: Number(labelRect.height.toFixed(2)),
+          headerHeight: Number((headerRect?.height ?? 0).toFixed(2)),
+          bodyHeight: Number((bodyRect?.height ?? 0).toFixed(2)),
+          footerHeight: Number((footerRect?.height ?? 0).toFixed(2)),
+          toHeight: Number((toRect?.height ?? 0).toFixed(2)),
+          fromHeight: Number((fromRect?.height ?? 0).toFixed(2)),
+          promoHeight: Number((promoRect?.height ?? 0).toFixed(2)),
+          totalConsumed: Number(consumed.toFixed(2)),
+          safeSpace,
+          fromFooterOverlap: Number(fromFooterOverlap.toFixed(2)),
+          promoFooterOverlap: Number(promoFooterOverlap.toFixed(2)),
+          bodyFooterOverlap: Number(bodyFooterOverlap.toFixed(2)),
+        };
+      };
+
+      let metrics = measure();
+      let passes = 0;
+
+      while (
+        passes < 8
+        && (
+          metrics.totalConsumed > PAGE_HEIGHT_LIMIT
+          || metrics.pageHeight > PAGE_HEIGHT_LIMIT + 0.25
+          || metrics.fromFooterOverlap > 0
+          || metrics.promoFooterOverlap > 0
+          || metrics.bodyFooterOverlap > 0
+        )
+      ) {
+        passes += 1;
+
+        adjustStylePx(body, "padding-top", -1, 6);
+        adjustStylePx(body, "padding-bottom", -1, 6);
+        adjustStylePx(fromBox, "padding-top", -1, 6);
+        adjustStylePx(fromBox, "padding-bottom", -1, 6);
+        adjustStylePx(promoBox, "padding-top", -0.8, 5);
+        adjustStylePx(promoBox, "padding-bottom", -0.8, 5);
+        adjustStylePx(promoBox, "font-size", -0.35, 10);
+        adjustStylePx(promoWebsite, "font-size", -0.35, 11.5);
+        adjustStylePx(footer, "height", -1, 34);
+        adjustStylePx(footer, "font-size", -0.2, 8.5);
+        adjustStylePx(toName, "font-size", -0.4, 20);
+        adjustStylePx(toAddress, "font-size", -0.2, 12);
+        adjustStylePx(toCity, "font-size", -0.2, 12);
+        adjustStylePx(toPhone, "font-size", -0.2, 13);
+        adjustStylePx(promoContent, "gap", -0.4, 1);
+
+        metrics = measure();
+      }
+
+      return {
+        ...metrics,
+        passes,
+      };
+    });
+
+    const maxConsumed = pageReports.reduce((max, row) => Math.max(max, row.totalConsumed), 0);
+    const minSafeSpace = pageReports.reduce((min, row) => Math.min(min, row.safeSpace), PAGE_HEIGHT_LIMIT);
+    const maxOverlap = pageReports.reduce(
+      (max, row) => Math.max(max, row.fromFooterOverlap, row.promoFooterOverlap, row.bodyFooterOverlap),
+      0,
+    );
+
+    return {
+      applied: true,
+      pages: pageReports,
+      maxConsumed: Number(maxConsumed.toFixed(2)),
+      minSafeSpace: Number(minSafeSpace.toFixed(2)),
+      maxOverlap: Number(maxOverlap.toFixed(2)),
+    };
+  });
+
+  if (report.applied) {
+    const hasOverflow = report.pages.some(
+      (pageReport: { totalConsumed: number; pageHeight: number; fromFooterOverlap: number; promoFooterOverlap: number; bodyFooterOverlap: number }) => (
+        pageReport.totalConsumed > 384
+        || pageReport.pageHeight > 384.25
+        || pageReport.fromFooterOverlap > 0
+        || pageReport.promoFooterOverlap > 0
+        || pageReport.bodyFooterOverlap > 0
+      ),
+    );
+    if (hasOverflow) {
+      throw new Error(`Universal 9x4 layout overflow detected after measurement guard: ${JSON.stringify(report.pages)}`);
+    }
+  }
+}
+
 export async function launchPuppeteerBrowser() {
   const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
   console.log(`Launching Puppeteer — executablePath: ${executablePath ?? "(puppeteer default)"}`);
@@ -41,6 +204,9 @@ export async function htmlToPdfBuffer(
     try {
       await page.setContent(html, { waitUntil: "networkidle0" });
       await waitForPdfFonts(page);
+      if (format === "envelope-9x4") {
+        await applyUniversal9x4MeasurementGuard(page);
+      }
       const pdfOptions = format === "envelope-9x4"
         ? {
         width: `${ENVELOPE_DEFAULT_SIZE.widthInches}in`,
@@ -98,7 +264,9 @@ export async function htmlToPdfBufferInFreshBrowser(
     try {
       await page.setContent(html, { waitUntil: "networkidle0" });
       await waitForPdfFonts(page);
-      await page.evaluate(() => document.body.innerHTML.length);
+      if (format === "envelope-9x4") {
+        await applyUniversal9x4MeasurementGuard(page);
+      }
       const pdfOptions = format === "envelope-9x4"
         ? {
             width: `${ENVELOPE_DEFAULT_SIZE.widthInches}in`,

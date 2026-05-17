@@ -636,7 +636,6 @@ export function previewLabelHtml(opts?: {
 
 export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTracking?: boolean; includeMoneyOrders?: boolean }) {
   const autoGenerateTracking = opts?.autoGenerateTracking === true;
-  const logoSrc = resolvePakistanPostLogoDataUrl();
 
   const template = loadHtmlTemplate(
     [
@@ -650,70 +649,64 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
   const templateHead = injectSharedPrintCss(template.head.replace(/<script[\s\S]*?<\/script>/gi, ""));
   const templateBody = template.body.replace(/<script[\s\S]*?<\/script>/gi, "");
 
-  const formatAmount = (value: number) => {
-    if (!Number.isFinite(value)) return "0";
-    return Number.isInteger(value) ? String(value) : value.toFixed(2);
-  };
-
   const renderSingle = (o: LabelOrder) => {
+    const shipmentType = resolveOrderShipmentType(o);
+    const shipmentLabel = displayShipmentType(shipmentType);
     const summary = getLabelAmountSummary(o);
     const tracking = resolveTracking(o, autoGenerateTracking);
-    const shipmentLabel = displayShipmentType(resolveOrderShipmentType(o));
-    const orderSource = String(o.reference ?? (o as any)?.source ?? (o as any)?.Source ?? (o as any)?.ordered ?? "").trim();
-    const productDetails = String(o.ProductDescription ?? "").trim();
+    const formatRs = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
+    const barcodeMarkup = o.skipGlobalBarcode ? "" : (o.barcodeBase64 || generateLabelBarcodeBase64(tracking));
+
+    const receiverName = String(o.consigneeName ?? "").trim() || "-";
+    const receiverAddress = normalizeAddressLines(o.consigneeAddress) || "-";
+    const receiverCity = String(o.receiverCity ?? "").trim() || "-";
+    const receiverPhone = String(o.consigneePhone ?? "").trim() || "-";
+
+    const { senderName, senderAddress, senderPhone } = resolveMoneyOrderSenderFields(o as unknown as OrderRecord);
+    const senderCity = String(o.senderCity ?? "").trim();
     const senderInline = compactInlineParts([
-      String((o as any)?.senderName ?? o.shipperName ?? ""),
-      normalizeAddressLines((o as any)?.senderAddress ?? o.shipperAddress ?? "").replace(/\n+/g, ", "),
-      String(o.senderCity ?? ""),
-      String((o as any)?.senderPhone ?? o.shipperPhone ?? ""),
-    ]).join(", ");
+      senderName,
+      senderAddress.replace(/\n+/g, ", "),
+      senderCity,
+      senderPhone,
+    ]).join(" | ") || "-";
 
-    const amountValue = summary.appliesPakistanPostRules
-      ? summary.moAmount
-      : summary.grossAmount;
-    const commissionValue = summary.appliesPakistanPostRules
-      ? summary.commission
-      : 0;
-    const grossValue = summary.appliesPakistanPostRules
-      ? summary.grossAmount
-      : summary.grossAmount;
+    const orderSource = String(o.reference ?? (o as any)?.source ?? (o as any)?.Source ?? "ePost Workspace").trim() || "ePost Workspace";
+    const productDetails = String(o.ProductDescription ?? "").trim() || "-";
+    const amountValue = summary.appliesPakistanPostRules ? summary.moAmount : summary.grossAmount;
 
-    const barcodeBase64 = generateLabelBarcodeBase64(tracking);
-    const barcodeMarkup = barcodeBase64
-      ? `<img src="${barcodeBase64}" alt="Barcode" style="width:100%;max-width:255px;height:42px;display:block;" />`
-      : `<div style="width:100%;max-width:255px;height:42px;border:1px dashed #000;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">${escapeHtml(tracking || "NO TRACKING")}</div>`;
+    const tokenMap: Record<string, string> = {
+      "{{amount}}": `Rs. ${escapeHtml(formatRs(amountValue))}`,
+      "{{tracking_no}}": escapeHtml(tracking || "-"),
+      "{{customer_name}}": escapeHtml(receiverName),
+      "{{customer_address}}": escapeHtml(receiverAddress),
+      "{{customer_city}}": escapeHtml(receiverCity),
+      "{{customer_phone}}": escapeHtml(receiverPhone),
+      "{{sender_inline}}": escapeHtml(senderInline),
+      "{{commission}}": `Rs. ${escapeHtml(formatRs(summary.commission))}`,
+      "{{gross_amount}}": `Rs. ${escapeHtml(formatRs(summary.grossAmount))}`,
+      "{{order_source}}": escapeHtml(orderSource),
+      "{{product_details}}": escapeHtml(productDetails),
+    };
 
     let html = templateBody;
+    html = html.replace(/<span class="vpl-label">[^<]*<\/span>/i, `<span class="vpl-label">${escapeHtml(shipmentLabel)}</span>`);
+    html = html.replace(
+      /<svg id="barcode"><\/svg>/i,
+      barcodeMarkup
+        ? `<img id="barcode" src="${barcodeMarkup}" alt="Barcode" />`
+        : `<div id="barcode" class="barcode-fallback">${escapeHtml(tracking || "NO TRACKING")}</div>`,
+    );
 
-    const replacements: Array<[string, string]> = [
-      ["{{logo_src}}", escapeHtml(logoSrc || "")],
-      ["{{logo_image_class}}", logoSrc ? "" : "is-hidden"],
-      ["{{amount}}", escapeHtml(formatAmount(amountValue))],
-      ["{{tracking_no}}", escapeHtml(tracking || "-")],
-      ["{{customer_name}}", escapeHtml(String(o.consigneeName ?? "").trim())],
-      ["{{customer_address}}", escapeHtml(normalizeAddressLines(o.consigneeAddress))],
-      ["{{customer_city}}", escapeHtml(String(o.receiverCity ?? "").trim())],
-      ["{{customer_phone}}", escapeHtml(String(o.consigneePhone ?? "").trim())],
-      ["{{commission}}", escapeHtml(formatAmount(commissionValue))],
-      ["{{gross_amount}}", escapeHtml(formatAmount(grossValue))],
-      ["{{order_source}}", escapeHtml(orderSource)],
-      ["{{product_details}}", escapeHtml(productDetails)],
-      ["{{sender_inline}}", escapeHtml(senderInline || "-")],
-    ];
-
-    for (const [token, value] of replacements) {
+    for (const [token, value] of Object.entries(tokenMap)) {
       html = html.split(token).join(value);
     }
 
-    const badgeStyle = shipmentLabel.length > 4
-      ? ` style="font-size:24px;letter-spacing:0.1px;"`
-      : "";
-    html = html.replace(
-      /<span class="vpl-label">[^<]*<\/span>/i,
-      `<span class="vpl-label"${badgeStyle}>${escapeHtml(shipmentLabel)}</span>`,
-    );
-    html = html.replace(/<svg id="barcode"><\/svg>/i, barcodeMarkup);
-    html = html.replace(/<script[\s\S]*?<\/script>/gi, "");
+    const unresolvedTokens = Array.from(new Set(html.match(/\{\{\s*[^{}]+\s*\}\}/g) ?? []));
+    if (unresolvedTokens.length > 0) {
+      console.error(`[Universal9x4] unresolved tokens: ${unresolvedTokens.join(", ")}`);
+      throw new Error(`Universal 9x4 render failed due to unresolved tokens: ${unresolvedTokens.join(", ")}`);
+    }
 
     return `<div class="universal-page">${html}</div>`;
   };
@@ -1287,7 +1280,7 @@ function clearBenchmarkSlot(htmlBody: string, slotIndex: number) {
     out,
     /(<img class="barcode" src=")([^"]*)(" alt="MO Barcode" style="[^"]*" \/>)/g,
     slotIndex,
-    (_m, p1, _src, p3) => `${p1}${transparent}${p3}`,
+    (_m, p1, oldSrc, p3) => `${p1}${transparent}${p3}`,
   );
 
   const slotTextPatterns = [
@@ -1483,12 +1476,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     out,
     /<div class="field en" style="left:15\.56mm;top:174\.79mm;width:67\.18mm;font-size:1\.83mm;line-height:1\.12;white-space:normal;">[\s\S]*?<\/div>/g,
     slotIndex,
-    (_m: string) =>
-      `<div class="field en" style="left:15.56mm;top:174.79mm;width:67.18mm;font-size:1.83mm;line-height:1.12;white-space:normal;">
-      ${escapeHtml(consigneeName)} | ${escapeHtml(consigneePhone)}<br/>
-      ${escapeHtml(consigneeAddress)}<br/>
-      MO: ${escapeHtml(moNumber)} | ${escapeHtml(amountDisplay)}
-      </div>`,
+    () => `<div class="field en" style="left:15.56mm;top:174.79mm;width:67.18mm;font-size:1.83mm;line-height:1.12;white-space:normal;">${escapeHtml(consigneeName)} | ${escapeHtml(consigneePhone)}<br/>${escapeHtml(consigneeAddress)}<br/>MO: ${escapeHtml(moNumber)} | ${escapeHtml(amountDisplay)}</div>`,
   );
 
   // Bottom tracking line

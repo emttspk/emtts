@@ -55,12 +55,12 @@ body{
 ========================================= */
 
 .header{
-    height:68px;
+    height:50px;
     border-bottom:1px solid #000;
     display:grid;
-    grid-template-columns:28% 32% 40%;
+    grid-template-columns:30% 35% 35%;
     align-items:center;
-    padding-bottom:6px;
+    padding-bottom:4px;
     min-width:0;
     min-height:0;
 }
@@ -87,20 +87,6 @@ body{
     position:relative;
     flex-shrink:0;
     overflow:hidden;
-}
-
-.pp-logo-image{
-    position:absolute;
-    inset:0;
-    width:100%;
-    height:100%;
-    object-fit:contain;
-    display:block;
-    background:#fff;
-}
-
-.pp-logo-image.is-hidden{
-    display:none;
 }
 
 .pp-logo::before{
@@ -236,6 +222,18 @@ body{
     display:block;
 }
 
+.barcode-fallback{
+    border:1px dashed #000;
+    display:flex !important;
+    align-items:center;
+    justify-content:center;
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:0.4px;
+    text-align:center;
+    padding:0 6px;
+}
+
 .barcode-text{
     margin-top:0;
     font-size:12px;
@@ -282,7 +280,7 @@ body{
     background:#fff;
     min-width:0;
     min-height:0;
-    overflow:visible;
+    overflow:hidden;
 }
 
 /* SECTION LABEL */
@@ -357,19 +355,21 @@ body{
     width:100%;
     font-size:12px;
     line-height:1.1;
-    white-space:normal;
-    overflow-wrap:normal;
-    word-break:normal;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
 }
 
 .from-inline{
+    display:block;
     min-width:0;
+    max-width:100%;
     font-size:12px;
     font-weight:400;
     line-height:1.1;
-    white-space:normal;
-    overflow-wrap:normal;
-    word-break:normal;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
 }
 
 /* =========================================
@@ -516,16 +516,16 @@ body{
 ========================================= */
 
 .footer{
-    height:28px;
+    height:40px;
     border-top:1px solid #000;
     display:flex;
     align-items:center;
     justify-content:space-between;
-    padding-top:2px;
+    padding-top:5px;
     gap:8px;
     min-width:0;
     overflow:visible;
-    font-size:15px;
+    font-size:9px;
     font-family:Arial, Helvetica, sans-serif;
     font-weight:600;
 }
@@ -634,7 +634,6 @@ body{
         <div class="logo-area">
 
             <div class="pp-logo">
-                <img class="pp-logo-image {{logo_image_class}}" src="{{logo_src}}" alt="Pakistan Post logo" />
             </div>
 
             <div class="logo-text">
