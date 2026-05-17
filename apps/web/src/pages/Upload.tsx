@@ -36,7 +36,7 @@ export default function Upload() {
   const [ppCategory, setPpCategory] = useState<"general_post" | "value_payable" | "cod_articles" | null>(null);
   const [shipmentType, setShipmentType] = useState<"RGL" | "IRL" | "UMS" | "PAR" | "VPL" | "VPP" | "COD" | "COURIER" | null>(null);
   const [barcodeMode, setBarcodeMode] = useState<"manual" | "auto" | null>(null);
-  const [outputMode, setOutputMode] = useState<"envelope" | "envelope-9x4" | "box" | "a4-multi" | "flyer" | null>(null);
+  const [outputMode, setOutputMode] = useState<"envelope" | "envelope-9x4" | "universal-9x4" | "box" | "a4-multi" | "flyer" | null>(null);
   const [previewHtml, setPreviewHtml] = useState("");
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -63,7 +63,12 @@ export default function Upload() {
 
   const eligibleForMoneyOrder =
     carrierType === "pakistan_post" && (shipmentType === "VPL" || shipmentType === "VPP" || shipmentType === "COD");
-  const previewMode: PreviewMode = outputMode === "flyer" ? "flyer" : outputMode === "envelope" || outputMode === "envelope-9x4" ? "envelope" : "labels";
+  const previewMode: PreviewMode =
+    outputMode === "flyer"
+      ? "flyer"
+      : outputMode === "envelope" || outputMode === "envelope-9x4" || outputMode === "universal-9x4"
+        ? "envelope"
+        : "labels";
 
   const defaultPreviewSize = useMemo(
     () => (previewMode === "envelope" ? { width: 864, height: 384 } : { width: 794, height: 1123 }),
@@ -90,7 +95,9 @@ export default function Upload() {
     const a4PageCount = (previewHtml.match(/class="page"/g) ?? []).length;
     const flyerPageCount = (previewHtml.match(/class="fl-page"/g) ?? []).length;
     const envelopeCount = (previewHtml.match(/class="label-container"/g) ?? []).length;
-    const pageCount = previewMode === "flyer" ? flyerPageCount : previewMode === "envelope" ? envelopeCount : a4PageCount;
+    const universalCount = (previewHtml.match(/class="universal-page"/g) ?? []).length;
+    const envelopeLikeCount = envelopeCount + universalCount;
+    const pageCount = previewMode === "flyer" ? flyerPageCount : previewMode === "envelope" ? envelopeLikeCount : a4PageCount;
     return pageCount > 0 ? pageCount : null;
   }, [previewHtml, previewMode]);
 
@@ -636,6 +643,7 @@ export default function Upload() {
                 <div className="grid min-w-0 grid-cols-1 gap-2 border-r border-slate-200 p-3 sm:grid-cols-2">
                   {([
                     { id: "envelope-9x4" as const, label: "Envelope 9x4", desc: "Dedicated 9 x 4 layout with right-side compact amount/barcode" },
+                    { id: "universal-9x4" as const, label: "Universal 9x4", desc: "Template-driven 9 x 4 layout for all shipment types" },
                     { id: "box" as const, label: "Box Shipment (4 per A4)", desc: "4.1 x 5.8 inch, 2 x 2 grid on A4" },
                     { id: "flyer" as const, label: "Flyer Label (8 per A4)", desc: "105 x 74 mm, 2 x 4 grid, compact layout" },
                   ]).map((opt) => (

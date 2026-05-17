@@ -616,20 +616,17 @@ server.on("error", (err: any) => {
               const queue = getQueue();
               const existingBullJob = await queue.getJob(dbJob.id);
               if (!existingBullJob) {
-                // Job not in queue, re-add it
-                await queue.add(
-                  "generate-pdf",
-                  {
-                    jobId: dbJob.id,
-                    generateLabels: true,
-                    generateMoneyOrder: dbJob.includeMoneyOrders,
-                    autoGenerateTracking: false,
-                    barcodeMode: "manual",
-                    printMode: "labels",
+                // Safe fallback: without persisted render settings (e.g., printMode),
+                // automatic re-enqueue can silently generate a wrong template.
+                await prisma.labelJob.update({
+                  where: { id: dbJob.id },
+                  data: {
+                    status: "FAILED",
+                    error: "Recovery aborted: original queue payload expired and render mode metadata is unavailable",
                   },
-                  { jobId: dbJob.id },
-                );
-                console.log(`[RECOVERY] Re-queued job ${dbJob.id}`);
+                }).catch(() => {});
+                await releaseQueuedLabels(dbJob.userId, dbJob.unitCount || dbJob.recordCount).catch(() => {});
+                console.warn(`[RECOVERY] Marked ${dbJob.id} as FAILED because queue payload was missing`);
               }
             } catch (err) {
               const message = err instanceof Error ? err.message : String(err);

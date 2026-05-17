@@ -236,8 +236,10 @@ const previewUpload = createSpreadsheetUpload();
 
 function parsePrintMode(value: unknown): LabelPrintMode {
   const normalized = String(value ?? "labels").trim().toLowerCase();
+  if (normalized === "universal-9x4" || normalized === "universal_9x4" || normalized === "universal9x4") return "universal-9x4";
   if (normalized === "envelope" || normalized === "envelope-9x4") return "envelope";
   if (normalized === "flyer") return "flyer";
+  if (normalized === "box" || normalized === "a4-multi" || normalized === "labels") return "labels";
   return "labels";
 }
 

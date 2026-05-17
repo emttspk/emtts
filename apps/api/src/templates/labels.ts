@@ -27,7 +27,7 @@ export type LabelOrder = OrderRecord & {
   moneyOrderNumbers?: string[];
 };
 
-export type LabelPrintMode = "labels" | "envelope" | "flyer";
+export type LabelPrintMode = "labels" | "envelope" | "flyer" | "universal-9x4";
 
 function escapeHtml(input: unknown) {
   return String(input ?? "")
@@ -572,6 +572,9 @@ export function renderLabelDocumentHtml(
   opts?: { autoGenerateTracking?: boolean; includeMoneyOrders?: boolean; outputMode?: LabelPrintMode },
 ) {
   const outputMode = opts?.outputMode ?? "labels";
+  if (outputMode === "universal-9x4") {
+    return universal9x4Html(orders, opts);
+  }
   if (outputMode === "envelope") {
     return envelopeHtml(orders, opts);
   }
@@ -591,7 +594,7 @@ export function previewLabelHtml(opts?: {
   const shipmentType = String(opts?.shipmentType ?? "PAR").trim().toUpperCase() || "PAR";
   const includeMoneyOrders = opts?.includeMoneyOrders === true;
   const outputMode = opts?.outputMode ?? "labels";
-  const sampleCount = outputMode === "flyer" ? 8 : outputMode === "envelope" ? 2 : 4;
+  const sampleCount = outputMode === "flyer" ? 8 : outputMode === "envelope" || outputMode === "universal-9x4" ? 2 : 4;
   const sampleOrders = Array.from({ length: sampleCount }, (_, index) => {
     const trackingNumber = buildTrackingId(index + 1, new Date(), shipmentType);
     const grossAmount = 500 + index * 125;
@@ -629,6 +632,91 @@ export function previewLabelHtml(opts?: {
     includeMoneyOrders: includeMoneyOrders && shouldShowValuePayableAmount(shipmentType),
     outputMode,
   });
+}
+
+export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTracking?: boolean; includeMoneyOrders?: boolean }) {
+  const autoGenerateTracking = opts?.autoGenerateTracking === true;
+
+  const template = loadHtmlTemplate(
+    [
+      path.resolve(process.cwd(), "multipage-label.html"),
+      path.resolve(process.cwd(), "apps", "api", "src", "templates", "multipage-label.html"),
+      path.resolve(process.cwd(), "src", "templates", "multipage-label.html"),
+    ],
+    "Universal 9x4 template not found: multipage-label.html",
+  );
+
+  const templateHead = injectSharedPrintCss(template.head.replace(/<script[\s\S]*?<\/script>/gi, ""));
+  const templateBody = template.body.replace(/<script[\s\S]*?<\/script>/gi, "");
+
+  const formatAmount = (value: number) => {
+    if (!Number.isFinite(value)) return "0";
+    return Number.isInteger(value) ? String(value) : value.toFixed(2);
+  };
+
+  const renderSingle = (o: LabelOrder) => {
+    const summary = getLabelAmountSummary(o);
+    const tracking = resolveTracking(o, autoGenerateTracking);
+    const shipmentLabel = displayShipmentType(resolveOrderShipmentType(o));
+    const orderSource = String(o.reference ?? (o as any)?.source ?? (o as any)?.Source ?? (o as any)?.ordered ?? "").trim();
+    const productDetails = String(o.ProductDescription ?? "").trim();
+
+    const amountValue = summary.appliesPakistanPostRules
+      ? summary.moAmount
+      : summary.grossAmount;
+    const commissionValue = summary.appliesPakistanPostRules
+      ? summary.commission
+      : 0;
+    const grossValue = summary.appliesPakistanPostRules
+      ? summary.grossAmount
+      : summary.grossAmount;
+
+    const barcodeBase64 = generateLabelBarcodeBase64(tracking);
+    const barcodeMarkup = barcodeBase64
+      ? `<img src="${barcodeBase64}" alt="Barcode" style="width:100%;max-width:255px;height:42px;display:block;" />`
+      : `<div style="width:100%;max-width:255px;height:42px;border:1px dashed #000;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">${escapeHtml(tracking || "NO TRACKING")}</div>`;
+
+    let html = templateBody;
+
+    const replacements: Array<[string, string]> = [
+      ["{{amount}}", escapeHtml(formatAmount(amountValue))],
+      ["{{tracking_no}}", escapeHtml(tracking || "-")],
+      ["{{customer_name}}", escapeHtml(String(o.consigneeName ?? "").trim())],
+      ["{{customer_address}}", escapeHtml(normalizeAddressLines(o.consigneeAddress))],
+      ["{{customer_city}}", escapeHtml(String(o.receiverCity ?? "").trim())],
+      ["{{customer_phone}}", escapeHtml(String(o.consigneePhone ?? "").trim())],
+      ["{{commission}}", escapeHtml(formatAmount(commissionValue))],
+      ["{{gross_amount}}", escapeHtml(formatAmount(grossValue))],
+      ["{{order_source}}", escapeHtml(orderSource)],
+      ["{{product_details}}", escapeHtml(productDetails)],
+      ["{{sender_name}}", escapeHtml(String((o as any)?.senderName ?? o.shipperName ?? "").trim())],
+      ["{{sender_address}}", escapeHtml(normalizeAddressLines((o as any)?.senderAddress ?? o.shipperAddress ?? ""))],
+      ["{{sender_city}}", escapeHtml(String(o.senderCity ?? "").trim())],
+      ["{{sender_phone}}", escapeHtml(String((o as any)?.senderPhone ?? o.shipperPhone ?? "").trim())],
+    ];
+
+    for (const [token, value] of replacements) {
+      html = html.split(token).join(value);
+    }
+
+    const badgeStyle = shipmentLabel.length > 4
+      ? ` style="font-size:24px;letter-spacing:0.1px;"`
+      : "";
+    html = html.replace(
+      /<span class="vpl-label">[^<]*<\/span>/i,
+      `<span class="vpl-label"${badgeStyle}>${escapeHtml(shipmentLabel)}</span>`,
+    );
+    html = html.replace(/<svg id="barcode"><\/svg>/i, barcodeMarkup);
+    html = html.replace(/<script[\s\S]*?<\/script>/gi, "");
+
+    return `<div class="universal-page">${html}</div>`;
+  };
+
+  const pages = orders.map((order) => renderSingle(order)).join("");
+  const safetyCss = `<style>.universal-page{page-break-after:always;break-after:page;}.universal-page:last-child{page-break-after:auto;break-after:auto;}</style>`;
+  const outputHead = templateHead.replace(/<\/head>/i, `${safetyCss}</head>`);
+
+  return `${outputHead}${pages}${template.tail}`;
 }
 
 export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: boolean; includeMoneyOrders?: boolean }) {
