@@ -1,6 +1,7 @@
 import type { OrderRecord } from "../parse/orders.js";
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { createCanvas } from "canvas";
 import JsBarcode from "jsbarcode";
 import { getSharedPrintFooter, LABEL_STANDARD_CSS, PRINT_MARKETING_LINE, PRINTABLE_FOOTER_CLASS_NAME, PRINTABLE_FOOTER_CSS } from "../lib/printBranding.js";
@@ -1058,25 +1059,19 @@ function resolveStaticMoFrontDataUrl() {
     return staticMoFrontDataUrlCache ?? undefined;
   }
 
-  const candidates = [
-    path.resolve(process.cwd(), "MO", "MO F.png"),
-    path.resolve(process.cwd(), "apps", "api", "templates", "MO F.png"),
-  ];
-
-  for (const candidate of candidates) {
-    try {
-      if (!fs.existsSync(candidate)) continue;
-      const buf = fs.readFileSync(candidate);
-      staticMoFrontDataUrlCache = `data:image/png;base64,${buf.toString("base64")}`;
-      console.log("[MO_STATIC_FRONT_IMAGE]", candidate);
+  const deterministicPath = path.resolve(process.cwd(), "apps", "web", "public", "templates", "mo-front-default.png");
+  try {
+    if (fs.existsSync(deterministicPath)) {
+      staticMoFrontDataUrlCache = pathToFileURL(deterministicPath).href;
+      console.log("[MO_STATIC_FRONT_IMAGE]", deterministicPath);
       return staticMoFrontDataUrlCache;
-    } catch {
-      // Continue trying fallbacks.
     }
+  } catch {
+    // Fall through to deterministic missing-path warning.
   }
 
   staticMoFrontDataUrlCache = null;
-  console.warn("[MO_STATIC_FRONT_IMAGE] Missing static front image: MO F.png");
+  console.warn(`[MO_STATIC_FRONT_IMAGE] Missing deterministic front image: ${deterministicPath}`);
   return undefined;
 }
 
@@ -1463,14 +1458,6 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     () => `<div class="field mono en" style="left:82.56mm;top:116.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;text-align:left;">${escapeHtml(shipperPhone)}</div>`,
   );
 
-  out = replaceNth(
-    out,
-    /(<div class="field mono en" style="left:82\.56mm;top:116\.57mm;width:65\.06mm;font-size:4\.(?:13|35)mm(?:;line-height:1\.06)?(?:;text-align:[a-z]+)?;">[^<]*<\/div>)/g,
-    slotIndex,
-    (_m, p1) =>
-      `${p1}<div class="field strong en" style="left:47.56mm;top:183.69mm;width:86.06mm;font-size:4.25mm;white-space:normal;overflow:visible;text-align:left;">${escapeHtml(senderLine)}</div><div class="field regular en" style="left:15.56mm;top:190.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;text-align:left;">${escapeHtml(shipperAddress)}</div><div class="field mono en" style="left:82.56mm;top:194.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;text-align:left;">${escapeHtml(shipperPhone)}</div>`,
-  );
-
   // Bottom summary block (receiver + MOS + amount)
   out = replaceNth(
     out,
@@ -1713,11 +1700,6 @@ function frontFields(o: OrderRecord) {
     `<div class="field strong en" style="left:47.56mm;top:105.69mm;width:86.06mm;font-size:4.25mm;white-space:normal;overflow:visible;text-align:left;">${escapeHtml(senderLine)}</div>`,
     `<div class="field regular en" style="left:15.56mm;top:112.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;text-align:left;">${escapeHtml(shipperAddress)}</div>`,
     `<div class="field mono en" style="left:82.56mm;top:116.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;text-align:left;">${escapeHtml(shipperPhone)}</div>`,
-
-    // Sender block (second half)
-    `<div class="field strong en" style="left:47.56mm;top:183.69mm;width:86.06mm;font-size:4.25mm;white-space:normal;overflow:visible;text-align:left;">${escapeHtml(senderLine)}</div>`,
-    `<div class="field regular en" style="left:15.56mm;top:190.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;text-align:left;">${escapeHtml(shipperAddress)}</div>`,
-    `<div class="field mono en" style="left:82.56mm;top:194.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;text-align:left;">${escapeHtml(shipperPhone)}</div>`,
 
     // Bottom-left summary block (receiver detail + MO + amount)
     `<div class="field en" style="left:15.56mm;top:174.79mm;width:67.18mm;font-size:1.83mm;line-height:1.12;white-space:normal;">

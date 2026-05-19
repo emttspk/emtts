@@ -39,17 +39,6 @@ export async function applyUniversal9x4MeasurementGuard(page: Page) {
       return rect.height + toNum(style.marginTop) + toNum(style.marginBottom);
     };
 
-    const adjustStylePx = (el: HTMLElement | null, cssProp: string, delta: number, min: number) => {
-      if (!el) return;
-      const computed = getComputedStyle(el);
-      const current = toNum(computed.getPropertyValue(cssProp));
-      if (!Number.isFinite(current) || current <= 0) return;
-      const next = Math.max(min, Number((current + delta).toFixed(2)));
-      if (next < current) {
-        el.style.setProperty(cssProp, `${next}px`);
-      }
-    };
-
     return {
       applied: true,
       pages: labels.map((label, index) => {
@@ -59,20 +48,6 @@ export async function applyUniversal9x4MeasurementGuard(page: Page) {
         const toBox = label.querySelector(".left-column .box:first-child");
         const fromBox = label.querySelector(".left-column .box:nth-child(2)") as HTMLElement | null;
         const promoBox = label.querySelector(".promo-box") as HTMLElement | null;
-        const fromInline = label.querySelector(".from-inline") as HTMLElement | null;
-        const toName = label.querySelector(".to-name") as HTMLElement | null;
-        const toAddress = label.querySelector(".to-address") as HTMLElement | null;
-        const toCity = label.querySelector(".to-city") as HTMLElement | null;
-        const toPhone = label.querySelector(".to-phone") as HTMLElement | null;
-        const promoContent = label.querySelector(".promo-content") as HTMLElement | null;
-        const promoWebsite = label.querySelector(".promo-website") as HTMLElement | null;
-
-        if (fromInline) {
-          fromInline.style.whiteSpace = "nowrap";
-          fromInline.style.overflow = "hidden";
-          fromInline.style.textOverflow = "ellipsis";
-          fromInline.style.display = "block";
-        }
 
         const measure = () => {
           const labelRect = label.getBoundingClientRect();
@@ -106,37 +81,8 @@ export async function applyUniversal9x4MeasurementGuard(page: Page) {
           };
         };
 
-        let metrics = measure();
-        let passes = 0;
-
-        while (
-          passes < 8
-          && (
-            metrics.totalConsumed > PAGE_HEIGHT_LIMIT
-            || metrics.pageHeight > PAGE_HEIGHT_LIMIT + 0.25
-            || metrics.fromFooterOverlap > 0
-            || metrics.promoFooterOverlap > 0
-            || metrics.bodyFooterOverlap > 0
-          )
-        ) {
-          passes += 1;
-          adjustStylePx(body, "padding-top", -1, 6);
-          adjustStylePx(body, "padding-bottom", -1, 6);
-          adjustStylePx(fromBox, "padding-top", -1, 6);
-          adjustStylePx(fromBox, "padding-bottom", -1, 6);
-          adjustStylePx(promoBox, "padding-top", -0.8, 5);
-          adjustStylePx(promoBox, "padding-bottom", -0.8, 5);
-          adjustStylePx(promoBox, "font-size", -0.35, 10);
-          adjustStylePx(promoWebsite, "font-size", -0.35, 11.5);
-          adjustStylePx(footer, "height", -1, 34);
-          adjustStylePx(footer, "font-size", -0.2, 8.5);
-          adjustStylePx(toName, "font-size", -0.4, 20);
-          adjustStylePx(toAddress, "font-size", -0.2, 12);
-          adjustStylePx(toCity, "font-size", -0.2, 12);
-          adjustStylePx(toPhone, "font-size", -0.2, 13);
-          adjustStylePx(promoContent, "gap", -0.4, 1);
-          metrics = measure();
-        }
+        const metrics = measure();
+        const passes = 0;
 
         return {
           ...metrics,
@@ -147,10 +93,11 @@ export async function applyUniversal9x4MeasurementGuard(page: Page) {
   });
 
   if (report.applied) {
+    const PAGE_HEIGHT_LIMIT = 358;
+    const OVERFLOW_TOLERANCE_PX = 0.5;
     const hasOverflow = report.pages.some(
       (pageReport: { totalConsumed: number; pageHeight: number; fromFooterOverlap: number; promoFooterOverlap: number; bodyFooterOverlap: number }) => (
-        pageReport.totalConsumed > 384
-        || pageReport.pageHeight > 384.25
+        pageReport.totalConsumed > PAGE_HEIGHT_LIMIT + OVERFLOW_TOLERANCE_PX
         || pageReport.fromFooterOverlap > 0
         || pageReport.promoFooterOverlap > 0
         || pageReport.bodyFooterOverlap > 0
