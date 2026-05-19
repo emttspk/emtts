@@ -1368,7 +1368,9 @@ const trackingWorker = new Worker(
           latest_time: null,
           days_passed: null,
         }));
-        await getStorageProvider().writeArtifact("json", outPath, JSON.stringify(results, null, 2));
+        // Dual-write tracking result JSON to local + R2
+        const initialSyncContext = { jobId: job.id, artifactType: "trackingResult" as const };
+        await writeArtifactWithDualUpload("json", outPath, JSON.stringify(results, null, 2), initialSyncContext);
         await prisma.trackingJob.update({
           where: { id: job.id },
           data: { status: "PROCESSING", resultPath: path.relative(process.cwd(), outPath) },
@@ -1522,8 +1524,9 @@ const trackingWorker = new Worker(
               };
             }
         }
-        await fs.writeFile(outPath, JSON.stringify(results, null, 2), "utf8");
-
+        // Dual-write final tracking results to local + R2
+        const finalSyncContext = { jobId: job.id, artifactType: "trackingResult" as const };
+        await writeArtifactWithDualUpload("json", outPath, JSON.stringify(results, null, 2), finalSyncContext);
 
         try {
           await refreshTrackingIntelligenceAggregates(job.userId);

@@ -32,6 +32,7 @@ import { enqueueComplaint, findActiveComplaintDuplicate, type ComplaintQueuePayl
 import { extractComplaintHistory } from "../services/complaint.service.js";
 import { processTracking } from "../services/trackingStatus.js";
 import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "../services/trackingIntelligence.js";
+import { logTelemetry } from "../telemetry.js";
 
 export const trackingRouter = Router();
 const inlineRunningJobs = new Set<string>();
@@ -1267,8 +1268,32 @@ trackingRouter.get("/:jobId", requireAuth, async (req, res) => {
       try {
         const raw = await fs.readFile(absPath, "utf8");
         result = JSON.parse(raw);
-      } catch {
-        result = null;
+      } catch (localErr) {
+        // Local read failed; try R2 fallback if synced
+        if (job.resultSyncedAt) {
+          try {
+            const { getNormalizedObjectKey } = await import("../storage/key-normalization.js");
+            const { getDualProviders } = await import("../storage/provider.js");
+            const r2Key = getNormalizedObjectKey(job.id, "trackingResult");
+            const r2Provider = getDualProviders().r2;
+            const r2Data = await r2Provider.readArtifact("json", r2Key);
+            result = JSON.parse(r2Data.toString("utf8"));
+            logTelemetry({
+              event: "tracking_result_stream_success",
+              jobId: job.id,
+              source: "r2_fallback",
+            });
+          } catch (r2Err) {
+            console.warn(`[TrackingRouter] R2 fallback failed for ${job.id}:`, r2Err);
+            logTelemetry({
+              event: "tracking_result_stream_failure",
+              jobId: job.id,
+              source: "r2_fallback",
+              error: r2Err instanceof Error ? r2Err.message : String(r2Err),
+            });
+            result = null;
+          }
+        }
       }
     }
   }

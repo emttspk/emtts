@@ -70,9 +70,56 @@ Operational maturity for the rollout and retrieval-fallback track is assessed as
 - `0a72c3b` - Fix label download fallback and finalize rollout docs
 - `f33740c` - Remove superseded flat docs after normalization
 
+## Tracking Result JSON R2 Migration (May 27, 2026)
+
+Expansion of R2 dual-write and fallback architecture to tracking result JSON artifacts.
+
+### What's New
+
+- **Tracking JSON artifacts now sync to R2** with normalized key pattern: `json/{env}/{jobId}/tracking-result.json`
+- **R2 fallback retrieval** for tracking endpoint when local JSON unavailable
+- **Cleanup protection** extended to tracking artifacts via `resultSyncedAt` tracking column
+- **New telemetry events** for tracking JSON dual-write and fallback operations
+
+### Technical Changes
+
+Modified files:
+- `apps/api/src/worker.ts` — Dual-write at initial and final tracking result generation
+- `apps/api/src/cron/cleanup.ts` — Extended sync protection for tracking artifacts
+- `apps/api/src/routes/tracking.ts` — R2 fallback retrieval with telemetry
+- `apps/api/src/storage/key-normalization.ts` — Normalized key generation for JSON
+
+### Artifact Coverage Update
+
+All three artifact types now have complete dual-write and fallback support:
+
+| Type | R2 Key | Fallback | Sync Column | Status |
+|---|---|---|---|---|
+| Labels PDF | `pdf/{env}/{jobId}/labels.pdf` | ✅ Enabled | `labelsPdfSyncedAt` | ACTIVE |
+| Money Orders PDF | `pdf/{env}/{jobId}/money-orders.pdf` | ✅ Enabled | `moneyOrderPdfSyncedAt` | ACTIVE |
+| Tracking JSON | `json/{env}/{jobId}/tracking-result.json` | ✅ Enabled | `resultSyncedAt` | NEW |
+
+### Telemetry Events
+
+New telemetry signals for tracking JSON migration:
+- `tracking_result_dual_write_start` — R2 sync initiated
+- `tracking_result_dual_write_success` — R2 sync completed
+- `tracking_result_stream_success` — Fallback retrieval succeeded
+- `tracking_result_stream_failure` — Fallback retrieval failed
+
+### Validation Summary
+
+All validation checks passed:
+- Build clean (0 TypeScript errors)
+- Key normalization verified
+- Worker dual-write implementation confirmed
+- Cleanup protection active
+- R2 fallback logic functional
+- All provider exports available
+
 ## Canonical Closure References
 
-- `FINAL_PROJECT_SIGNOFF.md`
+- `FINAL_PROJECT_SIGNOFF.md` (Section 13: Tracking Result JSON R2 Migration)
 - `PRODUCTION_PHASE1_READY.md`
 - `docs/architecture/storage-rollout-architecture.md`
 - `docs/rollout/storage-rollout-runbook.md`

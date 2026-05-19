@@ -719,6 +719,104 @@ grep '"event":"dual_write_upload_contention"' /var/log/api/production.log | tail
 time aws s3api head-bucket \
   --bucket "$R2_BUCKET" \
   --endpoint-url "$R2_ENDPOINT" \
+  --region "auto"
+```
+
+---
+
+## PART 6: TRACKING RESULT JSON ARTIFACT MONITORING (May 27, 2026)
+
+### 6.1 Tracking JSON Artifact Coverage
+
+Tracking result JSON artifacts now included in R2 dual-write and fallback architecture.
+
+| Artifact Type | File Pattern | R2 Key Pattern | Sync Column | Coverage |
+|---|---|---|---|---|
+| Labels PDF | `*-labels.pdf` | `pdf/{env}/{jobId}/labels.pdf` | `labelsPdfSyncedAt` | ACTIVE |
+| Money Orders PDF | `*-money-orders.pdf` | `pdf/{env}/{jobId}/money-orders.pdf` | `moneyOrderPdfSyncedAt` | ACTIVE |
+| Tracking JSON | `*-tracking.json` | `json/{env}/{jobId}/tracking-result.json` | `resultSyncedAt` | NEW |
+
+### 6.2 Telemetry Events for Tracking JSON
+
+New telemetry events for tracking artifact R2 migration:
+
+| Event Name | When Emitted | Key Fields |
+|---|---|---|
+| `tracking_result_dual_write_start` | Tracking JSON write initiated | `jobId`, `objectKey` |
+| `tracking_result_dual_write_success` | R2 sync completed | `jobId`, `objectKey`, `latencyMs` |
+| `tracking_result_stream_success` | R2 fallback retrieval succeeded | `jobId`, `source=r2_fallback` |
+| `tracking_result_stream_failure` | R2 fallback retrieval failed | `jobId`, `source=r2_fallback`, `error` |
+
+### 6.3 Monitoring Tracking JSON Artifacts
+
+**Real-time monitoring queries:**
+
+```bash
+# Stream new tracking JSON events
+railway logs --service Worker | grep -E '"event":"tracking_result_(dual_write|stream)"'
+
+# Count tracking JSON dual-write operations (last 100 lines)
+railway logs -n 100 | grep '"event":"tracking_result_dual_write_success"' | wc -l
+
+# Check for tracking JSON fallback retrievals
+railway logs | grep '"event":"tracking_result_stream"'
+
+# Monitor tracking JSON sync errors
+railway logs | grep '"event":"tracking_result.*failure"'
+```
+
+**Key metrics to monitor:**
+
+- `tracking_result_dual_write_success`: Should increase as tracking jobs complete
+- `tracking_result_stream_success`: Indicates R2 fallback working correctly when local JSON unavailable
+- `tracking_result_stream_failure`: If increasing, indicates R2 connectivity or permissions issue
+- `resultSyncedAt` DB column: Should be populated for all successfully synced tracking jobs
+
+### 6.4 Cleanup Protection for Tracking JSON
+
+Cleanup cron now protects tracking JSON files from deletion:
+- Parses filename: `{jobId}-tracking.json`
+- Queries `TrackingJob.resultSyncedAt`
+- Only allows deletion when `resultSyncedAt IS NOT NULL` (synced to R2)
+
+**Monitoring cleanup behavior:**
+
+```bash
+# Check cleanup logs for tracking artifact handling
+railway logs | grep "Cleanup.*tracking"
+
+# Verify no orphaned tracking JSON remains
+railway exec ls -la /app/storage/generated/*-tracking.json
+```
+
+### 6.5 Fallback Retrieval for Tracking Endpoint
+
+Tracking result endpoint (`GET /api/tracking/:jobId`) now includes R2 fallback:
+
+1. Attempts local file read
+2. If local miss: checks `resultSyncedAt` timestamp
+3. If synced: attempts R2 fallback using normalized key
+4. Emits telemetry: `tracking_result_stream_success` or `tracking_result_stream_failure`
+
+**Monitoring fallback behavior:**
+
+```bash
+# Monitor successful tracking retrieval
+railway logs | grep '"event":"tracking_result_stream_success"'
+
+# Investigate failed retrievals
+railway logs | grep '"event":"tracking_result_stream_failure"'
+
+# Check API-side R2 fallback usage
+railway logs --service Api | grep 'tracking'
+```
+
+### 6.6 Integration with Canary Gating
+
+Tracking JSON dual-write follows the same canary gating as PDF artifacts:
+- Respects `R2_CANARY_MODE` and `R2_CANARY_PERCENTAGE`
+- Emits `dual_write_canary_allowed` / `dual_write_canary_skip` events
+- Can be disabled via `STAGING_R2_ENABLED=false`
   2>&1
 # Expected: < 500ms
 

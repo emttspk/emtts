@@ -32,47 +32,57 @@ async function isSafeToDeletePdfFile(fileName: string): Promise<boolean> {
   }
 
   // Dual-write enabled: check if file is synced to R2
-  const fileNameWithoutExt = fileName.replace(/\.pdf$/, "");
+  const fileNameWithoutExt = fileName.replace(/\.pdf$/, "").replace(/\.json$/, "");
   
   // Try to find the job this file belongs to
-  // File naming: {jobId}-labels.pdf, {jobId}-money-orders.pdf
+  // File naming: {jobId}-labels.pdf, {jobId}-money-orders.pdf, {jobId}-tracking.json
   let jobId: string | null = null;
+  let artifactType: "labels" | "moneyOrders" | "tracking" | null = null;
+  
   if (fileNameWithoutExt.endsWith("-labels")) {
     jobId = fileNameWithoutExt.substring(0, fileNameWithoutExt.length - "-labels".length);
+    artifactType = "labels";
   } else if (fileNameWithoutExt.endsWith("-money-orders")) {
     jobId = fileNameWithoutExt.substring(0, fileNameWithoutExt.length - "-money-orders".length);
+    artifactType = "moneyOrders";
+  } else if (fileNameWithoutExt.endsWith("-tracking")) {
+    jobId = fileNameWithoutExt.substring(0, fileNameWithoutExt.length - "-tracking".length);
+    artifactType = "tracking";
   }
 
-  if (!jobId) {
-    // Not a tracked PDF file (e.g., temp file), safe to delete
+  if (!jobId || !artifactType) {
+    // Not a tracked file, safe to delete
     return true;
   }
 
   // Check if job exists and has sync status
   try {
-    const job = await prisma.labelJob.findUnique({
-      where: { id: jobId },
-      select: {
-        labelsPdfSyncedAt: true,
-        moneyOrderPdfSyncedAt: true,
-      },
-    });
-
-    if (!job) {
-      // Job doesn't exist, safe to delete
-      return true;
+    // For labels and money orders, check LabelJob; for tracking, check TrackingJob
+    if (artifactType === "tracking") {
+      const trackingJob = await prisma.trackingJob.findUnique({
+        where: { id: jobId },
+        select: { resultSyncedAt: true },
+      });
+      if (!trackingJob) return true; // Job doesn't exist, safe to delete
+      return trackingJob.resultSyncedAt !== null; // Safe only if synced
+    } else {
+      const labelJob = await prisma.labelJob.findUnique({
+        where: { id: jobId },
+        select: {
+          labelsPdfSyncedAt: true,
+          moneyOrderPdfSyncedAt: true,
+        },
+      });
+      if (!labelJob) return true; // Job doesn't exist, safe to delete
+      
+      if (artifactType === "labels") {
+        return labelJob.labelsPdfSyncedAt !== null; // Safe only if synced
+      } else if (artifactType === "moneyOrders") {
+        return labelJob.moneyOrderPdfSyncedAt !== null; // Safe only if synced
+      }
     }
-
-    if (fileNameWithoutExt.endsWith("-labels")) {
-      // Check labels PDF sync status
-      return job.labelsPdfSyncedAt !== null;
-    } else if (fileNameWithoutExt.endsWith("-money-orders")) {
-      // Check money order PDF sync status
-      return job.moneyOrderPdfSyncedAt !== null;
-    }
-
-    // Shouldn't reach here, but default to safe
-    return true;
+    
+    return true; // Shouldn't reach here, default to safe
   } catch (err) {
     // Error checking DB, default to not deleting (safer)
     console.warn(`[Cleanup] Error checking sync status for ${fileName}:`, err);

@@ -13,29 +13,31 @@ export function getEnvironmentName(): string {
 
 /**
  * Returns the normalized R2 object key for a given job/artifact.
- * Format: pdf/{env}/{jobId}/{type}.pdf
+ * Format: pdf/{env}/{jobId}/{type}.pdf or json/{env}/{jobId}/{type}.json
  */
 export function getNormalizedObjectKey(
   jobId: string,
   artifactType: "labelsPdf" | "moneyOrderPdf" | "trackingResult"
 ): string {
   const env = getEnvironmentName();
+  if (artifactType === "trackingResult") {
+    return `json/${env}/${jobId}/tracking-result.json`;
+  }
   const type =
     artifactType === "labelsPdf"
       ? "labels"
       : artifactType === "moneyOrderPdf"
       ? "money-orders"
-      : artifactType === "trackingResult"
-      ? "tracking"
       : "unknown";
   return `pdf/${env}/${jobId}/${type}.pdf`;
 }
 
 /**
- * Returns true if the key matches the normalized format.
+ * Returns true if the key matches the normalized format (PDF or JSON).
  */
 export function isNormalizedKey(key: string): boolean {
-  return /^pdf\/(staging|production|development|test)\/[^/]+\/(labels|money-orders|tracking)\.pdf$/.test(key);
+  return /^pdf\/(staging|production|development|test)\/[^/]+\/(labels|money-orders|tracking)\.pdf$/.test(key) ||
+         /^json\/(staging|production|development|test)\/[^/]+\/tracking-result\.json$/.test(key);
 }
 
 /**
