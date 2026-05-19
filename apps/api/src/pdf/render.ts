@@ -17,7 +17,8 @@ async function waitForPdfFonts(page: Page) {
 
 export async function applyUniversal9x4MeasurementGuard(page: Page) {
   const report = await page.evaluate(() => {
-    const PAGE_HEIGHT_LIMIT = 384;
+    // .label is 384px total (9in×4in), minus 24px padding (top+bottom) and 2px border (top+bottom) = 358px actual content area
+    const PAGE_HEIGHT_LIMIT = 358;
     const labels = Array.from(document.querySelectorAll(".universal-page .label"));
     if (labels.length === 0) {
       return {

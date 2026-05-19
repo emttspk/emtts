@@ -1452,7 +1452,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
   );
   out = replaceNth(
     out,
-    /<div class="field regular en" style="left:[0-9.]+mm;top:112\.15mm;width:65\.06mm;font-size:3\.(?:13|35)mm;white-space:normal;line-height:1\.(?:06|12);">[^<]*<\/div>/g,
+    /<div class="field regular en" style="left:[0-9.]+mm;top:112\.15mm;width:65\.06mm;font-size:3\.(?:13|35)mm;white-space:normal;line-height:1\.(?:06|12)(?:;text-align:[a-z]+)?;">[^<]*<\/div>/g,
     slotIndex,
     () => `<div class="field regular en" style="left:15.56mm;top:112.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;text-align:left;">${escapeHtml(shipperAddress)}</div>`,
   );
@@ -1465,7 +1465,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
 
   out = replaceNth(
     out,
-    /(<div class="field mono en" style="left:82\.56mm;top:116\.57mm;width:65\.06mm;font-size:4\.(?:13|35)mm(?:;line-height:1\.06)?;">[^<]*<\/div>)/g,
+    /(<div class="field mono en" style="left:82\.56mm;top:116\.57mm;width:65\.06mm;font-size:4\.(?:13|35)mm(?:;line-height:1\.06)?(?:;text-align:[a-z]+)?;">[^<]*<\/div>)/g,
     slotIndex,
     (_m, p1) =>
       `${p1}<div class="field strong en" style="left:47.56mm;top:183.69mm;width:86.06mm;font-size:4.25mm;white-space:normal;overflow:visible;text-align:left;">${escapeHtml(senderLine)}</div><div class="field regular en" style="left:15.56mm;top:190.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;text-align:left;">${escapeHtml(shipperAddress)}</div><div class="field mono en" style="left:82.56mm;top:194.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;text-align:left;">${escapeHtml(shipperPhone)}</div>`,
