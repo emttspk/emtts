@@ -69,3 +69,12 @@ tasks.json
 
 # Exclude ISOLATION_STRATEGY.md (local-only documentation strategy)
 ISOLATION_STRATEGY.md
+
+# One-off maintenance and migration helpers
+scripts/tmp-*.js
+scripts/tmp-*.mjs
+scripts/tmp-*.ts
+scripts/tmp-*.cjs
+
+# Transient maintenance snapshots (retain only curated final docs/manifests)
+MAINTENANCE-SNAPSHOT-TEMP*.md
