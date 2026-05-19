@@ -42,7 +42,7 @@
 
 | File | Type | Impact |
 |------|------|--------|
-| [docs/final-production-go-live-checklist.md](docs/final-production-go-live-checklist.md) | NEW | Comprehensive 10-part operator checklist with exact required env vars, forbidden combinations, startup expectations, first-hour validation, 24-hour validation, rollback triggers, no-go conditions, success criteria, rollback commands, and signoff section |
+| [docs/rollout/final-production-go-live-checklist.md](docs/rollout/final-production-go-live-checklist.md) | NEW | Comprehensive 10-part operator checklist with exact required env vars, forbidden combinations, startup expectations, first-hour validation, 24-hour validation, rollback triggers, no-go conditions, success criteria, rollback commands, and signoff section |
 
 ---
 
@@ -92,7 +92,7 @@ This causes process.exit(1) at startup (config.ts L150-153).
 - ✅ Explained **why** this requirement exists (cleanup authority, deletion safety)
 - ✅ Added NO-GO condition: any STORAGE_PROVIDER=r2 setting during Phase 1-4
 - ✅ Added pre-flight verification: `echo $STORAGE_PROVIDER` check
-- ✅ Created [docs/final-production-go-live-checklist.md](docs/final-production-go-live-checklist.md) with explicit checklist item
+- ✅ Created [docs/rollout/final-production-go-live-checklist.md](docs/rollout/final-production-go-live-checklist.md) with explicit checklist item
 
 **Why This Matters:** Without this fix, operators could accidentally enable R2 deletion, resulting in permanent data loss.
 
@@ -222,7 +222,7 @@ LOG_KEY_VERSIONS_IN_TELEMETRY: This flag is defined but NOT actively checked in 
 - ✅ Deprecated old docs with explicit SUPERSEDED warnings
 - ✅ Added deprecation notices at top of PRODUCTION_ROLLOUT_READINESS.md and FINAL_EXECUTION_REPORT_PHASE_9B.md
 - ✅ Created authoritative single-source reference: [docs/production-phase1-activation-runbook.md](docs/production-phase1-activation-runbook.md)
-- ✅ Created comprehensive operator checklist: [docs/final-production-go-live-checklist.md](docs/final-production-go-live-checklist.md)
+- ✅ Created comprehensive operator checklist: [docs/rollout/final-production-go-live-checklist.md](docs/rollout/final-production-go-live-checklist.md)
 - ✅ Added exact pre-flight checks in checklist
 
 **Residual Risk:** LOW (clear, explicit warnings now in place)
@@ -263,7 +263,7 @@ LOG_KEY_VERSIONS_IN_TELEMETRY: This flag is defined but NOT actively checked in 
 **Scenario:** Flag combinations differ between staging/production; operators assume same behavior
 
 **Mitigation:**
-- ✅ Created authoritative Phase 1 flag set in [docs/final-production-go-live-checklist.md](docs/final-production-go-live-checklist.md)
+- ✅ Created authoritative Phase 1 flag set in [docs/rollout/final-production-go-live-checklist.md](docs/rollout/final-production-go-live-checklist.md)
 - ✅ Documented exact required values for each flag
 - ✅ Documented exact forbidden combinations
 - ✅ Added pre-flight checks to verify flag values match requirements
@@ -337,7 +337,7 @@ LOG_KEY_VERSIONS_IN_TELEMETRY: This flag is defined but NOT actively checked in 
 ### Phase 1 Activation (Next ~24 hours)
 
 1. **Obtain stakeholder sign-off** (if not already done in pre-flight)
-2. **Verify all 15 pre-flight checks** from [docs/final-production-go-live-checklist.md](docs/final-production-go-live-checklist.md)
+2. **Verify all 15 pre-flight checks** from [docs/rollout/final-production-go-live-checklist.md](docs/rollout/final-production-go-live-checklist.md)
 3. **Deploy Phase 1 flag set** exactly as specified
 4. **Monitor first-hour validation** (5 checkpoints)
 5. **Monitor 24-hour validation** (hourly checks)
@@ -346,7 +346,7 @@ LOG_KEY_VERSIONS_IN_TELEMETRY: This flag is defined but NOT actively checked in 
 
 ### Documentation References
 
-- **Pre-Activation:** [docs/final-production-go-live-checklist.md](docs/final-production-go-live-checklist.md) (start here!)
+- **Pre-Activation:** [docs/rollout/final-production-go-live-checklist.md](docs/rollout/final-production-go-live-checklist.md) (start here!)
 - **Activation Details:** [docs/production-phase1-activation-runbook.md](docs/production-phase1-activation-runbook.md)
 - **Rollback Reference:** [docs/production-rollback-drill.md](docs/production-rollback-drill.md)
 - **Readiness Summary:** [PRODUCTION_PHASE1_READY.md](PRODUCTION_PHASE1_READY.md)

@@ -514,4 +514,4 @@ const duration = metrics.endTimer(); // If this throws, upload fails
 - [S1 Execution Runbook](s1-execution-runbook.md)
 - [Telemetry Interpretation](s1-telemetry-interpretation.md)
 - [Rollback Procedure](s1-execution-runbook.md#rollback-from-s1)
-- [Architecture Overview](storage-rollout-architecture.md)
+- [Architecture Overview](architecture/storage-rollout-architecture.md)

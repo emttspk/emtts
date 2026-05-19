@@ -232,3 +232,198 @@ START_WORKER_IN_API=false   # permanent in Railway Api env
 
 All operational blockers resolved. No further development work required.
 The embedded worker fallback env flag remains available for emergency rollback only.
+
+---
+
+## 10) Canary Expansion Validation (25% -> 50%) — May 19, 2026
+
+### Configuration and Deployments
+
+| Service | Deployment ID | Status | Canary Percentage |
+|---|---|---|---|
+| Api | `4ebcea29-fa1b-46c6-97c5-3c13149267f5` | SUCCESS | 50 |
+| Worker | `fdd4d715-9953-45bb-944e-58a760272e5b` | SUCCESS | 50 |
+
+Worker runtime evidence after deployment:
+- `event="canary_runtime_configuration" ... mode="job-percentage" percentage=50`
+
+### Validation Traffic Executed
+
+Because the original debug account entered lockout/invalid-credential state, validation was executed through smoke automation that produced real uploaded jobs and full worker processing.
+
+Validated job IDs (11):
+- `01aba4ce-55d5-4b41-995f-8949e8d22883`
+- `5506d431-2ddf-44c8-bf62-21e3d1e02ad9`
+- `6a7cb98b-97e5-450d-b31a-1f84aa5fc53b`
+- `32b97683-5462-4837-9c9b-bb8291a6b92c`
+- `a89c313f-ca5f-4312-9db1-1e22f81ba570`
+- `055064a8-ac5d-4c24-ab37-1cc1772a7f1b`
+- `5138b08b-a284-4b57-aea2-359d615ca720`
+- `2e51d346-cf39-455a-a8b3-7a914b2d8220`
+- `7f5af1b0-a517-4388-b1cb-ad4f3e14e887`
+- `95b5ee79-ce2d-498c-bc11-f2db08de1e14`
+- `c1246655-f905-40c2-8e00-0ea3a6b161c9`
+
+### Telemetry Summary (Worker)
+
+Observed across validation window:
+- `JOB COMPLETED`: 11/11
+- `dual_write_canary_allowed`: 4/11
+- `dual_write_canary_skip` (percentage gate): 7/11
+- `dual_write_success`: 4/4 allowed jobs
+- `r2_upload_failed`: 0 observed
+
+Worker stability signals:
+- Dedicated Worker processed all jobs end-to-end.
+- ENOENT on container-local `filePath` occurred as expected in worker-only topology.
+- `fileBuffer` fallback engaged and completed successfully for each affected job.
+- No job-level crash or terminal worker failure observed in the sampled validation set.
+
+### API Retrieval Observation (New Blocker)
+
+For the same completed jobs, smoke validation repeatedly observed:
+
+```
+PDF download failed (404): {"success":false,"message":"File not found on disk"}
+```
+
+Correlated API logs indicate repeated dual-read fallback attempts (`event="dual_read_fallback"`) and compatibility lookup bypass, while `/api/jobs/{id}/download/labels` returns not found.
+
+### Operational Decision at 50%
+
+Status: CONDITIONAL PASS (PROCESSING PATH ONLY)
+
+What is validated:
+- 50% canary gating runtime is active and functioning.
+- Dedicated Worker processing path is stable.
+- Dual-write to R2 succeeds when canary allows.
+
+What is not validated / currently blocked:
+- Reliable API label retrieval path (`/download/labels`) for completed jobs.
+
+### 100% Rollout Readiness
+
+Decision: NOT READY for 100% canary rollout.
+
+Reason:
+- Customer-visible retrieval regression risk remains (`download/labels` 404 after completed jobs).
+
+Required next gate before 100%:
+1. Fix API artifact lookup/read path so completed jobs are downloadable.
+2. Re-run validation (minimum 10 jobs) and confirm:
+  - `JOB COMPLETED` for all
+  - successful label download for all
+  - expected canary distribution and `dual_write_success` on allowed cohort
+3. Re-issue final 100% GO/NO-GO signoff.
+
+---
+
+## 11) Download Path Resolution Hardening — Final Closure (May 19, 2026)
+
+### Forensic Classification
+
+VERIFIED:
+- Worker completed jobs were writing labels to worker-local disk and, when canary-allowed, replicating to R2 under normalized keys: `pdf/production/{jobId}/labels.pdf`.
+- API download fallback was probing R2 using the worker-local stored path shape (`generated/{jobId}-labels.pdf` semantics) instead of the normalized R2 key fragment derived from `jobId + artifactType`.
+- This caused deterministic `404 File not found on disk` for completed jobs even when the R2 object existed.
+- After the code fix, API fallback probes `production/{jobId}/labels.pdf` and streams successfully from R2.
+- The remaining 404s observed during 50% validation were all on `dual_write_canary_skip` jobs. Those jobs had no R2 replica, and API could not access worker-local disk in dedicated-worker topology.
+
+NOT OBSERVED:
+- No evidence of early cleanup removing artifacts during the validation window.
+- No `r2_upload_failed` during final 100% validation.
+- No worker crash or job failure in final validation cohort.
+
+INCONCLUSIVE:
+- None required for rollout decision. The retrieval failure mode is sufficiently explained by verified lookup mismatch plus canary-skip behavior.
+
+### Minimal Safe Fix Implemented
+
+File changed:
+- `apps/api/src/storage/paths.ts`
+
+Operational change:
+- Local-first behavior remains unchanged.
+- When local artifact resolution fails and metadata is available (`jobId`, `artifactType`), API now probes R2 using the normalized key fragment instead of the worker-local stored path.
+
+Rollback:
+- Immediate code rollback to previous Api deployment.
+- No schema, queue, worker-isolation, cleanup, or canary-framework changes were required.
+
+### Build / Type Validation
+
+Executed successfully:
+- `npm run build --workspace=@labelgen/api`
+- `npm run typecheck --workspace=@labelgen/api`
+
+### 100% Rollout Activation
+
+| Service | Deployment ID | Status | Runtime |
+|---|---|---|---|
+| Api | `73754e3a-f187-4855-8af4-3cdc41475ce5` | SUCCESS | 100% |
+| Worker | `ae8f77c5-ba5f-4b49-8fce-88b6efc62d6f` | SUCCESS | 100% |
+
+Worker runtime confirmation:
+- `event="canary_runtime_configuration" ... percentage=100`
+
+### Final Validation Jobs (100% Rollout)
+
+Validated jobs (10/10 successful):
+- `2b37df53-9e9a-45b8-b2e5-8079815a21b9`
+- `c239a2b6-ab0d-4f54-86eb-dfa15a6c8d59`
+- `d76e0667-2140-44fb-a6ec-b035b6d1ba20`
+- `7bb62edf-686a-44be-bf9d-f06779c477f8`
+- `8b1f85f6-d240-4b03-9abe-af8142cd147f`
+- `5a4bff2f-9889-415a-9986-fcc540e9aadc`
+- `64dc71e6-e98a-4db8-9384-3ea62d7faf58`
+- `e27fb499-bac5-46f7-9028-a0868358e802`
+- `9ae1450e-a782-4d16-b9c4-c2b7d878fb4e`
+- `9359cd62-020a-4724-90b0-aaecdf25e6da`
+
+Validated for each job:
+- completion
+- PDF generation
+- worker-local persistence
+- dual-write success
+- API download success
+- no `404 File not found on disk`
+
+### Final Telemetry Outcome
+
+Observed during final validation:
+- `dual_write_canary_allowed`: all validated jobs
+- `dual_write_success`: observed across final cohort
+- `dual_read_fallback` -> `provider_fallback=r2` -> `stream_success`
+- `stream_failure`: not observed in final cohort
+- `stream_timeout`: not observed in final cohort
+- `r2_upload_failed`: not observed in final cohort
+
+Cleanup race assessment:
+- No telemetry evidence of cleanup racing successful downloads during the final validation window.
+
+### Repository Documentation Normalization
+
+Structured docs folders created:
+- `docs/architecture/`
+- `docs/operations/`
+- `docs/rollout/`
+- `docs/forensics/`
+
+Stable docs were moved from the flat `docs/` layout into those folders and internal references were updated.
+
+Additional cleanup:
+- `.env.staging.local.example` scrubbed back to placeholders
+- `.gitignore` hardened for transient backups/temp artifacts while preserving operational docs
+
+### Final Decision
+
+Production closeout status: APPROVED
+
+Decision:
+- 100% rollout is now safe.
+
+Reasoning:
+- Retrieval lookup defect is fixed.
+- 100% rollout removes the canary-skip cohort that could not be served under dedicated-worker/local-only authority.
+- 10/10 final validation jobs completed and downloaded successfully.
+- Rollback remains immediate through prior Railway deployments.

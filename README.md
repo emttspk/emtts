@@ -229,14 +229,14 @@ BulkTracking.tsx  →  POST /api/tracking/complaint  →  Python /submit-complai
 - Sourced from `usage_logs` table, exposed via `/api/me` balances
 
 ### Docs
- - [docs/local-bootstrap.md](docs/local-bootstrap.md) — Complete local PostgreSQL + Redis bootstrap guide for development and S0 validation
- - [docs/storage-rollout-architecture.md](docs/storage-rollout-architecture.md) — Final storage/rollout architecture (API/worker, dual-write/read, streaming fallback)
- - [docs/storage-rollout-runbook.md](docs/storage-rollout-runbook.md) — Staging/canary rollout, startup readiness states, rollback, outage, degraded mode, memory and cleanup runbook
- - [docs/complaints.md](docs/complaints.md) — Full complaint lifecycle and duplicate handling
- - [docs/system-map.md](docs/system-map.md) — Module dependency map
-- [docs/package-usage.md](docs/package-usage.md) — Complaint quota tracking
-- [docs/help-complaint-recovery.md](docs/help-complaint-recovery.md) — Recovery procedures
-- [docs/help-complaint-timeouts.md](docs/help-complaint-timeouts.md) — Timeout troubleshooting
+ - [docs/operations/local-bootstrap.md](docs/operations/local-bootstrap.md) — Complete local PostgreSQL + Redis bootstrap guide for development and S0 validation
+ - [docs/architecture/storage-rollout-architecture.md](docs/architecture/storage-rollout-architecture.md) — Final storage/rollout architecture (API/worker, dual-write/read, streaming fallback)
+ - [docs/rollout/storage-rollout-runbook.md](docs/rollout/storage-rollout-runbook.md) — Staging/canary rollout, startup readiness states, rollback, outage, degraded mode, memory and cleanup runbook
+ - [docs/architecture/complaints.md](docs/architecture/complaints.md) — Full complaint lifecycle and duplicate handling
+ - [docs/architecture/system-map.md](docs/architecture/system-map.md) — Module dependency map
+- [docs/architecture/package-usage.md](docs/architecture/package-usage.md) — Complaint quota tracking
+- [docs/operations/help-complaint-recovery.md](docs/operations/help-complaint-recovery.md) — Recovery procedures
+- [docs/operations/help-complaint-timeouts.md](docs/operations/help-complaint-timeouts.md) — Timeout troubleshooting
 
 
 - Upload limit: max 5000 records per file (CSV/XLSX).

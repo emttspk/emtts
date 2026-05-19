@@ -27,6 +27,14 @@ smoke-*.pdf
 # Generated runtime validation outputs and Puppeteer artifacts
 storage/generated/
 forensic-artifacts/
+apps/api/backups/
+telemetry-staging.log
+temp-*.json
+temp-*.mjs
+temp-*.ts
+apps/api/temp-*.json
+apps/api/temp-*.mjs
+apps/api/temp-*.cjs
 **/render-proof-*/
 **/render-proof-*.html
 **/render-proof-*.pdf
@@ -54,4 +62,3 @@ EP Gateway/.venv/
 # Local-only operational documentation (bootstrap, audits, rollout, recovery)
 # Machine-specific findings, execution reports, and deployment guides stay local
 .local-docs/
-ISOLATION_STRATEGY.md

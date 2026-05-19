@@ -476,8 +476,8 @@ Once S1 validation complete:
 
 ## References
 
-- [Storage Rollout Architecture](docs/storage-rollout-architecture.md)
-- [Dual-Write Safety](docs/storage-rollout-runbook.md)
+- [Storage Rollout Architecture](architecture/storage-rollout-architecture.md)
+- [Dual-Write Safety](rollout/storage-rollout-runbook.md)
 - [R2 Troubleshooting](docs/r2-troubleshooting.md)
 - [Telemetry Guide](docs/s1-telemetry-interpretation.md)
 - [Safety Rules](docs/s1-staging-safety-rules.md)

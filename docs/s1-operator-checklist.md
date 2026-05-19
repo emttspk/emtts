@@ -603,7 +603,7 @@ Final evidence: [PHASE-4-LIVE-CANARY-FINAL-REPORT.md](PHASE-4-LIVE-CANARY-FINAL-
 - [S1 Safety Rules](s1-staging-safety-rules.md) - Core constraints
 - [S1 Telemetry Interpretation](s1-telemetry-interpretation.md) - Event reference
 - [R2 Troubleshooting](r2-troubleshooting.md) - Problem solving
-- [Storage Architecture](storage-rollout-architecture.md) - Technical overview
+- [Storage Architecture](architecture/storage-rollout-architecture.md) - Technical overview
 
 ---
 

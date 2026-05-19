@@ -453,7 +453,7 @@ All documentation is in `docs/` directory:
 - [s1-telemetry-interpretation.md](docs/s1-telemetry-interpretation.md) - Event reference guide
 - [s1-staging-safety-rules.md](docs/s1-staging-safety-rules.md) - Safety constraints reference
 - [r2-troubleshooting.md](docs/r2-troubleshooting.md) - Problem solving guide
-- [storage-rollout-architecture.md](docs/storage-rollout-architecture.md) - Technical overview
+- [storage-rollout-architecture.md](architecture/storage-rollout-architecture.md) - Technical overview
 
 ---
 

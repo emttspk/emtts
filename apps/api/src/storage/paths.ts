@@ -6,6 +6,7 @@ import { env } from "../config.js";
 import { UPLOAD_DIR } from "../utils/paths.js";
 import { getDualProviders, storageFeatureFlags } from "./provider.js";
 import type { R2ReadCompatibilityOptions } from "./R2StorageProvider.js";
+import { getNormalizedObjectKey } from "./key-normalization.js";
 
 export function appRoot() {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -80,6 +81,14 @@ export async function waitForStoredFile(storedPath: string, attempts = 8, delayM
 
 // Quick R2 existence check (fail-fast, no retries)
 // Returns true if R2 file exists, false otherwise (including errors)
+function resolveR2FallbackKey(storedPath: string, options?: R2ReadCompatibilityOptions): string {
+  if (options?.jobId && options?.artifactType) {
+    return getNormalizedObjectKey(options.jobId, options.artifactType).replace(/^pdf\//, "");
+  }
+
+  return storedPath;
+}
+
 async function checkR2ExistsQuick(
   storedPath: string,
   timeoutMs = 2000,
@@ -91,7 +100,8 @@ async function checkR2ExistsQuick(
 
   try {
     const r2Provider = getDualProviders().r2;
-    const promise = r2Provider.artifactExists("pdf", storedPath, options);
+    const r2Key = resolveR2FallbackKey(storedPath, options);
+    const promise = r2Provider.artifactExists("pdf", r2Key, options);
     
     // Race against timeout to fail fast
     const timeoutPromise = new Promise<boolean>((_, reject) =>
@@ -114,6 +124,7 @@ export async function waitForStoredFileWithFallback(
   options?: R2ReadCompatibilityOptions
 ): Promise<{path: string, provider: 'local' | 'r2'} | null> {
   const absPath = resolveStoredPath(storedPath);
+  const r2Key = resolveR2FallbackKey(storedPath, options);
   
   // PHASE 1: Try local first (8 attempts, normal polling cadence)
   for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -139,23 +150,23 @@ export async function waitForStoredFileWithFallback(
       logTelemetry({
         event: "dual_read_fallback",
         provider: "r2",
-        objectKey: storedPath,
+        objectKey: r2Key,
       });
       const r2Exists = await checkR2ExistsQuick(storedPath, 2000, options);
       if (r2Exists) {
         logTelemetry({
           event: "provider_fallback",
           provider: "r2",
-          objectKey: storedPath,
+          objectKey: r2Key,
         });
-        return { path: storedPath, provider: 'r2' };
+        return { path: r2Key, provider: 'r2' };
       }
     } catch (err) {
       const { logTelemetry } = await import("../telemetry.js");
       logTelemetry({
         event: "provider_fallback",
         provider: "r2",
-        objectKey: storedPath,
+        objectKey: r2Key,
         error: err instanceof Error ? err.message : String(err),
       });
     }

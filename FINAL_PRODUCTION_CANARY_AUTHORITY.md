@@ -174,7 +174,7 @@ Warning escalation (prepare rollback):
 Use documents in this exact order:
 
 1. FINAL_PRODUCTION_CANARY_AUTHORITY.md (this file)
-2. docs/final-production-go-live-checklist.md
+2. docs/rollout/final-production-go-live-checklist.md
 3. docs/production-phase1-activation-runbook.md
 4. docs/production-canary-monitoring.md
 5. docs/production-rollback-drill.md

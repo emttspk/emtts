@@ -218,6 +218,63 @@ DUAL_KEY_LOOKUP_ENABLED=true
 ## PART 5: KNOWN OPERATIONAL RISKS
 
 | Risk | Severity | Likelihood | Mitigation | Residual |
+
+---
+
+## FINAL UPDATE — DOWNLOAD RETRIEVAL HARDENING CLOSED (May 19, 2026)
+
+### Verified Root Cause
+
+- Dedicated Worker writes authoritative local artifacts inside its own container.
+- Api download fallback originally used the worker-local stored path shape when probing R2.
+- Actual replicated objects were stored under normalized keys: `pdf/production/{jobId}/labels.pdf`.
+- Result: completed jobs could still return `404 File not found on disk` even though an R2 mirror existed.
+
+### Verified Fix
+
+- Api fallback now derives the R2 probe key from `jobId + artifactType` when local resolution fails.
+- Local-first authority remains preserved.
+- Worker isolation, queue ownership, cleanup semantics, and canary framework were not changed.
+
+### 50% Validation Interpretation
+
+- Retrieval successes after the fix proved the lookup correction.
+- Residual 404s at 50% were limited to `dual_write_canary_skip` jobs.
+- Those jobs had no R2 replica, so Api had no accessible download source under dedicated-worker topology.
+
+### 100% Rollout Validation
+
+Deployments:
+- Api: `73754e3a-f187-4855-8af4-3cdc41475ce5` — SUCCESS
+- Worker: `ae8f77c5-ba5f-4b49-8fce-88b6efc62d6f` — SUCCESS
+
+Runtime confirmation:
+- Worker emitted `canary_runtime_configuration ... percentage=100`
+
+Final validation outcome:
+- 10/10 real uploads completed successfully
+- 10/10 labels downloads succeeded
+- `dual_write_success` observed
+- No final-window `404 File not found on disk`
+- No `r2_upload_failed` observed
+
+### Final Repository Structure
+
+Normalized stable documentation now lives under:
+- `docs/architecture/`
+- `docs/operations/`
+- `docs/rollout/`
+- `docs/forensics/`
+
+Root signoff/readiness docs remain at repository root for operational visibility.
+
+### Final Recommendation
+
+Status: READY FOR FULL PRODUCTION
+
+- 100% rollout is safe.
+- Dedicated-worker architecture is operationally complete for labels generation and retrieval.
+- Rollback remains available via prior Railway deployments if needed.
 |---|---|---|---|---|
 | R2 outage during Phase 1 | HIGH | Very Low | Local-first auth; retry logic; semaphore | LOW |
 | R2 latency spike (>30s) | MEDIUM | Low | withTimeout(30s); r2TimeoutCounter alerts | LOW |
