@@ -62,3 +62,10 @@ EP Gateway/.venv/
 # Local-only operational documentation (bootstrap, audits, rollout, recovery)
 # Machine-specific findings, execution reports, and deployment guides stay local
 .local-docs/
+
+# Additions for untracked files and local-only artifacts
+# Exclude tasks.json (local-only task runner config)
+tasks.json
+
+# Exclude ISOLATION_STRATEGY.md (local-only documentation strategy)
+ISOLATION_STRATEGY.md

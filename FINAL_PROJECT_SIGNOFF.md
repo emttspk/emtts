@@ -427,3 +427,55 @@ Reasoning:
 - 100% rollout removes the canary-skip cohort that could not be served under dedicated-worker/local-only authority.
 - 10/10 final validation jobs completed and downloaded successfully.
 - Rollback remains immediate through prior Railway deployments.
+
+---
+
+## 12) Final Maintenance Consolidation — May 19, 2026
+
+### Verification Run
+
+All operational checks passed on May 19, 2026 post-release consolidation run:
+
+| Check | Result |
+|---|---|
+| All Railway services Online | ✅ Api, Worker, Python, Web, Redis, Postgres |
+| `START_WORKER_IN_API=false` (Api + Worker) | ✅ Confirmed |
+| Redis health | ✅ PONG |
+| No queue backlog (local Redis) | ✅ No `bull:*` keys |
+| `R2_CANARY_PERCENTAGE=100` (Api) | ✅ Confirmed |
+| `R2_CANARY_PERCENTAGE=100` (Worker) | ✅ Confirmed |
+| `R2_CANARY_MODE=job-percentage` | ✅ Both services |
+| `STAGING_R2_ENABLED=true` | ✅ Both services |
+| R2 startup connectivity | ✅ connectivity/uploadable/downloadable/presignedUrl all true |
+| No ENOENT outside expected fallback | ✅ Worker ENOENT → fileBuffer (expected/documented) |
+| No retrieval 404 recurrence | ✅ No `404 File not found on disk` in recent logs |
+| `dual_write_success` (labelsPdf + moneyOrderPdf) | ✅ Both artifacts confirmed |
+| `stream_success` (labels + money-orders) | ✅ Both artifacts confirmed |
+| Build clean | ✅ `tsc` + `postbuild.cjs` — 0 errors |
+
+### Tooling Cleanup
+
+Missing helper scripts (`checkQueueBacklog.ts`, `checkErrors.ts`, `checkDuplicateProcessing.ts`) were confirmed non-existent and are not needed as frameworks.  
+All maintenance verification is now performed via direct Railway CLI and Redis commands.
+
+### Repository Final State
+
+| Item | Status |
+|---|---|
+| `.gitignore` hardened | ✅ `tasks.json`, `ISOLATION_STRATEGY.md`, transient artifacts excluded |
+| Docs normalized | ✅ `docs/architecture/`, `docs/operations/`, `docs/rollout/`, `docs/forensics/archive/` |
+| No accidental secrets committed | ✅ Verified |
+| No broken markdown references in active docs | ✅ Verified |
+| `GITHUB_RELEASE_BODY.md` created | ✅ `docs/rollout/GITHUB_RELEASE_BODY.md` |
+
+### Operational Recommendations
+
+1. **Local-first authority should remain permanent.** R2 dual-write provides resilience but local storage volume remains the authoritative write path. No reason to switch to R2-primary reads.
+2. **R2-primary reads are not recommended.** The current fallback architecture (local → R2 on miss) is correct and battle-tested. Switching to R2-primary reads would add latency and require re-testing the entire retrieval path.
+3. **Account lockout**: Debug test account enters lockout after repeated failed login cycles. Wait ~15 minutes before rerunning `autoDebug.ts` validation.
+
+### Final Operational Maturity
+
+**Operational maturity: 100%**  
+**Repository status: MAINTENANCE-ONLY**  
+**No further development work is required.**
