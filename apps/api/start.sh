@@ -98,18 +98,19 @@ case "$MODE" in
   #   shutdown
   #   exit "${EXIT_CODE:-1}"
   #   ;;
+  worker)
+    if [ -z "${DATABASE_URL:-}" ]; then
+      echo "[startup] Worker mode: DATABASE_URL missing; starting idle process to avoid restart loop"
+      exec node deploy/worker-idle/idle.js
+    fi
+    echo "[startup] Running prisma generate (worker mode — skipping migrate deploy)..."
+    npx prisma generate --schema "$PRISMA_SCHEMA_PATH" || exit 1
+    echo "[startup] Starting BullMQ worker only..."
+    exec node dist/worker.js
+    ;;
   api|*)
-    # Always run API-only mode. Combined and worker modes are disabled for normalization.
     run_prisma_startup
-    echo "[startup] Starting API server only (API normalization enforced)..."
+    echo "[startup] Starting API server only..."
     exec node dist/index.js
     ;;
-  # worker)
-  #   if [ -z "${DATABASE_URL:-}" ]; then
-  #     echo "[startup] Worker mode: DATABASE_URL missing; starting idle process to avoid restart loop"
-  #     exec node deploy/worker-idle/idle.js
-  #   fi
-  #   echo "[startup] Starting BullMQ worker only..."
-  #   exec node dist/worker.js
-  #   ;;
 esac
