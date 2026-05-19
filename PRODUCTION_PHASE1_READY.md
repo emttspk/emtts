@@ -769,3 +769,68 @@ Note: `dual_write_success` / canary events not captured because `ENABLE_R2_UPLOA
 **Project:** Label Generator — Phase 9C/10/10G Storage-Key Normalization  
 **Status:** ✅ PHASE 10D GATE PASSED — READY FOR R2 CREDENTIAL CONFIGURATION  
 
+---
+
+## PART 16: PHASE 10K — FINAL R2 PROOF + CLOSEOUT (May 19, 2026)
+
+### Deployment Health Gate (Post-Secret-Sync)
+
+| Service | Deployment ID | Status |
+|---|---|---|
+| Api | `50bbea54-de6c-47f4-bf3a-db6efa433ed1` | SUCCESS |
+| Worker | `91f2e211-f124-4870-bd29-d4f745106ec1` | SUCCESS |
+
+### Single Real Post-Activation Job (Exactly One)
+
+| Item | Value |
+|---|---|
+| Job ID | `99338048-50b2-4ca2-a869-e534a8a37cd1` |
+| Trigger path | `POST /api/jobs/upload` (via one-cycle runner) |
+| Lifecycle | `PROCESSING -> COMPLETED` |
+| Worker evidence | `[Worker] Job ... completed successfully` |
+
+### Required Telemetry Chain (Captured)
+
+```
+event="telemetry_sink_initialized" sink="stdout"
+event="canary_runtime_configuration" enabled=true mode="job-percentage" percentage=5
+
+event="dual_write_start" artifactType="labelsPdf"
+  objectKey="pdf/production/99338048-50b2-4ca2-a869-e534a8a37cd1/labels.pdf"
+
+event="object_key_version_logged" keyVersion="normalized"
+  normalizedKey="pdf/production/99338048-50b2-4ca2-a869-e534a8a37cd1/labels.pdf"
+
+event="dual_write_canary_allowed" reason="percentage_allowed"
+event="dual_write_success" provider="r2" latencyMs=643
+```
+
+### Actual R2 Object Proof (S3-Compatible `HeadObject`)
+
+```
+bucket: my-bucket
+key: pdf/production/99338048-50b2-4ca2-a869-e534a8a37cd1/labels.pdf
+contentLength: 75868
+lastModified: 2026-05-19T08:10:29.000Z
+eTag: "1c2b13e26be8f9c1531cf936d9b5084a"
+```
+
+### Local-First Authority Proof
+
+```
+[Worker] Labels file persisted at:
+/app/storage/generated/99338048-50b2-4ca2-a869-e534a8a37cd1-labels.pdf
+```
+
+This confirms authoritative local persistence remained intact before/alongside R2 dual-write.
+
+### Dedicated Worker Recovery Status
+
+- Worker service now starts cleanly with Redis internal URL and no `ETIMEDOUT` loop.
+- Singleton lock protection is active (`Another worker instance is active; waiting for singleton lock release...`).
+- Embedded worker fallback remains enabled as operational safety net.
+
+### Final Operational Decision
+
+✅ Phase 10K evidence complete. Production is operating with valid R2 credentials, successful canary-allowed upload, verified remote object presence, and preserved local-first safety behavior.
+

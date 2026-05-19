@@ -864,6 +864,54 @@ action: FLAG immediately — possible config misconfiguration
 
 ---
 
+## PART 11: PHASE 10K FINAL PROOF SNAPSHOT (May 19, 2026)
+
+### Verified Post-Redeploy Runtime State
+
+```
+event="telemetry_sink_initialized" sink="stdout" environment="production"
+event="canary_runtime_configuration" enabled=true mode="job-percentage" percentage=5
+  dualWriteEnabled=true dualReadEnabled=true r2UploadsEnabled=true normalizedKeysEnabled=true
+```
+
+### Single Definitive Proof Job
+
+```
+jobId: 99338048-50b2-4ca2-a869-e534a8a37cd1
+route: POST /api/jobs/upload
+status chain observed: PROCESSING -> COMPLETED
+```
+
+### Upload Telemetry Events (Same jobId)
+
+```
+event="dual_write_start"
+event="object_key_version_logged" keyVersion="normalized"
+event="dual_write_canary_allowed" reason="percentage_allowed"
+event="dual_write_success" provider="r2" latencyMs=643
+```
+
+### Local + Remote Artifact Confirmation
+
+```
+Local path persisted:
+/app/storage/generated/99338048-50b2-4ca2-a869-e534a8a37cd1-labels.pdf
+
+R2 HeadObject:
+bucket=my-bucket
+key=pdf/production/99338048-50b2-4ca2-a869-e534a8a37cd1/labels.pdf
+contentLength=75868
+lastModified=2026-05-19T08:10:29.000Z
+```
+
+### Interpretation
+
+- Canary percentage logic is active and permitting selected jobs.
+- R2 upload branch is live and successful in production.
+- Local-first authority remains intact; R2 continues as dual-write replication path.
+
+---
+
 **Guide Version:** 1.0.0  
 **Prepared:** May 19, 2026  
 **Applies To:** Phase 9C Days 5–9 (all phases)  

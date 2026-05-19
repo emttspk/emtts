@@ -278,3 +278,52 @@ but structured telemetry events are missing, perform this forensic sequence:
 3. Re-run one real upload test only
 4. Capture required event chain
 
+---
+
+## 13) PHASE 10K FINAL COMPLETION RECORD — ✅ VERIFIED May 19, 2026
+
+### Final Post-Activation Job Verified: `99338048-50b2-4ca2-a869-e534a8a37cd1`
+
+**Deployments in effect:**
+- Api: `50bbea54-de6c-47f4-bf3a-db6efa433ed1` (SUCCESS)
+- Worker: `91f2e211-f124-4870-bd29-d4f745106ec1` (SUCCESS)
+
+| Checklist Item | Status | Evidence |
+|---|---|---|
+| `telemetry_sink_initialized` visible | ✅ | Startup log at 08:09:51Z (`sink="stdout"`) |
+| `canary_runtime_configuration` visible | ✅ | Startup log with `mode="job-percentage"`, `percentage=5`, `r2UploadsEnabled=true` |
+| Real upload path used | ✅ | One-cycle runner hit `POST /api/jobs/upload` |
+| Job reaches completion | ✅ | `PROCESSING -> COMPLETED` |
+| `dual_write_start` emitted | ✅ | labelsPdf event at 08:10:28Z |
+| `object_key_version_logged` emitted | ✅ | `keyVersion="normalized"`, key under `pdf/production/{jobId}/labels.pdf` |
+| Canary decision emitted | ✅ | `dual_write_canary_allowed` (`reason="percentage_allowed"`) |
+| Dual-write terminal outcome emitted | ✅ | `dual_write_success` for provider `r2` |
+| Remote object exists in R2 | ✅ | S3 `HeadObject` success, `contentLength=75868`, `lastModified=2026-05-19T08:10:29Z` |
+| Local-first authority preserved | ✅ | `[Worker] Labels file persisted at /app/storage/generated/{jobId}-labels.pdf` |
+
+### Final Classification
+
+VERIFIED:
+- Full post-redeploy telemetry chain including canary-allowed and dual-write-success
+- Real object present in R2 for final proof job
+- Local-first persistence remains authoritative
+
+NOT OBSERVED:
+- None blocking Phase 10K closeout
+
+INCONCLUSIVE:
+- Dedicated Worker vs embedded-worker lock ownership for this specific proof job
+
+Decision:
+- SAFE TO REMAIN AT 5%
+
+### Embedded Worker Retirement Recommendation (Operational, Safe Sequence)
+
+If dedicated Worker lock ownership is desired as primary path, execute in next maintenance window:
+
+1. Set `START_WORKER_IN_API=false` on Api service (keep Worker unchanged)
+2. Redeploy Api only
+3. Confirm Worker logs show active processing (not lock-waiting)
+4. Run one low-risk verification job and confirm unchanged completion behavior
+5. Keep rollback option: re-enable `START_WORKER_IN_API=true` if queue pickup degrades
+
