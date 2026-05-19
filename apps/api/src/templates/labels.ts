@@ -995,15 +995,66 @@ export function moneyOrderHtml(
   orders: OrderRecord[],
   opts?: { backgrounds?: { frontDataUrl?: string; backDataUrl?: string } },
 ) {
-  void opts;
-  return moneyOrderHtmlFromBenchmark(orders, resolveStaticMoFrontDataUrl());
+  const frontDataUrl = resolveExplicitMoFrontDataUrl(opts?.backgrounds?.frontDataUrl);
+  return moneyOrderHtmlFromBenchmark(orders, frontDataUrl);
 }
 
 let benchmarkMoHtmlCache: string | null = null;
 let staticMoFrontDataUrlCache: string | null | undefined;
+let staticMoFrontDataUrlCacheKey: string | null = null;
 let urduFontFaceCssCache: string | null | undefined;
+let moRenderCacheVersion: string | null = null;
+
+function resolveMoRenderCacheVersion() {
+  return String(
+    process.env.MO_TEMPLATE_CACHE_VERSION
+      ?? process.env.RENDER_CACHE_VERSION
+      ?? process.env.RAILWAY_DEPLOYMENT_ID
+      ?? process.env.RAILWAY_GIT_COMMIT_SHA
+      ?? process.env.GIT_COMMIT
+      ?? "v1",
+  ).trim() || "v1";
+}
+
+function invalidateMoRenderCachesIfNeeded() {
+  const nextVersion = resolveMoRenderCacheVersion();
+  if (moRenderCacheVersion === nextVersion) return;
+  moRenderCacheVersion = nextVersion;
+  benchmarkMoHtmlCache = null;
+  staticMoFrontDataUrlCache = undefined;
+  staticMoFrontDataUrlCacheKey = null;
+  urduFontFaceCssCache = undefined;
+}
+
+function resolveExplicitMoFrontDataUrl(frontDataUrl: unknown) {
+  invalidateMoRenderCachesIfNeeded();
+
+  const normalized = String(frontDataUrl ?? "").trim();
+  if (!normalized) {
+    staticMoFrontDataUrlCache = undefined;
+    staticMoFrontDataUrlCacheKey = null;
+    return undefined;
+  }
+
+  if (staticMoFrontDataUrlCacheKey === normalized) {
+    return staticMoFrontDataUrlCache ?? undefined;
+  }
+
+  const isValid = /^(data:image\/[a-zA-Z0-9.+-]+;base64,|https?:\/\/|file:\/\/)/i.test(normalized);
+  if (!isValid) {
+    console.warn("[MO_FRONT_BG_OVERRIDE] Ignoring invalid frontDataUrl override");
+    staticMoFrontDataUrlCacheKey = normalized;
+    staticMoFrontDataUrlCache = null;
+    return undefined;
+  }
+
+  staticMoFrontDataUrlCacheKey = normalized;
+  staticMoFrontDataUrlCache = normalized;
+  return normalized;
+}
 
 function resolveUrduFontFaceCss() {
+  invalidateMoRenderCachesIfNeeded();
   if (urduFontFaceCssCache !== undefined) return urduFontFaceCssCache;
 
   const candidates = [
@@ -1042,9 +1093,8 @@ function resolveUrduFontFaceCss() {
   for (const candidate of candidates) {
     try {
       if (!fs.existsSync(candidate.filePath)) continue;
-      const fontBuffer = fs.readFileSync(candidate.filePath);
-      const dataUrl = `data:font/ttf;base64,${fontBuffer.toString("base64")}`;
-      urduFontFaceCssCache = `@font-face{font-family:\"${candidate.family}\";src:url('${dataUrl}') format('${candidate.format}');font-weight:400;font-style:normal;font-display:block;}@font-face{font-family:\"Money Order Urdu\";src:local('${candidate.family}'),url('${dataUrl}') format('${candidate.format}');font-weight:400;font-style:normal;font-display:block;}`;
+      const fontUrl = pathToFileURL(candidate.filePath).href;
+      urduFontFaceCssCache = `@font-face{font-family:\"${candidate.family}\";src:url('${fontUrl}') format('${candidate.format}');font-weight:400;font-style:normal;font-display:block;}@font-face{font-family:\"Money Order Urdu\";src:local('${candidate.family}'),url('${fontUrl}') format('${candidate.format}');font-weight:400;font-style:normal;font-display:block;}`;
       return urduFontFaceCssCache;
     } catch {
       // Try next path.
@@ -1052,27 +1102,6 @@ function resolveUrduFontFaceCss() {
   }
 
   throw new Error("URDU_FONT_MISSING: install a local Urdu font file in apps/api/templates/fonts before generating money-order PDFs.");
-}
-
-function resolveStaticMoFrontDataUrl() {
-  if (staticMoFrontDataUrlCache !== undefined) {
-    return staticMoFrontDataUrlCache ?? undefined;
-  }
-
-  const deterministicPath = path.resolve(process.cwd(), "apps", "web", "public", "templates", "mo-front-default.png");
-  try {
-    if (fs.existsSync(deterministicPath)) {
-      staticMoFrontDataUrlCache = pathToFileURL(deterministicPath).href;
-      console.log("[MO_STATIC_FRONT_IMAGE]", deterministicPath);
-      return staticMoFrontDataUrlCache;
-    }
-  } catch {
-    // Fall through to deterministic missing-path warning.
-  }
-
-  staticMoFrontDataUrlCache = null;
-  console.warn(`[MO_STATIC_FRONT_IMAGE] Missing deterministic front image: ${deterministicPath}`);
-  return undefined;
 }
 
 function resolveBenchmarkMoTemplatePath() {
@@ -1102,6 +1131,7 @@ function resolveBenchmarkMoTemplatePath() {
 }
 
 function loadBenchmarkMoHtml() {
+  invalidateMoRenderCachesIfNeeded();
   if (benchmarkMoHtmlCache) return benchmarkMoHtmlCache;
   const inputPath = resolveBenchmarkMoTemplatePath();
   if (!inputPath) {
@@ -1441,19 +1471,19 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
   // Sender fields
   out = replaceNth(
     out,
-    /<div class="field strong en" style="left:47\.56mm;top:105\.69mm;[^"]*">[^<]*<\/div>/g,
+    /(<div class="field strong en" style="left:47\.56mm;top:105\.69mm;width:(?:65\.06|86\.06)mm;font-size:4\.(?:58|25)mm(?:;white-space:normal;overflow:visible;text-align:left)?;?">)([^<]*)(<\/div>)/g,
     slotIndex,
-    () => `<div class="field strong en" style="left:47.56mm;top:105.69mm;width:86.06mm;font-size:4.25mm;white-space:normal;overflow:visible;text-align:left;">${escapeHtml(senderLine)}</div>`,
+    (_m, p1, _old, p3) => `${p1}${escapeHtml(senderLine)}${p3}`,
   );
   out = replaceNth(
     out,
-    /<div class="field regular en" style="left:[0-9.]+mm;top:112\.15mm;width:65\.06mm;font-size:3\.(?:13|35)mm;white-space:normal;line-height:1\.(?:06|12)(?:;text-align:[a-z]+)?;">[^<]*<\/div>/g,
+    /<div class="field regular en" style="left:(?:12\.56|15\.56)mm;top:112\.15mm;width:65\.06mm;font-size:3\.(?:13|35)mm;white-space:normal;line-height:1\.(?:06|12)(?:;text-align:left)?;">[^<]*<\/div>/g,
     slotIndex,
     () => `<div class="field regular en" style="left:15.56mm;top:112.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;text-align:left;">${escapeHtml(shipperAddress)}</div>`,
   );
   out = replaceNth(
     out,
-    /<div class="field mono en" style="left:82\.56mm;top:116\.57mm;width:65\.06mm;font-size:4\.(?:13|35)mm(?:;line-height:1\.06)?;">[^<]*<\/div>/g,
+    /<div class="field mono en" style="left:82\.56mm;top:116\.57mm;width:65\.06mm;font-size:4\.(?:13|35)mm(?:;line-height:1\.06)?(?:;text-align:left)?;">[^<]*<\/div>/g,
     slotIndex,
     () => `<div class="field mono en" style="left:82.56mm;top:116.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;text-align:left;">${escapeHtml(shipperPhone)}</div>`,
   );
