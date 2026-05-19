@@ -1,246 +1,67 @@
-# Deployment Status
+# Deployment Status (Current Authoritative Snapshot)
 
-**Last Updated:** 2026-05-09  
-**Commit:** pending local commit — remove sender profile from workspace add invoice pdf and bank transfer billing option  
-**Railway Project:** 144be6f4-a17c-47ec-8c23-3d5963c4d5fb  
-**Status:** API + WEB DEPLOYED, ONLINE, AND LIVE-VERIFIED
+**Last Updated:** 2026-05-18  
+**Status:** FINAL PRE-STAGING DOCUMENTATION COMPLETE  
+**Runtime posture:** local-first authoritative, rollback-safe, feature flags disabled by default
 
-## Mandatory Feature Adjustment Loop — 2026-05-09
+## What this document covers
 
-### Scope delivered
-- Sender Profile UI removed from Generate Labels and Tracking pages only.
-- Admin Invoices now include `Download PDF` action.
-- Billing Settings now include Bank Transfer details and optional QR.
-- Manual payment flow supports Bank Transfer selection and displays bank details + QR when configured.
+This file is the current high-level deployment state pointer. Historical execution logs and one-off forensic notes are intentionally excluded from this status page.
 
-### API + Schema updates
-- `GET /api/admin/invoices/:invoiceId/download` added for invoice PDF export.
-- Billing settings API now supports:
-	- `bankName`
-	- `bankTitle`
-	- `bankAccountNumber`
-	- `bankIban`
-	- `bankQrPath`
-- Nullable migration added:
-	- `apps/api/prisma/migrations/20260509090000_add_bank_transfer_billing_fields/migration.sql`
+## Authoritative references
 
-### Validation
-- `npm install`: PASS
-- `npx prisma generate --schema=apps/api/prisma/schema.prisma`: PASS
-- `npm run lint`: PASS
-- `npm run typecheck`: PASS
-- `npm run build`: PASS
-- `npm run dev`: PASS
-- `npm run test`: PASS (`smoke:railway`)
+- Architecture source of truth: `docs/storage-rollout-architecture.md`
+- Operational source of truth: `docs/storage-rollout-runbook.md`
+- Module dependency map: `docs/system-map.md`
 
-### Deployment proof
-- Api deploy Build Logs id: `326b67c7-c4e2-4751-8966-c0a6648d9891`
-- Web deploy Build Logs id: `d578def8-fc5f-49fb-b438-ed4905f69017`
-- Api logs: auth/login, upload, worker processing, PDF generation complete.
-- Web logs: route and asset requests served successfully.
+## Final implemented architecture status
 
-## Mandatory Forensic Recovery Loop — Money Order Template Restore
+- API and worker are operationally separated.
+- Queue ownership is explicit (API enqueue, worker consume).
+- Local storage remains authoritative for writes and first reads.
+- R2 mirror/fallback is flag-gated and staged.
+- Label and money-order fallback downloads are streaming-safe.
+- Stream concurrency is semaphore-protected.
+- Timeout protections are active in remote read path.
+- Cleanup is sync-aware when dual-write is enabled.
+- Observability includes stream and dual-write lifecycle telemetry plus metrics.
 
-### Forensic result
-- `apps/api/templates/mo-sample-two-records.html` was not deleted.
-- Git history shows add-only origin commit: `b4ae475cd02be7b2c6de8d12f9b6716d13f124aa`.
-- Blob parity proved exact match with original:
-	- `ORIG_BLOB=6aa3e5533dcbf103e0e029f8e0a1a22722b0fed7`
-	- `CURR_BLOB=6aa3e5533dcbf103e0e029f8e0a1a22722b0fed7`
-	- `MATCH_EXACT_ORIGINAL`
-- Structural integrity confirmed: `sheet_count=2`, `front_half_count=2`, `back_half_count=2`, `bg_div_count=4`.
+## Feature flag baseline
 
-### Repair applied (forensic-only)
-- Preview-render chain aligned with worker/PDF chain:
-	- `apps/api/src/routes/adminTemplates.ts`
-	- Added `loadMoneyOrderBackgrounds()` in preview route and passed `backgrounds` into `moneyOrderHtml(...)`.
+Default expected state for safe baseline:
 
-### Live evidence
-- Forensic report JSON: `temp-money-order-forensic-recovery-report.json`
-- Generated artifacts:
-	- `forensic-artifacts/35664778-a105-4a11-a83d-28b852107d56-labels.pdf`
-	- `forensic-artifacts/35664778-a105-4a11-a83d-28b852107d56-money-orders.pdf`
-- Money-order job: `35664778-a105-4a11-a83d-28b852107d56` -> `COMPLETED`
-- Money-order PDF: `358443` bytes, image tokens: `5`
+- `STORAGE_PROVIDER=local`
+- `ENABLE_DUAL_WRITE=false`
+- `ENABLE_DUAL_READ=false`
+- `ENABLE_R2_UPLOADS=false`
+- `ENABLE_R2_DOWNLOADS=false`
 
-### Filename exemption regression proof
-- Exempt test file `LCS 15-13-11-2024.xls`:
-	- Upload 1: `200` (job `07b15b54-a61e-47c9-8440-9f1089094d7c`)
-	- Upload 2: `200` (job `6e84e02a-d5c0-4a57-becb-06823862208d`)
-- Non-exempt test file `forensic-non-exempt-1778279244700.csv`:
-	- Upload 1: `200` (job `49c80933-bd1e-4823-8228-8d03c87dfd42`)
-	- Upload 2: `409` (`This file name already exists.`)
-- Admin-list mutation endpoint with current token:
-	- `GET /api/admin/settings` -> `403 Forbidden` (admin-only scope)
+## R2 credential env alias support
 
-### Validation loop
-- `npm install`: PASS
-- `npm run lint`: PASS
-- `npm run typecheck`: PASS
-- `npm run build`: PASS
-- `npm run dev`: PASS
-- `npm run test`: PASS (`smoke:railway`)
+Startup validation and provider runtime both support:
 
-### Deployment proof (forensic run)
-- Api deploy: `railway up --service Api --detach`
-	- Build Logs id: `aa6f172c-b15b-452b-8938-c31ceb1f0ebd`
-- Web deploy: `railway up --service Web --detach`
-	- Build Logs id: `db9a46ab-435c-4d86-886d-29d1a2af3fb2`
-- Post-deploy logs:
-	- Api: worker completed jobs, duplicate checks executed, label downloads served.
-	- Web: container started and app/assets served with `200`.
+- `R2_ACCESS_KEY_ID` or `R2_ACCESS_KEY`
+- `R2_SECRET_ACCESS_KEY` or `R2_SECRET_KEY`
 
-## Mandatory Fix Loop — Money Order Background + Test Filename Exemption
+This resolves prior staging validation mismatch risk.
 
-### Scope completed
-- Money order front background URL handling repaired for absolute URL form with API background path.
-- Runtime-admin-configurable filename exemption list added for duplicate upload bypass.
-- Default exempt filename enabled: `LCS 15-13-11-2024.xls`.
-- Duplicate blocking preserved for all non-exempt names.
+## Operational readiness verdict
 
-### API/Web updates in this loop
-- API:
-	- `apps/api/src/money-order/backgrounds.ts`
-	- `apps/api/src/routes/jobs.ts`
-	- `apps/api/src/routes/admin.ts`
-	- `apps/api/src/services/upload-file-exemptions.service.ts` (new)
-- Web:
-	- `apps/web/src/pages/Admin.tsx`
+- Documentation readiness: complete
+- Runbook readiness: complete
+- Staging rollout docs: actionable
+- Rollback docs: complete
+- Runtime code changes required for this phase: none
 
-### Validation loop
-- `npm install`: PASS
-- `npm run lint`: PASS
-- `npm run typecheck`: PASS
-- `npm run build`: PASS
-- `npm run test`: PASS (`smoke:railway`)
-- `npm run dev`: PASS (web + api startup confirmed)
+## Remaining non-blocking technical debt
 
-### Deployment proof (this loop)
-- Api deploy: `railway up --service Api --detach`
-	- Build Logs id: `ae54a2cb-e9c5-4037-8ed0-1ac5a4c6b6f7`
-- Web deploy: `railway up --service Web --detach`
-	- Build Logs id: `76413156-2732-4de5-b09b-4f3ebd5406d3`
-- Post-deploy health logs:
-	- Api: worker completion and labels PDF download traffic observed.
-	- Web: route and assets served with `200` responses.
+- Queue-hit detection for semaphore contention is best-effort and may undercount edge races.
+- Telemetry has bounded per-process line cap and can drop excess logs under sustained bursts.
 
----
+## Phase 4 Live Canary Update
 
-## Mandatory Recovery Loop — Post Cleanup Regression Fix
+- Authenticated single-job S1 canary completed successfully on 2026-05-18.
+- Local PDF, sync marker, and R2 mirror were all verified.
+- Redis host conflict was resolved by publishing Docker Redis on `6380` for the session.
 
-### What cleanup broke
-- User generate workflows became inaccessible for normal authenticated users because user routes were chained into admin-only routes.
-- Money order background rendering became fragile when template background paths were saved with leading slashes.
-
-### What was restored
-- User routes now directly serve:
-	- `/generate-labels`
-	- `/generate-money-orders`
-- Admin aliases now redirect to the user-safe equivalents while preserving admin guard boundaries.
-- Money-order background loader now resolves leading-slash assets from known deploy-safe paths:
-	- `apps/web/public/...`
-	- `apps/api/templates/...`
-
-### Why route access failed
-- `/generate-labels` and `/generate-money-orders` previously redirected to `/admin/...` endpoints protected by `RequireAdmin`.
-- Result: non-admin authenticated users (including production workspace users) hit admin guard and could not continue.
-
-### Why background rendering failed
-- Active template backgrounds can be stored as URL-like strings (for example `/templates/mo-front-default.png`).
-- API background resolver previously lacked robust filesystem fallback mapping for that form across deployment directories.
-
-### Recovery validation
-- `npm install`: PASS
-- `npm run lint`: PASS
-- `npm run typecheck`: PASS
-- `npm run build`: PASS
-- `npm run dev`: PASS
-- `npm run test`: PASS (`@labelgen/api smoke:railway` success)
-
-### Deployment proof (this loop)
-- Api deploy command: `railway up --service Api --detach`
-- Web deploy command: `railway up --service Web --detach`
-- Api build logs id: `024430ab-1117-4e4e-b1c3-0f1a45caf0b4`
-- Web build logs id: `bb325e11-9abb-4733-b751-4db3d6850190`
-- Api live logs include: `GET /api/me`, `GET /api/shipments/stats`, tracking bulk completion traces.
-- Web live logs include: `200` responses for app routes/assets including generate-workflow bundles.
-
-### Current protection model
-- Authenticated users: Generate Labels, Generate Money Order, Tracking, Dashboard.
-- Admin-only: `/admin` and all explicit admin pages remain under `RequireAdmin`.
-
----
-
-## Latest Session Changes
-- Sender profile regression fixed: `SenderProfileCard` restored to `BulkTracking.tsx` (below stats cards) and `Upload.tsx` (above dropzone)
-- Profile source of truth: `GET /api/me` — single, no duplicates
-- 104 `temp-*` files + 5 test/audit files + `smokeTest.ts` removed
-- All services: zero build errors, zero TypeScript errors, zero lint errors
-- Deployed: `railway up --service Api --detach` + `railway up --service Web --detach`
-
-## Services
-- Api: Online · https://api.epost.pk · deployment b9fd913f-8d6e-4411-a15b-c0b61612082c
-- Web: Online · https://www.epost.pk · deployment 7e8ef0bb-c002-4c50-8b8f-bae74e334a2d
-- Worker: Online · https://worker.epost.pk
-- Python: Online · https://python.epost.pk
-- Postgres-hUZn: Online
-
-## DB Audit (Direct Table Verification)
-Source: `temp-final-consistency-audit.mjs` with Railway `DATABASE_PUBLIC_URL`.
-
-- Total: count 1218, amount 1076725
-- Delivered: count 19, amount 14825
-- Pending: count 1071, amount 941975
-- Returned: count 128, amount 119925
-- Complaints: count 203, amount 185075
-- Complaint Watch: count 89, amount 93375
-- Complaint Active: count 69, amount 74000
-- Complaint In Process: count 41, amount 41800
-- Complaint Resolved: count 8, amount 7300
-- Complaint Closed: count 66, amount 61975
-- Complaint Reopened: count 16, amount 13600
-
-## Post-Deploy API Stats Payload
-Source: `temp-live-verify-matrix.json` and `temp-final-consistency-audit.json` after deploy.
-
-- `total=1218`
-- `delivered=19`
-- `pending=1071`
-- `returned=128`
-- `complaints=203`
-- `complaintWatch=89`
-- `complaintActive=69`
-- `complaintInProcess=41`
-- `complaintResolved=8`
-- `complaintClosed=66`
-- `complaintReopened=16`
-- `totalAmount=1076725`
-- `deliveredAmount=14825`
-- `pendingAmount=941975`
-- `returnedAmount=119925`
-- `complaintAmount=185075`
-- `complaintWatchAmount=93375`
-- `complaintActiveAmount=74000`
-- `complaintInProcessAmount=41800`
-- `complaintResolvedAmount=7300`
-- `complaintClosedAmount=61975`
-- `complaintReopenedAmount=13600`
-
-DB vs API parity checks: PASS (`returned`, `complaints`, `complaintWatch`, `complaintWatchAmount`, `complaintActive`, `complaintInProcess`, `complaintResolved`, `complaintClosed`, `complaintReopened`, `complaintActiveAmount`, `complaintInProcessAmount`, `complaintResolvedAmount`, `complaintClosedAmount`, `complaintReopenedAmount`).
-
-## UI Proof Artifacts
-- Dashboard screenshot: `temp-ui-shots/dashboard-postfix.png`
-- Tracking screenshot: `temp-ui-shots/tracking-postfix.png`
-- Shipment Status screenshot: `temp-ui-shots/shipment-status-postfix.png`
-- Complaint lifecycle cards screenshot: `temp-ui-shots/complaint-lifecycle-cards-postfix.png`
-- Returned filter screenshot: `temp-ui-shots/filter-returned-proof.png`
-- Complaint Watch filter screenshot: `temp-ui-shots/filter-complaint-watch-proof.png`
-- Click filter JSON proof: `temp-click-filter-proof.json`
-
-## Validation Outcome
-- Dashboard cards and Tracking cards match one backend `/api/shipments/stats` source.
-- Shipment Status section shows all required 9 cards with counts and amounts from API payload.
-- Tracking supports all required filters (`DELIVERED`, `PENDING`, `RETURNED`, `COMPLAINT_WATCH`, `COMPLAINT_TOTAL`, `COMPLAINT_ACTIVE`, `COMPLAINT_CLOSED`, `COMPLAINT_REOPENED`, `COMPLAINT_IN_PROCESS`).
-- Card click navigation filters are live and verified for all required routes.
-- Complaint action button labels are lifecycle-synced (`Complaint`, `In Process`, `Reopen Complaint`).
-- Final production validation loop completed with clean command outcomes (`install`, `lint`, `typecheck`, `build`, `test`, `dev`).
+Authoritative execution log: [docs/PHASE-4-LIVE-CANARY-FINAL-REPORT.md](docs/PHASE-4-LIVE-CANARY-FINAL-REPORT.md)

@@ -4,6 +4,7 @@ dist
 .env
 .env.*
 !.env.example
+!.env.staging.local.example
 .DS_Store
 coverage
 
@@ -49,3 +50,8 @@ tracking/credentials.json
 EP Gateway/
 EP Gateway/.venv/
 .aider*
+
+# Local-only operational documentation (bootstrap, audits, rollout, recovery)
+# Machine-specific findings, execution reports, and deployment guides stay local
+.local-docs/
+ISOLATION_STRATEGY.md

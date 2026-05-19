@@ -25,9 +25,27 @@
     "lint": "npm run lint --workspace=@labelgen/web && npm run lint --workspace=@labelgen/api",
     "typecheck": "npm run typecheck --workspace=@labelgen/web && npm run typecheck --workspace=@labelgen/api",
     "test": "npm run smoke:railway --workspace=@labelgen/api",
-    "preview": "npm run preview --workspace=@labelgen/web"
+    "preview": "npm run preview --workspace=@labelgen/web",
+    "infra:check": "node scripts/infra-check.mjs",
+    "infra:fix": "node scripts/infra-check.mjs --fix-redis",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "infra:status": "docker compose ps",
+    "infra:verify": "npm run infra:check && npm run prisma:generate --workspace=@labelgen/api",
+    "s0:prereq": "node scripts/s0-prereq.mjs",
+    "s0:bootstrap": "npm run infra:up && sleep 5 && npm run infra:fix && npm run prisma:generate --workspace=@labelgen/api && npm run prisma:migrate --workspace=@labelgen/api && npm run s0:prereq",
+    "r2:verify": "node scripts/r2-verify.mjs",
+    "r2:canary-check": "node scripts/r2-canary-check.mjs",
+    "r2:rollback-check": "node scripts/r2-rollback-check.mjs",
+    "r2:telemetry-summary": "node scripts/r2-telemetry-summary.mjs",
+    "staging:env:check": "node scripts/staging-env-check.mjs",
+    "staging:env:load": "echo 'PowerShell: . .\\scripts\\staging-env-load.ps1' && echo 'Bash/Zsh: source scripts/staging-env-load.sh (coming soon)' && node scripts/staging-env-check.mjs",
+    "staging:r2:verify": "npm run staging:env:check && npm run r2:verify",
+    "phase-3-verify": "echo 'Phase 3 verification script placeholder'"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1048.0",
+    "@aws-sdk/s3-request-presigner": "^3.1048.0",
     "@prisma/client": "^5.22.0",
     "firebase": "^12.12.1",
     "prisma": "^5.22.0"

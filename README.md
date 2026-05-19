@@ -10,34 +10,171 @@ Bulk shipping label + money order form generation with background jobs and PDF e
 - Queue: Redis + BullMQ
 
 ## Quick start (dev)
-1) Start Redis:
-   - `docker compose up -d`
-2) Configure env:
-   - Copy `apps/api/.env.example` to `apps/api/.env` and fill values
-   - Copy `apps/web/.env.example` to `apps/web/.env` and fill values
-3) Install deps (from repo root):
-   - `npm install`
-4) DB schema:
-   - `npm run prisma:generate --workspace=@labelgen/api`
-   - `npm run prisma:migrate --workspace=@labelgen/api`
-   - Production start path: `npm run start --workspace=@labelgen/api` (runs `prisma migrate deploy` before API boot)
-5) Run API + worker + web (separate terminals):
-   - API: `npm --workspace=@labelgen/api run dev`
-   - Worker: `npm run worker --workspace=@labelgen/api`
-   - Web: `npm --workspace=@labelgen/web run preview`
 
-## Connection Repair
+### Automated Bootstrap (Recommended)
+If you have Docker installed, run:
+```bash
+npm run s0:bootstrap
+```
+
+This runs the complete bootstrap sequence:
+1. Starts PostgreSQL and Redis containers
+2. Fixes placeholder REDIS_URL in .env
+3. Generates Prisma client
+4. Runs database migrations
+5. Verifies S0 prerequisites
+
+Then start the services:
+```bash
+npm run dev:api      # Terminal 1: API server
+npm run worker:dev   # Terminal 2: Worker process
+npm run dev:web      # Terminal 3: Web frontend
+```
+
+### Manual Bootstrap (Step-by-Step)
+If automated bootstrap fails, or Docker is not available, follow these steps:
+
+**1) Start Infrastructure:**
+```bash
+# If Docker is available:
+npm run infra:up                          # Starts PostgreSQL and Redis
+npm run infra:status                      # Check if containers are running
+
+# If Docker is NOT available:
+# - Start PostgreSQL on localhost:5432 manually
+# - Start Redis on localhost:6379 manually
+```
+
+**2) Configure Environment:**
+```bash
+# Copy example env file (if not already done)
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env
+
+# Fix placeholder REDIS_URL in apps/api/.env:
+# From: REDIS_URL=redis://default:PASSWORD@HOST:PORT
+# To:   REDIS_URL=redis://localhost:6379
+
+# Or use automation:
+npm run infra:fix
+```
+
+**3) Install Dependencies:**
+```bash
+npm install
+```
+
+**4) Initialize Database:**
+```bash
+npm run prisma:generate --workspace=@labelgen/api
+npm run prisma:migrate --workspace=@labelgen/api
+```
+
+**5) Verify Prerequisites:**
+```bash
+npm run s0:prereq
+# Should report: ✅ S0 PREREQUISITES MET
+```
+
+**6) Start Services (separate terminals):**
+```bash
+npm run dev:api      # Terminal 1: API server (port 3000)
+npm run worker:dev   # Terminal 2: Worker process
+npm run dev:web      # Terminal 3: Web frontend (port 5173)
+```
+
+### Infrastructure Helper Scripts
+```bash
+npm run infra:check      # Test PostgreSQL and Redis connectivity
+npm run infra:fix        # Replace placeholder REDIS_URL with localhost:6379
+npm run infra:up         # Start Docker containers (docker compose up -d)
+npm run infra:down       # Stop Docker containers (docker compose down)
+npm run infra:status     # Show container status (docker compose ps)
+npm run infra:verify     # Check connectivity and generate Prisma client
+npm run s0:prereq        # Verify S0 prerequisites before baseline validation
+npm run s0:bootstrap     # Complete automated bootstrap (Docker required)
+```
+
+## Connection Repair & Infrastructure Troubleshooting
+
+### API Not Reachable
 If you see "Failed to reach API endpoint":
 1. **Check Port 3000:** Run `netstat -ano | findstr :3000` (Windows) or `lsof -i :3000` (Mac/Linux).
-2. **Redis Status:** Run `docker ps` to ensure the Redis container is "Up".
+2. **Redis Status:** Run `docker ps` to ensure the Redis container is "Up" (or use `npm run infra:status`).
 3. **Manual Test:** Open `http://localhost:3000/api/auth/login` in your browser. If you get "Method Not Allowed" or a JSON error, the server is **up**. If you get "Site can't be reached", the server is **down**.
 4. **IPv6 Fix:** If the API is running but unreachable, try changing your frontend `.env` from `localhost` to `127.0.0.1`.
 
-## Troubleshooting
-- **Redis:** Ensure `docker compose up -d` is running. The API will crash if BullMQ cannot connect to Redis.
-- **Port Conflicts:** The API defaults to port 3000. Verify with `netstat` or `lsof` if the port is occupied.
-- **DB Errors:** Ensure `npm run prisma:migrate` was successful.
-- **Logs:** Check the terminal running `npm --workspace=@labelgen/api run dev` for any red stack traces.
+### PostgreSQL Issues
+```bash
+# Test connectivity:
+npm run infra:check
+
+# Verify database:
+# - Ensure DATABASE_URL in apps/api/.env is set correctly
+# - Default: postgresql://labelgen:labelgen@localhost:5432/labelgen
+# - On Windows, verify with: Test-NetConnection -ComputerName localhost -Port 5432
+
+# Restart database:
+npm run infra:down && npm run infra:up && sleep 5
+
+# Re-run migrations:
+npm run prisma:migrate --workspace=@labelgen/api
+```
+
+### Redis Issues
+```bash
+# Test connectivity:
+npm run infra:check
+
+# Fix placeholder REDIS_URL:
+npm run infra:fix
+
+# Expected REDIS_URL after fix: redis://localhost:6379
+
+# Verify Redis is running:
+npm run infra:status
+
+# Restart Redis:
+npm run infra:down && npm run infra:up && sleep 3
+```
+
+### Worker Not Starting
+1. Check if API is running (`npm run dev:api`).
+2. Verify startup logs for readiness state: should show `FULLY_READY`, not `DEGRADED_*`.
+3. Run `npm run s0:prereq` to diagnose missing dependencies.
+4. If `DEGRADED_NO_DB` or `DEGRADED_NO_REDIS`: fix infrastructure first (see above).
+
+### Build or Migration Errors
+```bash
+# Clean rebuild:
+npm run build
+
+# Regenerate Prisma client:
+npm run prisma:generate --workspace=@labelgen/api
+
+# Re-run migrations:
+npm run prisma:migrate --workspace=@labelgen/api
+```
+
+## Troubleshooting Summary
+- **Can't reach API:** Check port 3000 and verify API is running with `npm run dev:api`
+- **Worker won't start:** Run `npm run s0:prereq` and fix any failed checks
+- **DB connection refused:** Run `npm run infra:check` and follow remediation guidance
+- **Redis placeholder error:** Run `npm run infra:fix` to auto-correct REDIS_URL
+- **Migrations fail:** Ensure PostgreSQL is running and accessible, then retry `npm run prisma:migrate --workspace=@labelgen/api`
+
+## Startup Readiness States
+- `FULLY_READY`: PostgreSQL and Redis are both reachable. API initialization, queue recovery, and worker startup can proceed normally.
+- `DEGRADED_NO_DB`: PostgreSQL is unavailable. The API can still bind, but database-backed routes and worker job execution are blocked.
+- `DEGRADED_NO_REDIS`: Redis is unavailable. The API can still bind, but queue recovery and worker queue consumption are blocked.
+- `DEGRADED_NO_DB_OR_REDIS`: Both dependencies are unavailable. Treat this as a bootstrap failure and fix infrastructure before moving past baseline validation.
+
+## Local Bootstrap Checklist
+1. Start local infrastructure with `docker compose up -d`.
+2. Confirm PostgreSQL is reachable with `Test-NetConnection -ComputerName localhost -Port 5432`.
+3. Replace placeholder values in `apps/api/.env`, especially `REDIS_URL`.
+4. Run `npm run prisma:generate --workspace=@labelgen/api` and `npm run prisma:migrate --workspace=@labelgen/api`.
+5. Start API and worker, then confirm the startup logs report `FULLY_READY` before running storage rollout staging checks.
 
 ## Production Prisma Workflow
 - Deploy with migrations only: `npx prisma migrate deploy && node dist/index.js`
@@ -92,8 +229,11 @@ BulkTracking.tsx  →  POST /api/tracking/complaint  →  Python /submit-complai
 - Sourced from `usage_logs` table, exposed via `/api/me` balances
 
 ### Docs
-- [docs/complaints.md](docs/complaints.md) — Full lifecycle and duplicate handling
-- [docs/system-map.md](docs/system-map.md) — Module dependency map
+ - [docs/local-bootstrap.md](docs/local-bootstrap.md) — Complete local PostgreSQL + Redis bootstrap guide for development and S0 validation
+ - [docs/storage-rollout-architecture.md](docs/storage-rollout-architecture.md) — Final storage/rollout architecture (API/worker, dual-write/read, streaming fallback)
+ - [docs/storage-rollout-runbook.md](docs/storage-rollout-runbook.md) — Staging/canary rollout, startup readiness states, rollback, outage, degraded mode, memory and cleanup runbook
+ - [docs/complaints.md](docs/complaints.md) — Full complaint lifecycle and duplicate handling
+ - [docs/system-map.md](docs/system-map.md) — Module dependency map
 - [docs/package-usage.md](docs/package-usage.md) — Complaint quota tracking
 - [docs/help-complaint-recovery.md](docs/help-complaint-recovery.md) — Recovery procedures
 - [docs/help-complaint-timeouts.md](docs/help-complaint-timeouts.md) — Timeout troubleshooting
@@ -117,6 +257,12 @@ rm -rf apps/api/dist
 
 # rebuild
 npm run build
+
+## Verified Phase 4 Canary Result
+
+The live S1 canary completed successfully with authenticated multipart upload, local PDF generation, async R2 dual-write, and rollback validation.
+
+Authoritative record: [docs/PHASE-4-LIVE-CANARY-FINAL-REPORT.md](docs/PHASE-4-LIVE-CANARY-FINAL-REPORT.md)
 
 # start backend
 npm --workspace=@labelgen/api run dev

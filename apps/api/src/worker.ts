@@ -1,6 +1,7 @@
 console.log("🔥 WORKER FILE LOADED");
 import { UnrecoverableError, Worker } from "bullmq";
 import fs from "node:fs/promises";
+import { getStorageProvider } from "./storage/provider.js";
 import { existsSync, mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
@@ -9,13 +10,14 @@ import JsBarcode from "jsbarcode";
 import type { Browser } from "puppeteer";
 import path from "node:path";
 import { Prisma } from "@prisma/client";
-import { env } from "./config.js";
+import { env, featureFlags, NORMALIZED_KEYS_FOR_NEW_UPLOADS, stagingConfig } from "./config.js";
 import { prisma } from "./lib/prisma.js";
 import { redis, redisEnabled } from "./lib/redis.js";
 import { getQueue, jobsQueueName } from "./lib/queue.js";
 import { trackingQueue, trackingQueueName } from "./queue/queue.js";
 import { ensureRedisConnection } from "./queue/redis.js";
 import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, toStoredPath, uploadsDir, waitForStoredFile } from "./storage/paths.js";
+import { writeArtifactWithDualUpload } from "./storage/provider.js";
 import { parseOrdersFromBuffer } from "./parse/orders.js";
 import { moneyOrderHtml, renderLabelDocumentHtml, type LabelOrder } from "./templates/labels.js";
 import { htmlToPdfBuffer, htmlToPdfBufferInFreshBrowser, launchPuppeteerBrowser } from "./pdf/render.js";
@@ -43,6 +45,14 @@ import {
 import { processTracking } from "./services/trackingStatus.js";
 import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "./services/trackingIntelligence.js";
 import { processComplaintQueueById } from "./processors/complaint.processor.js";
+import {
+  createStartupReadinessReport,
+  getInfrastructureEnvStatus,
+  logStartupReadinessReport,
+  type StartupReadinessReport,
+  type StartupReadinessState,
+} from "./startup/readiness.js";
+import { getTelemetrySinkDiagnostics, logTelemetry, logTelemetrySinkInitialized } from "./telemetry.js";
 
 const require = createRequire(import.meta.url);
 
@@ -74,8 +84,52 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: s
 const JOB_TIMEOUT_MS = 60_000;
 const WORKER_SINGLETON_LOCK_KEY = "worker:singleton:label-generator";
 const WORKER_SINGLETON_LOCK_TTL_SECONDS = 60;
+const WORKER_WAITING_LOG_EVERY = Math.max(1, Number(process.env.WORKER_WAITING_LOG_EVERY ?? "3"));
 let workerSingletonLockValue: string | null = null;
 let workerSingletonHeartbeat: NodeJS.Timeout | null = null;
+let lastWorkerReadinessState: StartupReadinessState | null = null;
+
+class WorkerInfrastructureNotReadyError extends Error {
+  constructor(readonly report: StartupReadinessReport) {
+    super(`Worker infrastructure not ready (${report.state})`);
+    this.name = "WorkerInfrastructureNotReadyError";
+  }
+}
+
+async function getWorkerInfrastructureReadiness(): Promise<StartupReadinessReport> {
+  const envStatus = getInfrastructureEnvStatus();
+  let databaseReady = false;
+  let redisReady = false;
+  let databaseIssue = envStatus.database.issue;
+  let redisIssue = envStatus.redis.issue;
+
+  if (envStatus.database.configured) {
+    try {
+      await prisma.$connect();
+      databaseReady = true;
+      databaseIssue = undefined;
+    } catch (err) {
+      databaseIssue = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  if (envStatus.redis.usable) {
+    try {
+      await ensureRedisConnection();
+      redisReady = true;
+      redisIssue = undefined;
+    } catch (err) {
+      redisIssue = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  return createStartupReadinessReport("WORKER", {
+    databaseReady,
+    redisReady,
+    databaseIssue,
+    redisIssue,
+  });
+}
 
 async function safeJob<T>(processJob: () => Promise<T>) {
   return Promise.race([
@@ -507,13 +561,45 @@ async function getMoneyOrdersByTracking(userId: string, trackingNumbers: string[
 async function startWorker() {
   try {
     console.log("🔥 Worker initialization started");
+    logTelemetrySinkInitialized();
+    logTelemetry({
+      event: "canary_runtime_configuration",
+      process: "worker",
+      enabled: stagingConfig.STAGING_R2_ENABLED,
+      mode: stagingConfig.CANARY_MODE,
+      percentage: stagingConfig.CANARY_MODE === "job-percentage" ? stagingConfig.CANARY_PERCENTAGE : undefined,
+      maxJobs: stagingConfig.CANARY_MODE === "job-count" ? stagingConfig.CANARY_MAX_JOBS : undefined,
+      dualWriteEnabled: featureFlags.ENABLE_DUAL_WRITE,
+      dualReadEnabled: featureFlags.ENABLE_DUAL_READ,
+      r2UploadsEnabled: featureFlags.ENABLE_R2_UPLOADS,
+      normalizedKeysEnabled: NORMALIZED_KEYS_FOR_NEW_UPLOADS,
+      telemetrySink: getTelemetrySinkDiagnostics(),
+    });
 
     const dbUrl = String(process.env.DATABASE_URL ?? "").trim();
     if (!dbUrl) {
-      console.error("[Worker] DATABASE_URL is missing. Worker will stay idle to avoid crash loops.");
+      const idleReadiness = createStartupReadinessReport("WORKER", {
+        databaseReady: false,
+        redisReady: false,
+        databaseIssue: "DATABASE_URL is missing",
+        redisIssue: getInfrastructureEnvStatus().redis.issue,
+      });
+      logStartupReadinessReport(idleReadiness);
+      console.error("[Worker] Waiting for infrastructure. DATABASE_URL is missing, so the worker will stay idle to avoid crash loops.");
       setInterval(() => undefined, 60_000);
       return;
     }
+
+    const readinessReport = await getWorkerInfrastructureReadiness();
+    if (readinessReport.state !== "FULLY_READY") {
+      throw new WorkerInfrastructureNotReadyError(readinessReport);
+    }
+
+    // Phase 9B Day 2.5: Run startup config validation before queue consumption begins.
+    // Mirrors the same guard in the API process (apps/api/src/index.ts).
+    // Ensures NORMALIZED_KEYS_FOR_NEW_UPLOADS cannot activate without required Phase 9A gates.
+    const { validateStartupConfig } = await import("./config.js");
+    validateStartupConfig();
 
     await ensureStorageDirs();
     await prisma.$connect();
@@ -530,76 +616,92 @@ const worker = new Worker(
   jobsQueueName,
   async (bullJob) => {
     const processJob = async () => {
-    console.log(`[Worker] Processing job ${String(bullJob.id ?? "unknown")}`);
-    await prisma.$connect();
-    const {
-      jobId,
-      generateLabels,
-      autoGenerateTracking,
-      generateMoneyOrder,
+      console.log(`[Worker] Processing job ${String(bullJob.id ?? "unknown")}`);
+      await prisma.$connect();
+      const {
+        jobId,
+        generateLabels,
+        autoGenerateTracking,
+        generateMoneyOrder,
         barcodeMode,
-      printMode,
-      trackingScheme,
-      trackAfterGenerate,
-      carrierType,
-      shipmentType,
-      fileBuffer,
-      fileName,
-    } = bullJob.data as {
-      jobId: string;
-      fileBuffer?: Buffer;
-      fileName?: string;
-      generateLabels?: boolean;
-      autoGenerateTracking?: boolean;
-      generateMoneyOrder?: boolean;
+        printMode,
+        trackingScheme,
+        trackAfterGenerate,
+        carrierType,
+        shipmentType,
+        fileBuffer,
+        fileName,
+        filePath,
+      } = bullJob.data as {
+        jobId: string;
+        fileBuffer?: Buffer;
+        fileName?: string;
+        filePath?: string;
+        generateLabels?: boolean;
+        autoGenerateTracking?: boolean;
+        generateMoneyOrder?: boolean;
         barcodeMode?: "manual" | "auto";
-      printMode?: "labels" | "envelope" | "flyer" | "universal-9x4";
-      trackingScheme?: "standard" | "rl" | "ums";
-      trackAfterGenerate?: boolean;
-      carrierType?: "pakistan_post" | "courier";
-      shipmentType?: "RGL" | "IRL" | "UMS" | "VPL" | "VPP" | "PAR" | "COD" | "COURIER" | "RL" | null;
-    };
-    const job = await prisma.labelJob.findUnique({
-      where: { id: jobId },
-      include: { user: true },
-    });
-    if (!job) return;
+        printMode?: "labels" | "envelope" | "flyer" | "universal-9x4";
+        trackingScheme?: "standard" | "rl" | "ums";
+        trackAfterGenerate?: boolean;
+        carrierType?: "pakistan_post" | "courier";
+        shipmentType?: "RGL" | "IRL" | "UMS" | "VPL" | "VPP" | "PAR" | "COD" | "COURIER" | "RL" | null;
+      };
+      const job = await prisma.labelJob.findUnique({
+        where: { id: jobId },
+        include: { user: true },
+      });
+      if (!job) return;
 
-    console.log(`[Worker] Starting job ${jobId} (BullMQ ID: ${bullJob.id})`);
+      console.log(`[Worker] Starting job ${jobId} (BullMQ ID: ${bullJob.id})`);
 
-    await prisma.labelJob.update({ where: { id: jobId }, data: { status: "PROCESSING", error: null } });
+      await prisma.labelJob.update({ where: { id: jobId }, data: { status: "PROCESSING", error: null } });
 
-    let browser: Browser | undefined;
-    try {
-      if (!fileBuffer) {
-        throw new UnrecoverableError("File buffer missing in job");
-      }
-
-      browser = await launchWorkerBrowser();
-
-      // --- Control Flags ---
-      const doGenerateLabels = generateLabels === true; // Hard block: false if undefined or false
-      const doAutoGenerateTracking = autoGenerateTracking === true; // Hard block: false if undefined or false
-      const pakistanPostCarrier = carrierType !== "courier";
-      const doGenerateMoneyOrder = generateMoneyOrder === true && pakistanPostCarrier; // Per-order gating happens after label preparation
-      const autoModeChecked = doAutoGenerateTracking && doGenerateMoneyOrder;
-      if (autoModeChecked) {
-        console.log("Auto Mode: Tracking + MO generated");
-      }
-
-      let orders: any[] = [];
+      let browser: Browser | undefined;
+      let inputBuffer: Buffer | null = null;
+      let tempFileToDelete: string | null = null;
       try {
-        orders = await parseOrdersFromBuffer(
-          Buffer.from(fileBuffer),
-          String(fileName ?? `${jobId}.xlsx`),
-          { allowMissingTrackingId: doAutoGenerateTracking },
-        );
-        console.log(`[Worker] Parsing success for job ${jobId}. Rows: ${orders.length}`);
-      } catch (parseError) {
-        const parseMessage = parseError instanceof Error ? parseError.message : String(parseError);
-        console.error(`[Worker] File parse failed for job ${jobId}: ${parseMessage}`);
-        throw new Error(`Upload parsing failed: ${parseMessage}`);
-      }
+        // Dual-mode: Prefer filePath if present, else fallback to fileBuffer
+        if (filePath && typeof filePath === "string" && filePath.length > 0) {
+          try {
+            inputBuffer = await getStorageProvider().readArtifact("upload", filePath);
+            tempFileToDelete = filePath;
+            console.log(`[Worker] Read input file from path: ${filePath} (size: ${inputBuffer.length} bytes)`);
+          } catch (err) {
+            throw new UnrecoverableError(`Failed to read file from path: ${filePath} (${err instanceof Error ? err.message : String(err)})`);
+          }
+        } else if (fileBuffer) {
+          inputBuffer = Buffer.from(fileBuffer);
+          console.log(`[Worker] Using legacy fileBuffer from job payload (size: ${inputBuffer.length} bytes)`);
+        } else {
+          throw new UnrecoverableError("No fileBuffer or filePath found in job payload");
+        }
+
+        browser = await launchWorkerBrowser();
+
+        // --- Control Flags ---
+        const doGenerateLabels = generateLabels === true; // Hard block: false if undefined or false
+        const doAutoGenerateTracking = autoGenerateTracking === true; // Hard block: false if undefined or false
+        const pakistanPostCarrier = carrierType !== "courier";
+        const doGenerateMoneyOrder = generateMoneyOrder === true && pakistanPostCarrier; // Per-order gating happens after label preparation
+        const autoModeChecked = doAutoGenerateTracking && doGenerateMoneyOrder;
+        if (autoModeChecked) {
+          console.log("Auto Mode: Tracking + MO generated");
+        }
+
+        let orders: any[] = [];
+        try {
+          orders = await parseOrdersFromBuffer(
+            inputBuffer,
+            String(fileName ?? `${jobId}.xlsx`),
+            { allowMissingTrackingId: doAutoGenerateTracking },
+          );
+          console.log(`[Worker] Parsing success for job ${jobId}. Rows: ${orders.length}`);
+        } catch (parseError) {
+          const parseMessage = parseError instanceof Error ? parseError.message : String(parseError);
+          console.error(`[Worker] File parse failed for job ${jobId}: ${parseMessage}`);
+          throw new Error(`Upload parsing failed: ${parseMessage}`);
+        }
 
       // Replace duplicate manual tracking IDs (DB duplicates + in-file duplicates) with auto-generated IDs.
       const manualTrackingIds = orders
@@ -684,6 +786,17 @@ const worker = new Worker(
         console.log(
           `[Worker] Final tracking IDs after duplicate handling (${finalTrackingIds.length} rows, first 20): ${JSON.stringify(finalTrackingIds.slice(0, 20))}`,
         );
+
+        // --- TEMP FILE CLEANUP: Only after successful filePath job completion ---
+        // This block runs only after all processing is successful, before returning from the job handler.
+        if (tempFileToDelete) {
+          try {
+            await getStorageProvider().deleteArtifact("temp", tempFileToDelete);
+            console.log(`[Worker] Deleted temp file after successful job: ${tempFileToDelete}`);
+          } catch (cleanupErr) {
+            console.warn(`[Worker] Failed to delete temp file after job: ${tempFileToDelete} (${cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr)})`);
+          }
+        }
       }
 
       let useProfileShipper = false;
@@ -1019,8 +1132,11 @@ const worker = new Worker(
         labelsPdf = pdfBuffer;
         labelsPath = path.join(outputsDir(), `${jobId}-labels.pdf`);
         console.log(`[Worker] Labels output file path: ${labelsPath}`);
-        await fs.writeFile(labelsPath, pdfBuffer);
-        const labelsFileStats = await fs.stat(labelsPath);
+        await writeArtifactWithDualUpload("pdf", labelsPath, pdfBuffer, {
+          jobId,
+          artifactType: "labelsPdf",
+        });
+        const labelsFileStats = await fs.stat(labelsPath); // stat is used for validation, keep as-is
         console.log(`[Worker] Labels saved file size: ${labelsFileStats.size} bytes`);
         if (labelsFileStats.size <= 0) {
           throw new Error("Labels PDF file was saved with zero bytes");
@@ -1098,8 +1214,11 @@ const worker = new Worker(
           console.log("Generating MO file...");
           moneyPath = moneyOrdersOutputPath(jobId);
           console.log("Output path:", moneyPath);
-          await fs.writeFile(moneyPath, moneyPdf);
-          const moneyFileStats = await fs.stat(moneyPath);
+          await writeArtifactWithDualUpload("pdf", moneyPath, moneyPdf, {
+            jobId,
+            artifactType: "moneyOrderPdf",
+          });
+          const moneyFileStats = await fs.stat(moneyPath); // stat is used for validation, keep as-is
           console.log(`[Worker] Money-order saved file size: ${moneyFileStats.size} bytes`);
           if (moneyFileStats.size <= 0) {
             throw new Error("Money order PDF file was saved with zero bytes");
@@ -1241,7 +1360,7 @@ const trackingWorker = new Worker(
           latest_time: null,
           days_passed: null,
         }));
-        await fs.writeFile(outPath, JSON.stringify(results, null, 2), "utf8");
+        await getStorageProvider().writeArtifact("json", outPath, JSON.stringify(results, null, 2));
         await prisma.trackingJob.update({
           where: { id: job.id },
           data: { status: "PROCESSING", resultPath: path.relative(process.cwd(), outPath) },
@@ -1543,7 +1662,21 @@ async function bootWorkerProcess() {
       return;
     } catch (err) {
       await releaseWorkerSingletonLock();
-      console.error("Worker startup error:", err instanceof Error ? err.message : String(err));
+      if (err instanceof WorkerInfrastructureNotReadyError) {
+        const shouldLogDetailedState =
+          attempt === 0
+          || lastWorkerReadinessState !== err.report.state
+          || ((attempt + 1) % WORKER_WAITING_LOG_EVERY === 0)
+          || attempt === WORKER_STARTUP_RETRIES;
+
+        if (shouldLogDetailedState) {
+          logStartupReadinessReport(err.report);
+          lastWorkerReadinessState = err.report.state;
+        }
+        console.warn(`[Worker] Waiting for infrastructure (${err.report.state}).`);
+      } else {
+        console.error("Worker startup error:", err instanceof Error ? err.message : String(err));
+      }
       const hasMoreRetries = attempt < WORKER_STARTUP_RETRIES;
       if (!hasMoreRetries) {
         throw err;

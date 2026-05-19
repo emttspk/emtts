@@ -10,8 +10,13 @@ case "$SERVICE_NAME" in
     exec sh apps/api/start.sh combined
     ;;
   Worker)
-    echo "[Worker] Running idle mode. Queue processing is handled by Api combined mode to keep artifact files downloadable from the same container filesystem."
-    exec node deploy/worker-idle/idle.js
+    export STORAGE_PATH="${STORAGE_PATH:-/app/storage}"
+    if [ "${WORKER_LEGACY_IDLE_MODE:-false}" = "true" ]; then
+      echo "[Worker] Legacy idle mode enabled (temporary rollback path)."
+      exec node deploy/worker-idle/idle.js
+    fi
+    echo "[Worker] Starting standalone worker mode."
+    exec sh apps/api/start.sh worker
     ;;
   Python)
     cd python-service || exit 1

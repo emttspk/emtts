@@ -1,15 +1,17 @@
 import { Router } from "express";
-import type { Request, Response, NextFunction } from "express";
+import type { Request as ExpressRequest, Response as ExpressResponse, NextFunction as ExpressNextFunction } from "express";
 import { existsSync } from "node:fs";
 import fsSync from "node:fs";
 import multer from "multer";
 import path from "node:path";
 import fs from "node:fs/promises";
+import { getStorageProvider, getDualProviders } from "../storage/provider.js";
+import type { StorageProvider } from "../storage/StorageProvider.js";
 import { randomUUID } from "node:crypto";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import type { AuthedRequest } from "../middleware/auth.js";
-import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, resolveStoredPath, toStoredPath, uploadsDir, waitForStoredFile } from "../storage/paths.js";
+import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, resolveStoredPath, toStoredPath, uploadsDir, waitForStoredFile, waitForStoredFileWithFallback } from "../storage/paths.js";
 import { parseOrdersFromFile } from "../parse/orders.js";
 import { ensureRedisConnection } from "../queue/redis.js";
 import { consumeUnits, getLatestUnitSnapshot, refundUnits } from "../usage/unitConsumption.js";
@@ -19,6 +21,9 @@ import { previewLabelHtml, renderLabelDocumentHtml, type LabelPrintMode } from "
 import { prepareLabelOrders } from "../services/labelDocument.js";
 import { isUploadFileNameExempt } from "../services/upload-file-exemptions.service.js";
 import { shouldShowValuePayableAmount } from "../validation/trackingId.js";
+import { activeR2StreamsGauge, refreshRuntimeMetrics, r2StreamDuration, r2StreamFailures } from "../metrics.js";
+import { logTelemetry } from "../telemetry.js";
+import { r2Config as rolloutR2Config } from "../config.js";
 
 export const jobsRouter = Router();
 
@@ -85,7 +90,8 @@ async function ensureJobDeletionSchedulesTable() {
 async function removeStoredFile(relPath: string | null | undefined) {
   if (!relPath) return;
   try {
-    await fs.unlink(resolveStoredPath(relPath));
+    const storage = getStorageProvider();
+    await storage.deleteArtifact("artifact", resolveStoredPath(relPath));
   } catch {
     // ignore missing files
   }
@@ -243,7 +249,7 @@ function parsePrintMode(value: unknown): LabelPrintMode {
   return "labels";
 }
 
-export const labelUploadMiddleware = (req: Request, res: Response, next: NextFunction) => {
+export const labelUploadMiddleware = (req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
   upload.single("file")(req, res, (err) => {
     if (err) {
       const msg = err instanceof Error ? err.message : "Upload failed";
@@ -253,7 +259,7 @@ export const labelUploadMiddleware = (req: Request, res: Response, next: NextFun
   });
 };
 
-export const labelPreviewUploadMiddleware = (req: Request, res: Response, next: NextFunction) => {
+export const labelPreviewUploadMiddleware = (req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
   previewUpload.single("file")(req, res, (err) => {
     if (err) {
       const msg = err instanceof Error ? err.message : "Preview upload failed";
@@ -324,7 +330,8 @@ jobsRouter.post("/preview/labels", requireAuth, labelPreviewUploadMiddleware, as
     return res.status(400).json({ success: false, error: message, message });
   } finally {
     if (tempPath) {
-      await fs.unlink(tempPath).catch(() => {});
+      const storage = getStorageProvider();
+      await storage.deleteArtifact("artifact", tempPath).catch(() => {});
     }
   }
 });
@@ -394,7 +401,7 @@ jobsRouter.post("/delete", requireAuth, async (req, res) => {
   return res.json({ success: true, deleted });
 });
 
-export async function handleLabelUpload(req: Request, res: Response) {
+export async function handleLabelUpload(req: ExpressRequest, res: ExpressResponse) {
   await prisma.$connect();
   const userId = (req as AuthedRequest).user!.id;
   if (!userId) {
@@ -610,18 +617,19 @@ export async function handleLabelUpload(req: Request, res: Response) {
 
     // Try to enqueue job with timeout. If this fails, mark FAILED immediately so
     // jobs do not remain stuck in QUEUED forever.
+
     try {
       const queue = getQueue();
       if (!queue) {
         throw new Error("Queue unavailable");
       }
-      const fileBuffer = fsSync.readFileSync(uploadPath);
+      // Phase 2: Enqueue filePath instead of fileBuffer (rollback: revert to fileBuffer if needed)
       await withTimeout(ensureRedisConnection(), 3000, "Redis connection timed out");
       await withTimeout(queue.add(
         "job",
         {
           jobId: job.id,
-          fileBuffer,
+          filePath: uploadPath,
           fileName: uploadedFile.originalname,
           generateLabels: true,
           generateMoneyOrder: effectiveGenerateMoneyOrder,
@@ -635,7 +643,7 @@ export async function handleLabelUpload(req: Request, res: Response) {
         },
         { jobId: job.id },
       ), 3000, "Queue enqueue timed out");
-      console.log("Job added:", job.id);
+      console.log("Job added (filePath):", job.id);
     } catch (queueErr) {
       const queueMessage = queueErr instanceof Error ? queueErr.message : "Queue enqueue failed";
       console.error(`[Upload] Queue enqueue failed for job ${job.id}: ${queueMessage}`);
@@ -724,8 +732,12 @@ jobsRouter.get("/:jobId/download/labels", requireAuth, async (req, res) => {
     return res.status(404).json({ success: false, message: "Labels file not found" });
   }
 
-  const absPath = await waitForStoredFile(relPath, 8, 500);
-  if (!absPath) {
+  // Dual-read aware: Try local first, fallback to R2 if enabled
+  const fileResult = await waitForStoredFileWithFallback(relPath, 8, 500, {
+    jobId,
+    artifactType: "labelsPdf",
+  });
+  if (!fileResult) {
     const fallbackPath = resolveStoredPath(relPath);
     if (existsSync(fallbackPath)) {
       const stats = fsSync.statSync(fallbackPath);
@@ -735,18 +747,8 @@ jobsRouter.get("/:jobId/download/labels", requireAuth, async (req, res) => {
     }
     return res.status(404).json({ success: false, message: "File not found on disk" });
   }
-  const resolvedAbsPath = path.resolve(absPath);
-  console.log("DOWNLOAD PATH:", resolvedAbsPath);
-  const labelsStats = fsSync.statSync(resolvedAbsPath);
-  if (!labelsStats.isFile() || labelsStats.size <= 0) {
-    return res.status(422).json({ success: false, message: "Labels file is empty" });
-  }
-  const allowedRoot = outputsDir();
-  const relToRoot = path.relative(allowedRoot, resolvedAbsPath);
-  if (relToRoot.startsWith("..") || path.isAbsolute(relToRoot)) {
-    return res.status(400).json({ success: false, message: "Invalid file path" });
-  }
 
+  // Update DB path if it changed
   if (owned.labelsPdfPath !== relPath) {
     await prisma.labelJob.update({ where: { id: jobId }, data: { labelsPdfPath: relPath } }).catch(() => {});
   }
@@ -754,20 +756,184 @@ jobsRouter.get("/:jobId/download/labels", requireAuth, async (req, res) => {
   const fileName = buildLabelPdfFileName();
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", buildPdfAttachmentHeader(fileName));
-  return res.download(resolvedAbsPath, fileName);
+
+  // Serve based on provider
+  if (fileResult.provider === 'local') {
+    // LOCAL: Use fast path with fs validation
+    const resolvedAbsPath = path.resolve(fileResult.path);
+    console.log("[Download] Serving from local:", resolvedAbsPath);
+    const labelsStats = fsSync.statSync(resolvedAbsPath);
+    if (!labelsStats.isFile() || labelsStats.size <= 0) {
+      return res.status(422).json({ success: false, message: "Labels file is empty" });
+    }
+    const allowedRoot = outputsDir();
+    const relToRoot = path.relative(allowedRoot, resolvedAbsPath);
+    if (relToRoot.startsWith("..") || path.isAbsolute(relToRoot)) {
+      return res.status(400).json({ success: false, message: "Invalid file path" });
+    }
+    return res.download(resolvedAbsPath, fileName);
+  } else if (fileResult.provider === 'r2') {
+    // R2 FALLBACK: Stream from R2 with timeout protection, telemetry, and concurrency bounds
+    // Note: readArtifactStream internally uses semaphore and timeout, this wrapper adds telemetry
+    let streamStartTime = Date.now();
+    let streamAborted = false;
+    
+    try {
+      console.log("[Download] Serving from R2 fallback (streaming):", fileResult.path);
+      
+      // Set response headers for download
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+      
+      // Track stream lifecycle for abort detection
+      const onStreamClose = () => { streamAborted = true; };
+      res.on('close', onStreamClose);
+      let streamGaugeIncremented = false;
+      
+      try {
+        // readArtifactStream internally uses semaphore and timeout; it handles pipeline to res
+        const r2Provider = getDualProviders().r2 as StorageProvider & {
+          readArtifactStream: (
+            type: string,
+            key: string,
+            outputStream: NodeJS.WritableStream,
+            options?: { keyVersion?: "legacy" | "normalized"; jobId?: string; artifactType?: "labelsPdf" | "moneyOrderPdf" | "trackingResult" }
+          ) => Promise<void>;
+        };
+        if (typeof r2Provider.readArtifactStream !== "function") {
+          throw new Error("R2StreamProvider.readArtifactStream not available");
+        }
+
+        activeR2StreamsGauge.inc();
+        streamGaugeIncremented = true;
+        refreshRuntimeMetrics();
+        logTelemetry({
+          event: "stream_start",
+          artifactType: "labelsPdf",
+          provider: "r2",
+          jobId,
+          activeStreams: activeR2StreamsGauge.get(),
+          maxConcurrentStreams: rolloutR2Config.MAX_CONCURRENT_STREAMS,
+        });
+
+        await r2Provider.readArtifactStream("pdf", fileResult.path, res, {
+          jobId,
+          artifactType: "labelsPdf",
+        });
+        
+        // Stream completed successfully
+        const streamDuration = Date.now() - streamStartTime;
+        r2StreamDuration.observe(streamDuration);
+        
+        logTelemetry({
+          event: "stream_success",
+          artifactType: "labelsPdf",
+          provider: "r2",
+          durationMs: streamDuration,
+          jobId: jobId,
+        });
+      } catch (streamErr) {
+        const streamDuration = Date.now() - streamStartTime;
+        const errorMsg = streamErr instanceof Error ? streamErr.message : String(streamErr);
+        
+        // Distinguish timeout vs other errors
+        if (errorMsg.includes("Operation timed out") || errorMsg.includes("timeout")) {
+          logTelemetry({
+            event: "stream_timeout",
+            artifactType: "labelsPdf",
+            provider: "r2",
+            durationMs: streamDuration,
+            jobId: jobId,
+          });
+        } else if (streamAborted) {
+          logTelemetry({
+            event: "stream_abort",
+            artifactType: "labelsPdf",
+            provider: "r2",
+            durationMs: streamDuration,
+            jobId: jobId,
+            reason: "client closed or connection error",
+          });
+        } else {
+          r2StreamFailures.inc();
+          logTelemetry({
+            event: "stream_failure",
+            artifactType: "labelsPdf",
+            provider: "r2",
+            durationMs: streamDuration,
+            error: errorMsg,
+            jobId: jobId,
+          });
+        }
+        
+        // Only send error response if headers not yet sent
+        if (!res.headersSent) {
+          return res.status(502).json({ success: false, message: "Download stream failed" });
+        }
+      } finally {
+        res.removeListener('close', onStreamClose);
+        if (streamGaugeIncremented) {
+          const activeBeforeCleanup = activeR2StreamsGauge.get();
+          if (activeBeforeCleanup > 0) {
+            activeR2StreamsGauge.dec();
+          } else {
+            activeR2StreamsGauge.set(0);
+          }
+          refreshRuntimeMetrics();
+          logTelemetry({
+            event: "stream_cleanup",
+            artifactType: "labelsPdf",
+            provider: "r2",
+            jobId,
+            activeStreamsBeforeCleanup: activeBeforeCleanup,
+            activeStreams: activeR2StreamsGauge.get(),
+            maxConcurrentStreams: rolloutR2Config.MAX_CONCURRENT_STREAMS,
+            aborted: streamAborted,
+          });
+        }
+      }
+    } catch (err) {
+      console.error("[Download] R2 fallback outer error:", err);
+      
+      const streamDuration = Date.now() - streamStartTime;
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      
+      if (errorMsg.includes("timeout")) {
+        logTelemetry({
+          event: "stream_timeout",
+          artifactType: "labelsPdf",
+          provider: "r2",
+          durationMs: streamDuration,
+          jobId: jobId,
+        });
+      } else {
+        r2StreamFailures.inc();
+        logTelemetry({
+          event: "stream_failure",
+          artifactType: "labelsPdf",
+          provider: "r2",
+          durationMs: streamDuration,
+          error: errorMsg,
+          jobId: jobId,
+        });
+      }
+      
+      if (!res.headersSent) {
+        return res.status(502).json({ success: false, message: "Download unavailable" });
+      }
+    }
+  } else {
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
 });
 
-async function handleMoneyOrdersDownload(req: Request, res: Response) {
+async function handleMoneyOrdersDownload(req: ExpressRequest, res: ExpressResponse) {
   const userId = (req as AuthedRequest).user!.id;
   const jobId = req.params.jobId;
   const owned = await prisma.labelJob.findFirst({ where: { id: jobId, userId } });
   if (!owned) return res.status(404).json({ success: false, message: "Not found" });
-  if (!owned.includeMoneyOrders) return res.status(404).json({ success: false, message: "Money orders not enabled for this job" });
-  if (owned.status !== "COMPLETED") {
-    return res.status(409).json({ success: false, status: "processing", message: "Money order is processing" });
-  }
+  if (owned.status !== "COMPLETED") return res.status(409).json({ success: false, message: "Not ready" });
 
-  // Prefer BullMQ return value, fall back to DB path
   let relPath: string | null | undefined = owned.moneyOrderPdfPath;
   try {
     const bullJob = await getQueue().getJob(jobId);
@@ -781,12 +947,14 @@ async function handleMoneyOrdersDownload(req: Request, res: Response) {
 
   relPath = await waitForResolvedMoneyOrderRelPath(jobId, relPath);
   if (!relPath) {
-    // Job is COMPLETED but no money order file was produced — generation failed silently.
     return res.status(404).json({ success: false, message: "Money order file was not generated" });
   }
 
-  const absPath = await waitForStoredFile(relPath, 8, 500);
-  if (!absPath) {
+  const fileResult = await waitForStoredFileWithFallback(relPath, 8, 500, {
+    jobId,
+    artifactType: "moneyOrderPdf",
+  });
+  if (!fileResult) {
     const fallbackPath = resolveStoredPath(relPath);
     if (existsSync(fallbackPath)) {
       const stats = fsSync.statSync(fallbackPath);
@@ -796,18 +964,6 @@ async function handleMoneyOrdersDownload(req: Request, res: Response) {
     }
     return res.status(404).json({ success: false, message: "Money order file was not generated" });
   }
-  const resolvedAbsPath = path.resolve(absPath);
-  console.log("DOWNLOAD PATH:", resolvedAbsPath);
-  const moneyOrderStats = fsSync.statSync(resolvedAbsPath);
-  if (!moneyOrderStats.isFile() || moneyOrderStats.size <= 0) {
-    return res.status(422).json({ success: false, message: "Money order file is empty" });
-  }
-
-  const allowedRoot = outputsDir();
-  const relToRoot = path.relative(allowedRoot, resolvedAbsPath);
-  if (relToRoot.startsWith("..") || path.isAbsolute(relToRoot)) {
-    return res.status(400).json({ success: false, message: "Invalid file path" });
-  }
 
   if (owned.moneyOrderPdfPath !== relPath) {
     await prisma.labelJob.update({ where: { id: jobId }, data: { moneyOrderPdfPath: relPath } }).catch(() => {});
@@ -816,9 +972,169 @@ async function handleMoneyOrdersDownload(req: Request, res: Response) {
   const fileName = buildMoneyOrderPdfFileName();
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", buildPdfAttachmentHeader(fileName));
-  return res.download(resolvedAbsPath, fileName);
+
+  if (fileResult.provider === "local") {
+    const resolvedAbsPath = path.resolve(fileResult.path);
+    console.log("DOWNLOAD PATH:", resolvedAbsPath);
+    const moneyOrderStats = fsSync.statSync(resolvedAbsPath);
+    if (!moneyOrderStats.isFile() || moneyOrderStats.size <= 0) {
+      return res.status(422).json({ success: false, message: "Money order file is empty" });
+    }
+
+    const allowedRoot = outputsDir();
+    const relToRoot = path.relative(allowedRoot, resolvedAbsPath);
+    if (relToRoot.startsWith("..") || path.isAbsolute(relToRoot)) {
+      return res.status(400).json({ success: false, message: "Invalid file path" });
+    }
+
+    return res.download(resolvedAbsPath, fileName);
+  }
+
+  const r2Provider = getDualProviders().r2 as StorageProvider & {
+    readArtifactStream?: (
+      type: string,
+      key: string,
+      outputStream: NodeJS.WritableStream,
+      options?: { keyVersion?: "legacy" | "normalized"; jobId?: string; artifactType?: "labelsPdf" | "moneyOrderPdf" | "trackingResult" }
+    ) => Promise<void>;
+  };
+
+  if (typeof r2Provider.readArtifactStream !== "function") {
+    return res.status(502).json({ success: false, message: "Download unavailable" });
+  }
+
+  let streamStartTime = Date.now();
+  let streamAborted = false;
+  
+  try {
+    console.log("[Download] Serving money order from R2 fallback (streaming):", fileResult.path);
+    
+    // Track stream lifecycle for abort detection
+    const onStreamClose = () => { streamAborted = true; };
+    res.on('close', onStreamClose);
+    let streamGaugeIncremented = false;
+    
+    try {
+      // readArtifactStream internally uses semaphore and timeout; it handles pipeline to res
+      activeR2StreamsGauge.inc();
+      streamGaugeIncremented = true;
+      refreshRuntimeMetrics();
+      logTelemetry({
+        event: "stream_start",
+        artifactType: "moneyOrderPdf",
+        provider: "r2",
+        jobId,
+        activeStreams: activeR2StreamsGauge.get(),
+        maxConcurrentStreams: rolloutR2Config.MAX_CONCURRENT_STREAMS,
+      });
+
+      await r2Provider.readArtifactStream("pdf", fileResult.path, res, {
+        jobId,
+        artifactType: "moneyOrderPdf",
+      });
+      
+      // Stream completed successfully
+      const streamDuration = Date.now() - streamStartTime;
+      r2StreamDuration.observe(streamDuration);
+      
+      logTelemetry({
+        event: "stream_success",
+        artifactType: "moneyOrderPdf",
+        provider: "r2",
+        durationMs: streamDuration,
+        jobId: jobId,
+      });
+    } catch (streamErr) {
+      const streamDuration = Date.now() - streamStartTime;
+      const errorMsg = streamErr instanceof Error ? streamErr.message : String(streamErr);
+      
+      // Distinguish timeout vs other errors
+      if (errorMsg.includes("Operation timed out") || errorMsg.includes("timeout")) {
+        logTelemetry({
+          event: "stream_timeout",
+          artifactType: "moneyOrderPdf",
+          provider: "r2",
+          durationMs: streamDuration,
+          jobId: jobId,
+        });
+      } else if (streamAborted) {
+        logTelemetry({
+          event: "stream_abort",
+          artifactType: "moneyOrderPdf",
+          provider: "r2",
+          durationMs: streamDuration,
+          jobId: jobId,
+          reason: "client closed or connection error",
+        });
+      } else {
+        r2StreamFailures.inc();
+        logTelemetry({
+          event: "stream_failure",
+          artifactType: "moneyOrderPdf",
+          provider: "r2",
+          durationMs: streamDuration,
+          error: errorMsg,
+          jobId: jobId,
+        });
+      }
+      
+      // Only send error response if headers not yet sent
+      if (!res.headersSent) {
+        return res.status(502).json({ success: false, message: "Download stream failed" });
+      }
+    } finally {
+      res.removeListener('close', onStreamClose);
+      if (streamGaugeIncremented) {
+        const activeBeforeCleanup = activeR2StreamsGauge.get();
+        if (activeBeforeCleanup > 0) {
+          activeR2StreamsGauge.dec();
+        } else {
+          activeR2StreamsGauge.set(0);
+        }
+        refreshRuntimeMetrics();
+        logTelemetry({
+          event: "stream_cleanup",
+          artifactType: "moneyOrderPdf",
+          provider: "r2",
+          jobId,
+          activeStreamsBeforeCleanup: activeBeforeCleanup,
+          activeStreams: activeR2StreamsGauge.get(),
+          maxConcurrentStreams: rolloutR2Config.MAX_CONCURRENT_STREAMS,
+          aborted: streamAborted,
+        });
+      }
+    }
+  } catch (err) {
+    console.error("[Download] Money order R2 fallback outer error:", err);
+    
+    const streamDuration = Date.now() - streamStartTime;
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    
+    if (errorMsg.includes("timeout")) {
+      logTelemetry({
+        event: "stream_timeout",
+        artifactType: "moneyOrderPdf",
+        provider: "r2",
+        durationMs: streamDuration,
+        jobId: jobId,
+      });
+    } else {
+      r2StreamFailures.inc();
+      logTelemetry({
+        event: "stream_failure",
+        artifactType: "moneyOrderPdf",
+        provider: "r2",
+        durationMs: streamDuration,
+        error: errorMsg,
+        jobId: jobId,
+      });
+    }
+    
+    if (!res.headersSent) {
+      return res.status(502).json({ success: false, message: "Download unavailable" });
+    }
+  }
 }
 
 jobsRouter.get("/:jobId/download/money-orders", requireAuth, handleMoneyOrdersDownload);
-// Backward-compatible alias to avoid 404s for clients still using singular route.
 jobsRouter.get("/:jobId/download/money-order", requireAuth, handleMoneyOrdersDownload);

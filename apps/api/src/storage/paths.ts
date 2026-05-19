@@ -4,6 +4,8 @@ import fsSync from "node:fs";
 import { fileURLToPath } from "node:url";
 import { env } from "../config.js";
 import { UPLOAD_DIR } from "../utils/paths.js";
+import { getDualProviders, storageFeatureFlags } from "./provider.js";
+import type { R2ReadCompatibilityOptions } from "./R2StorageProvider.js";
 
 export function appRoot() {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -73,6 +75,91 @@ export async function waitForStoredFile(storedPath: string, attempts = 8, delayM
     }
   }
 
+  return null;
+}
+
+// Quick R2 existence check (fail-fast, no retries)
+// Returns true if R2 file exists, false otherwise (including errors)
+async function checkR2ExistsQuick(
+  storedPath: string,
+  timeoutMs = 2000,
+  options?: R2ReadCompatibilityOptions
+): Promise<boolean> {
+  if (!storageFeatureFlags.ENABLE_DUAL_READ || !storageFeatureFlags.ENABLE_R2_UPLOADS) {
+    return false;
+  }
+
+  try {
+    const r2Provider = getDualProviders().r2;
+    const promise = r2Provider.artifactExists("pdf", storedPath, options);
+    
+    // Race against timeout to fail fast
+    const timeoutPromise = new Promise<boolean>((_, reject) =>
+      setTimeout(() => reject(new Error("R2 check timeout")), timeoutMs)
+    );
+    
+    return await Promise.race([promise, timeoutPromise]);
+  } catch {
+    // Any R2 error (timeout, network, auth) → assume R2 unavailable
+    return false;
+  }
+}
+
+// Dual-read aware polling: tries local first, fallback to R2 if enabled
+// Returns {path, provider} if found, null otherwise
+export async function waitForStoredFileWithFallback(
+  storedPath: string,
+  attempts = 8,
+  delayMs = 200,
+  options?: R2ReadCompatibilityOptions
+): Promise<{path: string, provider: 'local' | 'r2'} | null> {
+  const absPath = resolveStoredPath(storedPath);
+  
+  // PHASE 1: Try local first (8 attempts, normal polling cadence)
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const stats = await fs.stat(absPath);
+      if (stats.isFile() && stats.size > 0) {
+        return {path: absPath, provider: 'local'};
+      }
+    } catch {
+      // keep polling
+    }
+    if (attempt < attempts - 1) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  // PHASE 2: Fallback to R2 if enabled
+  if (storageFeatureFlags.ENABLE_DUAL_READ && storageFeatureFlags.ENABLE_R2_UPLOADS) {
+    try {
+      const { metrics } = await import("../metrics.js");
+      const { logTelemetry } = await import("../telemetry.js");
+      metrics.incCounter("dual_read_fallback_total");
+      logTelemetry({
+        event: "dual_read_fallback",
+        provider: "r2",
+        objectKey: storedPath,
+      });
+      const r2Exists = await checkR2ExistsQuick(storedPath, 2000, options);
+      if (r2Exists) {
+        logTelemetry({
+          event: "provider_fallback",
+          provider: "r2",
+          objectKey: storedPath,
+        });
+        return { path: storedPath, provider: 'r2' };
+      }
+    } catch (err) {
+      const { logTelemetry } = await import("../telemetry.js");
+      logTelemetry({
+        event: "provider_fallback",
+        provider: "r2",
+        objectKey: storedPath,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
   return null;
 }
 

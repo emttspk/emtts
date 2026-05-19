@@ -66,57 +66,50 @@ else
 fi
 
 case "$MODE" in
-  combined)
+  # combined)
+  #   run_prisma_startup
+  #   echo "[startup] Starting BullMQ Worker..."
+  #   node dist/worker.js &
+  #   WORKER_PID=$!
+  #
+  #   echo "[startup] Starting API server..."
+  #   node dist/index.js &
+  #   API_PID=$!
+  #
+  #   shutdown() {
+  #     kill "$WORKER_PID" "$API_PID" 2>/dev/null || true
+  #   }
+  #
+  #   trap shutdown INT TERM EXIT
+  #
+  #   WORKER_REPORTED_DOWN=0
+  #   while kill -0 "$API_PID" 2>/dev/null; do
+  #     if [ "$WORKER_REPORTED_DOWN" -eq 0 ] && ! kill -0 "$WORKER_PID" 2>/dev/null; then
+  #       echo "[startup] Worker exited; API will continue running in degraded mode"
+  #       WORKER_REPORTED_DOWN=1
+  #     fi
+  #     sleep 2
+  #   done
+  #
+  #   echo "[startup] API exited; stopping container"
+  #   wait "$API_PID"
+  #   EXIT_CODE=$?
+  #
+  #   shutdown
+  #   exit "${EXIT_CODE:-1}"
+  #   ;;
+  api|*)
+    # Always run API-only mode. Combined and worker modes are disabled for normalization.
     run_prisma_startup
-    echo "[startup] Starting BullMQ Worker..."
-    node dist/worker.js &
-    WORKER_PID=$!
-
-    echo "[startup] Starting API server..."
-    node dist/index.js &
-    API_PID=$!
-
-    shutdown() {
-      kill "$WORKER_PID" "$API_PID" 2>/dev/null || true
-    }
-
-    trap shutdown INT TERM EXIT
-
-    WORKER_REPORTED_DOWN=0
-    while kill -0 "$API_PID" 2>/dev/null; do
-      if [ "$WORKER_REPORTED_DOWN" -eq 0 ] && ! kill -0 "$WORKER_PID" 2>/dev/null; then
-        echo "[startup] Worker exited; API will continue running in degraded mode"
-        WORKER_REPORTED_DOWN=1
-      fi
-      sleep 2
-    done
-
-    echo "[startup] API exited; stopping container"
-    wait "$API_PID"
-    EXIT_CODE=$?
-
-    shutdown
-    exit "${EXIT_CODE:-1}"
-    ;;
-  api)
-    run_prisma_startup
-    echo "[startup] Starting API server only..."
+    echo "[startup] Starting API server only (API normalization enforced)..."
     exec node dist/index.js
     ;;
-  worker)
-    if [ "${ALLOW_STANDALONE_WORKER:-false}" != "true" ]; then
-      echo "[startup] Worker mode disabled (ALLOW_STANDALONE_WORKER!=true); starting idle process"
-      exec node deploy/worker-idle/idle.js
-    fi
-    if [ -z "${DATABASE_URL:-}" ]; then
-      echo "[startup] Worker mode: DATABASE_URL missing; starting idle process to avoid restart loop"
-      exec node deploy/worker-idle/idle.js
-    fi
-    echo "[startup] Starting BullMQ worker only..."
-    exec node dist/worker.js
-    ;;
-  *)
-    echo "[startup] Unknown mode '$MODE'"
-    exit 1
-    ;;
+  # worker)
+  #   if [ -z "${DATABASE_URL:-}" ]; then
+  #     echo "[startup] Worker mode: DATABASE_URL missing; starting idle process to avoid restart loop"
+  #     exec node deploy/worker-idle/idle.js
+  #   fi
+  #   echo "[startup] Starting BullMQ worker only..."
+  #   exec node dist/worker.js
+  #   ;;
 esac

@@ -3,7 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import fs from "fs";
 import { createConnection } from "node:net";
-import { env } from "./config.js";
+import { env, featureFlags, NORMALIZED_KEYS_FOR_NEW_UPLOADS, r2Config, resolveR2CredentialEnv, stagingConfig, validateStartupConfig } from "./config.js";
 import { ensureDatabaseConnection } from "./db.js";
 import { prisma } from "./lib/prisma.js";
 import { authRouter } from "./routes/auth.js";
@@ -20,8 +20,12 @@ import { billingSettingsRouter } from "./routes/billingSettings.js";
 import { ensureStorageDirs } from "./storage/paths.js";
 import { startCleanupCron } from "./cron/cleanup.js";
 import { requireAuth } from "./middleware/auth.js";
+import { createStartupReadinessReport, getInfrastructureEnvStatus, logStartupReadinessReport, getStagingConfigReport, logStagingConfigReport } from "./startup/readiness.js";
 import { releaseQueuedLabels } from "./usage/limits.js";
 import { UPLOAD_DIR } from "./utils/paths.js";
+import { R2StorageProvider } from "./storage/R2StorageProvider.js";
+import { getTelemetrySinkDiagnostics, logStagingCanaryInitialized, logStagingConnectivityCheck, logStagingStartupConfig, logTelemetry, logTelemetrySinkInitialized, logEnvSourceDetected, logMissingRequiredEnv } from "./telemetry.js";
+import { stagingModeActiveGauge, unsyncedArtifactsGauge } from "./metrics.js";
 const BUILD_VERSION = process.env.RAILWAY_GIT_COMMIT_SHA ?? "local";
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -194,13 +198,148 @@ function validateEnvironment() {
 
 normalizeDatabaseUrl();
 validateEnvironment();
+
+// Stage S1 Staging Validation
+const stagingReport = getStagingConfigReport();
+logStagingConfigReport(stagingReport);
+stagingModeActiveGauge.set(stagingConfig.STAGING_R2_ENABLED ? 1 : 0);
+logTelemetrySinkInitialized();
+logTelemetry({
+  event: "canary_runtime_configuration",
+  enabled: stagingConfig.STAGING_R2_ENABLED,
+  mode: stagingConfig.CANARY_MODE,
+  percentage: stagingConfig.CANARY_MODE === "job-percentage" ? stagingConfig.CANARY_PERCENTAGE : undefined,
+  maxJobs: stagingConfig.CANARY_MODE === "job-count" ? stagingConfig.CANARY_MAX_JOBS : undefined,
+  dualWriteEnabled: featureFlags.ENABLE_DUAL_WRITE,
+  dualReadEnabled: featureFlags.ENABLE_DUAL_READ,
+  r2UploadsEnabled: featureFlags.ENABLE_R2_UPLOADS,
+  normalizedKeysEnabled: NORMALIZED_KEYS_FOR_NEW_UPLOADS,
+  telemetrySink: getTelemetrySinkDiagnostics(),
+});
+logStagingStartupConfig({
+  stagingEnabled: stagingConfig.STAGING_R2_ENABLED,
+  canaryMode: stagingConfig.CANARY_MODE,
+  dualWriteEnabled: featureFlags.ENABLE_DUAL_WRITE,
+  r2UploadsEnabled: featureFlags.ENABLE_R2_UPLOADS,
+  credentialsConfigured: stagingReport.credentialsConfigured,
+  bucketConfigured: stagingReport.r2BucketConfigured,
+});
+if (stagingConfig.STAGING_R2_ENABLED && stagingConfig.CANARY_MODE !== "disabled") {
+  logStagingCanaryInitialized({
+    canaryMode: stagingConfig.CANARY_MODE,
+    percentage: stagingConfig.CANARY_MODE === "job-percentage" ? stagingConfig.CANARY_PERCENTAGE : undefined,
+    maxJobs: stagingConfig.CANARY_MODE === "job-count" ? stagingConfig.CANARY_MAX_JOBS : undefined,
+  });
+}
+
+function failStagingStartup(reason: string, diagnostics: Record<string, unknown>) {
+  logStagingConnectivityCheck({
+    connectivity: false,
+    uploadable: false,
+    downloadable: false,
+    presignedUrl: false,
+    allValid: false,
+    errors: [reason],
+  });
+  logTelemetry({
+    event: "staging_startup_validation_failed",
+    reason,
+    diagnostics,
+    stagingEnabled: stagingConfig.STAGING_R2_ENABLED,
+    r2UploadsEnabled: featureFlags.ENABLE_R2_UPLOADS,
+  });
+  console.error("[S1 STAGING] Startup validation failed:", reason);
+  console.error("[S1 STAGING] Diagnostics:", diagnostics);
+  process.exit(1);
+}
+
+async function enforceS1StartupValidationOrExit() {
+  const requiresStrictValidation = stagingConfig.STAGING_R2_ENABLED && featureFlags.ENABLE_R2_UPLOADS;
+  if (!requiresStrictValidation) {
+    // Emit env source even when staging is not active (for diagnostics)
+    logEnvSourceDetected(process.env.STORAGE_PROVIDER === "r2" ? "railway" : "shell");
+    return;
+  }
+
+  // Emit env source detected at startup (for diagnostics and drift detection)
+  logEnvSourceDetected(process.env.RAILWAY_GIT_COMMIT_SHA ? "railway" : "shell");
+
+  validateStartupConfig();
+
+  const timeoutMs = Number(r2Config.TIMEOUT_MS || 0);
+  if (!Number.isFinite(timeoutMs) || timeoutMs < 1000 || timeoutMs > 120000) {
+    failStagingStartup("R2_TIMEOUT_MS must be between 1000 and 120000 milliseconds", {
+      configuredTimeoutMs: timeoutMs,
+      recommendation: "Set R2_TIMEOUT_MS to a safe value, e.g. 30000",
+    });
+    return;
+  }
+
+  const creds = resolveR2CredentialEnv();
+  const endpoint = String(process.env.R2_ENDPOINT || "").trim();
+  const bucket = String(process.env.R2_BUCKET || "").trim();
+
+  const missing: string[] = [];
+  if (!endpoint) missing.push("R2_ENDPOINT");
+  if (!bucket) missing.push("R2_BUCKET");
+  if (!creds.accessKeyId) missing.push("R2_ACCESS_KEY_ID or R2_ACCESS_KEY");
+  if (!creds.secretAccessKey) missing.push("R2_SECRET_ACCESS_KEY or R2_SECRET_KEY");
+  if (missing.length > 0) {
+    failStagingStartup("Missing required R2 startup configuration", {
+      missing,
+      recommendation: "Provide all missing R2 environment variables before enabling S1 staging",
+    });
+    return;
+  }
+
+  const provider = new R2StorageProvider({
+    accessKeyId: creds.accessKeyId,
+    secretAccessKey: creds.secretAccessKey,
+    endpoint,
+    region: process.env.R2_REGION || "auto",
+    bucket,
+  });
+
+  const validation = await provider.validateBucketAccess();
+  logStagingConnectivityCheck(validation);
+
+  if (!validation.allValid) {
+    failStagingStartup("R2 startup validation failed", {
+      endpoint,
+      bucket,
+      timeoutMs,
+      errors: validation.errors,
+      checks: {
+        connectivity: validation.connectivity,
+        uploadable: validation.uploadable,
+        downloadable: validation.downloadable,
+        presignedUrl: validation.presignedUrl,
+      },
+      recommendation: "Run npm run r2:verify and fix the failing checks before startup",
+    });
+  }
+
+  logTelemetry({
+    event: "staging_startup_validation_passed",
+    endpoint,
+    bucket,
+    timeoutMs,
+    checks: {
+      connectivity: validation.connectivity,
+      uploadable: validation.uploadable,
+      downloadable: validation.downloadable,
+      presignedUrl: validation.presignedUrl,
+    },
+  });
+}
+
 // runMigrations() is now handled in package.json start script
 // NOTE: Ensure database connection BUT DO NOT BLOCK startup
 // This will initialize in the background while the server starts
-async function initializeDatabaseSafely(): Promise<boolean> {
+async function initializeDatabaseSafely(): Promise<{ ready: boolean; issue?: string }> {
   if (!hasUsableDatabaseUrl()) {
     console.warn("[DB] Skipping initial database connection because DATABASE_URL is missing or invalid.");
-    return false;
+    return { ready: false, issue: "DATABASE_URL is missing or invalid" };
   }
 
   try {
@@ -212,20 +351,38 @@ async function initializeDatabaseSafely(): Promise<boolean> {
       const isReachable = await isTcpEndpointReachable(dbHost, dbPort);
       if (!isReachable) {
         console.warn(`[DB] Skipping initial database connection because ${dbHost}:${dbPort} is not reachable in local development.`);
-        return false;
+        return { ready: false, issue: `${dbHost}:${dbPort} is not reachable` };
       }
     }
   } catch {
     console.warn("[DB] Skipping initial database connection because DATABASE_URL could not be parsed.");
-    return false;
+    return { ready: false, issue: "DATABASE_URL could not be parsed" };
   }
 
   try {
-    return await ensureDatabaseConnection();
+    const ready = await ensureDatabaseConnection();
+    return { ready, issue: ready ? undefined : "Database connection did not become ready" };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[DB] Connection error: ${message}`);
-    return false;
+    return { ready: false, issue: message };
+  }
+}
+
+async function initializeRedisSafely(): Promise<{ ready: boolean; issue?: string }> {
+  const redisEnv = getInfrastructureEnvStatus().redis;
+  if (!redisEnv.usable) {
+    return { ready: false, issue: redisEnv.issue ?? "REDIS_URL is missing or placeholder" };
+  }
+
+  try {
+    const { ensureRedisConnection } = await import("./queue/redis.js");
+    await ensureRedisConnection();
+    return { ready: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[REDIS] Startup readiness check failed: ${message}`);
+    return { ready: false, issue: message };
   }
 }
 
@@ -550,23 +707,54 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
   }
 });
 
-// CRITICAL: Start server IMMEDIATELY without any blocking awaits
-const port = Number(process.env.PORT || 3000);
-const server = app.listen(port, "0.0.0.0", () => {
-  console.log("Server running");
-});
-
-server.on("error", (err: any) => {
-  if (err?.code === "EADDRINUSE") {
-    console.error(`API port ${port} is already in use. Stop the other running API process and try again.`);
+async function initializeUnsyncedArtifactsGauge(databaseReady: boolean) {
+  if (!databaseReady) {
+    unsyncedArtifactsGauge.set(0);
     return;
   }
-  console.error("API server error:", err);
-  return;
-});
 
-// Run all initialization tasks asynchronously AFTER server starts
-(async () => {
+  const [unsyncedLabels, unsyncedMoneyOrders, unsyncedTracking] = await Promise.all([
+    prisma.labelJob.count({
+      where: {
+        labelsPdfPath: { not: null },
+        labelsPdfSyncedAt: null,
+      },
+    }),
+    prisma.labelJob.count({
+      where: {
+        moneyOrderPdfPath: { not: null },
+        moneyOrderPdfSyncedAt: null,
+      },
+    }),
+    prisma.trackingJob.count({
+      where: {
+        resultPath: { not: null },
+        resultSyncedAt: null,
+      },
+    }),
+  ]);
+
+  unsyncedArtifactsGauge.set(Math.max(0, unsyncedLabels + unsyncedMoneyOrders + unsyncedTracking));
+}
+
+async function startServer() {
+  await enforceS1StartupValidationOrExit();
+
+  const port = Number(process.env.PORT || 3000);
+  const server = app.listen(port, "0.0.0.0", () => {
+    console.log("Server running");
+  });
+
+  server.on("error", (err: any) => {
+    if (err?.code === "EADDRINUSE") {
+      console.error(`API port ${port} is already in use. Stop the other running API process and try again.`);
+      return;
+    }
+    console.error("API server error:", err);
+    return;
+  });
+
+  // Run all initialization tasks asynchronously AFTER server starts
   try {
     console.log("[INIT] Starting async initialization tasks...");
     
@@ -574,7 +762,23 @@ server.on("error", (err: any) => {
     await ensureStorageDirs();
     console.log("[INIT] Storage directories ready");
 
-    const databaseReady = await initialDatabaseReady;
+    const databaseReadiness = await initialDatabaseReady;
+    const redisReadiness = await initializeRedisSafely();
+    const databaseReady = databaseReadiness.ready;
+    const redisReady = redisReadiness.ready;
+    logStartupReadinessReport(
+      createStartupReadinessReport("API", {
+        databaseReady,
+        redisReady,
+        databaseIssue: databaseReadiness.issue,
+        redisIssue: redisReadiness.issue,
+      }),
+    );
+
+    await initializeUnsyncedArtifactsGauge(databaseReady).catch((err) => {
+      console.warn("[INIT] Failed to initialize unsynced artifacts gauge:", err instanceof Error ? err.message : String(err));
+      unsyncedArtifactsGauge.set(0);
+    });
 
     if (databaseReady) {
       // Seed default plans
@@ -592,11 +796,8 @@ server.on("error", (err: any) => {
     try {
       if (!databaseReady) {
         console.log("[RECOVERY] Skipping queue recovery because the database is unavailable.");
-      } else {
-      const redisUrl = String(process.env.REDIS_URL ?? "").trim();
-      const hasUsableRedis = !!redisUrl && !/(^|[:@/])HOST([:@/]|$)|(^|[:@/])PASSWORD([:@/]|$)/i.test(redisUrl);
-      if (!hasUsableRedis) {
-        console.log("[RECOVERY] Skipping queue recovery because REDIS_URL is missing or placeholder.");
+      } else if (!redisReady) {
+        console.log("[RECOVERY] Skipping queue recovery because Redis is not ready.");
       } else {
         console.log("[RECOVERY] Checking for jobs stuck in QUEUED status...");
         const queuedJobs = await prisma.labelJob.findMany({
@@ -640,6 +841,176 @@ server.on("error", (err: any) => {
           }
         }
       }
+    } catch (err) {
+      console.warn("[RECOVERY] Failed to recover stuck jobs:", err instanceof Error ? err.message : String(err));
+    }
+    
+    console.log("[INIT] Async initialization complete");
+  } catch (err) {
+    console.error("[INIT] Fatal error during initialization:", err instanceof Error ? err.message : String(err));
+  }
+}
+
+async function validateStartupPhase3() {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  if (!process.env.DATABASE_URL) {
+    warnings.push("DATABASE_URL environment variable is not set. API health routes will stay online, but database-backed routes will be unavailable until a PostgreSQL service is configured.");
+  } else {
+    const dbUrl = process.env.DATABASE_URL;
+    const isValidPostgres = dbUrl.startsWith("postgresql://") || dbUrl.startsWith("postgres://");
+    if (!isValidPostgres) {
+      warnings.push(`DATABASE_URL is invalid: ${dbUrl.substring(0, 50)}... Must start with postgresql:// or postgres://`);
+    }
+  }
+
+  const redisUrl = String(process.env.REDIS_URL ?? "").trim();
+  const pythonServiceUrl = String(process.env.PYTHON_SERVICE_URL ?? "").trim();
+  const dbHost = getUrlHost(process.env.DATABASE_URL);
+  if (!redisUrl) {
+    warnings.push("REDIS_URL environment variable is not set. Queue processing will be unavailable until Redis is configured.");
+  } else if (isProduction && /(localhost|127\.0\.0\.1)/i.test(redisUrl)) {
+    warnings.push("REDIS_URL points to localhost in production. Configure Railway Redis and set REDIS_URL.");
+  } else if (/(^|[:@/])HOST([:@/]|$)|(^|[:@/])PASSWORD([:@/]|$)/i.test(redisUrl)) {
+    warnings.push("REDIS_URL appears to be a placeholder value. Replace it with a real Redis URL.");
+  } else if (isProduction && !redisUrl.startsWith("rediss://")) {
+    // Warn but do not block startup — some Railway plans expose redis:// internally
+    console.warn("⚠️  [Redis] REDIS_URL does not use TLS (rediss://). This is fine for internal Railway networking but ensure the URL is correct.");
+  }
+  if (isProduction) {
+    if (dbHost && isLocalHost(dbHost)) {
+      warnings.push("DATABASE_URL points to localhost in production. Configure external PostgreSQL and set DATABASE_URL.");
+    }
+    if (!pythonServiceUrl) {
+      warnings.push("PYTHON_SERVICE_URL is not set. Tracking/complaint processing will stay unavailable until a Python service URL is configured.");
+    } else if (/(localhost|127\.0\.0\.1)/i.test(pythonServiceUrl)) {
+      warnings.push("PYTHON_SERVICE_URL points to localhost in production. Configure Railway internal Python service URL for tracking/complaint processing.");
+    }
+  }
+
+  if (warnings.length > 0) {
+    console.warn("⚠️  STARTUP WARNINGS:");
+    warnings.forEach((warning) => console.warn(`   - ${warning}`));
+  }
+
+  if (errors.length > 0) {
+    console.error("❌ STARTUP VALIDATION FAILED:");
+    errors.forEach((err) => console.error(`   - ${err}`));
+  }
+
+  return { success: warnings.length === 0, errors };
+}
+
+async function main() {
+  await enforceS1StartupValidationOrExit();
+
+  const validationResult = await validateStartupPhase3();
+  if (!validationResult.success) {
+    console.error("Startup validation failed:", validationResult.errors);
+    process.exit(1);
+  }
+
+  const port = Number(process.env.PORT || 3000);
+  const server = app.listen(port, "0.0.0.0", () => {
+    console.log("Server running");
+  });
+
+  server.on("error", (err: any) => {
+    if (err?.code === "EADDRINUSE") {
+      console.error(`API port ${port} is already in use. Stop the other running API process and try again.`);
+      return;
+    }
+    console.error("API server error:", err);
+    return;
+  });
+
+  // Run all initialization tasks asynchronously AFTER server starts
+  try {
+    console.log("[INIT] Starting async initialization tasks...");
+    
+    // Ensure storage directories exist
+    await ensureStorageDirs();
+    console.log("[INIT] Storage directories ready");
+
+    const databaseReadiness = await initialDatabaseReady;
+    const redisReadiness = await initializeRedisSafely();
+    const databaseReady = databaseReadiness.ready;
+    const redisReady = redisReadiness.ready;
+    logStartupReadinessReport(
+      createStartupReadinessReport("API", {
+        databaseReady,
+        redisReady,
+        databaseIssue: databaseReadiness.issue,
+        redisIssue: redisReadiness.issue,
+      }),
+    );
+
+    await initializeUnsyncedArtifactsGauge(databaseReady).catch((err) => {
+      console.warn("[INIT] Failed to initialize unsynced artifacts gauge:", err instanceof Error ? err.message : String(err));
+      unsyncedArtifactsGauge.set(0);
+    });
+
+    if (databaseReady) {
+      // Seed default plans
+      await ensureDefaultPlans().catch(err => console.error("[INIT] Failed to seed default plans:", err));
+      console.log("[INIT] Default plans ready");
+    } else {
+      console.log("[INIT] Skipping default plan seed because the database is unavailable.");
+    }
+    
+    // Start cleanup cron
+    startCleanupCron();
+    console.log("[INIT] Cleanup cron started");
+    
+    // Recovery: Try to re-enqueue jobs stuck in QUEUED status
+    try {
+      if (!databaseReady) {
+        console.log("[RECOVERY] Skipping queue recovery because the database is unavailable.");
+      } else if (!redisReady) {
+        console.log("[RECOVERY] Skipping queue recovery because Redis is not ready.");
+      } else {
+        console.log("[RECOVERY] Checking for jobs stuck in QUEUED status...");
+        const queuedJobs = await prisma.labelJob.findMany({
+          where: { status: "QUEUED" },
+          take: 50,
+        });
+
+        if (queuedJobs.length > 0) {
+          console.log(`[RECOVERY] Found ${queuedJobs.length} jobs in QUEUED status, attempting to re-enqueue...`);
+          // Dynamic import to avoid circular dependency
+          const { getQueue } = await import("./lib/queue.js");
+          const { ensureRedisConnection } = await import("./queue/redis.js");
+
+          for (const dbJob of queuedJobs) {
+            try {
+              await ensureRedisConnection();
+              const queue = getQueue();
+              const existingBullJob = await queue.getJob(dbJob.id);
+              if (!existingBullJob) {
+                // Safe fallback: without persisted render settings (e.g., printMode),
+                // automatic re-enqueue can silently generate a wrong template.
+                await prisma.labelJob.update({
+                  where: { id: dbJob.id },
+                  data: {
+                    status: "FAILED",
+                    error: "Recovery aborted: original queue payload expired and render mode metadata is unavailable",
+                  },
+                }).catch(() => {});
+                await releaseQueuedLabels(dbJob.userId, dbJob.unitCount || dbJob.recordCount).catch(() => {});
+                console.warn(`[RECOVERY] Marked ${dbJob.id} as FAILED because queue payload was missing`);
+              }
+            } catch (err) {
+              const message = err instanceof Error ? err.message : String(err);
+              console.warn(`[RECOVERY] Failed to re-queue job ${dbJob.id}:`, message);
+              await prisma.labelJob.update({
+                where: { id: dbJob.id },
+                data: { status: "FAILED", error: `Recovery enqueue failed: ${message}` },
+              }).catch(() => {});
+              await releaseQueuedLabels(dbJob.userId, dbJob.unitCount || dbJob.recordCount).catch(() => {});
+            }
+          }
+        }
       }
     } catch (err) {
       console.warn("[RECOVERY] Failed to recover stuck jobs:", err instanceof Error ? err.message : String(err));
@@ -649,5 +1020,10 @@ server.on("error", (err: any) => {
   } catch (err) {
     console.error("[INIT] Fatal error during initialization:", err instanceof Error ? err.message : String(err));
   }
-})();
+}
+
+main().catch((err) => {
+  console.error("Fatal error during startup:", err);
+  process.exit(1);
+});
 
