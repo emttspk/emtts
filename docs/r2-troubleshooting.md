@@ -20,7 +20,7 @@ npm run r2:verify
 ```bash
 # 1. Verify endpoint format
 echo $R2_ENDPOINT
-# Expected: https://xxxxx.r2.googleapis.com
+# Expected: https://<account-id>.r2.cloudflarestorage.com
 
 # 2. Test network connectivity
 ping $(echo $R2_ENDPOINT | sed 's|https://||' | sed 's|/.*||')
@@ -36,7 +36,7 @@ curl -I $R2_ENDPOINT
 1. **Wrong endpoint:**
    ```bash
    # Get correct endpoint from Cloudflare R2 dashboard
-   # Format: https://<account-id>.r2.googleapis.com
+   # Format: https://<account-id>.r2.cloudflarestorage.com
    export R2_ENDPOINT="https://CORRECT_ENDPOINT"
    npm run r2:verify
    ```

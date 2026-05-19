@@ -272,7 +272,7 @@ This guide explains all telemetry events emitted during S1 staging operations.
 {
   "timestamp": "2026-05-13T10:00:05.000Z",
   "event": "staging_r2_connectivity_check",
-  "r2Endpoint": "https://xxxxx.r2.googleapis.com",
+  "r2Endpoint": "https://<account-id>.r2.cloudflarestorage.com",
   "r2Bucket": "labelgen-staging",
   "checks": [
     {

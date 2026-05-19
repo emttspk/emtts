@@ -209,7 +209,7 @@ Check R2 bucket for uploaded PDF:
 ```bash
 # Using AWS CLI with Cloudflare credentials
 aws s3 ls s3://labelgen-staging/pdf/ \
-  --endpoint-url=https://xxxxx.r2.googleapis.com
+  --endpoint-url=https://<account-id>.r2.cloudflarestorage.com
 ```
 
 ### Test 5: Verify Sync Markers

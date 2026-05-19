@@ -40,7 +40,7 @@
   ```bash
   echo $R2_ENDPOINT
   ```
-  Expected: https://xxxxx.r2.googleapis.com
+  Expected: https://<account-id>.r2.cloudflarestorage.com
 
 - [ ] **R2 bucket** set in .env
   ```bash
