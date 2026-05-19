@@ -623,13 +623,17 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
       if (!queue) {
         throw new Error("Queue unavailable");
       }
-      // Phase 2: Enqueue filePath instead of fileBuffer (rollback: revert to fileBuffer if needed)
+      // Dual-mode: Send both filePath (fast path, used when worker shares filesystem with API)
+      // and fileBuffer (fallback, used when worker runs in an isolated container/runtime).
+      // Worker prefers filePath; falls back to fileBuffer on ENOENT (cross-container isolation).
+      const fileBuffer = await fs.readFile(uploadPath);
       await withTimeout(ensureRedisConnection(), 3000, "Redis connection timed out");
       await withTimeout(queue.add(
         "job",
         {
           jobId: job.id,
           filePath: uploadPath,
+          fileBuffer,
           fileName: uploadedFile.originalname,
           generateLabels: true,
           generateMoneyOrder: effectiveGenerateMoneyOrder,
@@ -643,7 +647,7 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
         },
         { jobId: job.id },
       ), 3000, "Queue enqueue timed out");
-      console.log("Job added (filePath):", job.id);
+      console.log("Job added (filePath+fileBuffer dual-mode):", job.id);
     } catch (queueErr) {
       const queueMessage = queueErr instanceof Error ? queueErr.message : "Queue enqueue failed";
       console.error(`[Upload] Queue enqueue failed for job ${job.id}: ${queueMessage}`);

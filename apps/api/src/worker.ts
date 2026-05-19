@@ -661,18 +661,26 @@ const worker = new Worker(
       let inputBuffer: Buffer | null = null;
       let tempFileToDelete: string | null = null;
       try {
-        // Dual-mode: Prefer filePath if present, else fallback to fileBuffer
+        // Dual-mode: Prefer filePath (fast path when worker shares filesystem with API).
+        // Falls through to fileBuffer when filePath read fails (cross-container/isolated runtime).
         if (filePath && typeof filePath === "string" && filePath.length > 0) {
           try {
             inputBuffer = await getStorageProvider().readArtifact("upload", filePath);
             tempFileToDelete = filePath;
             console.log(`[Worker] Read input file from path: ${filePath} (size: ${inputBuffer.length} bytes)`);
           } catch (err) {
-            throw new UnrecoverableError(`Failed to read file from path: ${filePath} (${err instanceof Error ? err.message : String(err)})`);
+            if (fileBuffer) {
+              // filePath not accessible (container isolation) — use embedded fileBuffer fallback
+              console.warn(`[Worker] filePath read failed (${err instanceof Error ? err.message : String(err)}); falling through to embedded fileBuffer`);
+              inputBuffer = Buffer.from(fileBuffer);
+              console.log(`[Worker] Using embedded fileBuffer fallback (size: ${inputBuffer.length} bytes)`);
+            } else {
+              throw new UnrecoverableError(`Failed to read file from path: ${filePath} (${err instanceof Error ? err.message : String(err)})`);
+            }
           }
         } else if (fileBuffer) {
           inputBuffer = Buffer.from(fileBuffer);
-          console.log(`[Worker] Using legacy fileBuffer from job payload (size: ${inputBuffer.length} bytes)`);
+          console.log(`[Worker] Using embedded fileBuffer from job payload (size: ${inputBuffer.length} bytes)`);
         } else {
           throw new UnrecoverableError("No fileBuffer or filePath found in job payload");
         }
