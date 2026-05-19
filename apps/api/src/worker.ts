@@ -558,7 +558,7 @@ async function getMoneyOrdersByTracking(userId: string, trackingNumbers: string[
 }
 
 // Wrap all worker initialization in an async function to avoid blocking imports
-async function startWorker() {
+export async function startWorker() {
   try {
     console.log("🔥 Worker initialization started");
     logTelemetrySinkInitialized();

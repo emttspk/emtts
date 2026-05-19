@@ -1015,7 +1015,20 @@ async function main() {
     } catch (err) {
       console.warn("[RECOVERY] Failed to recover stuck jobs:", err instanceof Error ? err.message : String(err));
     }
-    
+
+    // Embedded BullMQ worker (when START_WORKER_IN_API=true — Api service embeds the queue processor)
+    if (process.env.START_WORKER_IN_API === "true" && redisReady) {
+      try {
+        const { startWorker } = await import("./worker.js");
+        startWorker();
+        console.log("[INIT] Embedded BullMQ worker started (START_WORKER_IN_API=true)");
+      } catch (err) {
+        console.error("[INIT] Failed to start embedded worker:", err instanceof Error ? err.message : String(err));
+      }
+    } else if (process.env.START_WORKER_IN_API === "true" && !redisReady) {
+      console.warn("[INIT] START_WORKER_IN_API=true but Redis is not ready — embedded worker not started");
+    }
+
     console.log("[INIT] Async initialization complete");
   } catch (err) {
     console.error("[INIT] Fatal error during initialization:", err instanceof Error ? err.message : String(err));
