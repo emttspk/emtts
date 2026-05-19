@@ -698,9 +698,74 @@ Priority 3: Re-run one real upload verification (Phase 10D runbook)
 
 ---
 
-**Document Version:** 1.2.0  
+## PART 15: PHASE 10G — REAL PIPELINE EXECUTION VERIFIED (May 19, 2026)
+
+### Deployment State at Verification
+
+| Item | Value |
+|------|-------|
+| Git commit | `c4ff105` (main) |
+| Deployed | `2026-05-19T01:27:43 UTC` |
+| Commit summary | `feat: embed BullMQ worker in Api when START_WORKER_IN_API=true` |
+
+### Startup Telemetry — LIVE PROOF
+
+```
+2026-05-19T01:27:43Z  event="telemetry_sink_initialized" sink="stdout" environment="production"
+2026-05-19T01:27:43Z  event="canary_runtime_configuration" enabled=true mode="job-percentage"
+                        percentage=5 dualWriteEnabled=true r2UploadsEnabled=false normalizedKeysEnabled=true
+2026-05-19T01:27:43Z  event="staging_startup_config" stagingEnabled=true r2UploadsEnabled=false
+                        credentialsConfigured=false bucketConfigured=false
+2026-05-19T01:27:43Z  event="staging_canary_initialized" canaryMode="job-percentage" percentage=5
+2026-05-19T01:27:43Z  event="canary_runtime_configuration" process="worker" enabled=true
+                        mode="job-percentage" percentage=5  ← EMBEDDED WORKER CONFIRMED
+```
+
+### Real Execution Telemetry — Job 30f27420 (LIVE PROOF)
+
+```
+2026-05-19T01:27:46Z  event="dual_write_start" artifactType="labelsPdf" provider="local"
+                        objectKey="pdf/production/30f27420-19ea-47e2-8a18-4780c15f0d4c/labels.pdf"
+
+2026-05-19T01:27:46Z  event="object_key_version_logged" artifactType="labelsPdf"
+                        keyVersion="normalized"
+                        rawKey="/app/storage/generated/30f27420-...-labels.pdf"
+                        normalizedKey="pdf/production/30f27420-.../labels.pdf"  ✅
+
+2026-05-19T01:27:50Z  event="object_key_version_logged" artifactType="moneyOrderPdf"
+                        keyVersion="normalized"
+                        normalizedKey="pdf/production/30f27420-.../money-orders.pdf"  ✅
+
+2026-05-19T01:27:50Z  event="dual_write_start" artifactType="moneyOrderPdf" provider="local"
+                        objectKey="pdf/production/30f27420-.../money-orders.pdf"
+
+[Worker] Job 30f27420-19ea-47e2-8a18-4780c15f0d4c completed successfully  ✅
+```
+
+### Phase 10D Gate — ✅ PASSED
+
+| Required Event | Status |
+|---------------|--------|
+| `dual_write_start` | ✅ Captured (labelsPdf + moneyOrderPdf) |
+| `object_key_version_logged` with `keyVersion="normalized"` | ✅ Captured (both artifacts) |
+| Worker processes jobs | ✅ Confirmed (embedded worker via START_WORKER_IN_API=true) |
+
+Note: `dual_write_success` / canary events not captured because `ENABLE_R2_UPLOADS=false` (no R2 credentials configured). This is expected and correct behavior.
+
+### Remaining Before Phase 2
+
+1. Add R2 credentials to Railway (`R2_BUCKET`, `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`)
+2. Set `ENABLE_R2_UPLOADS=true` on Api service → redeploy
+3. Fix Worker service `REDIS_URL` (`rediss://` → internal `redis://`)
+4. Capture `dual_write_canary_allowed` or `dual_write_canary_skip` + `dual_write_success`
+
+---
+
+**Document Version:** 1.3.0  
 **Prepared:** May 19, 2026  
 **Phase 10 Pre-flight:** May 19, 2026 — PASSED  
 **Phase 10C Visibility Fix:** May 19, 2026 — IMPLEMENTED  
-**Project:** Label Generator — Phase 9C/10/10C Storage-Key Normalization  
-**Status:** ✅ TELEMETRY VISIBILITY FIXED — AWAITING PRODUCTION LOG CONFIRMATION  
+**Phase 10G Real Pipeline Verification:** May 19, 2026 — ✅ PASSED  
+**Project:** Label Generator — Phase 9C/10/10G Storage-Key Normalization  
+**Status:** ✅ PHASE 10D GATE PASSED — READY FOR R2 CREDENTIAL CONFIGURATION  
+

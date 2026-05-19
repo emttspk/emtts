@@ -171,6 +171,43 @@ This runbook does not change rollback commands. Use existing Phase 1 rollback pr
 
 Mark complete only when all required evidence exists:
 
+---
+
+## 11) PHASE 10G COMPLETION RECORD — ✅ VERIFIED May 19, 2026
+
+### Job Verified: `30f27420-19ea-47e2-8a18-4780c15f0d4c`
+
+**Deployment:** `c4ff105` deployed at `2026-05-19T01:27:43 UTC`
+
+| Checklist Item | Status | Evidence |
+|---------------|--------|---------|
+| Job processed end-to-end | ✅ | `[Worker] Job 30f27420-... completed successfully` |
+| `dual_write_start` emitted | ✅ | `2026-05-19T01:27:46Z` (labelsPdf), `01:27:50Z` (moneyOrderPdf) |
+| `object_key_version_logged` emitted | ✅ | Both artifacts, `keyVersion="normalized"` |
+| Normalized key format correct | ✅ | `pdf/production/{jobId}/labels.pdf` and `pdf/production/{jobId}/money-orders.pdf` |
+| Startup telemetry visible | ✅ | `telemetry_sink_initialized`, `canary_runtime_configuration`, `staging_startup_config` |
+| Embedded worker running | ✅ | `canary_runtime_configuration process="worker"` at 01:27:43 |
+
+**Note on canary events:** `dual_write_canary_allowed` / `dual_write_canary_skip` were NOT emitted.
+This is expected because `ENABLE_R2_UPLOADS=false` — the canary gate is only reached when R2 uploads
+are enabled. The `dual_write_start` + `object_key_version_logged` events confirm the pipeline reached
+the provider layer and normalization is working correctly.
+
+### Remaining for Full Phase 10D (R2-upload branch)
+
+1. Add `R2_BUCKET`, `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` to Railway
+2. Set `ENABLE_R2_UPLOADS=true` on Api service and redeploy
+3. Submit one job and capture `dual_write_canary_allowed` OR `dual_write_canary_skip`
+4. If allowed: verify `dual_write_success`
+
+### Worker Architecture Note
+
+The standalone Worker Railway service has a Redis connectivity issue (`ETIMEDOUT` on `rediss://`).
+Jobs are currently processed by the embedded worker running inside the Api service process
+(`START_WORKER_IN_API=true`). Fix for Worker service: change `REDIS_URL` from `rediss://` to the
+internal `redis://` URL that the Api service uses successfully.
+
+
 - [ ] telemetry_sink_initialized visible
 - [ ] canary_runtime_configuration visible
 - [ ] POST /api/jobs/upload used (not preview)

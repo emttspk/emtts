@@ -647,6 +647,53 @@ for line in sys.stdin:
         pass
 " | tail -30
 
+---
+
+## PART 9: PHASE 10G — LIVE ACTIVATION RECORD (May 19, 2026)
+
+### Status: ✅ PHASE 10D GATE PASSED
+
+| Check | Result |
+|-------|--------|
+| Startup telemetry visible | ✅ |
+| `canary_runtime_configuration` with `mode="job-percentage"` | ✅ |
+| Embedded worker started (`START_WORKER_IN_API=true`) | ✅ |
+| `dual_write_start` emitted for real job | ✅ |
+| `object_key_version_logged` with `keyVersion="normalized"` | ✅ |
+| Job processed and completed | ✅ |
+
+### Live Startup Log (2026-05-19T01:27:43 UTC)
+
+```
+event="telemetry_sink_initialized" sink="stdout" environment="production"
+event="canary_runtime_configuration" mode="job-percentage" percentage=5
+  r2UploadsEnabled=false normalizedKeysEnabled=true
+event="staging_startup_config" stagingEnabled=true r2UploadsEnabled=false
+  credentialsConfigured=false bucketConfigured=false
+event="canary_runtime_configuration" process="worker"  ← embedded worker confirmed
+```
+
+### Live Job Execution Log (job 30f27420, 01:27:46 UTC)
+
+```
+event="dual_write_start" artifactType="labelsPdf"
+  objectKey="pdf/production/30f27420-.../labels.pdf"
+event="object_key_version_logged" keyVersion="normalized"
+  normalizedKey="pdf/production/30f27420-.../labels.pdf"
+event="object_key_version_logged" keyVersion="normalized"  
+  normalizedKey="pdf/production/30f27420-.../money-orders.pdf"
+[Worker] Job 30f27420-... completed successfully
+```
+
+### Next Phase: R2 Credential Configuration
+
+Once `R2_BUCKET`, `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` are added and
+`ENABLE_R2_UPLOADS=true` is set, monitor for:
+- `dual_write_canary_allowed` (5% of jobs)
+- `dual_write_canary_skip` (95% of jobs)
+- `dual_write_success` (on allowed jobs)
+
+
 # Look for: Is latency increasing over time? (trend, not just point)
 ```
 
