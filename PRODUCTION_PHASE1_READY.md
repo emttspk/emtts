@@ -369,11 +369,11 @@ in all activation documents created in Day 6.
 
 | File | Purpose | Status |
 |---|---|---|
-| `docs/phase-9b-day4-canary.md` | Staging canary results | ✅ COMPLETE |
-| `docs/phase-9b-day1.md` | Day 1–2.5 implementation | ✅ COMPLETE |
+| `docs/forensics/archive/phase-9b-day4-canary.md` | Staging canary results | ✅ COMPLETE |
+| `docs/forensics/archive/phase-9b-day1.md` | Day 1–2.5 implementation | ✅ COMPLETE |
 | `docs/storage-key-normalization-migration.md` | Cumulative migration history | ✅ UPDATED |
 | `PRODUCTION_ROLLOUT_READINESS.md` | Prior rollout plan (superseded by Day 6 docs) | ✅ SUPERSEDED |
-| `FINAL_EXECUTION_REPORT_PHASE_9B.md` | Phase 9B complete summary | ✅ COMPLETE |
+| `docs/forensics/archive/FINAL_EXECUTION_REPORT_PHASE_9B.md` | Phase 9B complete summary | ✅ COMPLETE |
 
 ---
 

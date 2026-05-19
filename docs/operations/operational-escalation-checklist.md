@@ -20,4 +20,4 @@
 
 ## Documentation
 - Record all escalation events in canary log
-- Update MULTI_JOB_CANARY_PLAN.md with findings if new risk is discovered
+- Update docs/forensics/archive/MULTI_JOB_CANARY_PLAN.md with findings if new risk is discovered

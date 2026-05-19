@@ -41,7 +41,7 @@ Phase 9B Day 4 staging canary successfully validated all critical functionality 
 | `apps/api/src/config.ts` | Added Phase 9B startup validation (Day 1+2.5) | ✅ Deployed |
 | `apps/api/src/worker.ts` | Added worker startup validation (Day 2.5) | ✅ Deployed |
 | `apps/api/src/routes/jobs.ts` | Money-order metadata plumbing (Day 2) | ✅ Deployed |
-| `docs/phase-9b-day1.md` | Day 1 implementation + Day 2.5 fixes | ✅ Documented |
+| `docs/forensics/archive/phase-9b-day1.md` | Day 1 implementation + Day 2.5 fixes | ✅ Documented |
 | `docs/storage-key-normalization-migration.md` | Cumulative migration status | ✅ Updated |
 
 ### Current Feature-Flag State (STAGING)

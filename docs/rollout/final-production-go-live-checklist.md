@@ -558,13 +558,13 @@ Time:                       ____________________________
 
 ## REFERENCE: ADDITIONAL DOCUMENTATION
 
-- **Full Activation Details:** [production-phase1-activation-runbook.md](production-phase1-activation-runbook.md)
-- **Rollback Procedures:** [production-rollback-drill.md](production-rollback-drill.md)
-- **Readiness Summary:** [../PRODUCTION_PHASE1_READY.md](../PRODUCTION_PHASE1_READY.md)
-- **Production Monitoring:** [production-canary-monitoring.md](production-canary-monitoring.md)
+- **Full Activation Details:** [production-phase1-activation-runbook.md](../production-phase1-activation-runbook.md)
+- **Rollback Procedures:** [production-rollback-drill.md](../production-rollback-drill.md)
+- **Readiness Summary:** [../../PRODUCTION_PHASE1_READY.md](../../PRODUCTION_PHASE1_READY.md)
+- **Production Monitoring:** [production-canary-monitoring.md](../production-canary-monitoring.md)
 
 ---
 
 **DOCUMENT OWNER:** Phase 9C Governance Team  
 **LAST UPDATED:** May 19, 2026  
-**NEXT REVIEW:** After Phase 1 completion or rollback  
+**NEXT REVIEW:** After Phase 1 completion or rollback

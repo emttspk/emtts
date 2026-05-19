@@ -187,11 +187,11 @@ Use documents in this exact order:
 Do NOT use for launch execution:
 
 - PRODUCTION_ROLLOUT_READINESS.md
-- FINAL_EXECUTION_REPORT_PHASE_9B.md
+- docs/forensics/archive/FINAL_EXECUTION_REPORT_PHASE_9B.md
 
 Historical-only references (not launch authority):
-- docs/phase-9b-day1.md
-- docs/phase-9b-day4-canary.md
+- docs/forensics/archive/phase-9b-day1.md
+- docs/forensics/archive/phase-9b-day4-canary.md
 - docs/storage-key-normalization-migration.md
 
 ---

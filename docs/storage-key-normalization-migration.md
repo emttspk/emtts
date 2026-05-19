@@ -260,7 +260,7 @@ stream_success               { artifactType: "labelsPdf",      provider: "r2"  }
 `NORMALIZED_KEYS_FOR_NEW_UPLOADS` MUST remain `false` in both staging and production for all of Phase 9A.
 
 ### Canary Results
-Record observations in: `docs/phase-9a-day4-canary-results.md`
+Record observations in: `docs/forensics/archive/phase-9a-day4-canary-results.md`
 
 ### Day 4 Canary Safety Statement
 **No upload writes changed. No key format changed. No cleanup changed. No worker changed. No production flag exposure. Rollback is configuration-only and fully contained within 15 minutes.**

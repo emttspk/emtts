@@ -54,7 +54,7 @@
 - See ../operations/operational-escalation-checklist.md
 
 ## 12. Exact Docs Updated
-- MULTI_JOB_CANARY_PLAN.md
+- docs/forensics/archive/MULTI_JOB_CANARY_PLAN.md
 - docs/telemetry-thresholds.md
 - docs/rollback-trigger-matrix.md
 - docs/operations/operational-escalation-checklist.md
