@@ -1,3 +1,5 @@
+// IMPORTANT: If you are still seeing backside overlays in the PDF, ensure the compiled artifact
+// at apps/api/temp/templates/labels.js is up to date. Run `npm run build` from the project root.
 import type { OrderRecord } from "../parse/orders.js";
 import fs from "node:fs";
 import path from "node:path";
@@ -1143,7 +1145,7 @@ function resolveUrduFontFaceCss() {
     try {
       if (!fs.existsSync(candidate.filePath)) continue;
       const fontUrl = pathToFileURL(candidate.filePath).href;
-      urduFontFaceCssCache = `@font-face{font-family:\"${candidate.family}\";src:url('${fontUrl}') format('${candidate.format}');font-weight:400;font-style:normal;font-display:block;}@font-face{font-family:\"Money Order Urdu\";src:local('${candidate.family}'),url('${fontUrl}') format('${candidate.format}');font-weight:400;font-style:normal;font-display:block;}`;
+      urduFontFaceCssCache = `@font-face{font-family:"${candidate.family}";src:url('${fontUrl}') format('${candidate.format}');font-weight:400;font-style:normal;font-display:block;}@font-face{font-family:"Money Order Urdu";src:local('${candidate.family}'),url('${fontUrl}') format('${candidate.format}');font-weight:400;font-style:normal;font-display:block;}`;
       return urduFontFaceCssCache;
     } catch {
       // Try next path.
