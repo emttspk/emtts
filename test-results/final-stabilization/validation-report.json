@@ -1,0 +1,38 @@
+{
+  "generatedAt": "2026-05-20T17:15:57.103Z",
+  "outDir": "C:\\Users\\Nazim\\Desktop\\P.Post\\Label Generator\\test-results\\final-stabilization",
+  "scenarios": [
+    {
+      "key": "mo-4",
+      "title": "4-record Money Order",
+      "htmlPath": "C:\\Users\\Nazim\\Desktop\\P.Post\\Label Generator\\test-results\\final-stabilization\\mo-4.html",
+      "pdfPath": "C:\\Users\\Nazim\\Desktop\\P.Post\\Label Generator\\test-results\\final-stabilization\\mo-4.pdf",
+      "pdfBytes": 1123299,
+      "missingRequiredTokens": []
+    },
+    {
+      "key": "mo-10",
+      "title": "10-record Money Order",
+      "htmlPath": "C:\\Users\\Nazim\\Desktop\\P.Post\\Label Generator\\test-results\\final-stabilization\\mo-10.html",
+      "pdfPath": "C:\\Users\\Nazim\\Desktop\\P.Post\\Label Generator\\test-results\\final-stabilization\\mo-10.pdf",
+      "pdfBytes": 2693855,
+      "missingRequiredTokens": []
+    },
+    {
+      "key": "universal-vpp",
+      "title": "Universal VPP",
+      "htmlPath": "C:\\Users\\Nazim\\Desktop\\P.Post\\Label Generator\\test-results\\final-stabilization\\universal-vpp.html",
+      "pdfPath": "C:\\Users\\Nazim\\Desktop\\P.Post\\Label Generator\\test-results\\final-stabilization\\universal-vpp.pdf",
+      "pdfBytes": 79418,
+      "missingRequiredTokens": []
+    },
+    {
+      "key": "universal-cod",
+      "title": "Universal COD",
+      "htmlPath": "C:\\Users\\Nazim\\Desktop\\P.Post\\Label Generator\\test-results\\final-stabilization\\universal-cod.html",
+      "pdfPath": "C:\\Users\\Nazim\\Desktop\\P.Post\\Label Generator\\test-results\\final-stabilization\\universal-cod.pdf",
+      "pdfBytes": 79359,
+      "missingRequiredTokens": []
+    }
+  ]
+}
