@@ -1675,34 +1675,30 @@ function fillBackBenchmarkSlot(htmlBody: string, slotIndex: number, order?: Orde
     return result;
   };
 
-  // MO barcode image src
+  // ─── Clear front‑only overlays (barcode, MOS, MO number) ─────────────────
   out = trackReplaceNth(
     out,
     /(<img class="barcode" src=")([^"]*)(" alt="MO Barcode" style="[^"]*" \/>)/g,
     slotIndex,
-    (_m, p1, oldSrc, p3) => `${p1}${escapeHtml(moBarcode || oldSrc)}${p3}`,
-    "barcode"
+    (_m, p1, _old, p3) => `${p1}data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=${p3}`,
+    "back_barcode"
   );
-
-  // Text below barcode (MOS)
   out = trackReplaceNth(
     out,
     /(<div class="field mono en" style="left:9\.10mm;top:80\.33mm;width:41\.01mm;font-size:3\.28mm;text-align:center;">)([^<]*)(<\/div>)/g,
     slotIndex,
-    (_m, p1, _old, p3) => `${p1}${escapeHtml(moNumber)}${p3}`,
-    "mos_text"
+    (_m, p1, _old, p3) => `${p1}${p3}`,
+    "back_mos_text"
   );
-
-  // MO number field
   out = trackReplaceNth(
     out,
     /(<div class="field mono en" style="left:57\.43mm;top:39\.03mm;width:28\.29mm;font-size:3\.73mm;">)([^<]*)(<\/div>)/g,
     slotIndex,
-    (_m, p1, _old, p3) => `${p1}${escapeHtml(moNumber)}${p3}`,
-    "mo_number"
+    (_m, p1, _old, p3) => `${p1}${p3}`,
+    "back_mo_number"
   );
 
-  // Date
+  // ─── Date ─────────────────────────────────────────────────────────────────
   out = trackReplaceNth(
     out,
     /(<div class="field urdu" style="left:40\.13mm;top:162\.57mm;width:28\.99mm;font-size:\.16mm;"><span class="en" style="display:inline-block;font-size:3\.25mm;">)([^<]*)(<\/span><\/div>)/g,
@@ -1711,7 +1707,7 @@ function fillBackBenchmarkSlot(htmlBody: string, slotIndex: number, order?: Orde
     "date"
   );
 
-  // Amount inline
+  // ─── Amount inline ────────────────────────────────────────────────────────
   out = trackReplaceNth(
     out,
     /(<div class="field urdu" style="left:72\.73mm;top:140\.37mm;width:44\.55mm;font-size:2\.16mm;">\s*<span class="en" style="display:inline-block;font-size:5\.37mm;">)([^<]*)(<\/span><\/div>)/g,
@@ -1720,7 +1716,7 @@ function fillBackBenchmarkSlot(htmlBody: string, slotIndex: number, order?: Orde
     "amount_inline"
   );
 
-  // Amount box
+  // ─── Amount box ───────────────────────────────────────────────────────────
   out = trackReplaceNth(
     out,
     /(<div class="field mono en" style="left:28\.5mm;top:52\.45mm;width:39\.60mm;text-align:center;font-size:8\.53mm;font-weight:900;">)([^<]*)(<\/div>)/g,
@@ -1729,7 +1725,7 @@ function fillBackBenchmarkSlot(htmlBody: string, slotIndex: number, order?: Orde
     "amount_box"
   );
 
-  // VP tracking
+  // ─── VP tracking ──────────────────────────────────────────────────────────
   out = trackReplaceNth(
     out,
     /(<div class="field urdu" style="left:90\.27mm;top:48\.04mm;width:45\.26mm;font-size:2\.10mm;"><span class="mono en" style="display:inline-block;font-size:4\.28mm;">)([^<]*)(<\/span><\/div>)/g,
@@ -1738,7 +1734,7 @@ function fillBackBenchmarkSlot(htmlBody: string, slotIndex: number, order?: Orde
     "vp_tracking"
   );
 
-  // Amount words
+  // ─── Amount words ─────────────────────────────────────────────────────────
   out = trackReplaceNth(
     out,
     /(<div class="field regular en" style="left:91\.69mm;top:55\.33mm;width:43\.84mm;font-size:2\.89mm;white-space:normal;line-height:2\.06;">)([^<]*)(<\/div>)/g,
@@ -1747,7 +1743,7 @@ function fillBackBenchmarkSlot(htmlBody: string, slotIndex: number, order?: Orde
     "amount_words"
   );
 
-  // Receiver fields
+  // ─── Receiver fields ──────────────────────────────────────────────────────
   out = trackReplaceNth(
     out,
     /(<div class="field strong en" style="left:14\.56mm;top:93\.39mm;width:65\.06mm;font-size:2\.58mm;">)([^<]*)(<\/div>)/g,
@@ -1770,7 +1766,30 @@ function fillBackBenchmarkSlot(htmlBody: string, slotIndex: number, order?: Orde
     "consignee_phone"
   );
 
-  // Bottom summary block (receiver detail + MO + amount)
+  // ─── Clear sender fields on the back page ────────────────────────────────
+  out = trackReplaceNth(
+    out,
+    /(<div class="field strong en" style="left:47\.56mm;top:105\.69mm;width:(?:65\.06|86\.06)mm;font-size:4\.(?:58|25)mm(?:;white-space:normal;overflow:visible;text-align:left)?;?">)([^<]*)(<\/div>)/g,
+    slotIndex,
+    (_m, p1, _old, p3) => `${p1}${p3}`,
+    "back_sender_line_clear"
+  );
+  out = trackReplaceNth(
+    out,
+    /(<div class="field regular en" style="left:(?:12\.56|15\.56)mm;top:112\.15mm;width:65\.06mm;font-size:3\.(?:13|35)mm;white-space:normal;line-height:1\.(?:06|12)(?:;text-align:left)?;">)([^<]*)<\/div>/g,
+    slotIndex,
+    (_m, p1) => `${p1}</div>`,
+    "back_sender_address_clear"
+  );
+  out = trackReplaceNth(
+    out,
+    /(<div class="field mono en" style="left:82\.56mm;top:116\.57mm;width:65\.06mm;font-size:4\.(?:13|35)mm(?:;line-height:1\.06)?(?:;text-align:left)?;">)([^<]*)<\/div>/g,
+    slotIndex,
+    (_m, p1) => `${p1}</div>`,
+    "back_sender_phone_clear"
+  );
+
+  // ─── Bottom summary block (receiver detail + MO + amount) ───────────────
   out = trackReplaceNth(
     out,
     /(<div class="field en" style="left:15\.56mm;top:174\.79mm;width:67\.18mm;font-size:1\.83mm;line-height:1\.12;white-space:normal;">)[^<]*(?:<br\/>)?[^<]*(?:<br\/>)?[^<]*<\/div>/g,
@@ -1783,7 +1802,7 @@ function fillBackBenchmarkSlot(htmlBody: string, slotIndex: number, order?: Orde
     "bottom_summary"
   );
 
-  // Bottom tracking line (no footer on back side)
+  // ─── Bottom tracking line (no footer on back side) ──────────────────────
   out = trackReplaceNth(
     out,
     /(<div class="field mono en" style="left:15\.56mm;top:198\.83mm;width:63\.64mm;font-size:2\.22mm;">)([^<]*)(<\/div>)/g,
@@ -1792,7 +1811,7 @@ function fillBackBenchmarkSlot(htmlBody: string, slotIndex: number, order?: Orde
     "bottom_tracking"
   );
 
-  // Clean up any remaining `{...}` tokens (sender fields and any others)
+  // ─── Clean up any remaining `{...}` tokens (sender fields and any others) ──
   out = out.replace(/\{[a-z_][a-z0-9_]*\}/gi, "");
 
   const failedReplacements = Array.from(replacementCounts.entries())
