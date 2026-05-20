@@ -1373,136 +1373,196 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
   const moBarcode = String((order as any)?.mo_barcodeBase64 ?? "").trim();
 
   let out = htmlBody;
+  const replacementCounts = new Map<string, number>();
+
+  // Helper to track replacement counts
+  const trackReplaceNth = (
+    input: string,
+    regex: RegExp,
+    occurrence: number,
+    replacer: (match: string, ...args: string[]) => string,
+    fieldName: string
+  ) => {
+    let seen = 0;
+    const before = input;
+    const result = input.replace(regex, (...args) => {
+      const match = args[0] as string;
+      const groups = args.slice(1, -2) as string[];
+      if (seen++ === occurrence) {
+        return replacer(match, ...groups);
+      }
+      return match;
+    });
+    const changed = before !== result;
+    replacementCounts.set(fieldName, (replacementCounts.get(fieldName) || 0) + (changed ? 1 : 0));
+    if (!changed) {
+      console.warn(`[BENCHMARK_SLOT_${slotIndex}] Replacement failed for field: ${fieldName}`);
+    }
+    return result;
+  };
 
   // MO barcode image src
-  out = replaceNth(
+  out = trackReplaceNth(
     out,
     /(<img class="barcode" src=")([^"]*)(" alt="MO Barcode" style="[^"]*" \/>)/g,
     slotIndex,
     (_m, p1, oldSrc, p3) => `${p1}${escapeHtml(moBarcode || oldSrc)}${p3}`,
+    "barcode"
   );
 
   if (includeUrduNotice) {
     // Half-level Urdu notice, anchored inside each rendered money-order half.
-    out = replaceNth(
+    out = trackReplaceNth(
       out,
       /(<div class="overlay">)/g,
       slotIndex,
       (_m, p1) => `${p1}${moneyOrderHalfNoticeHtml()}`,
+      "urdu_notice"
     );
   }
 
   // Text below barcode (MOS)
-  out = replaceNth(
+  out = trackReplaceNth(
     out,
     /(<div class="field mono en" style="left:9\.10mm;top:80\.33mm;width:41\.01mm;font-size:3\.28mm;text-align:center;">)([^<]*)(<\/div>)/g,
     slotIndex,
     (_m, p1, _old, p3) => `${p1}${escapeHtml(moNumber)}${p3}`,
+    "mos_text"
   );
 
   // MO number field
-  out = replaceNth(
+  out = trackReplaceNth(
     out,
     /(<div class="field mono en" style="left:57\.43mm;top:39\.03mm;width:28\.29mm;font-size:3\.73mm;">)([^<]*)(<\/div>)/g,
     slotIndex,
     (_m, p1, _old, p3) => `${p1}${escapeHtml(moNumber)}${p3}`,
+    "mo_number"
   );
 
   // Date
-  out = replaceNth(
+  out = trackReplaceNth(
     out,
     /(<div class="field urdu" style="left:40\.13mm;top:162\.57mm;width:28\.99mm;font-size:\.16mm;"><span class="en" style="display:inline-block;font-size:3\.25mm;">)([^<]*)(<\/span><\/div>)/g,
     slotIndex,
     (_m, p1, _old, p3) => `${p1}${escapeHtml(issueDate)}${p3}`,
+    "date"
   );
 
   // Amount inline
-  out = replaceNth(
+  out = trackReplaceNth(
     out,
     /(<div class="field urdu" style="left:72\.73mm;top:140\.37mm;width:44\.55mm;font-size:2\.16mm;">\s*<span class="en" style="display:inline-block;font-size:5\.37mm;">)([^<]*)(<\/span><\/div>)/g,
     slotIndex,
     (_m, p1, _old, p3) => `${p1}${escapeHtml(amountDisplay)}${p3}`,
+    "amount_inline"
   );
 
   // Amount box
-  out = replaceNth(
+  out = trackReplaceNth(
     out,
     /(<div class="field mono en" style="left:28\.5mm;top:52\.45mm;width:39\.60mm;text-align:center;font-size:8\.53mm;font-weight:900;">)([^<]*)(<\/div>)/g,
     slotIndex,
     (_m, p1, _old, p3) => `${p1}${escapeHtml(amountDisplay)}${p3}`,
+    "amount_box"
   );
 
   // VP tracking
-  out = replaceNth(
+  out = trackReplaceNth(
     out,
     /(<div class="field urdu" style="left:90\.27mm;top:48\.04mm;width:45\.26mm;font-size:2\.10mm;"><span class="mono en" style="display:inline-block;font-size:4\.28mm;">)([^<]*)(<\/span><\/div>)/g,
     slotIndex,
     (_m, p1, _old, p3) => `${p1}${escapeHtml(tracking)}${p3}`,
+    "vp_tracking"
   );
 
   // Amount words
-  out = replaceNth(
+  out = trackReplaceNth(
     out,
     /(<div class="field regular en" style="left:91\.69mm;top:55\.33mm;width:43\.84mm;font-size:2\.89mm;white-space:normal;line-height:2\.06;">)([^<]*)(<\/div>)/g,
     slotIndex,
     (_m, p1, _old, p3) => `${p1}${escapeHtml(amountWords)}${p3}`,
+    "amount_words"
   );
 
   // Receiver fields
-  out = replaceNth(
+  out = trackReplaceNth(
     out,
     /(<div class="field strong en" style="left:14\.56mm;top:93\.39mm;width:65\.06mm;font-size:2\.58mm;">)([^<]*)(<\/div>)/g,
     slotIndex,
     (_m, p1, _old, p3) => `${p1}${escapeHtml(consigneeName)}${p3}`,
+    "consignee_name"
   );
-  out = replaceNth(
+  out = trackReplaceNth(
     out,
     /(<div class="field regular en" style="left:14\.56mm;top:96\.86mm;width:65\.06mm;font-size:2\.13mm;white-space:normal;line-height:1\.06;">)([^<]*)(<\/div>)/g,
     slotIndex,
     (_m, p1, _old, p3) => `${p1}${escapeHtml(consigneeAddress)}${p3}`,
+    "consignee_address"
   );
-  out = replaceNth(
+  out = trackReplaceNth(
     out,
     /(<div class="field mono en" style="left:97\.56mm;top:100\.27mm;width:65\.06mm;font-size:2\.13mm;">)([^<]*)(<\/div>)/g,
     slotIndex,
     (_m, p1, _old, p3) => `${p1}${escapeHtml(consigneePhone)}${p3}`,
+    "consignee_phone"
   );
 
-  // Sender fields
-  out = replaceNth(
+  // Sender fields - PRESERVE wrapper, only replace inner text to avoid breaking slot 1 matching
+  out = trackReplaceNth(
     out,
     /(<div class="field strong en" style="left:47\.56mm;top:105\.69mm;width:(?:65\.06|86\.06)mm;font-size:4\.(?:58|25)mm(?:;white-space:normal;overflow:visible;text-align:left)?;?">)([^<]*)(<\/div>)/g,
     slotIndex,
     (_m, p1, _old, p3) => `${p1}${escapeHtml(senderLine)}${p3}`,
+    "sender_line"
   );
-  out = replaceNth(
+  // Sender address - match original pattern, preserve wrapper on replacement
+  out = trackReplaceNth(
     out,
-    /<div class="field regular en" style="left:(?:12\.56|15\.56)mm;top:112\.15mm;width:65\.06mm;font-size:3\.(?:13|35)mm;white-space:normal;line-height:1\.(?:06|12)(?:;text-align:left)?;">[^<]*<\/div>/g,
+    /(<div class="field regular en" style="left:(?:12\.56|15\.56)mm;top:112\.15mm;width:65\.06mm;font-size:3\.(?:13|35)mm;white-space:normal;line-height:1\.(?:06|12)(?:;text-align:left)?;">)([^<]*)<\/div>/g,
     slotIndex,
-    () => `<div class="field regular en" style="left:15.56mm;top:112.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;text-align:left;">${escapeHtml(shipperAddress)}</div>`,
+    (_m, p1, _old) => `${p1}${escapeHtml(shipperAddress)}</div>`,
+    "sender_address"
   );
-  out = replaceNth(
+  // Sender phone - match original pattern, preserve wrapper on replacement
+  out = trackReplaceNth(
     out,
-    /<div class="field mono en" style="left:82\.56mm;top:116\.57mm;width:65\.06mm;font-size:4\.(?:13|35)mm(?:;line-height:1\.06)?(?:;text-align:left)?;">[^<]*<\/div>/g,
+    /(<div class="field mono en" style="left:82\.56mm;top:116\.57mm;width:65\.06mm;font-size:4\.(?:13|35)mm(?:;line-height:1\.06)?(?:;text-align:left)?;">)([^<]*)<\/div>/g,
     slotIndex,
-    () => `<div class="field mono en" style="left:82.56mm;top:116.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;text-align:left;">${escapeHtml(shipperPhone)}</div>`,
+    (_m, p1, _old) => `${p1}${escapeHtml(shipperPhone)}</div>`,
+    "sender_phone"
   );
 
-  // Bottom summary block (receiver + MOS + amount)
-  out = replaceNth(
+  // Bottom summary block (receiver detail + MO + amount)
+  out = trackReplaceNth(
     out,
-    /<div class="field en" style="left:15\.56mm;top:174\.79mm;width:67\.18mm;font-size:1\.83mm;line-height:1\.12;white-space:normal;">[\s\S]*?<\/div>/g,
+    /(<div class="field en" style="left:15\.56mm;top:174\.79mm;width:67\.18mm;font-size:1\.83mm;line-height:1\.12;white-space:normal;">)[^<]*(?:<br\/>)?[^<]*(?:<br\/>)?[^<]*<\/div>/g,
     slotIndex,
-    () => `<div class="field en" style="left:15.56mm;top:174.79mm;width:67.18mm;font-size:1.83mm;line-height:1.12;white-space:normal;">${escapeHtml(consigneeName)} | ${escapeHtml(consigneePhone)}<br/>${escapeHtml(consigneeAddress)}<br/>MO: ${escapeHtml(moNumber)} | ${escapeHtml(amountDisplay)}</div>`,
+    (_m, p1) => `${p1}
+      ${escapeHtml(consigneeName)} | ${escapeHtml(consigneePhone)}<br/>
+      ${escapeHtml(consigneeAddress)}<br/>
+      MO: ${escapeHtml(moNumber)} | ${escapeHtml(amountDisplay)}
+    </div>`,
+    "bottom_summary"
   );
 
   // Bottom tracking line
-  out = replaceNth(
+  out = trackReplaceNth(
     out,
     /(<div class="field mono en" style="left:15\.56mm;top:198\.83mm;width:63\.64mm;font-size:2\.22mm;">)([^<]*)(<\/div>)/g,
     slotIndex,
-    (_m, p1, _old, p3) => `${p1}${escapeHtml(tracking)}${p3}${includeUrduNotice ? footerHtml : ""}`
+    (_m, p1, _old, p3) => `${p1}${escapeHtml(tracking)}${p3}${includeUrduNotice ? footerHtml : ""}`,
+    "bottom_tracking"
   );
+
+  // Log replacement statistics
+  const failedReplacements = Array.from(replacementCounts.entries())
+    .filter(([, count]) => count === 0)
+    .map(([field]) => field);
+  
+  if (failedReplacements.length > 0) {
+    console.error(`[BENCHMARK_SLOT_${slotIndex}] FAILED REPLACEMENTS: ${failedReplacements.join(", ")}`);
+    throw new Error(`[BENCHMARK_MO] Slot ${slotIndex} failed to populate: ${failedReplacements.join(", ")}`);
+  }
 
   return out;
 }
@@ -1644,10 +1704,10 @@ function moneyOrderDuplexHtml(orders: OrderRecord[], bg: { frontBg?: string; bac
           transform: none;
         }
 
-        /* Overlay anchored to top-left of the half */
+        /* Overlay anchored to top-left of the half — EXTENDED FULL HEIGHT to prevent tracking ID clipping */
         .overlay {
           position: absolute;
-          inset: 0 0 8mm 0;
+          inset: 0;
           z-index: 2;
         }
 
@@ -1656,7 +1716,7 @@ function moneyOrderDuplexHtml(orders: OrderRecord[], bg: { frontBg?: string; bac
           z-index: 5;
           line-height: 1;
           white-space: nowrap;
-          overflow: hidden;
+          overflow: visible;
         }
         .mono   { font-family: "Courier New", Courier, monospace; letter-spacing: 0.18mm; font-weight: 700; }
         .regular { font-weight: 500; }
