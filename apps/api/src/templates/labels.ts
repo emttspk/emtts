@@ -1621,8 +1621,63 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
 }
 
 /**
- * Fills a back-side (reverse) benchmark slot.
- * This function performs replacement **only** for non-sender fields
+ * Removes every `<div class="overlay"...>...</div>` block (including nested `<div>`s)
+ * from the HTML string. The corresponding background (`<div class="bg">`) is left intact.
+ */
+function removeOverlayDivs(html: string): string {
+  const startPattern = /<div[^>]*\bclass\s*=\s*"overlay"[^>]*>/i;
+  let result = '';
+  let pos = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = startPattern.exec(html.slice(pos))) !== null) {
+    const startIdx = pos + match.index;
+    // Append everything before the overlay opening tag
+    result += html.slice(pos, startIdx);
+
+    // End of the opening tag
+    const tagEnd = startIdx + match[0].length;
+
+    // Now find the matching </div> for the overlay
+    let depth = 1;
+    let i = tagEnd;
+    while (i < html.length && depth > 0) {
+      if (html[i] === '<') {
+        if (html.startsWith('</div>', i)) {
+          depth--;
+          i += 6; // skip '</div>'
+          continue;
+        }
+        if (html.startsWith('<div', i)) {
+          // Could be an opening <div ...>
+          const closeBracket = html.indexOf('>', i);
+          if (closeBracket === -1) break;
+          // Check that it is not self-closing (/>) – typical in our templates no self‑closing.
+          depth++;
+          i = closeBracket + 1;
+          continue;
+        }
+        // Any other HTML tag, skip to its closing '>'
+        const closeBracket = html.indexOf('>', i);
+        if (closeBracket === -1) break;
+        i = closeBracket + 1;
+        continue;
+      } else {
+        i++;
+      }
+    }
+    // Skip the rest of the overlay content – we already advanced i past the matching </div>
+    pos = i;
+  }
+
+  // Append the remaining HTML after the last overlay
+  result += html.slice(pos);
+  return result;
+}
+
+/**
+ * Fills a back‑side (reverse) benchmark slot.
+ * This function performs replacement **only** for non‑sender fields
  * (barcode, MOS, MO number, date, amount, tracking, receiver info, bottom summary, bottom tracking).
  * Sender fields are intentionally skipped to prevent leakage onto the back page.
  * Any remaining `{...}` tokens (e.g. sender placeholders) are cleaned up at the end.
@@ -1858,10 +1913,11 @@ function moneyOrderHtmlFromBenchmark(
     frontSheet = fillBenchmarkSlot(frontSheet, 1, o2, true);
     frontSheet = compactHtmlFragment(frontSheet);
 
+    // ════════════════════════════════════════════════════════
+    // Back sheet: remove all overlay divs – only artwork remains
+    // ════════════════════════════════════════════════════════
     let backSheet = backSheetTemplate;
-    // Use fillBackBenchmarkSlot on the back page to avoid injecting sender overlays
-    backSheet = fillBackBenchmarkSlot(backSheet, 0, o1);
-    backSheet = fillBackBenchmarkSlot(backSheet, 1, o2);
+    backSheet = removeOverlayDivs(backSheet);
     backSheet = compactHtmlFragment(backSheet);
 
     const consigneeName: string = o1.consigneeName || "";
