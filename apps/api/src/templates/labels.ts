@@ -695,7 +695,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
     html = html.replace(
       /<svg id="barcode"><\/svg>/i,
       barcodeMarkup
-        ? `<img id="barcode" src="${barcodeMarkup}" alt="Barcode" />`
+        ? `<img id="barcode" src="${barcodeMarkup}" alt="Barcode" style="max-height:0.65in;" />`
         : `<div id="barcode" class="barcode-fallback">${escapeHtml(tracking || "NO TRACKING")}</div>`,
     );
 
