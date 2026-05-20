@@ -1565,7 +1565,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
   // Sender fields - PRESERVE wrapper, only replace inner text to avoid breaking slot 1 matching
   out = trackReplaceNth(
     out,
-    /(<div class="field strong en" style="left:47\.56mm;top:105\.69mm;width:(?:65\.06|86\.06)mm;font-size:4\.(?:58|25)mm(?:;white-space:normal;overflow:visible;text-align:left)?;?">)([^<]*)(<\/div>)/g,
+      /(<div class="field strong en" style="left:47\.56mm;top:105\.69mm;width:(?:65\.06|86\.06)mm;font-size:4\.(?:58|25)mm(?:;white-space:normal;overflow:visible;text-align:left)?;?">)((?:[^<]|<br\s*\/>)*)(<\/div>)/g,
     slotIndex,
     (_m, p1, _old, p3) => {
       const lines = senderLine.split(" | ");
