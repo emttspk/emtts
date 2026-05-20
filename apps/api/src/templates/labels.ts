@@ -1620,6 +1620,193 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
   return out;
 }
 
+/**
+ * Fills a back-side (reverse) benchmark slot.
+ * This function performs replacement **only** for non-sender fields
+ * (barcode, MOS, MO number, date, amount, tracking, receiver info, bottom summary, bottom tracking).
+ * Sender fields are intentionally skipped to prevent leakage onto the back page.
+ * Any remaining `{...}` tokens (e.g. sender placeholders) are cleaned up at the end.
+ */
+function fillBackBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRecord) {
+  if (!order) return clearBenchmarkSlot(htmlBody, slotIndex);
+
+  const moNumber = strictMoneyOrderNumber((order as any)?.mo_number);
+  const generatedTrackingId = String((order as any)?.barcodeValue ?? "").trim();
+  const tracking = String((order as any)?.trackingNumber ?? (order as any)?.TrackingID ?? generatedTrackingId).trim() || "-";
+  const amountMo = resolveMoneyOrderAmount(order as any);
+  const amountDisplay = `${amountMo.toFixed(2)}`;
+  const issueDate = toDisplayDate((order as any)?.issueDate ?? "");
+  const providedAmountWords = String((order as any)?.amountWords ?? "").trim();
+  const expectedWords = expectedAmountWords(amountMo);
+  if (providedAmountWords && providedAmountWords !== expectedWords) {
+    console.error(`[MO_WORDS_MISMATCH] mo=${moNumber} amount=${amountMo} provided="${providedAmountWords}" expected="${expectedWords}"`);
+  }
+  const amountWords = expectedWords;
+  const consigneeName = String((order as any)?.consigneeName ?? "-").trim() || "-";
+  const consigneeAddress = normalizeAddressLines((order as any)?.consigneeAddress ?? "-") || "-";
+  const consigneePhone = String((order as any)?.consigneePhone ?? "-").trim() || "-";
+  const moBarcode = String((order as any)?.mo_barcodeBase64 ?? "").trim();
+
+  let out = htmlBody;
+  const replacementCounts = new Map<string, number>();
+
+  const trackReplaceNth = (
+    input: string,
+    regex: RegExp,
+    occurrence: number,
+    replacer: (match: string, ...args: string[]) => string,
+    fieldName: string
+  ) => {
+    let seen = 0;
+    const before = input;
+    const result = input.replace(regex, (...args) => {
+      const match = args[0] as string;
+      const groups = args.slice(1, -2) as string[];
+      if (seen++ === occurrence) {
+        return replacer(match, ...groups);
+      }
+      return match;
+    });
+    const changed = before !== result;
+    replacementCounts.set(fieldName, (replacementCounts.get(fieldName) || 0) + (changed ? 1 : 0));
+    if (!changed) {
+      console.warn(`[BENCHMARK_BACK_SLOT_${slotIndex}] Replacement failed for field: ${fieldName}`);
+    }
+    return result;
+  };
+
+  // MO barcode image src
+  out = trackReplaceNth(
+    out,
+    /(<img class="barcode" src=")([^"]*)(" alt="MO Barcode" style="[^"]*" \/>)/g,
+    slotIndex,
+    (_m, p1, oldSrc, p3) => `${p1}${escapeHtml(moBarcode || oldSrc)}${p3}`,
+    "barcode"
+  );
+
+  // Text below barcode (MOS)
+  out = trackReplaceNth(
+    out,
+    /(<div class="field mono en" style="left:9\.10mm;top:80\.33mm;width:41\.01mm;font-size:3\.28mm;text-align:center;">)([^<]*)(<\/div>)/g,
+    slotIndex,
+    (_m, p1, _old, p3) => `${p1}${escapeHtml(moNumber)}${p3}`,
+    "mos_text"
+  );
+
+  // MO number field
+  out = trackReplaceNth(
+    out,
+    /(<div class="field mono en" style="left:57\.43mm;top:39\.03mm;width:28\.29mm;font-size:3\.73mm;">)([^<]*)(<\/div>)/g,
+    slotIndex,
+    (_m, p1, _old, p3) => `${p1}${escapeHtml(moNumber)}${p3}`,
+    "mo_number"
+  );
+
+  // Date
+  out = trackReplaceNth(
+    out,
+    /(<div class="field urdu" style="left:40\.13mm;top:162\.57mm;width:28\.99mm;font-size:\.16mm;"><span class="en" style="display:inline-block;font-size:3\.25mm;">)([^<]*)(<\/span><\/div>)/g,
+    slotIndex,
+    (_m, p1, _old, p3) => `${p1}${escapeHtml(issueDate)}${p3}`,
+    "date"
+  );
+
+  // Amount inline
+  out = trackReplaceNth(
+    out,
+    /(<div class="field urdu" style="left:72\.73mm;top:140\.37mm;width:44\.55mm;font-size:2\.16mm;">\s*<span class="en" style="display:inline-block;font-size:5\.37mm;">)([^<]*)(<\/span><\/div>)/g,
+    slotIndex,
+    (_m, p1, _old, p3) => `${p1}${escapeHtml(amountDisplay)}${p3}`,
+    "amount_inline"
+  );
+
+  // Amount box
+  out = trackReplaceNth(
+    out,
+    /(<div class="field mono en" style="left:28\.5mm;top:52\.45mm;width:39\.60mm;text-align:center;font-size:8\.53mm;font-weight:900;">)([^<]*)(<\/div>)/g,
+    slotIndex,
+    (_m, p1, _old, p3) => `${p1}${escapeHtml(amountDisplay)}${p3}`,
+    "amount_box"
+  );
+
+  // VP tracking
+  out = trackReplaceNth(
+    out,
+    /(<div class="field urdu" style="left:90\.27mm;top:48\.04mm;width:45\.26mm;font-size:2\.10mm;"><span class="mono en" style="display:inline-block;font-size:4\.28mm;">)([^<]*)(<\/span><\/div>)/g,
+    slotIndex,
+    (_m, p1, _old, p3) => `${p1}${escapeHtml(tracking)}${p3}`,
+    "vp_tracking"
+  );
+
+  // Amount words
+  out = trackReplaceNth(
+    out,
+    /(<div class="field regular en" style="left:91\.69mm;top:55\.33mm;width:43\.84mm;font-size:2\.89mm;white-space:normal;line-height:2\.06;">)([^<]*)(<\/div>)/g,
+    slotIndex,
+    (_m, p1, _old, p3) => `${p1}${escapeHtml(amountWords)}${p3}`,
+    "amount_words"
+  );
+
+  // Receiver fields
+  out = trackReplaceNth(
+    out,
+    /(<div class="field strong en" style="left:14\.56mm;top:93\.39mm;width:65\.06mm;font-size:2\.58mm;">)([^<]*)(<\/div>)/g,
+    slotIndex,
+    (_m, p1, _old, p3) => `${p1}${escapeHtml(consigneeName)}${p3}`,
+    "consignee_name"
+  );
+  out = trackReplaceNth(
+    out,
+    /(<div class="field regular en" style="left:14\.56mm;top:96\.86mm;width:65\.06mm;font-size:2\.13mm;white-space:normal;line-height:1\.06;">)([^<]*)(<\/div>)/g,
+    slotIndex,
+    (_m, p1, _old, p3) => `${p1}${escapeHtml(consigneeAddress)}${p3}`,
+    "consignee_address"
+  );
+  out = trackReplaceNth(
+    out,
+    /(<div class="field mono en" style="left:97\.56mm;top:100\.27mm;width:65\.06mm;font-size:2\.13mm;">)([^<]*)(<\/div>)/g,
+    slotIndex,
+    (_m, p1, _old, p3) => `${p1}${escapeHtml(consigneePhone)}${p3}`,
+    "consignee_phone"
+  );
+
+  // Bottom summary block (receiver detail + MO + amount)
+  out = trackReplaceNth(
+    out,
+    /(<div class="field en" style="left:15\.56mm;top:174\.79mm;width:67\.18mm;font-size:1\.83mm;line-height:1\.12;white-space:normal;">)[^<]*(?:<br\/>)?[^<]*(?:<br\/>)?[^<]*<\/div>/g,
+    slotIndex,
+    (_m, p1) => `${p1}
+      ${escapeHtml(consigneeName)} | ${escapeHtml(consigneePhone)}<br/>
+      ${escapeHtml(consigneeAddress)}<br/>
+      MO: ${escapeHtml(moNumber)} | ${escapeHtml(amountDisplay)}
+    </div>`,
+    "bottom_summary"
+  );
+
+  // Bottom tracking line (no footer on back side)
+  out = trackReplaceNth(
+    out,
+    /(<div class="field mono en" style="left:15\.56mm;top:198\.83mm;width:63\.64mm;font-size:2\.22mm;">)([^<]*)(<\/div>)/g,
+    slotIndex,
+    (_m, p1, _old, p3) => `${p1}${escapeHtml(tracking)}${p3}`,
+    "bottom_tracking"
+  );
+
+  // Clean up any remaining `{...}` tokens (sender fields and any others)
+  out = out.replace(/\{[a-z_][a-z0-9_]*\}/gi, "");
+
+  const failedReplacements = Array.from(replacementCounts.entries())
+    .filter(([, count]) => count === 0)
+    .map(([field]) => field);
+  
+  if (failedReplacements.length > 0) {
+    console.error(`[BENCHMARK_BACK_SLOT_${slotIndex}] FAILED REPLACEMENTS: ${failedReplacements.join(", ")}`);
+    throw new Error(`[BENCHMARK_MO] Back slot ${slotIndex} failed to populate: ${failedReplacements.join(", ")}`);
+  }
+
+  return out;
+}
+
 function moneyOrderHtmlFromBenchmark(
   orders: OrderRecord[],
   backgrounds?: { frontDataUrl?: string; backDataUrl?: string },
@@ -1653,8 +1840,9 @@ function moneyOrderHtmlFromBenchmark(
     frontSheet = compactHtmlFragment(frontSheet);
 
     let backSheet = backSheetTemplate;
-    backSheet = fillBenchmarkSlot(backSheet, 0, o1, false);
-    backSheet = fillBenchmarkSlot(backSheet, 1, o2, false);
+    // Use fillBackBenchmarkSlot on the back page to avoid injecting sender overlays
+    backSheet = fillBackBenchmarkSlot(backSheet, 0, o1);
+    backSheet = fillBackBenchmarkSlot(backSheet, 1, o2);
     backSheet = compactHtmlFragment(backSheet);
 
     const consigneeName: string = o1.consigneeName || "";
