@@ -1312,7 +1312,7 @@ function clearBenchmarkSlot(htmlBody: string, slotIndex: number) {
     /(<div class="field mono en" style="left:9\.10mm;top:80\.33mm;width:41\.01mm;font-size:3\.28mm;text-align:center;">)([^<]*)(<\/div>)/g,
     /(<div class="field mono en" style="left:57\.43mm;top:39\.03mm;width:28\.29mm;font-size:3\.73mm;">)([^<]*)(<\/div>)/g,
     /(<div class="field urdu" style="left:40\.13mm;top:162\.57mm;width:28\.99mm;font-size:\.16mm;"><span class="en" style="display:inline-block;font-size:3\.25mm;">)([^<]*)(<\/span><\/div>)/g,
-    /(<div class="field urdu" style="left:72\.73mm;top:140\.37mm;width:44\.55mm;font-size:2\.16mm;>\s*<span class="en" style="display:inline-block;font-size:5\.37mm;">)([^<]*)(<\/span><\/div>)/g,
+    /(<div class="field urdu" style="left:72\.73mm;top:140\.37mm;width:44\.55mm;font-size:2\.16mm;">\s*<span class="en" style="display:inline-block;font-size:5\.37mm;">)([^<]*)(<\/span><\/div>)/g,
     /(<div class="field mono en" style="left:28\.5mm;top:52\.45mm;width:39\.60mm;text-align:center;font-size:8\.53mm;font-weight:900;">)([^<]*)(<\/div>)/g,
     /(<div class="field urdu" style="left:90\.27mm;top:48\.04mm;width:45\.26mm;font-size:2\.10mm;"><span class="mono en" style="display:inline-block;font-size:4\.28mm;">)([^<]*)(<\/span><\/div>)/g,
     /(<div class="field regular en" style="left:91\.69mm;top:55\.33mm;width:43\.84mm;font-size:2\.89mm;white-space:normal;line-height:2\.06;">)([^<]*)(<\/div>)/g,

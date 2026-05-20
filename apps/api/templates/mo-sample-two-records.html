@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
@@ -6,7 +6,6 @@
       @page { size: A4 landscape; margin: 0; }
       html, body { margin: 0; padding: 0; font-family: Arial, sans-serif; color: #111; font-size: 0; line-height: 0; }
 
-      /* A4 landscape: 297mm × 210mm — two portrait halves side by side */
       .sheet {
         width: 297mm;
         height: 210mm;
@@ -19,7 +18,6 @@
       }
       .sheet:last-child { page-break-after: auto; }
 
-      /* Each half is a portrait MO: 148.5mm × 210mm */
       .half {
         width: 148.5mm;
         height: 210mm;
@@ -29,13 +27,11 @@
         flex-shrink: 0;
       }
 
-      /* Duplex correction for short-edge flip: rotate back half only */
       .half.back {
         transform: rotate(180deg);
         transform-origin: center center;
       }
 
-      /* Background fills the entire portrait half */
       .bg {
         position: absolute;
         inset: 0;
@@ -43,10 +39,8 @@
         background-repeat: no-repeat;
         background-position: center center;
         background-size: 100% 100%;
-        transform: none;
       }
 
-      /* Overlay anchored to top-left of the half — EXTENDED FULL HEIGHT to prevent tracking ID clipping */
       .overlay {
         position: absolute;
         inset: 0;
@@ -60,9 +54,10 @@
         white-space: nowrap;
         overflow: visible;
       }
-      .mono   { font-family: "Courier New", Courier, monospace; letter-spacing: 0.18mm; font-weight: 700; }
+
+      .mono { font-family: "Courier New", Courier, monospace; letter-spacing: 0.18mm; font-weight: 700; }
       .regular { font-weight: 500; }
-      .strong  { font-weight: 700; }
+      .strong { font-weight: 700; }
       .urdu { direction: rtl; text-align: right; font-weight: 700; }
       .en { direction: ltr; text-align: left; }
       .barcode { position: absolute; z-index: 5; object-fit: contain; }
@@ -76,104 +71,98 @@
     </style>
   </head>
   <body>
-    <!-- FRONT PAGE -->
     <div class="sheet">
-      <!-- FRONT HALF 1 (SLOT 0) -->
       <div class="half front">
-        <div class="bg"></div>
+        <div class="bg" style="background-image:url('')"></div>
         <div class="overlay">
-          <img class="barcode" src="" alt="MO Barcode" style="left:0mm;top:0mm;width:30mm;height:20mm;" />
+          <img class="barcode" src="" alt="MO Barcode" style="left:3.00mm;top:67.00mm;width:53.00mm;height:14.00mm;" />
           <div class="field urdu" style="left:15.56mm;top:1.2mm;width:67.18mm;font-size:2.5mm;"></div>
           <div class="field mono en" style="left:9.10mm;top:80.33mm;width:41.01mm;font-size:3.28mm;text-align:center;"></div>
           <div class="field mono en" style="left:57.43mm;top:39.03mm;width:28.29mm;font-size:3.73mm;"></div>
           <div class="field urdu" style="left:40.13mm;top:162.57mm;width:28.99mm;font-size:.16mm;"><span class="en" style="display:inline-block;font-size:3.25mm;"></span></div>
-          <div class="field mono en" style="left:9.21mm;top:53.16mm;width:25.58mm;font-size:3.86mm;"></div>
-          <div class="field mono en" style="left:57.72mm;top:117.88mm;width:27.71mm;font-size:3.43mm;text-align:center;"></div>
-          <div class="field mono en" style="left:9.27mm;top:104.82mm;width:41.24mm;font-size:3.14mm;"></div>
-          <div class="field regular en" style="left:9.21mm;top:65.48mm;width:73.24mm;font-size:2.0mm;line-height:1.15;white-space:normal;"></div>
-          <div class="field strong en" style="left:9.21mm;top:125.58mm;width:41.12mm;font-size:2.85mm;"></div>
-          <div class="field regular en" style="left:9.27mm;top:131.66mm;width:41.27mm;font-size:1.83mm;line-height:1.12;white-space:normal;"></div>
-          <div class="field mono en" style="left:9.27mm;top:153.01mm;width:41.27mm;font-size:1.82mm;"></div>
-          <div class="field strong en" style="left:57.57mm;top:125.58mm;width:41.12mm;font-size:2.85mm;"></div>
-          <div class="field regular en" style="left:57.63mm;top:131.66mm;width:41.27mm;font-size:1.83mm;line-height:1.12;white-space:normal;"></div>
-          <div class="field mono en" style="left:57.63mm;top:153.01mm;width:41.27mm;font-size:1.82mm;"></div>
+          <div class="field urdu" style="left:72.73mm;top:140.37mm;width:44.55mm;font-size:2.16mm;"><span class="en" style="display:inline-block;font-size:5.37mm;"></span></div>
+          <div class="field mono en" style="left:28.5mm;top:52.45mm;width:39.60mm;text-align:center;font-size:8.53mm;font-weight:900;"></div>
+          <div class="field urdu" style="left:90.27mm;top:48.04mm;width:45.26mm;font-size:2.10mm;"><span class="mono en" style="display:inline-block;font-size:4.28mm;"></span></div>
+          <div class="field regular en" style="left:91.69mm;top:55.33mm;width:43.84mm;font-size:2.89mm;white-space:normal;line-height:2.06;"></div>
+          <div class="field strong en" style="left:14.56mm;top:93.39mm;width:65.06mm;font-size:2.58mm;"></div>
+          <div class="field regular en" style="left:14.56mm;top:96.86mm;width:65.06mm;font-size:2.13mm;white-space:normal;line-height:1.06;"></div>
+          <div class="field mono en" style="left:97.56mm;top:100.27mm;width:65.06mm;font-size:2.13mm;"></div>
+          <div class="field strong en" style="left:47.56mm;top:105.69mm;width:86.06mm;font-size:4.25mm;white-space:normal;overflow:visible;text-align:left;"></div>
+          <div class="field regular en" style="left:15.56mm;top:112.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;"></div>
+          <div class="field mono en" style="left:82.56mm;top:116.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;"></div>
           <div class="field en" style="left:15.56mm;top:174.79mm;width:67.18mm;font-size:1.83mm;line-height:1.12;white-space:normal;"></div>
-          <div class="field mono en" style="left:15.56mm;top:198.83mm;width:67.18mm;font-size:2.45mm;text-align:center;"></div>
+          <div class="field mono en" style="left:15.56mm;top:198.83mm;width:63.64mm;font-size:2.22mm;"></div>
         </div>
       </div>
 
-      <!-- FRONT HALF 2 (SLOT 1) -->
       <div class="half front">
-        <div class="bg"></div>
+        <div class="bg" style="background-image:url('')"></div>
         <div class="overlay">
-          <img class="barcode" src="" alt="MO Barcode" style="left:0mm;top:0mm;width:30mm;height:20mm;" />
+          <img class="barcode" src="" alt="MO Barcode" style="left:3.00mm;top:67.00mm;width:53.00mm;height:14.00mm;" />
           <div class="field urdu" style="left:15.56mm;top:1.2mm;width:67.18mm;font-size:2.5mm;"></div>
           <div class="field mono en" style="left:9.10mm;top:80.33mm;width:41.01mm;font-size:3.28mm;text-align:center;"></div>
           <div class="field mono en" style="left:57.43mm;top:39.03mm;width:28.29mm;font-size:3.73mm;"></div>
           <div class="field urdu" style="left:40.13mm;top:162.57mm;width:28.99mm;font-size:.16mm;"><span class="en" style="display:inline-block;font-size:3.25mm;"></span></div>
-          <div class="field mono en" style="left:9.21mm;top:53.16mm;width:25.58mm;font-size:3.86mm;"></div>
-          <div class="field mono en" style="left:57.72mm;top:117.88mm;width:27.71mm;font-size:3.43mm;text-align:center;"></div>
-          <div class="field mono en" style="left:9.27mm;top:104.82mm;width:41.24mm;font-size:3.14mm;"></div>
-          <div class="field regular en" style="left:9.21mm;top:65.48mm;width:73.24mm;font-size:2.0mm;line-height:1.15;white-space:normal;"></div>
-          <div class="field strong en" style="left:9.21mm;top:125.58mm;width:41.12mm;font-size:2.85mm;"></div>
-          <div class="field regular en" style="left:9.27mm;top:131.66mm;width:41.27mm;font-size:1.83mm;line-height:1.12;white-space:normal;"></div>
-          <div class="field mono en" style="left:9.27mm;top:153.01mm;width:41.27mm;font-size:1.82mm;"></div>
-          <div class="field strong en" style="left:57.57mm;top:125.58mm;width:41.12mm;font-size:2.85mm;"></div>
-          <div class="field regular en" style="left:57.63mm;top:131.66mm;width:41.27mm;font-size:1.83mm;line-height:1.12;white-space:normal;"></div>
-          <div class="field mono en" style="left:57.63mm;top:153.01mm;width:41.27mm;font-size:1.82mm;"></div>
+          <div class="field urdu" style="left:72.73mm;top:140.37mm;width:44.55mm;font-size:2.16mm;"><span class="en" style="display:inline-block;font-size:5.37mm;"></span></div>
+          <div class="field mono en" style="left:28.5mm;top:52.45mm;width:39.60mm;text-align:center;font-size:8.53mm;font-weight:900;"></div>
+          <div class="field urdu" style="left:90.27mm;top:48.04mm;width:45.26mm;font-size:2.10mm;"><span class="mono en" style="display:inline-block;font-size:4.28mm;"></span></div>
+          <div class="field regular en" style="left:91.69mm;top:55.33mm;width:43.84mm;font-size:2.89mm;white-space:normal;line-height:2.06;"></div>
+          <div class="field strong en" style="left:14.56mm;top:93.39mm;width:65.06mm;font-size:2.58mm;"></div>
+          <div class="field regular en" style="left:14.56mm;top:96.86mm;width:65.06mm;font-size:2.13mm;white-space:normal;line-height:1.06;"></div>
+          <div class="field mono en" style="left:97.56mm;top:100.27mm;width:65.06mm;font-size:2.13mm;"></div>
+          <div class="field strong en" style="left:47.56mm;top:105.69mm;width:86.06mm;font-size:4.25mm;white-space:normal;overflow:visible;text-align:left;"></div>
+          <div class="field regular en" style="left:15.56mm;top:112.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;"></div>
+          <div class="field mono en" style="left:82.56mm;top:116.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;"></div>
           <div class="field en" style="left:15.56mm;top:174.79mm;width:67.18mm;font-size:1.83mm;line-height:1.12;white-space:normal;"></div>
-          <div class="field mono en" style="left:15.56mm;top:198.83mm;width:67.18mm;font-size:2.45mm;text-align:center;"></div>
+          <div class="field mono en" style="left:15.56mm;top:198.83mm;width:63.64mm;font-size:2.22mm;"></div>
         </div>
       </div>
     </div>
 
-    <!-- BACK PAGE -->
     <div class="sheet">
-      <!-- BACK HALF 1 (SLOT 0) -->
       <div class="half back">
-        <div class="bg"></div>
+        <div class="bg" style="background-image:url('')"></div>
         <div class="overlay">
-          <img class="barcode" src="" alt="MO Barcode" style="left:0mm;top:0mm;width:30mm;height:20mm;" />
+          <img class="barcode" src="" alt="MO Barcode" style="left:3.00mm;top:67.00mm;width:53.00mm;height:14.00mm;" />
           <div class="field urdu" style="left:15.56mm;top:1.2mm;width:67.18mm;font-size:2.5mm;"></div>
           <div class="field mono en" style="left:9.10mm;top:80.33mm;width:41.01mm;font-size:3.28mm;text-align:center;"></div>
           <div class="field mono en" style="left:57.43mm;top:39.03mm;width:28.29mm;font-size:3.73mm;"></div>
           <div class="field urdu" style="left:40.13mm;top:162.57mm;width:28.99mm;font-size:.16mm;"><span class="en" style="display:inline-block;font-size:3.25mm;"></span></div>
-          <div class="field mono en" style="left:9.21mm;top:53.16mm;width:25.58mm;font-size:3.86mm;"></div>
-          <div class="field mono en" style="left:57.72mm;top:117.88mm;width:27.71mm;font-size:3.43mm;text-align:center;"></div>
-          <div class="field mono en" style="left:9.27mm;top:104.82mm;width:41.24mm;font-size:3.14mm;"></div>
-          <div class="field regular en" style="left:9.21mm;top:65.48mm;width:73.24mm;font-size:2.0mm;line-height:1.15;white-space:normal;"></div>
-          <div class="field strong en" style="left:9.21mm;top:125.58mm;width:41.12mm;font-size:2.85mm;"></div>
-          <div class="field regular en" style="left:9.27mm;top:131.66mm;width:41.27mm;font-size:1.83mm;line-height:1.12;white-space:normal;"></div>
-          <div class="field mono en" style="left:9.27mm;top:153.01mm;width:41.27mm;font-size:1.82mm;"></div>
-          <div class="field strong en" style="left:57.57mm;top:125.58mm;width:41.12mm;font-size:2.85mm;"></div>
-          <div class="field regular en" style="left:57.63mm;top:131.66mm;width:41.27mm;font-size:1.83mm;line-height:1.12;white-space:normal;"></div>
-          <div class="field mono en" style="left:57.63mm;top:153.01mm;width:41.27mm;font-size:1.82mm;"></div>
+          <div class="field urdu" style="left:72.73mm;top:140.37mm;width:44.55mm;font-size:2.16mm;"><span class="en" style="display:inline-block;font-size:5.37mm;"></span></div>
+          <div class="field mono en" style="left:28.5mm;top:52.45mm;width:39.60mm;text-align:center;font-size:8.53mm;font-weight:900;"></div>
+          <div class="field urdu" style="left:90.27mm;top:48.04mm;width:45.26mm;font-size:2.10mm;"><span class="mono en" style="display:inline-block;font-size:4.28mm;"></span></div>
+          <div class="field regular en" style="left:91.69mm;top:55.33mm;width:43.84mm;font-size:2.89mm;white-space:normal;line-height:2.06;"></div>
+          <div class="field strong en" style="left:14.56mm;top:93.39mm;width:65.06mm;font-size:2.58mm;"></div>
+          <div class="field regular en" style="left:14.56mm;top:96.86mm;width:65.06mm;font-size:2.13mm;white-space:normal;line-height:1.06;"></div>
+          <div class="field mono en" style="left:97.56mm;top:100.27mm;width:65.06mm;font-size:2.13mm;"></div>
+          <div class="field strong en" style="left:47.56mm;top:105.69mm;width:86.06mm;font-size:4.25mm;white-space:normal;overflow:visible;text-align:left;"></div>
+          <div class="field regular en" style="left:15.56mm;top:112.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;"></div>
+          <div class="field mono en" style="left:82.56mm;top:116.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;"></div>
           <div class="field en" style="left:15.56mm;top:174.79mm;width:67.18mm;font-size:1.83mm;line-height:1.12;white-space:normal;"></div>
-          <div class="field mono en" style="left:15.56mm;top:198.83mm;width:67.18mm;font-size:2.45mm;text-align:center;"></div>
+          <div class="field mono en" style="left:15.56mm;top:198.83mm;width:63.64mm;font-size:2.22mm;"></div>
         </div>
       </div>
 
-      <!-- BACK HALF 2 (SLOT 1) -->
       <div class="half back">
-        <div class="bg"></div>
+        <div class="bg" style="background-image:url('')"></div>
         <div class="overlay">
-          <img class="barcode" src="" alt="MO Barcode" style="left:0mm;top:0mm;width:30mm;height:20mm;" />
+          <img class="barcode" src="" alt="MO Barcode" style="left:3.00mm;top:67.00mm;width:53.00mm;height:14.00mm;" />
           <div class="field urdu" style="left:15.56mm;top:1.2mm;width:67.18mm;font-size:2.5mm;"></div>
           <div class="field mono en" style="left:9.10mm;top:80.33mm;width:41.01mm;font-size:3.28mm;text-align:center;"></div>
           <div class="field mono en" style="left:57.43mm;top:39.03mm;width:28.29mm;font-size:3.73mm;"></div>
           <div class="field urdu" style="left:40.13mm;top:162.57mm;width:28.99mm;font-size:.16mm;"><span class="en" style="display:inline-block;font-size:3.25mm;"></span></div>
-          <div class="field mono en" style="left:9.21mm;top:53.16mm;width:25.58mm;font-size:3.86mm;"></div>
-          <div class="field mono en" style="left:57.72mm;top:117.88mm;width:27.71mm;font-size:3.43mm;text-align:center;"></div>
-          <div class="field mono en" style="left:9.27mm;top:104.82mm;width:41.24mm;font-size:3.14mm;"></div>
-          <div class="field regular en" style="left:9.21mm;top:65.48mm;width:73.24mm;font-size:2.0mm;line-height:1.15;white-space:normal;"></div>
-          <div class="field strong en" style="left:9.21mm;top:125.58mm;width:41.12mm;font-size:2.85mm;"></div>
-          <div class="field regular en" style="left:9.27mm;top:131.66mm;width:41.27mm;font-size:1.83mm;line-height:1.12;white-space:normal;"></div>
-          <div class="field mono en" style="left:9.27mm;top:153.01mm;width:41.27mm;font-size:1.82mm;"></div>
-          <div class="field strong en" style="left:57.57mm;top:125.58mm;width:41.12mm;font-size:2.85mm;"></div>
-          <div class="field regular en" style="left:57.63mm;top:131.66mm;width:41.27mm;font-size:1.83mm;line-height:1.12;white-space:normal;"></div>
-          <div class="field mono en" style="left:57.63mm;top:153.01mm;width:41.27mm;font-size:1.82mm;"></div>
+          <div class="field urdu" style="left:72.73mm;top:140.37mm;width:44.55mm;font-size:2.16mm;"><span class="en" style="display:inline-block;font-size:5.37mm;"></span></div>
+          <div class="field mono en" style="left:28.5mm;top:52.45mm;width:39.60mm;text-align:center;font-size:8.53mm;font-weight:900;"></div>
+          <div class="field urdu" style="left:90.27mm;top:48.04mm;width:45.26mm;font-size:2.10mm;"><span class="mono en" style="display:inline-block;font-size:4.28mm;"></span></div>
+          <div class="field regular en" style="left:91.69mm;top:55.33mm;width:43.84mm;font-size:2.89mm;white-space:normal;line-height:2.06;"></div>
+          <div class="field strong en" style="left:14.56mm;top:93.39mm;width:65.06mm;font-size:2.58mm;"></div>
+          <div class="field regular en" style="left:14.56mm;top:96.86mm;width:65.06mm;font-size:2.13mm;white-space:normal;line-height:1.06;"></div>
+          <div class="field mono en" style="left:97.56mm;top:100.27mm;width:65.06mm;font-size:2.13mm;"></div>
+          <div class="field strong en" style="left:47.56mm;top:105.69mm;width:86.06mm;font-size:4.25mm;white-space:normal;overflow:visible;text-align:left;"></div>
+          <div class="field regular en" style="left:15.56mm;top:112.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;"></div>
+          <div class="field mono en" style="left:82.56mm;top:116.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;"></div>
           <div class="field en" style="left:15.56mm;top:174.79mm;width:67.18mm;font-size:1.83mm;line-height:1.12;white-space:normal;"></div>
-          <div class="field mono en" style="left:15.56mm;top:198.83mm;width:67.18mm;font-size:2.45mm;text-align:center;"></div>
+          <div class="field mono en" style="left:15.56mm;top:198.83mm;width:63.64mm;font-size:2.22mm;"></div>
         </div>
       </div>
     </div>
