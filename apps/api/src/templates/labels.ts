@@ -995,13 +995,16 @@ export function moneyOrderHtml(
   orders: OrderRecord[],
   opts?: { backgrounds?: { frontDataUrl?: string; backDataUrl?: string } },
 ) {
-  const frontDataUrl = resolveExplicitMoFrontDataUrl(opts?.backgrounds?.frontDataUrl);
-  return moneyOrderHtmlFromBenchmark(orders, frontDataUrl);
+  const frontDataUrl = resolveExplicitMoFrontDataUrl(opts?.backgrounds?.frontDataUrl) ?? resolveStaticMoFrontDataUrl();
+  const backDataUrl = resolveExplicitMoFrontDataUrl(opts?.backgrounds?.backDataUrl) ?? resolveStaticMoBackDataUrl();
+  return moneyOrderHtmlFromBenchmark(orders, { frontDataUrl, backDataUrl });
 }
 
 let benchmarkMoHtmlCache: string | null = null;
 let staticMoFrontDataUrlCache: string | null | undefined;
 let staticMoFrontDataUrlCacheKey: string | null = null;
+let staticMoResolvedFrontDataUrlCache: string | null | undefined;
+let staticMoResolvedBackDataUrlCache: string | null | undefined;
 let urduFontFaceCssCache: string | null | undefined;
 let moRenderCacheVersion: string | null = null;
 
@@ -1023,7 +1026,53 @@ function invalidateMoRenderCachesIfNeeded() {
   benchmarkMoHtmlCache = null;
   staticMoFrontDataUrlCache = undefined;
   staticMoFrontDataUrlCacheKey = null;
+  staticMoResolvedFrontDataUrlCache = undefined;
+  staticMoResolvedBackDataUrlCache = undefined;
   urduFontFaceCssCache = undefined;
+}
+
+function resolveStaticMoDataUrl(candidates: string[], label: string) {
+  for (const candidate of candidates) {
+    try {
+      if (!fs.existsSync(candidate)) continue;
+      const bytes = fs.readFileSync(candidate);
+      return `data:image/png;base64,${bytes.toString("base64")}`;
+    } catch {
+      // Try the next candidate path.
+    }
+  }
+  throw new Error(`${label}_MISSING: required static money-order background image was not found in known paths.`);
+}
+
+function resolveStaticMoFrontDataUrl() {
+  invalidateMoRenderCachesIfNeeded();
+  if (staticMoResolvedFrontDataUrlCache !== undefined) {
+    return staticMoResolvedFrontDataUrlCache ?? undefined;
+  }
+
+  const frontCandidates = [
+    path.resolve(process.cwd(), "MO", "MO F.png"),
+    path.resolve(process.cwd(), "MO", "MO Front.png"),
+    path.resolve(process.cwd(), "images", "NEW MO F.png"),
+    path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "..", "..", "MO", "MO F.png"),
+  ];
+  staticMoResolvedFrontDataUrlCache = resolveStaticMoDataUrl(frontCandidates, "MO_FRONT_IMAGE");
+  return staticMoResolvedFrontDataUrlCache;
+}
+
+function resolveStaticMoBackDataUrl() {
+  invalidateMoRenderCachesIfNeeded();
+  if (staticMoResolvedBackDataUrlCache !== undefined) {
+    return staticMoResolvedBackDataUrlCache ?? undefined;
+  }
+
+  const backCandidates = [
+    path.resolve(process.cwd(), "MO", "MO Back.png"),
+    path.resolve(process.cwd(), "images", "NEW MO B.png"),
+    path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "..", "..", "MO", "MO Back.png"),
+  ];
+  staticMoResolvedBackDataUrlCache = resolveStaticMoDataUrl(backCandidates, "MO_BACK_IMAGE");
+  return staticMoResolvedBackDataUrlCache;
 }
 
 function resolveExplicitMoFrontDataUrl(frontDataUrl: unknown) {
@@ -1171,17 +1220,21 @@ function splitBenchmarkSheets(htmlBody: string) {
   return [first, second] as const;
 }
 
-function applyFrontBackgroundToBenchmarkHtml(htmlBody: string, frontDataUrl?: string) {
-  if (!frontDataUrl) return htmlBody;
+function applyMoneyOrderBackgroundsToBenchmarkHtml(
+  htmlBody: string,
+  backgrounds?: { frontDataUrl?: string; backDataUrl?: string },
+) {
+  const frontSafe = String(backgrounds?.frontDataUrl ?? "").trim().replace(/'/g, "%27");
+  const backSafe = String(backgrounds?.backDataUrl ?? "").trim().replace(/'/g, "%27");
+  if (!frontSafe && !backSafe) return htmlBody;
 
-  const safeUrl = String(frontDataUrl).replace(/'/g, "%27");
-  let out = htmlBody;
-  const bgPattern = /(<div class="bg" style="background-image:url\(')([^']*)('\)"><\/div>)/g;
-
-  out = replaceNth(out, bgPattern, 0, (_m, p1, _old, p3) => `${p1}${safeUrl}${p3}`);
-  out = replaceNth(out, bgPattern, 1, (_m, p1, _old, p3) => `${p1}${safeUrl}${p3}`);
-
-  return out;
+  let seen = 0;
+  return htmlBody.replace(/<div class="bg"(?: style="[^"]*")?><\/div>/g, () => {
+    const url = seen < 2 ? frontSafe : backSafe || frontSafe;
+    seen += 1;
+    if (!url) return `<div class="bg"></div>`;
+    return `<div class="bg" style="background-image:url('${url}')"></div>`;
+  });
 }
 
 function compactHtmlFragment(fragment: string) {
@@ -1567,7 +1620,10 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
   return out;
 }
 
-function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataUrl?: string) {
+function moneyOrderHtmlFromBenchmark(
+  orders: OrderRecord[],
+  backgrounds?: { frontDataUrl?: string; backDataUrl?: string },
+) {
   const footerHtml = getSharedPrintFooter();
   const expandedOrders = expandBenchmarkOrders(orders);
   const benchmarkHtml = loadBenchmarkMoHtml();
@@ -1575,7 +1631,7 @@ function moneyOrderHtmlFromBenchmark(orders: OrderRecord[], frontBackgroundDataU
   if (!bodyMatch) return benchmarkHtml;
 
   const head = bodyMatch[1];
-  const benchmarkBody = applyFrontBackgroundToBenchmarkHtml(bodyMatch[2].trim(), frontBackgroundDataUrl);
+  const benchmarkBody = applyMoneyOrderBackgroundsToBenchmarkHtml(bodyMatch[2].trim(), backgrounds);
   const tail = bodyMatch[3];
   const headWithPrintGuard = head.replace(
     /<\/head>/i,
