@@ -1562,28 +1562,26 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     "consignee_phone"
   );
 
-  // Sender fields - PRESERVE wrapper, only replace inner text to avoid breaking slot 1 matching
+  // Sender fields
   out = trackReplaceNth(
     out,
-      /(<div class="field strong en" style="left:47\.56mm;top:105\.69mm;width:(?:65\.06|86\.06)mm;font-size:4\.(?:58|25)mm(?:;white-space:normal;overflow:visible;text-align:left)?;?">)((?:[^<]|<br\s*\/>)*)(<\/div>)/g,
+    /<div class="field strong en" style="left:47\.56mm;top:105\.69mm;[^"]*">[^<]*<\/div>/g,
     slotIndex,
-    (_m, p1, _old, p3) => `${p1}${escapeHtml(senderLine)}${p3}`,
+    () => `<div class="field strong en" style="left:47.56mm;top:105.69mm;width:100.06mm;font-size:3.35mm;line-height:1.08;white-space:nowrap;overflow:hidden;text-align:left;">${escapeHtml(senderLine)}</div>`,
     "sender_line"
   );
-  // Sender address - match original pattern, preserve wrapper on replacement
   out = trackReplaceNth(
     out,
-    /(<div class="field regular en" style="left:(?:12\.56|15\.56)mm;top:112\.15mm;width:65\.06mm;font-size:3\.(?:13|35)mm;white-space:normal;line-height:1\.(?:06|12)(?:;text-align:left)?;">)([^<]*)<\/div>/g,
+    /<div class="field regular en" style="left:[^\"]*top:112\.15mm;[^\"]*">[^<]*<\/div>/g,
     slotIndex,
-    (_m, p1, _old) => `${p1}${escapeHtml(shipperAddress)}</div>`,
+    () => `<div class="field regular en" style="left:15.56mm;top:112.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;text-align:left;">${escapeHtml(shipperAddress)}</div>`,
     "sender_address"
   );
-  // Sender phone - match original pattern, preserve wrapper on replacement
   out = trackReplaceNth(
     out,
-    /(<div class="field mono en" style="left:82\.56mm;top:116\.57mm;width:65\.06mm;font-size:4\.(?:13|35)mm(?:;line-height:1\.06)?(?:;text-align:left)?;">)([^<]*)<\/div>/g,
+    /<div class="field mono en" style="left:82\.56mm;top:116\.57mm;[^\"]*">[^<]*<\/div>/g,
     slotIndex,
-    (_m, p1, _old) => `${p1}${escapeHtml(shipperPhone)}</div>`,
+    () => `<div class="field mono en" style="left:82.56mm;top:116.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;text-align:left;">${escapeHtml(shipperPhone)}</div>`,
     "sender_phone"
   );
 
@@ -1898,7 +1896,7 @@ function moneyOrderHtmlFromBenchmark(
   const tail = bodyMatch[3];
   const headWithPrintGuard = head.replace(
     /<\/head>/i,
-    `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}${PRINTABLE_FOOTER_CSS}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.half{position:relative;}.page .${PRINTABLE_FOOTER_CLASS_NAME}, .half .${PRINTABLE_FOOTER_CLASS_NAME}{position:absolute;bottom:1.8mm;left:50%;transform:translateX(-50%);width:74%;text-align:center;font-size:9px;font-weight:600;line-height:1.1;box-sizing:border-box;white-space:normal;overflow-wrap:break-word;word-break:normal;z-index:10;}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding-top:1.5mm;padding-right:1.35mm;padding-bottom:1mm;padding-left:1.35mm;max-width:66mm;font:700 2.15mm/1.15 \"Noto Nastaliq Urdu\",\"Jameel Noori Nastaleeq\",Arial,sans-serif;text-align:center;direction:rtl;unicode-bidi:plaintext;white-space:nowrap;overflow:visible;text-overflow:clip}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`
+    `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}${PRINTABLE_FOOTER_CSS}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.half{position:relative;}.page .${PRINTABLE_FOOTER_CLASS_NAME}, .half .${PRINTABLE_FOOTER_CLASS_NAME}{position:absolute;bottom:1.8mm;left:50%;transform:translateX(-50%);width:74%;text-align:center;font-size:9px;font-weight:600;line-height:1.1;box-sizing:border-box;white-space:normal;overflow-wrap:break-word;word-break:normal;z-index:10;}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding:0.25mm 1.2mm;max-width:66mm;font:700 2.15mm/1.15 \"Noto Nastaliq Urdu\",\"Jameel Noori Nastaleeq\",Arial,sans-serif;text-align:center;direction:rtl;unicode-bidi:plaintext;white-space:nowrap;overflow:visible;text-overflow:clip}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`
   );
   const [frontSheetTemplate, backSheetTemplate] = splitBenchmarkSheets(benchmarkBody);
 
@@ -2108,8 +2106,8 @@ function frontFields(o: OrderRecord) {
     `<div class="field mono en" style="left:97.56mm;top:100.27mm;width:65.06mm;font-size:2.13mm;">${escapeHtml(consigneePhone)}</div>`,
 
     // Sender block
-    `<div class="field strong en" style="left:14.56mm;top:105.69mm;width:65.06mm;font-size:2.58mm;">${escapeHtml(senderLine)}</div>`,
-    `<div class="field regular en" style="left:14.56mm;top:112.15mm;width:65.06mm;font-size:2.13mm;white-space:normal;line-height:1.06;">${escapeHtml(shipperAddress)}</div>`,
+    `<div class="field strong en" style="left:47.56mm;top:105.69mm;width:100.06mm;font-size:3.35mm;line-height:1.08;white-space:nowrap;overflow:hidden;text-align:left;">${escapeHtml(senderLine)}</div>`,
+    `<div class="field regular en" style="left:15.56mm;top:112.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;text-align:left;">${escapeHtml(shipperAddress)}</div>`,
     `<div class="field mono en" style="left:82.56mm;top:116.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;text-align:left;">${escapeHtml(shipperPhone)}</div>`,
 
     // Bottom-left summary block (receiver detail + MO + amount)
