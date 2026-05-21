@@ -2062,9 +2062,9 @@ function frontFields(o: OrderRecord) {
   const moBarcode = String((o as any).mo_barcodeBase64 ?? "").trim();
   const issueDate = String((o as any).issueDate ?? "").trim() || formatIssueDate();
   const amountWords = expectedAmountWords(amountRaw);
-  const consigneeName = String((o as any).consigneeName ?? "").trim() || "-";
+  const consigneeName = String((o as any).consigneeName ?? "-").trim() || "-";
   const consigneeAddress = normalizeAddressLines((o as any).consigneeAddress ?? "") || "-";
-  const consigneePhone = String((o as any).consigneePhone ?? "").trim() || "-";
+  const consigneePhone = String((o as any).consigneePhone ?? "-").trim() || "-";
   const {
     senderName: shipperName,
     senderAddress: shipperAddress,
