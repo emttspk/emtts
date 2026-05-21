@@ -1,3 +1,6 @@
+import { getServiceByCode, listCatalogServices } from "../catalog/serviceCatalog.js";
+import { logCatalogShadowWarning, resolveLegacyShipmentAlias } from "../catalog/legacyShipmentAliases.js";
+
 // Tracking prefixes as per Pakistan Post standards
 export const TRACKING_PREFIX_VPL = "VPL"; // Value Payable Letter
 export const TRACKING_PREFIX_VPP = "VPP"; // Value Payable Parcel
@@ -15,32 +18,15 @@ export const MONEY_ORDER_PREFIX_COD = "UMO"; // For COD
 export const MONEY_ORDER_SPLIT_LIMIT = 20_000;
 
 export const CANONICAL_SHIPMENT_TYPES = [
-  "VPL",
-  "VPP",
-  "VPX",
-  "COD",
-  "IRL",
-  "RGL",
-  "UMS",
+  ...listCatalogServices({ includeDeprecated: true })
+    .map((entry) => entry.service)
+    .filter((service) => service !== "COURIER"),
 ] as const;
 
 export const KNOWN_SHIPMENT_TYPES = [
   ...CANONICAL_SHIPMENT_TYPES,
   "COURIER",
 ] as const;
-
-const SHIPMENT_TYPE_ALIASES: Record<string, string> = {
-  RL: "RGL",
-  DOCUMENT: "IRL",
-  DOCUMENTS: "IRL",
-  "SMALL PACKET": "RGL",
-  SMALL_PACKET: "RGL",
-  SMALLPACKET: "RGL",
-  PAR: "VPX",
-  PARCEL: "VPX",
-  PARCELS: "VPX",
-  PR: "VPX",
-};
 
 const allowedTrackingPrefixes = [
   TRACKING_PREFIX_VPL,
@@ -93,7 +79,10 @@ export function normalizeShipmentType(value: unknown) {
 export function resolveShipmentType(value: unknown): string | null {
   const normalized = normalizeShipmentType(value);
   if (!normalized) return null;
-  const aliasResolved = SHIPMENT_TYPE_ALIASES[normalized] ?? normalized;
+  const aliasResolved = resolveLegacyShipmentAlias(normalized) ?? normalized;
+  if (aliasResolved !== normalized) {
+    logCatalogShadowWarning("fallback_coercion", `Shipment type '${normalized}' coerced to '${aliasResolved}'.`);
+  }
   return (KNOWN_SHIPMENT_TYPES as readonly string[]).includes(aliasResolved) ? aliasResolved : null;
 }
 
@@ -151,6 +140,10 @@ export function formatIdentifierSequence(sequence: number) {
  */
 export function getTrackingPrefix(shipmentType?: unknown): string {
   const normalized = resolveShipmentType(shipmentType);
+  const catalogService = getServiceByCode(normalized);
+  if (catalogService?.trackingNamespace && catalogService.prefix) {
+    return catalogService.prefix;
+  }
   switch (normalized) {
     case "VPP":
       return TRACKING_PREFIX_VPP;

@@ -26,6 +26,7 @@ import { UPLOAD_DIR } from "./utils/paths.js";
 import { R2StorageProvider } from "./storage/R2StorageProvider.js";
 import { getTelemetrySinkDiagnostics, logStagingCanaryInitialized, logStagingConnectivityCheck, logStagingStartupConfig, logTelemetry, logTelemetrySinkInitialized, logEnvSourceDetected, logMissingRequiredEnv } from "./telemetry.js";
 import { stagingModeActiveGauge, unsyncedArtifactsGauge } from "./metrics.js";
+import { getCatalogDiagnostics, listCatalogServices } from "./catalog/serviceCatalog.js";
 const BUILD_VERSION = process.env.RAILWAY_GIT_COMMIT_SHA ?? "local";
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -496,6 +497,18 @@ router.get("/version", (_req, res) => res.json({ success: true, version: BUILD_V
 router.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });
+router.get("/catalog/services", (_req, res) => {
+  res.json({
+    success: true,
+    services: listCatalogServices({ includeDeprecated: true }),
+  });
+});
+router.get("/catalog/diagnostics", (_req, res) => {
+  res.json({
+    success: true,
+    diagnostics: getCatalogDiagnostics(),
+  });
+});
 router.get("/template.csv", (_req, res) => {
   const header = [
     "shipperName",
@@ -517,122 +530,33 @@ router.get("/template.csv", (_req, res) => {
     "TrackingID",
   ].join(",");
 
-  const rows = [
-    [
+  const today = new Date();
+  const yy = String(today.getFullYear()).slice(-2);
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
+  const activeServices = listCatalogServices({ includeDeprecated: false }).filter((entry) => entry.trackingNamespace);
+  const rows = activeServices.map((entry, index) => {
+    const serial = String(index + 1).padStart(4, "0");
+    const collectAmount = entry.category === "general_post" ? "0" : String(10_000 + index * 500);
+    return [
       "Acme Store",
       "03001234567",
       "1 Mall Road",
       "ops@acme.example",
       "Lahore",
-      "Ali Raza",
-      "ali@example.com",
-      "03111222333",
-      "House 10 Street 5",
+      `Receiver ${index + 1}`,
+      `receiver${index + 1}@example.com`,
+      `03${String(index + 11).padStart(2, "0")}1234567`,
+      `${index + 10} Sample Street`,
       "Lahore",
-      "20000",
-      "2026-03-25",
-      "Books",
+      collectAmount,
+      `ORD-${index + 1}`,
+      `Sample Product ${index + 1}`,
       "1.0",
-      "VPL",
+      entry.service,
       "1",
-      "VPL260300001",
-    ],
-    [
-      "Acme Store",
-      "03001234567",
-      "1 Mall Road",
-      "ops@acme.example",
-      "Lahore",
-      "Sara Khan",
-      "sara@example.com",
-      "03223334444",
-      "Flat 4 Model Town",
-      "Lahore",
-      "9500",
-      "2026-03-25",
-      "Clothes",
-      "0.5",
-      "UMS",
-      "1",
-      "VPL260300002",
-    ],
-    [
-      "Acme Store",
-      "03001234567",
-      "1 Mall Road",
-      "ops@acme.example",
-      "Lahore",
-      "Usman",
-      "usman@example.com",
-      "03335556666",
-      "Block B Street 9",
-      "Islamabad",
-      "12000",
-      "2026-03-25",
-      "Shoes",
-      "0.8",
-      "COD",
-      "1",
-      "VPL260300003",
-    ],
-    [
-      "Acme Store",
-      "03001234567",
-      "1 Mall Road",
-      "ops@acme.example",
-      "Lahore",
-      "Ayesha",
-      "ayesha@example.com",
-      "03009998888",
-      "House 5 Gulshan",
-      "Multan",
-      "5000",
-      "2026-03-25",
-      "Documents",
-      "0.2",
-      "RL",
-      "1",
-      "VPL260300004",
-    ],
-    [
-      "Acme Store",
-      "03001234567",
-      "1 Mall Road",
-      "ops@acme.example",
-      "Lahore",
-      "Hamza",
-      "hamza@example.com",
-      "03007776666",
-      "Shop 12 Saddar",
-      "Peshawar",
-      "18000",
-      "2026-03-25",
-      "Electronics",
-      "2.0",
-      "PAR",
-      "2",
-      "VPL260300005",
-    ],
-    [
-      "Acme Store",
-      "03009998888",
-      "1 Mall Road",
-      "ops@acme.example",
-      "Islamabad",
-      "Bilal",
-      "bilal@example.com",
-      "03115554444",
-      "Street 12 Sector F",
-      "Islamabad",
-      "7500",
-      "2026-03-25",
-      "Gift Pack",
-      "1.2",
-      "VPP",
-      "1",
-      "VPL260300006",
-    ],
-  ];
+      `${entry.prefix}${yy}${mm}${serial}`,
+    ];
+  });
 
   const esc = (v: string) => (/[\",\n]/.test(v) ? `"${v.replace(/\"/g, "\"\"")}"` : v);
   const csv = [header, ...rows.map((r) => r.map((c) => esc(String(c))).join(","))].join("\n");

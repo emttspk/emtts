@@ -1,5 +1,6 @@
 import { type LabelOrder, type LabelPrintMode, generateLabelBarcodeBase64 } from "../templates/labels.js";
 import { getTrackingPrefix, validateTrackingId, validateUploadedTrackingId, resolveShipmentType as resolveShipmentTypeCanonical } from "../validation/trackingId.js";
+import { logCatalogShadowWarning } from "../catalog/legacyShipmentAliases.js";
 
 type TrackingScheme = "standard" | "rl" | "ums";
 type CarrierType = "pakistan_post" | "courier";
@@ -12,7 +13,13 @@ function resolveShipmentType(order: Record<string, unknown>, fallback: ShipmentT
     return fallbackValue || undefined;
   }
   if (rowShipmentType) {
+    if (fallbackValue && rowShipmentType !== fallbackValue) {
+      logCatalogShadowWarning("row_override", `Row shipment type '${rowShipmentType}' overrode selected shipment type '${fallbackValue}'.`);
+    }
     return rowShipmentType;
+  }
+  if (!fallbackValue) {
+    logCatalogShadowWarning("service_mismatch", "Unable to resolve shipment type from row or selected fallback.");
   }
   return fallbackValue || undefined;
 }

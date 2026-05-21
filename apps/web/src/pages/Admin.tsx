@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Card from "../components/Card";
 import { api, apiUrl, buildAuthenticatedApiUrl, triggerBrowserDownload } from "../lib/api";
+import { FALLBACK_SERVICE_CATALOG } from "../lib/serviceCatalog";
 import { TEMPLATE_DESIGNER_ENABLED } from "../lib/featureFlags";
 import { BodyText, CardTitle, PageShell, PageTitle, TableWrap } from "../components/ui/PageSystem";
 
@@ -100,6 +101,11 @@ type InvoiceRow = {
   user: { id: string; email: string; companyName?: string | null };
   manualPayments: { id: string; status: string; transactionId: string; paymentMethod: string; createdAt: string }[];
 };
+
+const SHIPMENT_TYPE_OPTIONS = [
+  ...new Set(FALLBACK_SERVICE_CATALOG.map((entry) => entry.service)),
+  "COURIER",
+];
 
 type BillingSettings = {
   jazzcashNumber: string;
@@ -776,7 +782,7 @@ export default function Admin() {
                     <td className="px-4 py-3">
                       <select className="rounded-2xl border border-slate-200 bg-white px-2 py-1.5 text-xs" value={shipment.shipmentType ?? ""} onChange={(e) => setShipments((prev) => prev.map((item) => (item.id === shipment.id ? { ...item, shipmentType: e.target.value || null } : item)))}>
                         <option value="">-</option>
-                        {["RGL", "IRL", "UMS", "VPL", "VPP", "PAR", "COD", "COURIER"].map((type) => <option key={type} value={type}>{type}</option>)}
+                        {SHIPMENT_TYPE_OPTIONS.map((type) => <option key={type} value={type}>{type}</option>)}
                       </select>
                     </td>
                     <td className="px-4 py-3"><input className="w-40 rounded-2xl border border-slate-200 bg-white px-2 py-1.5 text-xs" value={shipment.status ?? ""} onChange={(e) => setShipments((prev) => prev.map((item) => (item.id === shipment.id ? { ...item, status: e.target.value } : item)))} placeholder="Status" /></td>

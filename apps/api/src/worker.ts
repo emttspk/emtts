@@ -24,10 +24,7 @@ import { htmlToPdfBuffer, htmlToPdfBufferInFreshBrowser, launchPuppeteerBrowser 
 import { finalizeQueuedToGenerated, finalizeQueuedTrackingToGenerated, releaseQueuedLabels, releaseQueuedTracking } from "./usage/limits.js";
 import { prepareLabelOrders } from "./services/labelDocument.js";
 import {
-  buildTrackingId,
   buildMoneyOrderNumber,
-  formatIdentifierDateCode,
-  getTrackingPrefix,
   moneyOrderBreakdown,
   normalizeTrackingId,
   reverseMoneyOrderFromGross,
@@ -36,6 +33,7 @@ import {
   shouldShowValuePayableAmount,
   validateMoneyOrderNumber,
 } from "./validation/trackingId.js";
+import { buildTrackingIdCurrent, resolveTrackingAllocatorPrefix, resolveTrackingDateCode } from "./services/trackingAllocator.js";
 import {
   pythonHealthCheck,
   pythonSubmitComplaint,
@@ -401,8 +399,8 @@ async function allocateNextTrackingId(
     throw new Error(`Auto tracking generation requires a Pakistan Post shipment type. Received: ${String(shipmentTypeInput ?? "").trim() || "(empty)"}`);
   }
 
-  const prefix = getTrackingPrefix(normalizedType);
-  const dateCode = formatIdentifierDateCode(issueDate);
+  const prefix = resolveTrackingAllocatorPrefix(normalizedType);
+  const dateCode = resolveTrackingDateCode(issueDate);
   const sequenceKey = `${prefix}:${dateCode}`;
 
   await executor.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`tracking_id:${sequenceKey}`}))`;
@@ -446,7 +444,7 @@ async function allocateNextTrackingId(
     if (!Number.isInteger(sequence) || sequence <= 0) {
       throw new Error(`Failed to allocate tracking sequence for ${sequenceKey}`);
     }
-    const trackingId = buildTrackingId(sequence, issueDate, normalizedType);
+    const trackingId = buildTrackingIdCurrent(sequence, issueDate, normalizedType);
 
     if (reservedTrackingIds.has(trackingId)) {
       continue;

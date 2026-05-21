@@ -5,6 +5,7 @@ import MoneyOrderForm from "../../components/MoneyOrderForm";
 import UploadDropzone from "../../components/UploadDropzone";
 import SampleDownloadLink from "../../components/SampleDownloadLink";
 import { api, apiHealthCheck, buildJobDownloadFallbackName, triggerBrowserDownload, uploadFile } from "../../lib/api";
+import { FALLBACK_SERVICE_CATALOG } from "../../lib/serviceCatalog";
 import type { LabelJob, MeResponse } from "../../lib/types";
 import { useJobPolling } from "../../lib/useJobPolling";
 import { rowsToCsv, type UploadOrderRow } from "../../shared/orderColumns";
@@ -38,12 +39,10 @@ function createEmptyRow(): ManualMoneyOrderRow {
 
 function inferShipmentType(trackingId: string) {
   const value = trackingId.trim().toUpperCase();
-  if (value.startsWith("PAR")) return "PAR";
-  if (value.startsWith("COD")) return "COD";
-  if (value.startsWith("VPP")) return "VPP";
-  if (value.startsWith("IRL")) return "IRL";
-  if (value.startsWith("RGL") || value.startsWith("RL")) return "RGL";
-  if (value.startsWith("UMS")) return "UMS";
+  const sorted = [...FALLBACK_SERVICE_CATALOG].sort((a, b) => b.prefix.length - a.prefix.length);
+  const found = sorted.find((entry) => value.startsWith(entry.prefix));
+  if (found) return found.service;
+  if (value.startsWith("RL")) return "RGL";
   return "VPL";
 }
 

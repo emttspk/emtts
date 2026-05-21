@@ -20,7 +20,10 @@ import { buildLabelPdfFileName, buildMoneyOrderPdfFileName, buildPdfAttachmentHe
 import { previewLabelHtml, renderLabelDocumentHtml, type LabelPrintMode } from "../templates/labels.js";
 import { prepareLabelOrders } from "../services/labelDocument.js";
 import { isUploadFileNameExempt } from "../services/upload-file-exemptions.service.js";
+import { shadowCheckServicePrefix } from "../services/shipmentValidation.js";
 import { getTrackingPrefix, resolveShipmentType, shouldShowValuePayableAmount } from "../validation/trackingId.js";
+import { listCatalogServices } from "../catalog/serviceCatalog.js";
+import { logCatalogShadowWarning } from "../catalog/legacyShipmentAliases.js";
 import { activeR2StreamsGauge, refreshRuntimeMetrics, r2StreamDuration, r2StreamFailures } from "../metrics.js";
 import { logTelemetry } from "../telemetry.js";
 import { r2Config as rolloutR2Config } from "../config.js";
@@ -249,6 +252,18 @@ function parsePrintMode(value: unknown): LabelPrintMode {
   return "labels";
 }
 
+function expectedPrefixesForService(service: string) {
+  const normalized = String(service ?? "").trim().toUpperCase();
+  const serviceEntry = listCatalogServices({ includeDeprecated: true }).find((entry) => entry.service === normalized);
+  if (serviceEntry?.prefix) {
+    if (serviceEntry.deprecated) {
+      logCatalogShadowWarning("fallback_coercion", `Deprecated service '${normalized}' is still active in compatibility mode.`);
+    }
+    return normalized === "VPX" ? [serviceEntry.prefix, "PAR"] : [serviceEntry.prefix];
+  }
+  return [] as string[];
+}
+
 export const labelUploadMiddleware = (req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
   upload.single("file")(req, res, (err) => {
     if (err) {
@@ -273,6 +288,9 @@ jobsRouter.get("/preview/labels", requireAuth, (req, res) => {
   const carrierType = String(req.query?.carrierType ?? "pakistan_post").toLowerCase() === "courier" ? "courier" : "pakistan_post";
   const shipmentTypeRaw = String(req.query?.shipmentType ?? "RGL").trim();
   const resolvedShipmentType = resolveShipmentType(shipmentTypeRaw);
+  if (shipmentTypeRaw && !resolvedShipmentType) {
+    logCatalogShadowWarning("service_mismatch", `Preview requested unsupported shipment type '${shipmentTypeRaw}'.`);
+  }
   const shipmentType = carrierType === "courier" ? "COURIER" : (resolvedShipmentType ?? "RGL");
   const includeMoneyOrders = String(req.query?.includeMoneyOrders ?? "false").toLowerCase() === "true";
   const printMode = parsePrintMode(req.query?.outputMode);
@@ -293,6 +311,9 @@ jobsRouter.post("/preview/labels", requireAuth, labelPreviewUploadMiddleware, as
   const carrierType = String(req.body?.carrierType ?? "pakistan_post").toLowerCase() === "courier" ? "courier" : "pakistan_post";
   const shipmentTypeRaw = String(req.body?.shipmentType ?? "").trim();
   const resolvedShipmentType = resolveShipmentType(shipmentTypeRaw);
+  if (shipmentTypeRaw && !resolvedShipmentType) {
+    logCatalogShadowWarning("service_mismatch", `Preview upload requested unsupported shipment type '${shipmentTypeRaw}'.`);
+  }
   const shipmentType = carrierType === "courier" ? "COURIER" : resolvedShipmentType;
   const includeMoneyOrders = String(req.body?.includeMoneyOrders ?? "false").toLowerCase() === "true";
   const barcodeMode = String(req.body?.barcodeMode ?? "auto").toLowerCase() === "manual" ? "manual" : "auto";
@@ -318,6 +339,9 @@ jobsRouter.post("/preview/labels", requireAuth, labelPreviewUploadMiddleware, as
       if (shipmentType === "COURIER") return "COURIER" as const;
       return "RGL" as const;
     })();
+    if (shipmentType === "VPX") {
+      logCatalogShadowWarning("fallback_coercion", "Preview coerced VPX to VPP for compatibility.");
+    }
     const orders = await parseOrdersFromFile(tempPath, { allowMissingTrackingId: autoGenerateTracking });
     const labelOrders = prepareLabelOrders(orders, {
       autoGenerateTracking,
@@ -462,6 +486,9 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
   const carrierType = String(req.body?.carrierType ?? "pakistan_post").toLowerCase() === "courier" ? "courier" : "pakistan_post";
   const shipmentTypeRaw = String(req.body?.shipmentType ?? "").trim();
   const resolvedShipmentType = resolveShipmentType(shipmentTypeRaw);
+  if (shipmentTypeRaw && !resolvedShipmentType) {
+    logCatalogShadowWarning("service_mismatch", `Upload requested unsupported shipment type '${shipmentTypeRaw}'.`);
+  }
   const shipmentType = carrierType === "courier" ? "COURIER" : resolvedShipmentType;
   const eligibleForMoneyOrder = carrierType !== "courier" && shouldShowValuePayableAmount(shipmentType);
   const generateMoneyOrder = generateMoneyOrderRequested && eligibleForMoneyOrder;
@@ -521,22 +548,19 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
 
   try {
     const orders = await parseOrdersFromFile(uploadPath, { allowMissingTrackingId: autoGenerateTracking });
+    for (const row of orders) {
+      shadowCheckServicePrefix(
+        (row as any).shipmentType ?? (row as any).shipmenttype ?? shipmentType,
+        (row as any).TrackingID ?? (row as any).trackingId,
+      );
+    }
     ordersCount = orders.length;
     if (ordersCount === 0) throw new Error("No rows found");
     if (ordersCount > 5000) throw new Error("Max upload size is 5000 records");
 
     // Backend guard: block manual uploads where tracking ID prefixes don't match selected shipment type
     if (barcodeMode === "manual" && shipmentType && shipmentType !== "COURIER") {
-      const prefixesForType: Record<string, string[]> = {
-        COD: ["COD"],
-        VPL: ["VPL"],
-        VPP: ["VPP"],
-        VPX: ["VPX", "PAR"],
-        IRL: ["IRL"],
-        RGL: ["RGL"],
-        UMS: ["UMS"],
-      };
-      const expectedPrefixes = prefixesForType[shipmentType];
+      const expectedPrefixes = expectedPrefixesForService(shipmentType);
       if (expectedPrefixes?.length) {
         const mismatchedOrders = orders.filter((order) => {
           const id = String((order as any).TrackingID ?? (order as any).trackingId ?? (order as any).barcode ?? "").trim().toUpperCase();
@@ -544,6 +568,7 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
           return !expectedPrefixes.some((prefix) => id.startsWith(prefix));
         });
         if (mismatchedOrders.length > 0) {
+          logCatalogShadowWarning("invalid_prefix", `Detected ${mismatchedOrders.length} row(s) with prefix mismatch for shipment type '${shipmentType}'.`);
           const detectedPrefixes = [
             ...new Set(
               mismatchedOrders.map((o) => {

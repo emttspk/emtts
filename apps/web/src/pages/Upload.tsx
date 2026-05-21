@@ -5,6 +5,7 @@ import Card from "../components/Card";
 import SampleDownloadLink from "../components/SampleDownloadLink";
 import UploadDropzone from "../components/UploadDropzone";
 import { api, apiHealthCheck, buildJobDownloadFallbackName, triggerBrowserDownload, uploadFile } from "../lib/api";
+import { FALLBACK_SERVICE_CATALOG, fetchServiceCatalog, servicesByCategory, type ServiceCatalogEntry } from "../lib/serviceCatalog";
 import type { LabelJob, MeResponse } from "../lib/types";
 import { useJobPolling } from "../lib/useJobPolling";
 import { getMissingOrderColumns, normalizeOrderColumnKey } from "../shared/orderColumns";
@@ -34,7 +35,8 @@ export default function Upload() {
   // Tracking & Barcode Configuration (structured)
   const [carrierType, setCarrierType] = useState<"pakistan_post" | "courier" | null>(null);
   const [ppCategory, setPpCategory] = useState<"general_post" | "value_payable" | "cod_articles" | null>(null);
-  const [shipmentType, setShipmentType] = useState<"RGL" | "IRL" | "UMS" | "PAR" | "VPL" | "VPP" | "COD" | "COURIER" | null>(null);
+  const [shipmentType, setShipmentType] = useState<string | null>(null);
+  const [serviceCatalog, setServiceCatalog] = useState<ServiceCatalogEntry[]>(FALLBACK_SERVICE_CATALOG);
   const [barcodeMode, setBarcodeMode] = useState<"manual" | "auto" | null>(null);
   const [outputMode, setOutputMode] = useState<"envelope" | "envelope-9x4" | "universal-9x4" | "box" | "a4-multi" | "flyer" | null>(null);
   const [previewHtml, setPreviewHtml] = useState("");
@@ -63,6 +65,9 @@ export default function Upload() {
 
   const eligibleForMoneyOrder =
     carrierType === "pakistan_post" && (shipmentType === "VPL" || shipmentType === "VPP" || shipmentType === "COD");
+  const generalServices = useMemo(() => servicesByCategory(serviceCatalog, "general_post"), [serviceCatalog]);
+  const valuePayableServices = useMemo(() => servicesByCategory(serviceCatalog, "value_payable"), [serviceCatalog]);
+  const codServices = useMemo(() => servicesByCategory(serviceCatalog, "cod_articles"), [serviceCatalog]);
   const previewMode: PreviewMode =
     outputMode === "flyer"
       ? "flyer"
@@ -102,6 +107,10 @@ export default function Upload() {
   }, [previewHtml, previewMode]);
 
   useEffect(() => {
+    fetchServiceCatalog().then((services) => setServiceCatalog(services)).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
     // Courier: shipment type not applicable, but still must be present for readiness formula.
     if (carrierType === "courier") {
       if (!ppCategory) setPpCategory("general_post");
@@ -119,17 +128,20 @@ export default function Upload() {
   useEffect(() => {
     if (carrierType !== "pakistan_post") return;
     if (!ppCategory) return;
+    const firstGeneral = generalServices[0] ?? "RGL";
+    const firstValuePayable = valuePayableServices[0] ?? "VPL";
+    const firstCod = codServices[0] ?? "COD";
     // Default shipment type per category
-    if (ppCategory === "general_post" && (shipmentType === null || shipmentType === "VPL" || shipmentType === "VPP" || shipmentType === "COD")) {
-      setShipmentType("RGL");
+    if (ppCategory === "general_post" && (shipmentType === null || valuePayableServices.includes(shipmentType) || codServices.includes(shipmentType))) {
+      setShipmentType(firstGeneral);
     }
-    if (ppCategory === "value_payable" && shipmentType !== "VPL" && shipmentType !== "VPP") {
-      setShipmentType("VPL");
+    if (ppCategory === "value_payable" && !valuePayableServices.includes(shipmentType ?? "")) {
+      setShipmentType(firstValuePayable);
     }
-    if (ppCategory === "cod_articles" && shipmentType !== "COD") {
-      setShipmentType("COD");
+    if (ppCategory === "cod_articles" && !codServices.includes(shipmentType ?? "")) {
+      setShipmentType(firstCod);
     }
-  }, [carrierType, ppCategory]);
+  }, [carrierType, ppCategory, shipmentType, generalServices, valuePayableServices, codServices]);
 
   useEffect(() => {
     if (!eligibleForMoneyOrder && includeMoneyOrders) setIncludeMoneyOrders(false);
@@ -365,10 +377,7 @@ export default function Upload() {
 
       // Prefix mismatch validation: only when barcodeMode=manual and shipmentType is known
       if (barcodeMode === "manual" && shipmentType && shipmentType !== "COURIER") {
-        const prefixForType: Record<string, string> = {
-          COD: "COD", VPL: "VPL", VPP: "VPP", IRL: "IRL", RGL: "RGL", UMS: "UMS", PAR: "PAR",
-        };
-        const expectedPrefix = prefixForType[String(shipmentType)];
+        const expectedPrefix = serviceCatalog.find((entry) => entry.service === String(shipmentType))?.prefix;
         if (expectedPrefix) {
           const mismatchedRows: Array<{ row: number; trackingId: string; prefix: string }> = [];
           for (let i = 0; i < rows.length; i += 1) {
@@ -561,7 +570,7 @@ export default function Upload() {
                 <div className="mt-2 text-sm text-gray-600">Select a carrier first.</div>
               ) : ppCategory === "general_post" ? (
                 <div className="mt-2 grid grid-cols-2 gap-2">
-                  {(["RGL", "IRL", "UMS", "PAR"] as const).map((t) => (
+                  {(generalServices as string[]).map((t) => (
                     <button
                       key={t}
                       type="button"
@@ -576,7 +585,7 @@ export default function Upload() {
                 </div>
               ) : ppCategory === "value_payable" ? (
                 <div className="mt-2 grid grid-cols-2 gap-2">
-                  {(["VPL", "VPP"] as const).map((t) => (
+                  {(valuePayableServices as string[]).map((t) => (
                     <button
                       key={t}
                       type="button"
@@ -591,15 +600,18 @@ export default function Upload() {
                 </div>
               ) : ppCategory === "cod_articles" ? (
                 <div className="mt-2">
+                  {(codServices as string[]).map((t) => (
                   <button
+                    key={t}
                     type="button"
-                    onClick={() => setShipmentType("COD")}
+                    onClick={() => setShipmentType(t)}
                     className={`rounded-2xl border px-3 py-2 text-sm font-medium ${
-                      shipmentType === "COD" ? "border-brand bg-brand/10 text-brand" : "bg-white text-gray-700 hover:bg-gray-50"
+                      shipmentType === t ? "border-brand bg-brand/10 text-brand" : "bg-white text-gray-700 hover:bg-gray-50"
                     }`}
                   >
-                    COD
+                    {t}
                   </button>
+                  ))}
                 </div>
               ) : (
                 <div className="mt-2 text-sm text-gray-600">Select a category.</div>

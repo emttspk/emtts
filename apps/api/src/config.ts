@@ -8,7 +8,7 @@ config(); // Load from .env in current working directory first
 // This allows root tooling and API to share the same staging env file
 if (process.env.NODE_ENV === "development") {
   try {
-    // @ts-ignore - env-loader.mjs has no declaration file (development-only utility)
+    // @ts-expect-error - env-loader.mjs has no declaration file (development-only utility)
     const { loadStagingEnv } = await import("../../../scripts/env-loader.mjs");
     loadStagingEnv({ verbose: false, silent: true });
   } catch (err) {
