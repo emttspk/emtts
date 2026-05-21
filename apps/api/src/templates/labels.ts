@@ -3,7 +3,6 @@
 import type { OrderRecord } from "../parse/orders.js";
 import fs from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { createCanvas } from "canvas";
 import JsBarcode from "jsbarcode";
 import { getSharedPrintFooter, LABEL_STANDARD_CSS, PRINT_MARKETING_LINE, PRINTABLE_FOOTER_CLASS_NAME, PRINTABLE_FOOTER_CSS } from "../lib/printBranding.js";
@@ -697,7 +696,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
     html = html.replace(
       /<svg id="barcode"><\/svg>/i,
       barcodeMarkup
-        ? `<img id="barcode" src="${barcodeMarkup}" alt="Barcode" style="max-height:0.65in;" />`
+        ? `<img id="barcode" src="${barcodeMarkup}" alt="Barcode" />`
         : `<div id="barcode" class="barcode-fallback">${escapeHtml(tracking || "NO TRACKING")}</div>`,
     );
 
@@ -715,7 +714,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
   };
 
   const pages = orders.map((order) => renderSingle(order)).join("");
-  const safetyCss = `<style>.universal-page{width:9in;height:4in;box-sizing:border-box;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;}.universal-page:last-child{page-break-after:auto;break-after:auto;}</style>`;
+  const safetyCss = `<style>.universal-page{width:9in;height:4in;box-sizing:border-box;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;}.universal-page:last-child{page-break-after:auto;break-after:auto;}.universal-page .header{height:56px;min-height:56px}.universal-page .barcode-area{justify-content:center;padding-top:0;gap:2px}.universal-page #barcode{height:42px}.universal-page .footer{height:32px;padding-top:2px;overflow:visible}</style>`;
   const outputHead = templateHead.replace(/<\/head>/i, `${safetyCss}</head>`);
 
   return `${outputHead}${pages}${template.tail}`;
@@ -1144,8 +1143,9 @@ function resolveUrduFontFaceCss() {
   for (const candidate of candidates) {
     try {
       if (!fs.existsSync(candidate.filePath)) continue;
-      const fontUrl = pathToFileURL(candidate.filePath).href;
-      urduFontFaceCssCache = `@font-face{font-family:"${candidate.family}";src:url('${fontUrl}') format('${candidate.format}');font-weight:400;font-style:normal;font-display:swap;}@font-face{font-family:"Money Order Urdu";src:local('${candidate.family}'),url('${fontUrl}') format('${candidate.format}');font-weight:400;font-style:normal;font-display:swap;}`;
+      const fontBuffer = fs.readFileSync(candidate.filePath);
+      const dataUrl = `data:font/ttf;base64,${fontBuffer.toString("base64")}`;
+      urduFontFaceCssCache = `@font-face{font-family:"${candidate.family}";src:url('${dataUrl}') format('${candidate.format}');font-weight:400;font-style:normal;font-display:block;}@font-face{font-family:"Money Order Urdu";src:local('${candidate.family}'),url('${dataUrl}') format('${candidate.format}');font-weight:400;font-style:normal;font-display:block;}`;
       return urduFontFaceCssCache;
     } catch {
       // Try next path.
@@ -1896,7 +1896,7 @@ function moneyOrderHtmlFromBenchmark(
   const tail = bodyMatch[3];
   const headWithPrintGuard = head.replace(
     /<\/head>/i,
-    `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}${PRINTABLE_FOOTER_CSS}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.half{position:relative;}.page .${PRINTABLE_FOOTER_CLASS_NAME}, .half .${PRINTABLE_FOOTER_CLASS_NAME}{position:absolute;bottom:1.8mm;left:50%;transform:translateX(-50%);width:74%;text-align:center;font-size:9px;font-weight:600;line-height:1.1;box-sizing:border-box;white-space:normal;overflow-wrap:break-word;word-break:normal;z-index:10;}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding:0.25mm 1.2mm;max-width:66mm;font:700 2.15mm/1.15 \"Noto Nastaliq Urdu\",\"Jameel Noori Nastaleeq\",Arial,sans-serif;text-align:center;direction:rtl;unicode-bidi:plaintext;white-space:nowrap;overflow:visible;text-overflow:clip}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`
+    `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}${PRINTABLE_FOOTER_CSS}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.half{position:relative;}.page .${PRINTABLE_FOOTER_CLASS_NAME}, .half .${PRINTABLE_FOOTER_CLASS_NAME}{position:absolute;bottom:1.8mm;left:50%;transform:translateX(-50%);width:74%;text-align:center;font-size:9px;font-weight:600;line-height:1.1;box-sizing:border-box;white-space:normal;overflow-wrap:break-word;word-break:normal;z-index:10;}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding-top:1.5mm;padding-right:1.35mm;padding-bottom:1mm;padding-left:1.35mm;max-width:68mm;max-height:14mm;font-size:13px;font-family:\"Noto Nastaliq Urdu\",\"Money Order Urdu\",\"Jameel Noori Nastaleeq\",\"Noto Naskh Arabic\",serif;font-weight:700;line-height:1.45;letter-spacing:normal;text-align:center;direction:rtl;unicode-bidi:isolate;white-space:normal;overflow:hidden;text-overflow:clip;font-feature-settings:'kern' 1,'liga' 1,'clig' 1,'calt' 1,'rlig' 1;text-rendering:geometricPrecision;-webkit-font-smoothing:antialiased}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`
   );
   const [frontSheetTemplate, backSheetTemplate] = splitBenchmarkSheets(benchmarkBody);
 
