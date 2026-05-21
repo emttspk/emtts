@@ -1567,10 +1567,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     out,
       /(<div class="field strong en" style="left:47\.56mm;top:105\.69mm;width:(?:65\.06|86\.06)mm;font-size:4\.(?:58|25)mm(?:;white-space:normal;overflow:visible;text-align:left)?;?">)((?:[^<]|<br\s*\/>)*)(<\/div>)/g,
     slotIndex,
-    (_m, p1, _old, p3) => {
-      const lines = senderLine.split(" | ");
-      return `${p1}${lines.map(l => escapeHtml(l)).join("<br/>")}${p3}`;
-    },
+    (_m, p1, _old, p3) => `${p1}${escapeHtml(senderLine)}${p3}`,
     "sender_line"
   );
   // Sender address - match original pattern, preserve wrapper on replacement
@@ -1901,7 +1898,7 @@ function moneyOrderHtmlFromBenchmark(
   const tail = bodyMatch[3];
   const headWithPrintGuard = head.replace(
     /<\/head>/i,
-    `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}${PRINTABLE_FOOTER_CSS}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.half{position:relative;}.page .${PRINTABLE_FOOTER_CLASS_NAME}, .half .${PRINTABLE_FOOTER_CLASS_NAME}{position:absolute;bottom:1.8mm;left:50%;transform:translateX(-50%);width:74%;text-align:center;font-size:9px;font-weight:600;line-height:1.1;box-sizing:border-box;white-space:normal;overflow-wrap:break-word;word-break:normal;z-index:10;}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding-top:1.5mm;padding-right:1.35mm;padding-bottom:1mm;padding-left:1.35mm;max-width:68mm;max-height:20mm;font-size:13px;font-family:\"Noto Nastaliq Urdu\",\"Noto Naskh Arabic\",\"Jameel Noori Nastaleeq\",serif;font-weight:700;line-height:1.6;letter-spacing:normal;text-align:center;direction:rtl;unicode-bidi:isolate;white-space:normal;overflow:visible;text-overflow:clip;font-feature-settings:'kern' 1,'liga' 1,'clig' 1,'calt' 1,'rlig' 1;text-rendering:geometricPrecision;-webkit-font-smoothing:antialiased}.mo-half-notice-line{display:block;white-space:nowrap}.field{word-break:break-word!important;overflow-wrap:break-word!important;white-space:pre-wrap!important;word-wrap:break-word!important;line-height:1.15!important;}div[style*="left:47.56mm"]{font-size:3.8mm!important;width:80mm!important;word-break:break-word!important;white-space:normal!important;}</style></head>`
+    `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}${PRINTABLE_FOOTER_CSS}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.half{position:relative;}.page .${PRINTABLE_FOOTER_CLASS_NAME}, .half .${PRINTABLE_FOOTER_CLASS_NAME}{position:absolute;bottom:1.8mm;left:50%;transform:translateX(-50%);width:74%;text-align:center;font-size:9px;font-weight:600;line-height:1.1;box-sizing:border-box;white-space:normal;overflow-wrap:break-word;word-break:normal;z-index:10;}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding-top:1.5mm;padding-right:1.35mm;padding-bottom:1mm;padding-left:1.35mm;max-width:68mm;max-height:24mm;font-size:13px;font-family:\"Noto Nastaliq Urdu\",\"Noto Naskh Arabic\",\"Jameel Noori Nastaleeq\",serif;font-weight:400;line-height:1.95;letter-spacing:normal;text-align:center;direction:rtl;unicode-bidi:isolate;white-space:normal;overflow:visible;text-overflow:clip;font-feature-settings:'kern' 1,'liga' 1,'clig' 1,'calt' 1,'rlig' 1;text-rendering:geometricPrecision;-webkit-font-smoothing:antialiased}.mo-half-notice-line{display:block;white-space:nowrap}div[style*="left:47.56mm"][style*="top:105.69mm"]{white-space:nowrap!important;overflow:hidden!important;}</style></head>`
   );
   const [frontSheetTemplate, backSheetTemplate] = splitBenchmarkSheets(benchmarkBody);
 
@@ -2111,7 +2108,7 @@ function frontFields(o: OrderRecord) {
     `<div class="field mono en" style="left:97.56mm;top:100.27mm;width:65.06mm;font-size:2.13mm;">${escapeHtml(consigneePhone)}</div>`,
 
     // Sender block
-    `<div class="field strong en" style="left:47.56mm;top:105.69mm;width:86.06mm;font-size:4.25mm;white-space:normal;overflow:visible;text-align:left;">${senderLine.split(" | ").map(l => escapeHtml(l)).join("<br/>")}</div>`,
+    `<div class="field strong en" style="left:47.56mm;top:105.69mm;width:100mm;font-size:3.8mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;">${escapeHtml(senderLine)}</div>`,
     `<div class="field regular en" style="left:15.56mm;top:112.15mm;width:65.06mm;font-size:3.35mm;white-space:normal;line-height:1.12;text-align:left;">${escapeHtml(shipperAddress)}</div>`,
     `<div class="field mono en" style="left:82.56mm;top:116.57mm;width:65.06mm;font-size:4.35mm;line-height:1.06;text-align:left;">${escapeHtml(shipperPhone)}</div>`,
 
