@@ -391,7 +391,13 @@ function renderBoxAmountBlock(summary: LabelAmountSummary) {
 }
 
 function loadHtmlTemplate(candidates: string[], notFoundMessage: string) {
-  const templatePath = candidates.find((candidate) => fs.existsSync(candidate));
+  const templatePath = candidates.find((candidate) => {
+    try {
+      return fs.existsSync(candidate);
+    } catch {
+      return false;
+    }
+  });
   if (!templatePath) {
     throw new Error(notFoundMessage);
   }
@@ -413,11 +419,95 @@ function loadHtmlTemplate(candidates: string[], notFoundMessage: string) {
   };
 }
 
+function resolveFirstExistingPath(candidates: string[]) {
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(candidate)) return candidate;
+    } catch {
+      // Continue scanning known candidates.
+    }
+  }
+  return null;
+}
+
+export function collectRenderPrerequisiteDiagnostics() {
+  const universalTemplateCandidates = [
+    path.resolve(process.cwd(), "apps", "api", "src", "templates", "multipage-label.html"),
+    path.resolve(process.cwd(), "src", "templates", "multipage-label.html"),
+    path.resolve(process.cwd(), "apps", "api", "dist", "templates", "multipage-label.html"),
+    path.resolve(process.cwd(), "dist", "templates", "multipage-label.html"),
+    path.resolve(process.cwd(), "multipage-label.html"),
+  ];
+
+  const moFrontCandidates = [
+    path.resolve(process.cwd(), "apps", "api", "public", "mo", "MO Front.png"),
+    path.resolve(process.cwd(), "apps", "api", "public", "mo", "MO F.png"),
+    path.resolve(process.cwd(), "public", "mo", "MO Front.png"),
+    path.resolve(process.cwd(), "public", "mo", "MO F.png"),
+    path.resolve(process.cwd(), "apps", "api", "dist", "public", "mo", "MO Front.png"),
+    path.resolve(process.cwd(), "apps", "api", "dist", "public", "mo", "MO F.png"),
+    path.resolve(process.cwd(), "dist", "public", "mo", "MO Front.png"),
+    path.resolve(process.cwd(), "dist", "public", "mo", "MO F.png"),
+    path.resolve(process.cwd(), "MO", "MO Front.png"),
+    path.resolve(process.cwd(), "MO", "MO F.png"),
+  ];
+
+  const moBackCandidates = [
+    path.resolve(process.cwd(), "apps", "api", "public", "mo", "MO Back.png"),
+    path.resolve(process.cwd(), "public", "mo", "MO Back.png"),
+    path.resolve(process.cwd(), "apps", "api", "dist", "public", "mo", "MO Back.png"),
+    path.resolve(process.cwd(), "dist", "public", "mo", "MO Back.png"),
+    path.resolve(process.cwd(), "MO", "MO Back.png"),
+  ];
+
+  const benchmarkTemplateCandidates = [
+    path.resolve(process.cwd(), "apps", "api", "templates", "mo-sample-two-records.html"),
+    path.resolve(process.cwd(), "templates", "mo-sample-two-records.html"),
+    path.resolve(process.cwd(), "apps", "api", "dist", "templates", "mo-sample-two-records.html"),
+    path.resolve(process.cwd(), "dist", "templates", "mo-sample-two-records.html"),
+  ];
+
+  const resolved = {
+    universalTemplate: resolveFirstExistingPath(universalTemplateCandidates),
+    moFrontImage: resolveFirstExistingPath(moFrontCandidates),
+    moBackImage: resolveFirstExistingPath(moBackCandidates),
+    benchmarkTemplate: resolveFirstExistingPath(benchmarkTemplateCandidates),
+  };
+
+  const missing: string[] = [];
+  if (!resolved.universalTemplate) missing.push("universal template (multipage-label.html)");
+  if (!resolved.moFrontImage) missing.push("money-order front image");
+  if (!resolved.moBackImage) missing.push("money-order back image");
+  if (!resolved.benchmarkTemplate) missing.push("money-order benchmark template (mo-sample-two-records.html)");
+
+  return {
+    ready: missing.length === 0,
+    missing,
+    resolved,
+    candidates: {
+      universalTemplate: universalTemplateCandidates,
+      moFrontImage: moFrontCandidates,
+      moBackImage: moBackCandidates,
+      benchmarkTemplate: benchmarkTemplateCandidates,
+    },
+  };
+}
+
+export function assertRenderPrerequisites() {
+  const diagnostics = collectRenderPrerequisiteDiagnostics();
+  if (diagnostics.ready) return diagnostics;
+
+  const details = diagnostics.missing.join(", ");
+  throw new Error(`RENDER_PREREQUISITES_MISSING: ${details}`);
+}
+
 function loadBoxTemplate() {
   return loadHtmlTemplate(
     [
       path.resolve(process.cwd(), "apps", "api", "src", "templates", "label-box-a4.html"),
       path.resolve(process.cwd(), "src", "templates", "label-box-a4.html"),
+      path.resolve(process.cwd(), "apps", "api", "dist", "templates", "label-box-a4.html"),
+      path.resolve(process.cwd(), "dist", "templates", "label-box-a4.html"),
     ],
     "Box shipment template not found: label-box-a4.html",
   );
@@ -641,9 +731,11 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
 
   const template = loadHtmlTemplate(
     [
-      path.resolve(process.cwd(), "multipage-label.html"),
       path.resolve(process.cwd(), "apps", "api", "src", "templates", "multipage-label.html"),
       path.resolve(process.cwd(), "src", "templates", "multipage-label.html"),
+      path.resolve(process.cwd(), "apps", "api", "dist", "templates", "multipage-label.html"),
+      path.resolve(process.cwd(), "dist", "templates", "multipage-label.html"),
+      path.resolve(process.cwd(), "multipage-label.html"),
     ],
     "Universal 9x4 template not found: multipage-label.html",
   );
@@ -893,6 +985,10 @@ export function envelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking
         path.resolve(process.cwd(), "apps", "api", "src", "templates", "label-envelope.html"),
         path.resolve(process.cwd(), "src", "templates", "label-envelope-9x4.html"),
         path.resolve(process.cwd(), "src", "templates", "label-envelope.html"),
+        path.resolve(process.cwd(), "apps", "api", "dist", "templates", "label-envelope-9x4.html"),
+        path.resolve(process.cwd(), "apps", "api", "dist", "templates", "label-envelope.html"),
+        path.resolve(process.cwd(), "dist", "templates", "label-envelope-9x4.html"),
+        path.resolve(process.cwd(), "dist", "templates", "label-envelope.html"),
       ],
       "Envelope template not found: label-envelope.html",
     );
@@ -1052,9 +1148,19 @@ function resolveStaticMoFrontDataUrl() {
   }
 
   const frontCandidates = [
+    path.resolve(process.cwd(), "apps", "api", "public", "mo", "MO Front.png"),
+    path.resolve(process.cwd(), "apps", "api", "public", "mo", "MO F.png"),
+    path.resolve(process.cwd(), "public", "mo", "MO Front.png"),
+    path.resolve(process.cwd(), "public", "mo", "MO F.png"),
+    path.resolve(process.cwd(), "apps", "api", "dist", "public", "mo", "MO Front.png"),
+    path.resolve(process.cwd(), "apps", "api", "dist", "public", "mo", "MO F.png"),
+    path.resolve(process.cwd(), "dist", "public", "mo", "MO Front.png"),
+    path.resolve(process.cwd(), "dist", "public", "mo", "MO F.png"),
     path.resolve(process.cwd(), "MO", "MO F.png"),
     path.resolve(process.cwd(), "MO", "MO Front.png"),
     path.resolve(process.cwd(), "images", "NEW MO F.png"),
+    path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "public", "mo", "MO Front.png"),
+    path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "public", "mo", "MO F.png"),
     path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "..", "..", "MO", "MO F.png"),
   ];
   staticMoResolvedFrontDataUrlCache = resolveStaticMoDataUrl(frontCandidates, "MO_FRONT_IMAGE");
@@ -1068,8 +1174,13 @@ function resolveStaticMoBackDataUrl() {
   }
 
   const backCandidates = [
+    path.resolve(process.cwd(), "apps", "api", "public", "mo", "MO Back.png"),
+    path.resolve(process.cwd(), "public", "mo", "MO Back.png"),
+    path.resolve(process.cwd(), "apps", "api", "dist", "public", "mo", "MO Back.png"),
+    path.resolve(process.cwd(), "dist", "public", "mo", "MO Back.png"),
     path.resolve(process.cwd(), "MO", "MO Back.png"),
     path.resolve(process.cwd(), "images", "NEW MO B.png"),
+    path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "public", "mo", "MO Back.png"),
     path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "..", "..", "MO", "MO Back.png"),
   ];
   staticMoResolvedBackDataUrlCache = resolveStaticMoDataUrl(backCandidates, "MO_BACK_IMAGE");
@@ -1159,8 +1270,14 @@ function resolveBenchmarkMoTemplatePath() {
   const candidates = [
     // Primary: committed templates directory — always present in the deployed container
     path.resolve(process.cwd(), "apps", "api", "templates", "mo-sample-two-records.html"),
+    // Source templates for local and build-time packaging
+    path.resolve(process.cwd(), "apps", "api", "src", "templates", "mo-sample-two-records.html"),
+    path.resolve(process.cwd(), "src", "templates", "mo-sample-two-records.html"),
     // Fallback A: root-level templates dir (some Railway service layouts)
     path.resolve(process.cwd(), "templates", "mo-sample-two-records.html"),
+    // Dist-packaged templates
+    path.resolve(process.cwd(), "apps", "api", "dist", "templates", "mo-sample-two-records.html"),
+    path.resolve(process.cwd(), "dist", "templates", "mo-sample-two-records.html"),
     // Fallback B: co-located with dist artefacts
     path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "templates", "mo-sample-two-records.html"),
     // Legacy paths (runtime-generated, not in git — kept for local dev)

@@ -9,7 +9,7 @@
     "build": "rimraf dist && tsc",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
-    "postbuild": "node scripts/postbuild.cjs",
+    "postbuild": "node scripts/postbuild.cjs && node -e \"const fs=require('fs');const path=require('path');const src=path.resolve('public');if(fs.existsSync(src)){for(const out of [path.resolve('dist'),path.resolve('apps/api/dist')]){if(!fs.existsSync(out))continue;fs.cpSync(src,path.join(out,'public'),{recursive:true,force:true});}}\"",
     "worker:dev": "tsx --env-file=.env src/worker.ts",
     "worker": "node dist/worker.js",
     "start": "node dist/index.js",

@@ -45,7 +45,7 @@ export function prepareLabelOrders(
 
       // Step 2: Resolve tracking number - use manual if valid, else generate or skip
       let trackingNumber: string;
-      const resolvedShipmentType = resolveShipmentType(order, opts.shipmentType, opts.autoGenerateTracking);
+      const resolvedShipmentType = resolveShipmentType(order, opts.shipmentType, false);
 
       if (opts.autoGenerateTracking) {
         // Auto mode uses worker-allocated IDs to keep numbering globally monotonic.
@@ -70,9 +70,8 @@ export function prepareLabelOrders(
         return null as any;
       }
 
-      // Step 3: Final validation
-      // For system-generated IDs, apply strict format validation.
-      // For uploaded IDs (already resolved above), skip regex check — just re-normalize.
+            // Step 3: Final validation
+            // For system-generated IDs, apply strict format validation.
       let trackingId: string;
       if (opts.autoGenerateTracking) {
         // Generated ID — strict validation

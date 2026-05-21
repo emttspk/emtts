@@ -27,8 +27,115 @@ import { R2StorageProvider } from "./storage/R2StorageProvider.js";
 import { getTelemetrySinkDiagnostics, logStagingCanaryInitialized, logStagingConnectivityCheck, logStagingStartupConfig, logTelemetry, logTelemetrySinkInitialized, logEnvSourceDetected, logMissingRequiredEnv } from "./telemetry.js";
 import { stagingModeActiveGauge, unsyncedArtifactsGauge } from "./metrics.js";
 import { getCatalogDiagnostics, listCatalogServices } from "./catalog/serviceCatalog.js";
+import { assertRenderPrerequisites, collectRenderPrerequisiteDiagnostics } from "./templates/labels.js";
 const BUILD_VERSION = process.env.RAILWAY_GIT_COMMIT_SHA ?? "local";
 const isProduction = process.env.NODE_ENV === "production";
+
+function parseRedisMajorVersion(info: string) {
+  const match = /(?:^|\n)redis_version:(\d+)\.(\d+)\.(\d+)/.exec(String(info ?? ""));
+  if (!match) {
+    return null;
+  }
+  return {
+    major: Number.parseInt(match[1], 10),
+    minor: Number.parseInt(match[2], 10),
+    patch: Number.parseInt(match[3], 10),
+    raw: `${match[1]}.${match[2]}.${match[3]}`,
+  };
+}
+
+async function assertRedisRuntimeCompatibility() {
+  const redisEnv = getInfrastructureEnvStatus().redis;
+  if (!redisEnv.usable) {
+    throw new Error(redisEnv.issue ?? "REDIS_URL is missing or placeholder");
+  }
+
+  const { ensureRedisConnection, getRedisConnection } = await import("./queue/redis.js");
+  await ensureRedisConnection();
+  const redis = getRedisConnection();
+  const serverInfo = await redis.info("server");
+  const version = parseRedisMajorVersion(serverInfo);
+  if (!version) {
+    throw new Error("Redis server version could not be determined from INFO server");
+  }
+  if (version.major < 5) {
+    throw new Error(`Redis ${version.raw} is unsupported. Use Redis 5+ (BullMQ requirement).`);
+  }
+  console.log(`[STARTUP] Redis version check passed: ${version.raw}`);
+}
+
+async function enforceRenderAndRedisPreflightOrExit() {
+  const renderDiagnostics = collectRenderPrerequisiteDiagnostics();
+  if (!renderDiagnostics.ready) {
+    console.error("[STARTUP] Render prerequisite diagnostics:", JSON.stringify(renderDiagnostics, null, 2));
+  } else {
+    console.log("[STARTUP] Render prerequisite diagnostics:", JSON.stringify(renderDiagnostics.resolved));
+  }
+  assertRenderPrerequisites();
+  await assertRedisRuntimeCompatibility();
+}
+
+async function logAllocatorSequenceDiagnostics(tag: string) {
+  type SequenceRow = {
+    prefix: string;
+    date_code: string;
+    next_sequence: number;
+  };
+  type PersistedRow = {
+    prefix: string;
+    date_code: string;
+    persisted_count: number;
+  };
+
+  const [sequenceRows, persistedRows] = await Promise.all([
+    prisma.$queryRaw<SequenceRow[]>`
+      SELECT prefix, date_code, next_sequence
+      FROM tracking_id_sequences
+      ORDER BY updated_at DESC
+      LIMIT 25
+    `,
+    prisma.$queryRaw<PersistedRow[]>`
+      SELECT
+        SUBSTRING("trackingNumber" FROM 1 FOR 3) AS prefix,
+        SUBSTRING("trackingNumber" FROM 4 FOR 4) AS date_code,
+        COUNT(*)::int AS persisted_count
+      FROM "Shipment"
+      WHERE "trackingNumber" ~ '^[A-Z]{3}[0-9]{4}[0-9]{4,7}$'
+      GROUP BY 1, 2
+    `,
+  ]);
+
+  const persistedMap = new Map<string, number>();
+  for (const row of persistedRows) {
+    persistedMap.set(`${String(row.prefix)}:${String(row.date_code)}`, Number(row.persisted_count) || 0);
+  }
+
+  const rows = sequenceRows.map((row) => {
+    const key = `${row.prefix}:${row.date_code}`;
+    const reservedCount = Math.max(0, Number(row.next_sequence) - 1);
+    const persistedCount = persistedMap.get(key) ?? 0;
+    return {
+      key,
+      prefix: row.prefix,
+      dateCode: row.date_code,
+      reservedCount,
+      persistedCount,
+      drift: reservedCount - persistedCount,
+    };
+  });
+
+  const payload = {
+    event: "allocator_sequence_snapshot",
+    tag,
+    rowCount: rows.length,
+    totalReserved: rows.reduce((sum, row) => sum + row.reservedCount, 0),
+    totalPersisted: rows.reduce((sum, row) => sum + row.persistedCount, 0),
+    totalDrift: rows.reduce((sum, row) => sum + row.drift, 0),
+    rows,
+    timestamp: new Date().toISOString(),
+  };
+  console.log("[AllocatorDiag]", JSON.stringify(payload));
+}
 
 function getUrlHost(url: string | undefined): string {
   if (!url) return "";
@@ -377,8 +484,17 @@ async function initializeRedisSafely(): Promise<{ ready: boolean; issue?: string
   }
 
   try {
-    const { ensureRedisConnection } = await import("./queue/redis.js");
+    const { ensureRedisConnection, getRedisConnection } = await import("./queue/redis.js");
     await ensureRedisConnection();
+    const redis = getRedisConnection();
+    const info = await redis.info("server");
+    const version = parseRedisMajorVersion(info);
+    if (!version) {
+      return { ready: false, issue: "Redis version could not be determined from INFO server" };
+    }
+    if (version.major < 5) {
+      return { ready: false, issue: `Redis ${version.raw} is unsupported. Use Redis 5+.` };
+    }
     return { ready: true };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -835,6 +951,8 @@ async function main() {
     process.exit(1);
   }
 
+  await enforceRenderAndRedisPreflightOrExit();
+
   const port = Number(process.env.PORT || 3000);
   const server = app.listen(port, "0.0.0.0", () => {
     console.log("Server running");
@@ -876,6 +994,11 @@ async function main() {
     });
 
     if (databaseReady) {
+      await logAllocatorSequenceDiagnostics("startup").catch((err) => {
+        const message = err instanceof Error ? err.message : String(err);
+        console.warn("[AllocatorDiag] Snapshot failed:", message);
+      });
+
       // Seed default plans
       await ensureDefaultPlans().catch(err => console.error("[INIT] Failed to seed default plans:", err));
       console.log("[INIT] Default plans ready");
