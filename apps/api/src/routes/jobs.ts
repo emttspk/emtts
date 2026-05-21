@@ -306,17 +306,21 @@ jobsRouter.get("/preview/labels", requireAuth, (req, res) => {
 jobsRouter.post("/preview/labels", requireAuth, labelPreviewUploadMiddleware, async (req, res) => {
   const tempPath = req.file?.path;
   const carrierType = String(req.body?.carrierType ?? "pakistan_post").toLowerCase() === "courier" ? "courier" : "pakistan_post";
+  const shipmentMode = String(req.body?.shipmentMode ?? "single_service").toLowerCase() === "mix_articles"
+    ? "mix_articles"
+    : "single_service";
   const shipmentTypeRaw = String(req.body?.shipmentType ?? "").trim();
   const resolvedShipmentType = resolveShipmentType(shipmentTypeRaw);
   if (shipmentTypeRaw && !resolvedShipmentType) {
     logCatalogShadowWarning("service_mismatch", `Preview upload requested unsupported shipment type '${shipmentTypeRaw}'.`);
   }
-  const shipmentType = carrierType === "courier" ? "COURIER" : resolvedShipmentType;
+  const shipmentType = carrierType === "courier"
+    ? "COURIER"
+    : shipmentMode === "mix_articles"
+      ? null
+      : resolvedShipmentType;
   const includeMoneyOrders = String(req.body?.includeMoneyOrders ?? "false").toLowerCase() === "true";
   const barcodeMode = String(req.body?.barcodeMode ?? "auto").toLowerCase() === "manual" ? "manual" : "auto";
-  const shipmentMode = String(req.body?.shipmentMode ?? "single_service").toLowerCase() === "mix_articles"
-    ? "mix_articles"
-    : "single_service";
   const autoGenerateTracking = barcodeMode === "auto";
   const printMode = parsePrintMode(req.body?.outputMode);
 
@@ -342,8 +346,26 @@ jobsRouter.post("/preview/labels", requireAuth, labelPreviewUploadMiddleware, as
                 : shipmentType === "COD"
                   ? "COD"
                   : "RGL";
-    const orders = await parseOrdersFromFile(tempPath, { allowMissingTrackingId: autoGenerateTracking });
-    const labelOrders = prepareLabelOrders(orders, {
+    const orders = await parseOrdersFromFile(tempPath, { allowMissingTrackingId: true });
+    const previewOrders = orders.map((order, index) => {
+      const rowShipmentType = resolveShipmentType((order as any).shipmentType ?? (order as any).shipmenttype);
+      const effectiveShipmentType = shipmentMode === "mix_articles"
+        ? rowShipmentType
+        : (shipmentType as string | null);
+      const expectedPrefix = effectiveShipmentType && effectiveShipmentType !== "COURIER"
+        ? getTrackingPrefix(effectiveShipmentType)
+        : "RGL";
+      const existingTracking = String((order as any).TrackingID ?? (order as any).trackingId ?? "").trim().toUpperCase();
+      const previewTracking = existingTracking || `${expectedPrefix}2605${String(index + 1).padStart(4, "0")}`;
+      return {
+        ...order,
+        TrackingID: previewTracking,
+        trackingId: previewTracking,
+        __allocatedTrackingId: previewTracking,
+      };
+    });
+
+    const labelOrders = prepareLabelOrders(previewOrders, {
       autoGenerateTracking,
       barcodeMode,
       shipmentMode,

@@ -47,6 +47,23 @@ function normalizeTrackingId(input: unknown) {
   return String(input ?? "").trim().toUpperCase().replace(/\s+/g, "");
 }
 
+function escapeCsvValue(value: unknown) {
+  const text = String(value ?? "");
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function rowsToCsv(headers: string[], rows: Array<Record<string, unknown>>) {
+  const normalizedHeaders = headers.length > 0 ? headers : Object.keys(rows[0] ?? {});
+  const lines = [normalizedHeaders.map((header) => escapeCsvValue(header)).join(",")];
+  for (const row of rows) {
+    lines.push(normalizedHeaders.map((header) => escapeCsvValue(row[header])).join(","));
+  }
+  return lines.join("\n");
+}
+
 function isValidTrackingId(input: unknown) {
   const trackingId = normalizeTrackingId(input);
   return /^[A-Z]{2,6}[0-9]{4,20}$/.test(trackingId);
@@ -91,6 +108,9 @@ export default function Upload() {
     rejected: number;
     ignoredTracking: number;
     overweightWarnings: number;
+    batchWarnings: string[];
+    rejectedSummaryUrl: string | null;
+    rejectedSummaryName: string | null;
     rowErrors: string[];
     rowWarnings: string[];
   } | null>(null);
@@ -204,16 +224,16 @@ export default function Upload() {
       ? uploadFile("/api/jobs/preview/labels", file, {
           outputMode,
           carrierType: carrierType ?? "pakistan_post",
-          shipmentType: shipmentType ?? "RGL",
+          shipmentType: shipmentMode === "mix_articles" ? "" : (shipmentType ?? "RGL"),
           shipmentMode,
           includeMoneyOrders: String(Boolean(includeMoneyOrders && eligibleForMoneyOrder)),
-          barcodeMode: barcodeMode ?? "manual",
+          barcodeMode: barcodeMode ?? "auto",
         })
       : api<{ html: string }>(
           `/api/jobs/preview/labels?${new URLSearchParams({
             outputMode,
             carrierType: carrierType ?? "pakistan_post",
-            shipmentType: shipmentType ?? "RGL",
+            shipmentType: shipmentMode === "mix_articles" ? "" : (shipmentType ?? "RGL"),
             shipmentMode,
             includeMoneyOrders: String(Boolean(includeMoneyOrders && eligibleForMoneyOrder)),
           }).toString()}`,
@@ -404,10 +424,11 @@ export default function Upload() {
 
       const rowErrors: string[] = [];
       const rowWarnings: string[] = [];
+      const rejectedRows: Array<{ row: number; uploadedTracking: string; shipmentType: string; expectedPrefix: string; reason: string }> = [];
       let ignoredTracking = 0;
       let overweightWarnings = 0;
-      let accepted = 0;
-      let rejected = 0;
+      const acceptedRows: Array<Record<string, unknown>> = [];
+      const batchWarnings = new Set<string>();
 
       for (let i = 0; i < rows.length; i += 1) {
         const row = rows[i] ?? {};
@@ -418,13 +439,13 @@ export default function Upload() {
           return key ? row[key] : "";
         };
 
-        const errorsBefore = rowErrors.length;
+        const rowSpecificErrors: string[] = [];
 
         const consigneeName = String(find("consigneeName") ?? "").trim();
         const consigneePhone = String(find("consigneePhone") ?? "").trim();
         const consigneeAddress = String(find("consigneeAddress") ?? "").trim();
         if (!consigneeName || !consigneePhone || !consigneeAddress) {
-          rowErrors.push(`Row ${rowIndex}: consigneeName, consigneePhone, and consigneeAddress are required.`);
+          rowSpecificErrors.push(`Row ${rowIndex}: consigneeName, consigneePhone, and consigneeAddress are required.`);
         }
 
         const rowShipmentType = String(find("shipmenttype") ?? find("shipment_type") ?? "").trim().toUpperCase();
@@ -434,11 +455,11 @@ export default function Upload() {
 
         if (shipmentMode === "mix_articles") {
           if (!rowShipmentType || !CANONICAL_SERVICES.has(rowShipmentType)) {
-            rowErrors.push(`Row ${rowIndex}: shipment_type must be one of VPL, VPP, COD, RGL, IRL, UMS in Mix Articles mode.`);
+            rowSpecificErrors.push(`Row ${rowIndex}: shipment_type must be one of VPL, VPP, COD, RGL, IRL, UMS in Mix Articles mode.`);
           }
         } else if (effectiveService && effectiveService !== "COURIER") {
           if (rowShipmentType && rowShipmentType !== effectiveService) {
-            rowErrors.push(`Row ${rowIndex}: shipment_type '${rowShipmentType}' does not match selected Single Service '${effectiveService}'.`);
+            rowSpecificErrors.push(`Row ${rowIndex}: shipment_type '${rowShipmentType}' does not match selected Single Service '${effectiveService}'.`);
           }
         }
 
@@ -451,17 +472,40 @@ export default function Upload() {
           const prefixMatches = rawTracking.startsWith(expectedPrefix);
 
           if (barcodeMode === "manual" && !prefixMatches) {
-            rowErrors.push(`Row ${rowIndex}: tracking '${rawTracking}' must start with '${expectedPrefix}' for service '${effectiveService}'.`);
+            rowSpecificErrors.push(`Row ${rowIndex}: tracking '${rawTracking}' must start with '${expectedPrefix}' for service '${effectiveService}'.`);
+            rejectedRows.push({
+              row: rowIndex,
+              uploadedTracking: rawTracking,
+              shipmentType: effectiveService,
+              expectedPrefix,
+              reason: "Tracking prefix mismatch",
+            });
           }
 
           if (barcodeMode === "auto" && shipmentMode === "single_service" && !prefixMatches) {
             ignoredTracking += 1;
             rowWarnings.push(`Row ${rowIndex}: uploaded tracking '${rawTracking}' ignored in auto mode; system will generate '${expectedPrefix}' tracking.`);
+            batchWarnings.add("Uploaded tracking IDs were ignored for rows using Auto Generate mode.");
           }
 
-          if (barcodeMode === "auto" && shipmentMode === "mix_articles" && !prefixMatches) {
-            rowErrors.push(`Row ${rowIndex}: existing tracking '${rawTracking}' prefix mismatch for row shipment_type '${effectiveService}' in Mix Articles mode.`);
+          if (barcodeMode === "auto" && shipmentMode === "mix_articles") {
+            ignoredTracking += 1;
+            if (!prefixMatches) {
+              rowWarnings.push(`Row ${rowIndex}: uploaded tracking '${rawTracking}' ignored; row shipment_type '${effectiveService}' will generate '${expectedPrefix}' tracking.`);
+            } else {
+              rowWarnings.push(`Row ${rowIndex}: uploaded tracking '${rawTracking}' ignored because Auto Generate mode is enabled.`);
+            }
+            batchWarnings.add("Uploaded tracking IDs were ignored for rows using Auto Generate mode.");
           }
+        } else if (barcodeMode === "manual" && effectiveService && effectiveService !== "COURIER") {
+          rowSpecificErrors.push(`Row ${rowIndex}: tracking ID is required in Manual mode.`);
+          rejectedRows.push({
+            row: rowIndex,
+            uploadedTracking: "(missing)",
+            shipmentType: effectiveService,
+            expectedPrefix: serviceCatalog.find((entry) => entry.service === effectiveService)?.prefix ?? effectiveService,
+            reason: "Tracking ID required in manual mode",
+          });
         }
 
         if (effectiveService && CANONICAL_SERVICES.has(effectiveService)) {
@@ -476,11 +520,36 @@ export default function Upload() {
           }
         }
 
-        if (rowErrors.length > errorsBefore) {
-          rejected += 1;
+        if (rowSpecificErrors.length > 0) {
+          rowErrors.push(...rowSpecificErrors);
         } else {
-          accepted += 1;
+          acceptedRows.push(row);
         }
+      }
+
+      const accepted = acceptedRows.length;
+      const rejected = rows.length - acceptedRows.length;
+      let rejectedSummaryUrl: string | null = null;
+      let rejectedSummaryName: string | null = null;
+
+      if (rejectedRows.length > 0) {
+        const summaryRows = rejectedRows.map((entry) => ({
+          row: entry.row,
+          uploaded_tracking: entry.uploadedTracking,
+          detected_shipment_type: entry.shipmentType,
+          expected_prefix: entry.expectedPrefix,
+          reason: entry.reason,
+        }));
+        const summaryCsv = rowsToCsv([
+          "row",
+          "uploaded_tracking",
+          "detected_shipment_type",
+          "expected_prefix",
+          "reason",
+        ], summaryRows as Array<Record<string, unknown>>);
+        const blob = new Blob([summaryCsv], { type: "text/csv;charset=utf-8" });
+        rejectedSummaryUrl = URL.createObjectURL(blob);
+        rejectedSummaryName = `${uploadedFile.name.replace(/\.[^.]+$/, "")}-validation-rejected-rows.csv`;
       }
 
       setValidationSummary({
@@ -488,13 +557,28 @@ export default function Upload() {
         rejected,
         ignoredTracking,
         overweightWarnings,
+        batchWarnings: Array.from(batchWarnings),
+        rejectedSummaryUrl,
+        rejectedSummaryName,
         rowErrors: rowErrors.slice(0, 20),
         rowWarnings: rowWarnings.slice(0, 20),
       });
 
-      if (rowErrors.length > 0) {
+      if (acceptedRows.length === 0) {
         throw new Error(`Upload validation failed. ${rowErrors.slice(0, 8).join(" ")}`);
       }
+
+      if (rowErrors.length > 0) {
+        rowWarnings.push(`Proceeding with ${acceptedRows.length} accepted row(s); ${rejected} row(s) were rejected.`);
+      }
+
+      const uploadHeaders = Object.keys(rows[0] ?? {});
+      const acceptedCsv = rowsToCsv(uploadHeaders, acceptedRows);
+      const uploadFileForApi = new File(
+        [acceptedCsv],
+        `${uploadedFile.name.replace(/\.[^.]+$/, "")}-accepted.csv`,
+        { type: "text/csv" },
+      );
 
       const isAuto = barcodeMode === "auto";
       const requiresMoneyOrderCnic = Boolean(includeMoneyOrders && eligibleForMoneyOrder);
@@ -509,7 +593,7 @@ export default function Upload() {
         }
       }
 
-      const data = (await uploadFile("/api/upload", uploadedFile, {
+        const data = (await uploadFile("/api/upload", uploadFileForApi, {
           barcodeMode: isAuto ? "auto" : "manual",
           autoGenerateTracking: String(isAuto),
           shipmentMode,
@@ -653,6 +737,7 @@ export default function Upload() {
               </div>
             </div>
 
+            {shipmentMode === "single_service" ? (
             <div>
               <div className="font-medium text-gray-900">3) Category</div>
               <div className="mt-2 text-sm text-gray-600">Available across carriers. Epost.pk uses this selection to preset shipment options.</div>
@@ -675,7 +760,9 @@ export default function Upload() {
                 ))}
                 </div>
               </div>
+            ) : null}
 
+            {shipmentMode === "single_service" ? (
             <div>
               <div className="font-medium text-gray-900">4) Shipment Type</div>
               {carrierType === "courier" ? (
@@ -731,6 +818,7 @@ export default function Upload() {
                 <div className="mt-2 text-sm text-gray-600">Select a category.</div>
               )}
             </div>
+            ) : null}
 
             <div>
               <div className="font-medium text-gray-900">5) Barcode Mode</div>
@@ -858,12 +946,22 @@ export default function Upload() {
         {validationSummary ? (
           <Card className="border-slate-200 bg-white p-5 shadow-sm">
             <CardTitle>Upload Validation Summary</CardTitle>
-            <div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">Accepted: {validationSummary.accepted}</div>
-              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-red-800">Rejected: {validationSummary.rejected}</div>
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">Ignored Tracking: {validationSummary.ignoredTracking}</div>
-              <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-indigo-800">Overweight Warnings: {validationSummary.overweightWarnings}</div>
+            <div className="mt-2 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">Accepted Rows: {validationSummary.accepted}</div>
+              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-red-800">Rejected Rows: {validationSummary.rejected}</div>
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-indigo-800">Warnings: {validationSummary.rowWarnings.length + validationSummary.batchWarnings.length}</div>
             </div>
+            <div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-2">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">Ignored Tracking: {validationSummary.ignoredTracking}</div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800">Overweight Warnings: {validationSummary.overweightWarnings}</div>
+            </div>
+            {validationSummary.batchWarnings.length > 0 ? (
+              <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                {validationSummary.batchWarnings.map((item, idx) => (
+                  <div key={`batch-${idx}`}>{item}</div>
+                ))}
+              </div>
+            ) : null}
             {validationSummary.rowErrors.length > 0 ? (
               <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                 {validationSummary.rowErrors.map((item, idx) => (
@@ -876,6 +974,18 @@ export default function Upload() {
                 {validationSummary.rowWarnings.map((item, idx) => (
                   <div key={`warn-${idx}`}>{item}</div>
                 ))}
+              </div>
+            ) : null}
+            {validationSummary.rejectedSummaryUrl && validationSummary.rejectedSummaryName ? (
+              <div className="mt-3">
+                <a
+                  href={validationSummary.rejectedSummaryUrl}
+                  download={validationSummary.rejectedSummaryName}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  <Download className="h-4 w-4" />
+                  Download Rejected Rows Summary
+                </a>
               </div>
             ) : null}
           </Card>
