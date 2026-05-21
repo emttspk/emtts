@@ -112,10 +112,14 @@ const TRACKING_SERVICE_TYPE_MAP: Record<string, string> = {
   EMS: "EMS",
   MOS: "MOS",
   VPP: "VPP",
+  VPX: "VPX",
   VPL: "VPL",
   COD: "COD",
   RL: "RGL",
-  PR: "PAR",
+  RGL: "RGL",
+  IRL: "IRL",
+  PAR: "VPX",
+  PR: "VPX",
 };
 
 function formatLastDate(shipment: Shipment): string {
@@ -964,7 +968,7 @@ function detectServiceType(trackingId: string): string {
   const upper = String(trackingId ?? "").trim().toUpperCase();
   const prefix3 = upper.slice(0, 3);
   const prefix2 = upper.slice(0, 2);
-  return TRACKING_SERVICE_TYPE_MAP[prefix3] ?? TRACKING_SERVICE_TYPE_MAP[prefix2] ?? "VPL";
+  return TRACKING_SERVICE_TYPE_MAP[prefix3] ?? TRACKING_SERVICE_TYPE_MAP[prefix2] ?? "UNKNOWN";
 }
 
 function getSheetConsigneeFallback(rawJson?: string | null) {

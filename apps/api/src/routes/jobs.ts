@@ -271,7 +271,9 @@ export const labelPreviewUploadMiddleware = (req: ExpressRequest, res: ExpressRe
 
 jobsRouter.get("/preview/labels", requireAuth, (req, res) => {
   const carrierType = String(req.query?.carrierType ?? "pakistan_post").toLowerCase() === "courier" ? "courier" : "pakistan_post";
-  const shipmentType = String(req.query?.shipmentType ?? "PAR").trim().toUpperCase() || "PAR";
+  const shipmentTypeRaw = String(req.query?.shipmentType ?? "RGL").trim();
+  const resolvedShipmentType = resolveShipmentType(shipmentTypeRaw);
+  const shipmentType = carrierType === "courier" ? "COURIER" : (resolvedShipmentType ?? "RGL");
   const includeMoneyOrders = String(req.query?.includeMoneyOrders ?? "false").toLowerCase() === "true";
   const printMode = parsePrintMode(req.query?.outputMode);
 
@@ -289,11 +291,9 @@ jobsRouter.get("/preview/labels", requireAuth, (req, res) => {
 jobsRouter.post("/preview/labels", requireAuth, labelPreviewUploadMiddleware, async (req, res) => {
   const tempPath = req.file?.path;
   const carrierType = String(req.body?.carrierType ?? "pakistan_post").toLowerCase() === "courier" ? "courier" : "pakistan_post";
-  const shipmentTypeRaw = String(req.body?.shipmentType ?? "").trim().toUpperCase();
-  const shipmentType =
-    shipmentTypeRaw === "RL" || shipmentTypeRaw === "RGL" || shipmentTypeRaw === "IRL" || shipmentTypeRaw === "UMS" || shipmentTypeRaw === "VPL" || shipmentTypeRaw === "VPP" || shipmentTypeRaw === "PAR" || shipmentTypeRaw === "COD" || shipmentTypeRaw === "COURIER"
-      ? shipmentTypeRaw
-      : null;
+  const shipmentTypeRaw = String(req.body?.shipmentType ?? "").trim();
+  const resolvedShipmentType = resolveShipmentType(shipmentTypeRaw);
+  const shipmentType = carrierType === "courier" ? "COURIER" : resolvedShipmentType;
   const includeMoneyOrders = String(req.body?.includeMoneyOrders ?? "false").toLowerCase() === "true";
   const barcodeMode = String(req.body?.barcodeMode ?? "auto").toLowerCase() === "manual" ? "manual" : "auto";
   const autoGenerateTracking = barcodeMode === "auto";
@@ -302,18 +302,29 @@ jobsRouter.post("/preview/labels", requireAuth, labelPreviewUploadMiddleware, as
   if (!tempPath) {
     return res.json({
       success: true,
-      html: previewLabelHtml({ carrierType, shipmentType: shipmentType ?? "PAR", includeMoneyOrders, outputMode: printMode }),
+      html: previewLabelHtml({ carrierType, shipmentType: shipmentType ?? "RGL", includeMoneyOrders, outputMode: printMode }),
     });
   }
 
   try {
+    const previewShipmentType = (() => {
+      if (shipmentType === "VPX") return "VPP" as const;
+      if (shipmentType === "VPL") return "VPL" as const;
+      if (shipmentType === "VPP") return "VPP" as const;
+      if (shipmentType === "COD") return "COD" as const;
+      if (shipmentType === "IRL") return "IRL" as const;
+      if (shipmentType === "RGL") return "RGL" as const;
+      if (shipmentType === "UMS") return "UMS" as const;
+      if (shipmentType === "COURIER") return "COURIER" as const;
+      return "RGL" as const;
+    })();
     const orders = await parseOrdersFromFile(tempPath, { allowMissingTrackingId: autoGenerateTracking });
     const labelOrders = prepareLabelOrders(orders, {
       autoGenerateTracking,
       barcodeMode,
       trackingScheme: "standard",
       carrierType,
-      shipmentType,
+      shipmentType: previewShipmentType,
       outputMode: printMode,
     });
 
@@ -449,11 +460,9 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
   const printMode = parsePrintMode(req.body?.printMode ?? req.body?.outputMode);
   const trackAfterGenerate = String(req.body?.trackAfterGenerate ?? "false").toLowerCase() === "true";
   const carrierType = String(req.body?.carrierType ?? "pakistan_post").toLowerCase() === "courier" ? "courier" : "pakistan_post";
-  const shipmentTypeRaw = String(req.body?.shipmentType ?? "").trim().toUpperCase();
-  const shipmentType =
-    shipmentTypeRaw === "RL" || shipmentTypeRaw === "RGL" || shipmentTypeRaw === "IRL" || shipmentTypeRaw === "UMS" || shipmentTypeRaw === "VPL" || shipmentTypeRaw === "VPP" || shipmentTypeRaw === "PAR" || shipmentTypeRaw === "COD" || shipmentTypeRaw === "COURIER"
-      ? shipmentTypeRaw
-      : null;
+  const shipmentTypeRaw = String(req.body?.shipmentType ?? "").trim();
+  const resolvedShipmentType = resolveShipmentType(shipmentTypeRaw);
+  const shipmentType = carrierType === "courier" ? "COURIER" : resolvedShipmentType;
   const eligibleForMoneyOrder = carrierType !== "courier" && shouldShowValuePayableAmount(shipmentType);
   const generateMoneyOrder = generateMoneyOrderRequested && eligibleForMoneyOrder;
   const trackingScheme = (() => {
@@ -464,8 +473,7 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
   })();
 
   if (autoGenerateTracking) {
-    const resolvedShipmentType = resolveShipmentType(shipmentType);
-    if (!resolvedShipmentType || resolvedShipmentType === "COURIER") {
+    if (!shipmentType || shipmentType === "COURIER") {
       return res.status(400).json({
         success: false,
         error: "Auto tracking generation requires a valid Pakistan Post shipment type.",
@@ -473,12 +481,12 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
       });
     }
     try {
-      getTrackingPrefix(resolvedShipmentType);
+      getTrackingPrefix(shipmentType);
     } catch {
       return res.status(400).json({
         success: false,
-        error: `Unsupported shipment type for auto tracking: ${resolvedShipmentType}`,
-        message: `Unsupported shipment type for auto tracking: ${resolvedShipmentType}`,
+        error: `Unsupported shipment type for auto tracking: ${shipmentType}`,
+        message: `Unsupported shipment type for auto tracking: ${shipmentType}`,
       });
     }
   }
@@ -519,15 +527,21 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
 
     // Backend guard: block manual uploads where tracking ID prefixes don't match selected shipment type
     if (barcodeMode === "manual" && shipmentType && shipmentType !== "COURIER") {
-      const prefixForType: Record<string, string> = {
-        COD: "COD", VPL: "VPL", VPP: "VPP", IRL: "IRL", RGL: "RGL", UMS: "UMS", PAR: "PAR",
+      const prefixesForType: Record<string, string[]> = {
+        COD: ["COD"],
+        VPL: ["VPL"],
+        VPP: ["VPP"],
+        VPX: ["VPX", "PAR"],
+        IRL: ["IRL"],
+        RGL: ["RGL"],
+        UMS: ["UMS"],
       };
-      const expectedPrefix = prefixForType[shipmentType];
-      if (expectedPrefix) {
+      const expectedPrefixes = prefixesForType[shipmentType];
+      if (expectedPrefixes?.length) {
         const mismatchedOrders = orders.filter((order) => {
           const id = String((order as any).TrackingID ?? (order as any).trackingId ?? (order as any).barcode ?? "").trim().toUpperCase();
           if (!id) return false;
-          return !id.startsWith(expectedPrefix);
+          return !expectedPrefixes.some((prefix) => id.startsWith(prefix));
         });
         if (mismatchedOrders.length > 0) {
           const detectedPrefixes = [
@@ -565,7 +579,8 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
 
     if (effectiveGenerateMoneyOrder) {
       const hasVplShipment = orders.some((order) => {
-        const rowType = String((order as any)?.shipmentType ?? (order as any)?.shipmenttype ?? shipmentType ?? "").trim().toUpperCase();
+        const rawRowType = String((order as any)?.shipmentType ?? (order as any)?.shipmenttype ?? shipmentType ?? "").trim();
+        const rowType = resolveShipmentType(rawRowType) ?? rawRowType.toUpperCase();
         return rowType === "VPL" || rowType === "VPP" || rowType === "COD";
       });
 

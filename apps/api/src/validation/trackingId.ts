@@ -1,6 +1,7 @@
 // Tracking prefixes as per Pakistan Post standards
 export const TRACKING_PREFIX_VPL = "VPL"; // Value Payable Letter
 export const TRACKING_PREFIX_VPP = "VPP"; // Value Payable Parcel
+export const TRACKING_PREFIX_VPX = "VPX"; // Value Payable Express
 export const TRACKING_PREFIX_COD = "COD"; // Cash on Delivery
 export const TRACKING_PREFIX_PAR = "PAR"; // Parcel
 export const TRACKING_PREFIX_IRL = "IRL"; // Insured Registered Letter
@@ -13,30 +14,46 @@ export const MONEY_ORDER_PREFIX_COD = "UMO"; // For COD
 
 export const MONEY_ORDER_SPLIT_LIMIT = 20_000;
 
-export const KNOWN_SHIPMENT_TYPES = [
+export const CANONICAL_SHIPMENT_TYPES = [
   "VPL",
   "VPP",
+  "VPX",
   "COD",
-  "PAR",
   "IRL",
   "RGL",
   "UMS",
-  "RL",
+] as const;
+
+export const KNOWN_SHIPMENT_TYPES = [
+  ...CANONICAL_SHIPMENT_TYPES,
   "COURIER",
 ] as const;
+
+const SHIPMENT_TYPE_ALIASES: Record<string, string> = {
+  RL: "RGL",
+  DOCUMENT: "IRL",
+  DOCUMENTS: "IRL",
+  "SMALL PACKET": "RGL",
+  SMALL_PACKET: "RGL",
+  SMALLPACKET: "RGL",
+  PAR: "VPX",
+  PARCEL: "VPX",
+  PARCELS: "VPX",
+  PR: "VPX",
+};
 
 const allowedTrackingPrefixes = [
   TRACKING_PREFIX_VPL,
   TRACKING_PREFIX_VPP,
+  TRACKING_PREFIX_VPX,
   TRACKING_PREFIX_COD,
-  TRACKING_PREFIX_PAR,
   TRACKING_PREFIX_IRL,
   TRACKING_PREFIX_RGL,
   TRACKING_PREFIX_UMS,
 ] as const;
 
 // Pattern: Prefix (3 chars) + YY (2 year digits) + MM (2 month digits) + Sequence (4-5 digits) = 11-12 total
-const trackingIdPattern = /^(VPL|VPP|COD|PAR|IRL|RGL|UMS)\d{8,9}$/;
+const trackingIdPattern = /^(VPL|VPP|VPX|COD|PAR|IRL|RGL|UMS)\d{8,9}$/;
 // Money order pattern: Prefix (3 chars) + MM (2 month digits) + Sequence (6-7 digits) = 11-12 total
 const moneyOrderNumberPattern = /^(MOS|UMO)(0[1-9]|1[0-2])\d{6,7}$/;
 
@@ -76,8 +93,8 @@ export function normalizeShipmentType(value: unknown) {
 export function resolveShipmentType(value: unknown): string | null {
   const normalized = normalizeShipmentType(value);
   if (!normalized) return null;
-  if (normalized === "RL") return "RGL";
-  return (KNOWN_SHIPMENT_TYPES as readonly string[]).includes(normalized) ? normalized : null;
+  const aliasResolved = SHIPMENT_TYPE_ALIASES[normalized] ?? normalized;
+  return (KNOWN_SHIPMENT_TYPES as readonly string[]).includes(aliasResolved) ? aliasResolved : null;
 }
 
 export function normalizeCarrierType(value: unknown): "pakistan_post" | "courier" {
@@ -137,10 +154,10 @@ export function getTrackingPrefix(shipmentType?: unknown): string {
   switch (normalized) {
     case "VPP":
       return TRACKING_PREFIX_VPP;
+    case "VPX":
+      return TRACKING_PREFIX_VPX;
     case "COD":
       return TRACKING_PREFIX_COD;
-    case "PAR":
-      return TRACKING_PREFIX_PAR;
     case "IRL":
       return TRACKING_PREFIX_IRL;
     case "RGL":
@@ -195,7 +212,7 @@ export function validateTrackingId(value: unknown): StrictTrackingValidation {
   if (!trackingIdPattern.test(compact)) {
     return {
       ok: false,
-      reason: "trackingId must match XXXYYMMXXXX format (e.g., PAR26050001, VPL26050001, COD26050001) with 11-12 characters",
+      reason: "trackingId must match XXXYYMMXXXX format (e.g., VPX26050001, VPL26050001, COD26050001) with 11-12 characters",
     };
   }
 
@@ -215,7 +232,7 @@ export function validateUploadedTrackingId(value: unknown): StrictTrackingValida
   if (!trackingIdPattern.test(compact)) {
     return {
       ok: false,
-      reason: "trackingId must match XXXYYMMXXXX format (e.g., PAR26050001, VPL26050001, COD26050001) with 11-12 characters",
+      reason: "trackingId must match XXXYYMMXXXX format (e.g., VPX26050001, VPL26050001, COD26050001) with 11-12 characters",
     };
   }
   return { ok: true, value: compact };

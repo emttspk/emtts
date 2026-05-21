@@ -2,7 +2,7 @@ import xlsx from "xlsx";
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { validateUploadedTrackingId } from "../validation/trackingId.js";
+import { resolveShipmentType, validateUploadedTrackingId } from "../validation/trackingId.js";
 import { uploadsDir } from "../storage/paths.js";
 
 export type OrderRecord = {
@@ -186,6 +186,18 @@ function buildOrdersFromRows(
 
     const collectMatch = strictRow.CollectAmount.match(/[\d,]+(?:\.\d+)?/);
     strictRow.CollectAmount = collectMatch ? collectMatch[0].replace(/,/g, "") : "0";
+
+    const rawShipmentType = String(strictRow.shipmenttype ?? "").trim();
+    if (rawShipmentType) {
+      const resolvedShipmentType = resolveShipmentType(rawShipmentType);
+      if (!resolvedShipmentType) {
+        invalidRows.push(`Row ${i + 2}: shipmenttype '${rawShipmentType}' is not supported.`);
+      } else {
+        strictRow.shipmenttype = resolvedShipmentType;
+      }
+    } else {
+      strictRow.shipmenttype = "";
+    }
 
     for (const reqCol of requiredRowFields) {
       if (!strictRow[reqCol]) {
