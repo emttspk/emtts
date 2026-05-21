@@ -20,7 +20,7 @@ import { buildLabelPdfFileName, buildMoneyOrderPdfFileName, buildPdfAttachmentHe
 import { previewLabelHtml, renderLabelDocumentHtml, type LabelPrintMode } from "../templates/labels.js";
 import { prepareLabelOrders } from "../services/labelDocument.js";
 import { isUploadFileNameExempt } from "../services/upload-file-exemptions.service.js";
-import { shouldShowValuePayableAmount } from "../validation/trackingId.js";
+import { getTrackingPrefix, resolveShipmentType, shouldShowValuePayableAmount } from "../validation/trackingId.js";
 import { activeR2StreamsGauge, refreshRuntimeMetrics, r2StreamDuration, r2StreamFailures } from "../metrics.js";
 import { logTelemetry } from "../telemetry.js";
 import { r2Config as rolloutR2Config } from "../config.js";
@@ -463,6 +463,26 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
     return "standard";
   })();
 
+  if (autoGenerateTracking) {
+    const resolvedShipmentType = resolveShipmentType(shipmentType);
+    if (!resolvedShipmentType || resolvedShipmentType === "COURIER") {
+      return res.status(400).json({
+        success: false,
+        error: "Auto tracking generation requires a valid Pakistan Post shipment type.",
+        message: "Auto tracking generation requires a valid Pakistan Post shipment type.",
+      });
+    }
+    try {
+      getTrackingPrefix(resolvedShipmentType);
+    } catch {
+      return res.status(400).json({
+        success: false,
+        error: `Unsupported shipment type for auto tracking: ${resolvedShipmentType}`,
+        message: `Unsupported shipment type for auto tracking: ${resolvedShipmentType}`,
+      });
+    }
+  }
+
   const job = await withReconnectRetry(async () => prisma.labelJob.create({
     data: {
       userId,
@@ -684,7 +704,7 @@ jobsRouter.post("/upload", requireAuth, labelUploadMiddleware, handleLabelUpload
 // Phase 3: Check for duplicate tracking IDs
 jobsRouter.post("/check-tracking-duplicate", requireAuth, async (req, res) => {
   const userId = (req as AuthedRequest).user!.id;
-  const trackingId = String(req.body?.trackingId ?? "").trim();
+  const trackingId = String(req.body?.trackingId ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
 
   if (!trackingId) {
     return res.status(400).json({ success: false, error: "Missing trackingId" });

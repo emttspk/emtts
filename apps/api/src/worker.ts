@@ -26,10 +26,12 @@ import { prepareLabelOrders } from "./services/labelDocument.js";
 import {
   buildTrackingId,
   buildMoneyOrderNumber,
+  formatIdentifierDateCode,
+  getTrackingPrefix,
   moneyOrderBreakdown,
   normalizeTrackingId,
-  parseIdentifierSequence,
   reverseMoneyOrderFromGross,
+  resolveShipmentType,
   shouldApplyPakistanPostValuePayableRules,
   shouldShowValuePayableAmount,
   validateMoneyOrderNumber,
@@ -360,6 +362,106 @@ function resolveOrderShipmentType(order: { shipmentType?: unknown; shipmenttype?
   const normalized = String(order.shipmentType ?? order.shipmenttype ?? fallback ?? "").trim().toUpperCase();
   if (!normalized) return null;
   return normalized === "RL" ? "RGL" : normalized;
+}
+
+let trackingIdSequencesReady = false;
+
+async function ensureTrackingIdSequencesTable() {
+  if (trackingIdSequencesReady) return;
+  await prisma.$executeRaw`
+    CREATE TABLE IF NOT EXISTS tracking_id_sequences (
+      prefix TEXT NOT NULL,
+      date_code TEXT NOT NULL,
+      next_sequence INTEGER NOT NULL DEFAULT 1,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (prefix, date_code)
+    )
+  `;
+  trackingIdSequencesReady = true;
+}
+
+function parseTrackingSequence(trackingId: string, prefix: string, dateCode: string) {
+  const value = String(trackingId ?? "").trim().toUpperCase();
+  const expectedStart = `${prefix}${dateCode}`;
+  if (!value.startsWith(expectedStart)) return null;
+  const sequencePart = value.slice(expectedStart.length);
+  if (!/^\d{4,5}$/.test(sequencePart)) return null;
+  const parsed = Number.parseInt(sequencePart, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+async function allocateNextTrackingId(
+  executor: Prisma.TransactionClient,
+  reservedTrackingIds: Set<string>,
+  issueDate: Date,
+  shipmentTypeInput: unknown,
+) {
+  const normalizedType = resolveShipmentType(shipmentTypeInput);
+  if (!normalizedType || normalizedType === "COURIER") {
+    throw new Error(`Auto tracking generation requires a Pakistan Post shipment type. Received: ${String(shipmentTypeInput ?? "").trim() || "(empty)"}`);
+  }
+
+  const prefix = getTrackingPrefix(normalizedType);
+  const dateCode = formatIdentifierDateCode(issueDate);
+  const sequenceKey = `${prefix}:${dateCode}`;
+
+  await executor.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`tracking_id:${sequenceKey}`}))`;
+
+  const row = await executor.$queryRaw<Array<{ next_sequence: number }>>`
+    SELECT next_sequence
+    FROM tracking_id_sequences
+    WHERE prefix = ${prefix} AND date_code = ${dateCode}
+    LIMIT 1
+  `;
+
+  if (row.length === 0) {
+    const existing = await executor.shipment.findMany({
+      where: {
+        trackingNumber: { startsWith: `${prefix}${dateCode}` },
+      },
+      select: { trackingNumber: true },
+      take: 5000,
+    });
+    const maxSequence = existing.reduce((max, current) => {
+      const parsed = parseTrackingSequence(current.trackingNumber, prefix, dateCode);
+      return parsed && parsed > max ? parsed : max;
+    }, 0);
+
+    await executor.$executeRaw`
+      INSERT INTO tracking_id_sequences (prefix, date_code, next_sequence)
+      VALUES (${prefix}, ${dateCode}, ${maxSequence + 1})
+      ON CONFLICT (prefix, date_code) DO NOTHING
+    `;
+  }
+
+  while (true) {
+    const allocated = await executor.$queryRaw<Array<{ next_sequence: number }>>`
+      UPDATE tracking_id_sequences
+      SET next_sequence = next_sequence + 1,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE prefix = ${prefix} AND date_code = ${dateCode}
+      RETURNING next_sequence - 1 AS next_sequence
+    `;
+    const sequence = Number(allocated[0]?.next_sequence ?? 0);
+    if (!Number.isInteger(sequence) || sequence <= 0) {
+      throw new Error(`Failed to allocate tracking sequence for ${sequenceKey}`);
+    }
+    const trackingId = buildTrackingId(sequence, issueDate, normalizedType);
+
+    if (reservedTrackingIds.has(trackingId)) {
+      continue;
+    }
+
+    const exists = await executor.shipment.findFirst({
+      where: { trackingNumber: trackingId },
+      select: { trackingNumber: true },
+    });
+
+    if (!exists) {
+      reservedTrackingIds.add(trackingId);
+      return trackingId;
+    }
+  }
 }
 
 type MoneyOrderRow = {
@@ -711,101 +813,49 @@ const worker = new Worker(
           throw new Error(`Upload parsing failed: ${parseMessage}`);
         }
 
-      // Replace duplicate manual tracking IDs (DB duplicates + in-file duplicates) with auto-generated IDs.
-      const manualTrackingIds = orders
-        .map((order, idx) => ({
-          idx,
-          trackingId: String(order.TrackingID ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, ""),
-          order,
-        }))
-        .filter((item) => item.trackingId);
-      console.log(`[Worker] Mapped tracking IDs before duplicate handling (first 20): ${JSON.stringify(manualTrackingIds.map((item) => item.trackingId).slice(0, 20))}`);
+        const manualTrackingIds = orders
+          .map((order, idx) => ({
+            idx,
+            trackingId: String(order.TrackingID ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, ""),
+            order,
+          }))
+          .filter((item) => item.trackingId);
+        console.log(`[Worker] Parsed uploaded tracking IDs (first 20): ${JSON.stringify(manualTrackingIds.map((item) => item.trackingId).slice(0, 20))}`);
 
-      if (manualTrackingIds.length > 0) {
-        const duplicateIds = doAutoGenerateTracking
-          ? new Set(
-              (
-                await prisma.shipment
-                  .findMany({
-                    where: {
-                      userId: job.userId,
-                      trackingNumber: {
-                        in: manualTrackingIds.map((item) => item.trackingId),
-                      },
+        if (manualTrackingIds.length > 0) {
+          const duplicateIds = new Set(
+            (
+              await prisma.shipment
+                .findMany({
+                  where: {
+                    userId: job.userId,
+                    trackingNumber: {
+                      in: manualTrackingIds.map((item) => item.trackingId),
                     },
-                    select: { trackingNumber: true },
-                  })
-                  .catch(() => [])
-              ).map((s) => String(s.trackingNumber ?? "").trim().toUpperCase()),
-            )
-          : new Set<string>();
-        const seenInBatch = new Set<string>();
-        const allKnownTrackingIds = new Set(manualTrackingIds.map((item) => item.trackingId));
-        let generatedReplacementCount = 0;
-        let allowedDuplicateCount = 0;
+                  },
+                  select: { trackingNumber: true },
+                })
+                .catch(() => [])
+            ).map((s) => String(s.trackingNumber ?? "").trim().toUpperCase()),
+          );
+          if (duplicateIds.size > 0) {
+            throw new Error(`Duplicate tracking IDs already exist for this account: ${Array.from(duplicateIds).slice(0, 20).join(", ")}`);
+          }
+        }
 
-        console.log(`[Worker] Validation path used: ${doAutoGenerateTracking ? "GENERATED" : "UPLOAD"}`);
-        console.log(`[Worker] Tracking duplicate mode: ${doAutoGenerateTracking ? "ENFORCE" : "ALLOW"}`);
-
-        console.log(
-          `[Worker] Duplicate detection result: ${JSON.stringify({
-            dbDuplicates: duplicateIds.size,
-            dbDuplicateValues: Array.from(duplicateIds).slice(0, 20),
-          })}`,
-        );
-
-        for (const row of manualTrackingIds) {
-          const key = row.trackingId;
-          const dbDuplicate = duplicateIds.has(key);
-          const batchDuplicate = seenInBatch.has(key);
-          if (dbDuplicate || batchDuplicate) {
-            if (doAutoGenerateTracking) {
-              let offset = generatedReplacementCount + 1;
-              let replacement = buildTrackingId(offset, new Date(), shipmentType);
-              while (allKnownTrackingIds.has(replacement)) {
-                offset += 1;
-                replacement = buildTrackingId(offset, new Date(), shipmentType);
-              }
-              row.order.TrackingID = replacement;
-              allKnownTrackingIds.add(replacement);
-              generatedReplacementCount = offset;
-              console.warn(`[Worker] Tracking ID duplicate replaced for row ${row.idx + 2}: ${key} -> ${replacement}`);
-            } else {
-              allowedDuplicateCount += 1;
-              console.log(`[Worker] Tracking ID duplicate allowed in upload/manual mode for row ${row.idx + 2}: ${key}`);
+        if (doAutoGenerateTracking) {
+          await ensureTrackingIdSequencesTable();
+          const allocationDate = new Date();
+          const reservedTrackingIds = new Set<string>();
+          await prisma.$transaction(async (tx) => {
+            for (const order of orders) {
+              const resolvedType = resolveOrderShipmentType(order, shipmentType);
+              const allocatedTrackingId = await allocateNextTrackingId(tx, reservedTrackingIds, allocationDate, resolvedType);
+              (order as any).__allocatedTrackingId = allocatedTrackingId;
+              order.TrackingID = allocatedTrackingId;
             }
-            continue;
-          }
-          seenInBatch.add(key);
+          });
         }
-
-        console.log(
-          `[Worker] Duplicate handling summary: ${JSON.stringify({
-            replacedForAutoMode: generatedReplacementCount,
-            allowedForManualMode: allowedDuplicateCount,
-            remainingRows: orders.length,
-          })}`,
-        );
-
-        // Log final tracking IDs going into generation
-        const finalTrackingIds = orders
-          .map((o) => String(o.TrackingID ?? "").trim().toUpperCase())
-          .filter(Boolean);
-        console.log(
-          `[Worker] Final tracking IDs after duplicate handling (${finalTrackingIds.length} rows, first 20): ${JSON.stringify(finalTrackingIds.slice(0, 20))}`,
-        );
-
-        // --- TEMP FILE CLEANUP: Only after successful filePath job completion ---
-        // This block runs only after all processing is successful, before returning from the job handler.
-        if (tempFileToDelete) {
-          try {
-            await getStorageProvider().deleteArtifact("temp", tempFileToDelete);
-            console.log(`[Worker] Deleted temp file after successful job: ${tempFileToDelete}`);
-          } catch (cleanupErr) {
-            console.warn(`[Worker] Failed to delete temp file after job: ${tempFileToDelete} (${cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr)})`);
-          }
-        }
-      }
 
       let useProfileShipper = false;
 
@@ -989,19 +1039,22 @@ const worker = new Worker(
 
         if (trackingNumbers.length > 0) {
           try {
-            await prisma.$transaction(
-              trackingNumbers.map((trackingNumber) =>
-                prisma.shipment.upsert({
-                  where: { userId_trackingNumber: { userId: job.userId, trackingNumber } },
-                  create: {
-                    userId: job.userId,
-                    trackingNumber,
-                    shipmentType: resolveOrderShipmentType(orderByTracking.get(trackingNumber) ?? {}, shipmentType),
-                    rawJson: (() => {
-                      const o = orderByTracking.get(trackingNumber);
-                      if (!o) return null;
-                      const collectAmount = (o as any).CollectAmount ?? 0;
-                      return JSON.stringify({
+            const existing = await prisma.shipment.findMany({
+              where: { userId: job.userId, trackingNumber: { in: trackingNumbers } },
+              select: { trackingNumber: true },
+            });
+            const existingSet = new Set(existing.map((row) => String(row.trackingNumber ?? "").trim()));
+            const toCreate = trackingNumbers
+              .filter((trackingNumber) => !existingSet.has(trackingNumber))
+              .map((trackingNumber) => {
+                const o = orderByTracking.get(trackingNumber);
+                const collectAmount = (o as any)?.CollectAmount ?? 0;
+                return {
+                  userId: job.userId,
+                  trackingNumber,
+                  shipmentType: resolveOrderShipmentType(orderByTracking.get(trackingNumber) ?? {}, shipmentType),
+                  rawJson: o
+                    ? JSON.stringify({
                         TrackingID: trackingNumber,
                         shipperName: String((o as any).shipperName ?? "").trim(),
                         shipperPhone: String((o as any).shipperPhone ?? "").trim(),
@@ -1020,40 +1073,13 @@ const worker = new Worker(
                         shipmenttype: String((o as any).shipmenttype ?? "").trim(),
                         numberOfPieces: String((o as any).numberOfPieces ?? "").trim(),
                         tracking: null,
-                      });
-                    })(),
-                  },
-                  update: {
-                    shipmentType: resolveOrderShipmentType(orderByTracking.get(trackingNumber) ?? {}, shipmentType),
-                    rawJson: (() => {
-                      const o = orderByTracking.get(trackingNumber);
-                      if (!o) return undefined;
-                      const collectAmount = (o as any).CollectAmount ?? 0;
-                      return JSON.stringify({
-                        TrackingID: trackingNumber,
-                        shipperName: String((o as any).shipperName ?? "").trim(),
-                        shipperPhone: String((o as any).shipperPhone ?? "").trim(),
-                        shipperAddress: String((o as any).shipperAddress ?? "").trim(),
-                        shipperEmail: String((o as any).shipperEmail ?? "").trim(),
-                        senderCity: String((o as any).senderCity ?? "").trim(),
-                        consigneeName: String((o as any).consigneeName ?? "").trim(),
-                        consigneeEmail: String((o as any).consigneeEmail ?? "").trim(),
-                        consigneePhone: String((o as any).consigneePhone ?? "").trim(),
-                        consigneeAddress: String((o as any).consigneeAddress ?? "").trim(),
-                        receiverCity: String((o as any).receiverCity ?? "").trim(),
-                        CollectAmount: String(collectAmount ?? "0").trim() || "0",
-                        ordered: String((o as any).ordered ?? "").trim(),
-                        ProductDescription: String((o as any).ProductDescription ?? "").trim(),
-                        Weight: String((o as any).Weight ?? "").trim(),
-                        shipmenttype: String((o as any).shipmenttype ?? "").trim(),
-                        numberOfPieces: String((o as any).numberOfPieces ?? "").trim(),
-                        tracking: null,
-                      });
-                    })(),
-                  },
-                }),
-              ),
-            );
+                      })
+                    : null,
+                };
+              });
+            if (toCreate.length > 0) {
+              await prisma.shipment.createMany({ data: toCreate, skipDuplicates: true });
+            }
             await prisma.trackingJob.create({
               data: {
                 id: jobId, // stable link: tracking job id == label job id
@@ -1283,6 +1309,14 @@ const worker = new Worker(
       if (browser) {
         await browser.close();
       }
+      if (tempFileToDelete) {
+        try {
+          await getStorageProvider().deleteArtifact("temp", tempFileToDelete);
+          console.log(`[Worker] Deleted temp file after job completion: ${tempFileToDelete}`);
+        } catch (cleanupErr) {
+          console.warn(`[Worker] Failed to delete temp file after job: ${tempFileToDelete} (${cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr)})`);
+        }
+      }
     }
     };
 
@@ -1326,6 +1360,8 @@ const trackingWorker = new Worker(
     const globalBulkLockKey = "bulk_tracking_lock";
     const globalBulkLockValue = `${process.pid}:${job.id}`;
     let globalBulkLockAcquired = false;
+    let globalBulkLockHeartbeat: NodeJS.Timeout | null = null;
+    let requestBulkLockHeartbeat: NodeJS.Timeout | null = null;
 
     console.log(`[TrackingWorker] Starting job ${job.id} (${data.kind}) (BullMQ ID: ${bullJob.id})`);
     if (data.kind === "BULK_TRACK") {
@@ -1344,6 +1380,32 @@ const trackingWorker = new Worker(
       }
     }
     await prisma.trackingJob.update({ where: { id: job.id }, data: { status: "PROCESSING", error: null } });
+
+    if (data.kind === "BULK_TRACK" && globalBulkLockAcquired) {
+      globalBulkLockHeartbeat = setInterval(async () => {
+        try {
+          const currentValue = await redis.get(globalBulkLockKey);
+          if (currentValue === globalBulkLockValue) {
+            await redis.expire(globalBulkLockKey, 300);
+          }
+        } catch (heartbeatErr) {
+          console.warn(`[BulkTracking] Global lock heartbeat issue for job ${job.id}:`, heartbeatErr);
+        }
+      }, 30_000);
+    }
+
+    if (data.kind === "BULK_TRACK" && data.lockKey) {
+      requestBulkLockHeartbeat = setInterval(async () => {
+        try {
+          const currentValue = await redis.get(data.lockKey!);
+          if (currentValue === job.id) {
+            await redis.expire(data.lockKey!, 1800);
+          }
+        } catch (heartbeatErr) {
+          console.warn(`[BulkTracking] Request lock heartbeat issue for job ${job.id}:`, heartbeatErr);
+        }
+      }, 30_000);
+    }
 
     try {
       if (data.kind === "BULK_TRACK") {
@@ -1607,6 +1669,12 @@ const trackingWorker = new Worker(
       }
       throw e;
     } finally {
+      if (globalBulkLockHeartbeat) {
+        clearInterval(globalBulkLockHeartbeat);
+      }
+      if (requestBulkLockHeartbeat) {
+        clearInterval(requestBulkLockHeartbeat);
+      }
       if (data.kind === "BULK_TRACK" && globalBulkLockAcquired) {
         try {
           const currentGlobalLockValue = await redis.get(globalBulkLockKey);

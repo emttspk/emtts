@@ -13,6 +13,18 @@ export const MONEY_ORDER_PREFIX_COD = "UMO"; // For COD
 
 export const MONEY_ORDER_SPLIT_LIMIT = 20_000;
 
+export const KNOWN_SHIPMENT_TYPES = [
+  "VPL",
+  "VPP",
+  "COD",
+  "PAR",
+  "IRL",
+  "RGL",
+  "UMS",
+  "RL",
+  "COURIER",
+] as const;
+
 const allowedTrackingPrefixes = [
   TRACKING_PREFIX_VPL,
   TRACKING_PREFIX_VPP,
@@ -59,6 +71,13 @@ export function normalizeMoneyOrderNumber(value: unknown): string {
 
 export function normalizeShipmentType(value: unknown) {
   return String(value ?? "").trim().toUpperCase();
+}
+
+export function resolveShipmentType(value: unknown): string | null {
+  const normalized = normalizeShipmentType(value);
+  if (!normalized) return null;
+  if (normalized === "RL") return "RGL";
+  return (KNOWN_SHIPMENT_TYPES as readonly string[]).includes(normalized) ? normalized : null;
 }
 
 export function normalizeCarrierType(value: unknown): "pakistan_post" | "courier" {
@@ -111,10 +130,10 @@ export function formatIdentifierSequence(sequence: number) {
 
 /**
  * Get the tracking prefix for a given shipment type.
- * Defaults to VPL if shipment type is not recognized.
+ * Throws when shipment type is missing or unsupported.
  */
 export function getTrackingPrefix(shipmentType?: unknown): string {
-  const normalized = String(shipmentType ?? "").trim().toUpperCase();
+  const normalized = resolveShipmentType(shipmentType);
   switch (normalized) {
     case "VPP":
       return TRACKING_PREFIX_VPP;
@@ -125,13 +144,13 @@ export function getTrackingPrefix(shipmentType?: unknown): string {
     case "IRL":
       return TRACKING_PREFIX_IRL;
     case "RGL":
-    case "RL": // Accept "RL" as alias for RGL
       return TRACKING_PREFIX_RGL;
     case "UMS":
       return TRACKING_PREFIX_UMS;
     case "VPL":
-    default:
       return TRACKING_PREFIX_VPL;
+    default:
+      throw new Error(`Unsupported shipment type for tracking prefix: ${String(shipmentType ?? "").trim() || "(empty)"}`);
   }
 }
 
@@ -192,6 +211,12 @@ export function validateUploadedTrackingId(value: unknown): StrictTrackingValida
   const compact = normalizeTrackingId(value);
   if (!compact) {
     return { ok: false, reason: "trackingId is required" };
+  }
+  if (!trackingIdPattern.test(compact)) {
+    return {
+      ok: false,
+      reason: "trackingId must match XXXYYMMXXXX format (e.g., PAR26050001, VPL26050001, COD26050001) with 11-12 characters",
+    };
   }
   return { ok: true, value: compact };
 }

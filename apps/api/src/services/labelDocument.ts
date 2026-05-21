@@ -1,23 +1,17 @@
 import { type LabelOrder, type LabelPrintMode, generateLabelBarcodeBase64 } from "../templates/labels.js";
-import { buildTrackingId, getTrackingPrefix, validateTrackingId, validateUploadedTrackingId } from "../validation/trackingId.js";
+import { getTrackingPrefix, validateTrackingId, validateUploadedTrackingId, resolveShipmentType as resolveShipmentTypeCanonical } from "../validation/trackingId.js";
 
 type TrackingScheme = "standard" | "rl" | "ums";
 type CarrierType = "pakistan_post" | "courier";
 type ShipmentType = "RGL" | "IRL" | "UMS" | "VPL" | "VPP" | "PAR" | "COD" | "COURIER" | "RL" | null;
 
-const KNOWN_SHIPMENT_TYPES = new Set(["RGL", "IRL", "UMS", "VPL", "VPP", "PAR", "COD", "COURIER", "RL"]);
-
 function resolveShipmentType(order: Record<string, unknown>, fallback: ShipmentType, enforceFallbackOnly = false): string | undefined {
-  const rowShipmentTypeRaw = String(order.shipmentType ?? order.shipmenttype ?? "").trim().toUpperCase();
-  const rowShipmentType = rowShipmentTypeRaw === "RL" ? "RGL" : rowShipmentTypeRaw;
-  const fallbackNormalized = String(fallback ?? "").trim().toUpperCase();
-  const fallbackValue = fallbackNormalized === "RL" ? "RGL" : fallbackNormalized;
+  const rowShipmentType = resolveShipmentTypeCanonical(order.shipmentType ?? order.shipmenttype);
+  const fallbackValue = resolveShipmentTypeCanonical(fallback);
   if (enforceFallbackOnly) {
     return fallbackValue || undefined;
   }
-  // Only accept known shipment type values from the row; unrecognized values (e.g. "DOCUMENTS")
-  // must NOT override the job-level selection — they silently break badge text and calculation rendering.
-  if (rowShipmentType && KNOWN_SHIPMENT_TYPES.has(rowShipmentType)) {
+  if (rowShipmentType) {
     return rowShipmentType;
   }
   return fallbackValue || undefined;
@@ -34,7 +28,6 @@ export function prepareLabelOrders(
     outputMode: LabelPrintMode;
   },
 ): LabelOrder[] {
-  let serial = 1;
   const skipRows: number[] = [];
 
   return orders.map((order, idx) => {
@@ -48,10 +41,14 @@ export function prepareLabelOrders(
       const resolvedShipmentType = resolveShipmentType(order, opts.shipmentType, opts.autoGenerateTracking);
 
       if (opts.autoGenerateTracking) {
-        // Auto mode: selected shipment type is authoritative.
-        trackingNumber = buildTrackingId(serial++, new Date(), resolvedShipmentType);
+        // Auto mode uses worker-allocated IDs to keep numbering globally monotonic.
+        const allocated = String((order as any).__allocatedTrackingId ?? "").trim().toUpperCase();
+        if (!allocated) {
+          throw new Error("Missing allocated tracking ID in auto-generate mode.");
+        }
+        trackingNumber = allocated;
       } else if (manualTracking) {
-        // Manual mode: uploaded tracking ID — accept any non-empty format
+        // Manual mode: uploaded tracking ID must match canonical tracking format.
         const validated = validateUploadedTrackingId(manualTracking);
         if (!validated.ok) {
           throw new Error(`Invalid tracking ID in row: ${(validated as any).reason}`);

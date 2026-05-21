@@ -344,6 +344,16 @@ model MoneyOrder {
   @@index([issueDate])
 }
 
+model TrackingIdSequence {
+  prefix       String
+  dateCode     String   @map("date_code")
+  nextSequence Int      @default(1) @map("next_sequence")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@id([prefix, dateCode])
+  @@map("tracking_id_sequences")
+}
+
 model ManualPaymentRequest {
   id            String    @id @default(uuid())
   userId        String

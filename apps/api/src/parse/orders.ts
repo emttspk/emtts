@@ -229,6 +229,10 @@ function buildOrdersFromRows(
     `[OrdersParser] Duplicate detection in file: ${JSON.stringify({ duplicates: duplicateTrackingIds.size, values: Array.from(duplicateTrackingIds).slice(0, 20) })}`,
   );
 
+  if (duplicateTrackingIds.size > 0) {
+    invalidRows.push(`Duplicate TrackingID values in upload: ${Array.from(duplicateTrackingIds).slice(0, 20).join(", ")}`);
+  }
+
   if (invalidRows.length > 0) {
     throw new Error(`Upload validation failed. ${invalidRows.slice(0, 30).join(" ")}`);
   }
