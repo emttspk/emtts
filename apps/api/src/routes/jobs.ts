@@ -254,12 +254,9 @@ function parsePrintMode(value: unknown): LabelPrintMode {
 
 function expectedPrefixesForService(service: string) {
   const normalized = String(service ?? "").trim().toUpperCase();
-  const serviceEntry = listCatalogServices({ includeDeprecated: true }).find((entry) => entry.service === normalized);
+  const serviceEntry = listCatalogServices({ includeDeprecated: false }).find((entry) => entry.service === normalized);
   if (serviceEntry?.prefix) {
-    if (serviceEntry.deprecated) {
-      logCatalogShadowWarning("fallback_coercion", `Deprecated service '${normalized}' is still active in compatibility mode.`);
-    }
-    return normalized === "VPX" ? [serviceEntry.prefix, "PAR"] : [serviceEntry.prefix];
+    return [serviceEntry.prefix];
   }
   return [] as string[];
 }
@@ -317,6 +314,9 @@ jobsRouter.post("/preview/labels", requireAuth, labelPreviewUploadMiddleware, as
   const shipmentType = carrierType === "courier" ? "COURIER" : resolvedShipmentType;
   const includeMoneyOrders = String(req.body?.includeMoneyOrders ?? "false").toLowerCase() === "true";
   const barcodeMode = String(req.body?.barcodeMode ?? "auto").toLowerCase() === "manual" ? "manual" : "auto";
+  const shipmentMode = String(req.body?.shipmentMode ?? "single_service").toLowerCase() === "mix_articles"
+    ? "mix_articles"
+    : "single_service";
   const autoGenerateTracking = barcodeMode === "auto";
   const printMode = parsePrintMode(req.body?.outputMode);
 
@@ -328,24 +328,25 @@ jobsRouter.post("/preview/labels", requireAuth, labelPreviewUploadMiddleware, as
   }
 
   try {
-    const previewShipmentType = (() => {
-      if (shipmentType === "VPX") return "VPP" as const;
-      if (shipmentType === "VPL") return "VPL" as const;
-      if (shipmentType === "VPP") return "VPP" as const;
-      if (shipmentType === "COD") return "COD" as const;
-      if (shipmentType === "IRL") return "IRL" as const;
-      if (shipmentType === "RGL") return "RGL" as const;
-      if (shipmentType === "UMS") return "UMS" as const;
-      if (shipmentType === "COURIER") return "COURIER" as const;
-      return "RGL" as const;
-    })();
-    if (shipmentType === "VPX") {
-      logCatalogShadowWarning("fallback_coercion", "Preview coerced VPX to VPP for compatibility.");
-    }
+    const previewShipmentType: "RGL" | "IRL" | "UMS" | "VPL" | "VPP" | "COD" | "COURIER" =
+      shipmentType === "COURIER"
+        ? "COURIER"
+        : shipmentType === "IRL"
+          ? "IRL"
+          : shipmentType === "UMS"
+            ? "UMS"
+            : shipmentType === "VPL"
+              ? "VPL"
+              : shipmentType === "VPP"
+                ? "VPP"
+                : shipmentType === "COD"
+                  ? "COD"
+                  : "RGL";
     const orders = await parseOrdersFromFile(tempPath, { allowMissingTrackingId: autoGenerateTracking });
     const labelOrders = prepareLabelOrders(orders, {
       autoGenerateTracking,
       barcodeMode,
+      shipmentMode,
       trackingScheme: "standard",
       carrierType,
       shipmentType: previewShipmentType,
@@ -498,6 +499,9 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
     if (v === "ums") return "ums";
     return "standard";
   })();
+  const shipmentMode = String(req.body?.shipmentMode ?? "single_service").toLowerCase() === "mix_articles"
+    ? "mix_articles"
+    : "single_service";
 
   if (autoGenerateTracking) {
     if (!shipmentType || shipmentType === "COURIER") {
@@ -558,27 +562,60 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
     if (ordersCount === 0) throw new Error("No rows found");
     if (ordersCount > 5000) throw new Error("Max upload size is 5000 records");
 
-    // Backend guard: block manual uploads where tracking ID prefixes don't match selected shipment type
-    if (barcodeMode === "manual" && shipmentType && shipmentType !== "COURIER") {
-      const expectedPrefixes = expectedPrefixesForService(shipmentType);
-      if (expectedPrefixes?.length) {
-        const mismatchedOrders = orders.filter((order) => {
-          const id = String((order as any).TrackingID ?? (order as any).trackingId ?? (order as any).barcode ?? "").trim().toUpperCase();
-          if (!id) return false;
-          return !expectedPrefixes.some((prefix) => id.startsWith(prefix));
-        });
-        if (mismatchedOrders.length > 0) {
-          logCatalogShadowWarning("invalid_prefix", `Detected ${mismatchedOrders.length} row(s) with prefix mismatch for shipment type '${shipmentType}'.`);
-          const detectedPrefixes = [
-            ...new Set(
-              mismatchedOrders.map((o) => {
-                const id = String((o as any).TrackingID ?? (o as any).trackingId ?? (o as any).barcode ?? "").trim().toUpperCase();
-                return id.match(/^([A-Z]+)/)?.[1] ?? "UNKNOWN";
-              }),
-            ),
-          ].join(", ");
-          throw new Error(`Tracking ID prefix mismatch detected. Uploaded file contains ${detectedPrefixes} tracking IDs while selected shipment type is ${shipmentType}.`);
+    if (shipmentMode === "single_service" && shipmentType && shipmentType !== "COURIER") {
+      const rowTypeMismatch = orders.filter((order) => {
+        const rawRowType = String((order as any).shipmentType ?? (order as any).shipmenttype ?? "").trim();
+        if (!rawRowType) return false;
+        const resolvedRowType = resolveShipmentType(rawRowType);
+        return resolvedRowType !== shipmentType;
+      });
+      if (rowTypeMismatch.length > 0) {
+        throw new Error(`Single Service mode requires shipment_type '${shipmentType}' on every row. Found ${rowTypeMismatch.length} row(s) with different shipment_type.`);
+      }
+    }
+
+    if (shipmentMode === "mix_articles" && shipmentType !== "COURIER") {
+      const invalidRows = orders.filter((order) => {
+        const rawRowType = String((order as any).shipmentType ?? (order as any).shipmenttype ?? "").trim();
+        return !resolveShipmentType(rawRowType);
+      });
+      if (invalidRows.length > 0) {
+        throw new Error(`Mix Articles mode requires canonical shipment_type per row. Found ${invalidRows.length} row(s) with missing or invalid shipment_type.`);
+      }
+    }
+
+    // Namespace validation for uploaded tracking IDs.
+    // Single Service: enforce against selected shipment in manual mode only.
+    // Mix Articles: row shipment_type is authoritative whenever tracking is present.
+    if (shipmentType !== "COURIER") {
+      const mismatchedOrders = orders.filter((order) => {
+        const id = String((order as any).TrackingID ?? (order as any).trackingId ?? (order as any).barcode ?? "").trim().toUpperCase();
+        if (!id) return false;
+
+        if (shipmentMode === "single_service") {
+          if (barcodeMode !== "manual" || !shipmentType) return false;
+          const expectedPrefixes = expectedPrefixesForService(shipmentType);
+          return expectedPrefixes.length > 0 && !expectedPrefixes.some((prefix) => id.startsWith(prefix));
         }
+
+        const rawRowType = String((order as any).shipmentType ?? (order as any).shipmenttype ?? "").trim();
+        const resolvedRowType = resolveShipmentType(rawRowType);
+        if (!resolvedRowType) return true;
+        const rowExpectedPrefixes = expectedPrefixesForService(resolvedRowType);
+        return rowExpectedPrefixes.length > 0 && !rowExpectedPrefixes.some((prefix) => id.startsWith(prefix));
+      });
+
+      if (mismatchedOrders.length > 0) {
+        logCatalogShadowWarning("invalid_prefix", `Detected ${mismatchedOrders.length} row(s) with prefix mismatch in ${shipmentMode}.`);
+        const detectedPrefixes = [
+          ...new Set(
+            mismatchedOrders.map((o) => {
+              const id = String((o as any).TrackingID ?? (o as any).trackingId ?? (o as any).barcode ?? "").trim().toUpperCase();
+              return id.match(/^([A-Z]+)/)?.[1] ?? "UNKNOWN";
+            }),
+          ),
+        ].join(", ");
+        throw new Error(`Tracking ID prefix mismatch detected for ${shipmentMode}. Detected prefixes: ${detectedPrefixes}.`);
       }
     }
 
@@ -701,6 +738,7 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
           barcodeMode,
           printMode,
           trackingScheme,
+          shipmentMode,
           trackAfterGenerate,
           carrierType,
           shipmentType,

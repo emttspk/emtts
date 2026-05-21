@@ -4,21 +4,19 @@ import { logCatalogShadowWarning, resolveLegacyShipmentAlias } from "../catalog/
 // Tracking prefixes as per Pakistan Post standards
 export const TRACKING_PREFIX_VPL = "VPL"; // Value Payable Letter
 export const TRACKING_PREFIX_VPP = "VPP"; // Value Payable Parcel
-export const TRACKING_PREFIX_VPX = "VPX"; // Value Payable Express
 export const TRACKING_PREFIX_COD = "COD"; // Cash on Delivery
-export const TRACKING_PREFIX_PAR = "PAR"; // Parcel
 export const TRACKING_PREFIX_IRL = "IRL"; // Insured Registered Letter
 export const TRACKING_PREFIX_RGL = "RGL"; // Registered Letter
 export const TRACKING_PREFIX_UMS = "UMS"; // Urgent Mail Service
 
 // Money order prefixes
-export const MONEY_ORDER_PREFIX = "MOS";     // For VPL, VPP, IRL
+export const MONEY_ORDER_PREFIX = "MOS";     // For VPL, VPP
 export const MONEY_ORDER_PREFIX_COD = "UMO"; // For COD
 
 export const MONEY_ORDER_SPLIT_LIMIT = 20_000;
 
 export const CANONICAL_SHIPMENT_TYPES = [
-  ...listCatalogServices({ includeDeprecated: true })
+  ...listCatalogServices({ includeDeprecated: false })
     .map((entry) => entry.service)
     .filter((service) => service !== "COURIER"),
 ] as const;
@@ -31,7 +29,6 @@ export const KNOWN_SHIPMENT_TYPES = [
 const allowedTrackingPrefixes = [
   TRACKING_PREFIX_VPL,
   TRACKING_PREFIX_VPP,
-  TRACKING_PREFIX_VPX,
   TRACKING_PREFIX_COD,
   TRACKING_PREFIX_IRL,
   TRACKING_PREFIX_RGL,
@@ -39,7 +36,7 @@ const allowedTrackingPrefixes = [
 ] as const;
 
 // Pattern: Prefix (3 chars) + YY (2 year digits) + MM (2 month digits) + Sequence (4-5 digits) = 11-12 total
-const trackingIdPattern = /^(VPL|VPP|VPX|COD|PAR|IRL|RGL|UMS)\d{8,9}$/;
+const trackingIdPattern = /^(VPL|VPP|COD|IRL|RGL|UMS)\d{8,9}$/;
 // Money order pattern: Prefix (3 chars) + MM (2 month digits) + Sequence (6-7 digits) = 11-12 total
 const moneyOrderNumberPattern = /^(MOS|UMO)(0[1-9]|1[0-2])\d{6,7}$/;
 
@@ -147,8 +144,6 @@ export function getTrackingPrefix(shipmentType?: unknown): string {
   switch (normalized) {
     case "VPP":
       return TRACKING_PREFIX_VPP;
-    case "VPX":
-      return TRACKING_PREFIX_VPX;
     case "COD":
       return TRACKING_PREFIX_COD;
     case "IRL":
@@ -178,6 +173,9 @@ export function buildMoneyOrderNumber(sequence: number, value?: string | Date, s
     throw new Error("Money order sequence must be a positive integer.");
   }
   const normalizedType = String(shipmentType ?? "").trim().toUpperCase();
+  if (!isMoneyOrderEligibleShipmentType(normalizedType)) {
+    throw new Error(`Money order generation is not allowed for shipment type: ${normalizedType || "(empty)"}`);
+  }
   const prefix = normalizedType === "COD" ? MONEY_ORDER_PREFIX_COD : MONEY_ORDER_PREFIX;
   const date = value instanceof Date ? value : value ? new Date(value) : new Date();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -205,7 +203,7 @@ export function validateTrackingId(value: unknown): StrictTrackingValidation {
   if (!trackingIdPattern.test(compact)) {
     return {
       ok: false,
-      reason: "trackingId must match XXXYYMMXXXX format (e.g., VPX26050001, VPL26050001, COD26050001) with 11-12 characters",
+      reason: "trackingId must match XXXYYMMXXXX format (e.g., VPL26050001, VPP26050001, COD26050001) with 11-12 characters",
     };
   }
 
@@ -225,7 +223,7 @@ export function validateUploadedTrackingId(value: unknown): StrictTrackingValida
   if (!trackingIdPattern.test(compact)) {
     return {
       ok: false,
-      reason: "trackingId must match XXXYYMMXXXX format (e.g., VPX26050001, VPL26050001, COD26050001) with 11-12 characters",
+      reason: "trackingId must match XXXYYMMXXXX format (e.g., VPL26050001, VPP26050001, COD26050001) with 11-12 characters",
     };
   }
   return { ok: true, value: compact };

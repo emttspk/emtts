@@ -12,8 +12,7 @@ export type ServiceCatalogEntry = {
   notes?: string;
 };
 
-// Phase-1 source of truth for runtime service metadata.
-// Strict enforcement is intentionally deferred; this is integration-only.
+// Authoritative source of truth for runtime service metadata.
 export const SERVICE_CATALOG: readonly ServiceCatalogEntry[] = [
   {
     service: "VPL",
@@ -69,17 +68,6 @@ export const SERVICE_CATALOG: readonly ServiceCatalogEntry[] = [
     barcode: true,
     autoGenerate: true,
   },
-  {
-    service: "VPX",
-    prefix: "VPX",
-    category: "general_post",
-    trackingNamespace: true,
-    moneyOrderNamespace: null,
-    barcode: true,
-    autoGenerate: true,
-    deprecated: true,
-    notes: "Deprecated in authoritative model; retained for compatibility in Phase-1.",
-  },
 ] as const;
 
 const SERVICE_BY_CODE = new Map(SERVICE_CATALOG.map((entry) => [entry.service, entry]));
@@ -103,11 +91,10 @@ export function getServiceByPrefix(prefix: unknown) {
 }
 
 export function getCatalogDiagnostics() {
-  const deprecated = SERVICE_CATALOG.filter((entry) => entry.deprecated === true).map((entry) => entry.service);
   return {
-    version: "phase1-foundation",
+    version: "phase2-authoritative",
     serviceCount: SERVICE_CATALOG.length,
-    deprecatedServices: deprecated,
+    deprecatedServices: [],
     categories: {
       general_post: SERVICE_CATALOG.filter((entry) => entry.category === "general_post").map((entry) => entry.service),
       value_payable: SERVICE_CATALOG.filter((entry) => entry.category === "value_payable").map((entry) => entry.service),

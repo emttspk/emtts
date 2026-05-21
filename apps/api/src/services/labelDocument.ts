@@ -4,12 +4,13 @@ import { logCatalogShadowWarning } from "../catalog/legacyShipmentAliases.js";
 
 type TrackingScheme = "standard" | "rl" | "ums";
 type CarrierType = "pakistan_post" | "courier";
-type ShipmentType = "RGL" | "IRL" | "UMS" | "VPL" | "VPP" | "PAR" | "COD" | "COURIER" | "RL" | null;
+type ShipmentMode = "single_service" | "mix_articles";
+type ShipmentType = "RGL" | "IRL" | "UMS" | "VPL" | "VPP" | "COD" | "COURIER" | null;
 
-function resolveShipmentType(order: Record<string, unknown>, fallback: ShipmentType, enforceFallbackOnly = false): string | undefined {
+function resolveShipmentType(order: Record<string, unknown>, fallback: ShipmentType, mode: ShipmentMode): string | undefined {
   const rowShipmentType = resolveShipmentTypeCanonical(order.shipmentType ?? order.shipmenttype);
   const fallbackValue = resolveShipmentTypeCanonical(fallback);
-  if (enforceFallbackOnly) {
+  if (mode === "single_service") {
     return fallbackValue || undefined;
   }
   if (rowShipmentType) {
@@ -29,6 +30,7 @@ export function prepareLabelOrders(
   opts: {
     autoGenerateTracking: boolean;
     barcodeMode: "manual" | "auto";
+    shipmentMode: ShipmentMode;
     trackingScheme: TrackingScheme;
     carrierType: CarrierType;
     shipmentType: ShipmentType;
@@ -45,7 +47,10 @@ export function prepareLabelOrders(
 
       // Step 2: Resolve tracking number - use manual if valid, else generate or skip
       let trackingNumber: string;
-      const resolvedShipmentType = resolveShipmentType(order, opts.shipmentType, false);
+      const resolvedShipmentType = resolveShipmentType(order, opts.shipmentType, opts.shipmentMode);
+      if (!resolvedShipmentType || resolvedShipmentType === "COURIER") {
+        throw new Error("Row shipment type is missing or unsupported for Pakistan Post generation.");
+      }
 
       if (opts.autoGenerateTracking) {
         // Auto mode uses worker-allocated IDs to keep numbering globally monotonic.
@@ -61,6 +66,10 @@ export function prepareLabelOrders(
           throw new Error(`Invalid tracking ID in row: ${(validated as any).reason}`);
         }
         trackingNumber = validated.value;
+        const expectedPrefix = getTrackingPrefix(resolvedShipmentType);
+        if (!trackingNumber.startsWith(expectedPrefix)) {
+          throw new Error(`Tracking prefix mismatch: expected ${expectedPrefix} for shipment ${resolvedShipmentType}, got ${trackingNumber}`);
+        }
       } else {
         // Manual mode but no ID provided and auto is disabled - skip this row
         console.warn(

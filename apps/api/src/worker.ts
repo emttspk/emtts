@@ -726,6 +726,7 @@ const worker = new Worker(
         barcodeMode,
         printMode,
         trackingScheme,
+        shipmentMode,
         trackAfterGenerate,
         carrierType,
         shipmentType,
@@ -743,9 +744,10 @@ const worker = new Worker(
         barcodeMode?: "manual" | "auto";
         printMode?: "labels" | "envelope" | "flyer" | "universal-9x4";
         trackingScheme?: "standard" | "rl" | "ums";
+        shipmentMode?: "single_service" | "mix_articles";
         trackAfterGenerate?: boolean;
         carrierType?: "pakistan_post" | "courier";
-        shipmentType?: "RGL" | "IRL" | "UMS" | "VPL" | "VPP" | "PAR" | "COD" | "COURIER" | "RL" | null;
+        shipmentType?: "RGL" | "IRL" | "UMS" | "VPL" | "VPP" | "COD" | "COURIER" | null;
       };
       const job = await prisma.labelJob.findUnique({
         where: { id: jobId },
@@ -944,6 +946,7 @@ const worker = new Worker(
       const labelOrders = prepareLabelOrders(orders, {
         autoGenerateTracking: autoGenerateTracking === true,
         barcodeMode: barcodeMode === "manual" ? "manual" : "auto",
+        shipmentMode: shipmentMode === "mix_articles" ? "mix_articles" : "single_service",
         trackingScheme: trackingScheme === "rl" ? "rl" : trackingScheme === "ums" ? "ums" : "standard",
         carrierType: carrierType === "courier" ? "courier" : "pakistan_post",
         shipmentType: shipmentType ?? null,

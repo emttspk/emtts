@@ -5,10 +5,6 @@ export const LEGACY_SHIPMENT_ALIASES: Readonly<Record<string, string>> = {
   "SMALL PACKET": "RGL",
   SMALL_PACKET: "RGL",
   SMALLPACKET: "RGL",
-  PAR: "VPX",
-  PARCEL: "VPX",
-  PARCELS: "VPX",
-  PR: "VPX",
 };
 
 export function resolveLegacyShipmentAlias(value: unknown) {

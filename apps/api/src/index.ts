@@ -616,7 +616,7 @@ router.get("/health", (_req, res) => {
 router.get("/catalog/services", (_req, res) => {
   res.json({
     success: true,
-    services: listCatalogServices({ includeDeprecated: true }),
+    services: listCatalogServices({ includeDeprecated: false }),
   });
 });
 router.get("/catalog/diagnostics", (_req, res) => {

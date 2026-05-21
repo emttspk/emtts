@@ -15,6 +15,33 @@ import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/Page
 type ShellCtx = { me: MeResponse | null; refreshMe: () => Promise<void> };
 
 type PreviewMode = "labels" | "envelope" | "flyer";
+type ShipmentMode = "single_service" | "mix_articles";
+
+const CANONICAL_SERVICES = new Set(["VPL", "VPP", "COD", "RGL", "IRL", "UMS"]);
+const SERVICE_WEIGHT_LIMITS: Record<string, number> = {
+  VPL: 2_000,
+  VPP: 30_000,
+  COD: 30_000,
+  RGL: 2_000,
+  IRL: 2_000,
+  UMS: 5_000,
+};
+
+function parseWeightToGrams(value: unknown) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  const numeric = Number.parseFloat(raw.replace(/[^\d.]+/g, ""));
+  if (!Number.isFinite(numeric) || numeric <= 0) return 0;
+  if (raw.includes("kg")) return Math.round(numeric * 1000);
+  return Math.round(numeric);
+}
+
+function suggestBestFitServices(weightGrams: number) {
+  return Object.entries(SERVICE_WEIGHT_LIMITS)
+    .filter(([, limit]) => limit >= weightGrams)
+    .sort((a, b) => a[1] - b[1])
+    .map(([service]) => service)
+    .slice(0, 3);
+}
 
 function normalizeTrackingId(input: unknown) {
   return String(input ?? "").trim().toUpperCase().replace(/\s+/g, "");
@@ -34,6 +61,7 @@ export default function Upload() {
 
   // Tracking & Barcode Configuration (structured)
   const [carrierType, setCarrierType] = useState<"pakistan_post" | "courier" | null>(null);
+  const [shipmentMode, setShipmentMode] = useState<ShipmentMode>("single_service");
   const [ppCategory, setPpCategory] = useState<"general_post" | "value_payable" | "cod_articles" | null>(null);
   const [shipmentType, setShipmentType] = useState<string | null>(null);
   const [serviceCatalog, setServiceCatalog] = useState<ServiceCatalogEntry[]>(FALLBACK_SERVICE_CATALOG);
@@ -57,6 +85,14 @@ export default function Upload() {
     shipmentType: string;
     affected: Array<{ row: number; id: string }>;
     total: number;
+  } | null>(null);
+  const [validationSummary, setValidationSummary] = useState<{
+    accepted: number;
+    rejected: number;
+    ignoredTracking: number;
+    overweightWarnings: number;
+    rowErrors: string[];
+    rowWarnings: string[];
   } | null>(null);
 
   const lastAutoDownloadId = useRef<string | null>(null);
@@ -168,7 +204,8 @@ export default function Upload() {
       ? uploadFile("/api/jobs/preview/labels", file, {
           outputMode,
           carrierType: carrierType ?? "pakistan_post",
-          shipmentType: shipmentType ?? "PAR",
+          shipmentType: shipmentType ?? "RGL",
+          shipmentMode,
           includeMoneyOrders: String(Boolean(includeMoneyOrders && eligibleForMoneyOrder)),
           barcodeMode: barcodeMode ?? "manual",
         })
@@ -176,7 +213,8 @@ export default function Upload() {
           `/api/jobs/preview/labels?${new URLSearchParams({
             outputMode,
             carrierType: carrierType ?? "pakistan_post",
-            shipmentType: shipmentType ?? "PAR",
+            shipmentType: shipmentType ?? "RGL",
+            shipmentMode,
             includeMoneyOrders: String(Boolean(includeMoneyOrders && eligibleForMoneyOrder)),
           }).toString()}`,
         );
@@ -198,7 +236,7 @@ export default function Upload() {
     return () => {
       cancelled = true;
     };
-  }, [barcodeMode, carrierType, defaultPreviewSize, eligibleForMoneyOrder, file, includeMoneyOrders, outputMode, shipmentType]);
+  }, [barcodeMode, carrierType, defaultPreviewSize, eligibleForMoneyOrder, file, includeMoneyOrders, outputMode, shipmentMode, shipmentType]);
 
   useEffect(() => {
     const node = previewViewportRef.current;
@@ -252,17 +290,20 @@ export default function Upload() {
     }
   }, [activeJob?.includeMoneyOrders, polling.jobId, polling.jobStatus]);
 
-  const isReadyToGenerate = Boolean(file && carrierType && shipmentType && barcodeMode && outputMode);
+  const isReadyToGenerate = Boolean(
+    file && carrierType && barcodeMode && outputMode && (shipmentMode === "mix_articles" || shipmentType),
+  );
 
   const missing = useMemo(() => {
     const m: string[] = [];
     if (!file) m.push("File uploaded");
     if (!carrierType) m.push("Carrier selected");
+    if (!shipmentMode) m.push("Shipment mode selected");
     if (!barcodeMode) m.push("Barcode mode selected");
-    if (!shipmentType) m.push("Shipment type selected");
+    if (shipmentMode === "single_service" && !shipmentType) m.push("Shipment type selected");
     if (!outputMode) m.push("Output mode selected");
     return m;
-  }, [barcodeMode, carrierType, file, outputMode, shipmentType]);
+  }, [barcodeMode, carrierType, file, outputMode, shipmentMode, shipmentType]);
 
   // Generation state for countdown + silent downloads
   const [uiState, setUiState] = useState<"idle" | "uploading" | "processing" | "completed" | "failed">("idle");
@@ -318,6 +359,7 @@ export default function Upload() {
     if (!isReadyToGenerate) return;
     if (uiState === "uploading" || uiState === "processing") return;
     setUiError(null);
+    setValidationSummary(null);
     setUiState("uploading");
     setProgress(10);
     setElapsed(0);
@@ -360,55 +402,98 @@ export default function Upload() {
         throw new Error(`Missing required columns: ${missingHeaders.join(", ")}`);
       }
 
+      const rowErrors: string[] = [];
+      const rowWarnings: string[] = [];
+      let ignoredTracking = 0;
+      let overweightWarnings = 0;
+      let accepted = 0;
+      let rejected = 0;
+
       for (let i = 0; i < rows.length; i += 1) {
         const row = rows[i] ?? {};
+        const rowIndex = i + 2;
         const find = (name: string) => {
           const n = normalizeOrderColumnKey(name);
           const key = Object.keys(row).find((k) => normalizeOrderColumnKey(k) === n);
           return key ? row[key] : "";
         };
+
+        const errorsBefore = rowErrors.length;
+
         const consigneeName = String(find("consigneeName") ?? "").trim();
         const consigneePhone = String(find("consigneePhone") ?? "").trim();
         const consigneeAddress = String(find("consigneeAddress") ?? "").trim();
         if (!consigneeName || !consigneePhone || !consigneeAddress) {
-          throw new Error(`Row ${i + 2}: consigneeName, consigneePhone, and consigneeAddress are required.`);
+          rowErrors.push(`Row ${rowIndex}: consigneeName, consigneePhone, and consigneeAddress are required.`);
+        }
+
+        const rowShipmentType = String(find("shipmenttype") ?? find("shipment_type") ?? "").trim().toUpperCase();
+        const effectiveService = shipmentMode === "mix_articles"
+          ? rowShipmentType
+          : String(shipmentType ?? "").trim().toUpperCase();
+
+        if (shipmentMode === "mix_articles") {
+          if (!rowShipmentType || !CANONICAL_SERVICES.has(rowShipmentType)) {
+            rowErrors.push(`Row ${rowIndex}: shipment_type must be one of VPL, VPP, COD, RGL, IRL, UMS in Mix Articles mode.`);
+          }
+        } else if (effectiveService && effectiveService !== "COURIER") {
+          if (rowShipmentType && rowShipmentType !== effectiveService) {
+            rowErrors.push(`Row ${rowIndex}: shipment_type '${rowShipmentType}' does not match selected Single Service '${effectiveService}'.`);
+          }
+        }
+
+        const rawTracking = String(find("TrackingID") ?? find("tracking_id") ?? find("barcode") ?? "")
+          .trim()
+          .toUpperCase()
+          .replace(/\s+/g, "");
+        if (rawTracking && effectiveService && effectiveService !== "COURIER") {
+          const expectedPrefix = serviceCatalog.find((entry) => entry.service === effectiveService)?.prefix ?? effectiveService;
+          const prefixMatches = rawTracking.startsWith(expectedPrefix);
+
+          if (barcodeMode === "manual" && !prefixMatches) {
+            rowErrors.push(`Row ${rowIndex}: tracking '${rawTracking}' must start with '${expectedPrefix}' for service '${effectiveService}'.`);
+          }
+
+          if (barcodeMode === "auto" && shipmentMode === "single_service" && !prefixMatches) {
+            ignoredTracking += 1;
+            rowWarnings.push(`Row ${rowIndex}: uploaded tracking '${rawTracking}' ignored in auto mode; system will generate '${expectedPrefix}' tracking.`);
+          }
+
+          if (barcodeMode === "auto" && shipmentMode === "mix_articles" && !prefixMatches) {
+            rowErrors.push(`Row ${rowIndex}: existing tracking '${rawTracking}' prefix mismatch for row shipment_type '${effectiveService}' in Mix Articles mode.`);
+          }
+        }
+
+        if (effectiveService && CANONICAL_SERVICES.has(effectiveService)) {
+          const weightGrams = parseWeightToGrams(find("Weight"));
+          const limit = SERVICE_WEIGHT_LIMITS[effectiveService];
+          if (weightGrams > 0 && Number.isFinite(limit) && weightGrams > limit) {
+            overweightWarnings += 1;
+            const suggestions = suggestBestFitServices(weightGrams);
+            rowWarnings.push(
+              `Row ${rowIndex}: weight ${weightGrams}g exceeds ${effectiveService} limit ${limit}g. Suggested services: ${suggestions.join(", ") || "none"}.`,
+            );
+          }
+        }
+
+        if (rowErrors.length > errorsBefore) {
+          rejected += 1;
+        } else {
+          accepted += 1;
         }
       }
 
-      // Prefix mismatch validation: only when barcodeMode=manual and shipmentType is known
-      if (barcodeMode === "manual" && shipmentType && shipmentType !== "COURIER") {
-        const expectedPrefix = serviceCatalog.find((entry) => entry.service === String(shipmentType))?.prefix;
-        if (expectedPrefix) {
-          const mismatchedRows: Array<{ row: number; trackingId: string; prefix: string }> = [];
-          for (let i = 0; i < rows.length; i += 1) {
-            const row = rows[i] ?? {};
-            const findCol = (name: string) => {
-              const n = normalizeOrderColumnKey(name);
-              const key = Object.keys(row).find((k) => normalizeOrderColumnKey(k) === n);
-              return key ? String(row[key] ?? "") : "";
-            };
-            const rawTracking = (findCol("TrackingID") || findCol("tracking_id") || findCol("barcode")).trim().toUpperCase().replace(/\s+/g, "");
-            if (!rawTracking) continue;
-            const detectedPrefix = rawTracking.match(/^([A-Z]+)/)?.[1] ?? "";
-            if (detectedPrefix && !rawTracking.startsWith(expectedPrefix)) {
-              mismatchedRows.push({ row: i + 2, trackingId: rawTracking, prefix: detectedPrefix });
-            }
-          }
-          if (mismatchedRows.length > 0) {
-            const detectedPrefixes = [...new Set(mismatchedRows.map((r) => r.prefix))].join(", ");
-            setPrefixMismatchInfo({
-              detected: detectedPrefixes,
-              expected: expectedPrefix,
-              shipmentType: String(shipmentType),
-              affected: mismatchedRows.slice(0, 5).map((r) => ({ row: r.row, id: r.trackingId })),
-              total: mismatchedRows.length,
-            });
-            setUiState("idle");
-            setProgress(0);
-            if (progressTimer.current) window.clearInterval(progressTimer.current);
-            return;
-          }
-        }
+      setValidationSummary({
+        accepted,
+        rejected,
+        ignoredTracking,
+        overweightWarnings,
+        rowErrors: rowErrors.slice(0, 20),
+        rowWarnings: rowWarnings.slice(0, 20),
+      });
+
+      if (rowErrors.length > 0) {
+        throw new Error(`Upload validation failed. ${rowErrors.slice(0, 8).join(" ")}`);
       }
 
       const isAuto = barcodeMode === "auto";
@@ -427,6 +512,7 @@ export default function Upload() {
       const data = (await uploadFile("/api/upload", uploadedFile, {
           barcodeMode: isAuto ? "auto" : "manual",
           autoGenerateTracking: String(isAuto),
+          shipmentMode,
           carrierType: carrierType ?? "",
           shipmentType: String(shipmentType ?? ""),
           printMode: outputMode ?? "box",
@@ -495,6 +581,7 @@ export default function Upload() {
           onFileChange={(next) => {
             setFile(next);
             setUiError(null);
+            setValidationSummary(null);
             if (!next) {
               setUiState("idle");
               setProgress(0);
@@ -540,7 +627,34 @@ export default function Upload() {
             </div>
 
             <div>
-              <div className="font-medium text-gray-900">2) Category</div>
+              <div className="font-medium text-gray-900">2) Shipment Mode</div>
+              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setShipmentMode("single_service")}
+                  className={`rounded-2xl border px-3 py-2 text-sm font-medium ${
+                    shipmentMode === "single_service" ? "border-brand bg-brand/10 text-brand" : "bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  Single Service
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShipmentMode("mix_articles")}
+                  className={`rounded-2xl border px-3 py-2 text-sm font-medium ${
+                    shipmentMode === "mix_articles" ? "border-brand bg-brand/10 text-brand" : "bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  Mix Articles
+                </button>
+              </div>
+              <div className="mt-2 text-xs text-gray-600">
+                Single Service enforces the selected shipment type. Mix Articles uses row shipment_type as authoritative.
+              </div>
+            </div>
+
+            <div>
+              <div className="font-medium text-gray-900">3) Category</div>
               <div className="mt-2 text-sm text-gray-600">Available across carriers. Epost.pk uses this selection to preset shipment options.</div>
               <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
                 {[
@@ -563,7 +677,7 @@ export default function Upload() {
               </div>
 
             <div>
-              <div className="font-medium text-gray-900">3) Shipment Type</div>
+              <div className="font-medium text-gray-900">4) Shipment Type</div>
               {carrierType === "courier" ? (
                 <div className="mt-2 text-sm text-gray-600">Courier selected (shipment type not required).</div>
               ) : carrierType !== "pakistan_post" ? (
@@ -619,7 +733,7 @@ export default function Upload() {
             </div>
 
             <div>
-              <div className="font-medium text-gray-900">4) Barcode Mode</div>
+              <div className="font-medium text-gray-900">5) Barcode Mode</div>
               <div className="mt-2 flex flex-wrap gap-3">
                 <label className="flex items-center gap-2">
                   <input
@@ -650,7 +764,7 @@ export default function Upload() {
             </div>
 
             <div>
-              <div className="font-medium text-gray-900">5) Output Mode</div>
+              <div className="font-medium text-gray-900">6) Output Mode</div>
               <div className="mt-3 grid min-w-0 grid-cols-2 gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white">
                 <div className="grid min-w-0 grid-cols-1 gap-2 border-r border-slate-200 p-3 sm:grid-cols-2">
                   {([
@@ -740,6 +854,32 @@ export default function Upload() {
             </div>
           </div>
         </Card>
+
+        {validationSummary ? (
+          <Card className="border-slate-200 bg-white p-5 shadow-sm">
+            <CardTitle>Upload Validation Summary</CardTitle>
+            <div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">Accepted: {validationSummary.accepted}</div>
+              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-red-800">Rejected: {validationSummary.rejected}</div>
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">Ignored Tracking: {validationSummary.ignoredTracking}</div>
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-indigo-800">Overweight Warnings: {validationSummary.overweightWarnings}</div>
+            </div>
+            {validationSummary.rowErrors.length > 0 ? (
+              <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                {validationSummary.rowErrors.map((item, idx) => (
+                  <div key={`err-${idx}`}>{item}</div>
+                ))}
+              </div>
+            ) : null}
+            {validationSummary.rowWarnings.length > 0 ? (
+              <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                {validationSummary.rowWarnings.map((item, idx) => (
+                  <div key={`warn-${idx}`}>{item}</div>
+                ))}
+              </div>
+            ) : null}
+          </Card>
+        ) : null}
 
         {eligibleForMoneyOrder ? (
           <Card className="border-slate-200 bg-white p-5 shadow-sm">

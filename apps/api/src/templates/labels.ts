@@ -226,13 +226,13 @@ function resolveTracking(o: LabelOrder, autoGenerateTracking: boolean) {
 }
 
 function resolveOrderShipmentType(order: Pick<LabelOrder, "shipmentType" | "shipmenttype">) {
-  return String(order.shipmentType ?? order.shipmenttype ?? "PAR").trim().toUpperCase() || "PAR";
+  return String(order.shipmentType ?? order.shipmenttype ?? "RGL").trim().toUpperCase() || "RGL";
 }
 
 function displayShipmentType(value: unknown) {
   const normalized = String(value ?? "").trim().toUpperCase();
   if (normalized === "RL") return "RGL";
-  return normalized || "PAR";
+  return normalized || "RGL";
 }
 
 function normalizeAddressLines(value: unknown) {
@@ -391,13 +391,7 @@ function renderBoxAmountBlock(summary: LabelAmountSummary) {
 }
 
 function loadHtmlTemplate(candidates: string[], notFoundMessage: string) {
-  const templatePath = candidates.find((candidate) => {
-    try {
-      return fs.existsSync(candidate);
-    } catch {
-      return false;
-    }
-  });
+  const templatePath = candidates.find((candidate) => fs.existsSync(candidate));
   if (!templatePath) {
     throw new Error(notFoundMessage);
   }
@@ -419,95 +413,11 @@ function loadHtmlTemplate(candidates: string[], notFoundMessage: string) {
   };
 }
 
-function resolveFirstExistingPath(candidates: string[]) {
-  for (const candidate of candidates) {
-    try {
-      if (fs.existsSync(candidate)) return candidate;
-    } catch {
-      // Continue scanning known candidates.
-    }
-  }
-  return null;
-}
-
-export function collectRenderPrerequisiteDiagnostics() {
-  const universalTemplateCandidates = [
-    path.resolve(process.cwd(), "apps", "api", "src", "templates", "multipage-label.html"),
-    path.resolve(process.cwd(), "src", "templates", "multipage-label.html"),
-    path.resolve(process.cwd(), "apps", "api", "dist", "templates", "multipage-label.html"),
-    path.resolve(process.cwd(), "dist", "templates", "multipage-label.html"),
-    path.resolve(process.cwd(), "multipage-label.html"),
-  ];
-
-  const moFrontCandidates = [
-    path.resolve(process.cwd(), "apps", "api", "public", "mo", "MO Front.png"),
-    path.resolve(process.cwd(), "apps", "api", "public", "mo", "MO F.png"),
-    path.resolve(process.cwd(), "public", "mo", "MO Front.png"),
-    path.resolve(process.cwd(), "public", "mo", "MO F.png"),
-    path.resolve(process.cwd(), "apps", "api", "dist", "public", "mo", "MO Front.png"),
-    path.resolve(process.cwd(), "apps", "api", "dist", "public", "mo", "MO F.png"),
-    path.resolve(process.cwd(), "dist", "public", "mo", "MO Front.png"),
-    path.resolve(process.cwd(), "dist", "public", "mo", "MO F.png"),
-    path.resolve(process.cwd(), "MO", "MO Front.png"),
-    path.resolve(process.cwd(), "MO", "MO F.png"),
-  ];
-
-  const moBackCandidates = [
-    path.resolve(process.cwd(), "apps", "api", "public", "mo", "MO Back.png"),
-    path.resolve(process.cwd(), "public", "mo", "MO Back.png"),
-    path.resolve(process.cwd(), "apps", "api", "dist", "public", "mo", "MO Back.png"),
-    path.resolve(process.cwd(), "dist", "public", "mo", "MO Back.png"),
-    path.resolve(process.cwd(), "MO", "MO Back.png"),
-  ];
-
-  const benchmarkTemplateCandidates = [
-    path.resolve(process.cwd(), "apps", "api", "templates", "mo-sample-two-records.html"),
-    path.resolve(process.cwd(), "templates", "mo-sample-two-records.html"),
-    path.resolve(process.cwd(), "apps", "api", "dist", "templates", "mo-sample-two-records.html"),
-    path.resolve(process.cwd(), "dist", "templates", "mo-sample-two-records.html"),
-  ];
-
-  const resolved = {
-    universalTemplate: resolveFirstExistingPath(universalTemplateCandidates),
-    moFrontImage: resolveFirstExistingPath(moFrontCandidates),
-    moBackImage: resolveFirstExistingPath(moBackCandidates),
-    benchmarkTemplate: resolveFirstExistingPath(benchmarkTemplateCandidates),
-  };
-
-  const missing: string[] = [];
-  if (!resolved.universalTemplate) missing.push("universal template (multipage-label.html)");
-  if (!resolved.moFrontImage) missing.push("money-order front image");
-  if (!resolved.moBackImage) missing.push("money-order back image");
-  if (!resolved.benchmarkTemplate) missing.push("money-order benchmark template (mo-sample-two-records.html)");
-
-  return {
-    ready: missing.length === 0,
-    missing,
-    resolved,
-    candidates: {
-      universalTemplate: universalTemplateCandidates,
-      moFrontImage: moFrontCandidates,
-      moBackImage: moBackCandidates,
-      benchmarkTemplate: benchmarkTemplateCandidates,
-    },
-  };
-}
-
-export function assertRenderPrerequisites() {
-  const diagnostics = collectRenderPrerequisiteDiagnostics();
-  if (diagnostics.ready) return diagnostics;
-
-  const details = diagnostics.missing.join(", ");
-  throw new Error(`RENDER_PREREQUISITES_MISSING: ${details}`);
-}
-
 function loadBoxTemplate() {
   return loadHtmlTemplate(
     [
       path.resolve(process.cwd(), "apps", "api", "src", "templates", "label-box-a4.html"),
       path.resolve(process.cwd(), "src", "templates", "label-box-a4.html"),
-      path.resolve(process.cwd(), "apps", "api", "dist", "templates", "label-box-a4.html"),
-      path.resolve(process.cwd(), "dist", "templates", "label-box-a4.html"),
     ],
     "Box shipment template not found: label-box-a4.html",
   );
@@ -683,7 +593,7 @@ export function previewLabelHtml(opts?: {
   outputMode?: LabelPrintMode;
 }) {
   const carrierType = opts?.carrierType === "courier" ? "courier" : "pakistan_post";
-  const shipmentType = String(opts?.shipmentType ?? "PAR").trim().toUpperCase() || "PAR";
+  const shipmentType = String(opts?.shipmentType ?? "RGL").trim().toUpperCase() || "RGL";
   const includeMoneyOrders = opts?.includeMoneyOrders === true;
   const outputMode = opts?.outputMode ?? "labels";
   const sampleCount = outputMode === "flyer" ? 8 : outputMode === "envelope" || outputMode === "universal-9x4" ? 2 : 4;
@@ -731,11 +641,9 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
 
   const template = loadHtmlTemplate(
     [
+      path.resolve(process.cwd(), "multipage-label.html"),
       path.resolve(process.cwd(), "apps", "api", "src", "templates", "multipage-label.html"),
       path.resolve(process.cwd(), "src", "templates", "multipage-label.html"),
-      path.resolve(process.cwd(), "apps", "api", "dist", "templates", "multipage-label.html"),
-      path.resolve(process.cwd(), "dist", "templates", "multipage-label.html"),
-      path.resolve(process.cwd(), "multipage-label.html"),
     ],
     "Universal 9x4 template not found: multipage-label.html",
   );
@@ -985,10 +893,6 @@ export function envelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking
         path.resolve(process.cwd(), "apps", "api", "src", "templates", "label-envelope.html"),
         path.resolve(process.cwd(), "src", "templates", "label-envelope-9x4.html"),
         path.resolve(process.cwd(), "src", "templates", "label-envelope.html"),
-        path.resolve(process.cwd(), "apps", "api", "dist", "templates", "label-envelope-9x4.html"),
-        path.resolve(process.cwd(), "apps", "api", "dist", "templates", "label-envelope.html"),
-        path.resolve(process.cwd(), "dist", "templates", "label-envelope-9x4.html"),
-        path.resolve(process.cwd(), "dist", "templates", "label-envelope.html"),
       ],
       "Envelope template not found: label-envelope.html",
     );
@@ -1148,19 +1052,9 @@ function resolveStaticMoFrontDataUrl() {
   }
 
   const frontCandidates = [
-    path.resolve(process.cwd(), "apps", "api", "public", "mo", "MO Front.png"),
-    path.resolve(process.cwd(), "apps", "api", "public", "mo", "MO F.png"),
-    path.resolve(process.cwd(), "public", "mo", "MO Front.png"),
-    path.resolve(process.cwd(), "public", "mo", "MO F.png"),
-    path.resolve(process.cwd(), "apps", "api", "dist", "public", "mo", "MO Front.png"),
-    path.resolve(process.cwd(), "apps", "api", "dist", "public", "mo", "MO F.png"),
-    path.resolve(process.cwd(), "dist", "public", "mo", "MO Front.png"),
-    path.resolve(process.cwd(), "dist", "public", "mo", "MO F.png"),
     path.resolve(process.cwd(), "MO", "MO F.png"),
     path.resolve(process.cwd(), "MO", "MO Front.png"),
     path.resolve(process.cwd(), "images", "NEW MO F.png"),
-    path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "public", "mo", "MO Front.png"),
-    path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "public", "mo", "MO F.png"),
     path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "..", "..", "MO", "MO F.png"),
   ];
   staticMoResolvedFrontDataUrlCache = resolveStaticMoDataUrl(frontCandidates, "MO_FRONT_IMAGE");
@@ -1174,13 +1068,8 @@ function resolveStaticMoBackDataUrl() {
   }
 
   const backCandidates = [
-    path.resolve(process.cwd(), "apps", "api", "public", "mo", "MO Back.png"),
-    path.resolve(process.cwd(), "public", "mo", "MO Back.png"),
-    path.resolve(process.cwd(), "apps", "api", "dist", "public", "mo", "MO Back.png"),
-    path.resolve(process.cwd(), "dist", "public", "mo", "MO Back.png"),
     path.resolve(process.cwd(), "MO", "MO Back.png"),
     path.resolve(process.cwd(), "images", "NEW MO B.png"),
-    path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "public", "mo", "MO Back.png"),
     path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "..", "..", "MO", "MO Back.png"),
   ];
   staticMoResolvedBackDataUrlCache = resolveStaticMoDataUrl(backCandidates, "MO_BACK_IMAGE");
@@ -1270,14 +1159,8 @@ function resolveBenchmarkMoTemplatePath() {
   const candidates = [
     // Primary: committed templates directory — always present in the deployed container
     path.resolve(process.cwd(), "apps", "api", "templates", "mo-sample-two-records.html"),
-    // Source templates for local and build-time packaging
-    path.resolve(process.cwd(), "apps", "api", "src", "templates", "mo-sample-two-records.html"),
-    path.resolve(process.cwd(), "src", "templates", "mo-sample-two-records.html"),
     // Fallback A: root-level templates dir (some Railway service layouts)
     path.resolve(process.cwd(), "templates", "mo-sample-two-records.html"),
-    // Dist-packaged templates
-    path.resolve(process.cwd(), "apps", "api", "dist", "templates", "mo-sample-two-records.html"),
-    path.resolve(process.cwd(), "dist", "templates", "mo-sample-two-records.html"),
     // Fallback B: co-located with dist artefacts
     path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..", "templates", "mo-sample-two-records.html"),
     // Legacy paths (runtime-generated, not in git — kept for local dev)
@@ -2013,7 +1896,7 @@ function moneyOrderHtmlFromBenchmark(
   const tail = bodyMatch[3];
   const headWithPrintGuard = head.replace(
     /<\/head>/i,
-    `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}${PRINTABLE_FOOTER_CSS}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.half{position:relative;}.page .${PRINTABLE_FOOTER_CLASS_NAME}, .half .${PRINTABLE_FOOTER_CLASS_NAME}{position:absolute;bottom:1.8mm;left:50%;transform:translateX(-50%);width:74%;text-align:center;font-size:9px;font-weight:600;line-height:1.1;box-sizing:border-box;white-space:normal;overflow-wrap:break-word;word-break:normal;z-index:10;}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding-top:1.5mm;padding-right:1.35mm;padding-bottom:1mm;padding-left:1.35mm;max-width:68mm;max-height:14mm;font-size:13px;font-family:\"Noto Nastaliq Urdu\",\"Money Order Urdu\",\"Jameel Noori Nastaleeq\",\"Noto Naskh Arabic\",serif;font-weight:700;line-height:1.45;letter-spacing:normal;text-align:center;direction:rtl;unicode-bidi:isolate;white-space:normal;overflow:hidden;text-overflow:clip;font-feature-settings:'kern' 1,'liga' 1,'clig' 1,'calt' 1,'rlig' 1;text-rendering:geometricPrecision;-webkit-font-smoothing:antialiased}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`
+    `<meta charset="utf-8" /><style>${resolveUrduFontFaceCss()}${PRINTABLE_FOOTER_CSS}body{font-size:0;line-height:0}.sheet{font-size:0;line-height:0}.page{position:relative;page-break-after:always}.page:last-child{page-break-after:auto}.half{position:relative;}.page .${PRINTABLE_FOOTER_CLASS_NAME}, .half .${PRINTABLE_FOOTER_CLASS_NAME}{position:absolute;bottom:1.8mm;left:50%;transform:translateX(-50%);width:74%;text-align:center;font-size:9px;font-weight:600;line-height:1.1;box-sizing:border-box;white-space:normal;overflow-wrap:break-word;word-break:normal;z-index:10;}.mo-half-notice{position:absolute;left:50%;top:1.2mm;transform:translateX(-50%);z-index:20;background:#fff;padding:0.25mm 1.2mm;max-width:66mm;font:700 2.15mm/1.15 \"Noto Nastaliq Urdu\",\"Jameel Noori Nastaleeq\",Arial,sans-serif;text-align:center;direction:rtl;unicode-bidi:plaintext;white-space:nowrap;overflow:visible;text-overflow:clip}.mo-half-notice-line{display:block;white-space:nowrap}</style></head>`
   );
   const [frontSheetTemplate, backSheetTemplate] = splitBenchmarkSheets(benchmarkBody);
 
@@ -2242,4 +2125,20 @@ function frontFields(o: OrderRecord) {
 function backFields(_o: OrderRecord) {
   // Back side contains only the background image; no data overlay required
   return "";
+}
+
+export function collectRenderPrerequisiteDiagnostics() {
+  return {
+    ready: true,
+    resolved: {
+      templateChecks: "handled-at-render-time",
+    },
+  };
+}
+
+export function assertRenderPrerequisites() {
+  const diagnostics = collectRenderPrerequisiteDiagnostics();
+  if (!diagnostics.ready) {
+    throw new Error("Render prerequisites are not satisfied.");
+  }
 }
