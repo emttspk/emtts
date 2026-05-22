@@ -34,6 +34,7 @@ import {
   shouldApplyPakistanPostValuePayableRules,
   shouldChargeMoneyOrderCommission,
   shouldShowValuePayableAmount,
+  validateCollectAmountAgainstShipmentType,
   validateMoneyOrderNumber,
 } from "./validation/trackingId.js";
 import { buildTrackingIdCurrent, resolveTrackingAllocatorPrefix, resolveTrackingDateCode } from "./services/trackingAllocator.js";
@@ -953,6 +954,32 @@ const worker = new Worker(
         if (uploadSourceErrors.length > 0) {
           throw new Error(`Upload validation failed. ${uploadSourceErrors.slice(0, 20).join(" ")}`);
         }
+      }
+
+      const collectAmountWarnings: string[] = [];
+      const collectAmountErrors: string[] = [];
+      orders.forEach((order, idx) => {
+        const resolvedOrderType = resolveOrderShipmentType(order, shipmentType);
+        const validation = validateCollectAmountAgainstShipmentType(
+          carrierType,
+          resolvedOrderType,
+          order.CollectAmount ?? order.amount ?? (order as any).collect_amount,
+        );
+        if (!validation) {
+          return;
+        }
+        const rowMessage = `Row ${idx + 2}: ${validation.message}`;
+        if (validation.severity === "error") {
+          collectAmountErrors.push(rowMessage);
+          return;
+        }
+        collectAmountWarnings.push(rowMessage);
+      });
+      if (collectAmountErrors.length > 0) {
+        throw new Error(`Worker collect amount validation failed. ${collectAmountErrors.slice(0, 20).join(" ")}`);
+      }
+      if (collectAmountWarnings.length > 0) {
+        console.warn(`[Worker] Collect amount warnings: ${collectAmountWarnings.slice(0, 20).join(" ")}`);
       }
 
       // Pre-barcode validation: ensure trackingIds are properly handled

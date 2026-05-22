@@ -1,6 +1,17 @@
 import puppeteer, { type Browser, type Page } from "puppeteer";
 import { ENVELOPE_DEFAULT_SIZE } from "../lib/printBranding.js";
 
+type Universal9x4MeasurementReport = {
+  applied: boolean;
+  pages: Array<{
+    totalConsumed: number;
+    pageHeight: number;
+    fromFooterOverlap: number;
+    promoFooterOverlap: number;
+    bodyFooterOverlap: number;
+  }>;
+};
+
 async function waitForPdfFonts(page: Page) {
   await page.evaluate(async () => {
     if (!("fonts" in document)) return;
@@ -16,8 +27,7 @@ async function waitForPdfFonts(page: Page) {
 }
 
 export async function applyUniversal9x4MeasurementGuard(page: Page) {
-  const report = await page.evaluate(() => {
-    // .label is 384px total (9in×4in), minus 24px padding (top+bottom) and 2px border (top+bottom) = 358px actual content area
+  const report = await page.evaluate(String.raw`(() => {
     const PAGE_HEIGHT_LIMIT = 358;
     const labels = Array.from(document.querySelectorAll(".universal-page .label"));
     if (labels.length === 0) {
@@ -27,12 +37,12 @@ export async function applyUniversal9x4MeasurementGuard(page: Page) {
       };
     }
 
-    const toNum = (value: string | null | undefined) => {
+    const toNum = (value) => {
       const parsed = Number.parseFloat(String(value ?? "0"));
       return Number.isFinite(parsed) ? parsed : 0;
     };
 
-    const outerHeight = (el: Element | null) => {
+    const outerHeight = (el) => {
       if (!el) return 0;
       const rect = el.getBoundingClientRect();
       const style = getComputedStyle(el);
@@ -43,54 +53,45 @@ export async function applyUniversal9x4MeasurementGuard(page: Page) {
       applied: true,
       pages: labels.map((label, index) => {
         const header = label.querySelector(".header");
-        const body = label.querySelector(".body") as HTMLElement | null;
-        const footer = label.querySelector(".footer") as HTMLElement | null;
+        const body = label.querySelector(".body");
+        const footer = label.querySelector(".footer");
         const toBox = label.querySelector(".left-column .box:first-child");
-        const fromBox = label.querySelector(".left-column .box:nth-child(2)") as HTMLElement | null;
-        const promoBox = label.querySelector(".promo-box") as HTMLElement | null;
+        const fromBox = label.querySelector(".left-column .box:nth-child(2)");
+        const promoBox = label.querySelector(".promo-box");
 
-        const measure = () => {
-          const labelRect = label.getBoundingClientRect();
-          const headerRect = header?.getBoundingClientRect() ?? null;
-          const bodyRect = body?.getBoundingClientRect() ?? null;
-          const footerRect = footer?.getBoundingClientRect() ?? null;
-          const toRect = toBox?.getBoundingClientRect() ?? null;
-          const fromRect = fromBox?.getBoundingClientRect() ?? null;
-          const promoRect = promoBox?.getBoundingClientRect() ?? null;
+        const labelRect = label.getBoundingClientRect();
+        const headerRect = header?.getBoundingClientRect() ?? null;
+        const bodyRect = body?.getBoundingClientRect() ?? null;
+        const footerRect = footer?.getBoundingClientRect() ?? null;
+        const toRect = toBox?.getBoundingClientRect() ?? null;
+        const fromRect = fromBox?.getBoundingClientRect() ?? null;
+        const promoRect = promoBox?.getBoundingClientRect() ?? null;
 
-          const consumed = outerHeight(header) + outerHeight(body) + outerHeight(footer);
-          const safeSpace = Number((PAGE_HEIGHT_LIMIT - consumed).toFixed(2));
-          const fromFooterOverlap = fromRect && footerRect ? Math.max(0, fromRect.bottom - footerRect.top) : 0;
-          const promoFooterOverlap = promoRect && footerRect ? Math.max(0, promoRect.bottom - footerRect.top) : 0;
-          const bodyFooterOverlap = bodyRect && footerRect ? Math.max(0, bodyRect.bottom - footerRect.top) : 0;
-
-          return {
-            pageIndex: index,
-            pageHeight: Number(labelRect.height.toFixed(2)),
-            headerHeight: Number((headerRect?.height ?? 0).toFixed(2)),
-            bodyHeight: Number((bodyRect?.height ?? 0).toFixed(2)),
-            footerHeight: Number((footerRect?.height ?? 0).toFixed(2)),
-            toHeight: Number((toRect?.height ?? 0).toFixed(2)),
-            fromHeight: Number((fromRect?.height ?? 0).toFixed(2)),
-            promoHeight: Number((promoRect?.height ?? 0).toFixed(2)),
-            totalConsumed: Number(consumed.toFixed(2)),
-            safeSpace,
-            fromFooterOverlap: Number(fromFooterOverlap.toFixed(2)),
-            promoFooterOverlap: Number(promoFooterOverlap.toFixed(2)),
-            bodyFooterOverlap: Number(bodyFooterOverlap.toFixed(2)),
-          };
-        };
-
-        const metrics = measure();
-        const passes = 0;
+        const consumed = outerHeight(header) + outerHeight(body) + outerHeight(footer);
+        const safeSpace = Number((PAGE_HEIGHT_LIMIT - consumed).toFixed(2));
+        const fromFooterOverlap = fromRect && footerRect ? Math.max(0, fromRect.bottom - footerRect.top) : 0;
+        const promoFooterOverlap = promoRect && footerRect ? Math.max(0, promoRect.bottom - footerRect.top) : 0;
+        const bodyFooterOverlap = bodyRect && footerRect ? Math.max(0, bodyRect.bottom - footerRect.top) : 0;
 
         return {
-          ...metrics,
-          passes,
+          pageIndex: index,
+          pageHeight: Number(labelRect.height.toFixed(2)),
+          headerHeight: Number((headerRect?.height ?? 0).toFixed(2)),
+          bodyHeight: Number((bodyRect?.height ?? 0).toFixed(2)),
+          footerHeight: Number((footerRect?.height ?? 0).toFixed(2)),
+          toHeight: Number((toRect?.height ?? 0).toFixed(2)),
+          fromHeight: Number((fromRect?.height ?? 0).toFixed(2)),
+          promoHeight: Number((promoRect?.height ?? 0).toFixed(2)),
+          totalConsumed: Number(consumed.toFixed(2)),
+          safeSpace,
+          fromFooterOverlap: Number(fromFooterOverlap.toFixed(2)),
+          promoFooterOverlap: Number(promoFooterOverlap.toFixed(2)),
+          bodyFooterOverlap: Number(bodyFooterOverlap.toFixed(2)),
+          passes: 0,
         };
       }),
     };
-  });
+  })()`) as Universal9x4MeasurementReport;
 
   if (report.applied) {
     const PAGE_HEIGHT_LIMIT = 358;

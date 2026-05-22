@@ -21,7 +21,7 @@ import { previewLabelHtml, renderLabelDocumentHtml, type LabelPrintMode } from "
 import { prepareLabelOrders } from "../services/labelDocument.js";
 import { getUploadExemptFileNames } from "../services/upload-file-exemptions.service.js";
 import { shadowCheckServicePrefix } from "../services/shipmentValidation.js";
-import { getTrackingPrefixesForShipmentType, getTrackingPrefix, isMoneyOrderEligibleShipmentType, resolveShipmentType, shouldShowValuePayableAmount } from "../validation/trackingId.js";
+import { getTrackingPrefixesForShipmentType, getTrackingPrefix, isMoneyOrderEligibleShipmentType, resolveShipmentType, shouldShowValuePayableAmount, validateCollectAmountAgainstShipmentType } from "../validation/trackingId.js";
 import { listCatalogServices } from "../catalog/serviceCatalog.js";
 import { logCatalogShadowWarning } from "../catalog/legacyShipmentAliases.js";
 import { activeR2StreamsGauge, refreshRuntimeMetrics, r2StreamDuration, r2StreamFailures } from "../metrics.js";
@@ -65,6 +65,17 @@ function hasCnic(value: unknown) {
 function moneyOrderUnitsForAmount(total: number) {
   const normalized = Math.max(0, Math.floor(total));
   return Math.max(1, Math.ceil(normalized / 20000));
+}
+
+function resolveUploadOrderShipmentType(
+  order: Record<string, unknown>,
+  shipmentMode: "single_service" | "mix_articles",
+  fallbackShipmentType: string | null,
+) {
+  if (shipmentMode === "single_service") {
+    return fallbackShipmentType;
+  }
+  return resolveCanonicalShipmentTypeStrict(order.shipmentType ?? order.shipmenttype);
 }
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
@@ -645,6 +656,32 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
       if (invalidRows.length > 0) {
         throw new Error(`Mix Services mode requires canonical shipment_type per row. Found ${invalidRows.length} row(s) with missing or invalid shipment_type.`);
       }
+    }
+
+    const collectAmountWarnings: string[] = [];
+    const collectAmountErrors: string[] = [];
+    orders.forEach((order, index) => {
+      const resolvedOrderType = resolveUploadOrderShipmentType(order as Record<string, unknown>, shipmentMode, shipmentType);
+      const validation = validateCollectAmountAgainstShipmentType(
+        carrierType,
+        resolvedOrderType,
+        (order as any).CollectAmount ?? (order as any).amount ?? (order as any).collect_amount,
+      );
+      if (!validation) {
+        return;
+      }
+      const rowMessage = `Row ${index + 2}: ${validation.message}`;
+      if (validation.severity === "error") {
+        collectAmountErrors.push(rowMessage);
+        return;
+      }
+      collectAmountWarnings.push(rowMessage);
+    });
+    if (collectAmountErrors.length > 0) {
+      throw new Error(`Collect amount validation failed. ${collectAmountErrors.slice(0, 20).join(" ")}`);
+    }
+    if (collectAmountWarnings.length > 0) {
+      console.warn(`[Upload] Collect amount warnings: ${collectAmountWarnings.slice(0, 20).join(" ")}`);
     }
 
     // Namespace validation for uploaded tracking IDs.

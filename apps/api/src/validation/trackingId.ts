@@ -58,6 +58,13 @@ export type MoneyOrderTotals = {
   commission: number;
 };
 
+export type CollectAmountShipmentValidationResult = {
+  severity: "error" | "warning";
+  shipmentType: string;
+  collectAmount: number;
+  message: string;
+};
+
 export function getAllowedTrackingPrefixes() {
   return [...allowedTrackingPrefixes];
 }
@@ -112,6 +119,47 @@ export function shouldShowValuePayableAmount(value: unknown) {
 
 export function shouldApplyPakistanPostValuePayableRules(carrierType: unknown, shipmentType: unknown) {
   return isPakistanPostCarrier(carrierType) && isMoneyOrderEligibleShipmentType(shipmentType);
+}
+
+export function normalizeCollectAmount(value: unknown) {
+  const parsed = Number(String(value ?? "").replace(/,/g, "").trim());
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function validateCollectAmountAgainstShipmentType(
+  carrierType: unknown,
+  shipmentType: unknown,
+  collectAmountValue: unknown,
+): CollectAmountShipmentValidationResult | null {
+  if (!isPakistanPostCarrier(carrierType)) {
+    return null;
+  }
+
+  const normalizedShipmentType = resolveShipmentType(shipmentType) ?? normalizeShipmentType(shipmentType);
+  if (!normalizedShipmentType) {
+    return null;
+  }
+
+  const collectAmount = normalizeCollectAmount(collectAmountValue);
+  if (!isMoneyOrderEligibleShipmentType(normalizedShipmentType) && collectAmount > 0) {
+    return {
+      severity: "error",
+      shipmentType: normalizedShipmentType,
+      collectAmount,
+      message: "Selected shipment type is not value-payable. Remove collect amount or select VPL/VPP/COD.",
+    };
+  }
+
+  if (isMoneyOrderEligibleShipmentType(normalizedShipmentType) && collectAmount <= 0) {
+    return {
+      severity: "warning",
+      shipmentType: normalizedShipmentType,
+      collectAmount,
+      message: "Value-payable shipment selected with zero collect amount.",
+    };
+  }
+
+  return null;
 }
 
 export function formatIdentifierDateCode(value?: string | Date) {
