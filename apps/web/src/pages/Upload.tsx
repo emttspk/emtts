@@ -177,6 +177,7 @@ export default function Upload() {
   const [showMoUnitNotice, setShowMoUnitNotice] = useState(false);
   const [showTrackUnitNotice, setShowTrackUnitNotice] = useState(false);
   const [showCnicRequiredModal, setShowCnicRequiredModal] = useState(false);
+  const [showManualTrackingRequiredModal, setShowManualTrackingRequiredModal] = useState(false);
   const [uploadInsights, setUploadInsights] = useState<UploadInsights | null>(null);
   const [mismatchDecisionModal, setMismatchDecisionModal] = useState<MismatchIssue | null>(null);
   const [mismatchApplyScope, setMismatchApplyScope] = useState<"row" | "all">("row");
@@ -448,6 +449,7 @@ export default function Upload() {
 
   useEffect(() => {
     let cancelled = false;
+    const previewBarcodeMode = shipmentMode === "mix_articles" ? "auto" : (barcodeMode ?? "auto");
 
     if (!outputMode) {
       setPreviewHtml("");
@@ -470,7 +472,7 @@ export default function Upload() {
           shipmentType: shipmentMode === "mix_articles" ? "" : (shipmentType ?? "RGL"),
           shipmentMode,
           includeMoneyOrders: String(Boolean(includeMoneyOrders && eligibleForMoneyOrder)),
-          barcodeMode: barcodeMode ?? "auto",
+          barcodeMode: previewBarcodeMode,
         })
       : api<{ html: string }>(
           `/api/jobs/preview/labels?${new URLSearchParams({
@@ -554,7 +556,11 @@ export default function Upload() {
   }, [activeJob?.includeMoneyOrders, polling.jobId, polling.jobStatus]);
 
   const isReadyToGenerate = Boolean(
-    file && carrierType && barcodeMode && outputMode && (shipmentMode === "mix_articles" || shipmentType),
+    file
+      && carrierType
+      && outputMode
+      && (shipmentMode === "mix_articles" || barcodeMode)
+      && (shipmentMode === "mix_articles" || shipmentType),
   );
 
   const missing = useMemo(() => {
@@ -562,7 +568,7 @@ export default function Upload() {
     if (!file) m.push("File uploaded");
     if (!carrierType) m.push("Carrier selected");
     if (!shipmentMode) m.push("Shipment mode selected");
-    if (!barcodeMode) m.push("Barcode mode selected");
+    if (shipmentMode === "single_service" && !barcodeMode) m.push("Barcode mode selected");
     if (shipmentMode === "single_service" && !shipmentType) m.push("Shipment type selected");
     if (!outputMode) m.push("Output mode selected");
     return m;
@@ -646,6 +652,22 @@ export default function Upload() {
       const wb = XLSX.read(ab);
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { raw: false, defval: "" });
+      const effectiveBarcodeMode = shipmentMode === "mix_articles" ? "auto" : barcodeMode;
+
+      if (shipmentMode === "single_service" && effectiveBarcodeMode === "manual") {
+        const missingTrackingRows = rows.filter((row) => {
+          const tracking = String(row.TrackingID ?? row.tracking_id ?? row.barcode ?? "").trim();
+          return !tracking;
+        });
+        if (missingTrackingRows.length > 0) {
+          setShowManualTrackingRequiredModal(true);
+          setUiState("idle");
+          setProgress(0);
+          if (progressTimer.current) window.clearInterval(progressTimer.current);
+          return;
+        }
+      }
+
       const headers = Object.keys(rows[0] ?? {});
       const normalizedHeaders = new Set(headers.map(normalizeOrderColumnKey));
       if (normalizedHeaders.has("bookingcity")) {
@@ -780,7 +802,7 @@ export default function Upload() {
           const compatiblePrefixes = getCompatiblePrefixes(rowShipmentTypeRaw, effectiveService);
           const prefixMatches = compatiblePrefixes.some((prefix) => rawTracking.startsWith(prefix));
 
-          if (shipmentMode === "single_service" && barcodeMode === "manual" && !prefixMatches) {
+          if (shipmentMode === "single_service" && effectiveBarcodeMode === "manual" && !prefixMatches) {
             rowSpecificErrors.push(`Row ${rowIndex}: tracking '${rawTracking}' must start with '${expectedPrefix}' for service '${effectiveService}'.`);
             validationIssues.push({
               row: rowIndex,
@@ -793,7 +815,7 @@ export default function Upload() {
             });
           }
 
-          if (shipmentMode === "single_service" && barcodeMode === "auto" && !prefixMatches) {
+          if (shipmentMode === "single_service" && effectiveBarcodeMode === "auto" && !prefixMatches) {
             ignoredTracking += 1;
             rowWarnings.push(`Row ${rowIndex}: uploaded tracking '${rawTracking}' ignored in auto mode; system will generate '${expectedPrefix}' tracking.`);
             batchWarnings.add("Uploaded tracking IDs were ignored for rows using Auto Generate mode.");
@@ -868,7 +890,7 @@ export default function Upload() {
               (workingRow as any).trackingId = rawTracking;
             }
           }
-        } else if (shipmentMode === "single_service" && barcodeMode === "manual" && effectiveService && effectiveService !== "COURIER") {
+        } else if (shipmentMode === "single_service" && effectiveBarcodeMode === "manual" && effectiveService && effectiveService !== "COURIER") {
           rowSpecificErrors.push(`Row ${rowIndex}: tracking ID is required in Manual mode.`);
           validationIssues.push({
             row: rowIndex,
@@ -1003,7 +1025,7 @@ export default function Upload() {
         { type: "text/csv" },
       );
 
-      const isAuto = barcodeMode === "auto" || shipmentMode === "mix_articles";
+      const isAuto = effectiveBarcodeMode === "auto";
       const requiresMoneyOrderCnic = Boolean(includeMoneyOrders && eligibleForMoneyOrder);
       if (requiresMoneyOrderCnic) {
         const hasCnic = /^\d{5}-\d{7}-\d$|^\d{13}$/.test(String(me?.user?.cnic ?? ""));
@@ -1207,6 +1229,9 @@ export default function Upload() {
               <div className="mt-2 text-xs text-gray-600">
                 Single Service enforces the selected shipment type. Mix Services uses row shipment_type as authoritative.
               </div>
+              <div className="mt-2 inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-800">
+                Legacy Shipment Mapping: PAR {"->"} VPP-compatible parcel workflow
+              </div>
             </div>
 
             {shipmentMode === "single_service" ? (
@@ -1292,41 +1317,46 @@ export default function Upload() {
             </div>
             ) : null}
 
-            <div>
-              <div className="font-medium text-gray-900">5) Barcode Mode</div>
-              <div className="mt-2 flex flex-wrap gap-3">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="barcodeMode"
-                    checked={barcodeMode === "manual"}
-                    onChange={() => setBarcodeMode("manual")}
-                    className="h-4 w-4 border-gray-300 text-brand focus:ring-brand"
-                  />
-                  Manual (from file)
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="barcodeMode"
-                    checked={barcodeMode === "auto"}
-                    onChange={() => setBarcodeMode("auto")}
-                    className="h-4 w-4 border-gray-300 text-brand focus:ring-brand"
-                  />
-                  Auto Generate
-                </label>
+            {shipmentMode === "single_service" ? (
+              <div>
+                <div className="font-medium text-gray-900">5) Barcode Mode</div>
+                <div className="mt-2 flex flex-wrap gap-3">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="barcodeMode"
+                      checked={barcodeMode === "manual"}
+                      onChange={() => setBarcodeMode("manual")}
+                      className="h-4 w-4 border-gray-300 text-brand focus:ring-brand"
+                    />
+                    Manual (from file)
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="barcodeMode"
+                      checked={barcodeMode === "auto"}
+                      onChange={() => setBarcodeMode("auto")}
+                      className="h-4 w-4 border-gray-300 text-brand focus:ring-brand"
+                    />
+                    Auto Generate
+                  </label>
+                </div>
+                {barcodeMode === "auto" ? (
+                  <div className="mt-2 rounded-2xl border border-brand/20 bg-brand/10 px-3 py-2 text-xs text-brand">
+                    <span className="font-semibold">Auto Generate Tracking ID / Barcode:</span> Uploaded tracking IDs are preserved when valid; missing tracking IDs are generated.
+                  </div>
+                ) : null}
               </div>
-              {barcodeMode === "auto" && (
-                <div className="mt-2 rounded-2xl border border-brand/20 bg-brand/10 px-3 py-2 text-xs text-brand">
-                  <span className="font-semibold">Auto Generate Tracking ID / Barcode:</span> When enabled, the system preserves any valid uploaded TrackingID and only fills missing TrackingID values using the selected shipment type prefix.
-                </div>
-              )}
-              {shipmentMode === "mix_articles" ? (
+            ) : (
+              <div>
+                <div className="font-medium text-gray-900">5) Barcode Workflow (Hybrid)</div>
                 <div className="mt-2 rounded-2xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800">
-                  <span className="font-semibold">Mix Services hybrid rule:</span> rows with tracking keep their uploaded IDs when compatible; rows without tracking are generated automatically from each row shipment_type.
+                  <div>Rows with tracking IDs will preserve uploaded barcodes.</div>
+                  <div>Rows without tracking IDs will automatically generate barcodes according to shipment type.</div>
                 </div>
-              ) : null}
-            </div>
+              </div>
+            )}
 
             <div>
               <div className="font-medium text-gray-900">6) Output Mode</div>
@@ -1426,15 +1456,12 @@ export default function Upload() {
         {validationSummary ? (
           <Card className="border-slate-200 bg-white p-5 shadow-sm">
             <CardTitle>UPLOAD SUMMARY</CardTitle>
-            <div className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2 lg:grid-cols-6">
+            <div className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2 lg:grid-cols-5">
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">Accepted: {validationSummary.accepted}</div>
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">Warnings: {validationSummary.rowWarnings.length + validationSummary.batchWarnings.length}</div>
               <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-red-800">Rejected: {validationSummary.rejected}</div>
               <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sky-800">MO Eligible: {validationSummary.moEligibleRows}</div>
               <div className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-violet-800">Legacy mappings: {validationSummary.legacyMappingAppliedRows}</div>
-              <div className={`rounded-xl border px-3 py-2 ${validationSummary.duplicateFilenameBypassUsed ? "border-blue-200 bg-blue-50 text-blue-800" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
-                Duplicate bypass used: {validationSummary.duplicateFilenameBypassUsed ? "YES" : "NO"}
-              </div>
             </div>
             <details className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs text-slate-700">
               <summary className="cursor-pointer font-semibold text-slate-800">View detailed validation</summary>
@@ -1542,6 +1569,13 @@ export default function Upload() {
           <CardTitle>Track Parcel</CardTitle>
           <div className="mt-0.5 text-sm font-normal text-slate-500">All actions consume units based on usage.</div>
           <div className="mt-2 text-sm text-gray-600">Tracking enabled from uploaded file.</div>
+          <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+            <div className="font-semibold text-slate-800">Recommended workflow:</div>
+            <div className="mt-1">1. Upload shipment file</div>
+            <div>2. Auto-generate tracking IDs</div>
+            <div>3. Export generated tracking master file</div>
+            <div>4. Use exported file later for Track Parcel updates</div>
+          </div>
           <label className="mt-4 flex items-center gap-2 text-sm text-gray-700">
             <input
               type="checkbox"
@@ -1695,6 +1729,34 @@ export default function Upload() {
                 className="rounded-2xl bg-brand px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-brand-dark"
               >
                 Add CNIC
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {showManualTrackingRequiredModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-[0_30px_80px_rgba(15,23,42,0.28)]">
+            <div className="text-lg font-semibold text-slate-900">Tracking IDs are missing in uploaded file.</div>
+            <div className="mt-2 text-sm text-slate-600">Manual barcode mode requires tracking IDs for all rows.</div>
+            <div className="mt-1 text-sm text-slate-600">Please switch to: Auto Generate</div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setBarcodeMode("auto");
+                  setShowManualTrackingRequiredModal(false);
+                }}
+                className="rounded-2xl bg-brand px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-brand-dark"
+              >
+                Switch to Auto Generate
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowManualTrackingRequiredModal(false)}
+                className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
               </button>
             </div>
           </div>
