@@ -763,6 +763,11 @@ adminRouter.get("/billing-settings", async (req, res) => {
     getOrCreateBillingSettings(),
     getUploadExemptFileNames(),
   ]);
+  console.info("ADMIN_BYPASS_FETCH", JSON.stringify({
+    actor: (req as any).user?.id ?? "unknown",
+    exemptFileNames,
+    count: exemptFileNames.length,
+  }));
   const jazzcashQrExists = Boolean(settings.jazzcashQrPath && fs.existsSync(resolveStoredPath(settings.jazzcashQrPath)));
   const easypaisaQrExists = Boolean(settings.easypaisaQrPath && fs.existsSync(resolveStoredPath(settings.easypaisaQrPath)));
   const bankQrExists = Boolean(settings.bankQrPath && fs.existsSync(resolveStoredPath(settings.bankQrPath)));
@@ -830,6 +835,12 @@ adminRouter.put(
         return res.status(400).json({ success: false, error: "Invalid exemptFileNames payload" });
       }
     }
+
+    console.info("ADMIN_BYPASS_SAVE", JSON.stringify({
+      actor: (req as any).user?.id ?? "unknown",
+      rawPayload: typeof body.exemptFileNames === "string" ? body.exemptFileNames : null,
+      parsedExemptFileNames: parsedExemptFileNames ?? null,
+    }));
 
     const files = (req.files ?? {}) as Record<string, Express.Multer.File[]>;
     const jazzcashQr = files.jazzcashQr?.[0];
@@ -911,6 +922,12 @@ adminRouter.put(
     const exemptFileNames = parsedExemptFileNames
       ? await saveUploadExemptFileNames(parsedExemptFileNames)
       : await getUploadExemptFileNames();
+
+    console.info("ADMIN_BYPASS_SAVE", JSON.stringify({
+      actor: (req as any).user?.id ?? "unknown",
+      persistedExemptFileNames: exemptFileNames,
+      count: exemptFileNames.length,
+    }));
 
     await syncConfiguredPlanPrices(updated);
 

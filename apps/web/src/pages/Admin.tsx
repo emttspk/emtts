@@ -259,6 +259,11 @@ export default function Admin() {
     setUsage(us.usage);
     setShipments(sh.shipments);
     setBillingSettings(bs.settings);
+    console.info("ADMIN_BYPASS_FETCH", {
+      source: "frontend_hydration",
+      exemptFileNames: bs.settings.exemptFileNames ?? [],
+      count: (bs.settings.exemptFileNames ?? []).length,
+    });
     setBillingDraft({
       jazzcashNumber: bs.settings.jazzcashNumber,
       jazzcashTitle: bs.settings.jazzcashTitle,
@@ -376,6 +381,14 @@ export default function Admin() {
             .filter((entry) => entry.length > 0),
         ),
       );
+      console.info("ADMIN_BYPASS_SAVE", {
+        source: "frontend_payload",
+        textarea: billingDraft.exemptFileNamesText,
+        payloadList: billingDraft.exemptFileNamesText
+          .split(/\r?\n/)
+          .map((entry) => entry.trim())
+          .filter((entry) => entry.length > 0),
+      });
       if (jazzcashQrFile) formData.append("jazzcashQr", jazzcashQrFile);
       if (easypaisaQrFile) formData.append("easypaisaQr", easypaisaQrFile);
       if (bankQrFile) formData.append("bankQr", bankQrFile);
@@ -389,6 +402,11 @@ export default function Admin() {
       });
 
       if (json.settings) {
+        console.info("ADMIN_BYPASS_SAVE", {
+          source: "frontend_response",
+          persistedExemptFileNames: json.settings.exemptFileNames ?? [],
+          count: (json.settings.exemptFileNames ?? []).length,
+        });
         setBillingSettings(json.settings);
         setBillingDraft({
           jazzcashNumber: json.settings.jazzcashNumber,

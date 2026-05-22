@@ -19,7 +19,7 @@ import { getQueue } from "../lib/queue.js";
 import { buildLabelPdfFileName, buildMoneyOrderPdfFileName, buildPdfAttachmentHeader } from "../lib/printBranding.js";
 import { previewLabelHtml, renderLabelDocumentHtml, type LabelPrintMode } from "../templates/labels.js";
 import { prepareLabelOrders } from "../services/labelDocument.js";
-import { isUploadFileNameExempt } from "../services/upload-file-exemptions.service.js";
+import { getUploadExemptFileNames } from "../services/upload-file-exemptions.service.js";
 import { shadowCheckServicePrefix } from "../services/shipmentValidation.js";
 import { getTrackingPrefix, resolveShipmentType, shouldShowValuePayableAmount } from "../validation/trackingId.js";
 import { listCatalogServices } from "../catalog/serviceCatalog.js";
@@ -27,6 +27,7 @@ import { logCatalogShadowWarning } from "../catalog/legacyShipmentAliases.js";
 import { activeR2StreamsGauge, refreshRuntimeMetrics, r2StreamDuration, r2StreamFailures } from "../metrics.js";
 import { logTelemetry } from "../telemetry.js";
 import { r2Config as rolloutR2Config } from "../config.js";
+import { getUploadFilenameDebug, normalizeUploadFilename } from "../utils/uploadFilename.js";
 
 export const jobsRouter = Router();
 
@@ -39,10 +40,6 @@ function resolveCanonicalShipmentTypeStrict(value: unknown) {
   const normalized = String(value ?? "").trim().toUpperCase();
   if (!normalized) return null;
   return CANONICAL_SHIPMENT_TYPES.has(normalized) ? normalized : null;
-}
-
-function normalizeUploadFileName(value: unknown) {
-  return path.basename(String(value ?? "")).trim().toLowerCase();
 }
 
 function isClosedConnectionError(error: unknown) {
@@ -488,20 +485,49 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
 
   // Phase 2: Check for duplicate filename — only block if a COMPLETED job exists with same filename.
   // Failed/Queued/Processing jobs do NOT reserve the filename so re-uploads are always allowed.
-  const normalizedFileName = normalizeUploadFileName(uploadedFile.originalname);
-  const isExemptFileName = await isUploadFileNameExempt(uploadedFile.originalname).catch(() => false);
-  console.info(`[UPLOAD_FILENAME_NORMALIZED] original="${uploadedFile.originalname}" normalized="${normalizedFileName}" exempt=${isExemptFileName}`);
-  const existingCompletedJobs = await prisma.labelJob.findMany({
-    where: { userId, status: "COMPLETED" },
-    select: { originalFilename: true },
+  const filenameDebug = getUploadFilenameDebug(uploadedFile.originalname);
+  const normalizedFileName = filenameDebug.normalized;
+  const exemptFileNames = await getUploadExemptFileNames().catch(() => [] as string[]);
+  const isExemptFileName = exemptFileNames.some((entry) => normalizeUploadFilename(entry) === normalizedFileName);
+  const existingUserJobs = await prisma.labelJob.findMany({
+    where: { userId },
+    select: { id: true, status: true, originalFilename: true },
   }).catch(() => []);
 
-  const isDuplicate = existingCompletedJobs.some(
-    (job) => normalizeUploadFileName(job.originalFilename) === normalizedFileName,
+  const matchingJobs = existingUserJobs.filter(
+    (job) => normalizeUploadFilename(job.originalFilename) === normalizedFileName,
   );
-  const duplicateFilenameBypassUsed = isExemptFileName && isDuplicate;
 
-  console.info(`[UPLOAD_DUPLICATE_CHECK] filename="${normalizedFileName}" isDuplicate=${isDuplicate} isExempt=${isExemptFileName} compareScope="COMPLETED jobs only"`);
+  const duplicateStatusCounts = matchingJobs.reduce<Record<string, number>>((acc, job) => {
+    const key = String(job.status ?? "UNKNOWN").toUpperCase();
+    acc[key] = (acc[key] ?? 0) + 1;
+    return acc;
+  }, {});
+  const completedDuplicateCount = duplicateStatusCounts.COMPLETED ?? 0;
+  const totalDuplicateCount = matchingJobs.length;
+  const isDuplicate = completedDuplicateCount > 0;
+  const duplicateFilenameBypassUsed = isExemptFileName && totalDuplicateCount > 0;
+
+  console.info("UPLOAD_FILENAME_RAW", JSON.stringify({ value: filenameDebug.raw }));
+  console.info("UPLOAD_FILENAME_BASENAME", JSON.stringify({ value: filenameDebug.basename }));
+  console.info("UPLOAD_FILENAME_NORMALIZED", JSON.stringify({
+    original: filenameDebug.raw,
+    basename: filenameDebug.basename,
+    normalized: normalizedFileName,
+    exempt: isExemptFileName,
+  }));
+  console.info("UPLOAD_BYPASS_LIST", JSON.stringify({
+    count: exemptFileNames.length,
+    normalizedExemptFileNames: exemptFileNames.map((entry) => normalizeUploadFilename(entry)),
+  }));
+  console.info("UPLOAD_DUPLICATE_QUERY_RESULT", JSON.stringify({
+    normalized: normalizedFileName,
+    totalMatches: totalDuplicateCount,
+    completedMatches: completedDuplicateCount,
+    statusCounts: duplicateStatusCounts,
+    matchedJobIds: matchingJobs.map((job) => job.id),
+    matchedOriginalFilenames: matchingJobs.map((job) => job.originalFilename),
+  }));
 
   if (isExemptFileName) {
     console.log(`[Upload] Exempt filename detected — bypassing duplicate block: "${normalizedFileName}"`);

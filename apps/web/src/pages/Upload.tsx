@@ -961,7 +961,17 @@ export default function Upload() {
         }
       }
 
-        const data = (await uploadFile("/api/upload", uploadFileForApi, {
+      console.info("UPLOAD_REPLAY_REQUEST", {
+        fileName: uploadFileForApi.name,
+        shipmentMode,
+        carrierType: carrierType ?? "",
+        shipmentType: String(shipmentType ?? ""),
+        barcodeMode: isAuto ? "auto" : "manual",
+        generateMoneyOrder: Boolean(includeMoneyOrders && eligibleForMoneyOrder),
+        trackAfterGenerate: Boolean(trackAfterGenerate),
+      });
+
+      const data = (await uploadFile("/api/upload", uploadFileForApi, {
           barcodeMode: isAuto ? "auto" : "manual",
           autoGenerateTracking: String(isAuto),
           shipmentMode,
@@ -971,6 +981,7 @@ export default function Upload() {
           generateMoneyOrder: String(Boolean(includeMoneyOrders && eligibleForMoneyOrder)),
           trackAfterGenerate: String(trackAfterGenerate),
         })) as { jobId: string; recordCount: number; duplicateFilenameBypassUsed?: boolean };
+      console.info("UPLOAD_REPLAY_RESPONSE", data);
       if (data.duplicateFilenameBypassUsed) {
         setValidationSummary((prev) => {
           if (!prev) return prev;
@@ -1355,30 +1366,24 @@ export default function Upload() {
           <Card className="border-slate-200 bg-white p-5 shadow-sm">
             <CardTitle>UPLOAD SUMMARY</CardTitle>
             <div className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2 lg:grid-cols-5">
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">✅ Accepted Rows: {validationSummary.accepted}</div>
-              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-red-800">❌ Rejected Rows: {validationSummary.rejected}</div>
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">⚠ Warnings: {validationSummary.rowWarnings.length + validationSummary.batchWarnings.length}</div>
-              <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sky-800">💰 MO Eligible: {validationSummary.moEligibleRows}</div>
-              <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-rose-800">🚫 MO Skipped: {validationSummary.moSkippedRows}</div>
-            </div>
-            <div className={`mt-2 rounded-xl border px-3 py-2 text-xs ${validationSummary.duplicateFilenameBypassUsed ? "border-blue-200 bg-blue-50 text-blue-800" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
-              Duplicate Filename Bypass Used: {validationSummary.duplicateFilenameBypassUsed ? "YES" : "NO"}
-            </div>
-            {validationSummary.batchWarnings.length > 0 ? (
-              <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
-                {validationSummary.batchWarnings.map((item, idx) => (
-                  <div key={`batch-${idx}`}>{item}</div>
-                ))}
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">Accepted: {validationSummary.accepted}</div>
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">Warnings: {validationSummary.rowWarnings.length + validationSummary.batchWarnings.length}</div>
+              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-red-800">Rejected: {validationSummary.rejected}</div>
+              <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sky-800">MO Eligible: {validationSummary.moEligibleRows}</div>
+              <div className={`rounded-xl border px-3 py-2 ${validationSummary.duplicateFilenameBypassUsed ? "border-blue-200 bg-blue-50 text-blue-800" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+                Duplicate bypass used: {validationSummary.duplicateFilenameBypassUsed ? "YES" : "NO"}
               </div>
-            ) : null}
-            {[
-              { title: "Prefix mismatches", data: validationSummary.prefixMismatches, badge: "bg-amber-100 text-amber-800" },
-              { title: "Invalid services", data: validationSummary.invalidServices, badge: "bg-red-100 text-red-800" },
-              { title: "Duplicate tracking IDs", data: validationSummary.duplicateTracking, badge: "bg-rose-100 text-rose-800" },
-              { title: "Overweight shipments", data: validationSummary.overweightShipments, badge: "bg-orange-100 text-orange-800" },
-              { title: "MO-ineligible services", data: validationSummary.moIneligibleServices, badge: "bg-fuchsia-100 text-fuchsia-800" },
-            ].some((group) => group.data.length > 0) ? (
-              <div className="mt-3 space-y-3 text-xs">
+            </div>
+            <details className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs text-slate-700">
+              <summary className="cursor-pointer font-semibold text-slate-800">View detailed validation</summary>
+              <div className="mt-3 space-y-3">
+                {validationSummary.batchWarnings.length > 0 ? (
+                  <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-blue-800">
+                    {validationSummary.batchWarnings.map((item, idx) => (
+                      <div key={`batch-${idx}`}>{item}</div>
+                    ))}
+                  </div>
+                ) : null}
                 {[
                   { title: "Prefix mismatches", data: validationSummary.prefixMismatches, badge: "bg-amber-100 text-amber-800" },
                   { title: "Invalid services", data: validationSummary.invalidServices, badge: "bg-red-100 text-red-800" },
@@ -1386,7 +1391,7 @@ export default function Upload() {
                   { title: "Overweight shipments", data: validationSummary.overweightShipments, badge: "bg-orange-100 text-orange-800" },
                   { title: "MO-ineligible services", data: validationSummary.moIneligibleServices, badge: "bg-fuchsia-100 text-fuchsia-800" },
                 ].filter((group) => group.data.length > 0).map((group) => (
-                  <div key={group.title} className="rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-3">
+                  <div key={group.title} className="rounded-xl border border-slate-200 bg-white px-3 py-3">
                     <div className="flex items-center justify-between gap-2">
                       <div className="font-semibold text-slate-800">{group.title}</div>
                       <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${group.badge}`}>{group.data.length}</span>
@@ -1398,41 +1403,41 @@ export default function Upload() {
                     </div>
                   </div>
                 ))}
+                {validationSummary.rowErrors.length > 0 ? (
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-red-700">
+                    {validationSummary.rowErrors.map((item, idx) => (
+                      <div key={`err-${idx}`}>{item}</div>
+                    ))}
+                  </div>
+                ) : null}
+                {validationSummary.rowWarnings.length > 0 ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+                    {validationSummary.rowWarnings.map((item, idx) => (
+                      <div key={`warn-${idx}`}>{item}</div>
+                    ))}
+                  </div>
+                ) : null}
+                {validationSummary.rejectedSummaryUrl && validationSummary.rejectedSummaryName ? (
+                  <div>
+                    <a
+                      href={validationSummary.rejectedSummaryUrl}
+                      download={validationSummary.rejectedSummaryName}
+                      className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download Validation Summary CSV
+                    </a>
+                  </div>
+                ) : null}
+                {validationSummary.recommendations.length > 0 ? (
+                  <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sky-800">
+                    {validationSummary.recommendations.map((item, idx) => (
+                      <div key={`rec-${idx}`}>{item}</div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
-            ) : null}
-            {validationSummary.rowErrors.length > 0 ? (
-              <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                {validationSummary.rowErrors.map((item, idx) => (
-                  <div key={`err-${idx}`}>{item}</div>
-                ))}
-              </div>
-            ) : null}
-            {validationSummary.rowWarnings.length > 0 ? (
-              <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                {validationSummary.rowWarnings.map((item, idx) => (
-                  <div key={`warn-${idx}`}>{item}</div>
-                ))}
-              </div>
-            ) : null}
-            {validationSummary.rejectedSummaryUrl && validationSummary.rejectedSummaryName ? (
-              <div className="mt-3">
-                <a
-                  href={validationSummary.rejectedSummaryUrl}
-                  download={validationSummary.rejectedSummaryName}
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                >
-                  <Download className="h-4 w-4" />
-                  Download Validation Summary CSV
-                </a>
-              </div>
-            ) : null}
-            {validationSummary.recommendations.length > 0 ? (
-              <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
-                {validationSummary.recommendations.map((item, idx) => (
-                  <div key={`rec-${idx}`}>{item}</div>
-                ))}
-              </div>
-            ) : null}
+            </details>
           </Card>
         ) : null}
 
