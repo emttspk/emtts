@@ -974,6 +974,7 @@ export default function Upload() {
       const data = (await uploadFile("/api/upload", uploadFileForApi, {
           barcodeMode: isAuto ? "auto" : "manual",
           autoGenerateTracking: String(isAuto),
+          sourceOriginalFilename: uploadedFile.name,
           shipmentMode,
           carrierType: carrierType ?? "",
           shipmentType: String(shipmentType ?? ""),

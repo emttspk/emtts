@@ -485,7 +485,9 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
 
   // Phase 2: Check for duplicate filename — only block if a COMPLETED job exists with same filename.
   // Failed/Queued/Processing jobs do NOT reserve the filename so re-uploads are always allowed.
-  const filenameDebug = getUploadFilenameDebug(uploadedFile.originalname);
+  const sourceOriginalFilenameRaw = String(req.body?.sourceOriginalFilename ?? "").trim();
+  const duplicateIdentityFilename = sourceOriginalFilenameRaw || uploadedFile.originalname;
+  const filenameDebug = getUploadFilenameDebug(duplicateIdentityFilename);
   const normalizedFileName = filenameDebug.normalized;
   const exemptFileNames = await getUploadExemptFileNames().catch(() => [] as string[]);
   const isExemptFileName = exemptFileNames.some((entry) => normalizeUploadFilename(entry) === normalizedFileName);
@@ -507,6 +509,19 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
   const totalDuplicateCount = matchingJobs.length;
   const isDuplicate = completedDuplicateCount > 0;
   const duplicateFilenameBypassUsed = isExemptFileName && totalDuplicateCount > 0;
+
+  console.info("SOURCE_FILENAME_RECEIVED", JSON.stringify({
+    sourceOriginalFilenameRaw,
+    uploadedOriginalname: uploadedFile.originalname,
+  }));
+  console.info("SOURCE_FILENAME_NORMALIZED", JSON.stringify({
+    raw: duplicateIdentityFilename,
+    normalized: normalizedFileName,
+  }));
+  console.info("FINAL_DUPLICATE_IDENTITY", JSON.stringify({
+    filename: duplicateIdentityFilename,
+    normalized: normalizedFileName,
+  }));
 
   console.info("UPLOAD_FILENAME_RAW", JSON.stringify({ value: filenameDebug.raw }));
   console.info("UPLOAD_FILENAME_BASENAME", JSON.stringify({ value: filenameDebug.basename }));
@@ -595,7 +610,7 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
   const job = await withReconnectRetry(async () => prisma.labelJob.create({
     data: {
       userId,
-      originalFilename: uploadedFile.originalname,
+      originalFilename: duplicateIdentityFilename,
       recordCount: 0,
       unitCount: 0,
       includeMoneyOrders: generateMoneyOrder,
@@ -806,7 +821,7 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
           jobId: job.id,
           filePath: uploadPath,
           fileBuffer,
-          fileName: uploadedFile.originalname,
+          fileName: duplicateIdentityFilename,
           generateLabels: true,
           generateMoneyOrder: effectiveGenerateMoneyOrder,
           autoGenerateTracking,
