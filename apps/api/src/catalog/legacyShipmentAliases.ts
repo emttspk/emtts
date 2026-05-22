@@ -6,9 +6,6 @@ export const LEGACY_SHIPMENT_ALIASES: Readonly<Record<string, string>> = {
   SMALL_PACKET: "RGL",
   SMALLPACKET: "RGL",
   PAR: "PAR",
-  PARCEL: "PAR",
-  PARCELS: "PAR",
-  PR: "PAR",
 };
 
 export function resolveLegacyShipmentAlias(value: unknown) {

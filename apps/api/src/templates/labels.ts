@@ -347,10 +347,13 @@ function getLabelAmountSummary(order: Pick<LabelOrder, "carrierType" | "shipment
 }
 
 function resolveMoneyOrderAmount(order: Pick<LabelOrder, "CollectAmount" | "shipmentType" | "shipmenttype" | "barcodeMode"> & Record<string, unknown>) {
-  // Always derive net MO amount via getLabelAmountSummary (which correctly handles
-  // uploaded-gross vs normal orders and VPL/VPP commission deduction).
-  // Do NOT use the DB-stored amountRs as the primary source — it may have been stored
-  // as the gross collect amount (bug present in pre-fix records).
+  // Split rows from worker/database are authoritative when present.
+  const explicitSplitAmount = toNum(order.amountRs ?? order.amount ?? 0);
+  if (explicitSplitAmount > 0) {
+    return explicitSplitAmount;
+  }
+
+  // Preserve existing summary-based behavior for non-split rows.
   const summary = getLabelAmountSummary(
     order as Pick<LabelOrder, "carrierType" | "shipmentType" | "shipmenttype" | "CollectAmount" | "barcodeMode">,
   );
@@ -358,12 +361,7 @@ function resolveMoneyOrderAmount(order: Pick<LabelOrder, "CollectAmount" | "ship
     return summary.moAmount;
   }
 
-  // Fallback: use the explicit DB-stored amount only for non-Pakistani-Post orders
-  const explicitMoAmount = toNum(order.amountRs ?? order.amount ?? 0);
-  if (explicitMoAmount > 0) {
-    return explicitMoAmount;
-  }
-
+  // Final fallback only when neither split nor summary produced a value.
   return toNum(
     order.CollectAmount ?? order.collect_amount ?? order.collected_amount ?? order.collectAmount ?? 0,
   );
@@ -386,13 +384,7 @@ function renderBoxAmountBlock(summary: LabelAmountSummary) {
 
 function renderUniversalAmountBlock(summary: LabelAmountSummary) {
   if (!summary.appliesPakistanPostRules || !shouldShowValuePayableAmount(summary.shipmentType)) {
-    return `
-      <div class="box amount-box" style="visibility:hidden;" aria-hidden="true">
-        <div class="amount-row"><span>&nbsp;</span><span>&nbsp;</span></div>
-        <div class="amount-row"><span>&nbsp;</span><span>&nbsp;</span></div>
-        <div class="amount-row amount-total"><span>&nbsp;</span><span>&nbsp;</span></div>
-      </div>
-    `;
+    return "";
   }
 
   const formatRs = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
@@ -700,6 +692,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
     const orderSource = String(o.reference ?? (o as any)?.source ?? (o as any)?.Source ?? "ePost Workspace").trim() || "ePost Workspace";
     const productDetails = String(o.ProductDescription ?? "").trim() || "-";
     const amountMarkup = renderUniversalAmountBlock(summary);
+    const hasVisibleAmount = summary.appliesPakistanPostRules && shouldShowValuePayableAmount(summary.shipmentType);
 
     const tokenMap: Record<string, string> = {
       "{{amount}}": summary.appliesPakistanPostRules
@@ -738,11 +731,11 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
       throw new Error(`Universal 9x4 render failed due to unresolved tokens: ${unresolvedTokens.join(", ")}`);
     }
 
-    return `<div class="universal-page">${html}</div>`;
+    return `<div class="universal-page${hasVisibleAmount ? "" : " universal-no-amount"}">${html}</div>`;
   };
 
   const pages = orders.map((order) => renderSingle(order)).join("");
-  const safetyCss = `<style>.universal-page{width:9in;height:4in;box-sizing:border-box;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;}.universal-page:last-child{page-break-after:auto;break-after:auto;}.universal-page .header{height:56px;min-height:56px}.universal-page .barcode-area{justify-content:center;padding-top:0;gap:2px}.universal-page #barcode{height:42px}.universal-page .footer{height:32px;padding-top:2px;overflow:visible}</style>`;
+  const safetyCss = `<style>.universal-page{width:9in;height:4in;box-sizing:border-box;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;}.universal-page:last-child{page-break-after:auto;break-after:auto;}.universal-page .header{height:56px;min-height:56px}.universal-page .barcode-area{justify-content:center;padding-top:0;padding-left:6px;padding-right:6px;gap:2px}.universal-page #barcode{height:42px;max-width:246px;width:96%}.universal-page .footer{height:32px;padding-top:2px;overflow:visible}.universal-page.universal-no-amount .body{grid-template-columns:minmax(0,3.25fr) minmax(0,1.75fr)}.universal-page.universal-no-amount .right-column{grid-template-rows:auto auto 1fr}</style>`;
   const outputHead = templateHead.replace(/<\/head>/i, `${safetyCss}</head>`);
 
   return `${outputHead}${pages}${template.tail}`;

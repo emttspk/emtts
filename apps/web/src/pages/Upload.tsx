@@ -1440,7 +1440,8 @@ export default function Upload() {
               <div className="mt-3 space-y-3">
                 {validationSummary.batchWarnings.length > 0 ? (
                   <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-blue-800">
-                    {validationSummary.batchWarnings.map((item, idx) => (
+                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide">Batch notices</div>
+                    {validationSummary.batchWarnings.slice(0, 6).map((item, idx) => (
                       <div key={`batch-${idx}`}>{item}</div>
                     ))}
                   </div>
@@ -1458,22 +1459,27 @@ export default function Upload() {
                       <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${group.badge}`}>{group.data.length}</span>
                     </div>
                     <div className="mt-2 space-y-1 text-slate-700">
-                      {group.data.slice(0, 8).map((item, idx) => (
-                        <div key={`${group.title}-${idx}`}>Row {item.row}: {item.message}{item.recommendation ? <span className="text-slate-500"> Recommendation: {item.recommendation}</span> : null}</div>
+                      {group.data.slice(0, 6).map((item, idx) => (
+                        <div key={`${group.title}-${idx}`} className="rounded-lg border border-slate-100 bg-slate-50 px-2 py-1">
+                          <span className="font-medium text-slate-800">Row {item.row}:</span> {item.message}
+                          {item.recommendation ? <span className="text-slate-500"> Suggested fix: {item.recommendation}</span> : null}
+                        </div>
                       ))}
                     </div>
                   </div>
                 ))}
                 {validationSummary.rowErrors.length > 0 ? (
                   <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-red-700">
-                    {validationSummary.rowErrors.map((item, idx) => (
+                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide">Blocking issues</div>
+                    {validationSummary.rowErrors.slice(0, 8).map((item, idx) => (
                       <div key={`err-${idx}`}>{item}</div>
                     ))}
                   </div>
                 ) : null}
                 {validationSummary.rowWarnings.length > 0 ? (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
-                    {validationSummary.rowWarnings.map((item, idx) => (
+                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide">Warnings</div>
+                    {validationSummary.rowWarnings.slice(0, 8).map((item, idx) => (
                       <div key={`warn-${idx}`}>{item}</div>
                     ))}
                   </div>
@@ -1492,7 +1498,8 @@ export default function Upload() {
                 ) : null}
                 {validationSummary.recommendations.length > 0 ? (
                   <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sky-800">
-                    {validationSummary.recommendations.map((item, idx) => (
+                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide">Recommended actions</div>
+                    {validationSummary.recommendations.slice(0, 6).map((item, idx) => (
                       <div key={`rec-${idx}`}>{item}</div>
                     ))}
                   </div>
