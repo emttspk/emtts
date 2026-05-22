@@ -23,7 +23,15 @@ ENV VITE_FIREBASE_PROJECT_ID=$VITE_FIREBASE_PROJECT_ID
 COPY package.json ./
 RUN npm install
 
-COPY . .
+COPY index.html ./
+COPY vite.config.ts ./
+COPY tsconfig.json ./
+COPY tailwind.config.js ./
+COPY postcss.config.js ./
+COPY eslint.config.js ./
+COPY serve.json ./
+COPY public ./public
+COPY src ./src
 RUN npm run build
 
 FROM node:22.13.1-bookworm-slim AS runtime

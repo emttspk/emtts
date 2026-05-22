@@ -30,6 +30,11 @@ import { getCatalogDiagnostics, listCatalogServices } from "./catalog/serviceCat
 import { assertRenderPrerequisites, collectRenderPrerequisiteDiagnostics } from "./templates/labels.js";
 const BUILD_VERSION = process.env.RAILWAY_GIT_COMMIT_SHA ?? "local";
 const isProduction = process.env.NODE_ENV === "production";
+const startupStartedAt = Date.now();
+
+function logStartupTiming(metric: string, startedAt: number) {
+  console.log(`[STARTUP_TIMING] ${metric}=${Math.max(0, Date.now() - startedAt)}ms`);
+}
 
 function parseRedisMajorVersion(info: string) {
   const match = /(?:^|\n)redis_version:(\d+)\.(\d+)\.(\d+)/.exec(String(info ?? ""));
@@ -65,7 +70,9 @@ async function assertRedisRuntimeCompatibility() {
 }
 
 async function enforceRenderAndRedisPreflightOrExit() {
+  const renderScanStartedAt = Date.now();
   const renderDiagnostics = collectRenderPrerequisiteDiagnostics();
+  logStartupTiming("render_scan_ms", renderScanStartedAt);
   if (!renderDiagnostics.ready) {
     console.error("[STARTUP] Render prerequisite diagnostics:", JSON.stringify(renderDiagnostics, null, 2));
   } else {
@@ -478,8 +485,10 @@ async function initializeDatabaseSafely(): Promise<{ ready: boolean; issue?: str
 }
 
 async function initializeRedisSafely(): Promise<{ ready: boolean; issue?: string }> {
+  const redisReadyStartedAt = Date.now();
   const redisEnv = getInfrastructureEnvStatus().redis;
   if (!redisEnv.usable) {
+    logStartupTiming("redis_ready_ms", redisReadyStartedAt);
     return { ready: false, issue: redisEnv.issue ?? "REDIS_URL is missing or placeholder" };
   }
 
@@ -490,15 +499,19 @@ async function initializeRedisSafely(): Promise<{ ready: boolean; issue?: string
     const info = await redis.info("server");
     const version = parseRedisMajorVersion(info);
     if (!version) {
+      logStartupTiming("redis_ready_ms", redisReadyStartedAt);
       return { ready: false, issue: "Redis version could not be determined from INFO server" };
     }
     if (version.major < 5) {
+      logStartupTiming("redis_ready_ms", redisReadyStartedAt);
       return { ready: false, issue: `Redis ${version.raw} is unsupported. Use Redis 5+.` };
     }
+    logStartupTiming("redis_ready_ms", redisReadyStartedAt);
     return { ready: true };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.warn(`[REDIS] Startup readiness check failed: ${message}`);
+    logStartupTiming("redis_ready_ms", redisReadyStartedAt);
     return { ready: false, issue: message };
   }
 }
@@ -886,6 +899,7 @@ async function startServer() {
     }
     
     console.log("[INIT] Async initialization complete");
+    logStartupTiming("fully_ready_ms", startupStartedAt);
   } catch (err) {
     console.error("[INIT] Fatal error during initialization:", err instanceof Error ? err.message : String(err));
   }

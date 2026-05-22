@@ -5,6 +5,10 @@ MODE="${1:-api}"
 STORAGE_ROOT="${STORAGE_PATH:-$(pwd)/storage}"
 PRISMA_SCHEMA_PATH="apps/api/prisma/schema.prisma"
 
+now_ms() {
+  date +%s%3N
+}
+
 mkdir -p "$STORAGE_ROOT/uploads" "$STORAGE_ROOT/outputs"
 echo "[startup] Storage root: $STORAGE_ROOT"
 echo "[startup] Uploads dir: $STORAGE_ROOT/uploads"
@@ -20,10 +24,14 @@ require_database_url() {
 
 run_prisma_startup() {
   require_database_url
+  prisma_generate_start_ms="$(now_ms)"
   echo "[startup] Running prisma generate..."
   npx prisma generate --schema "$PRISMA_SCHEMA_PATH" || exit 1
+  echo "[startup] prisma_generate_ms=$(( $(now_ms) - prisma_generate_start_ms ))"
+  prisma_migrate_start_ms="$(now_ms)"
   echo "[startup] Running prisma migrate deploy..."
   npx prisma migrate deploy --schema "$PRISMA_SCHEMA_PATH" || exit 1
+  echo "[startup] prisma_migrate_ms=$(( $(now_ms) - prisma_migrate_start_ms ))"
 }
 
 # Resolve a working Chromium binary for Puppeteer.
