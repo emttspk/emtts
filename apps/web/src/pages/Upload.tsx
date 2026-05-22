@@ -16,6 +16,35 @@ type ShellCtx = { me: MeResponse | null; refreshMe: () => Promise<void> };
 
 type PreviewMode = "labels" | "envelope" | "flyer";
 type ShipmentMode = "single_service" | "mix_articles";
+type MismatchAction = "generate" | "use_uploaded";
+
+type MismatchIssue = {
+  row: number;
+  uploadedTracking: string;
+  detectedPrefix: string;
+  detectedService: string | null;
+  rowShipmentType: string;
+  expectedPrefix: string;
+};
+
+type ValidationIssue = {
+  row: number;
+  severity: "error" | "warning";
+  category: "Prefix mismatches" | "Invalid services" | "Duplicate tracking IDs" | "Overweight shipments" | "MO-ineligible services";
+  message: string;
+  tracking?: string;
+  shipmentType?: string;
+  recommendation?: string;
+};
+
+type UploadInsights = {
+  rowCount: number;
+  serviceCounts: Record<string, number>;
+  moneyOrderEligibleRows: number;
+  moneyOrderIneligibleRows: number;
+  recommendedOutputMode: "envelope-9x4" | "universal-9x4" | "box" | "a4-multi" | "flyer";
+  recommendationReason: string;
+};
 
 const CANONICAL_SERVICES = new Set(["VPL", "VPP", "COD", "RGL", "IRL", "UMS"]);
 const SERVICE_WEIGHT_LIMITS: Record<string, number> = {
@@ -69,6 +98,21 @@ function isValidTrackingId(input: unknown) {
   return /^[A-Z]{2,6}[0-9]{4,20}$/.test(trackingId);
 }
 
+function getDetectedPrefix(trackingId: string) {
+  const match = normalizeTrackingId(trackingId).match(/^([A-Z]{2,6})/);
+  return match ? match[1] : "";
+}
+
+function summarizeIssuesByCategory(issues: ValidationIssue[]) {
+  return {
+    prefixMismatches: issues.filter((item) => item.category === "Prefix mismatches"),
+    invalidServices: issues.filter((item) => item.category === "Invalid services"),
+    duplicateTracking: issues.filter((item) => item.category === "Duplicate tracking IDs"),
+    overweightShipments: issues.filter((item) => item.category === "Overweight shipments"),
+    moIneligibleServices: issues.filter((item) => item.category === "MO-ineligible services"),
+  };
+}
+
 export default function Upload() {
   const { me, refreshMe } = useOutletContext<ShellCtx>();
   const navigate = useNavigate();
@@ -84,6 +128,7 @@ export default function Upload() {
   const [serviceCatalog, setServiceCatalog] = useState<ServiceCatalogEntry[]>(FALLBACK_SERVICE_CATALOG);
   const [barcodeMode, setBarcodeMode] = useState<"manual" | "auto" | null>(null);
   const [outputMode, setOutputMode] = useState<"envelope" | "envelope-9x4" | "universal-9x4" | "box" | "a4-multi" | "flyer" | null>(null);
+  const [hasManualOutputChoice, setHasManualOutputChoice] = useState(false);
   const [previewHtml, setPreviewHtml] = useState("");
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -96,21 +141,25 @@ export default function Upload() {
   const [showMoUnitNotice, setShowMoUnitNotice] = useState(false);
   const [showTrackUnitNotice, setShowTrackUnitNotice] = useState(false);
   const [showCnicRequiredModal, setShowCnicRequiredModal] = useState(false);
-  const [prefixMismatchInfo, setPrefixMismatchInfo] = useState<{
-    detected: string;
-    expected: string;
-    shipmentType: string;
-    affected: Array<{ row: number; id: string }>;
-    total: number;
-  } | null>(null);
+  const [uploadInsights, setUploadInsights] = useState<UploadInsights | null>(null);
+  const [mismatchDecisionModal, setMismatchDecisionModal] = useState<MismatchIssue | null>(null);
+  const [mismatchApplyScope, setMismatchApplyScope] = useState<"row" | "all">("row");
   const [validationSummary, setValidationSummary] = useState<{
     accepted: number;
     rejected: number;
     ignoredTracking: number;
     overweightWarnings: number;
+    moIneligibleWarnings: number;
     batchWarnings: string[];
     rejectedSummaryUrl: string | null;
     rejectedSummaryName: string | null;
+    totalIssues: number;
+    prefixMismatches: ValidationIssue[];
+    invalidServices: ValidationIssue[];
+    duplicateTracking: ValidationIssue[];
+    overweightShipments: ValidationIssue[];
+    moIneligibleServices: ValidationIssue[];
+    recommendations: string[];
     rowErrors: string[];
     rowWarnings: string[];
   } | null>(null);
@@ -118,9 +167,14 @@ export default function Upload() {
   const lastAutoDownloadId = useRef<string | null>(null);
   const previewViewportRef = useRef<HTMLDivElement | null>(null);
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const mismatchResolverRef = useRef<((decision: { action: MismatchAction; scope: "row" | "all" } | null) => void) | null>(null);
 
   const eligibleForMoneyOrder =
-    carrierType === "pakistan_post" && (shipmentType === "VPL" || shipmentType === "VPP" || shipmentType === "COD");
+    carrierType === "pakistan_post" && (
+      shipmentMode === "mix_articles"
+        ? (uploadInsights?.moneyOrderEligibleRows ?? 0) > 0
+        : (shipmentType === "VPL" || shipmentType === "VPP" || shipmentType === "COD")
+    );
   const generalServices = useMemo(() => servicesByCategory(serviceCatalog, "general_post"), [serviceCatalog]);
   const valuePayableServices = useMemo(() => servicesByCategory(serviceCatalog, "value_payable"), [serviceCatalog]);
   const codServices = useMemo(() => servicesByCategory(serviceCatalog, "cod_articles"), [serviceCatalog]);
@@ -202,6 +256,112 @@ export default function Upload() {
   useEffect(() => {
     if (!eligibleForMoneyOrder && includeMoneyOrders) setIncludeMoneyOrders(false);
   }, [eligibleForMoneyOrder, includeMoneyOrders]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!file || carrierType !== "pakistan_post") {
+      setUploadInsights(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const analyzeUpload = async () => {
+      try {
+        const ab = await file.arrayBuffer();
+        const wb = XLSX.read(ab);
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { raw: false, defval: "" });
+        const serviceCounts: Record<string, number> = {};
+        let moEligibleRows = 0;
+        let moIneligibleRows = 0;
+        let overweightCount = 0;
+        let smallEnvelopeLike = 0;
+        let knownWeightRows = 0;
+
+        for (const row of rows) {
+          const shipment = String((row.shipment_type ?? row.shipmenttype ?? "")).trim().toUpperCase();
+          if (shipment) {
+            serviceCounts[shipment] = (serviceCounts[shipment] ?? 0) + 1;
+          }
+          if (shipment === "VPL" || shipment === "VPP" || shipment === "COD") {
+            moEligibleRows += 1;
+          } else if (shipment) {
+            moIneligibleRows += 1;
+          }
+
+          const grams = parseWeightToGrams(row.Weight);
+          if (grams > 0) {
+            knownWeightRows += 1;
+            if (grams > 2_000) {
+              overweightCount += 1;
+            } else if (grams <= 500) {
+              smallEnvelopeLike += 1;
+            }
+          }
+        }
+
+        const onlyMoneyOrderServices = Object.keys(serviceCounts).length > 0
+          && Object.keys(serviceCounts).every((svc) => svc === "VPL" || svc === "VPP" || svc === "COD");
+        const mostlySmall = knownWeightRows > 0 && smallEnvelopeLike / knownWeightRows >= 0.75;
+        const recommendedOutputMode: UploadInsights["recommendedOutputMode"] = overweightCount > 0
+          ? "box"
+          : mostlySmall
+            ? "universal-9x4"
+            : onlyMoneyOrderServices
+              ? "envelope-9x4"
+              : "box";
+
+        const recommendationReason = overweightCount > 0
+          ? "Detected overweight shipments, box mode is safer."
+          : mostlySmall
+            ? "Most rows are light-weight; universal 9x4 is recommended."
+            : onlyMoneyOrderServices
+              ? "Rows are VPL/VPP/COD; envelope 9x4 works best for labels + money orders."
+              : "Mixed service profile detected; box mode is recommended.";
+
+        if (cancelled) return;
+        setUploadInsights({
+          rowCount: rows.length,
+          serviceCounts,
+          moneyOrderEligibleRows: moEligibleRows,
+          moneyOrderIneligibleRows: moIneligibleRows,
+          recommendedOutputMode,
+          recommendationReason,
+        });
+
+        if (!hasManualOutputChoice || !outputMode) {
+          setOutputMode(recommendedOutputMode);
+        }
+        setIncludeMoneyOrders(moEligibleRows > 0);
+      } catch {
+        if (!cancelled) {
+          setUploadInsights(null);
+        }
+      }
+    };
+
+    analyzeUpload();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [carrierType, file, hasManualOutputChoice, outputMode]);
+
+  function openMismatchDecision(issue: MismatchIssue) {
+    setMismatchApplyScope("row");
+    setMismatchDecisionModal(issue);
+    return new Promise<{ action: MismatchAction; scope: "row" | "all" } | null>((resolve) => {
+      mismatchResolverRef.current = resolve;
+    });
+  }
+
+  function closeMismatchDecision(decision: { action: MismatchAction; scope: "row" | "all" } | null) {
+    setMismatchDecisionModal(null);
+    const resolver = mismatchResolverRef.current;
+    mismatchResolverRef.current = null;
+    if (resolver) resolver(decision);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -424,19 +584,37 @@ export default function Upload() {
 
       const rowErrors: string[] = [];
       const rowWarnings: string[] = [];
-      const rejectedRows: Array<{ row: number; uploadedTracking: string; shipmentType: string; expectedPrefix: string; reason: string }> = [];
+      const validationIssues: ValidationIssue[] = [];
       let ignoredTracking = 0;
       let overweightWarnings = 0;
+      let moIneligibleWarnings = 0;
       const acceptedRows: Array<Record<string, unknown>> = [];
       const batchWarnings = new Set<string>();
+      const duplicateTrackingMap = new Map<string, number>();
+      const serviceByPrefix = new Map<string, string>();
+      for (const entry of serviceCatalog) {
+        if (entry.prefix && entry.service) {
+          serviceByPrefix.set(String(entry.prefix).toUpperCase(), String(entry.service).toUpperCase());
+        }
+      }
+      let applyAllMismatchAction: MismatchAction | null = null;
 
       for (let i = 0; i < rows.length; i += 1) {
         const row = rows[i] ?? {};
+        const workingRow: Record<string, unknown> = { ...row };
         const rowIndex = i + 2;
         const find = (name: string) => {
           const n = normalizeOrderColumnKey(name);
-          const key = Object.keys(row).find((k) => normalizeOrderColumnKey(k) === n);
-          return key ? row[key] : "";
+          const key = Object.keys(workingRow).find((k) => normalizeOrderColumnKey(k) === n);
+          return key ? workingRow[key] : "";
+        };
+        const writeShipmentType = (value: string) => {
+          const shipmentTypeKey = Object.keys(workingRow).find((k) => normalizeOrderColumnKey(k) === "shipmenttype");
+          if (shipmentTypeKey) {
+            workingRow[shipmentTypeKey] = value;
+          } else {
+            workingRow.shipment_type = value;
+          }
         };
 
         const rowSpecificErrors: string[] = [];
@@ -449,17 +627,35 @@ export default function Upload() {
         }
 
         const rowShipmentType = String(find("shipmenttype") ?? find("shipment_type") ?? "").trim().toUpperCase();
-        const effectiveService = shipmentMode === "mix_articles"
+        let effectiveService = shipmentMode === "mix_articles"
           ? rowShipmentType
           : String(shipmentType ?? "").trim().toUpperCase();
 
         if (shipmentMode === "mix_articles") {
           if (!rowShipmentType || !CANONICAL_SERVICES.has(rowShipmentType)) {
-            rowSpecificErrors.push(`Row ${rowIndex}: shipment_type must be one of VPL, VPP, COD, RGL, IRL, UMS in Mix Articles mode.`);
+            const message = `Row ${rowIndex}: shipment_type must be one of VPL, VPP, COD, RGL, IRL, UMS in Mix Services mode.`;
+            rowSpecificErrors.push(message);
+            validationIssues.push({
+              row: rowIndex,
+              severity: "error",
+              category: "Invalid services",
+              message,
+              shipmentType: rowShipmentType || "(missing)",
+              recommendation: "Use a canonical service value per row before generating.",
+            });
           }
         } else if (effectiveService && effectiveService !== "COURIER") {
           if (rowShipmentType && rowShipmentType !== effectiveService) {
-            rowSpecificErrors.push(`Row ${rowIndex}: shipment_type '${rowShipmentType}' does not match selected Single Service '${effectiveService}'.`);
+            const message = `Row ${rowIndex}: shipment_type '${rowShipmentType}' does not match selected Single Service '${effectiveService}'.`;
+            rowSpecificErrors.push(message);
+            validationIssues.push({
+              row: rowIndex,
+              severity: "error",
+              category: "Invalid services",
+              message,
+              shipmentType: rowShipmentType,
+              recommendation: "Align shipment_type with Single Service mode selection.",
+            });
           }
         }
 
@@ -467,18 +663,39 @@ export default function Upload() {
           .trim()
           .toUpperCase()
           .replace(/\s+/g, "");
+        if (rawTracking) {
+          const seenAt = duplicateTrackingMap.get(rawTracking);
+          if (seenAt) {
+            const message = `Row ${rowIndex}: duplicate tracking '${rawTracking}' already used at row ${seenAt}.`;
+            rowSpecificErrors.push(message);
+            validationIssues.push({
+              row: rowIndex,
+              severity: "error",
+              category: "Duplicate tracking IDs",
+              message,
+              tracking: rawTracking,
+              shipmentType: effectiveService || undefined,
+              recommendation: "Ensure each row has a unique tracking ID.",
+            });
+          } else {
+            duplicateTrackingMap.set(rawTracking, rowIndex);
+          }
+        }
+
         if (rawTracking && effectiveService && effectiveService !== "COURIER") {
           const expectedPrefix = serviceCatalog.find((entry) => entry.service === effectiveService)?.prefix ?? effectiveService;
           const prefixMatches = rawTracking.startsWith(expectedPrefix);
 
           if (barcodeMode === "manual" && !prefixMatches) {
             rowSpecificErrors.push(`Row ${rowIndex}: tracking '${rawTracking}' must start with '${expectedPrefix}' for service '${effectiveService}'.`);
-            rejectedRows.push({
+            validationIssues.push({
               row: rowIndex,
-              uploadedTracking: rawTracking,
+              severity: "error",
+              category: "Prefix mismatches",
+              message: `Tracking '${rawTracking}' does not match expected prefix '${expectedPrefix}' for service '${effectiveService}'.`,
+              tracking: rawTracking,
               shipmentType: effectiveService,
-              expectedPrefix,
-              reason: "Tracking prefix mismatch",
+              recommendation: `Update tracking to '${expectedPrefix}...' or change service for this row.`,
             });
           }
 
@@ -486,25 +703,95 @@ export default function Upload() {
             ignoredTracking += 1;
             rowWarnings.push(`Row ${rowIndex}: uploaded tracking '${rawTracking}' ignored in auto mode; system will generate '${expectedPrefix}' tracking.`);
             batchWarnings.add("Uploaded tracking IDs were ignored for rows using Auto Generate mode.");
+            validationIssues.push({
+              row: rowIndex,
+              severity: "warning",
+              category: "Prefix mismatches",
+              message: `Uploaded tracking '${rawTracking}' ignored in auto mode.`,
+              tracking: rawTracking,
+              shipmentType: effectiveService,
+              recommendation: "Use Manual mode to preserve uploaded IDs.",
+            });
           }
 
           if (barcodeMode === "auto" && shipmentMode === "mix_articles") {
-            ignoredTracking += 1;
+            let mismatchAction: MismatchAction = "generate";
             if (!prefixMatches) {
-              rowWarnings.push(`Row ${rowIndex}: uploaded tracking '${rawTracking}' ignored; row shipment_type '${effectiveService}' will generate '${expectedPrefix}' tracking.`);
+              const detectedPrefix = getDetectedPrefix(rawTracking);
+              const detectedService = serviceByPrefix.get(detectedPrefix) ?? null;
+              const issue: MismatchIssue = {
+                row: rowIndex,
+                uploadedTracking: rawTracking,
+                detectedPrefix,
+                detectedService,
+                rowShipmentType,
+                expectedPrefix,
+              };
+
+              if (!applyAllMismatchAction) {
+                const decision = await openMismatchDecision(issue);
+                if (!decision) {
+                  throw new Error("Generation cancelled by operator.");
+                }
+                mismatchAction = decision.action;
+                if (decision.scope === "all") {
+                  applyAllMismatchAction = decision.action;
+                }
+              } else {
+                mismatchAction = applyAllMismatchAction;
+              }
+
+              if (mismatchAction === "use_uploaded" && detectedService && CANONICAL_SERVICES.has(detectedService)) {
+                writeShipmentType(detectedService);
+                effectiveService = detectedService;
+                rowWarnings.push(`Row ${rowIndex}: preserving uploaded tracking '${rawTracking}' and overriding row shipment_type to '${detectedService}'.`);
+                validationIssues.push({
+                  row: rowIndex,
+                  severity: "warning",
+                  category: "Prefix mismatches",
+                  message: `Uploaded tracking preserved; shipment_type changed from '${rowShipmentType || "(missing)"}' to '${detectedService}'.`,
+                  tracking: rawTracking,
+                  shipmentType: detectedService,
+                  recommendation: "Verify shipment_type values in the upload source to avoid overrides.",
+                });
+              } else {
+                mismatchAction = "generate";
+                ignoredTracking += 1;
+                rowWarnings.push(`Row ${rowIndex}: uploaded tracking '${rawTracking}' ignored; system will generate '${expectedPrefix}' tracking for '${effectiveService}'.`);
+                validationIssues.push({
+                  row: rowIndex,
+                  severity: "warning",
+                  category: "Prefix mismatches",
+                  message: `Uploaded tracking '${rawTracking}' ignored and replaced with generated '${expectedPrefix}' tracking.`,
+                  tracking: rawTracking,
+                  shipmentType: effectiveService,
+                  recommendation: "Select 'Use uploaded barcode' when you want to preserve uploaded tracking prefixes.",
+                });
+              }
             } else {
+              ignoredTracking += 1;
               rowWarnings.push(`Row ${rowIndex}: uploaded tracking '${rawTracking}' ignored because Auto Generate mode is enabled.`);
+              validationIssues.push({
+                row: rowIndex,
+                severity: "warning",
+                category: "Prefix mismatches",
+                message: `Uploaded tracking '${rawTracking}' ignored in auto mode.`,
+                tracking: rawTracking,
+                shipmentType: effectiveService,
+                recommendation: "Switch to Manual mode to retain uploaded tracking IDs.",
+              });
             }
             batchWarnings.add("Uploaded tracking IDs were ignored for rows using Auto Generate mode.");
           }
         } else if (barcodeMode === "manual" && effectiveService && effectiveService !== "COURIER") {
           rowSpecificErrors.push(`Row ${rowIndex}: tracking ID is required in Manual mode.`);
-          rejectedRows.push({
+          validationIssues.push({
             row: rowIndex,
-            uploadedTracking: "(missing)",
+            severity: "error",
+            category: "Prefix mismatches",
+            message: "Tracking ID is required in Manual mode.",
             shipmentType: effectiveService,
-            expectedPrefix: serviceCatalog.find((entry) => entry.service === effectiveService)?.prefix ?? effectiveService,
-            reason: "Tracking ID required in manual mode",
+            recommendation: "Provide a valid tracking ID or switch to Auto Generate mode.",
           });
         }
 
@@ -514,16 +801,37 @@ export default function Upload() {
           if (weightGrams > 0 && Number.isFinite(limit) && weightGrams > limit) {
             overweightWarnings += 1;
             const suggestions = suggestBestFitServices(weightGrams);
-            rowWarnings.push(
-              `Row ${rowIndex}: weight ${weightGrams}g exceeds ${effectiveService} limit ${limit}g. Suggested services: ${suggestions.join(", ") || "none"}.`,
-            );
+            const message = `Row ${rowIndex}: weight ${weightGrams}g exceeds ${effectiveService} limit ${limit}g. Suggested services: ${suggestions.join(", ") || "none"}.`;
+            rowWarnings.push(message);
+            validationIssues.push({
+              row: rowIndex,
+              severity: "warning",
+              category: "Overweight shipments",
+              message,
+              shipmentType: effectiveService,
+              recommendation: "Use a service with a higher allowed weight or split the shipment.",
+            });
           }
+        }
+
+        if (includeMoneyOrders && effectiveService && !(effectiveService === "VPL" || effectiveService === "VPP" || effectiveService === "COD")) {
+          moIneligibleWarnings += 1;
+          const message = `Row ${rowIndex}: service '${effectiveService}' is not money-order eligible (VPL/VPP/COD only).`;
+          rowWarnings.push(message);
+          validationIssues.push({
+            row: rowIndex,
+            severity: "warning",
+            category: "MO-ineligible services",
+            message,
+            shipmentType: effectiveService,
+            recommendation: "Money orders will be generated only for VPL, VPP, and COD rows.",
+          });
         }
 
         if (rowSpecificErrors.length > 0) {
           rowErrors.push(...rowSpecificErrors);
         } else {
-          acceptedRows.push(row);
+          acceptedRows.push(workingRow);
         }
       }
 
@@ -532,34 +840,55 @@ export default function Upload() {
       let rejectedSummaryUrl: string | null = null;
       let rejectedSummaryName: string | null = null;
 
-      if (rejectedRows.length > 0) {
-        const summaryRows = rejectedRows.map((entry) => ({
+      if (validationIssues.length > 0) {
+        const summaryRows = validationIssues.map((entry) => ({
+          section: entry.category,
+          severity: entry.severity,
           row: entry.row,
-          uploaded_tracking: entry.uploadedTracking,
-          detected_shipment_type: entry.shipmentType,
-          expected_prefix: entry.expectedPrefix,
-          reason: entry.reason,
+          tracking: entry.tracking ?? "",
+          shipment_type: entry.shipmentType ?? "",
+          issue: entry.message,
+          recommendation: entry.recommendation ?? "",
         }));
         const summaryCsv = rowsToCsv([
+          "section",
+          "severity",
           "row",
-          "uploaded_tracking",
-          "detected_shipment_type",
-          "expected_prefix",
-          "reason",
+          "tracking",
+          "shipment_type",
+          "issue",
+          "recommendation",
         ], summaryRows as Array<Record<string, unknown>>);
         const blob = new Blob([summaryCsv], { type: "text/csv;charset=utf-8" });
         rejectedSummaryUrl = URL.createObjectURL(blob);
-        rejectedSummaryName = `${uploadedFile.name.replace(/\.[^.]+$/, "")}-validation-rejected-rows.csv`;
+        rejectedSummaryName = `${uploadedFile.name.replace(/\.[^.]+$/, "")}-validation-summary.csv`;
       }
+
+      const groupedIssues = summarizeIssuesByCategory(validationIssues);
+      const recommendations = [
+        groupedIssues.prefixMismatches.length > 0 ? "Review prefix mismatches and use the mismatch decision options for consistency." : null,
+        groupedIssues.invalidServices.length > 0 ? "Fix non-canonical shipment_type values before re-uploading." : null,
+        groupedIssues.duplicateTracking.length > 0 ? "Remove duplicate tracking IDs to avoid shipment collision." : null,
+        groupedIssues.overweightShipments.length > 0 ? "Switch overweight rows to higher-capacity services or box output mode." : null,
+        groupedIssues.moIneligibleServices.length > 0 ? "Money order output is restricted to VPL, VPP, and COD rows." : null,
+      ].filter((item): item is string => Boolean(item));
 
       setValidationSummary({
         accepted,
         rejected,
         ignoredTracking,
         overweightWarnings,
+        moIneligibleWarnings,
         batchWarnings: Array.from(batchWarnings),
         rejectedSummaryUrl,
         rejectedSummaryName,
+        totalIssues: validationIssues.length,
+        prefixMismatches: groupedIssues.prefixMismatches,
+        invalidServices: groupedIssues.invalidServices,
+        duplicateTracking: groupedIssues.duplicateTracking,
+        overweightShipments: groupedIssues.overweightShipments,
+        moIneligibleServices: groupedIssues.moIneligibleServices,
+        recommendations,
         rowErrors: rowErrors.slice(0, 20),
         rowWarnings: rowWarnings.slice(0, 20),
       });
@@ -666,6 +995,7 @@ export default function Upload() {
             setFile(next);
             setUiError(null);
             setValidationSummary(null);
+            setHasManualOutputChoice(false);
             if (!next) {
               setUiState("idle");
               setProgress(0);
@@ -679,6 +1009,33 @@ export default function Upload() {
           error={uiError}
           busy={uiState === "uploading" || uiState === "processing"}
         />
+
+        {uploadInsights ? (
+          <Card className="border-sky-200 bg-sky-50/60 p-4 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div className="text-sm font-semibold text-sky-900">Smart Upload Recommendation</div>
+                <div className="mt-1 text-xs text-sky-800">{uploadInsights.recommendationReason}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setHasManualOutputChoice(false);
+                  setOutputMode(uploadInsights.recommendedOutputMode);
+                  setIncludeMoneyOrders(uploadInsights.moneyOrderEligibleRows > 0);
+                }}
+                className="rounded-xl border border-sky-300 bg-white px-3 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-100"
+              >
+                Apply Recommendation
+              </button>
+            </div>
+            <div className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
+              <div className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-sky-800">Rows: {uploadInsights.rowCount}</div>
+              <div className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-sky-800">Recommended Output: {uploadInsights.recommendedOutputMode}</div>
+              <div className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-sky-800">MO Eligible Rows: {uploadInsights.moneyOrderEligibleRows}</div>
+            </div>
+          </Card>
+        ) : null}
 
         <Card className="border-slate-200 bg-white p-5 shadow-sm">
           <CardTitle>Generate Label</CardTitle>
@@ -729,11 +1086,11 @@ export default function Upload() {
                     shipmentMode === "mix_articles" ? "border-brand bg-brand/10 text-brand" : "bg-white text-gray-700 hover:bg-gray-50"
                   }`}
                 >
-                  Mix Articles
+                  Mix Services
                 </button>
               </div>
               <div className="mt-2 text-xs text-gray-600">
-                Single Service enforces the selected shipment type. Mix Articles uses row shipment_type as authoritative.
+                Single Service enforces the selected shipment type. Mix Services uses row shipment_type as authoritative.
               </div>
             </div>
 
@@ -864,7 +1221,10 @@ export default function Upload() {
                     <button
                       key={opt.id}
                       type="button"
-                      onClick={() => setOutputMode(opt.id)}
+                      onClick={() => {
+                        setHasManualOutputChoice(true);
+                        setOutputMode(opt.id);
+                      }}
                       className={`flex flex-col items-start rounded-2xl border px-4 py-3 text-left transition-colors ${
                         outputMode === opt.id
                           ? "border-brand bg-brand/10 ring-1 ring-brand/30"
@@ -945,16 +1305,18 @@ export default function Upload() {
 
         {validationSummary ? (
           <Card className="border-slate-200 bg-white p-5 shadow-sm">
-            <CardTitle>Upload Validation Summary</CardTitle>
+            <CardTitle>UPLOAD SUMMARY</CardTitle>
             <div className="mt-2 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">Accepted Rows: {validationSummary.accepted}</div>
               <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-red-800">Rejected Rows: {validationSummary.rejected}</div>
               <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-indigo-800">Warnings: {validationSummary.rowWarnings.length + validationSummary.batchWarnings.length}</div>
             </div>
-            <div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-2">
+            <div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">Ignored Tracking: {validationSummary.ignoredTracking}</div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800">Overweight Warnings: {validationSummary.overweightWarnings}</div>
+              <div className="rounded-xl border border-fuchsia-200 bg-fuchsia-50 px-3 py-2 text-fuchsia-800">MO-ineligible Services: {validationSummary.moIneligibleWarnings}</div>
             </div>
+            <div className="mt-3 text-xs text-slate-600">Total grouped issues: {validationSummary.totalIssues}</div>
             {validationSummary.batchWarnings.length > 0 ? (
               <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
                 {validationSummary.batchWarnings.map((item, idx) => (
@@ -962,6 +1324,34 @@ export default function Upload() {
                 ))}
               </div>
             ) : null}
+            <div className="mt-3 space-y-3 text-xs">
+              {[
+                { title: "Prefix mismatches", data: validationSummary.prefixMismatches, badge: "bg-amber-100 text-amber-800" },
+                { title: "Invalid services", data: validationSummary.invalidServices, badge: "bg-red-100 text-red-800" },
+                { title: "Duplicate tracking IDs", data: validationSummary.duplicateTracking, badge: "bg-rose-100 text-rose-800" },
+                { title: "Overweight shipments", data: validationSummary.overweightShipments, badge: "bg-orange-100 text-orange-800" },
+                { title: "MO-ineligible services", data: validationSummary.moIneligibleServices, badge: "bg-fuchsia-100 text-fuchsia-800" },
+              ].map((group) => (
+                <div key={group.title} className="rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-semibold text-slate-800">{group.title}</div>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${group.badge}`}>{group.data.length}</span>
+                  </div>
+                  {group.data.length > 0 ? (
+                    <div className="mt-2 space-y-1 text-slate-700">
+                      {group.data.slice(0, 8).map((item, idx) => (
+                        <div key={`${group.title}-${idx}`}>
+                          Row {item.row}: {item.message}
+                          {item.recommendation ? <span className="text-slate-500"> Recommendation: {item.recommendation}</span> : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-slate-500">No issues detected.</div>
+                  )}
+                </div>
+              ))}
+            </div>
             {validationSummary.rowErrors.length > 0 ? (
               <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                 {validationSummary.rowErrors.map((item, idx) => (
@@ -984,8 +1374,15 @@ export default function Upload() {
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
                 >
                   <Download className="h-4 w-4" />
-                  Download Rejected Rows Summary
+                  Download Validation Summary CSV
                 </a>
+              </div>
+            ) : null}
+            {validationSummary.recommendations.length > 0 ? (
+              <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
+                {validationSummary.recommendations.map((item, idx) => (
+                  <div key={`rec-${idx}`}>{item}</div>
+                ))}
               </div>
             ) : null}
           </Card>
@@ -993,11 +1390,17 @@ export default function Upload() {
 
         {eligibleForMoneyOrder ? (
           <Card className="border-slate-200 bg-white p-5 shadow-sm">
-            <CardTitle>Generate Money Order</CardTitle>
+            <CardTitle>Generate Money Orders</CardTitle>
             <div className="mt-0.5 text-sm font-normal text-slate-500">All actions consume units based on usage.</div>
             <div className="mt-2 text-sm text-gray-600">
               VPL/VPP include commission. COD has no commission.
             </div>
+            {shipmentMode === "mix_articles" ? (
+              <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                Mix Services mode: money orders are generated only for VPL, VPP, and COD rows.
+                {uploadInsights ? ` Eligible rows: ${uploadInsights.moneyOrderEligibleRows}. Ineligible rows: ${uploadInsights.moneyOrderIneligibleRows}.` : ""}
+              </div>
+            ) : null}
             <label className="mt-4 flex items-center gap-2 text-sm text-gray-700">
               <input
                 type="checkbox"
@@ -1084,40 +1487,72 @@ export default function Upload() {
         </Card>
         </div>
       </div>
-      {prefixMismatchInfo ? (
+      {mismatchDecisionModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
-          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-[0_30px_80px_rgba(15,23,42,0.28)]">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-[0_30px_80px_rgba(15,23,42,0.28)]">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
                 <svg className="h-5 w-5 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-base font-bold text-slate-900">Tracking ID Type Mismatch</div>
-                <div className="mt-1 text-sm text-slate-600">Uploaded tracking IDs do not match the selected shipment type.</div>
+                <div className="text-base font-bold text-slate-900">Tracking Prefix Mismatch Detected</div>
+                <div className="mt-1 text-sm text-slate-600">Row {mismatchDecisionModal.row} contains uploaded tracking <span className="font-semibold">{mismatchDecisionModal.uploadedTracking}</span> but shipment_type is <span className="font-semibold">{mismatchDecisionModal.rowShipmentType || "(missing)"}</span>. Choose how to continue.</div>
               </div>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Selected Type</div>
-                <div className="mt-1 text-lg font-extrabold text-slate-900">{prefixMismatchInfo.shipmentType}</div>
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Uploaded Prefix</div>
+                <div className="mt-1 text-lg font-extrabold text-slate-900">{mismatchDecisionModal.detectedPrefix || "UNKNOWN"}</div>
               </div>
               <div className="rounded-xl border border-red-100 bg-red-50 p-3">
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-red-500">Found in File</div>
-                <div className="mt-1 text-lg font-extrabold text-red-700">{prefixMismatchInfo.detected}</div>
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-red-500">Expected Prefix</div>
+                <div className="mt-1 text-lg font-extrabold text-red-700">{mismatchDecisionModal.expectedPrefix}</div>
               </div>
             </div>
             <div className="mt-3 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              Please either upload <span className="font-bold">{prefixMismatchInfo.shipmentType}</span> tracking IDs,
-              or change the shipment type to <span className="font-bold">{prefixMismatchInfo.detected}</span>.
+              Generate barcode keeps row shipment_type as-is and ignores uploaded tracking. Use uploaded barcode preserves tracking and overrides row shipment_type using uploaded prefix.
             </div>
-            <div className="mt-2 text-xs text-slate-400">{prefixMismatchInfo.total} row{prefixMismatchInfo.total !== 1 ? "s" : ""} affected</div>
-            <div className="mt-5 flex justify-end">
+            <div className="mt-3 flex items-center gap-4 text-xs text-slate-600">
+              <label className="flex items-center gap-1">
+                <input
+                  type="radio"
+                  name="mismatchApplyScope"
+                  checked={mismatchApplyScope === "row"}
+                  onChange={() => setMismatchApplyScope("row")}
+                />
+                Apply to this row only
+              </label>
+              <label className="flex items-center gap-1">
+                <input
+                  type="radio"
+                  name="mismatchApplyScope"
+                  checked={mismatchApplyScope === "all"}
+                  onChange={() => setMismatchApplyScope("all")}
+                />
+                Apply to all mismatches
+              </label>
+            </div>
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setPrefixMismatchInfo(null)}
-                className="rounded-2xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white shadow-md hover:bg-slate-800"
+                onClick={() => closeMismatchDecision({ action: "generate", scope: mismatchApplyScope })}
+                className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
-                OK, Got It
+                Generate {mismatchDecisionModal.rowShipmentType || "Row"} barcode
+              </button>
+              <button
+                type="button"
+                onClick={() => closeMismatchDecision({ action: "use_uploaded", scope: mismatchApplyScope })}
+                className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-emerald-700"
+              >
+                Use uploaded {mismatchDecisionModal.detectedPrefix || "tracking"} barcode
+              </button>
+              <button
+                type="button"
+                onClick={() => closeMismatchDecision(null)}
+                className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-slate-800"
+              >
+                Cancel generation
               </button>
             </div>
           </div>

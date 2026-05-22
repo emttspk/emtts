@@ -306,7 +306,8 @@ jobsRouter.get("/preview/labels", requireAuth, (req, res) => {
 jobsRouter.post("/preview/labels", requireAuth, labelPreviewUploadMiddleware, async (req, res) => {
   const tempPath = req.file?.path;
   const carrierType = String(req.body?.carrierType ?? "pakistan_post").toLowerCase() === "courier" ? "courier" : "pakistan_post";
-  const shipmentMode = String(req.body?.shipmentMode ?? "single_service").toLowerCase() === "mix_articles"
+  const shipmentModeRaw = String(req.body?.shipmentMode ?? "single_service").toLowerCase();
+  const shipmentMode = (shipmentModeRaw === "mix_articles" || shipmentModeRaw === "mix_services")
     ? "mix_articles"
     : "single_service";
   const shipmentTypeRaw = String(req.body?.shipmentType ?? "").trim();
@@ -513,7 +514,11 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
     logCatalogShadowWarning("service_mismatch", `Upload requested unsupported shipment type '${shipmentTypeRaw}'.`);
   }
   const shipmentType = carrierType === "courier" ? "COURIER" : resolvedShipmentType;
-  const eligibleForMoneyOrder = carrierType !== "courier" && shouldShowValuePayableAmount(shipmentType);
+  const shipmentModeRaw = String(req.body?.shipmentMode ?? "single_service").toLowerCase();
+  const shipmentMode = (shipmentModeRaw === "mix_articles" || shipmentModeRaw === "mix_services")
+    ? "mix_articles"
+    : "single_service";
+  const eligibleForMoneyOrder = carrierType !== "courier" && (shipmentMode === "mix_articles" || shouldShowValuePayableAmount(shipmentType));
   const generateMoneyOrder = generateMoneyOrderRequested && eligibleForMoneyOrder;
   const trackingScheme = (() => {
     const v = String(req.body?.trackingScheme ?? "standard").toLowerCase();
@@ -521,10 +526,6 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
     if (v === "ums") return "ums";
     return "standard";
   })();
-  const shipmentMode = String(req.body?.shipmentMode ?? "single_service").toLowerCase() === "mix_articles"
-    ? "mix_articles"
-    : "single_service";
-
   if (autoGenerateTracking) {
     if (!shipmentType || shipmentType === "COURIER") {
       return res.status(400).json({
@@ -602,7 +603,7 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
         return !resolveShipmentType(rawRowType);
       });
       if (invalidRows.length > 0) {
-        throw new Error(`Mix Articles mode requires canonical shipment_type per row. Found ${invalidRows.length} row(s) with missing or invalid shipment_type.`);
+        throw new Error(`Mix Services mode requires canonical shipment_type per row. Found ${invalidRows.length} row(s) with missing or invalid shipment_type.`);
       }
     }
 
@@ -654,19 +655,21 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
       labelUnits += 1;
     }
 
+    const moneyOrderEligibleRows = orders.filter((order) => {
+      const rawRowType = String((order as any)?.shipmentType ?? (order as any)?.shipmenttype ?? shipmentType ?? "").trim();
+      const rowType = resolveShipmentType(rawRowType) ?? rawRowType.toUpperCase();
+      return rowType === "VPL" || rowType === "VPP" || rowType === "COD";
+    });
+
     if (effectiveGenerateMoneyOrder) {
-      const hasMoneyOrderAmount = orders.some((order) => toNum((order as any)?.CollectAmount ?? (order as any)?.amount ?? 0) > 0);
+      const hasMoneyOrderAmount = moneyOrderEligibleRows.some((order) => toNum((order as any)?.CollectAmount ?? (order as any)?.amount ?? 0) > 0);
       if (!hasMoneyOrderAmount) {
         effectiveGenerateMoneyOrder = false;
       }
     }
 
     if (effectiveGenerateMoneyOrder) {
-      const hasVplShipment = orders.some((order) => {
-        const rawRowType = String((order as any)?.shipmentType ?? (order as any)?.shipmenttype ?? shipmentType ?? "").trim();
-        const rowType = resolveShipmentType(rawRowType) ?? rawRowType.toUpperCase();
-        return rowType === "VPL" || rowType === "VPP" || rowType === "COD";
-      });
+      const hasVplShipment = moneyOrderEligibleRows.length > 0;
 
       if (hasVplShipment) {
         const userProfile = await withReconnectRetry(async () => prisma.user.findUnique({ where: { id: userId }, select: { cnic: true } }));
@@ -679,8 +682,8 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
 
     if (effectiveGenerateMoneyOrder) {
       let moUnits = 0;
-      for (let i = 0; i < orders.length; i += 1) {
-        const amount = toNum((orders[i] as any)?.CollectAmount ?? (orders[i] as any)?.amount ?? 0);
+      for (let i = 0; i < moneyOrderEligibleRows.length; i += 1) {
+        const amount = toNum((moneyOrderEligibleRows[i] as any)?.CollectAmount ?? (moneyOrderEligibleRows[i] as any)?.amount ?? 0);
         moUnits += moneyOrderUnitsForAmount(amount);
       }
       for (let i = 0; i < moUnits; i += 1) {
