@@ -23,6 +23,7 @@ import { moneyOrderHtml, renderLabelDocumentHtml, type LabelOrder } from "./temp
 import { htmlToPdfBuffer, htmlToPdfBufferInFreshBrowser, launchPuppeteerBrowser } from "./pdf/render.js";
 import { finalizeQueuedToGenerated, finalizeQueuedTrackingToGenerated, releaseQueuedLabels, releaseQueuedTracking } from "./usage/limits.js";
 import { prepareLabelOrders } from "./services/labelDocument.js";
+import { listCatalogServices } from "./catalog/serviceCatalog.js";
 import {
   buildMoneyOrderNumber,
   moneyOrderBreakdown,
@@ -356,10 +357,27 @@ function hasMoneyOrderAmount(order: { CollectAmount?: unknown; amount?: unknown 
   return normalizeAmount(order.CollectAmount ?? order.amount) > 0;
 }
 
-function resolveOrderShipmentType(order: { shipmentType?: unknown; shipmenttype?: unknown }, fallback?: unknown) {
-  const normalized = String(order.shipmentType ?? order.shipmenttype ?? fallback ?? "").trim().toUpperCase();
+const CANONICAL_SHIPMENT_TYPES = new Set(
+  listCatalogServices({ includeDeprecated: false })
+    .map((entry) => String(entry.service).trim().toUpperCase()),
+);
+
+function resolveCanonicalShipmentTypeStrict(value: unknown) {
+  const normalized = String(value ?? "").trim().toUpperCase();
   if (!normalized) return null;
-  return normalized === "RL" ? "RGL" : normalized;
+  return CANONICAL_SHIPMENT_TYPES.has(normalized) ? normalized : null;
+}
+
+function extractTrackingPrefix(value: unknown) {
+  const normalized = normalizeTrackingId(value);
+  const match = normalized.match(/^([A-Z]{2,6})/);
+  return match ? match[1] : "";
+}
+
+function resolveOrderShipmentType(order: { shipmentType?: unknown; shipmenttype?: unknown }, fallback?: unknown) {
+  const rowType = resolveCanonicalShipmentTypeStrict(order.shipmentType ?? order.shipmenttype);
+  if (rowType) return rowType;
+  return resolveCanonicalShipmentTypeStrict(fallback);
 }
 
 let trackingIdSequencesReady = false;
@@ -850,9 +868,29 @@ const worker = new Worker(
           await prisma.$transaction(async (tx) => {
             for (const order of orders) {
               const resolvedType = resolveOrderShipmentType(order, shipmentType);
+              if (!resolvedType) {
+                continue;
+              }
+
+              const uploadedTracking = normalizeTrackingId((order as any).TrackingID ?? (order as any).trackingId ?? "");
+              const uploadedPrefix = extractTrackingPrefix(uploadedTracking);
+              const expectedPrefix = resolveTrackingAllocatorPrefix(resolvedType);
+              const preserveUploaded = shipmentMode === "mix_articles"
+                && Boolean(uploadedTracking)
+                && uploadedPrefix === expectedPrefix;
+
+              if (preserveUploaded) {
+                (order as any).__allocatedTrackingId = uploadedTracking;
+                (order as any).TrackingID = uploadedTracking;
+                (order as any).trackingId = uploadedTracking;
+                reservedTrackingIds.add(uploadedTracking);
+                continue;
+              }
+
               const allocatedTrackingId = await allocateNextTrackingId(tx, reservedTrackingIds, allocationDate, resolvedType);
               (order as any).__allocatedTrackingId = allocatedTrackingId;
-              order.TrackingID = allocatedTrackingId;
+              (order as any).TrackingID = allocatedTrackingId;
+              (order as any).trackingId = allocatedTrackingId;
             }
           });
         }

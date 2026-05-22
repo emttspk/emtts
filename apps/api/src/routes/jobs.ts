@@ -30,6 +30,17 @@ import { r2Config as rolloutR2Config } from "../config.js";
 
 export const jobsRouter = Router();
 
+const CANONICAL_SHIPMENT_TYPES = new Set(
+  listCatalogServices({ includeDeprecated: false })
+    .map((entry) => String(entry.service).trim().toUpperCase()),
+);
+
+function resolveCanonicalShipmentTypeStrict(value: unknown) {
+  const normalized = String(value ?? "").trim().toUpperCase();
+  if (!normalized) return null;
+  return CANONICAL_SHIPMENT_TYPES.has(normalized) ? normalized : null;
+}
+
 function isClosedConnectionError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error ?? "");
   return /connection is closed|can't reach database server|p1001|timed out|timeout|econnreset|connection terminated/i.test(message);
@@ -483,11 +494,15 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
   const isDuplicate = existingCompletedJobs.some(
     (job) => job.originalFilename.trim().toLowerCase() === normalizedFileName,
   );
+  const duplicateFilenameBypassUsed = isExemptFileName && isDuplicate;
 
   console.log(`[Upload] Filename duplicate check: { filename: "${normalizedFileName}", isDuplicate: ${isDuplicate}, isExempt: ${isExemptFileName}, checkedAgainst: "COMPLETED jobs only" }`);
 
   if (isExemptFileName) {
     console.log(`[Upload] Exempt filename detected — bypassing duplicate block: "${normalizedFileName}"`);
+    if (duplicateFilenameBypassUsed) {
+      console.info(`[AUDIT] TEST_FILENAME_BYPASS_APPLIED user=${userId} filename=\"${normalizedFileName}\"`);
+    }
   }
 
   if (!isExemptFileName && isDuplicate) {
@@ -509,7 +524,7 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
   const trackAfterGenerate = String(req.body?.trackAfterGenerate ?? "false").toLowerCase() === "true";
   const carrierType = String(req.body?.carrierType ?? "pakistan_post").toLowerCase() === "courier" ? "courier" : "pakistan_post";
   const shipmentTypeRaw = String(req.body?.shipmentType ?? "").trim();
-  const resolvedShipmentType = resolveShipmentType(shipmentTypeRaw);
+  const resolvedShipmentType = resolveCanonicalShipmentTypeStrict(shipmentTypeRaw);
   if (shipmentTypeRaw && !resolvedShipmentType) {
     logCatalogShadowWarning("service_mismatch", `Upload requested unsupported shipment type '${shipmentTypeRaw}'.`);
   }
@@ -526,7 +541,7 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
     if (v === "ums") return "ums";
     return "standard";
   })();
-  if (autoGenerateTracking) {
+  if (autoGenerateTracking && shipmentMode === "single_service") {
     if (!shipmentType || shipmentType === "COURIER") {
       return res.status(400).json({
         success: false,
@@ -589,7 +604,7 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
       const rowTypeMismatch = orders.filter((order) => {
         const rawRowType = String((order as any).shipmentType ?? (order as any).shipmenttype ?? "").trim();
         if (!rawRowType) return false;
-        const resolvedRowType = resolveShipmentType(rawRowType);
+        const resolvedRowType = resolveCanonicalShipmentTypeStrict(rawRowType);
         return resolvedRowType !== shipmentType;
       });
       if (rowTypeMismatch.length > 0) {
@@ -600,7 +615,7 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
     if (shipmentMode === "mix_articles" && shipmentType !== "COURIER") {
       const invalidRows = orders.filter((order) => {
         const rawRowType = String((order as any).shipmentType ?? (order as any).shipmenttype ?? "").trim();
-        return !resolveShipmentType(rawRowType);
+        return !resolveCanonicalShipmentTypeStrict(rawRowType);
       });
       if (invalidRows.length > 0) {
         throw new Error(`Mix Services mode requires canonical shipment_type per row. Found ${invalidRows.length} row(s) with missing or invalid shipment_type.`);
@@ -622,7 +637,7 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
         }
 
         const rawRowType = String((order as any).shipmentType ?? (order as any).shipmenttype ?? "").trim();
-        const resolvedRowType = resolveShipmentType(rawRowType);
+        const resolvedRowType = resolveCanonicalShipmentTypeStrict(rawRowType);
         if (!resolvedRowType) return true;
         const rowExpectedPrefixes = expectedPrefixesForService(resolvedRowType);
         return rowExpectedPrefixes.length > 0 && !rowExpectedPrefixes.some((prefix) => id.startsWith(prefix));
@@ -630,15 +645,18 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
 
       if (mismatchedOrders.length > 0) {
         logCatalogShadowWarning("invalid_prefix", `Detected ${mismatchedOrders.length} row(s) with prefix mismatch in ${shipmentMode}.`);
-        const detectedPrefixes = [
-          ...new Set(
-            mismatchedOrders.map((o) => {
-              const id = String((o as any).TrackingID ?? (o as any).trackingId ?? (o as any).barcode ?? "").trim().toUpperCase();
-              return id.match(/^([A-Z]+)/)?.[1] ?? "UNKNOWN";
-            }),
-          ),
-        ].join(", ");
-        throw new Error(`Tracking ID prefix mismatch detected for ${shipmentMode}. Detected prefixes: ${detectedPrefixes}.`);
+        if (shipmentMode === "single_service") {
+          const detectedPrefixes = [
+            ...new Set(
+              mismatchedOrders.map((o) => {
+                const id = String((o as any).TrackingID ?? (o as any).trackingId ?? (o as any).barcode ?? "").trim().toUpperCase();
+                return id.match(/^([A-Z]+)/)?.[1] ?? "UNKNOWN";
+              }),
+            ),
+          ].join(", ");
+          throw new Error(`Tracking ID prefix mismatch detected for ${shipmentMode}. Detected prefixes: ${detectedPrefixes}.`);
+        }
+        console.warn(`[Upload] Mix services prefix mismatches detected; continuing with row-level validation in worker. Count=${mismatchedOrders.length}`);
       }
     }
 
@@ -657,7 +675,7 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
 
     const moneyOrderEligibleRows = orders.filter((order) => {
       const rawRowType = String((order as any)?.shipmentType ?? (order as any)?.shipmenttype ?? shipmentType ?? "").trim();
-      const rowType = resolveShipmentType(rawRowType) ?? rawRowType.toUpperCase();
+      const rowType = resolveCanonicalShipmentTypeStrict(rawRowType) ?? rawRowType.toUpperCase();
       return rowType === "VPL" || rowType === "VPP" || rowType === "COD";
     });
 
@@ -790,7 +808,13 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
     }
 
     // Return success only when enqueue succeeded.
-    return res.json({ success: true, message: "File uploaded successfully", jobId: job.id, recordCount: ordersCount });
+    return res.json({
+      success: true,
+      message: "File uploaded successfully",
+      jobId: job.id,
+      recordCount: ordersCount,
+      duplicateFilenameBypassUsed,
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Failed to upload file";
     await withReconnectRetry(async () => prisma.labelJob.update({

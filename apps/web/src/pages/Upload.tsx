@@ -45,8 +45,6 @@ type UploadInsights = {
   recommendedOutputMode: "envelope-9x4" | "universal-9x4" | "box" | "a4-multi" | "flyer";
   recommendationReason: string;
 };
-
-const CANONICAL_SERVICES = new Set(["VPL", "VPP", "COD", "RGL", "IRL", "UMS"]);
 const SERVICE_WEIGHT_LIMITS: Record<string, number> = {
   VPL: 2_000,
   VPP: 30_000,
@@ -150,6 +148,9 @@ export default function Upload() {
     ignoredTracking: number;
     overweightWarnings: number;
     moIneligibleWarnings: number;
+    duplicateFilenameBypassUsed: boolean;
+    moEligibleRows: number;
+    moSkippedRows: number;
     batchWarnings: string[];
     rejectedSummaryUrl: string | null;
     rejectedSummaryName: string | null;
@@ -168,6 +169,10 @@ export default function Upload() {
   const previewViewportRef = useRef<HTMLDivElement | null>(null);
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null);
   const mismatchResolverRef = useRef<((decision: { action: MismatchAction; scope: "row" | "all" } | null) => void) | null>(null);
+  const canonicalServices = useMemo(
+    () => new Set(serviceCatalog.map((entry) => String(entry.service).trim().toUpperCase())),
+    [serviceCatalog],
+  );
 
   const eligibleForMoneyOrder =
     carrierType === "pakistan_post" && (
@@ -632,7 +637,7 @@ export default function Upload() {
           : String(shipmentType ?? "").trim().toUpperCase();
 
         if (shipmentMode === "mix_articles") {
-          if (!rowShipmentType || !CANONICAL_SERVICES.has(rowShipmentType)) {
+          if (!rowShipmentType || !canonicalServices.has(rowShipmentType)) {
             const message = `Row ${rowIndex}: shipment_type must be one of VPL, VPP, COD, RGL, IRL, UMS in Mix Services mode.`;
             rowSpecificErrors.push(message);
             validationIssues.push({
@@ -741,7 +746,7 @@ export default function Upload() {
                 mismatchAction = applyAllMismatchAction;
               }
 
-              if (mismatchAction === "use_uploaded" && detectedService && CANONICAL_SERVICES.has(detectedService)) {
+              if (mismatchAction === "use_uploaded" && detectedService && canonicalServices.has(detectedService)) {
                 writeShipmentType(detectedService);
                 effectiveService = detectedService;
                 rowWarnings.push(`Row ${rowIndex}: preserving uploaded tracking '${rawTracking}' and overriding row shipment_type to '${detectedService}'.`);
@@ -769,19 +774,13 @@ export default function Upload() {
                 });
               }
             } else {
-              ignoredTracking += 1;
-              rowWarnings.push(`Row ${rowIndex}: uploaded tracking '${rawTracking}' ignored because Auto Generate mode is enabled.`);
-              validationIssues.push({
-                row: rowIndex,
-                severity: "warning",
-                category: "Prefix mismatches",
-                message: `Uploaded tracking '${rawTracking}' ignored in auto mode.`,
-                tracking: rawTracking,
-                shipmentType: effectiveService,
-                recommendation: "Switch to Manual mode to retain uploaded tracking IDs.",
-              });
+              // In Mix Services auto mode, matching uploaded tracking is preserved.
+              (workingRow as any).TrackingID = rawTracking;
+              (workingRow as any).trackingId = rawTracking;
             }
-            batchWarnings.add("Uploaded tracking IDs were ignored for rows using Auto Generate mode.");
+            if (!prefixMatches) {
+              batchWarnings.add("Uploaded tracking IDs were ignored for rows using Auto Generate mode.");
+            }
           }
         } else if (barcodeMode === "manual" && effectiveService && effectiveService !== "COURIER") {
           rowSpecificErrors.push(`Row ${rowIndex}: tracking ID is required in Manual mode.`);
@@ -795,7 +794,7 @@ export default function Upload() {
           });
         }
 
-        if (effectiveService && CANONICAL_SERVICES.has(effectiveService)) {
+        if (effectiveService && canonicalServices.has(effectiveService)) {
           const weightGrams = parseWeightToGrams(find("Weight"));
           const limit = SERVICE_WEIGHT_LIMITS[effectiveService];
           if (weightGrams > 0 && Number.isFinite(limit) && weightGrams > limit) {
@@ -837,6 +836,11 @@ export default function Upload() {
 
       const accepted = acceptedRows.length;
       const rejected = rows.length - acceptedRows.length;
+      const moEligibleRows = acceptedRows.filter((row) => {
+        const rowService = String(row.shipment_type ?? row.shipmenttype ?? row.shipmentType ?? shipmentType ?? "").trim().toUpperCase();
+        return rowService === "VPL" || rowService === "VPP" || rowService === "COD";
+      }).length;
+      const moSkippedRows = Math.max(0, acceptedRows.length - moEligibleRows);
       let rejectedSummaryUrl: string | null = null;
       let rejectedSummaryName: string | null = null;
 
@@ -879,6 +883,9 @@ export default function Upload() {
         ignoredTracking,
         overweightWarnings,
         moIneligibleWarnings,
+        duplicateFilenameBypassUsed: false,
+        moEligibleRows,
+        moSkippedRows,
         batchWarnings: Array.from(batchWarnings),
         rejectedSummaryUrl,
         rejectedSummaryName,
@@ -931,7 +938,20 @@ export default function Upload() {
           printMode: outputMode ?? "box",
           generateMoneyOrder: String(Boolean(includeMoneyOrders && eligibleForMoneyOrder)),
           trackAfterGenerate: String(trackAfterGenerate),
-        })) as { jobId: string; recordCount: number };
+        })) as { jobId: string; recordCount: number; duplicateFilenameBypassUsed?: boolean };
+      if (data.duplicateFilenameBypassUsed) {
+        setValidationSummary((prev) => {
+          if (!prev) return prev;
+          const nextWarnings = prev.batchWarnings.includes("Duplicate filename bypass used for allowed test file name.")
+            ? prev.batchWarnings
+            : [...prev.batchWarnings, "Duplicate filename bypass used for allowed test file name."];
+          return {
+            ...prev,
+            duplicateFilenameBypassUsed: true,
+            batchWarnings: nextWarnings,
+          };
+        });
+      }
       const count = Number(data.recordCount ?? 0);
       if (Number.isFinite(count) && count > 0) {
         setEstimatedTotalSec(Math.max(5, Math.ceil(count * 0.4)));
@@ -1315,6 +1335,13 @@ export default function Upload() {
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">Ignored Tracking: {validationSummary.ignoredTracking}</div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800">Overweight Warnings: {validationSummary.overweightWarnings}</div>
               <div className="rounded-xl border border-fuchsia-200 bg-fuchsia-50 px-3 py-2 text-fuchsia-800">MO-ineligible Services: {validationSummary.moIneligibleWarnings}</div>
+            </div>
+            <div className="mt-2 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">MO Eligible Rows: {validationSummary.moEligibleRows}</div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800">MO Skipped Rows: {validationSummary.moSkippedRows}</div>
+              <div className={`rounded-xl border px-3 py-2 ${validationSummary.duplicateFilenameBypassUsed ? "border-blue-200 bg-blue-50 text-blue-800" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+                Duplicate Filename Bypass Used: {validationSummary.duplicateFilenameBypassUsed ? "Yes" : "No"}
+              </div>
             </div>
             <div className="mt-3 text-xs text-slate-600">Total grouped issues: {validationSummary.totalIssues}</div>
             {validationSummary.batchWarnings.length > 0 ? (
