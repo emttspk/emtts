@@ -41,7 +41,7 @@
     "staging:env:check": "node scripts/staging-env-check.mjs",
     "staging:env:load": "echo 'PowerShell: . .\\scripts\\staging-env-load.ps1' && echo 'Bash/Zsh: source scripts/staging-env-load.sh (coming soon)' && node scripts/staging-env-check.mjs",
     "staging:r2:verify": "npm run staging:env:check && npm run r2:verify",
-    "phase-3-verify": "echo 'Phase 3 verification script placeholder'"
+    "phase-3-verify": "tsx scripts/phase-3-verify.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1048.0",
