@@ -490,6 +490,7 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
   // Failed/Queued/Processing jobs do NOT reserve the filename so re-uploads are always allowed.
   const normalizedFileName = normalizeUploadFileName(uploadedFile.originalname);
   const isExemptFileName = await isUploadFileNameExempt(uploadedFile.originalname).catch(() => false);
+  console.info(`[UPLOAD_FILENAME_NORMALIZED] original="${uploadedFile.originalname}" normalized="${normalizedFileName}" exempt=${isExemptFileName}`);
   const existingCompletedJobs = await prisma.labelJob.findMany({
     where: { userId, status: "COMPLETED" },
     select: { originalFilename: true },
@@ -500,7 +501,7 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
   );
   const duplicateFilenameBypassUsed = isExemptFileName && isDuplicate;
 
-  console.log(`[Upload] Filename duplicate check: { filename: "${normalizedFileName}", isDuplicate: ${isDuplicate}, isExempt: ${isExemptFileName}, checkedAgainst: "COMPLETED jobs only" }`);
+  console.info(`[UPLOAD_DUPLICATE_CHECK] filename="${normalizedFileName}" isDuplicate=${isDuplicate} isExempt=${isExemptFileName} compareScope="COMPLETED jobs only"`);
 
   if (isExemptFileName) {
     console.log(`[Upload] Exempt filename detected — bypassing duplicate block: "${normalizedFileName}"`);
@@ -510,6 +511,7 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
   }
 
   if (!isExemptFileName && isDuplicate) {
+    console.warn(`[SECONDARY_DUPLICATE_BLOCK] filename="${normalizedFileName}" exempt=${isExemptFileName} bypass=${duplicateFilenameBypassUsed}`);
     console.warn(`[Upload] Filename reserved — blocked re-upload: "${normalizedFileName}"`);
     return res.status(409).json({
       success: false,

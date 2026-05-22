@@ -283,11 +283,13 @@ export default function Upload() {
         let overweightCount = 0;
         let smallEnvelopeLike = 0;
         let knownWeightRows = 0;
+        const detectedServices = new Set<string>();
 
         for (const row of rows) {
           const shipment = String((row.shipment_type ?? row.shipmenttype ?? "")).trim().toUpperCase();
           if (shipment) {
             serviceCounts[shipment] = (serviceCounts[shipment] ?? 0) + 1;
+            detectedServices.add(shipment);
           }
           if (shipment === "VPL" || shipment === "VPP" || shipment === "COD") {
             moEligibleRows += 1;
@@ -306,8 +308,18 @@ export default function Upload() {
           }
         }
 
-        const onlyMoneyOrderServices = Object.keys(serviceCounts).length > 0
-          && Object.keys(serviceCounts).every((svc) => svc === "VPL" || svc === "VPP" || svc === "COD");
+        const uniqueServices = Array.from(detectedServices);
+        const onlyMoneyOrderServices = uniqueServices.length > 0
+          && uniqueServices.every((svc) => svc === "VPL" || svc === "VPP" || svc === "COD");
+        const detectedShipmentMode: ShipmentMode = uniqueServices.length > 1 ? "mix_articles" : "single_service";
+        const detectedShipmentType = uniqueServices.length === 1 ? uniqueServices[0] : null;
+        const detectedCategory: "general_post" | "value_payable" | "cod_articles" | null = detectedShipmentMode === "mix_articles"
+          ? null
+          : detectedShipmentType === "VPL" || detectedShipmentType === "VPP"
+            ? "value_payable"
+            : detectedShipmentType === "COD"
+              ? "cod_articles"
+              : "general_post";
         const mostlySmall = knownWeightRows > 0 && smallEnvelopeLike / knownWeightRows >= 0.75;
         const recommendedOutputMode: UploadInsights["recommendedOutputMode"] = overweightCount > 0
           ? "box"
@@ -324,6 +336,26 @@ export default function Upload() {
             : onlyMoneyOrderServices
               ? "Rows are VPL/VPP/COD; envelope 9x4 works best for labels + money orders."
               : "Mixed service profile detected; box mode is recommended.";
+
+        console.info("UPLOAD_SMART_DETECTION", JSON.stringify({
+          uniqueServices,
+          detectedShipmentMode,
+          detectedShipmentType,
+          detectedCategory,
+          moEligibleRows,
+          moIneligibleRows,
+          barcodeMode,
+          recommendedOutputMode,
+        }));
+
+        setShipmentMode(detectedShipmentMode);
+        if (detectedShipmentMode === "mix_articles") {
+          setPpCategory(null);
+          setShipmentType(null);
+        } else {
+          setPpCategory(detectedCategory);
+          setShipmentType(detectedShipmentType);
+        }
 
         if (cancelled) return;
         setUploadInsights({
