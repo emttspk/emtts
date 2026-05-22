@@ -333,10 +333,10 @@ jobsRouter.post("/preview/labels", requireAuth, labelPreviewUploadMiddleware, as
   }
 
   try {
-    const previewShipmentType: "RGL" | "IRL" | "UMS" | "VPL" | "VPP" | "COD" | "COURIER" =
+    const previewShipmentType: "RGL" | "IRL" | "UMS" | "PAR" | "VPL" | "VPP" | "COD" | "COURIER" =
       shipmentType === "COURIER"
         ? "COURIER"
-        : (resolveShipmentType(shipmentType) ?? "RGL") as "RGL" | "IRL" | "UMS" | "VPL" | "VPP" | "COD";
+        : (resolveShipmentType(shipmentType) ?? "RGL") as "RGL" | "IRL" | "UMS" | "PAR" | "VPL" | "VPP" | "COD";
     const orders = await parseOrdersFromFile(tempPath, { allowMissingTrackingId: true });
     const previewOrders = orders.map((order, index) => {
       const rowShipmentType = resolveShipmentType((order as any).shipmentType ?? (order as any).shipmenttype);

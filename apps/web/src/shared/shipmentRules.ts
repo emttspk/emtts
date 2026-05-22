@@ -5,10 +5,10 @@ export const LEGACY_SHIPMENT_ALIASES: Record<string, string> = {
   "SMALL PACKET": "RGL",
   SMALL_PACKET: "RGL",
   SMALLPACKET: "RGL",
-  PAR: "VPP",
-  PARCEL: "VPP",
-  PARCELS: "VPP",
-  PR: "VPP",
+  PAR: "PAR",
+  PARCEL: "PAR",
+  PARCELS: "PAR",
+  PR: "PAR",
 };
 
 const LEGACY_PARCEL_VALUES = new Set(["PAR", "PARCEL", "PARCELS", "PR"]);
@@ -36,8 +36,8 @@ export function isLegacyParcelCompatible(service: unknown) {
 
 export function shipmentTypeDisplayLabel(service: unknown) {
   const normalized = normalizeShipmentType(service);
-  if (isLegacyParcelCompatible(normalized)) {
-    return "PAR (Legacy / Parcel Compatible)";
+  if (normalized === "PAR") {
+    return "PAR (Parcel)";
   }
   return normalized;
 }

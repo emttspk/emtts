@@ -68,6 +68,15 @@ export const SERVICE_CATALOG: readonly ServiceCatalogEntry[] = [
     barcode: true,
     autoGenerate: true,
   },
+  {
+    service: "PAR",
+    prefix: "PAR",
+    category: "general_post",
+    trackingNamespace: true,
+    moneyOrderNamespace: null,
+    barcode: true,
+    autoGenerate: true,
+  },
 ] as const;
 
 const SERVICE_BY_CODE = new Map(SERVICE_CATALOG.map((entry) => [entry.service, entry]));

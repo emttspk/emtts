@@ -32,6 +32,7 @@ import {
   getTrackingPrefixesForShipmentType,
   resolveShipmentType,
   shouldApplyPakistanPostValuePayableRules,
+  shouldChargeMoneyOrderCommission,
   shouldShowValuePayableAmount,
   validateMoneyOrderNumber,
 } from "./validation/trackingId.js";
@@ -759,7 +760,7 @@ const worker = new Worker(
         shipmentMode?: "single_service" | "mix_articles";
         trackAfterGenerate?: boolean;
         carrierType?: "pakistan_post" | "courier";
-        shipmentType?: "RGL" | "IRL" | "UMS" | "VPL" | "VPP" | "COD" | "COURIER" | null;
+        shipmentType?: "RGL" | "IRL" | "UMS" | "PAR" | "VPL" | "VPP" | "COD" | "COURIER" | null;
       };
       const job = await prisma.labelJob.findUnique({
         where: { id: jobId },
@@ -1020,9 +1021,8 @@ const worker = new Worker(
             amount: (() => {
               const resolvedShipmentType = resolveOrderShipmentType(order, shipmentType);
               const collectAmount = normalizeAmount((order as any).CollectAmount);
-              // For VPL/VPP, CollectAmount is always the gross collect amount (receiver pays).
-              // We must store the net MO amount (gross − commission) in the DB.
-              if (resolvedShipmentType === "VPL" || resolvedShipmentType === "VPP") {
+              // Commission-bearing shipments store net MO amount in DB.
+              if (shouldChargeMoneyOrderCommission(resolvedShipmentType)) {
                 return reverseMoneyOrderFromGross(collectAmount, resolvedShipmentType).moAmount;
               }
               return collectAmount;

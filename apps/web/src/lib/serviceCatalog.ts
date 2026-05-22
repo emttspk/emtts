@@ -20,7 +20,7 @@ export const FALLBACK_SERVICE_CATALOG: ServiceCatalogEntry[] = [
   { service: "UMS", prefix: "UMS", category: "general_post", trackingNamespace: true, moneyOrderNamespace: null, barcode: true, autoGenerate: true },
   { service: "VPL", prefix: "VPL", category: "value_payable", trackingNamespace: true, moneyOrderNamespace: "MOS", barcode: true, autoGenerate: true },
   { service: "VPP", prefix: "VPP", category: "value_payable", trackingNamespace: true, moneyOrderNamespace: "MOS", barcode: true, autoGenerate: true },
-  { service: "PAR", prefix: "PAR", category: "value_payable", trackingNamespace: true, moneyOrderNamespace: "MOS", barcode: true, autoGenerate: true },
+  { service: "PAR", prefix: "PAR", category: "general_post", trackingNamespace: true, moneyOrderNamespace: null, barcode: true, autoGenerate: true },
   { service: "COD", prefix: "COD", category: "cod_articles", trackingNamespace: true, moneyOrderNamespace: "UMO", barcode: true, autoGenerate: true },
 ];
 

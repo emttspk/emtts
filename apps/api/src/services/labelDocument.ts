@@ -5,7 +5,7 @@ import { logCatalogShadowWarning } from "../catalog/legacyShipmentAliases.js";
 type TrackingScheme = "standard" | "rl" | "ums";
 type CarrierType = "pakistan_post" | "courier";
 type ShipmentMode = "single_service" | "mix_articles";
-type ShipmentType = "RGL" | "IRL" | "UMS" | "VPL" | "VPP" | "COD" | "COURIER" | null;
+type ShipmentType = "RGL" | "IRL" | "UMS" | "PAR" | "VPL" | "VPP" | "COD" | "COURIER" | null;
 
 function resolveShipmentType(order: Record<string, unknown>, fallback: ShipmentType, mode: ShipmentMode): string | undefined {
   const rowShipmentType = resolveShipmentTypeCanonical(order.shipmentType ?? order.shipmenttype);

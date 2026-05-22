@@ -5,12 +5,20 @@ This document defines the operator-facing and validation rules for Upload, Money
 
 ## Canonical Shipment Resolution
 - Legacy aliases are resolved before all shipment decisions.
-- PAR-family values (`PAR`, `PARCEL`, `PARCELS`, `PR`) resolve to `VPP` for backend behavior.
-- UI keeps PAR visible as `PAR (Legacy / Parcel Compatible)` to preserve operator intent.
+- PAR-family values (`PAR`, `PARCEL`, `PARCELS`, `PR`) resolve to canonical `PAR`.
+- UI shows PAR as `PAR (Parcel)` under General category.
+
+## Canonical Value-Payable Rules
+- Value-payable shipment types: `VPL`, `VPP`, `COD`.
+- General shipment types: `IRL`, `UMS`, `RGL`, `PAR`.
+- General shipment rules:
+  - Must not render MO amount, MO commission, or gross collect amount.
+  - Must not generate money orders.
+  - Must not count as money-order eligible in validation or recommendations.
 
 ## Money Order Eligibility
 - Eligibility is canonical and shared across systems:
-  - Eligible: `VPL`, `VPP`, `COD`, and PAR-compatible rows (resolved to `VPP`).
+  - Eligible: `VPL`, `VPP`, `COD`.
   - Ineligible: all other shipment types.
 - This same rule is applied in:
   - Upload intelligence and recommendation card
@@ -21,7 +29,7 @@ This document defines the operator-facing and validation rules for Upload, Money
 
 ## Shipment Type UI
 - Single-service mode exposes shipment category and type selectors.
-- `PAR (Legacy / Parcel Compatible)` is shown in Value Payable choices.
+- `PAR (Parcel)` is shown in General choices.
 - Mix Services mode keeps row-level shipment type resolution from uploaded file.
 
 ## Barcode UX Rules
@@ -47,5 +55,5 @@ Recommended 4-step operator flow:
 - Single-service + Auto + prefix mismatch -> uploaded tracking ignored and generated.
 - Mix-services + uploaded tracking present -> preserve when valid.
 - Mix-services + tracking missing -> generate by row service.
-- PAR/PARCEL/PR rows + money order enabled -> eligible and counted consistently.
-- Non-eligible services + money order enabled -> warning and MO skip.
+- IRL/UMS/RGL/PAR + collect amount > 0 -> error: "Selected shipment type is not value-payable. Remove collect amount or select VPL/VPP/COD."
+- VPL/VPP/COD + collect amount <= 0 -> warning: "Value-payable shipment selected with zero collect amount."

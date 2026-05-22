@@ -74,6 +74,11 @@ function parseWeightToGrams(value: unknown) {
   return Math.round(numeric);
 }
 
+function parseAmountValue(value: unknown) {
+  const parsed = Number.parseFloat(String(value ?? "").replace(/,/g, "").trim());
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function suggestBestFitServices(weightGrams: number) {
   return Object.entries(SERVICE_WEIGHT_LIMITS)
     .filter(([, limit]) => limit >= weightGrams)
@@ -214,10 +219,6 @@ export default function Upload() {
     );
   const generalServices = useMemo(() => servicesByCategory(serviceCatalog, "general_post"), [serviceCatalog]);
   const valuePayableServices = useMemo(() => servicesByCategory(serviceCatalog, "value_payable"), [serviceCatalog]);
-  const valuePayableServicesWithLegacy = useMemo(
-    () => (valuePayableServices.includes("PAR") ? valuePayableServices : [...valuePayableServices, "PAR"]),
-    [valuePayableServices],
-  );
   const codServices = useMemo(() => servicesByCategory(serviceCatalog, "cod_articles"), [serviceCatalog]);
   const previewMode: PreviewMode =
     outputMode === "flyer"
@@ -280,19 +281,19 @@ export default function Upload() {
     if (carrierType !== "pakistan_post") return;
     if (!ppCategory) return;
     const firstGeneral = generalServices[0] ?? "RGL";
-    const firstValuePayable = valuePayableServicesWithLegacy[0] ?? "VPL";
+    const firstValuePayable = valuePayableServices[0] ?? "VPL";
     const firstCod = codServices[0] ?? "COD";
     // Default shipment type per category
     if (ppCategory === "general_post" && (shipmentType === null || valuePayableServices.includes(shipmentType) || codServices.includes(shipmentType))) {
       setShipmentType(firstGeneral);
     }
-    if (ppCategory === "value_payable" && !valuePayableServicesWithLegacy.includes(shipmentType ?? "")) {
+    if (ppCategory === "value_payable" && !valuePayableServices.includes(shipmentType ?? "")) {
       setShipmentType(firstValuePayable);
     }
     if (ppCategory === "cod_articles" && !codServices.includes(shipmentType ?? "")) {
       setShipmentType(firstCod);
     }
-  }, [carrierType, ppCategory, shipmentType, generalServices, valuePayableServicesWithLegacy, codServices]);
+  }, [carrierType, ppCategory, shipmentType, generalServices, valuePayableServices, codServices]);
 
   useEffect(() => {
     if (!eligibleForMoneyOrder && includeMoneyOrders) setIncludeMoneyOrders(false);
@@ -360,7 +361,7 @@ export default function Upload() {
         const detectedShipmentType = uniqueServices.length === 1 ? uniqueServices[0] : null;
         const detectedCategory: "general_post" | "value_payable" | "cod_articles" | null = detectedShipmentMode === "mix_articles"
           ? null
-          : detectedShipmentType === "VPL" || detectedShipmentType === "VPP" || detectedShipmentType === "PAR"
+          : detectedShipmentType === "VPL" || detectedShipmentType === "VPP"
             ? "value_payable"
             : detectedShipmentType === "COD"
               ? "cod_articles"
@@ -379,7 +380,7 @@ export default function Upload() {
           : mostlySmall
             ? "Most rows are light-weight; universal 9x4 is recommended."
             : onlyMoneyOrderServices
-              ? "Rows are VPL/VPP/COD (including PAR-compatible rows); envelope 9x4 works best for labels + money orders."
+              ? "Rows are VPL/VPP/COD; envelope 9x4 works best for labels + money orders."
               : "Mixed service profile detected; box mode is recommended.";
 
         console.info("UPLOAD_SMART_DETECTION", JSON.stringify({
@@ -705,7 +706,7 @@ export default function Upload() {
           serviceByPrefix.set(String(entry.prefix).toUpperCase(), String(entry.service).toUpperCase());
         }
       }
-      serviceByPrefix.set("PAR", "VPP");
+      serviceByPrefix.set("PAR", "PAR");
       let applyAllMismatchAction: MismatchAction | null = null;
 
       for (let i = 0; i < rows.length; i += 1) {
@@ -750,7 +751,7 @@ export default function Upload() {
 
         if (shipmentMode === "mix_articles") {
           if (!rowShipmentType || !canonicalServices.has(rowShipmentType)) {
-            const message = `Row ${rowIndex}: shipment_type must be one of VPL, VPP, COD, RGL, IRL, UMS in Mix Services mode.`;
+            const message = `Row ${rowIndex}: shipment_type must be one of VPL, VPP, COD, RGL, IRL, UMS, PAR in Mix Services mode.`;
             rowSpecificErrors.push(message);
             validationIssues.push({
               row: rowIndex,
@@ -923,9 +924,35 @@ export default function Upload() {
           }
         }
 
+        const collectAmount = parseAmountValue(find("CollectAmount") || find("amount") || find("collect_amount"));
+        if (effectiveService && canonicalServices.has(effectiveService) && !isMoneyOrderEligible(effectiveService) && collectAmount > 0) {
+          const message = "Selected shipment type is not value-payable. Remove collect amount or select VPL/VPP/COD.";
+          rowSpecificErrors.push(`Row ${rowIndex}: ${message}`);
+          validationIssues.push({
+            row: rowIndex,
+            severity: "error",
+            category: "MO-ineligible services",
+            message,
+            shipmentType: effectiveService,
+            recommendation: "Clear collect amount for IRL/UMS/RGL/PAR shipments.",
+          });
+        }
+        if (effectiveService && canonicalServices.has(effectiveService) && isMoneyOrderEligible(effectiveService) && collectAmount <= 0) {
+          const message = "Value-payable shipment selected with zero collect amount.";
+          rowWarnings.push(`Row ${rowIndex}: ${message}`);
+          validationIssues.push({
+            row: rowIndex,
+            severity: "warning",
+            category: "MO-ineligible services",
+            message,
+            shipmentType: effectiveService,
+            recommendation: "Provide collect amount for VPL/VPP/COD shipments.",
+          });
+        }
+
         if (includeMoneyOrders && effectiveService && !isMoneyOrderEligible(effectiveService)) {
           moIneligibleWarnings += 1;
-          const message = `Row ${rowIndex}: service '${effectiveService}' is not money-order eligible (VPL/VPP/COD and PAR-compatible only).`;
+          const message = `Row ${rowIndex}: service '${effectiveService}' is not money-order eligible (VPL/VPP/COD only).`;
           rowWarnings.push(message);
           validationIssues.push({
             row: rowIndex,
@@ -933,7 +960,7 @@ export default function Upload() {
             category: "MO-ineligible services",
             message,
             shipmentType: effectiveService,
-            recommendation: "Money orders will be generated only for VPL, VPP, COD, and PAR-compatible rows.",
+            recommendation: "Money orders will be generated only for VPL, VPP, and COD rows.",
           });
         }
 
@@ -984,7 +1011,7 @@ export default function Upload() {
         groupedIssues.invalidServices.length > 0 ? "Fix non-canonical shipment_type values before re-uploading." : null,
         groupedIssues.duplicateTracking.length > 0 ? "Remove duplicate tracking IDs to avoid shipment collision." : null,
         groupedIssues.overweightShipments.length > 0 ? "Switch overweight rows to higher-capacity services or box output mode." : null,
-        groupedIssues.moIneligibleServices.length > 0 ? "Money order output is restricted to VPL, VPP, COD, and PAR-compatible rows." : null,
+        groupedIssues.moIneligibleServices.length > 0 ? "Money order output is restricted to VPL, VPP, and COD rows." : null,
       ].filter((item): item is string => Boolean(item));
 
       setValidationSummary({
@@ -1175,7 +1202,7 @@ export default function Upload() {
             </div>
             {uploadInsights.parcelCompatibleRows > 0 ? (
               <div className="mt-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800">
-                PAR (Legacy / Parcel Compatible) rows detected: {uploadInsights.parcelCompatibleRows}
+                Legacy parcel aliases detected (mapped to PAR): {uploadInsights.parcelCompatibleRows}
               </div>
             ) : null}
           </Card>
@@ -1237,7 +1264,7 @@ export default function Upload() {
                 Single Service enforces the selected shipment type. Mix Services uses row shipment_type as authoritative.
               </div>
               <div className="mt-2 inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-800">
-                Legacy Shipment Mapping: PAR {"->"} VPP-compatible parcel workflow
+                Legacy Shipment Mapping: PARCEL/PR {"->"} PAR (Parcel)
               </div>
             </div>
 
@@ -1290,7 +1317,7 @@ export default function Upload() {
                 </div>
               ) : ppCategory === "value_payable" ? (
                 <div className="mt-2 grid grid-cols-2 gap-2">
-                  {(valuePayableServicesWithLegacy as string[]).map((t) => (
+                  {(valuePayableServices as string[]).map((t) => (
                     <button
                       key={t}
                       type="button"
@@ -1538,11 +1565,11 @@ export default function Upload() {
             <CardTitle>Generate Money Orders</CardTitle>
             <div className="mt-0.5 text-sm font-normal text-slate-500">All actions consume units based on usage.</div>
             <div className="mt-2 text-sm text-gray-600">
-                VPL/VPP/PAR include commission. COD has no commission.
+                VPL/VPP include commission. COD has no commission.
             </div>
             {shipmentMode === "mix_articles" ? (
               <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                  Mix Services mode: money orders are generated only for VPL, VPP, COD, and PAR-compatible rows.
+                    Mix Services mode: money orders are generated only for VPL, VPP, and COD rows.
                 {uploadInsights ? ` Eligible rows: ${uploadInsights.moneyOrderEligibleRows}. Ineligible rows: ${uploadInsights.moneyOrderIneligibleRows}.` : ""}
               </div>
             ) : null}

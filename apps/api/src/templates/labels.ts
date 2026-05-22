@@ -11,7 +11,9 @@ import {
   buildTrackingId,
   moneyOrderBreakdown,
   reverseMoneyOrderFromGross,
+  resolveShipmentType,
   shouldApplyPakistanPostValuePayableRules,
+  shouldChargeMoneyOrderCommission,
   shouldShowValuePayableAmount,
   validateMoneyOrderNumber,
 } from "../validation/trackingId.js";
@@ -60,25 +62,17 @@ function deriveNetCommissionFromGross(grossAmount: number, shipmentType: unknown
   const normalizedShipment = String(shipmentType ?? "").trim().toUpperCase();
   const gross = Math.max(0, Math.floor(grossAmount));
   
-  // COD: no commission — collect amount is the MO amount directly
-  if (normalizedShipment === "COD") {
+  if (!shouldShowValuePayableAmount(normalizedShipment)) {
     return { netAmount: gross, commission: 0 };
   }
 
-  // VPL/VPP: Calculate commission based on GROSS amount, then derive net
-  if (normalizedShipment === "VPL" || normalizedShipment === "VPP") {
-    const commission = gross > 10_000 ? 100 : 75;
-    return { netAmount: Math.max(0, gross - commission), commission };
+  // COD: no commission — collect amount is the MO amount directly
+  if (!shouldChargeMoneyOrderCommission(normalizedShipment)) {
+    return { netAmount: gross, commission: 0 };
   }
 
-  // ENVELOPE: Calculate commission based on gross, then derive net
-  if (normalizedShipment === "ENVELOPE") {
-    const commission = gross > 10_000 ? 100 : 75;
-    return { netAmount: Math.max(0, gross - commission), commission };
-  }
-
-  // All other types (parcel, document, etc.) - no commission
-  return { netAmount: gross, commission: 0 };
+  const commission = gross > 10_000 ? 100 : 75;
+  return { netAmount: Math.max(0, gross - commission), commission };
 }
 
 function formatWeightInGrams(value: unknown) {
@@ -226,12 +220,13 @@ function resolveTracking(o: LabelOrder, autoGenerateTracking: boolean) {
 }
 
 function resolveOrderShipmentType(order: Pick<LabelOrder, "shipmentType" | "shipmenttype">) {
-  return String(order.shipmentType ?? order.shipmenttype ?? "RGL").trim().toUpperCase() || "RGL";
+  return resolveShipmentType(order.shipmentType ?? order.shipmenttype ?? "RGL") ?? "RGL";
 }
 
 function displayShipmentType(value: unknown) {
-  const normalized = String(value ?? "").trim().toUpperCase();
+  const normalized = resolveShipmentType(value) ?? String(value ?? "").trim().toUpperCase();
   if (normalized === "RL") return "RGL";
+  if (normalized === "PAR") return "PAR (Parcel)";
   return normalized || "RGL";
 }
 
@@ -313,7 +308,7 @@ function getLabelAmountSummary(order: Pick<LabelOrder, "carrierType" | "shipment
     };
   }
 
-  if (shipmentType === "COD") {
+  if (!shouldChargeMoneyOrderCommission(shipmentType)) {
     return {
       carrierType,
       shipmentType,
@@ -325,7 +320,7 @@ function getLabelAmountSummary(order: Pick<LabelOrder, "carrierType" | "shipment
     };
   }
 
-  const uploadedGrossMode = isUploadedLabelRow(order as Record<string, unknown>) && (shipmentType === "VPL" || shipmentType === "VPP");
+  const uploadedGrossMode = isUploadedLabelRow(order as Record<string, unknown>) && shouldChargeMoneyOrderCommission(shipmentType);
   if (uploadedGrossMode) {
     const reversed = reverseMoneyOrderFromGross(collectAmount, shipmentType);
     return {
@@ -348,7 +343,7 @@ function getLabelAmountSummary(order: Pick<LabelOrder, "carrierType" | "shipment
     grossAmount,
     moAmount: netAmount,
     commission,
-    showCalculation: shipmentType === "VPL" || shipmentType === "VPP" || shipmentType === "COD",
+    showCalculation: shouldShowValuePayableAmount(shipmentType),
   };
 }
 
@@ -386,6 +381,36 @@ function renderBoxAmountBlock(summary: LabelAmountSummary) {
       <div class="money-row"><span class="money-label">MO Amount</span><span class="money-value">Rs. ${escapeHtml(formatRs(summary.moAmount))}</span></div>
       <div class="money-row"><span class="money-label">MO Commission</span><span class="money-value">Rs. ${escapeHtml(formatRs(summary.commission))}</span></div>
       <div class="money-row"><span class="money-label">Gross Collect Amount</span><span class="money-value">Rs. ${escapeHtml(formatRs(summary.grossAmount))}</span></div>
+    </div>
+  `;
+}
+
+function renderUniversalAmountBlock(summary: LabelAmountSummary) {
+  if (!summary.appliesPakistanPostRules || !shouldShowValuePayableAmount(summary.shipmentType)) {
+    return `
+      <div class="box amount-box" style="visibility:hidden;" aria-hidden="true">
+        <div class="amount-row"><span>&nbsp;</span><span>&nbsp;</span></div>
+        <div class="amount-row"><span>&nbsp;</span><span>&nbsp;</span></div>
+        <div class="amount-row amount-total"><span>&nbsp;</span><span>&nbsp;</span></div>
+      </div>
+    `;
+  }
+
+  const formatRs = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
+  return `
+    <div class="box amount-box">
+      <div class="amount-row">
+        <span>MO Amount</span>
+        <span>Rs. ${escapeHtml(formatRs(summary.moAmount))}</span>
+      </div>
+      <div class="amount-row">
+        <span>MO Commission</span>
+        <span>Rs. ${escapeHtml(formatRs(summary.commission))}</span>
+      </div>
+      <div class="amount-row amount-total">
+        <span>Gross Collect Amount</span>
+        <span>Rs. ${escapeHtml(formatRs(summary.grossAmount))}</span>
+      </div>
     </div>
   `;
 }
@@ -675,24 +700,28 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
 
     const orderSource = String(o.reference ?? (o as any)?.source ?? (o as any)?.Source ?? "ePost Workspace").trim() || "ePost Workspace";
     const productDetails = String(o.ProductDescription ?? "").trim() || "-";
-    const amountValue = summary.appliesPakistanPostRules ? summary.moAmount : summary.grossAmount;
+    const amountMarkup = renderUniversalAmountBlock(summary);
 
     const tokenMap: Record<string, string> = {
-      "{{amount}}": `Rs. ${escapeHtml(formatRs(amountValue))}`,
+      "{{amount}}": summary.appliesPakistanPostRules
+        ? `Rs. ${escapeHtml(formatRs(summary.moAmount))}`
+        : "",
       "{{tracking_no}}": escapeHtml(tracking || "-"),
       "{{customer_name}}": escapeHtml(receiverName),
       "{{customer_address}}": escapeHtml(receiverAddress),
       "{{customer_city}}": escapeHtml(receiverCity),
       "{{customer_phone}}": escapeHtml(receiverPhone),
       "{{sender_inline}}": escapeHtml(senderInline),
-      "{{commission}}": `Rs. ${escapeHtml(formatRs(summary.commission))}`,
-      "{{gross_amount}}": `Rs. ${escapeHtml(formatRs(summary.grossAmount))}`,
       "{{order_source}}": escapeHtml(orderSource),
       "{{product_details}}": escapeHtml(productDetails),
     };
 
     let html = templateBody;
     html = html.replace(/<span class="vpl-label">[^<]*<\/span>/i, `<span class="vpl-label">${escapeHtml(shipmentLabel)}</span>`);
+    html = html.replace(
+      /<!--\s*AMOUNT\s*-->[\s\S]*?<!--\s*ORDER\s*-->/i,
+      `<!-- AMOUNT -->\n${amountMarkup}\n\n            <!-- ORDER -->`,
+    );
     html = html.replace(
       /<svg id="barcode"><\/svg>/i,
       barcodeMarkup
@@ -940,9 +969,7 @@ export function envelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking
 
     const headerRate = amountSummary.showCalculation
       ? `Rs. ${formatRs(amountSummary.moAmount)}`
-      : amountSummary.grossAmount > 0
-        ? `Rs. ${formatRs(amountSummary.grossAmount)}`
-        : "Rs. 0";
+      : "-";
 
     const barcodeBase64 = String(o.barcodeBase64 ?? "").trim();
     const barcodePayload = barcodeBase64.replace(/^data:image\/png;base64,/, "");
