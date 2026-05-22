@@ -29,6 +29,7 @@ export const KNOWN_SHIPMENT_TYPES = [
 const allowedTrackingPrefixes = [
   TRACKING_PREFIX_VPL,
   TRACKING_PREFIX_VPP,
+  "PAR",
   TRACKING_PREFIX_COD,
   TRACKING_PREFIX_IRL,
   TRACKING_PREFIX_RGL,
@@ -36,7 +37,7 @@ const allowedTrackingPrefixes = [
 ] as const;
 
 // Pattern: Prefix (3 chars) + YY (2 year digits) + MM (2 month digits) + Sequence (4-5 digits) = 11-12 total
-const trackingIdPattern = /^(VPL|VPP|COD|IRL|RGL|UMS)\d{8,9}$/;
+const trackingIdPattern = /^(VPL|VPP|PAR|COD|IRL|RGL|UMS)\d{8,9}$/;
 // Money order pattern: Prefix (3 chars) + MM (2 month digits) + Sequence (6-7 digits) = 11-12 total
 const moneyOrderNumberPattern = /^(MOS|UMO)(0[1-9]|1[0-2])\d{6,7}$/;
 
@@ -78,7 +79,7 @@ export function resolveShipmentType(value: unknown): string | null {
   if (!normalized) return null;
   const aliasResolved = resolveLegacyShipmentAlias(normalized) ?? normalized;
   if (aliasResolved !== normalized) {
-    logCatalogShadowWarning("fallback_coercion", `Shipment type '${normalized}' coerced to '${aliasResolved}'.`);
+    logCatalogShadowWarning("legacy_mapping", `Shipment type '${normalized}' coerced to '${aliasResolved}'.`);
   }
   return (KNOWN_SHIPMENT_TYPES as readonly string[]).includes(aliasResolved) ? aliasResolved : null;
 }
@@ -157,6 +158,18 @@ export function getTrackingPrefix(shipmentType?: unknown): string {
     default:
       throw new Error(`Unsupported shipment type for tracking prefix: ${String(shipmentType ?? "").trim() || "(empty)"}`);
   }
+}
+
+export function getTrackingPrefixesForShipmentType(shipmentType?: unknown): string[] {
+  const normalized = normalizeShipmentType(shipmentType);
+  const resolved = resolveShipmentType(normalized);
+  if (!resolved) return [];
+
+  const prefixes = new Set<string>([getTrackingPrefix(resolved)]);
+  if (normalized === "PAR" || normalized === "PARCEL" || normalized === "PARCELS" || normalized === "PR") {
+    prefixes.add("PAR");
+  }
+  return Array.from(prefixes);
 }
 
 /**

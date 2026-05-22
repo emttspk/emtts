@@ -5,6 +5,10 @@ export const LEGACY_SHIPMENT_ALIASES: Readonly<Record<string, string>> = {
   "SMALL PACKET": "RGL",
   SMALL_PACKET: "RGL",
   SMALLPACKET: "RGL",
+  PAR: "VPP",
+  PARCEL: "VPP",
+  PARCELS: "VPP",
+  PR: "VPP",
 };
 
 export function resolveLegacyShipmentAlias(value: unknown) {
@@ -19,6 +23,6 @@ export function isLegacyAlias(value: unknown) {
   return Object.prototype.hasOwnProperty.call(LEGACY_SHIPMENT_ALIASES, normalized);
 }
 
-export function logCatalogShadowWarning(kind: "service_mismatch" | "invalid_prefix" | "fallback_coercion" | "row_override", detail: string) {
+export function logCatalogShadowWarning(kind: "service_mismatch" | "invalid_prefix" | "fallback_coercion" | "legacy_mapping" | "row_override", detail: string) {
   console.warn(`[CatalogShadow][${kind}] ${detail}`);
 }

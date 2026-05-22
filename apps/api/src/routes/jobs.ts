@@ -21,7 +21,7 @@ import { previewLabelHtml, renderLabelDocumentHtml, type LabelPrintMode } from "
 import { prepareLabelOrders } from "../services/labelDocument.js";
 import { getUploadExemptFileNames } from "../services/upload-file-exemptions.service.js";
 import { shadowCheckServicePrefix } from "../services/shipmentValidation.js";
-import { getTrackingPrefix, resolveShipmentType, shouldShowValuePayableAmount } from "../validation/trackingId.js";
+import { getTrackingPrefixesForShipmentType, getTrackingPrefix, resolveShipmentType, shouldShowValuePayableAmount } from "../validation/trackingId.js";
 import { listCatalogServices } from "../catalog/serviceCatalog.js";
 import { logCatalogShadowWarning } from "../catalog/legacyShipmentAliases.js";
 import { activeR2StreamsGauge, refreshRuntimeMetrics, r2StreamDuration, r2StreamFailures } from "../metrics.js";
@@ -31,15 +31,8 @@ import { getUploadFilenameDebug, normalizeUploadFilename } from "../utils/upload
 
 export const jobsRouter = Router();
 
-const CANONICAL_SHIPMENT_TYPES = new Set(
-  listCatalogServices({ includeDeprecated: false })
-    .map((entry) => String(entry.service).trim().toUpperCase()),
-);
-
 function resolveCanonicalShipmentTypeStrict(value: unknown) {
-  const normalized = String(value ?? "").trim().toUpperCase();
-  if (!normalized) return null;
-  return CANONICAL_SHIPMENT_TYPES.has(normalized) ? normalized : null;
+  return resolveShipmentType(value);
 }
 
 function isClosedConnectionError(error: unknown) {
@@ -265,12 +258,7 @@ function parsePrintMode(value: unknown): LabelPrintMode {
 }
 
 function expectedPrefixesForService(service: string) {
-  const normalized = String(service ?? "").trim().toUpperCase();
-  const serviceEntry = listCatalogServices({ includeDeprecated: false }).find((entry) => entry.service === normalized);
-  if (serviceEntry?.prefix) {
-    return [serviceEntry.prefix];
-  }
-  return [] as string[];
+  return getTrackingPrefixesForShipmentType(service);
 }
 
 export const labelUploadMiddleware = (req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {

@@ -42,8 +42,26 @@ type UploadInsights = {
   serviceCounts: Record<string, number>;
   moneyOrderEligibleRows: number;
   moneyOrderIneligibleRows: number;
+  legacyMappingAppliedRows: number;
   recommendedOutputMode: "envelope-9x4" | "universal-9x4" | "box" | "a4-multi" | "flyer";
   recommendationReason: string;
+};
+
+const LEGACY_SHIPMENT_ALIASES: Record<string, string> = {
+  RL: "RGL",
+  DOCUMENT: "IRL",
+  DOCUMENTS: "IRL",
+  "SMALL PACKET": "RGL",
+  SMALL_PACKET: "RGL",
+  SMALLPACKET: "RGL",
+  PAR: "VPP",
+  PARCEL: "VPP",
+  PARCELS: "VPP",
+  PR: "VPP",
+};
+
+const LEGACY_SHIPMENT_PREFIXES: Record<string, string[]> = {
+  VPP: ["PAR"],
 };
 const SERVICE_WEIGHT_LIMITS: Record<string, number> = {
   VPL: 2_000,
@@ -101,6 +119,26 @@ function getDetectedPrefix(trackingId: string) {
   return match ? match[1] : "";
 }
 
+function resolveLegacyShipmentType(value: unknown) {
+  const normalized = String(value ?? "").trim().toUpperCase();
+  if (!normalized) return null;
+  return LEGACY_SHIPMENT_ALIASES[normalized] ?? normalized;
+}
+
+function getCompatiblePrefixes(rawShipmentType: unknown, resolvedShipmentType: string | null) {
+  const normalized = String(rawShipmentType ?? "").trim().toUpperCase();
+  const resolved = resolvedShipmentType ?? resolveLegacyShipmentType(normalized);
+  if (!resolved) return [] as string[];
+  const prefixes = new Set<string>([resolved]);
+  for (const legacyPrefix of LEGACY_SHIPMENT_PREFIXES[resolved] ?? []) {
+    prefixes.add(legacyPrefix);
+  }
+  if (normalized === "PAR" || normalized === "PARCEL" || normalized === "PARCELS" || normalized === "PR") {
+    prefixes.add("PAR");
+  }
+  return Array.from(prefixes);
+}
+
 function summarizeIssuesByCategory(issues: ValidationIssue[]) {
   return {
     prefixMismatches: issues.filter((item) => item.category === "Prefix mismatches"),
@@ -148,6 +186,7 @@ export default function Upload() {
     ignoredTracking: number;
     overweightWarnings: number;
     moIneligibleWarnings: number;
+    legacyMappingAppliedRows: number;
     duplicateFilenameBypassUsed: boolean;
     moEligibleRows: number;
     moSkippedRows: number;
@@ -280,13 +319,18 @@ export default function Upload() {
         const serviceCounts: Record<string, number> = {};
         let moEligibleRows = 0;
         let moIneligibleRows = 0;
+        let legacyMappingAppliedRows = 0;
         let overweightCount = 0;
         let smallEnvelopeLike = 0;
         let knownWeightRows = 0;
         const detectedServices = new Set<string>();
 
         for (const row of rows) {
-          const shipment = String((row.shipment_type ?? row.shipmenttype ?? "")).trim().toUpperCase();
+          const shipmentRaw = String((row.shipment_type ?? row.shipmenttype ?? "")).trim().toUpperCase();
+          const shipment = resolveLegacyShipmentType(shipmentRaw);
+          if (shipmentRaw && shipment !== shipmentRaw) {
+            legacyMappingAppliedRows += 1;
+          }
           if (shipment) {
             serviceCounts[shipment] = (serviceCounts[shipment] ?? 0) + 1;
             detectedServices.add(shipment);
@@ -344,6 +388,7 @@ export default function Upload() {
           detectedCategory,
           moEligibleRows,
           moIneligibleRows,
+          legacyMappingAppliedRows,
           barcodeMode,
           recommendedOutputMode,
         }));
@@ -363,6 +408,7 @@ export default function Upload() {
           serviceCounts,
           moneyOrderEligibleRows: moEligibleRows,
           moneyOrderIneligibleRows: moIneligibleRows,
+          legacyMappingAppliedRows,
           recommendedOutputMode,
           recommendationReason,
         });
@@ -625,6 +671,7 @@ export default function Upload() {
       let ignoredTracking = 0;
       let overweightWarnings = 0;
       let moIneligibleWarnings = 0;
+      let legacyMappingAppliedRows = 0;
       const acceptedRows: Array<Record<string, unknown>> = [];
       const batchWarnings = new Set<string>();
       const duplicateTrackingMap = new Map<string, number>();
@@ -634,6 +681,7 @@ export default function Upload() {
           serviceByPrefix.set(String(entry.prefix).toUpperCase(), String(entry.service).toUpperCase());
         }
       }
+      serviceByPrefix.set("PAR", "VPP");
       let applyAllMismatchAction: MismatchAction | null = null;
 
       for (let i = 0; i < rows.length; i += 1) {
@@ -663,10 +711,18 @@ export default function Upload() {
           rowSpecificErrors.push(`Row ${rowIndex}: consigneeName, consigneePhone, and consigneeAddress are required.`);
         }
 
-        const rowShipmentType = String(find("shipmenttype") ?? find("shipment_type") ?? "").trim().toUpperCase();
+        const rowShipmentTypeRaw = String(find("shipmenttype") ?? find("shipment_type") ?? "").trim().toUpperCase();
+        const rowShipmentType = resolveLegacyShipmentType(rowShipmentTypeRaw);
+        if (rowShipmentTypeRaw && rowShipmentType !== rowShipmentTypeRaw) {
+          legacyMappingAppliedRows += 1;
+          rowWarnings.push(`Row ${rowIndex}: legacy shipment_type '${rowShipmentTypeRaw}' normalized to '${rowShipmentType}'.`);
+          if (rowShipmentType) {
+            writeShipmentType(rowShipmentType);
+          }
+        }
         let effectiveService = shipmentMode === "mix_articles"
           ? rowShipmentType
-          : String(shipmentType ?? "").trim().toUpperCase();
+          : resolveLegacyShipmentType(shipmentType ?? "");
 
         if (shipmentMode === "mix_articles") {
           if (!rowShipmentType || !canonicalServices.has(rowShipmentType)) {
@@ -721,9 +777,10 @@ export default function Upload() {
 
         if (rawTracking && effectiveService && effectiveService !== "COURIER") {
           const expectedPrefix = serviceCatalog.find((entry) => entry.service === effectiveService)?.prefix ?? effectiveService;
-          const prefixMatches = rawTracking.startsWith(expectedPrefix);
+          const compatiblePrefixes = getCompatiblePrefixes(rowShipmentTypeRaw, effectiveService);
+          const prefixMatches = compatiblePrefixes.some((prefix) => rawTracking.startsWith(prefix));
 
-          if (barcodeMode === "manual" && !prefixMatches) {
+          if (shipmentMode === "single_service" && barcodeMode === "manual" && !prefixMatches) {
             rowSpecificErrors.push(`Row ${rowIndex}: tracking '${rawTracking}' must start with '${expectedPrefix}' for service '${effectiveService}'.`);
             validationIssues.push({
               row: rowIndex,
@@ -736,7 +793,7 @@ export default function Upload() {
             });
           }
 
-          if (barcodeMode === "auto" && shipmentMode === "single_service" && !prefixMatches) {
+          if (shipmentMode === "single_service" && barcodeMode === "auto" && !prefixMatches) {
             ignoredTracking += 1;
             rowWarnings.push(`Row ${rowIndex}: uploaded tracking '${rawTracking}' ignored in auto mode; system will generate '${expectedPrefix}' tracking.`);
             batchWarnings.add("Uploaded tracking IDs were ignored for rows using Auto Generate mode.");
@@ -751,7 +808,7 @@ export default function Upload() {
             });
           }
 
-          if (barcodeMode === "auto" && shipmentMode === "mix_articles") {
+          if (shipmentMode === "mix_articles") {
             let mismatchAction: MismatchAction = "generate";
             if (!prefixMatches) {
               const detectedPrefix = getDetectedPrefix(rawTracking);
@@ -761,7 +818,7 @@ export default function Upload() {
                 uploadedTracking: rawTracking,
                 detectedPrefix,
                 detectedService,
-                rowShipmentType,
+                rowShipmentType: rowShipmentTypeRaw,
                 expectedPrefix,
               };
 
@@ -810,11 +867,8 @@ export default function Upload() {
               (workingRow as any).TrackingID = rawTracking;
               (workingRow as any).trackingId = rawTracking;
             }
-            if (!prefixMatches) {
-              batchWarnings.add("Uploaded tracking IDs were ignored for rows using Auto Generate mode.");
-            }
           }
-        } else if (barcodeMode === "manual" && effectiveService && effectiveService !== "COURIER") {
+        } else if (shipmentMode === "single_service" && barcodeMode === "manual" && effectiveService && effectiveService !== "COURIER") {
           rowSpecificErrors.push(`Row ${rowIndex}: tracking ID is required in Manual mode.`);
           validationIssues.push({
             row: rowIndex,
@@ -915,6 +969,7 @@ export default function Upload() {
         ignoredTracking,
         overweightWarnings,
         moIneligibleWarnings,
+        legacyMappingAppliedRows,
         duplicateFilenameBypassUsed: false,
         moEligibleRows,
         moSkippedRows,
@@ -948,7 +1003,7 @@ export default function Upload() {
         { type: "text/csv" },
       );
 
-      const isAuto = barcodeMode === "auto";
+      const isAuto = barcodeMode === "auto" || shipmentMode === "mix_articles";
       const requiresMoneyOrderCnic = Boolean(includeMoneyOrders && eligibleForMoneyOrder);
       if (requiresMoneyOrderCnic) {
         const hasCnic = /^\d{5}-\d{7}-\d$|^\d{13}$/.test(String(me?.user?.cnic ?? ""));
@@ -1266,6 +1321,11 @@ export default function Upload() {
                   <span className="font-semibold">Auto Generate Tracking ID / Barcode:</span> When enabled, the system preserves any valid uploaded TrackingID and only fills missing TrackingID values using the selected shipment type prefix.
                 </div>
               )}
+              {shipmentMode === "mix_articles" ? (
+                <div className="mt-2 rounded-2xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800">
+                  <span className="font-semibold">Mix Services hybrid rule:</span> rows with tracking keep their uploaded IDs when compatible; rows without tracking are generated automatically from each row shipment_type.
+                </div>
+              ) : null}
             </div>
 
             <div>
@@ -1366,11 +1426,12 @@ export default function Upload() {
         {validationSummary ? (
           <Card className="border-slate-200 bg-white p-5 shadow-sm">
             <CardTitle>UPLOAD SUMMARY</CardTitle>
-            <div className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2 lg:grid-cols-5">
+            <div className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2 lg:grid-cols-6">
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">Accepted: {validationSummary.accepted}</div>
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">Warnings: {validationSummary.rowWarnings.length + validationSummary.batchWarnings.length}</div>
               <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-red-800">Rejected: {validationSummary.rejected}</div>
               <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sky-800">MO Eligible: {validationSummary.moEligibleRows}</div>
+              <div className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-violet-800">Legacy mappings: {validationSummary.legacyMappingAppliedRows}</div>
               <div className={`rounded-xl border px-3 py-2 ${validationSummary.duplicateFilenameBypassUsed ? "border-blue-200 bg-blue-50 text-blue-800" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
                 Duplicate bypass used: {validationSummary.duplicateFilenameBypassUsed ? "YES" : "NO"}
               </div>

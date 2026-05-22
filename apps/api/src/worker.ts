@@ -29,6 +29,7 @@ import {
   moneyOrderBreakdown,
   normalizeTrackingId,
   reverseMoneyOrderFromGross,
+  getTrackingPrefixesForShipmentType,
   resolveShipmentType,
   shouldApplyPakistanPostValuePayableRules,
   shouldShowValuePayableAmount,
@@ -357,15 +358,8 @@ function hasMoneyOrderAmount(order: { CollectAmount?: unknown; amount?: unknown 
   return normalizeAmount(order.CollectAmount ?? order.amount) > 0;
 }
 
-const CANONICAL_SHIPMENT_TYPES = new Set(
-  listCatalogServices({ includeDeprecated: false })
-    .map((entry) => String(entry.service).trim().toUpperCase()),
-);
-
 function resolveCanonicalShipmentTypeStrict(value: unknown) {
-  const normalized = String(value ?? "").trim().toUpperCase();
-  if (!normalized) return null;
-  return CANONICAL_SHIPMENT_TYPES.has(normalized) ? normalized : null;
+  return resolveShipmentType(value);
 }
 
 function extractTrackingPrefix(value: unknown) {
@@ -875,9 +869,13 @@ const worker = new Worker(
               const uploadedTracking = normalizeTrackingId((order as any).TrackingID ?? (order as any).trackingId ?? "");
               const uploadedPrefix = extractTrackingPrefix(uploadedTracking);
               const expectedPrefix = resolveTrackingAllocatorPrefix(resolvedType);
+              const compatiblePrefixes = new Set([
+                ...getTrackingPrefixesForShipmentType((order as any).shipmentType ?? (order as any).shipmenttype ?? resolvedType),
+                expectedPrefix,
+              ]);
               const preserveUploaded = shipmentMode === "mix_articles"
                 && Boolean(uploadedTracking)
-                && uploadedPrefix === expectedPrefix;
+                && compatiblePrefixes.has(uploadedPrefix);
 
               if (preserveUploaded) {
                 (order as any).__allocatedTrackingId = uploadedTracking;
