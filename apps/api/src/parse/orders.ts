@@ -2,7 +2,7 @@ import xlsx from "xlsx";
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { resolveShipmentType, validateUploadedTrackingId } from "../validation/trackingId.js";
+import { resolveShipmentType, validateCollectAmountAgainstShipmentType, validateUploadedTrackingId } from "../validation/trackingId.js";
 import { uploadsDir } from "../storage/paths.js";
 
 export type OrderRecord = {
@@ -194,6 +194,10 @@ function buildOrdersFromRows(
         invalidRows.push(`Row ${i + 2}: shipmenttype '${rawShipmentType}' is not supported.`);
       } else {
         strictRow.shipmenttype = resolvedShipmentType;
+        const collectValidation = validateCollectAmountAgainstShipmentType("pakistan_post", resolvedShipmentType, strictRow.CollectAmount);
+        if (collectValidation) {
+          invalidRows.push(`Row ${i + 2}: ${collectValidation.message}`);
+        }
       }
     } else {
       strictRow.shipmenttype = "";

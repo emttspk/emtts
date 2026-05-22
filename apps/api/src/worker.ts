@@ -1015,6 +1015,7 @@ const worker = new Worker(
         carrierType: carrierType === "courier" ? "courier" : "pakistan_post",
         shipmentType: shipmentType ?? null,
         outputMode,
+        strictValidation: true,
       });
       const inputRowsCount = orders.length;
       const validRowsCount = labelOrders.length;
@@ -1025,7 +1026,7 @@ const worker = new Worker(
       console.log(`[Worker] Rows accepted count: ${acceptedRowsCount}`);
       console.log(`[Worker] Rows rejected count: ${rejectedRowsCount}`);
       if (skippedRowsCount > 0) {
-        console.warn(`[Worker] ${skippedRowsCount} row(s) skipped during label preparation (invalid tracking ID or missing data). ${validRowsCount} valid row(s) will proceed.`);
+        throw new Error(`Worker strict validation rejected ${skippedRowsCount} row(s). Partial label generation is disabled.`);
       }
       if (validRowsCount === 0) {
         throw new Error("No valid rows available for label generation. All rows were skipped after validation.");

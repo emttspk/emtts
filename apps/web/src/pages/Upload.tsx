@@ -9,12 +9,6 @@ import { FALLBACK_SERVICE_CATALOG, fetchServiceCatalog, servicesByCategory, type
 import type { LabelJob, MeResponse } from "../lib/types";
 import { useJobPolling } from "../lib/useJobPolling";
 import { getMissingOrderColumns, normalizeOrderColumnKey } from "../shared/orderColumns";
-import {
-  isLegacyParcelCompatible,
-  isMoneyOrderEligible,
-  resolveShipmentTypeWithLegacy,
-  shipmentTypeDisplayLabel,
-} from "../shared/shipmentRules";
 import * as XLSX from "xlsx";
 import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
 
@@ -48,15 +42,10 @@ type UploadInsights = {
   serviceCounts: Record<string, number>;
   moneyOrderEligibleRows: number;
   moneyOrderIneligibleRows: number;
-  legacyMappingAppliedRows: number;
-  parcelCompatibleRows: number;
   recommendedOutputMode: "envelope-9x4" | "universal-9x4" | "box" | "a4-multi" | "flyer";
   recommendationReason: string;
 };
 
-const LEGACY_SHIPMENT_PREFIXES: Record<string, string[]> = {
-  VPP: ["PAR"],
-};
 const SERVICE_WEIGHT_LIMITS: Record<string, number> = {
   VPL: 2_000,
   VPP: 30_000,
@@ -118,22 +107,9 @@ function getDetectedPrefix(trackingId: string) {
   return match ? match[1] : "";
 }
 
-function resolveLegacyShipmentType(value: unknown) {
-  return resolveShipmentTypeWithLegacy(value);
-}
-
-function getCompatiblePrefixes(rawShipmentType: unknown, resolvedShipmentType: string | null) {
-  const normalized = String(rawShipmentType ?? "").trim().toUpperCase();
-  const resolved = resolvedShipmentType ?? resolveLegacyShipmentType(normalized);
-  if (!resolved) return [] as string[];
-  const prefixes = new Set<string>([resolved]);
-  for (const legacyPrefix of LEGACY_SHIPMENT_PREFIXES[resolved] ?? []) {
-    prefixes.add(legacyPrefix);
-  }
-  if (normalized === "PAR" || normalized === "PARCEL" || normalized === "PARCELS" || normalized === "PR") {
-    prefixes.add("PAR");
-  }
-  return Array.from(prefixes);
+function isMoneyOrderEligible(service: unknown) {
+  const normalized = String(service ?? "").trim().toUpperCase();
+  return normalized === "VPL" || normalized === "VPP" || normalized === "COD";
 }
 
 function summarizeIssuesByCategory(issues: ValidationIssue[]) {
@@ -184,7 +160,6 @@ export default function Upload() {
     ignoredTracking: number;
     overweightWarnings: number;
     moIneligibleWarnings: number;
-    legacyMappingAppliedRows: number;
     duplicateFilenameBypassUsed: boolean;
     moEligibleRows: number;
     moSkippedRows: number;
@@ -317,22 +292,13 @@ export default function Upload() {
         const serviceCounts: Record<string, number> = {};
         let moEligibleRows = 0;
         let moIneligibleRows = 0;
-        let legacyMappingAppliedRows = 0;
-        let parcelCompatibleRows = 0;
         let overweightCount = 0;
         let smallEnvelopeLike = 0;
         let knownWeightRows = 0;
         const detectedServices = new Set<string>();
 
         for (const row of rows) {
-          const shipmentRaw = String((row.shipment_type ?? row.shipmenttype ?? "")).trim().toUpperCase();
-          const shipment = resolveLegacyShipmentType(shipmentRaw);
-          if (shipmentRaw && shipment !== shipmentRaw) {
-            legacyMappingAppliedRows += 1;
-          }
-          if (isLegacyParcelCompatible(shipmentRaw)) {
-            parcelCompatibleRows += 1;
-          }
+          const shipment = String((row.shipment_type ?? row.shipmenttype ?? "")).trim().toUpperCase();
           if (shipment) {
             serviceCounts[shipment] = (serviceCounts[shipment] ?? 0) + 1;
             detectedServices.add(shipment);
@@ -390,8 +356,6 @@ export default function Upload() {
           detectedCategory,
           moEligibleRows,
           moIneligibleRows,
-          legacyMappingAppliedRows,
-          parcelCompatibleRows,
           barcodeMode,
           recommendedOutputMode,
         }));
@@ -411,8 +375,6 @@ export default function Upload() {
           serviceCounts,
           moneyOrderEligibleRows: moEligibleRows,
           moneyOrderIneligibleRows: moIneligibleRows,
-          legacyMappingAppliedRows,
-          parcelCompatibleRows,
           recommendedOutputMode,
           recommendationReason,
         });
@@ -696,7 +658,6 @@ export default function Upload() {
       let ignoredTracking = 0;
       let overweightWarnings = 0;
       let moIneligibleWarnings = 0;
-      let legacyMappingAppliedRows = 0;
       const acceptedRows: Array<Record<string, unknown>> = [];
       const batchWarnings = new Set<string>();
       const duplicateTrackingMap = new Map<string, number>();
@@ -706,7 +667,6 @@ export default function Upload() {
           serviceByPrefix.set(String(entry.prefix).toUpperCase(), String(entry.service).toUpperCase());
         }
       }
-      serviceByPrefix.set("PAR", "PAR");
       let applyAllMismatchAction: MismatchAction | null = null;
 
       for (let i = 0; i < rows.length; i += 1) {
@@ -737,17 +697,10 @@ export default function Upload() {
         }
 
         const rowShipmentTypeRaw = String(find("shipmenttype") ?? find("shipment_type") ?? "").trim().toUpperCase();
-        const rowShipmentType = resolveLegacyShipmentType(rowShipmentTypeRaw);
-        if (rowShipmentTypeRaw && rowShipmentType !== rowShipmentTypeRaw) {
-          legacyMappingAppliedRows += 1;
-          rowWarnings.push(`Row ${rowIndex}: legacy shipment_type '${rowShipmentTypeRaw}' normalized to '${rowShipmentType}'.`);
-          if (rowShipmentType) {
-            writeShipmentType(rowShipmentType);
-          }
-        }
+        const rowShipmentType = rowShipmentTypeRaw;
         let effectiveService = shipmentMode === "mix_articles"
           ? rowShipmentType
-          : resolveLegacyShipmentType(shipmentType ?? "");
+          : String(shipmentType ?? "").trim().toUpperCase();
 
         if (shipmentMode === "mix_articles") {
           if (!rowShipmentType || !canonicalServices.has(rowShipmentType)) {
@@ -802,8 +755,7 @@ export default function Upload() {
 
         if (rawTracking && effectiveService && effectiveService !== "COURIER") {
           const expectedPrefix = serviceCatalog.find((entry) => entry.service === effectiveService)?.prefix ?? effectiveService;
-          const compatiblePrefixes = getCompatiblePrefixes(rowShipmentTypeRaw, effectiveService);
-          const prefixMatches = compatiblePrefixes.some((prefix) => rawTracking.startsWith(prefix));
+          const prefixMatches = rawTracking.startsWith(expectedPrefix);
 
           if (shipmentMode === "single_service" && effectiveBarcodeMode === "manual" && !prefixMatches) {
             rowSpecificErrors.push(`Row ${rowIndex}: tracking '${rawTracking}' must start with '${expectedPrefix}' for service '${effectiveService}'.`);
@@ -1020,7 +972,6 @@ export default function Upload() {
         ignoredTracking,
         overweightWarnings,
         moIneligibleWarnings,
-        legacyMappingAppliedRows,
         duplicateFilenameBypassUsed: false,
         moEligibleRows,
         moSkippedRows,
@@ -1200,11 +1151,6 @@ export default function Upload() {
               <div className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-sky-800">Recommended Output: {uploadInsights.recommendedOutputMode}</div>
               <div className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-sky-800">MO Eligible Rows: {uploadInsights.moneyOrderEligibleRows}</div>
             </div>
-            {uploadInsights.parcelCompatibleRows > 0 ? (
-              <div className="mt-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800">
-                Legacy parcel aliases detected (mapped to PAR): {uploadInsights.parcelCompatibleRows}
-              </div>
-            ) : null}
           </Card>
         ) : null}
 
@@ -1262,9 +1208,6 @@ export default function Upload() {
               </div>
               <div className="mt-2 text-xs text-gray-600">
                 Single Service enforces the selected shipment type. Mix Services uses row shipment_type as authoritative.
-              </div>
-              <div className="mt-2 inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-800">
-                Legacy Shipment Mapping: PARCEL/PR {"->"} PAR (Parcel)
               </div>
             </div>
 
@@ -1326,7 +1269,7 @@ export default function Upload() {
                         shipmentType === t ? "border-brand bg-brand/10 text-brand" : "bg-white text-gray-700 hover:bg-gray-50"
                       }`}
                     >
-                      {shipmentTypeDisplayLabel(t)}
+                      {t}
                     </button>
                   ))}
                 </div>
@@ -1491,7 +1434,6 @@ export default function Upload() {
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">Warnings: {validationSummary.rowWarnings.length + validationSummary.batchWarnings.length}</div>
               <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-red-800">Rejected: {validationSummary.rejected}</div>
               <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sky-800">MO Eligible: {validationSummary.moEligibleRows}</div>
-              <div className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-violet-800">Legacy mappings: {validationSummary.legacyMappingAppliedRows}</div>
             </div>
             <details className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs text-slate-700">
               <summary className="cursor-pointer font-semibold text-slate-800">View detailed validation</summary>

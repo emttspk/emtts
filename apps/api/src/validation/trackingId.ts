@@ -1,5 +1,5 @@
 import { getServiceByCode, listCatalogServices } from "../catalog/serviceCatalog.js";
-import { logCatalogShadowWarning, resolveLegacyShipmentAlias } from "../catalog/legacyShipmentAliases.js";
+import { resolveLegacyShipmentAlias } from "../catalog/legacyShipmentAliases.js";
 
 // Tracking prefixes as per Pakistan Post standards
 export const TRACKING_PREFIX_VPL = "VPL"; // Value Payable Letter
@@ -85,9 +85,6 @@ export function resolveShipmentType(value: unknown): string | null {
   const normalized = normalizeShipmentType(value);
   if (!normalized) return null;
   const aliasResolved = resolveLegacyShipmentAlias(normalized) ?? normalized;
-  if (aliasResolved !== normalized) {
-    logCatalogShadowWarning("legacy_mapping", `Shipment type '${normalized}' coerced to '${aliasResolved}'.`);
-  }
   return (KNOWN_SHIPMENT_TYPES as readonly string[]).includes(aliasResolved) ? aliasResolved : null;
 }
 
@@ -152,7 +149,7 @@ export function validateCollectAmountAgainstShipmentType(
 
   if (isMoneyOrderEligibleShipmentType(normalizedShipmentType) && collectAmount <= 0) {
     return {
-      severity: "warning",
+      severity: "error",
       shipmentType: normalizedShipmentType,
       collectAmount,
       message: "Value-payable shipment selected with zero collect amount.",

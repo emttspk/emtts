@@ -53,6 +53,16 @@ async function verifyLabels() {
           failures.push(`${service}/${mode}: unresolved tokens ${unresolved.join(", ")}`);
           continue;
         }
+        if (mode === "universal-9x4") {
+          const hasMoneyOrderSummary = /MO Amount|Gross Collect Amount/.test(html);
+          const shouldShowSummary = moneyOrderServices.includes(service);
+          if (shouldShowSummary && !hasMoneyOrderSummary) {
+            failures.push(`${service}/${mode}: expected money-order summary block`);
+          }
+          if (!shouldShowSummary && hasMoneyOrderSummary) {
+            failures.push(`${service}/${mode}: payment summary must stay hidden for non-value-payable service`);
+          }
+        }
         const pdf = await htmlToPdfBufferInFreshBrowser(
           html,
           mode === "envelope" || mode === "universal-9x4" ? "envelope-9x4" : "A4",
@@ -121,7 +131,7 @@ function verifyContradictions() {
     {
       name: "VPL+zero",
       result: validateCollectAmountAgainstShipmentType("pakistan_post", "VPL", "0"),
-      expectSeverity: "warning",
+      expectSeverity: "error",
     },
     {
       name: "PAR+amount",
@@ -131,7 +141,7 @@ function verifyContradictions() {
     {
       name: "COD+zero",
       result: validateCollectAmountAgainstShipmentType("pakistan_post", "COD", "0"),
-      expectSeverity: "warning",
+      expectSeverity: "error",
     },
   ];
 

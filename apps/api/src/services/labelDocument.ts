@@ -1,6 +1,5 @@
 import { type LabelOrder, type LabelPrintMode, generateLabelBarcodeBase64 } from "../templates/labels.js";
 import { getTrackingPrefix, validateTrackingId, validateUploadedTrackingId, resolveShipmentType as resolveShipmentTypeCanonical } from "../validation/trackingId.js";
-import { logCatalogShadowWarning } from "../catalog/legacyShipmentAliases.js";
 
 type TrackingScheme = "standard" | "rl" | "ums";
 type CarrierType = "pakistan_post" | "courier";
@@ -13,15 +12,7 @@ function resolveShipmentType(order: Record<string, unknown>, fallback: ShipmentT
   if (mode === "single_service") {
     return fallbackValue || undefined;
   }
-  if (rowShipmentType) {
-    if (fallbackValue && rowShipmentType !== fallbackValue) {
-      logCatalogShadowWarning("row_override", `Row shipment type '${rowShipmentType}' overrode selected shipment type '${fallbackValue}'.`);
-    }
-    return rowShipmentType;
-  }
-  if (!fallbackValue) {
-    logCatalogShadowWarning("service_mismatch", "Unable to resolve shipment type from row or selected fallback.");
-  }
+  if (rowShipmentType) return rowShipmentType;
   return fallbackValue || undefined;
 }
 
@@ -35,11 +26,12 @@ export function prepareLabelOrders(
     carrierType: CarrierType;
     shipmentType: ShipmentType;
     outputMode: LabelPrintMode;
+    strictValidation?: boolean;
   },
 ): LabelOrder[] {
-  const skipRows: number[] = [];
+  const rowErrors: string[] = [];
 
-  return orders.map((order, idx) => {
+  const prepared = orders.map((order, idx) => {
     try {
       // Step 1: Extract and normalize manual tracking ID with safe trimming
       const manualRaw = String(order.TrackingID ?? "").trim();
@@ -72,11 +64,7 @@ export function prepareLabelOrders(
         }
       } else {
         // Manual mode but no ID provided and auto is disabled - skip this row
-        console.warn(
-          `[BarcodeValidation] Row ${idx + 2}: Skipping - no tracking ID provided in manual barcode mode`,
-        );
-        skipRows.push(idx);
-        return null as any;
+        throw new Error("No tracking ID provided in manual barcode mode");
       }
 
             // Step 3: Final validation
@@ -111,9 +99,16 @@ export function prepareLabelOrders(
       };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      console.error(`[BarcodeValidation] Row ${idx + 2}: ${message}`);
-      skipRows.push(idx);
+      const rowMessage = `Row ${idx + 2}: ${message}`;
+      console.error(`[BarcodeValidation] ${rowMessage}`);
+      rowErrors.push(rowMessage);
       return null as any;
     }
   }).filter((o) => o !== null);
+
+  if (opts.strictValidation && rowErrors.length > 0) {
+    throw new Error(`Label row validation failed. ${rowErrors.slice(0, 50).join(" ")}`);
+  }
+
+  return prepared;
 }

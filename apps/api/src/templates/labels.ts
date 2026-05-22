@@ -226,7 +226,6 @@ function resolveOrderShipmentType(order: Pick<LabelOrder, "shipmentType" | "ship
 function displayShipmentType(value: unknown) {
   const normalized = resolveShipmentType(value) ?? String(value ?? "").trim().toUpperCase();
   if (normalized === "RL") return "RGL";
-  if (normalized === "PAR") return "PAR (Parcel)";
   return normalized || "RGL";
 }
 
