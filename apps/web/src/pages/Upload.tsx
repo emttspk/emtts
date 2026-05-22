@@ -9,6 +9,12 @@ import { FALLBACK_SERVICE_CATALOG, fetchServiceCatalog, servicesByCategory, type
 import type { LabelJob, MeResponse } from "../lib/types";
 import { useJobPolling } from "../lib/useJobPolling";
 import { getMissingOrderColumns, normalizeOrderColumnKey } from "../shared/orderColumns";
+import {
+  isLegacyParcelCompatible,
+  isMoneyOrderEligible,
+  resolveShipmentTypeWithLegacy,
+  shipmentTypeDisplayLabel,
+} from "../shared/shipmentRules";
 import * as XLSX from "xlsx";
 import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
 
@@ -43,21 +49,9 @@ type UploadInsights = {
   moneyOrderEligibleRows: number;
   moneyOrderIneligibleRows: number;
   legacyMappingAppliedRows: number;
+  parcelCompatibleRows: number;
   recommendedOutputMode: "envelope-9x4" | "universal-9x4" | "box" | "a4-multi" | "flyer";
   recommendationReason: string;
-};
-
-const LEGACY_SHIPMENT_ALIASES: Record<string, string> = {
-  RL: "RGL",
-  DOCUMENT: "IRL",
-  DOCUMENTS: "IRL",
-  "SMALL PACKET": "RGL",
-  SMALL_PACKET: "RGL",
-  SMALLPACKET: "RGL",
-  PAR: "VPP",
-  PARCEL: "VPP",
-  PARCELS: "VPP",
-  PR: "VPP",
 };
 
 const LEGACY_SHIPMENT_PREFIXES: Record<string, string[]> = {
@@ -120,9 +114,7 @@ function getDetectedPrefix(trackingId: string) {
 }
 
 function resolveLegacyShipmentType(value: unknown) {
-  const normalized = String(value ?? "").trim().toUpperCase();
-  if (!normalized) return null;
-  return LEGACY_SHIPMENT_ALIASES[normalized] ?? normalized;
+  return resolveShipmentTypeWithLegacy(value);
 }
 
 function getCompatiblePrefixes(rawShipmentType: unknown, resolvedShipmentType: string | null) {
@@ -218,10 +210,14 @@ export default function Upload() {
     carrierType === "pakistan_post" && (
       shipmentMode === "mix_articles"
         ? (uploadInsights?.moneyOrderEligibleRows ?? 0) > 0
-        : (shipmentType === "VPL" || shipmentType === "VPP" || shipmentType === "COD")
+        : isMoneyOrderEligible(shipmentType)
     );
   const generalServices = useMemo(() => servicesByCategory(serviceCatalog, "general_post"), [serviceCatalog]);
   const valuePayableServices = useMemo(() => servicesByCategory(serviceCatalog, "value_payable"), [serviceCatalog]);
+  const valuePayableServicesWithLegacy = useMemo(
+    () => (valuePayableServices.includes("PAR") ? valuePayableServices : [...valuePayableServices, "PAR"]),
+    [valuePayableServices],
+  );
   const codServices = useMemo(() => servicesByCategory(serviceCatalog, "cod_articles"), [serviceCatalog]);
   const previewMode: PreviewMode =
     outputMode === "flyer"
@@ -284,19 +280,19 @@ export default function Upload() {
     if (carrierType !== "pakistan_post") return;
     if (!ppCategory) return;
     const firstGeneral = generalServices[0] ?? "RGL";
-    const firstValuePayable = valuePayableServices[0] ?? "VPL";
+    const firstValuePayable = valuePayableServicesWithLegacy[0] ?? "VPL";
     const firstCod = codServices[0] ?? "COD";
     // Default shipment type per category
     if (ppCategory === "general_post" && (shipmentType === null || valuePayableServices.includes(shipmentType) || codServices.includes(shipmentType))) {
       setShipmentType(firstGeneral);
     }
-    if (ppCategory === "value_payable" && !valuePayableServices.includes(shipmentType ?? "")) {
+    if (ppCategory === "value_payable" && !valuePayableServicesWithLegacy.includes(shipmentType ?? "")) {
       setShipmentType(firstValuePayable);
     }
     if (ppCategory === "cod_articles" && !codServices.includes(shipmentType ?? "")) {
       setShipmentType(firstCod);
     }
-  }, [carrierType, ppCategory, shipmentType, generalServices, valuePayableServices, codServices]);
+  }, [carrierType, ppCategory, shipmentType, generalServices, valuePayableServicesWithLegacy, codServices]);
 
   useEffect(() => {
     if (!eligibleForMoneyOrder && includeMoneyOrders) setIncludeMoneyOrders(false);
@@ -321,6 +317,7 @@ export default function Upload() {
         let moEligibleRows = 0;
         let moIneligibleRows = 0;
         let legacyMappingAppliedRows = 0;
+        let parcelCompatibleRows = 0;
         let overweightCount = 0;
         let smallEnvelopeLike = 0;
         let knownWeightRows = 0;
@@ -332,11 +329,14 @@ export default function Upload() {
           if (shipmentRaw && shipment !== shipmentRaw) {
             legacyMappingAppliedRows += 1;
           }
+          if (isLegacyParcelCompatible(shipmentRaw)) {
+            parcelCompatibleRows += 1;
+          }
           if (shipment) {
             serviceCounts[shipment] = (serviceCounts[shipment] ?? 0) + 1;
             detectedServices.add(shipment);
           }
-          if (shipment === "VPL" || shipment === "VPP" || shipment === "COD") {
+          if (isMoneyOrderEligible(shipment)) {
             moEligibleRows += 1;
           } else if (shipment) {
             moIneligibleRows += 1;
@@ -355,12 +355,12 @@ export default function Upload() {
 
         const uniqueServices = Array.from(detectedServices);
         const onlyMoneyOrderServices = uniqueServices.length > 0
-          && uniqueServices.every((svc) => svc === "VPL" || svc === "VPP" || svc === "COD");
+          && uniqueServices.every((svc) => isMoneyOrderEligible(svc));
         const detectedShipmentMode: ShipmentMode = uniqueServices.length > 1 ? "mix_articles" : "single_service";
         const detectedShipmentType = uniqueServices.length === 1 ? uniqueServices[0] : null;
         const detectedCategory: "general_post" | "value_payable" | "cod_articles" | null = detectedShipmentMode === "mix_articles"
           ? null
-          : detectedShipmentType === "VPL" || detectedShipmentType === "VPP"
+          : detectedShipmentType === "VPL" || detectedShipmentType === "VPP" || detectedShipmentType === "PAR"
             ? "value_payable"
             : detectedShipmentType === "COD"
               ? "cod_articles"
@@ -379,7 +379,7 @@ export default function Upload() {
           : mostlySmall
             ? "Most rows are light-weight; universal 9x4 is recommended."
             : onlyMoneyOrderServices
-              ? "Rows are VPL/VPP/COD; envelope 9x4 works best for labels + money orders."
+              ? "Rows are VPL/VPP/COD (including PAR-compatible rows); envelope 9x4 works best for labels + money orders."
               : "Mixed service profile detected; box mode is recommended.";
 
         console.info("UPLOAD_SMART_DETECTION", JSON.stringify({
@@ -390,6 +390,7 @@ export default function Upload() {
           moEligibleRows,
           moIneligibleRows,
           legacyMappingAppliedRows,
+          parcelCompatibleRows,
           barcodeMode,
           recommendedOutputMode,
         }));
@@ -410,6 +411,7 @@ export default function Upload() {
           moneyOrderEligibleRows: moEligibleRows,
           moneyOrderIneligibleRows: moIneligibleRows,
           legacyMappingAppliedRows,
+          parcelCompatibleRows,
           recommendedOutputMode,
           recommendationReason,
         });
@@ -921,9 +923,9 @@ export default function Upload() {
           }
         }
 
-        if (includeMoneyOrders && effectiveService && !(effectiveService === "VPL" || effectiveService === "VPP" || effectiveService === "COD")) {
+        if (includeMoneyOrders && effectiveService && !isMoneyOrderEligible(effectiveService)) {
           moIneligibleWarnings += 1;
-          const message = `Row ${rowIndex}: service '${effectiveService}' is not money-order eligible (VPL/VPP/COD only).`;
+          const message = `Row ${rowIndex}: service '${effectiveService}' is not money-order eligible (VPL/VPP/COD and PAR-compatible only).`;
           rowWarnings.push(message);
           validationIssues.push({
             row: rowIndex,
@@ -931,7 +933,7 @@ export default function Upload() {
             category: "MO-ineligible services",
             message,
             shipmentType: effectiveService,
-            recommendation: "Money orders will be generated only for VPL, VPP, and COD rows.",
+            recommendation: "Money orders will be generated only for VPL, VPP, COD, and PAR-compatible rows.",
           });
         }
 
@@ -946,7 +948,7 @@ export default function Upload() {
       const rejected = rows.length - acceptedRows.length;
       const moEligibleRows = acceptedRows.filter((row) => {
         const rowService = String(row.shipment_type ?? row.shipmenttype ?? row.shipmentType ?? shipmentType ?? "").trim().toUpperCase();
-        return rowService === "VPL" || rowService === "VPP" || rowService === "COD";
+        return isMoneyOrderEligible(rowService);
       }).length;
       const moSkippedRows = Math.max(0, acceptedRows.length - moEligibleRows);
       let rejectedSummaryUrl: string | null = null;
@@ -982,7 +984,7 @@ export default function Upload() {
         groupedIssues.invalidServices.length > 0 ? "Fix non-canonical shipment_type values before re-uploading." : null,
         groupedIssues.duplicateTracking.length > 0 ? "Remove duplicate tracking IDs to avoid shipment collision." : null,
         groupedIssues.overweightShipments.length > 0 ? "Switch overweight rows to higher-capacity services or box output mode." : null,
-        groupedIssues.moIneligibleServices.length > 0 ? "Money order output is restricted to VPL, VPP, and COD rows." : null,
+        groupedIssues.moIneligibleServices.length > 0 ? "Money order output is restricted to VPL, VPP, COD, and PAR-compatible rows." : null,
       ].filter((item): item is string => Boolean(item));
 
       setValidationSummary({
@@ -1171,6 +1173,11 @@ export default function Upload() {
               <div className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-sky-800">Recommended Output: {uploadInsights.recommendedOutputMode}</div>
               <div className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-sky-800">MO Eligible Rows: {uploadInsights.moneyOrderEligibleRows}</div>
             </div>
+            {uploadInsights.parcelCompatibleRows > 0 ? (
+              <div className="mt-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800">
+                PAR (Legacy / Parcel Compatible) rows detected: {uploadInsights.parcelCompatibleRows}
+              </div>
+            ) : null}
           </Card>
         ) : null}
 
@@ -1283,7 +1290,7 @@ export default function Upload() {
                 </div>
               ) : ppCategory === "value_payable" ? (
                 <div className="mt-2 grid grid-cols-2 gap-2">
-                  {(valuePayableServices as string[]).map((t) => (
+                  {(valuePayableServicesWithLegacy as string[]).map((t) => (
                     <button
                       key={t}
                       type="button"
@@ -1292,7 +1299,7 @@ export default function Upload() {
                         shipmentType === t ? "border-brand bg-brand/10 text-brand" : "bg-white text-gray-700 hover:bg-gray-50"
                       }`}
                     >
-                      {t}
+                      {shipmentTypeDisplayLabel(t)}
                     </button>
                   ))}
                 </div>
@@ -1317,46 +1324,42 @@ export default function Upload() {
             </div>
             ) : null}
 
-            {shipmentMode === "single_service" ? (
-              <div>
-                <div className="font-medium text-gray-900">5) Barcode Mode</div>
-                <div className="mt-2 flex flex-wrap gap-3">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="barcodeMode"
-                      checked={barcodeMode === "manual"}
-                      onChange={() => setBarcodeMode("manual")}
-                      className="h-4 w-4 border-gray-300 text-brand focus:ring-brand"
-                    />
-                    Manual (from file)
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="barcodeMode"
-                      checked={barcodeMode === "auto"}
-                      onChange={() => setBarcodeMode("auto")}
-                      className="h-4 w-4 border-gray-300 text-brand focus:ring-brand"
-                    />
-                    Auto Generate
-                  </label>
-                </div>
-                {barcodeMode === "auto" ? (
-                  <div className="mt-2 rounded-2xl border border-brand/20 bg-brand/10 px-3 py-2 text-xs text-brand">
-                    <span className="font-semibold">Auto Generate Tracking ID / Barcode:</span> Uploaded tracking IDs are preserved when valid; missing tracking IDs are generated.
-                  </div>
-                ) : null}
+            <div>
+              <div className="font-medium text-gray-900">5) Barcode Mode</div>
+              <div className="mt-2 flex flex-wrap gap-3">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="barcodeMode"
+                    checked={barcodeMode === "manual"}
+                    onChange={() => setBarcodeMode("manual")}
+                    className="h-4 w-4 border-gray-300 text-brand focus:ring-brand"
+                  />
+                  Manual (from file)
+                </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="barcodeMode"
+                    checked={barcodeMode === "auto"}
+                    onChange={() => setBarcodeMode("auto")}
+                    className="h-4 w-4 border-gray-300 text-brand focus:ring-brand"
+                  />
+                  Auto Generate
+                </label>
               </div>
-            ) : (
-              <div>
-                <div className="font-medium text-gray-900">5) Barcode Workflow (Hybrid)</div>
+              {shipmentMode === "mix_articles" ? (
                 <div className="mt-2 rounded-2xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800">
-                  <div>Rows with tracking IDs will preserve uploaded barcodes.</div>
-                  <div>Rows without tracking IDs will automatically generate barcodes according to shipment type.</div>
+                  <div className="font-semibold">Mix Services always runs in hybrid workflow.</div>
+                  <div className="mt-1">Rows with valid uploaded tracking IDs are preserved.</div>
+                  <div>Rows missing tracking IDs are auto-generated by shipment type.</div>
                 </div>
-              </div>
-            )}
+              ) : barcodeMode === "auto" ? (
+                <div className="mt-2 rounded-2xl border border-brand/20 bg-brand/10 px-3 py-2 text-xs text-brand">
+                  <span className="font-semibold">Auto Generate Tracking ID / Barcode:</span> Uploaded tracking IDs are preserved when valid; missing tracking IDs are generated.
+                </div>
+              ) : null}
+            </div>
 
             <div>
               <div className="font-medium text-gray-900">6) Output Mode</div>
@@ -1535,11 +1538,11 @@ export default function Upload() {
             <CardTitle>Generate Money Orders</CardTitle>
             <div className="mt-0.5 text-sm font-normal text-slate-500">All actions consume units based on usage.</div>
             <div className="mt-2 text-sm text-gray-600">
-              VPL/VPP include commission. COD has no commission.
+                VPL/VPP/PAR include commission. COD has no commission.
             </div>
             {shipmentMode === "mix_articles" ? (
               <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                Mix Services mode: money orders are generated only for VPL, VPP, and COD rows.
+                  Mix Services mode: money orders are generated only for VPL, VPP, COD, and PAR-compatible rows.
                 {uploadInsights ? ` Eligible rows: ${uploadInsights.moneyOrderEligibleRows}. Ineligible rows: ${uploadInsights.moneyOrderIneligibleRows}.` : ""}
               </div>
             ) : null}
@@ -1568,13 +1571,13 @@ export default function Upload() {
         <Card className="border-slate-200 bg-white p-5 shadow-sm">
           <CardTitle>Track Parcel</CardTitle>
           <div className="mt-0.5 text-sm font-normal text-slate-500">All actions consume units based on usage.</div>
-          <div className="mt-2 text-sm text-gray-600">Tracking enabled from uploaded file.</div>
+          <div className="mt-2 text-sm text-gray-600">Tracking enabled from uploaded file for post-generation operations.</div>
           <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
             <div className="font-semibold text-slate-800">Recommended workflow:</div>
-            <div className="mt-1">1. Upload shipment file</div>
-            <div>2. Auto-generate tracking IDs</div>
-            <div>3. Export generated tracking master file</div>
-            <div>4. Use exported file later for Track Parcel updates</div>
+            <div className="mt-1">1. Generate labels and tracking IDs from validated upload rows.</div>
+            <div>2. Export and retain the generated tracking master file.</div>
+            <div>3. Use Track Parcel for delivery status updates and complaint submissions.</div>
+            <div>4. Use the same export for settlement and reconciliation checks.</div>
           </div>
           <label className="mt-4 flex items-center gap-2 text-sm text-gray-700">
             <input

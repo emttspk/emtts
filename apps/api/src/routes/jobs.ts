@@ -21,7 +21,7 @@ import { previewLabelHtml, renderLabelDocumentHtml, type LabelPrintMode } from "
 import { prepareLabelOrders } from "../services/labelDocument.js";
 import { getUploadExemptFileNames } from "../services/upload-file-exemptions.service.js";
 import { shadowCheckServicePrefix } from "../services/shipmentValidation.js";
-import { getTrackingPrefixesForShipmentType, getTrackingPrefix, resolveShipmentType, shouldShowValuePayableAmount } from "../validation/trackingId.js";
+import { getTrackingPrefixesForShipmentType, getTrackingPrefix, isMoneyOrderEligibleShipmentType, resolveShipmentType, shouldShowValuePayableAmount } from "../validation/trackingId.js";
 import { listCatalogServices } from "../catalog/serviceCatalog.js";
 import { logCatalogShadowWarning } from "../catalog/legacyShipmentAliases.js";
 import { activeR2StreamsGauge, refreshRuntimeMetrics, r2StreamDuration, r2StreamFailures } from "../metrics.js";
@@ -336,17 +336,7 @@ jobsRouter.post("/preview/labels", requireAuth, labelPreviewUploadMiddleware, as
     const previewShipmentType: "RGL" | "IRL" | "UMS" | "VPL" | "VPP" | "COD" | "COURIER" =
       shipmentType === "COURIER"
         ? "COURIER"
-        : shipmentType === "IRL"
-          ? "IRL"
-          : shipmentType === "UMS"
-            ? "UMS"
-            : shipmentType === "VPL"
-              ? "VPL"
-              : shipmentType === "VPP"
-                ? "VPP"
-                : shipmentType === "COD"
-                  ? "COD"
-                  : "RGL";
+        : (resolveShipmentType(shipmentType) ?? "RGL") as "RGL" | "IRL" | "UMS" | "VPL" | "VPP" | "COD";
     const orders = await parseOrdersFromFile(tempPath, { allowMissingTrackingId: true });
     const previewOrders = orders.map((order, index) => {
       const rowShipmentType = resolveShipmentType((order as any).shipmentType ?? (order as any).shipmenttype);
@@ -711,7 +701,7 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
     const moneyOrderEligibleRows = orders.filter((order) => {
       const rawRowType = String((order as any)?.shipmentType ?? (order as any)?.shipmenttype ?? shipmentType ?? "").trim();
       const rowType = resolveCanonicalShipmentTypeStrict(rawRowType) ?? rawRowType.toUpperCase();
-      return rowType === "VPL" || rowType === "VPP" || rowType === "COD";
+      return isMoneyOrderEligibleShipmentType(rowType);
     });
 
     if (effectiveGenerateMoneyOrder) {

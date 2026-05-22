@@ -98,7 +98,7 @@ export function isValuePayableShipmentType(value: unknown): value is "VPL" | "VP
 }
 
 export function isMoneyOrderEligibleShipmentType(value: unknown): value is "VPL" | "VPP" | "COD" {
-  const normalized = normalizeShipmentType(value);
+  const normalized = resolveShipmentType(value) ?? normalizeShipmentType(value);
   return normalized === "VPL" || normalized === "VPP" || normalized === "COD";
 }
 
