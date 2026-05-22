@@ -376,7 +376,7 @@ function resolveMoneyOrderAmount(order: Pick<LabelOrder, "CollectAmount" | "ship
 }
 
 function renderBoxAmountBlock(summary: LabelAmountSummary) {
-  if (!summary.appliesPakistanPostRules) {
+  if (!summary.appliesPakistanPostRules || !shouldShowValuePayableAmount(summary.shipmentType)) {
     return "";
   }
 
@@ -742,14 +742,14 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
     const receiverPhone = String(o.consigneePhone ?? "");
     const { senderName, senderAddress, senderPhone } = resolveMoneyOrderSenderFields(o as unknown as OrderRecord);
     const senderCity = String(o.senderCity ?? "");
-    const senderAddressInline = compactInlineParts([senderAddress.replace(/\n+/g, ", "), senderCity]).join(", ");
+    const senderAddressInline = compactInlineParts([senderAddress.replace(/\n+/g, ", ")]).join(", ");
     const weight = formatWeightInGrams(o.Weight);
     const orderId = String((o as any).ordered ?? "").trim() || "-";
     const dispatchDateLine = `Dispatch Date: ${resolveDispatchDate((o as any)?.issueDate)}`;
     const prefixBadgeText = amountSummary.appliesPakistanPostRules ? `${shipmentLabel} Rs.${amountSummary.moAmount}` : shipmentLabel;
     const logoMarkup = logoSrc ? `<img src="${logoSrc}" class="fl-logo" alt="Pakistan Post" />` : `<div class="fl-carrier">${escapeHtml(carrier)}</div>`;
     const formatRs = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
-    const amountMarkup = amountSummary.appliesPakistanPostRules
+    const amountMarkup = amountSummary.appliesPakistanPostRules && shouldShowValuePayableAmount(amountSummary.shipmentType)
       ? `<div class="fl-bottom-grid">
           <div class="fl-card fl-amount-box">
           <div class="fl-amount-title">MONEY ORDER SUMMARY</div>
@@ -792,7 +792,7 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
         </div>
         ${amountMarkup}
         <div class="FooterBlock fl-from">
-          <span class="fl-from-line">FROM: ${escapeHtml(compactInlineParts([senderName, senderAddressInline, senderPhone]).join(" | ") || "-")}</span>
+          <span class="fl-from-line">FROM: <span class="fl-from-name">${escapeHtml(senderName || "-")}</span> <span class="fl-from-addr">${escapeHtml(senderAddressInline || "-")}</span> <span class="fl-from-city">${escapeHtml(senderCity || "-")}</span> <span class="fl-from-phone">${escapeHtml(senderPhone || "-")}</span></span>
         </div>
       </div>`;
   };
@@ -875,7 +875,9 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
         .fl-addr { font-size: 2.45mm; line-height: 1.15; white-space: pre-line; overflow: hidden; min-height: 6.1mm; }
         .fl-city-phone { font-size: 2.35mm; color: #111; font-weight: 700; }
         .fl-from { border-top: 0.3mm solid #000; padding-top: 0.8mm; font-size: 2.25mm; }
-        .fl-from-line { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 800; }
+        .fl-from-line { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+        .fl-from-name, .fl-from-city, .fl-from-phone { font-weight: 900; }
+        .fl-from-addr { font-weight: 500; }
       </style>
     </head>
     <body>${pages.join("")}</body>

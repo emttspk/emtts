@@ -942,13 +942,9 @@ export default function Upload() {
       if (data.duplicateFilenameBypassUsed) {
         setValidationSummary((prev) => {
           if (!prev) return prev;
-          const nextWarnings = prev.batchWarnings.includes("Duplicate filename bypass used for allowed test file name.")
-            ? prev.batchWarnings
-            : [...prev.batchWarnings, "Duplicate filename bypass used for allowed test file name."];
           return {
             ...prev,
             duplicateFilenameBypassUsed: true,
-            batchWarnings: nextWarnings,
           };
         });
       }
@@ -1326,24 +1322,16 @@ export default function Upload() {
         {validationSummary ? (
           <Card className="border-slate-200 bg-white p-5 shadow-sm">
             <CardTitle>UPLOAD SUMMARY</CardTitle>
-            <div className="mt-2 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">Accepted Rows: {validationSummary.accepted}</div>
-              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-red-800">Rejected Rows: {validationSummary.rejected}</div>
-              <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-indigo-800">Warnings: {validationSummary.rowWarnings.length + validationSummary.batchWarnings.length}</div>
+            <div className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2 lg:grid-cols-5">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">✅ Accepted Rows: {validationSummary.accepted}</div>
+              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-red-800">❌ Rejected Rows: {validationSummary.rejected}</div>
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">⚠ Warnings: {validationSummary.rowWarnings.length + validationSummary.batchWarnings.length}</div>
+              <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sky-800">💰 MO Eligible: {validationSummary.moEligibleRows}</div>
+              <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-rose-800">🚫 MO Skipped: {validationSummary.moSkippedRows}</div>
             </div>
-            <div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">Ignored Tracking: {validationSummary.ignoredTracking}</div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800">Overweight Warnings: {validationSummary.overweightWarnings}</div>
-              <div className="rounded-xl border border-fuchsia-200 bg-fuchsia-50 px-3 py-2 text-fuchsia-800">MO-ineligible Services: {validationSummary.moIneligibleWarnings}</div>
+            <div className={`mt-2 rounded-xl border px-3 py-2 text-xs ${validationSummary.duplicateFilenameBypassUsed ? "border-blue-200 bg-blue-50 text-blue-800" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+              Duplicate Filename Bypass Used: {validationSummary.duplicateFilenameBypassUsed ? "YES" : "NO"}
             </div>
-            <div className="mt-2 grid grid-cols-1 gap-2 text-xs sm:grid-cols-3">
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">MO Eligible Rows: {validationSummary.moEligibleRows}</div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800">MO Skipped Rows: {validationSummary.moSkippedRows}</div>
-              <div className={`rounded-xl border px-3 py-2 ${validationSummary.duplicateFilenameBypassUsed ? "border-blue-200 bg-blue-50 text-blue-800" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
-                Duplicate Filename Bypass Used: {validationSummary.duplicateFilenameBypassUsed ? "Yes" : "No"}
-              </div>
-            </div>
-            <div className="mt-3 text-xs text-slate-600">Total grouped issues: {validationSummary.totalIssues}</div>
             {validationSummary.batchWarnings.length > 0 ? (
               <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
                 {validationSummary.batchWarnings.map((item, idx) => (
@@ -1351,34 +1339,35 @@ export default function Upload() {
                 ))}
               </div>
             ) : null}
-            <div className="mt-3 space-y-3 text-xs">
-              {[
-                { title: "Prefix mismatches", data: validationSummary.prefixMismatches, badge: "bg-amber-100 text-amber-800" },
-                { title: "Invalid services", data: validationSummary.invalidServices, badge: "bg-red-100 text-red-800" },
-                { title: "Duplicate tracking IDs", data: validationSummary.duplicateTracking, badge: "bg-rose-100 text-rose-800" },
-                { title: "Overweight shipments", data: validationSummary.overweightShipments, badge: "bg-orange-100 text-orange-800" },
-                { title: "MO-ineligible services", data: validationSummary.moIneligibleServices, badge: "bg-fuchsia-100 text-fuchsia-800" },
-              ].map((group) => (
-                <div key={group.title} className="rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="font-semibold text-slate-800">{group.title}</div>
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${group.badge}`}>{group.data.length}</span>
-                  </div>
-                  {group.data.length > 0 ? (
+            {[
+              { title: "Prefix mismatches", data: validationSummary.prefixMismatches, badge: "bg-amber-100 text-amber-800" },
+              { title: "Invalid services", data: validationSummary.invalidServices, badge: "bg-red-100 text-red-800" },
+              { title: "Duplicate tracking IDs", data: validationSummary.duplicateTracking, badge: "bg-rose-100 text-rose-800" },
+              { title: "Overweight shipments", data: validationSummary.overweightShipments, badge: "bg-orange-100 text-orange-800" },
+              { title: "MO-ineligible services", data: validationSummary.moIneligibleServices, badge: "bg-fuchsia-100 text-fuchsia-800" },
+            ].some((group) => group.data.length > 0) ? (
+              <div className="mt-3 space-y-3 text-xs">
+                {[
+                  { title: "Prefix mismatches", data: validationSummary.prefixMismatches, badge: "bg-amber-100 text-amber-800" },
+                  { title: "Invalid services", data: validationSummary.invalidServices, badge: "bg-red-100 text-red-800" },
+                  { title: "Duplicate tracking IDs", data: validationSummary.duplicateTracking, badge: "bg-rose-100 text-rose-800" },
+                  { title: "Overweight shipments", data: validationSummary.overweightShipments, badge: "bg-orange-100 text-orange-800" },
+                  { title: "MO-ineligible services", data: validationSummary.moIneligibleServices, badge: "bg-fuchsia-100 text-fuchsia-800" },
+                ].filter((group) => group.data.length > 0).map((group) => (
+                  <div key={group.title} className="rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-semibold text-slate-800">{group.title}</div>
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${group.badge}`}>{group.data.length}</span>
+                    </div>
                     <div className="mt-2 space-y-1 text-slate-700">
                       {group.data.slice(0, 8).map((item, idx) => (
-                        <div key={`${group.title}-${idx}`}>
-                          Row {item.row}: {item.message}
-                          {item.recommendation ? <span className="text-slate-500"> Recommendation: {item.recommendation}</span> : null}
-                        </div>
+                        <div key={`${group.title}-${idx}`}>Row {item.row}: {item.message}{item.recommendation ? <span className="text-slate-500"> Recommendation: {item.recommendation}</span> : null}</div>
                       ))}
                     </div>
-                  ) : (
-                    <div className="mt-2 text-slate-500">No issues detected.</div>
-                  )}
-                </div>
-              ))}
-            </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
             {validationSummary.rowErrors.length > 0 ? (
               <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                 {validationSummary.rowErrors.map((item, idx) => (

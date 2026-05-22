@@ -1,3 +1,4 @@
+import path from "node:path";
 import { prisma } from "../lib/prisma.js";
 
 const SETTINGS_TABLE = "app_runtime_settings";
@@ -5,7 +6,7 @@ const SETTINGS_KEY = "upload.exemptFileNames";
 export const DEFAULT_EXEMPT_FILE_NAMES = ["LCS 15-13-11-2024.xls"];
 
 function normalizeFileName(value: string) {
-  return value.trim();
+  return path.basename(value).trim().toLowerCase();
 }
 
 function normalizeExemptFileNames(input: unknown): string[] {
@@ -77,8 +78,8 @@ export async function saveUploadExemptFileNames(fileNames: string[]) {
 }
 
 export async function isUploadFileNameExempt(fileName: string) {
-  const normalizedName = normalizeFileName(fileName).toLowerCase();
+  const normalizedName = normalizeFileName(fileName);
   if (!normalizedName) return false;
   const exemptNames = await getUploadExemptFileNames();
-  return exemptNames.some((entry) => entry.trim().toLowerCase() === normalizedName);
+  return exemptNames.some((entry) => normalizeFileName(entry) === normalizedName);
 }

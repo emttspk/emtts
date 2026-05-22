@@ -41,6 +41,10 @@ function resolveCanonicalShipmentTypeStrict(value: unknown) {
   return CANONICAL_SHIPMENT_TYPES.has(normalized) ? normalized : null;
 }
 
+function normalizeUploadFileName(value: unknown) {
+  return path.basename(String(value ?? "")).trim().toLowerCase();
+}
+
 function isClosedConnectionError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error ?? "");
   return /connection is closed|can't reach database server|p1001|timed out|timeout|econnreset|connection terminated/i.test(message);
@@ -484,7 +488,7 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
 
   // Phase 2: Check for duplicate filename — only block if a COMPLETED job exists with same filename.
   // Failed/Queued/Processing jobs do NOT reserve the filename so re-uploads are always allowed.
-  const normalizedFileName = uploadedFile.originalname.trim().toLowerCase();
+  const normalizedFileName = normalizeUploadFileName(uploadedFile.originalname);
   const isExemptFileName = await isUploadFileNameExempt(uploadedFile.originalname).catch(() => false);
   const existingCompletedJobs = await prisma.labelJob.findMany({
     where: { userId, status: "COMPLETED" },
@@ -492,7 +496,7 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
   }).catch(() => []);
 
   const isDuplicate = existingCompletedJobs.some(
-    (job) => job.originalFilename.trim().toLowerCase() === normalizedFileName,
+    (job) => normalizeUploadFileName(job.originalFilename) === normalizedFileName,
   );
   const duplicateFilenameBypassUsed = isExemptFileName && isDuplicate;
 
