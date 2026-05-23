@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-05-24 - Phase A/B/C Completion: Backend Reliability, Observability, and Retrieval Latency
+
+### Scope
+Documentation of completed Phase A/B/C implementation under Protected Scope Protocol.
+
+### Phase A - deleteJobById Consistency
+- Implemented `deleteJobById` consistency remediation.
+- Implemented dual provider cleanup path for tracking master artifact deletion.
+- `trackingMasterPath` is now the source-of-truth deletion path when present.
+- Deterministic legacy fallback path is preserved for compatibility with historical null rows.
+
+### Phase B - trackingMaster Observability Parity
+- Added nullable `trackingMasterSyncedAt` in `LabelJob`.
+- Implemented observability parity with existing synced timestamp patterns.
+- Extended provider sync tracking for `trackingMasterXlsx` lifecycle.
+
+### Phase C - Retrieval Latency Optimization
+- Implemented tracking master retrieval latency optimization.
+- Added null-path guarded R2 probe to reduce false-negative not-found responses.
+- Reduced duplicate local polling in tracking master retrieval flow.
+- Preserved strict retrieval priority: `DB -> LOCAL -> R2`.
+
+### Protected Scope Compliance
+- No label renderer logic changes.
+- No money order logic changes.
+- No MOS logic changes.
+- No UI changes.
+- No universal label rendering changes.
+- No tracking calculation logic changes.
+
 ## 2026-05-23 - Phase 1: Tracking Master Reliability
 
 ### Scope

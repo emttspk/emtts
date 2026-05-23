@@ -1,5 +1,35 @@
 # Implementation Notes - Phase 1 Tracking Master Reliability
 
+## 2026-05-24 Addendum - Phase A/B/C Completion
+
+This addendum documents finalized implementation completion for Phase A, Phase B, and Phase C.
+It is documentation-only and does not introduce additional behavior beyond completed backend changes.
+
+### Phase A Completion
+- deleteJobById consistency remediation completed.
+- Dual-provider cleanup implemented for tracking master artifact deletion.
+- `trackingMasterPath` enforced as source-of-truth deletion path where available.
+- Deterministic legacy fallback retained for historical compatibility.
+
+### Phase B Completion
+- Nullable `trackingMasterSyncedAt` added to `LabelJob`.
+- Observability parity implemented for tracking master sync lifecycle.
+- Provider sync tracking extended to cover `trackingMasterXlsx` with null-safe behavior.
+
+### Phase C Completion
+- Retrieval latency optimization implemented for tracking master download flow.
+- Null-path guarded R2 probe implemented to reduce false-negative 404 outcomes.
+- Duplicate local polling reduced while preserving reliability checks.
+- Resolution order preserved as `DB -> LOCAL -> R2`.
+
+### Protected Scope Compliance
+- No label template logic changes.
+- No money order generation logic changes.
+- No MOS logic changes.
+- No UI/rendering workflow changes.
+- No universal label layout logic changes.
+- No tracking calculation logic changes.
+
 ## Objective
 Implement Phase 1 reliability for tracking master artifact handling only, without touching protected rendering and business logic surfaces.
 
