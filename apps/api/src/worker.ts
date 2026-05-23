@@ -28,11 +28,9 @@ import {
   buildMoneyOrderNumber,
   moneyOrderBreakdown,
   normalizeTrackingId,
-  reverseMoneyOrderFromGross,
   getTrackingPrefixesForShipmentType,
   resolveShipmentType,
   shouldApplyPakistanPostValuePayableRules,
-  shouldChargeMoneyOrderCommission,
   shouldShowValuePayableAmount,
   validateCollectAmountAgainstShipmentType,
   validateMoneyOrderNumber,
@@ -1046,15 +1044,7 @@ const worker = new Worker(
           moneyOrderEligibleOrders.map((order) => ({
             shipmentType: resolveOrderShipmentType(order, shipmentType),
             trackingNumber: String(order.trackingNumber ?? "").trim(),
-            amount: (() => {
-              const resolvedShipmentType = resolveOrderShipmentType(order, shipmentType);
-              const collectAmount = normalizeAmount((order as any).CollectAmount);
-              // Commission-bearing shipments store net MO amount in DB.
-              if (shouldChargeMoneyOrderCommission(resolvedShipmentType)) {
-                return reverseMoneyOrderFromGross(collectAmount, resolvedShipmentType).moAmount;
-              }
-              return collectAmount;
-            })(),
+            amount: normalizeAmount((order as any).CollectAmount),
             issueDate: today,
           })),
         );

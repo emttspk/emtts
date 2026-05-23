@@ -10,10 +10,8 @@ import {
   buildMoneyOrderNumber,
   buildTrackingId,
   moneyOrderBreakdown,
-  reverseMoneyOrderFromGross,
   resolveShipmentType,
   shouldApplyPakistanPostValuePayableRules,
-  shouldChargeMoneyOrderCommission,
   shouldShowValuePayableAmount,
   validateMoneyOrderNumber,
 } from "../validation/trackingId.js";
@@ -56,23 +54,6 @@ function resolveMoneyOrderCommission(order: Record<string, unknown>) {
       order.Commission ??
       0,
   );
-}
-
-function deriveNetCommissionFromGross(grossAmount: number, shipmentType: unknown) {
-  const normalizedShipment = String(shipmentType ?? "").trim().toUpperCase();
-  const gross = Math.max(0, Math.floor(grossAmount));
-  
-  if (!shouldShowValuePayableAmount(normalizedShipment)) {
-    return { netAmount: gross, commission: 0 };
-  }
-
-  // COD: no commission — collect amount is the MO amount directly
-  if (!shouldChargeMoneyOrderCommission(normalizedShipment)) {
-    return { netAmount: gross, commission: 0 };
-  }
-
-  const commission = gross > 10_000 ? 100 : 75;
-  return { netAmount: Math.max(0, gross - commission), commission };
 }
 
 function formatWeightInGrams(value: unknown) {
@@ -285,11 +266,6 @@ type LabelAmountSummary = {
   showCalculation: boolean;
 };
 
-function isUploadedLabelRow(order: Record<string, unknown>) {
-  const mode = String(order.barcodeMode ?? order.barcode_mode ?? "").trim().toLowerCase();
-  return mode === "manual";
-}
-
 function getLabelAmountSummary(order: Pick<LabelOrder, "carrierType" | "shipmentType" | "shipmenttype" | "CollectAmount" | "barcodeMode">): LabelAmountSummary {
   const carrierType = order.carrierType === "courier" ? "courier" : "pakistan_post";
   const shipmentType = resolveOrderShipmentType(order);
@@ -307,64 +283,25 @@ function getLabelAmountSummary(order: Pick<LabelOrder, "carrierType" | "shipment
     };
   }
 
-  if (!shouldChargeMoneyOrderCommission(shipmentType)) {
-    return {
-      carrierType,
-      shipmentType,
-      appliesPakistanPostRules,
-      grossAmount: collectAmount,
-      moAmount: collectAmount,
-      commission: 0,
-      showCalculation: true,
-    };
-  }
-
-  const uploadedGrossMode = isUploadedLabelRow(order as Record<string, unknown>) && shouldChargeMoneyOrderCommission(shipmentType);
-  if (uploadedGrossMode) {
-    const reversed = reverseMoneyOrderFromGross(collectAmount, shipmentType);
-    return {
-      carrierType,
-      shipmentType,
-      appliesPakistanPostRules,
-      grossAmount: reversed.grossAmount,
-      moAmount: reversed.moAmount,
-      commission: reversed.commission,
-      showCalculation: true,
-    };
-  }
-
-  const { netAmount, commission } = deriveNetCommissionFromGross(collectAmount, shipmentType);
-  const grossAmount = netAmount + commission;
+  const segments = moneyOrderBreakdown(collectAmount, shipmentType);
+  const grossAmount = segments.reduce((sum, line) => sum + line.grossAmount, 0);
+  const moAmount = segments.reduce((sum, line) => sum + line.moAmount, 0);
+  const commission = segments.reduce((sum, line) => sum + line.commission, 0);
   return {
     carrierType,
     shipmentType,
     appliesPakistanPostRules,
     grossAmount,
-    moAmount: netAmount,
+    moAmount,
     commission,
     showCalculation: shouldShowValuePayableAmount(shipmentType),
   };
 }
 
 function resolveMoneyOrderAmount(order: Pick<LabelOrder, "CollectAmount" | "shipmentType" | "shipmenttype" | "barcodeMode"> & Record<string, unknown>) {
-  // Split rows from worker/database are authoritative when present.
-  const explicitSplitAmount = toNum(order.amountRs ?? order.amount ?? 0);
-  if (explicitSplitAmount > 0) {
-    return explicitSplitAmount;
-  }
-
-  // Preserve existing summary-based behavior for non-split rows.
-  const summary = getLabelAmountSummary(
-    order as Pick<LabelOrder, "carrierType" | "shipmentType" | "shipmenttype" | "CollectAmount" | "barcodeMode">,
-  );
-  if (summary.appliesPakistanPostRules && summary.moAmount > 0) {
-    return summary.moAmount;
-  }
-
-  // Final fallback only when neither split nor summary produced a value.
-  return toNum(
-    order.CollectAmount ?? order.collect_amount ?? order.collected_amount ?? order.collectAmount ?? 0,
-  );
+  // Money-order rendering must use persisted segment amounts only.
+  const explicitSplitAmount = toNum(order.amountRs ?? order.mo_amount ?? order.moAmount ?? order.amount ?? 0);
+  return explicitSplitAmount > 0 ? explicitSplitAmount : 0;
 }
 
 function renderBoxAmountBlock(summary: LabelAmountSummary) {
@@ -720,6 +657,12 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
         ? `<img id="barcode" src="${barcodeMarkup}" alt="Barcode" />`
         : `<div id="barcode" class="barcode-fallback">${escapeHtml(tracking || "NO TRACKING")}</div>`,
     );
+    if (!hasVisibleAmount) {
+      html = html.replace(
+        /<span class="vpl-divider"[^>]*><\/span>\s*<span class="vpl-amount-box">[\s\S]*?<\/span>/i,
+        "",
+      );
+    }
 
     for (const [token, value] of Object.entries(tokenMap)) {
       html = html.split(token).join(value);
@@ -735,7 +678,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
   };
 
   const pages = orders.map((order) => renderSingle(order)).join("");
-  const safetyCss = `<style>.universal-page{width:9in;height:4in;box-sizing:border-box;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;}.universal-page:last-child{page-break-after:auto;break-after:auto;}.universal-page .header{height:56px;min-height:56px}.universal-page .barcode-area{justify-content:center;padding-top:0;padding-left:6px;padding-right:6px;gap:2px}.universal-page #barcode{height:42px;max-width:246px;width:96%}.universal-page .footer{height:32px;padding-top:2px;overflow:visible}.universal-page.universal-no-amount .body{grid-template-columns:minmax(0,3.25fr) minmax(0,1.75fr)}.universal-page.universal-no-amount .right-column{grid-template-rows:auto auto 1fr}</style>`;
+  const safetyCss = `<style>.universal-page{width:9in;height:4in;box-sizing:border-box;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;}.universal-page:last-child{page-break-after:auto;break-after:auto;}.universal-page .header{height:56px;min-height:56px}.universal-page .barcode-area{justify-content:center;padding-top:0;padding-left:6px;padding-right:6px;gap:2px;overflow:visible}.universal-page #barcode{height:42px;max-width:252px;width:98%}.universal-page .footer{height:32px;padding-top:2px;overflow:visible}.universal-page.universal-no-amount .body{grid-template-columns:minmax(0,2.8fr) minmax(0,2.2fr)}.universal-page.universal-no-amount .right-column{grid-template-rows:minmax(0,1fr) minmax(0,1fr) auto;gap:8px}</style>`;
   const outputHead = templateHead.replace(/<\/head>/i, `${safetyCss}</head>`);
 
   return `${outputHead}${pages}${template.tail}`;
