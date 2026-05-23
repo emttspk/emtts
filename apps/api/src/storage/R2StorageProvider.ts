@@ -44,7 +44,7 @@ export interface R2Config {
 export interface R2ReadCompatibilityOptions {
   keyVersion?: "legacy" | "normalized";
   jobId?: string;
-  artifactType?: "labelsPdf" | "moneyOrderPdf" | "trackingResult";
+  artifactType?: "labelsPdf" | "moneyOrderPdf" | "trackingResult" | "trackingMasterXlsx";
 }
 
 interface ResolvedCompatibilityKey {
@@ -111,14 +111,14 @@ export class R2StorageProvider implements StorageProvider {
     key: string,
     options?: {
       jobId?: string;
-      artifactType?: "labelsPdf" | "moneyOrderPdf" | "trackingResult";
+      artifactType?: "labelsPdf" | "moneyOrderPdf" | "trackingResult" | "trackingMasterXlsx";
     }
   ): {
     objectKey: string;
     objectKeyVersion: ObjectKeyVersion;
   } {
     // Phase 9B: If flag enabled, type is pdf, and metadata provided, generate normalized key
-    if (NORMALIZED_KEYS_FOR_NEW_UPLOADS && type === "pdf" && options?.jobId && options?.artifactType) {
+    if (NORMALIZED_KEYS_FOR_NEW_UPLOADS && (type === "pdf" || type === "xlsx" || type === "json") && options?.jobId && options?.artifactType) {
       const normalizedKey = getNormalizedObjectKey(options.jobId, options.artifactType);
       const objectKey = `${this.prefix}${normalizedKey}`.replace(/\\/g, "/");
       return { objectKey, objectKeyVersion: "normalized" };

@@ -400,6 +400,19 @@ function buildTrackingMasterRows(
   });
 }
 
+async function resolveRetentionSnapshotForJob(userId: string) {
+  const activeSubscription = await prisma.subscription.findFirst({
+    where: { userId, status: "ACTIVE" },
+    include: { plan: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const isPaid = Number(activeSubscription?.plan?.priceCents ?? 0) > 0;
+  const retentionTierSnapshot = isPaid ? "PAID" : "FREE";
+  const retentionHours = isPaid ? 72 : 24;
+  const deleteAfterAt = new Date(Date.now() + retentionHours * 60 * 60 * 1000);
+  return { retentionTierSnapshot, deleteAfterAt };
+}
+
 function hasMoneyOrderAmount(order: { CollectAmount?: unknown; amount?: unknown }) {
   return normalizeAmount(order.CollectAmount ?? order.amount) > 0;
 }
@@ -1408,7 +1421,7 @@ const worker = new Worker(
         trackingMasterPath = path.join(outputsDir(), buildTrackingMasterFileName(jobId));
         await writeArtifactWithDualUpload("xlsx", trackingMasterPath, masterBuffer, {
           jobId,
-          artifactType: "trackingResult",
+          artifactType: "trackingMasterXlsx",
         });
         const trackingMasterAbsPath = await waitForStoredFile(toStoredPath(trackingMasterPath), 8, 250);
         if (!trackingMasterAbsPath) {
@@ -1416,12 +1429,17 @@ const worker = new Worker(
         }
       }
 
+      const retentionSnapshot = await resolveRetentionSnapshotForJob(job.userId);
+
       await prisma.labelJob.update({
         where: { id: jobId },
         data: {
           status: "COMPLETED",
           labelsPdfPath: labelsPath ? toStoredPath(labelsPath) : null,
           moneyOrderPdfPath: moneyPath ? toStoredPath(moneyPath) : null,
+          trackingMasterPath: trackingMasterPath ? toStoredPath(trackingMasterPath) : null,
+          deleteAfterAt: retentionSnapshot.deleteAfterAt,
+          retentionTierSnapshot: retentionSnapshot.retentionTierSnapshot,
         },
       });
 

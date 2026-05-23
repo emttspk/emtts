@@ -83,10 +83,19 @@ export async function waitForStoredFile(storedPath: string, attempts = 8, delayM
 // Returns true if R2 file exists, false otherwise (including errors)
 function resolveR2FallbackKey(storedPath: string, options?: R2ReadCompatibilityOptions): string {
   if (options?.jobId && options?.artifactType) {
-    return getNormalizedObjectKey(options.jobId, options.artifactType).replace(/^pdf\//, "");
+    const normalized = getNormalizedObjectKey(options.jobId, options.artifactType);
+    return normalized.replace(/^(pdf|json|xlsx)\//, "");
   }
 
   return storedPath;
+}
+
+function resolveArtifactStorageType(storedPath: string, options?: R2ReadCompatibilityOptions): "pdf" | "json" | "xlsx" {
+  if (options?.artifactType === "trackingResult") return "json";
+  if (options?.artifactType === "trackingMasterXlsx") return "xlsx";
+  if (/\.json$/i.test(storedPath)) return "json";
+  if (/\.xlsx$/i.test(storedPath)) return "xlsx";
+  return "pdf";
 }
 
 async function checkR2ExistsQuick(
@@ -101,7 +110,8 @@ async function checkR2ExistsQuick(
   try {
     const r2Provider = getDualProviders().r2;
     const r2Key = resolveR2FallbackKey(storedPath, options);
-    const promise = r2Provider.artifactExists("pdf", r2Key, options);
+    const storageType = resolveArtifactStorageType(storedPath, options);
+    const promise = r2Provider.artifactExists(storageType, r2Key, options);
     
     // Race against timeout to fail fast
     const timeoutPromise = new Promise<boolean>((_, reject) =>

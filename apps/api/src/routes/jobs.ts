@@ -218,31 +218,31 @@ function resolveMoneyOrderRelPath(jobId: string, relPath: string | null | undefi
   return relPath;
 }
 
-function resolveTrackingMasterRelPath(jobId: string, relPath: string | null | undefined) {
+function resolveTrackingMasterRelPath(jobId: string, relPath: string | null | undefined): { relPath: string | null | undefined; source: "DB" | "LOCAL" | null } {
   if (relPath) {
     const preferredAbsPath = resolveStoredPath(relPath);
     if (existsSync(preferredAbsPath)) {
-      return toStoredPath(preferredAbsPath);
+      return { relPath: toStoredPath(preferredAbsPath), source: "DB" };
     }
   }
 
   const generatedAbsPath = path.join(outputsDir(), `${jobId}-tracking-master.xlsx`);
   if (existsSync(generatedAbsPath)) {
-    return toStoredPath(generatedAbsPath);
+    return { relPath: toStoredPath(generatedAbsPath), source: "LOCAL" };
   }
 
-  return relPath;
+  return { relPath, source: null };
 }
 
 async function waitForResolvedTrackingMasterRelPath(jobId: string, relPath: string | null | undefined, attempts = 20, delayMs = 500) {
   let resolved = resolveTrackingMasterRelPath(jobId, relPath);
   for (let attempt = 0; attempt < attempts; attempt += 1) {
-    if (resolved) {
-      const absPath = await waitForStoredFile(resolved, 1, delayMs);
+    if (resolved.relPath) {
+      const absPath = await waitForStoredFile(resolved.relPath, 1, delayMs);
       if (absPath) return resolved;
     }
     await new Promise((resolve) => setTimeout(resolve, delayMs));
-    resolved = resolveTrackingMasterRelPath(jobId, resolved);
+    resolved = resolveTrackingMasterRelPath(jobId, resolved.relPath);
   }
   return resolved;
 }
@@ -1398,29 +1398,34 @@ async function handleTrackingMasterDownload(req: ExpressRequest, res: ExpressRes
   if (!owned) return res.status(404).json({ success: false, message: "Not found" });
   if (owned.status !== "COMPLETED") return res.status(409).json({ success: false, message: "Not ready" });
 
-  let relPath: string | null | undefined;
-  try {
-    const bullJob = await getQueue().getJob(jobId);
-    if (bullJob?.finishedOn) {
-      const result = (await bullJob.returnvalue) as { trackingMasterPath?: string } | null;
-      if (result?.trackingMasterPath) relPath = result.trackingMasterPath;
-    }
-  } catch {
-    // Redis unavailable — deterministic fallback path is still supported.
-  }
+  // Resolution priority: DB persisted path -> deterministic local path -> R2 fallback
+  let relPath: string | null | undefined = owned.trackingMasterPath;
+  const initialSource: "DB" | "LOCAL" = relPath ? "DB" : "LOCAL";
 
-  relPath = await waitForResolvedTrackingMasterRelPath(jobId, relPath);
+  const resolved = await waitForResolvedTrackingMasterRelPath(jobId, relPath);
+  relPath = resolved.relPath;
   if (!relPath) {
     return res.status(404).json({ success: false, message: "Tracking master file was not generated" });
   }
 
+  const resolvedFrom = resolved.source ?? initialSource;
+
   const fileResult = await waitForStoredFileWithFallback(relPath, 8, 500, {
     jobId,
-    artifactType: "trackingResult",
+    artifactType: "trackingMasterXlsx",
   });
   if (!fileResult) {
     return res.status(404).json({ success: false, message: "Tracking master file not found" });
   }
+
+  const finalSource: "DB" | "LOCAL" | "R2" = fileResult.provider === "r2" ? "R2" : resolvedFrom;
+  logTelemetry({
+    event: "tracking_master_resolution_source",
+    jobId,
+    source: finalSource,
+    relPath,
+  });
+  console.log(`[TrackingMaster] Resolution source=${finalSource} jobId=${jobId} path=${relPath}`);
 
   const fileName = buildTrackingMasterFileName();
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");

@@ -17,11 +17,14 @@ export function getEnvironmentName(): string {
  */
 export function getNormalizedObjectKey(
   jobId: string,
-  artifactType: "labelsPdf" | "moneyOrderPdf" | "trackingResult"
+  artifactType: "labelsPdf" | "moneyOrderPdf" | "trackingResult" | "trackingMasterXlsx"
 ): string {
   const env = getEnvironmentName();
   if (artifactType === "trackingResult") {
     return `json/${env}/${jobId}/tracking-result.json`;
+  }
+  if (artifactType === "trackingMasterXlsx") {
+    return `xlsx/${env}/${jobId}/tracking-master.xlsx`;
   }
   const type =
     artifactType === "labelsPdf"
@@ -36,8 +39,9 @@ export function getNormalizedObjectKey(
  * Returns true if the key matches the normalized format (PDF or JSON).
  */
 export function isNormalizedKey(key: string): boolean {
-  return /^pdf\/(staging|production|development|test)\/[^/]+\/(labels|money-orders|tracking)\.pdf$/.test(key) ||
-         /^json\/(staging|production|development|test)\/[^/]+\/tracking-result\.json$/.test(key);
+  return /^pdf\/(staging|production|development|test)\/[^/]+\/(labels|money-orders)\.pdf$/.test(key) ||
+         /^json\/(staging|production|development|test)\/[^/]+\/tracking-result\.json$/.test(key) ||
+         /^xlsx\/(staging|production|development|test)\/[^/]+\/tracking-master\.xlsx$/.test(key);
 }
 
 /**
@@ -83,7 +87,7 @@ export function validateCompatibilityLookupMetadata(params: {
   type: string;
   keyVersion?: "legacy" | "normalized";
   jobId?: string;
-  artifactType?: "labelsPdf" | "moneyOrderPdf" | "trackingResult";
+  artifactType?: "labelsPdf" | "moneyOrderPdf" | "trackingResult" | "trackingMasterXlsx";
 }): CompatibilityLookupMetadataValidationResult {
   const { type, keyVersion, jobId, artifactType } = params;
 
@@ -95,7 +99,8 @@ export function validateCompatibilityLookupMetadata(params: {
     };
   }
 
-  if (type !== "pdf") {
+  const supportedType = type === "pdf" || type === "xlsx" || type === "json";
+  if (!supportedType) {
     return {
       isValid: false,
       metadataValidationResult: "invalid",
@@ -139,12 +144,12 @@ export function resolveObjectKeyCandidates(params: {
   prefix?: string;
   compatibilityEnabled: boolean;
   jobId?: string;
-  artifactType?: "labelsPdf" | "moneyOrderPdf" | "trackingResult";
+  artifactType?: "labelsPdf" | "moneyOrderPdf" | "trackingResult" | "trackingMasterXlsx";
 }): ObjectKeyCandidate[] {
   const { type, key, prefix = "", compatibilityEnabled, jobId, artifactType } = params;
   const legacyObjectKey = `${prefix}${type}/${key}`.replace(/\\/g, "/");
 
-  if (compatibilityEnabled && type === "pdf" && jobId && artifactType) {
+  if (compatibilityEnabled && (type === "pdf" || type === "xlsx" || type === "json") && jobId && artifactType) {
     const normalizedObjectKey = `${prefix}${getNormalizedObjectKey(jobId, artifactType)}`.replace(/\\/g, "/");
     return [
       {

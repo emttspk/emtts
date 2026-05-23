@@ -152,7 +152,7 @@ export async function writeArtifactWithDualUpload(
   type: string,
   key: string,
   data: Buffer | string,
-  syncTrackingContext?: {jobId: string, artifactType: "labelsPdf" | "moneyOrderPdf" | "trackingResult"}
+  syncTrackingContext?: {jobId: string, artifactType: "labelsPdf" | "moneyOrderPdf" | "trackingResult" | "trackingMasterXlsx"}
 ): Promise<string> {
   // Always write to local first (synchronous, authoritative)
   const localPath = await localProvider.writeArtifact(type, key, data);
@@ -291,9 +291,13 @@ export async function writeArtifactWithDualUpload(
         });
         // Mark as synced in DB ONLY after successful upload
         if (syncTrackingContext) {
-          const syncPersisted = await markArtifactSyncedToR2(syncTrackingContext.jobId, syncTrackingContext.artifactType);
-          if (syncPersisted) {
+          if (syncTrackingContext.artifactType === "trackingMasterXlsx") {
             decrementUnsyncedArtifacts();
+          } else {
+            const syncPersisted = await markArtifactSyncedToR2(syncTrackingContext.jobId, syncTrackingContext.artifactType);
+            if (syncPersisted) {
+              decrementUnsyncedArtifacts();
+            }
           }
         } else {
           decrementUnsyncedArtifacts();
