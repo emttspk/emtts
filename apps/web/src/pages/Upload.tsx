@@ -1428,18 +1428,34 @@ export default function Upload() {
 
         {validationSummary ? (
           <Card className="border-slate-200 bg-white p-5 shadow-sm">
-            <CardTitle>UPLOAD SUMMARY</CardTitle>
-            <div className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2 lg:grid-cols-5">
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">Accepted: {validationSummary.accepted}</div>
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">Warnings: {validationSummary.rowWarnings.length + validationSummary.batchWarnings.length}</div>
-              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-red-800">Rejected: {validationSummary.rejected}</div>
-              <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sky-800">MO Eligible: {validationSummary.moEligibleRows}</div>
+            <CardTitle>Upload Summary</CardTitle>
+            <div className="mt-1 text-xs text-slate-500">Quick status for this file upload.</div>
+            <div className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-xl border border-emerald-200 bg-gradient-to-b from-emerald-50 to-emerald-100/70 px-3 py-2 text-emerald-900 shadow-sm">
+                <div className="text-[11px] font-semibold uppercase tracking-wide">Accepted</div>
+                <div className="mt-0.5 text-base font-bold">{validationSummary.accepted}</div>
+              </div>
+              <div className="rounded-xl border border-amber-200 bg-gradient-to-b from-amber-50 to-amber-100/70 px-3 py-2 text-amber-900 shadow-sm">
+                <div className="text-[11px] font-semibold uppercase tracking-wide">Warnings</div>
+                <div className="mt-0.5 text-base font-bold">{validationSummary.rowWarnings.length + validationSummary.batchWarnings.length}</div>
+              </div>
+              <div className="rounded-xl border border-red-200 bg-gradient-to-b from-red-50 to-red-100/70 px-3 py-2 text-red-900 shadow-sm">
+                <div className="text-[11px] font-semibold uppercase tracking-wide">Validation Errors</div>
+                <div className="mt-0.5 text-base font-bold">{validationSummary.rejected}</div>
+              </div>
+              <div className="rounded-xl border border-sky-200 bg-gradient-to-b from-sky-50 to-sky-100/70 px-3 py-2 text-sky-900 shadow-sm">
+                <div className="text-[11px] font-semibold uppercase tracking-wide">MO Eligible</div>
+                <div className="mt-0.5 text-base font-bold">{validationSummary.moEligibleRows}</div>
+              </div>
             </div>
-            <details className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs text-slate-700">
-              <summary className="cursor-pointer font-semibold text-slate-800">View detailed validation</summary>
+            <details className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-700">
+              <summary className="cursor-pointer font-semibold text-slate-800">Detailed diagnostics</summary>
               <div className="mt-3 space-y-3">
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] text-slate-600">
+                  Showing grouped issues with up to a few sample rows per category for faster review.
+                </div>
                 {validationSummary.batchWarnings.length > 0 ? (
-                  <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-blue-800">
+                  <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-blue-900 shadow-sm">
                     <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide">Batch notices</div>
                     {validationSummary.batchWarnings.slice(0, 6).map((item, idx) => (
                       <div key={`batch-${idx}`}>{item}</div>
@@ -1453,14 +1469,14 @@ export default function Upload() {
                   { title: "Overweight shipments", data: validationSummary.overweightShipments, badge: "bg-orange-100 text-orange-800" },
                   { title: "MO-ineligible services", data: validationSummary.moIneligibleServices, badge: "bg-fuchsia-100 text-fuchsia-800" },
                 ].filter((group) => group.data.length > 0).map((group) => (
-                  <div key={group.title} className="rounded-xl border border-slate-200 bg-white px-3 py-3">
+                  <div key={group.title} className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
                     <div className="flex items-center justify-between gap-2">
                       <div className="font-semibold text-slate-800">{group.title}</div>
                       <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${group.badge}`}>{group.data.length}</span>
                     </div>
                     <div className="mt-2 space-y-1 text-slate-700">
                       {group.data.slice(0, 6).map((item, idx) => (
-                        <div key={`${group.title}-${idx}`} className="rounded-lg border border-slate-100 bg-slate-50 px-2 py-1">
+                        <div key={`${group.title}-${idx}`} className="rounded-lg border border-slate-100 bg-slate-50 px-2 py-1.5">
                           <span className="font-medium text-slate-800">Row {item.row}:</span> {item.message}
                           {item.recommendation ? <span className="text-slate-500"> Suggested fix: {item.recommendation}</span> : null}
                         </div>
@@ -1469,7 +1485,7 @@ export default function Upload() {
                   </div>
                 ))}
                 {validationSummary.rowErrors.length > 0 ? (
-                  <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-red-700">
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-red-800 shadow-sm">
                     <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide">Blocking issues</div>
                     {validationSummary.rowErrors.slice(0, 8).map((item, idx) => (
                       <div key={`err-${idx}`}>{item}</div>
@@ -1477,7 +1493,7 @@ export default function Upload() {
                   </div>
                 ) : null}
                 {validationSummary.rowWarnings.length > 0 ? (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900 shadow-sm">
                     <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide">Warnings</div>
                     {validationSummary.rowWarnings.slice(0, 8).map((item, idx) => (
                       <div key={`warn-${idx}`}>{item}</div>
@@ -1497,7 +1513,7 @@ export default function Upload() {
                   </div>
                 ) : null}
                 {validationSummary.recommendations.length > 0 ? (
-                  <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sky-800">
+                  <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sky-900 shadow-sm">
                     <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide">Recommended actions</div>
                     {validationSummary.recommendations.slice(0, 6).map((item, idx) => (
                       <div key={`rec-${idx}`}>{item}</div>
