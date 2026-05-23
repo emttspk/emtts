@@ -14,6 +14,7 @@ export const MONEY_ORDER_PREFIX = "MOS";     // For VPL, VPP
 export const MONEY_ORDER_PREFIX_COD = "UMO"; // For COD
 
 export const MONEY_ORDER_SPLIT_LIMIT = 20_000;
+export const UMO_MAX_SINGLE_AMOUNT = 100_000;
 
 export const CANONICAL_SHIPMENT_TYPES = [
   ...listCatalogServices({ includeDeprecated: false })
@@ -308,7 +309,7 @@ function commissionFor(blockTotal: number) {
   return blockTotal <= 10_000 ? 75 : 100;
 }
 
-function splitBlocks(total: number) {
+function splitBlocks(total: number, limit: number) {
   const normalizedTotal = Math.max(0, Math.floor(total));
   if (normalizedTotal === 0) {
     return [] as number[];
@@ -316,9 +317,10 @@ function splitBlocks(total: number) {
 
   const blocks: number[] = [];
   let remaining = normalizedTotal;
-  while (remaining > MONEY_ORDER_SPLIT_LIMIT) {
-    blocks.push(MONEY_ORDER_SPLIT_LIMIT);
-    remaining -= MONEY_ORDER_SPLIT_LIMIT;
+  const splitLimit = Math.max(1, Math.floor(limit));
+  while (remaining > splitLimit) {
+    blocks.push(splitLimit);
+    remaining -= splitLimit;
   }
   if (remaining > 0) {
     blocks.push(remaining);
@@ -327,10 +329,12 @@ function splitBlocks(total: number) {
 }
 
 export function moneyOrderBreakdown(total: number, shipmentType?: unknown): MoneyOrderBreakdownLine[] {
+  const normalizedShipment = normalizeShipmentType(shipmentType);
+  const splitLimit = normalizedShipment === "COD" ? UMO_MAX_SINGLE_AMOUNT : MONEY_ORDER_SPLIT_LIMIT;
   const chargeCommission = shipmentType == null || shipmentType === ""
     ? true
     : shouldChargeMoneyOrderCommission(shipmentType);
-  return splitBlocks(total).map((blockGrossAmount, index) => {
+  return splitBlocks(total, splitLimit).map((blockGrossAmount, index) => {
     const grossAmount = Math.max(0, blockGrossAmount);
     const commission = chargeCommission
       ? grossAmount <= 10_000
