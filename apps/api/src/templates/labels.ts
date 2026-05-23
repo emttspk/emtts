@@ -628,9 +628,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
 
     const orderSource = String(o.reference ?? (o as any)?.source ?? (o as any)?.Source ?? "ePost Workspace").trim() || "ePost Workspace";
     const productDetails = String(o.ProductDescription ?? "").trim() || "-";
-    const dispatchDateLine = `Dispatch Date: ${resolveDispatchDate((o as any)?.issueDate)}`;
     const amountMarkup = renderUniversalAmountBlock(summary);
-    const dispatchDateMarkup = `<div class="dispatch-date">${escapeHtml(dispatchDateLine)}</div>`;
     const hasVisibleAmount = summary.appliesPakistanPostRules && shouldShowValuePayableAmount(summary.shipmentType);
 
     const tokenMap: Record<string, string> = {
@@ -648,11 +646,10 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
     };
 
     let html = templateBody;
-    html = html.replace(/<div class="eng-top">PAKISTAN<\/div>\s*<div class="eng-bottom">POST<\/div>/i, "");
     html = html.replace(/<span class="vpl-label">[^<]*<\/span>/i, `<span class="vpl-label">${escapeHtml(shipmentLabel)}</span>`);
     html = html.replace(
       /<!--\s*AMOUNT\s*-->[\s\S]*?<!--\s*ORDER\s*-->/i,
-      `<!-- AMOUNT -->\n${amountMarkup}${dispatchDateMarkup}\n\n            <!-- ORDER -->`,
+      `<!-- AMOUNT -->\n${amountMarkup}\n\n            <!-- ORDER -->`,
     );
     html = html.replace(
       /<svg id="barcode"><\/svg>/i,
@@ -681,7 +678,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
   };
 
   const pages = orders.map((order) => renderSingle(order)).join("");
-  const safetyCss = `<style>.universal-page{width:9in;height:4in;box-sizing:border-box;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;}.universal-page:last-child{page-break-after:auto;break-after:auto;}.universal-page .header{height:56px;min-height:56px}.universal-page .logo-text{gap:0}.universal-page .barcode-area{justify-content:center;padding-top:0;padding-left:6px;padding-right:6px;gap:2px;overflow:visible}.universal-page #barcode{height:40px;max-width:248px;width:100%;object-fit:contain;box-sizing:border-box}.universal-page .dispatch-date{grid-column:2;justify-self:end;font-size:8px;line-height:1.05;font-weight:700;letter-spacing:0.08mm;padding-top:1px;color:#222}.universal-page .footer{height:32px;padding-top:1px;overflow:visible}.universal-page.universal-no-amount .body{grid-template-columns:minmax(0,2.55fr) minmax(0,2.45fr);align-items:stretch}.universal-page.universal-no-amount .right-column{grid-template-rows:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:6px;align-content:stretch}.universal-page.universal-no-amount .right-column .box{justify-content:center;min-height:0}</style>`;
+  const safetyCss = `<style>.universal-page{width:9in;height:4in;box-sizing:border-box;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;}.universal-page:last-child{page-break-after:auto;break-after:auto;}.universal-page .header{height:56px;min-height:56px}.universal-page .barcode-area{justify-content:center;padding-top:0;padding-left:7px;padding-right:7px;gap:2px;overflow:visible}.universal-page #barcode{height:40px;max-width:248px;width:96%;object-fit:contain}.universal-page .footer{height:32px;padding-top:2px;overflow:visible}.universal-page.universal-no-amount .body{grid-template-columns:minmax(0,2.7fr) minmax(0,2.3fr);align-items:center}.universal-page.universal-no-amount .right-column{grid-template-rows:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:8px;align-content:center}.universal-page.universal-no-amount .right-column .box{justify-content:center}</style>`;
   const outputHead = templateHead.replace(/<\/head>/i, `${safetyCss}</head>`);
 
   return `${outputHead}${pages}${template.tail}`;
