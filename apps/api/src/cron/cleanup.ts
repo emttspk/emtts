@@ -1,11 +1,12 @@
 import cron from "node-cron";
 import fs from "node:fs/promises";
-import { getStorageProvider, storageFeatureFlags } from "../storage/provider.js";
+import { getDualProviders, getStorageProvider, storageFeatureFlags } from "../storage/provider.js";
 import path from "node:path";
 import { prisma } from "../lib/prisma.js";
 import { outputsDir, uploadsDir } from "../storage/paths.js";
 import { logCleanupStagingMode, logTelemetry } from "../telemetry.js";
 import { stagingConfig } from "../config.js";
+import { getNormalizedObjectKey, resolveObjectKeyCandidates } from "../storage/key-normalization.js";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -183,6 +184,121 @@ async function removeStoredFile(relPath: string | null | undefined) {
   }
 }
 
+async function removeArtifactFromDualProviders(
+  type: "pdf" | "json" | "xlsx",
+  relPath: string | null | undefined,
+  options: {
+    jobId?: string;
+    artifactType?: "labelsPdf" | "moneyOrderPdf" | "trackingResult" | "trackingMasterXlsx";
+    fallbackLegacyPaths?: string[];
+  },
+) {
+  if (!relPath) return;
+  const { local, r2 } = getDualProviders();
+  const resolvedAbsPath = path.resolve(process.cwd(), relPath);
+
+  try {
+    await local.deleteArtifact("artifact", resolvedAbsPath);
+  } catch {
+    // ignore missing local files
+  }
+
+  const r2KeyCandidates = new Set<string>();
+
+  if (options.jobId && options.artifactType) {
+    const normalized = getNormalizedObjectKey(options.jobId, options.artifactType);
+    r2KeyCandidates.add(normalized.replace(/^(pdf|json|xlsx)\//, ""));
+  }
+
+  const candidateBases = [relPath, resolvedAbsPath, ...(options.fallbackLegacyPaths ?? [])];
+  for (const base of candidateBases) {
+    const candidates = resolveObjectKeyCandidates({
+      type,
+      key: base,
+      compatibilityEnabled: true,
+      jobId: options.jobId,
+      artifactType: options.artifactType,
+    });
+    for (const candidate of candidates) {
+      r2KeyCandidates.add(candidate.objectKey.replace(/^(pdf|json|xlsx)\//, ""));
+    }
+  }
+
+  for (const r2Key of r2KeyCandidates) {
+    try {
+      await r2.deleteArtifact(type, r2Key);
+    } catch {
+      // ignore missing/legacy mismatch keys
+    }
+  }
+}
+
+async function cleanupExpiredLabelJobsByDeleteAfterAt() {
+  const now = new Date();
+  const expiredJobs = await prisma.labelJob.findMany({
+    where: {
+      deleteAfterAt: { not: null, lte: now },
+      status: { notIn: ["QUEUED", "PROCESSING", "DELAYED", "RETRY"] },
+    },
+    select: {
+      id: true,
+      userId: true,
+      labelsPdfPath: true,
+      moneyOrderPdfPath: true,
+      uploadPath: true,
+      trackingMasterPath: true,
+      deleteAfterAt: true,
+      retentionTierSnapshot: true,
+    },
+  });
+
+  for (const job of expiredJobs) {
+    const trackingJob = await prisma.trackingJob.findFirst({
+      where: { id: job.id, userId: job.userId },
+      select: { resultPath: true },
+    });
+
+    const legacyTrackingMasterPath = path.join(outputsDir(), `${job.id}-tracking-master.xlsx`);
+
+    await Promise.all([
+      removeStoredFile(job.uploadPath ?? null),
+      removeArtifactFromDualProviders("pdf", job.labelsPdfPath ?? null, {
+        jobId: job.id,
+        artifactType: "labelsPdf",
+      }),
+      removeArtifactFromDualProviders("pdf", job.moneyOrderPdfPath ?? null, {
+        jobId: job.id,
+        artifactType: "moneyOrderPdf",
+      }),
+      removeArtifactFromDualProviders("json", trackingJob?.resultPath ?? null, {
+        jobId: job.id,
+        artifactType: "trackingResult",
+      }),
+      removeArtifactFromDualProviders("xlsx", job.trackingMasterPath ?? legacyTrackingMasterPath, {
+        jobId: job.id,
+        artifactType: "trackingMasterXlsx",
+        fallbackLegacyPaths: [legacyTrackingMasterPath],
+      }),
+    ]);
+
+    await prisma.$transaction([
+      prisma.trackingJob.deleteMany({ where: { id: job.id, userId: job.userId } }),
+      prisma.labelJob.deleteMany({ where: { id: job.id, userId: job.userId } }),
+    ]);
+
+    await prisma.$executeRaw`DELETE FROM job_deletion_schedules WHERE job_id = ${job.id}`;
+
+    logTelemetry({
+      event: "retention_deleteafter_cleanup",
+      jobId: job.id,
+      userId: job.userId,
+      deleteAfterAt: job.deleteAfterAt?.toISOString() ?? null,
+      retentionTierSnapshot: job.retentionTierSnapshot ?? null,
+      status: "deleted",
+    });
+  }
+}
+
 async function cleanupScheduledJobDeletions() {
   await ensureJobDeletionSchedulesTable();
   const rows = await prisma.$queryRaw<Array<{ job_id: string; user_id: string; delete_after_at: string }>>`
@@ -234,6 +350,7 @@ async function runCleanup() {
   });
 
   await Promise.all([deleteOrphanedFiles(outputsDir()), deleteOrphanedFiles(uploadsDir())]);
+  await cleanupExpiredLabelJobsByDeleteAfterAt();
   await cleanupScheduledJobDeletions();
 
   // Null out paths for jobs whose files are now gone
@@ -300,6 +417,10 @@ async function runCleanup() {
   });
 
   console.log("[Cleanup] Storage cleanup complete.");
+}
+
+export async function runCleanupNow() {
+  await runCleanup();
 }
 
 // Run daily at 02:00

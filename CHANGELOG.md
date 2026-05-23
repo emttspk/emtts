@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-05-24 - Retention Lifecycle Fix: deleteAfterAt Enforcement
+
+### Scope
+Fixed backend retention cleanup lifecycle so expiry cleanup uses `LabelJob.deleteAfterAt` directly.
+
+### Implemented
+- Added delete-after enforcement in cleanup cron using `LabelJob.deleteAfterAt` for expired completed jobs.
+- Enforced retention lifecycle windows already persisted by worker:
+  - `FREE`: 24 hours
+  - `PAID`: 72 hours
+- Added dual-provider artifact cleanup in retention path:
+  - Local artifact deletion
+  - R2 artifact deletion
+- Added tracking master cleanup in retention path:
+  - `trackingMasterPath` primary
+  - deterministic legacy fallback path preserved
+- Preserved legacy compatibility by keeping scheduled cleanup fallback (`job_deletion_schedules`) for historical/manual flows.
+
+### Protected Scope Compliance
+- No UI changes.
+- No renderer changes.
+- No MOS logic changes.
+
+### Verification
+- `npm run build` -> PASS
+- `npm run strict-runtime-verify` -> PASS
+- Direct DB retention job simulation -> BLOCKED (database unreachable at `localhost:5432`)
+
+### Risk Remaining
+- End-to-end DB-backed retention deletion simulation remains pending until PostgreSQL connectivity is restored.
+
 ## 2026-05-24 - Phase A/B/C Completion: Backend Reliability, Observability, and Retrieval Latency
 
 ### Scope

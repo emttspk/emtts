@@ -1,5 +1,44 @@
 # Implementation Notes - Phase 1 Tracking Master Reliability
 
+## 2026-05-24 Addendum - Retention deleteAfterAt Enforcement
+
+### Objective
+Fix retention cleanup lifecycle so backend deletion is driven by `LabelJob.deleteAfterAt` instead of only legacy scheduled cleanup pathways.
+
+### Implementation Summary
+- Added `cleanupExpiredLabelJobsByDeleteAfterAt()` in cleanup cron flow.
+- Cleanup now scans expired `LabelJob` rows (`deleteAfterAt <= now`) excluding active queue states.
+- For each expired job, cleanup now removes:
+  - local upload artifact
+  - local/R2 labels artifact
+  - local/R2 money-order artifact
+  - local/R2 tracking result artifact
+  - local/R2 tracking master artifact
+- Tracking master cleanup preserves compatibility:
+  - DB path when present
+  - deterministic legacy fallback path
+- DB cleanup after artifact removal:
+  - delete related `TrackingJob`
+  - delete expired `LabelJob`
+  - delete any legacy `job_deletion_schedules` entry for same job id
+
+### Legacy Compatibility
+- Existing `cleanupScheduledJobDeletions()` remains active for historical/manual schedules.
+- This preserves cleanup for rows that do not rely on `deleteAfterAt`.
+
+### Protected Scope Compliance
+- No UI changes.
+- No renderer changes.
+- No MOS logic changes.
+
+### Verification Performed
+- `npm run build` -> PASS
+- `npm run strict-runtime-verify` -> PASS
+
+### Verification Blocker
+- Direct DB-backed retention simulation (creating expired FREE/PAID jobs and validating delete) is blocked because PostgreSQL is unreachable (`localhost:5432`).
+- Result: compile/runtime suites passed, but end-to-end retention deletion simulation remains pending environment recovery.
+
 ## 2026-05-24 Addendum - Phase A/B/C Completion
 
 This addendum documents finalized implementation completion for Phase A, Phase B, and Phase C.
