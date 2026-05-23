@@ -1429,7 +1429,7 @@ export default function Upload() {
         {validationSummary ? (
           <Card className="border-slate-200 bg-white p-5 shadow-sm">
             <CardTitle>Upload Summary</CardTitle>
-            <div className="mt-1 text-xs text-slate-500">Quick status for this file upload.</div>
+            <div className="mt-1 text-xs text-slate-500">Accepted rows, warnings, and blocking issues for this file.</div>
             <div className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-xl border border-emerald-200 bg-gradient-to-b from-emerald-50 to-emerald-100/70 px-3 py-2 text-emerald-900 shadow-sm">
                 <div className="text-[11px] font-semibold uppercase tracking-wide">Accepted</div>
@@ -1449,14 +1449,14 @@ export default function Upload() {
               </div>
             </div>
             <details className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-700">
-              <summary className="cursor-pointer font-semibold text-slate-800">Detailed diagnostics</summary>
+              <summary className="cursor-pointer font-semibold text-slate-800">Detailed diagnostics (grouped)</summary>
               <div className="mt-3 space-y-3">
                 <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] text-slate-600">
-                  Showing grouped issues with up to a few sample rows per category for faster review.
+                  Grouped by impact, with sample rows only, so operators can fix the highest-priority issues first.
                 </div>
                 {validationSummary.batchWarnings.length > 0 ? (
-                  <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-blue-900 shadow-sm">
-                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide">Batch notices</div>
+                  <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-indigo-900 shadow-sm">
+                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide">File-level notices</div>
                     {validationSummary.batchWarnings.slice(0, 6).map((item, idx) => (
                       <div key={`batch-${idx}`}>{item}</div>
                     ))}
@@ -1486,7 +1486,7 @@ export default function Upload() {
                 ))}
                 {validationSummary.rowErrors.length > 0 ? (
                   <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-red-800 shadow-sm">
-                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide">Blocking issues</div>
+                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide">Errors (must fix)</div>
                     {validationSummary.rowErrors.slice(0, 8).map((item, idx) => (
                       <div key={`err-${idx}`}>{item}</div>
                     ))}
@@ -1494,7 +1494,7 @@ export default function Upload() {
                 ) : null}
                 {validationSummary.rowWarnings.length > 0 ? (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900 shadow-sm">
-                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide">Warnings</div>
+                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide">Operator warnings</div>
                     {validationSummary.rowWarnings.slice(0, 8).map((item, idx) => (
                       <div key={`warn-${idx}`}>{item}</div>
                     ))}
