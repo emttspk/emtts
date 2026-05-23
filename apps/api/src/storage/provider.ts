@@ -223,6 +223,13 @@ export async function writeArtifactWithDualUpload(
 
   // If staging enabled and canary gates job, skip R2 async upload
   if (stagingEnabled && canaryGatesJob) {
+    if (syncTrackingContext?.artifactType === "trackingMasterXlsx") {
+      logTelemetry({
+        event: "TRACKING_MASTER_SYNC_PENDING",
+        jobId: syncTrackingContext.jobId,
+        reason: "canary_gate_skip",
+      });
+    }
     return localPath;
   }
 
@@ -291,13 +298,21 @@ export async function writeArtifactWithDualUpload(
         });
         // Mark as synced in DB ONLY after successful upload
         if (syncTrackingContext) {
-          if (syncTrackingContext.artifactType === "trackingMasterXlsx") {
+          const syncPersisted = await markArtifactSyncedToR2(syncTrackingContext.jobId, syncTrackingContext.artifactType);
+          if (syncPersisted) {
             decrementUnsyncedArtifacts();
-          } else {
-            const syncPersisted = await markArtifactSyncedToR2(syncTrackingContext.jobId, syncTrackingContext.artifactType);
-            if (syncPersisted) {
-              decrementUnsyncedArtifacts();
+            if (syncTrackingContext.artifactType === "trackingMasterXlsx") {
+              logTelemetry({
+                event: "TRACKING_MASTER_SYNC_SUCCESS",
+                jobId: syncTrackingContext.jobId,
+              });
             }
+          } else if (syncTrackingContext.artifactType === "trackingMasterXlsx") {
+            logTelemetry({
+              event: "TRACKING_MASTER_SYNC_PENDING",
+              jobId: syncTrackingContext.jobId,
+              reason: "sync_persist_not_confirmed",
+            });
           }
         } else {
           decrementUnsyncedArtifacts();
@@ -318,6 +333,14 @@ export async function writeArtifactWithDualUpload(
           objectKey: uploadObjectKey,
           error: err instanceof Error ? err.message : String(err),
         });
+        if (syncTrackingContext?.artifactType === "trackingMasterXlsx") {
+          logTelemetry({
+            event: "TRACKING_MASTER_SYNC_PENDING",
+            jobId: syncTrackingContext.jobId,
+            reason: "r2_upload_failure",
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
       } finally {
         if (streamGaugeIncremented) {
           const activeBeforeStreamCleanup = activeR2StreamsGauge.get();
@@ -374,7 +397,7 @@ export const storageFeatureFlags = {
 // This is called after successful R2 writes to track sync status
 export async function markArtifactSyncedToR2(
   jobId: string,
-  artifactType: "labelsPdf" | "moneyOrderPdf" | "trackingResult"
+  artifactType: "labelsPdf" | "moneyOrderPdf" | "trackingResult" | "trackingMasterXlsx"
 ): Promise<boolean> {
   try {
     const now = new Date();
@@ -395,6 +418,12 @@ export async function markArtifactSyncedToR2(
       await prisma.trackingJob.update({
         where: { id: jobId },
         data: { resultSyncedAt: now },
+      });
+      updated = true;
+    } else if (artifactType === "trackingMasterXlsx") {
+      await prisma.labelJob.update({
+        where: { id: jobId },
+        data: { trackingMasterSyncedAt: now },
       });
       updated = true;
     }

@@ -175,6 +175,7 @@ model LabelJob {
   moneyOrderPdfPath String?
   moneyOrderPdfSyncedAt DateTime?  // R2 sync timestamp for money order PDF (null = not synced yet)
   trackingMasterPath String?
+  trackingMasterSyncedAt DateTime?  // R2 sync timestamp for tracking master XLSX (null = not synced yet)
   deleteAfterAt      DateTime?
   retentionTierSnapshot String?
   createdAt         DateTime  @default(now())
@@ -186,6 +187,7 @@ model LabelJob {
   @@index([status])
   @@index([labelsPdfSyncedAt])
   @@index([moneyOrderPdfSyncedAt])
+  @@index([trackingMasterSyncedAt])
   @@index([deleteAfterAt])
 }
 

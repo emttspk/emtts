@@ -28,6 +28,7 @@ import { activeR2StreamsGauge, refreshRuntimeMetrics, r2StreamDuration, r2Stream
 import { logTelemetry } from "../telemetry.js";
 import { r2Config as rolloutR2Config } from "../config.js";
 import { getUploadFilenameDebug, normalizeUploadFilename } from "../utils/uploadFilename.js";
+import { getNormalizedObjectKey, resolveObjectKeyCandidates } from "../storage/key-normalization.js";
 
 export const jobsRouter = Router();
 
@@ -116,6 +117,56 @@ async function removeStoredFile(relPath: string | null | undefined) {
   }
 }
 
+async function removeTrackingMasterFromDualProviders(
+  relPath: string,
+  options: { jobId: string; deleteSource: "DB_PATH" | "LEGACY_PATH" },
+) {
+  const { jobId, deleteSource } = options;
+  const { local, r2 } = getDualProviders();
+  const resolvedAbsPath = resolveStoredPath(relPath);
+
+  // Local delete is always attempted against both stored and absolute forms.
+  try {
+    await local.deleteArtifact("artifact", resolvedAbsPath);
+  } catch {
+    // ignore missing files
+  }
+
+  // R2 delete candidates include normalized key plus legacy-compatible paths.
+  const r2KeyCandidates = new Set<string>();
+  const normalized = getNormalizedObjectKey(jobId, "trackingMasterXlsx");
+  r2KeyCandidates.add(normalized.replace(/^xlsx\//, ""));
+
+  const legacyBases = [relPath, resolvedAbsPath];
+  for (const base of legacyBases) {
+    const candidates = resolveObjectKeyCandidates({
+      type: "xlsx",
+      key: base,
+      compatibilityEnabled: true,
+      jobId,
+      artifactType: "trackingMasterXlsx",
+    });
+    for (const candidate of candidates) {
+      r2KeyCandidates.add(candidate.objectKey.replace(/^xlsx\//, ""));
+    }
+  }
+
+  for (const r2Key of r2KeyCandidates) {
+    try {
+      await r2.deleteArtifact("xlsx", r2Key);
+    } catch {
+      // ignore missing/legacy mismatch keys
+    }
+  }
+
+  logTelemetry({
+    event: "tracking_master_delete_source",
+    jobId,
+    DELETE_SOURCE: deleteSource,
+    relPath,
+  });
+}
+
 async function deleteJobArtifacts(job: {
   uploadPath?: string | null;
   labelsPdfPath?: string | null;
@@ -139,6 +190,7 @@ async function deleteJobById(userId: string, jobId: string) {
       uploadPath: true,
       labelsPdfPath: true,
       moneyOrderPdfPath: true,
+      trackingMasterPath: true,
     },
   });
 
@@ -154,7 +206,21 @@ async function deleteJobById(userId: string, jobId: string) {
 
   await deleteJobArtifacts(job);
   await removeStoredFile(trackingJob?.resultPath ?? null);
-  await removeStoredFile(toStoredPath(path.join(outputsDir(), `${jobId}-tracking-master.xlsx`)));
+
+  const legacyTrackingMasterPath = toStoredPath(path.join(outputsDir(), `${jobId}-tracking-master.xlsx`));
+  if (job.trackingMasterPath) {
+    await removeTrackingMasterFromDualProviders(job.trackingMasterPath, {
+      jobId,
+      deleteSource: "DB_PATH",
+    });
+  }
+
+  if (!job.trackingMasterPath || job.trackingMasterPath !== legacyTrackingMasterPath) {
+    await removeTrackingMasterFromDualProviders(legacyTrackingMasterPath, {
+      jobId,
+      deleteSource: "LEGACY_PATH",
+    });
+  }
 
   await prisma.$transaction([
     prisma.trackingJob.deleteMany({ where: { id: jobId, userId } }),
@@ -234,7 +300,7 @@ function resolveTrackingMasterRelPath(jobId: string, relPath: string | null | un
   return { relPath, source: null };
 }
 
-async function waitForResolvedTrackingMasterRelPath(jobId: string, relPath: string | null | undefined, attempts = 20, delayMs = 500) {
+async function waitForResolvedTrackingMasterRelPath(jobId: string, relPath: string | null | undefined, attempts = 8, delayMs = 250) {
   let resolved = resolveTrackingMasterRelPath(jobId, relPath);
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     if (resolved.relPath) {
@@ -1402,18 +1468,36 @@ async function handleTrackingMasterDownload(req: ExpressRequest, res: ExpressRes
   let relPath: string | null | undefined = owned.trackingMasterPath;
   const initialSource: "DB" | "LOCAL" = relPath ? "DB" : "LOCAL";
 
-  const resolved = await waitForResolvedTrackingMasterRelPath(jobId, relPath);
+  const resolved = await waitForResolvedTrackingMasterRelPath(jobId, relPath, 8, 250);
   relPath = resolved.relPath;
+
+  let resolvedFrom = resolved.source ?? initialSource;
+  let fileResult: {path: string, provider: "local" | "r2"} | null = null;
+
   if (!relPath) {
-    return res.status(404).json({ success: false, message: "Tracking master file was not generated" });
+    const legacyProbePath = toStoredPath(path.join(outputsDir(), `${jobId}-tracking-master.xlsx`));
+    logTelemetry({
+      event: "TRACKING_MASTER_NULL_R2_PROBE",
+      jobId,
+      probePath: legacyProbePath,
+    });
+    fileResult = await waitForStoredFileWithFallback(legacyProbePath, 1, 0, {
+      jobId,
+      artifactType: "trackingMasterXlsx",
+    });
+    if (!fileResult) {
+      return res.status(404).json({ success: false, message: "Tracking master file was not generated" });
+    }
+    relPath = legacyProbePath;
+    resolvedFrom = "LOCAL";
+  } else {
+    // Resolver has already done local polling. Keep this second-stage local check minimal.
+    fileResult = await waitForStoredFileWithFallback(relPath, 1, 0, {
+      jobId,
+      artifactType: "trackingMasterXlsx",
+    });
   }
 
-  const resolvedFrom = resolved.source ?? initialSource;
-
-  const fileResult = await waitForStoredFileWithFallback(relPath, 8, 500, {
-    jobId,
-    artifactType: "trackingMasterXlsx",
-  });
   if (!fileResult) {
     return res.status(404).json({ success: false, message: "Tracking master file not found" });
   }
@@ -1425,6 +1509,13 @@ async function handleTrackingMasterDownload(req: ExpressRequest, res: ExpressRes
     source: finalSource,
     relPath,
   });
+  if (finalSource === "DB") {
+    logTelemetry({ event: "TRACKING_MASTER_SOURCE_DB", jobId, relPath });
+  } else if (finalSource === "LOCAL") {
+    logTelemetry({ event: "TRACKING_MASTER_SOURCE_LOCAL", jobId, relPath });
+  } else {
+    logTelemetry({ event: "TRACKING_MASTER_SOURCE_R2", jobId, relPath });
+  }
   console.log(`[TrackingMaster] Resolution source=${finalSource} jobId=${jobId} path=${relPath}`);
 
   const fileName = buildTrackingMasterFileName();
