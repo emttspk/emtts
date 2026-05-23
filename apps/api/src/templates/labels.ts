@@ -628,7 +628,9 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
 
     const orderSource = String(o.reference ?? (o as any)?.source ?? (o as any)?.Source ?? "ePost Workspace").trim() || "ePost Workspace";
     const productDetails = String(o.ProductDescription ?? "").trim() || "-";
+    const dispatchDateLine = `Dispatch Date: ${resolveDispatchDate((o as any)?.issueDate)}`;
     const amountMarkup = renderUniversalAmountBlock(summary);
+    const dispatchDateMarkup = `<div class="dispatch-date">${escapeHtml(dispatchDateLine)}</div>`;
     const hasVisibleAmount = summary.appliesPakistanPostRules && shouldShowValuePayableAmount(summary.shipmentType);
 
     const tokenMap: Record<string, string> = {
@@ -646,10 +648,11 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
     };
 
     let html = templateBody;
+    html = html.replace(/<div class="eng-top">PAKISTAN<\/div>\s*<div class="eng-bottom">POST<\/div>/i, "");
     html = html.replace(/<span class="vpl-label">[^<]*<\/span>/i, `<span class="vpl-label">${escapeHtml(shipmentLabel)}</span>`);
     html = html.replace(
       /<!--\s*AMOUNT\s*-->[\s\S]*?<!--\s*ORDER\s*-->/i,
-      `<!-- AMOUNT -->\n${amountMarkup}\n\n            <!-- ORDER -->`,
+      `<!-- AMOUNT -->\n${amountMarkup}${dispatchDateMarkup}\n\n            <!-- ORDER -->`,
     );
     html = html.replace(
       /<svg id="barcode"><\/svg>/i,
@@ -678,7 +681,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
   };
 
   const pages = orders.map((order) => renderSingle(order)).join("");
-  const safetyCss = `<style>.universal-page{width:9in;height:4in;box-sizing:border-box;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;}.universal-page:last-child{page-break-after:auto;break-after:auto;}.universal-page .header{height:56px;min-height:56px}.universal-page .barcode-area{justify-content:center;padding-top:0;padding-left:7px;padding-right:7px;gap:2px;overflow:visible}.universal-page #barcode{height:40px;max-width:248px;width:96%;object-fit:contain}.universal-page .footer{height:32px;padding-top:2px;overflow:visible}.universal-page.universal-no-amount .body{grid-template-columns:minmax(0,2.7fr) minmax(0,2.3fr);align-items:center}.universal-page.universal-no-amount .right-column{grid-template-rows:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:8px;align-content:center}.universal-page.universal-no-amount .right-column .box{justify-content:center}</style>`;
+  const safetyCss = `<style>.universal-page{width:9in;height:4in;box-sizing:border-box;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;}.universal-page:last-child{page-break-after:auto;break-after:auto;}.universal-page .header{height:56px;min-height:56px}.universal-page .logo-text{gap:0}.universal-page .barcode-area{justify-content:center;padding-top:0;padding-left:6px;padding-right:6px;gap:2px;overflow:visible}.universal-page #barcode{height:40px;max-width:248px;width:100%;object-fit:contain;box-sizing:border-box}.universal-page .dispatch-date{grid-column:2;justify-self:end;font-size:8px;line-height:1.05;font-weight:700;letter-spacing:0.08mm;padding-top:1px;color:#222}.universal-page .footer{height:32px;padding-top:1px;overflow:visible}.universal-page.universal-no-amount .body{grid-template-columns:minmax(0,2.55fr) minmax(0,2.45fr);align-items:stretch}.universal-page.universal-no-amount .right-column{grid-template-rows:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:6px;align-content:stretch}.universal-page.universal-no-amount .right-column .box{justify-content:center;min-height:0}</style>`;
   const outputHead = templateHead.replace(/<\/head>/i, `${safetyCss}</head>`);
 
   return `${outputHead}${pages}${template.tail}`;
@@ -822,24 +825,24 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
         .fl-carrier { font-weight: 900; font-size: 3.5mm; text-transform: uppercase; letter-spacing: 0.12mm; }
         .fl-dispatch-date { font-size: 2.1mm; font-weight: 700; line-height: 1.05; }
         .fl-badge { border: 0.3mm solid #000; padding: 0.6mm 1.2mm; font-weight: 900; font-size: 3mm; white-space: nowrap; }
-        .fl-barcode-wrap { display: grid; justify-items: center; gap: 0.5mm; }
-        .fl-barcode-image { width: 100%; max-width: 88mm; height: 9mm; object-fit: contain; display: block; }
-        .fl-barcode-fallback { width: 88mm; height: 9mm; border: 0.3mm dashed #000; display: grid; place-items: center; font-weight: 900; font-size: 2.5mm; }
+        .fl-barcode-wrap { display: grid; justify-items: center; gap: 0.45mm; }
+        .fl-barcode-image { width: 100%; max-width: 87mm; height: 9mm; object-fit: contain; display: block; }
+        .fl-barcode-fallback { width: 87mm; height: 9mm; border: 0.3mm dashed #000; display: grid; place-items: center; font-weight: 900; font-size: 2.45mm; }
         .fl-tracking { font-family: "Courier New", Courier, monospace; font-weight: 900; letter-spacing: 0.24mm; font-size: 2.4mm; text-align: center; }
         .fl-bottom-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1mm; align-items: stretch; }
-        .fl-card { border: 0.35mm solid #000; padding: 0.9mm 1.2mm; display: grid; gap: 0.45mm; background: #fff; min-height: 15.5mm; align-content: start; }
-        .fl-amount-box { display: grid; gap: 0.5mm; }
-        .fl-amount-title { font-size: 2.2mm; font-weight: 900; letter-spacing: 0.2mm; border-bottom: 0.25mm solid #000; padding-bottom: 0.35mm; }
-        .fl-amount-row { display: flex; justify-content: space-between; gap: 2mm; font-size: 2.25mm; font-weight: 800; }
-        .fl-product-title { font-size: 2.2mm; font-weight: 900; letter-spacing: 0.2mm; border-bottom: 0.25mm solid #000; padding-bottom: 0.35mm; }
-        .fl-product-row { display: flex; justify-content: space-between; gap: 2mm; font-size: 2.25mm; font-weight: 800; }
+        .fl-card { border: 0.3mm solid #000; padding: 1.05mm 1.35mm 0.95mm; display: grid; gap: 0.55mm; background: #fff; min-height: 15.5mm; align-content: start; }
+        .fl-amount-box { display: grid; gap: 0.6mm; }
+        .fl-amount-title { font-size: 2.1mm; font-weight: 900; letter-spacing: 0.25mm; border-bottom: 0.25mm solid #000; padding-bottom: 0.45mm; }
+        .fl-amount-row { display: flex; justify-content: space-between; gap: 2mm; font-size: 2.35mm; font-weight: 800; line-height: 1.1; }
+        .fl-product-title { font-size: 2.1mm; font-weight: 900; letter-spacing: 0.25mm; border-bottom: 0.25mm solid #000; padding-bottom: 0.45mm; }
+        .fl-product-row { display: flex; justify-content: space-between; gap: 2mm; font-size: 2.25mm; font-weight: 800; line-height: 1.12; }
         .fl-to { display: grid; gap: 0.45mm; overflow: hidden; border: 0.3mm solid #000; padding: 0.95mm 1.2mm; }
         .fl-k { font-weight: 900; font-size: 2.5mm; letter-spacing: 0.3mm; }
         .fl-name { font-weight: 900; font-size: 3mm; }
         .fl-addr { font-size: 2.45mm; line-height: 1.15; white-space: pre-line; overflow: hidden; min-height: 6.1mm; }
         .fl-city-phone { font-size: 2.35mm; color: #111; font-weight: 700; }
-        .fl-from { border-top: 0.3mm solid #000; padding-top: 0.8mm; font-size: 2.25mm; }
-        .fl-from-line { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+        .fl-from { border-top: 0.3mm solid #000; padding-top: 0.9mm; font-size: 2.2mm; }
+        .fl-from-line { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; letter-spacing: 0.05mm; line-height: 1.1; }
         .fl-from-name, .fl-from-city, .fl-from-phone { font-weight: 900; }
         .fl-from-addr { font-weight: 500; }
       </style>
