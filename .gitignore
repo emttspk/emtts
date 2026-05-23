@@ -78,3 +78,15 @@ scripts/tmp-*.cjs
 
 # Transient maintenance snapshots (retain only curated final docs/manifests)
 MAINTENANCE-SNAPSHOT-TEMP*.md
+
+# Internal documentation and verification artifacts must remain local-only
+CHANGELOG.md
+IMPLEMENTATION_NOTES.md
+forensic-artifacts/
+docs/internal/
+*_PLAN.md
+*_NOTES.md
+*_GUIDE.md
+verification-*.json
+strict-runtime-verify-*.json
+retention-cleanup-verify-*.json
