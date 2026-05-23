@@ -154,6 +154,7 @@ async function deleteJobById(userId: string, jobId: string) {
 
   await deleteJobArtifacts(job);
   await removeStoredFile(trackingJob?.resultPath ?? null);
+  await removeStoredFile(toStoredPath(path.join(outputsDir(), `${jobId}-tracking-master.xlsx`)));
 
   await prisma.$transaction([
     prisma.trackingJob.deleteMany({ where: { id: jobId, userId } }),
@@ -215,6 +216,42 @@ function resolveMoneyOrderRelPath(jobId: string, relPath: string | null | undefi
   }
 
   return relPath;
+}
+
+function resolveTrackingMasterRelPath(jobId: string, relPath: string | null | undefined) {
+  if (relPath) {
+    const preferredAbsPath = resolveStoredPath(relPath);
+    if (existsSync(preferredAbsPath)) {
+      return toStoredPath(preferredAbsPath);
+    }
+  }
+
+  const generatedAbsPath = path.join(outputsDir(), `${jobId}-tracking-master.xlsx`);
+  if (existsSync(generatedAbsPath)) {
+    return toStoredPath(generatedAbsPath);
+  }
+
+  return relPath;
+}
+
+async function waitForResolvedTrackingMasterRelPath(jobId: string, relPath: string | null | undefined, attempts = 20, delayMs = 500) {
+  let resolved = resolveTrackingMasterRelPath(jobId, relPath);
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (resolved) {
+      const absPath = await waitForStoredFile(resolved, 1, delayMs);
+      if (absPath) return resolved;
+    }
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    resolved = resolveTrackingMasterRelPath(jobId, resolved);
+  }
+  return resolved;
+}
+
+function buildTrackingMasterFileName(value = new Date()) {
+  const day = String(value.getDate()).padStart(2, "0");
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const year = String(value.getFullYear());
+  return `Tracking Master ${day}-${month}-${year}.xlsx`;
 }
 
 async function waitForResolvedMoneyOrderRelPath(jobId: string, relPath: string | null | undefined, attempts = 20, delayMs = 500) {
@@ -1351,3 +1388,68 @@ async function handleMoneyOrdersDownload(req: ExpressRequest, res: ExpressRespon
 
 jobsRouter.get("/:jobId/download/money-orders", requireAuth, handleMoneyOrdersDownload);
 jobsRouter.get("/:jobId/download/money-order", requireAuth, handleMoneyOrdersDownload);
+
+async function handleTrackingMasterDownload(req: ExpressRequest, res: ExpressResponse) {
+  // PROTECTED RENDER PATH: DO NOT MODIFY WITHOUT EXPLICIT APPROVAL.
+  // This endpoint is part of the finalized generation-to-tracking operator workflow.
+  const userId = (req as AuthedRequest).user!.id;
+  const jobId = req.params.jobId;
+  const owned = await prisma.labelJob.findFirst({ where: { id: jobId, userId } });
+  if (!owned) return res.status(404).json({ success: false, message: "Not found" });
+  if (owned.status !== "COMPLETED") return res.status(409).json({ success: false, message: "Not ready" });
+
+  let relPath: string | null | undefined;
+  try {
+    const bullJob = await getQueue().getJob(jobId);
+    if (bullJob?.finishedOn) {
+      const result = (await bullJob.returnvalue) as { trackingMasterPath?: string } | null;
+      if (result?.trackingMasterPath) relPath = result.trackingMasterPath;
+    }
+  } catch {
+    // Redis unavailable — deterministic fallback path is still supported.
+  }
+
+  relPath = await waitForResolvedTrackingMasterRelPath(jobId, relPath);
+  if (!relPath) {
+    return res.status(404).json({ success: false, message: "Tracking master file was not generated" });
+  }
+
+  const fileResult = await waitForStoredFileWithFallback(relPath, 8, 500, {
+    jobId,
+    artifactType: "trackingResult",
+  });
+  if (!fileResult) {
+    return res.status(404).json({ success: false, message: "Tracking master file not found" });
+  }
+
+  const fileName = buildTrackingMasterFileName();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+
+  if (fileResult.provider === "local") {
+    const resolvedAbsPath = path.resolve(fileResult.path);
+    const stats = fsSync.statSync(resolvedAbsPath);
+    if (!stats.isFile() || stats.size <= 0) {
+      return res.status(422).json({ success: false, message: "Tracking master file is empty" });
+    }
+    const allowedRoot = outputsDir();
+    const relToRoot = path.relative(allowedRoot, resolvedAbsPath);
+    if (relToRoot.startsWith("..") || path.isAbsolute(relToRoot)) {
+      return res.status(400).json({ success: false, message: "Invalid file path" });
+    }
+    return res.download(resolvedAbsPath, fileName);
+  }
+
+  try {
+    const r2Provider = getDualProviders().r2;
+    const data = await r2Provider.readArtifact("xlsx", fileResult.path);
+    if (!data || data.length <= 0) {
+      return res.status(422).json({ success: false, message: "Tracking master file is empty" });
+    }
+    return res.send(data);
+  } catch (error) {
+    return res.status(502).json({ success: false, message: error instanceof Error ? error.message : "Download unavailable" });
+  }
+}
+
+jobsRouter.get("/:jobId/download/tracking-master", requireAuth, handleTrackingMasterDownload);

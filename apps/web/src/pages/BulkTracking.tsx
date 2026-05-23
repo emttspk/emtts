@@ -3,12 +3,13 @@ import { useDropzone } from "react-dropzone";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { UploadCloud, AlertCircle, MapPin, PackageSearch, BadgeDollarSign, RefreshCw, Printer, Package, CheckCircle2, Clock, TrendingUp, X, MessageSquare, Activity, ChevronRight, Truck, ArrowUpRight, ArrowUpDown, Search } from "lucide-react";
+import * as XLSX from "xlsx";
 import Card from "../components/Card";
 import ActionButton from "../components/ui/ActionButton";
 import UnifiedShipmentCards from "../components/UnifiedShipmentCards";
 import SampleDownloadLink from "../components/SampleDownloadLink";
 import { cn } from "../lib/cn";
-import { api, apiHealthCheck, uploadFile } from "../lib/api";
+import { api, apiHealthCheck, triggerBrowserDownload, uploadFile } from "../lib/api";
 import { useTrackingJobPolling } from "../lib/useTrackingJobPolling";
 import { collectComplaintBrowserBootstrap } from "../components/ComplaintModal";
 import { getRole } from "../lib/auth";
@@ -98,6 +99,24 @@ type ExtendedStatusFilter =
   | "COMPLAINT_REOPENED"
   | "COMPLAINT_IN_PROCESS";
 
+type TrackingUploadFileKind = "tracking master file" | "shipment upload file" | "tracking-only file" | "unknown file";
+
+type TrackingUploadFileAnalysis = {
+  kind: TrackingUploadFileKind;
+  trackingCount: number;
+};
+
+type TrackingBatchHistoryItem = {
+  id: string;
+  uploadDate: string;
+  totalTrackingIds: number;
+  currentStatus: string;
+  lastTrackingRun: string | null;
+  unitsConsumed: number;
+  originalFilename: string | null;
+  hasMasterFile: boolean;
+};
+
 const TRACKING_CACHE_TTL_MS = 60_000;
 const COMPLAINT_QUEUE_CACHE_TTL_MS = 45_000;
 const WORKSPACE_RENDER_CACHE_PERSIST_MS = 150;
@@ -121,6 +140,73 @@ const TRACKING_SERVICE_TYPE_MAP: Record<string, string> = {
   PAR: "VPX",
   PR: "VPX",
 };
+
+function normalizeUploadHeader(value: unknown) {
+  return String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function extractTrackingIdsFromUploadRows(rows: Array<Record<string, unknown>>) {
+  const trackingHeaderCandidates = new Set([
+    "trackingid",
+    "trackingnumber",
+    "trackingno",
+    "tracking",
+    "tracking_id",
+    "barcode",
+    "articleno",
+    "articlenumber",
+  ]);
+
+  const values = new Set<string>();
+  for (const row of rows) {
+    for (const [key, value] of Object.entries(row)) {
+      const normalizedKey = normalizeUploadHeader(key);
+      if (!trackingHeaderCandidates.has(normalizedKey)) continue;
+      const trackingId = String(value ?? "").trim().toUpperCase().replace(/\s+/g, "");
+      if (trackingId) values.add(trackingId);
+    }
+  }
+  return Array.from(values);
+}
+
+function detectTrackingUploadKind(headers: string[]): TrackingUploadFileKind {
+  const normalized = new Set(headers.map((header) => normalizeUploadHeader(header)));
+  const hasTracking = ["trackingid", "trackingnumber", "trackingno", "tracking", "tracking_id", "barcode", "articleno", "articlenumber"]
+    .some((key) => normalized.has(key));
+  const hasReceiverFields = ["consigneename", "consigneeaddress", "receivercity", "collectamount", "shipmenttype"]
+    .some((key) => normalized.has(key));
+  const hasTrackingMasterSignals = ["batchid", "generateddate", "currentstatus", "complaintstatus", "settlementstatus"]
+    .every((key) => normalized.has(key));
+
+  if (hasTrackingMasterSignals && hasTracking) return "tracking master file";
+  if (hasTracking && hasReceiverFields) return "shipment upload file";
+  if (hasTracking) return "tracking-only file";
+  return "unknown file";
+}
+
+async function analyzeTrackingUploadFile(file: File | null): Promise<TrackingUploadFileAnalysis> {
+  if (!file) {
+    return { kind: "unknown file", trackingCount: 0 };
+  }
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: "array" });
+    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+    if (!firstSheet) {
+      return { kind: "unknown file", trackingCount: 0 };
+    }
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(firstSheet, { raw: false, defval: "" });
+    const headers = Object.keys(rows[0] ?? {});
+    const trackingIds = extractTrackingIdsFromUploadRows(rows);
+    return {
+      kind: detectTrackingUploadKind(headers),
+      trackingCount: trackingIds.length,
+    };
+  } catch {
+    return { kind: "unknown file", trackingCount: 0 };
+  }
+}
 
 function formatLastDate(shipment: Shipment): string {
   return String(shipment.latestDate ?? "").trim() || new Date(shipment.updatedAt).toLocaleDateString("en-GB");
@@ -766,6 +852,20 @@ function formatTrackingTableDateOnly(value: string | number | null | undefined, 
   return date.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, "-");
 }
 
+function formatBatchDateTime(value: string | null | undefined) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "-";
+  const dt = new Date(raw);
+  if (Number.isNaN(dt.getTime())) return "-";
+  return dt.toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function resolveShipmentBookingMeta(shipment: Shipment) {
   const timeline = extractTimeline(shipment.rawJson);
   const firstEvent = timeline[0] ?? null;
@@ -1039,6 +1139,12 @@ export default function BulkTracking() {
   const [serviceFailureCount, setServiceFailureCount] = useState(0);
   const [jobStartTime, setJobStartTime] = useState<number | null>(null);
   const [recordCount, setRecordCount] = useState(0);
+  const [detectedUploadKind, setDetectedUploadKind] = useState<TrackingUploadFileKind>("unknown file");
+  const [detectedTrackingCount, setDetectedTrackingCount] = useState(0);
+  const [showNoTrackingModal, setShowNoTrackingModal] = useState(false);
+  const [batchHistory, setBatchHistory] = useState<TrackingBatchHistoryItem[]>([]);
+  const [batchHistoryLoading, setBatchHistoryLoading] = useState(false);
+  const [batchActionLoadingId, setBatchActionLoadingId] = useState<string | null>(null);
   const [refreshSummary, setRefreshSummary] = useState<string | null>(() => {
     const cached = readInitialWorkspaceRenderCache();
     if (!cached?.shipments.length) return null;
@@ -1142,8 +1248,13 @@ export default function BulkTracking() {
   useEffect(() => {
     if (polling.jobStatus === "FAILED" || polling.jobStatus === "COMPLETED") {
       submitTrackingRef.current = false;
+      void refreshBatchHistory();
     }
   }, [polling.jobStatus]);
+
+  useEffect(() => {
+    void refreshBatchHistory();
+  }, []);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(COMPLAINT_PHONE_STORAGE_KEY);
@@ -1388,6 +1499,74 @@ export default function BulkTracking() {
 
     complaintQueueCacheRef.current.inFlight = request;
     return request;
+  }
+
+  // PROTECTED RENDER PATH: DO NOT MODIFY WITHOUT EXPLICIT APPROVAL.
+  // Batch history contracts are tied to production API workflow and unit accounting.
+  async function refreshBatchHistory() {
+    setBatchHistoryLoading(true);
+    try {
+      const data = await api<{ success: boolean; batches: TrackingBatchHistoryItem[] }>("/api/tracking/batches?limit=100");
+      setBatchHistory(Array.isArray(data.batches) ? data.batches : []);
+    } catch {
+      setBatchHistory([]);
+    } finally {
+      setBatchHistoryLoading(false);
+    }
+  }
+
+  async function runSavedBatch(batchId: string) {
+    if (!batchId) return;
+    setBatchActionLoadingId(batchId);
+    setError(null);
+    setShowRechargeAlert(false);
+    setShowServiceAlert(false);
+    try {
+      const res = await api<{ success: boolean; jobId: string; recordCount: number }>(`/api/tracking/batches/${encodeURIComponent(batchId)}/run`, {
+        method: "POST",
+      });
+      submitTrackingRef.current = true;
+      setStatusFilter("ALL");
+      setPage(1);
+      setJobStartTime(Date.now());
+      setRecordCount(Number(res.recordCount ?? 0));
+      setEstimatedTotalSec(Math.ceil((Math.max(1, Number(res.recordCount ?? 0))) * 0.4));
+      setUiState("processing");
+      setProgress(5);
+      setElapsed(0);
+      polling.start(res.jobId);
+      await refreshShipments({ force: true });
+      await refreshBatchHistory();
+    } catch (e) {
+      submitTrackingRef.current = false;
+      const msg = e instanceof Error ? e.message : "Failed to run saved batch";
+      setError(msg);
+      setUiState("failed");
+      setProgress(100);
+      if (msg.match(/(credit|balance|recharge|quota|limit)/i)) {
+        setShowRechargeAlert(true);
+      }
+    } finally {
+      setBatchActionLoadingId(null);
+    }
+  }
+
+  async function deleteSavedBatch(batchId: string) {
+    if (!batchId) return;
+    if (!window.confirm("Delete this tracking batch from workspace history?")) return;
+    setBatchActionLoadingId(batchId);
+    try {
+      await api(`/api/tracking/batches/${encodeURIComponent(batchId)}`, { method: "DELETE" });
+      await refreshBatchHistory();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete batch");
+    } finally {
+      setBatchActionLoadingId(null);
+    }
+  }
+
+  function downloadSavedBatchMaster(batchId: string) {
+    triggerBrowserDownload(`/api/tracking/batches/${encodeURIComponent(batchId)}/master-file`, `${batchId}-tracking-master.xlsx`);
   }
 
   function applyShipmentsSnapshot(allRows: Shipment[], total: number) {
@@ -2086,10 +2265,12 @@ export default function BulkTracking() {
   }, [complaintRecord]);
 
   const onDrop = useCallback((accepted: File[]) => {
-    setFile(accepted[0] ?? null);
+    const nextFile = accepted[0] ?? null;
+    setFile(nextFile);
     setError(null);
     setShowRechargeAlert(false);
     setShowServiceAlert(false);
+    setShowNoTrackingModal(false);
     setResults(null);
     setUiState("idle");
     setProgress(0);
@@ -2097,7 +2278,13 @@ export default function BulkTracking() {
     setEstimatedTotalSec(null);
     setJobStartTime(null);
     setRecordCount(0);
+    setDetectedUploadKind("unknown file");
+    setDetectedTrackingCount(0);
     polling.reset();
+    void analyzeTrackingUploadFile(nextFile).then((analysis) => {
+      setDetectedUploadKind(analysis.kind);
+      setDetectedTrackingCount(analysis.trackingCount);
+    });
   }, []);
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
@@ -3288,6 +3475,118 @@ export default function BulkTracking() {
         subtitle="Upload a file and review shipment status, complaints, and delivery progress."
         actions={<SampleDownloadLink />}
       />
+
+      <Card className="w-full min-w-0 overflow-hidden border border-[#E5E7EB] bg-white p-0 shadow-sm">
+        <div className="border-b border-[#E5E7EB] px-4 py-3 md:px-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-lg">Tracking Batch History</CardTitle>
+              <div className="mt-1 text-xs text-slate-500">Saved batches can be re-run without re-uploading file.</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => void refreshBatchHistory()}
+              className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              <RefreshCw className={cn("h-3.5 w-3.5", batchHistoryLoading && "animate-spin")} />
+              Refresh Batches
+            </button>
+          </div>
+        </div>
+        <div className="w-full overflow-x-auto">
+          <table className="min-w-[1080px] w-full text-xs">
+            <thead className="bg-slate-50 text-slate-600">
+              <tr>
+                <th className="px-3 py-2 text-left font-semibold">Batch ID</th>
+                <th className="px-3 py-2 text-left font-semibold">Upload Date</th>
+                <th className="px-3 py-2 text-left font-semibold">Total Tracking IDs</th>
+                <th className="px-3 py-2 text-left font-semibold">Current Status</th>
+                <th className="px-3 py-2 text-left font-semibold">Last Tracking Run</th>
+                <th className="px-3 py-2 text-left font-semibold">Units Consumed</th>
+                <th className="px-3 py-2 text-left font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {batchHistory.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-3 py-4 text-center text-slate-500">
+                    {batchHistoryLoading ? "Loading tracking batches..." : "No saved tracking batches yet."}
+                  </td>
+                </tr>
+              ) : batchHistory.map((batch) => {
+                const actionBusy = batchActionLoadingId === batch.id;
+                return (
+                  <tr key={batch.id}>
+                    <td className="px-3 py-2 font-mono text-[11px] text-slate-800">{batch.id}</td>
+                    <td className="px-3 py-2 text-slate-700">{formatBatchDateTime(batch.uploadDate)}</td>
+                    <td className="px-3 py-2 text-slate-700">{batch.totalTrackingIds}</td>
+                    <td className="px-3 py-2">
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
+                        {batch.currentStatus}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-slate-700">{formatBatchDateTime(batch.lastTrackingRun)}</td>
+                    <td className="px-3 py-2 text-slate-700">{batch.unitsConsumed}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          type="button"
+                          disabled={actionBusy}
+                          onClick={() => void runSavedBatch(batch.id)}
+                          className="rounded-lg border border-brand/30 bg-brand/10 px-2.5 py-1 text-[11px] font-semibold text-brand hover:bg-brand/20 disabled:opacity-50"
+                        >
+                          Run Tracking
+                        </button>
+                        <button
+                          type="button"
+                          disabled={actionBusy || !batch.hasMasterFile}
+                          onClick={() => downloadSavedBatchMaster(batch.id)}
+                          className="rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-50"
+                        >
+                          Download Master File
+                        </button>
+                        <button
+                          type="button"
+                          disabled={actionBusy}
+                          onClick={() => {
+                            setStatusFilter("COMPLAINT_TOTAL");
+                            setPage(1);
+                            document.getElementById("tracking-workspace-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                          }}
+                          className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                        >
+                          Complaints
+                        </button>
+                        <button
+                          type="button"
+                          disabled={actionBusy}
+                          onClick={() => {
+                            setStatusFilter("DELIVERED");
+                            setPage(1);
+                            document.getElementById("tracking-workspace-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                          }}
+                          className="rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                        >
+                          Settlement
+                        </button>
+                        <button
+                          type="button"
+                          disabled={actionBusy}
+                          onClick={() => void deleteSavedBatch(batch.id)}
+                          className="rounded-lg border border-red-300 bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                        >
+                          Delete Batch
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
       <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
       <Card className="w-full min-w-0 overflow-hidden border border-[color:var(--line)] bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_56%,#eefbf3_100%)] p-5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] md:p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -3386,12 +3685,27 @@ export default function BulkTracking() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle className="text-xl">Bulk Tracking</CardTitle>
-              <div className="mt-1 text-sm font-normal text-slate-500">Upload CSV, XLS, or XLSX using the sample format.</div>
+              <div className="mt-1 text-sm font-normal text-slate-500">Follow this 4-step flow to keep tracking, complaint, and settlement data aligned.</div>
             </div>
           </div>
         </div>
 
         <div className="grid gap-2 p-3">
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
+            {[
+              { step: "STEP 1", title: "Generate Labels", text: "Generate labels and tracking IDs from validated rows." },
+              { step: "STEP 2", title: "Download Tracking Master File", text: "Export the tracking master file (.xlsx) after generation completes." },
+              { step: "STEP 3", title: "Upload Same File Here", text: "Upload the same exported file into this Track Parcel workspace." },
+              { step: "STEP 4", title: "Track / Complaint / Settlement", text: "Use one source for statuses, complaint handling, and settlement checks." },
+            ].map((card) => (
+              <div key={card.step} className="rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50 px-3 py-2.5 shadow-sm">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">{card.step}</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">{card.title}</div>
+                <div className="mt-1 text-xs leading-relaxed text-slate-600">{card.text}</div>
+              </div>
+            ))}
+          </div>
+
           <div
             {...getRootProps()}
             className={cn(
@@ -3414,9 +3728,28 @@ export default function BulkTracking() {
 
               <div className="mt-4 w-full text-xs text-gray-600">
                 <div className="flex items-center justify-between">
-                  <span>{file ? file.name : "No file selected"}</span>
+                  <span className="truncate pr-2">{file ? file.name : "No file selected"}</span>
                   <span className="font-medium text-[#0F172A]">{statusLabel}</span>
                 </div>
+                {file ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className={cn(
+                      "rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+                      detectedUploadKind === "tracking master file"
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : detectedUploadKind === "shipment upload file"
+                          ? "border-sky-200 bg-sky-50 text-sky-700"
+                          : detectedUploadKind === "tracking-only file"
+                            ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                            : "border-amber-200 bg-amber-50 text-amber-700",
+                    )}>
+                      Detected: {detectedUploadKind}
+                    </span>
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
+                      Tracking IDs: {detectedTrackingCount}
+                    </span>
+                  </div>
+                ) : null}
                 <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-100">
                   <div
                     className={`h-full rounded-full transition-all duration-300 ease-in-out ${
@@ -3481,8 +3814,20 @@ export default function BulkTracking() {
                 setError(null);
                 setShowRechargeAlert(false);
                 setShowServiceAlert(false);
+                setShowNoTrackingModal(false);
                 setResults(null);
                 try {
+                  const analysis = await analyzeTrackingUploadFile(file);
+                  setDetectedUploadKind(analysis.kind);
+                  setDetectedTrackingCount(analysis.trackingCount);
+                  if (analysis.trackingCount <= 0) {
+                    setShowNoTrackingModal(true);
+                    setUiState("idle");
+                    setProgress(0);
+                    submitTrackingRef.current = false;
+                    return;
+                  }
+
                   setUiState("uploading");
                   setStatusFilter("ALL");
                   setPage(1);
@@ -3518,6 +3863,24 @@ export default function BulkTracking() {
           </div>
         </div>
       </Card>
+
+      {showNoTrackingModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-[0_30px_80px_rgba(15,23,42,0.28)]">
+            <div className="text-lg font-semibold text-slate-900">No tracking IDs found</div>
+            <div className="mt-2 text-sm text-slate-600">No tracking IDs found. Please upload exported Tracking Master File.</div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowNoTrackingModal(false)}
+                className="rounded-2xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {false && results ? (
         <Card className="p-6">

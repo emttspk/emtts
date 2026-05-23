@@ -47,6 +47,7 @@ import {
 import { processTracking } from "./services/trackingStatus.js";
 import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "./services/trackingIntelligence.js";
 import { processComplaintQueueById } from "./processors/complaint.processor.js";
+import xlsx from "xlsx";
 import {
   createStartupReadinessReport,
   getInfrastructureEnvStatus,
@@ -352,6 +353,51 @@ async function ensureMoneyOrderTables() {
 function normalizeAmount(value: unknown) {
   const parsed = Number(String(value ?? "").replace(/,/g, "").trim());
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeText(value: unknown) {
+  return String(value ?? "").trim();
+}
+
+function buildTrackingMasterFileName(jobId: string) {
+  return `${jobId}-tracking-master.xlsx`;
+}
+
+function buildTrackingMasterRows(
+  jobId: string,
+  labelOrdersForRender: LabelOrder[],
+  defaultShipmentType: string | null,
+): Array<Record<string, string | number>> {
+  const generatedDate = new Date().toISOString().slice(0, 10);
+
+  return labelOrdersForRender.map((order) => {
+    const shipmentType = resolveOrderShipmentType(order, defaultShipmentType) ?? "";
+    const collectAmount = normalizeAmount((order as any).CollectAmount ?? (order as any).amount ?? 0);
+    const valuePayable = shouldApplyPakistanPostValuePayableRules(order.carrierType, shipmentType) && collectAmount > 0;
+    const breakdown = valuePayable ? moneyOrderBreakdown(collectAmount, shipmentType) : [];
+    const moAmount = breakdown.reduce((sum, line) => sum + Number(line.moAmount ?? 0), 0);
+    const moCommission = breakdown.reduce((sum, line) => sum + Number(line.commission ?? 0), 0);
+    const grossAmount = breakdown.reduce((sum, line) => sum + Number(line.grossAmount ?? 0), 0);
+
+    return {
+      "Batch ID": jobId,
+      "Generated Date": generatedDate,
+      "Tracking ID": normalizeText(order.trackingNumber),
+      "Shipment Type": shipmentType,
+      "Receiver Name": normalizeText((order as any).consigneeName),
+      "Receiver Phone": normalizeText((order as any).consigneePhone),
+      "Receiver City": normalizeText((order as any).receiverCity),
+      Product: normalizeText((order as any).ProductDescription),
+      Weight: normalizeText((order as any).Weight),
+      "Collect Amount": collectAmount,
+      "MO Amount": valuePayable ? moAmount : 0,
+      "MO Commission": valuePayable ? moCommission : 0,
+      "Gross Amount": valuePayable ? grossAmount : collectAmount,
+      "Current Status": "BOOKED",
+      "Complaint Status": "NOT_RAISED",
+      "Settlement Status": "PENDING",
+    };
+  });
 }
 
 function hasMoneyOrderAmount(order: { CollectAmount?: unknown; amount?: unknown }) {
@@ -1330,6 +1376,46 @@ const worker = new Worker(
         }
       }
 
+      // PROTECTED RENDER PATH: DO NOT MODIFY WITHOUT EXPLICIT APPROVAL.
+      // Tracking master export schema is release-locked for downstream tracking workspace stability.
+      let trackingMasterPath: string | null = null;
+      const trackingMasterRows = buildTrackingMasterRows(jobId, labelOrdersForRender, shipmentType ?? null)
+        .filter((row) => String(row["Tracking ID"] ?? "").trim().length > 0);
+      if (trackingMasterRows.length > 0) {
+        const workbook = xlsx.utils.book_new();
+        const worksheet = xlsx.utils.json_to_sheet(trackingMasterRows, {
+          header: [
+            "Batch ID",
+            "Generated Date",
+            "Tracking ID",
+            "Shipment Type",
+            "Receiver Name",
+            "Receiver Phone",
+            "Receiver City",
+            "Product",
+            "Weight",
+            "Collect Amount",
+            "MO Amount",
+            "MO Commission",
+            "Gross Amount",
+            "Current Status",
+            "Complaint Status",
+            "Settlement Status",
+          ],
+        });
+        xlsx.utils.book_append_sheet(workbook, worksheet, "Tracking Master");
+        const masterBuffer = xlsx.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
+        trackingMasterPath = path.join(outputsDir(), buildTrackingMasterFileName(jobId));
+        await writeArtifactWithDualUpload("xlsx", trackingMasterPath, masterBuffer, {
+          jobId,
+          artifactType: "trackingResult",
+        });
+        const trackingMasterAbsPath = await waitForStoredFile(toStoredPath(trackingMasterPath), 8, 250);
+        if (!trackingMasterAbsPath) {
+          throw new Error("Tracking master file was not fully written to disk");
+        }
+      }
+
       await prisma.labelJob.update({
         where: { id: jobId },
         data: {
@@ -1346,6 +1432,7 @@ const worker = new Worker(
       return {
         labelsPath: labelsPath ? toStoredPath(labelsPath) : null,
         moneyOrderPath: moneyPath ? toStoredPath(moneyPath) : null,
+        trackingMasterPath: trackingMasterPath ? toStoredPath(trackingMasterPath) : null,
       };
     } catch (e) {
       console.error(`[Worker] Job ${jobId} failed:`, e);

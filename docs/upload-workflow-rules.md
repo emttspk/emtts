@@ -47,8 +47,40 @@ This document defines the operator-facing and validation rules for Upload, Money
 Recommended 4-step operator flow:
 1. Generate labels and tracking IDs from validated upload rows.
 2. Export and retain the tracking master file.
-3. Use Track Parcel for status updates and complaint workflow.
+3. Upload the same exported tracking master file in Track Parcel.
 4. Reuse the same export for settlement and reconciliation checks.
+
+## Tracking Master Export Contract
+- Export filename pattern: `<jobId>-tracking-master.xlsx`.
+- Export route: `GET /api/jobs/:jobId/download/tracking-master`.
+- Required columns in workbook order:
+  - `Batch ID`
+  - `Generated Date`
+  - `Tracking ID`
+  - `Shipment Type`
+  - `Receiver Name`
+  - `Receiver Phone`
+  - `Receiver City`
+  - `Product`
+  - `Weight`
+  - `Collect Amount`
+  - `MO Amount`
+  - `MO Commission`
+  - `Gross Amount`
+  - `Current Status`
+  - `Complaint Status`
+  - `Settlement Status`
+- Status defaults at generation:
+  - `Current Status = BOOKED`
+  - `Complaint Status = NOT_RAISED`
+  - `Settlement Status = PENDING`
+
+## Track Parcel Upload Detection Rules
+- `tracking master file`: contains tracking IDs and tracking-master status columns.
+- `shipment upload file`: contains tracking IDs with shipment/order fields.
+- `tracking-only file`: contains only tracking ID columns.
+- Upload is blocked when tracking ID count is zero with message:
+  - `No tracking IDs found. Please upload exported Tracking Master File.`
 
 ## Validation Matrix (Required)
 - Single-service + Manual + missing tracking -> row-level rejection.

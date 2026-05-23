@@ -97,6 +97,13 @@ function rowsToCsv(headers: string[], rows: Array<Record<string, unknown>>) {
   return lines.join("\n");
 }
 
+function buildTrackingMasterFallbackName(value = new Date()) {
+  const day = String(value.getDate()).padStart(2, "0");
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const year = String(value.getFullYear());
+  return `Tracking Master ${day}-${month}-${year}.xlsx`;
+}
+
 function isValidTrackingId(input: unknown) {
   const trackingId = normalizeTrackingId(input);
   return /^[A-Z]{2,6}[0-9]{4,20}$/.test(trackingId);
@@ -172,6 +179,7 @@ export default function Upload() {
     duplicateTracking: ValidationIssue[];
     overweightShipments: ValidationIssue[];
     moIneligibleServices: ValidationIssue[];
+    acceptedServiceCounts: Record<string, number>;
     recommendations: string[];
     rowErrors: string[];
     rowWarnings: string[];
@@ -503,6 +511,10 @@ export default function Upload() {
     triggerBrowserDownload(`/api/jobs/${jobId}/download/${kind}`, fallbackName);
   }
 
+  function downloadTrackingMaster(jobId: string) {
+    triggerBrowserDownload(`/api/jobs/${jobId}/download/tracking-master`, buildTrackingMasterFallbackName());
+  }
+
   const latest = useMemo(() => jobs[0] ?? null, [jobs]);
   const activeJob = useMemo(() => (polling.jobId ? jobs.find((j) => j.id === polling.jobId) ?? null : null), [jobs, polling.jobId]);
 
@@ -587,6 +599,18 @@ export default function Upload() {
     if (uiState === "failed") return "Failed";
     return "Ready";
   }, [remaining, uiState]);
+
+  const successServiceSummary = useMemo(() => {
+    const fromValidation = validationSummary?.acceptedServiceCounts ?? {};
+    const fromInsights = uploadInsights?.serviceCounts ?? {};
+    const source = Object.keys(fromValidation).length > 0 ? fromValidation : fromInsights;
+    return Object.entries(source)
+      .sort((a, b) => b[1] - a[1])
+      .map(([service, count]) => `${service}: ${count}`)
+      .join(" | ");
+  }, [uploadInsights?.serviceCounts, validationSummary?.acceptedServiceCounts]);
+  const isPaidUser = Boolean(me?.subscription && Number(me.subscription.plan?.priceCents ?? 0) > 0);
+  const retentionHours = isPaidUser ? 72 : 24;
 
   async function startGenerate() {
     if (!file) return;
@@ -929,6 +953,12 @@ export default function Upload() {
         const rowService = String(row.shipment_type ?? row.shipmenttype ?? row.shipmentType ?? shipmentType ?? "").trim().toUpperCase();
         return isMoneyOrderEligible(rowService);
       }).length;
+      const acceptedServiceCounts = acceptedRows.reduce<Record<string, number>>((acc, row) => {
+        const rowService = String(row.shipment_type ?? row.shipmenttype ?? row.shipmentType ?? shipmentType ?? "").trim().toUpperCase();
+        if (!rowService) return acc;
+        acc[rowService] = (acc[rowService] ?? 0) + 1;
+        return acc;
+      }, {});
       const moSkippedRows = Math.max(0, acceptedRows.length - moEligibleRows);
       let rejectedSummaryUrl: string | null = null;
       let rejectedSummaryName: string | null = null;
@@ -984,6 +1014,7 @@ export default function Upload() {
         duplicateTracking: groupedIssues.duplicateTracking,
         overweightShipments: groupedIssues.overweightShipments,
         moIneligibleServices: groupedIssues.moIneligibleServices,
+        acceptedServiceCounts,
         recommendations,
         rowErrors: rowErrors.slice(0, 20),
         rowWarnings: rowWarnings.slice(0, 20),
@@ -1564,6 +1595,9 @@ export default function Upload() {
           <CardTitle>Track Parcel</CardTitle>
           <div className="mt-0.5 text-sm font-normal text-slate-500">All actions consume units based on usage.</div>
           <div className="mt-2 text-sm text-gray-600">Tracking enabled from uploaded file for post-generation operations.</div>
+          <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+            Tracking Master File is always generated with every completed job, even when "Track shipments after generating labels" is unchecked.
+          </div>
           <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
             <div className="font-semibold text-slate-800">Recommended workflow:</div>
             <div className="mt-1">1. Generate labels and tracking IDs from validated upload rows.</div>
@@ -1629,6 +1663,95 @@ export default function Upload() {
             </div>
           </div>
         </Card>
+
+        {/* PROTECTED RENDER PATH: DO NOT MODIFY WITHOUT EXPLICIT APPROVAL. */}
+        {/* Completion actions + retention warning are part of the finalized production operator workflow. */}
+        {uiState === "completed" && polling.jobId ? (
+          <Card className="border-emerald-200 bg-[linear-gradient(130deg,#ecfdf3_0%,#f0f9ff_55%,#ffffff_100%)] p-5 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <CardTitle className="text-xl text-emerald-900">Generation Completed</CardTitle>
+                <div className="mt-1 text-sm text-emerald-800">Export all artifacts, then move to Track Parcel with the same tracking master file.</div>
+              </div>
+              <div className="rounded-xl border border-emerald-300 bg-white px-3 py-1 text-xs font-semibold text-emerald-700">Job ID: {polling.jobId}</div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-emerald-900">
+                <div className="text-[11px] font-semibold uppercase tracking-wide">Labels Generated</div>
+                <div className="mt-0.5 text-base font-bold">{validationSummary?.accepted ?? activeJob?.recordCount ?? 0}</div>
+              </div>
+              <div className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-sky-900">
+                <div className="text-[11px] font-semibold uppercase tracking-wide">Tracking IDs Generated</div>
+                <div className="mt-0.5 text-base font-bold">{validationSummary?.accepted ?? activeJob?.recordCount ?? 0}</div>
+              </div>
+              <div className="rounded-xl border border-fuchsia-200 bg-white px-3 py-2 text-fuchsia-900">
+                <div className="text-[11px] font-semibold uppercase tracking-wide">Money Orders Generated</div>
+                <div className="mt-0.5 text-base font-bold">{includeMoneyOrders ? (validationSummary?.moEligibleRows ?? 0) : 0}</div>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900">
+                <div className="text-[11px] font-semibold uppercase tracking-wide">Validation Passed</div>
+                <div className="mt-0.5 text-base font-bold">{validationSummary ? Math.max(0, validationSummary.accepted) : (activeJob?.recordCount ?? 0)}</div>
+              </div>
+            </div>
+
+            <div className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">
+              <span className="font-semibold text-slate-800">Service summary:</span> {successServiceSummary || "No service summary available"}
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => downloadPdf(polling.jobId!, "labels")}
+                className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+              >
+                Download Labels PDF
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadPdf(polling.jobId!, "money-orders")}
+                disabled={!activeJob?.includeMoneyOrders}
+                className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Download Money Orders PDF
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadTrackingMaster(polling.jobId!)}
+                className="rounded-2xl border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-100"
+              >
+                Download Tracking Master File (.xlsx)
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/tracking-workspace")}
+                className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-emerald-700"
+              >
+                Track These Shipments
+              </button>
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-900">
+              <div className="flex items-start gap-2">
+                <svg className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                <div>
+                  <div className="font-semibold text-amber-900">Data Retention Notice</div>
+                  <div className="mt-1">
+                    Please download and securely save:
+                  </div>
+                  <div className="mt-1">• Labels PDF</div>
+                  <div>• Money Orders</div>
+                  <div>• Tracking Master File</div>
+                  <div className="mt-2">Files are automatically removed from server after retention period.</div>
+                  <div className="mt-1 text-xs font-semibold text-amber-800">
+                    {isPaidUser ? "PAID USERS: files deleted after 72 hours" : "FREE USERS: files deleted after 24 hours"}
+                  </div>
+                  <div className="mt-0.5 text-xs text-amber-700">Current retention for this account: {retentionHours} hours</div>
+                </div>
+              </div>
+            </div>
+          </Card>
+        ) : null}
         </div>
       </div>
       {mismatchDecisionModal ? (

@@ -79,7 +79,15 @@ async function enforceRenderAndRedisPreflightOrExit() {
     console.log("[STARTUP] Render prerequisite diagnostics:", JSON.stringify(renderDiagnostics.resolved));
   }
   assertRenderPrerequisites();
-  await assertRedisRuntimeCompatibility();
+  try {
+    await assertRedisRuntimeCompatibility();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (isProduction) {
+      throw err;
+    }
+    console.warn(`[STARTUP] Redis preflight degraded in development: ${message}`);
+  }
 }
 
 async function logAllocatorSequenceDiagnostics(tag: string) {
@@ -953,7 +961,7 @@ async function validateStartupPhase3() {
     errors.forEach((err) => console.error(`   - ${err}`));
   }
 
-  return { success: warnings.length === 0, errors };
+  return { success: errors.length === 0, errors };
 }
 
 async function main() {

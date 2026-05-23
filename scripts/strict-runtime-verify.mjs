@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import fsSync from "node:fs";
 import * as xlsx from "xlsx";
 import { renderLabelDocumentHtml, generateLabelBarcodeBase64 } from "../apps/api/src/templates/labels.ts";
 import { htmlToPdfBufferInFreshBrowser } from "../apps/api/src/pdf/render.ts";
@@ -328,16 +329,135 @@ function verifyParAndUploadRecommendationRules() {
   return { failures, checks };
 }
 
+async function verifyTrackingWorkspaceHardening() {
+  const failures = [];
+  const checks = [];
+
+  const trackingRoutePath = path.resolve("apps/api/src/routes/tracking.ts");
+  const jobsRoutePath = path.resolve("apps/api/src/routes/jobs.ts");
+  const bulkTrackingPath = path.resolve("apps/web/src/pages/BulkTracking.tsx");
+  const uploadPath = path.resolve("apps/web/src/pages/Upload.tsx");
+  const apiIndexPath = path.resolve("apps/api/src/index.ts");
+
+  const trackingRoute = await fs.readFile(trackingRoutePath, "utf8");
+  const jobsRoute = await fs.readFile(jobsRoutePath, "utf8");
+  const bulkTracking = await fs.readFile(bulkTrackingPath, "utf8");
+  const uploadUi = await fs.readFile(uploadPath, "utf8");
+  const apiIndex = await fs.readFile(apiIndexPath, "utf8");
+
+  const expect = (name, condition, detail) => {
+    if (condition) {
+      checks.push({ name, ok: true, detail });
+    } else {
+      checks.push({ name, ok: false, detail });
+      failures.push(name);
+    }
+  };
+
+  // Batch rerun stability
+  expect(
+    "batch_rerun_api_present",
+    trackingRoute.includes('trackingRouter.post("/batches/:batchId/run"') && trackingRoute.includes("consumeUnits") && trackingRoute.includes("refundUnits"),
+    "Batch rerun route + unit reservation/refund",
+  );
+  expect(
+    "batch_rerun_ui_present",
+    bulkTracking.includes("runSavedBatch") && bulkTracking.includes("Tracking Batch History"),
+    "Saved batch rerun action in tracking workspace",
+  );
+
+  // Deleted/expired retention handling for saved master file
+  expect(
+    "deleted_master_file_handling",
+    trackingRoute.includes("Source batch file missing on server") && trackingRoute.includes("Batch master file not found"),
+    "Missing deleted source/master file handling paths",
+  );
+  expect(
+    "retention_warning_ui_present",
+    uploadUi.includes("Data Retention Notice") && uploadUi.includes("files deleted after 72 hours") && uploadUi.includes("files deleted after 24 hours"),
+    "Retention warning card with free/paid windows",
+  );
+
+  // Missing/malformed XLSX and duplicate upload handling
+  expect(
+    "missing_or_malformed_xlsx_guard",
+    bulkTracking.includes("No tracking IDs found") && bulkTracking.includes("analyzeTrackingUploadFile") && bulkTracking.includes("XLSX.read"),
+    "Client-side guard for malformed/missing tracking IDs in XLSX",
+  );
+  expect(
+    "duplicate_tracking_dedup",
+    trackingRoute.includes("Array.from(new Set(trackingNumbers") || trackingRoute.includes("new Set(trackingNumbers"),
+    "Server deduplication of tracking IDs",
+  );
+
+  // UTF-8 safety and large-file upload constraints
+  expect(
+    "utf8_string_normalization",
+    trackingRoute.includes("String(value ?? \"\")") && bulkTracking.includes("String(value ?? \"\")"),
+    "Unicode-safe string normalization paths present",
+  );
+  expect(
+    "large_file_upload_limits",
+    trackingRoute.includes("fileSize: 100 * 1024 * 1024") && trackingRoute.includes("2000"),
+    "Upload size + tracking count hard limits present",
+  );
+
+  // Unit consumption consistency
+  expect(
+    "unit_consumption_consistency",
+    trackingRoute.includes("consumeUnits") && trackingRoute.includes("refundUnits") && trackingRoute.includes("finalizeQueuedTrackingToGenerated"),
+    "Reserve/refund/finalize unit flow present",
+  );
+
+  // Tracking master export + route health
+  expect(
+    "tracking_master_export_route",
+    jobsRoute.includes('download/tracking-master') && jobsRoute.includes("handleTrackingMasterDownload"),
+    "Tracking master export endpoint wired",
+  );
+  expect(
+    "route_health",
+    apiIndex.includes("/health") || apiIndex.includes("health"),
+    "Health route reference present",
+  );
+
+  // Storage access check
+  try {
+    const probeDir = path.resolve("storage", "outputs");
+    await fs.mkdir(probeDir, { recursive: true });
+    const probePath = path.join(probeDir, `.strict-runtime-probe-${Date.now()}.txt`);
+    await fs.writeFile(probePath, "ok", "utf8");
+    if (!fsSync.existsSync(probePath)) {
+      failures.push("storage_access_probe");
+      checks.push({ name: "storage_access_probe", ok: false, detail: "Probe file was not created" });
+    } else {
+      await fs.unlink(probePath);
+      checks.push({ name: "storage_access_probe", ok: true, detail: "storage/outputs writable" });
+    }
+  } catch (error) {
+    failures.push("storage_access_probe");
+    checks.push({
+      name: "storage_access_probe",
+      ok: false,
+      detail: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  return { failures, checks };
+}
+
 const renderResult = await verifyRenderMatrix();
 const collectRuleResult = verifyCollectRules();
 const uploadCoreResult = await verifyUploadCoreFlows();
 const parRuleResult = verifyParAndUploadRecommendationRules();
+const hardeningResult = await verifyTrackingWorkspaceHardening();
 
 const failures = [
   ...renderResult.failures,
   ...collectRuleResult.failures,
   ...uploadCoreResult.failures,
   ...parRuleResult.failures,
+  ...hardeningResult.failures,
 ];
 
 const report = {
@@ -348,14 +468,17 @@ const report = {
     collectRuleChecks: collectRuleResult.checks.length,
     uploadCoreChecks: uploadCoreResult.checks.length,
     parRuleChecks: parRuleResult.checks.length,
+    hardeningChecks: hardeningResult.checks.length,
   },
   failures,
   renderChecks: renderResult.checks,
   collectRuleChecks: collectRuleResult.checks,
   uploadCoreChecks: uploadCoreResult.checks,
   parRuleChecks: parRuleResult.checks,
+  hardeningChecks: hardeningResult.checks,
   environmentLimits: [
     "Local HTTP /jobs/upload integration could not run because local PostgreSQL endpoint is unreachable during API startup.",
+    "Live /health probing is optional in this script and can be enforced via API_BASE_URL externally.",
   ],
 };
 

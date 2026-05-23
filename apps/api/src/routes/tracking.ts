@@ -82,6 +82,17 @@ type ComplaintOfficeMatch = {
   location: string;
 };
 
+type TrackingBatchHistoryRow = {
+  id: string;
+  uploadDate: string;
+  totalTrackingIds: number;
+  currentStatus: string;
+  lastTrackingRun: string | null;
+  unitsConsumed: number;
+  originalFilename: string | null;
+  hasMasterFile: boolean;
+};
+
 function readPublicTrackingResponseCache(trackingNumber: string): PublicTrackingResponse | null {
   const key = String(trackingNumber ?? "").trim().toUpperCase();
   if (!key) return null;
@@ -232,6 +243,35 @@ function resolvePersistedStatus(raw: Record<string, unknown>, computedStatus: un
   if (upper === "DELIVERED") return "DELIVERED";
   if (upper === "RETURN" || upper === "RETURNED" || upper === "RETURN_IN_PROCESS") return "RETURN";
   return "PENDING";
+}
+
+function isSafeUnderWorkspace(absPath: string) {
+  const workspaceRoot = process.cwd();
+  const rel = path.relative(workspaceRoot, absPath);
+  return !rel.startsWith("..") && !path.isAbsolute(rel);
+}
+
+function buildTrackingBatchHistory(job: {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  recordCount: number;
+  status: string;
+  originalFilename: string | null;
+  uploadPath: string | null;
+}): TrackingBatchHistoryRow {
+  const uploadPath = String(job.uploadPath ?? "").trim();
+  const hasMasterFile = Boolean(uploadPath && existsSync(uploadPath));
+  return {
+    id: job.id,
+    uploadDate: job.createdAt.toISOString(),
+    totalTrackingIds: Math.max(0, Number(job.recordCount ?? 0)),
+    currentStatus: String(job.status ?? "").trim().toUpperCase() || "QUEUED",
+    lastTrackingRun: job.updatedAt ? job.updatedAt.toISOString() : null,
+    unitsConsumed: Math.max(0, Number(job.recordCount ?? 0)),
+    originalFilename: job.originalFilename,
+    hasMasterFile,
+  };
 }
 
 async function getDbMoForTracking(userId: string, trackingNumber: string): Promise<string | null> {
@@ -1252,6 +1292,205 @@ trackingRouter.get("/public/:trackingNumber", async (req: Request, res: Response
     const msg = e instanceof Error ? e.message : "Tracking fetch failed";
     return res.status(500).json({ success: false, error: msg });
   }
+});
+
+trackingRouter.get("/batches", requireAuth, async (req, res) => {
+  // PROTECTED RENDER PATH: DO NOT MODIFY WITHOUT EXPLICIT APPROVAL.
+  // This endpoint feeds the production tracking workspace batch-history workflow.
+  const userId = (req as AuthedRequest).user!.id;
+  const limit = Math.min(200, Math.max(1, Number.parseInt(String(req.query.limit ?? "50"), 10) || 50));
+  const jobs = await prisma.trackingJob.findMany({
+    where: { userId, kind: "BULK_TRACK" },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: {
+      id: true,
+      createdAt: true,
+      updatedAt: true,
+      recordCount: true,
+      status: true,
+      originalFilename: true,
+      uploadPath: true,
+    },
+  });
+
+  const batches = jobs.map((job) => buildTrackingBatchHistory(job));
+  return res.json({ success: true, batches });
+});
+
+trackingRouter.get("/batches/:batchId/master-file", requireAuth, async (req, res) => {
+  const userId = (req as AuthedRequest).user!.id;
+  const batchId = String(req.params.batchId ?? "").trim();
+  if (!batchId) return res.status(400).json({ success: false, error: "Invalid batch id" });
+
+  const job = await prisma.trackingJob.findFirst({
+    where: { id: batchId, userId, kind: "BULK_TRACK" },
+    select: { id: true, uploadPath: true, originalFilename: true },
+  });
+  if (!job || !job.uploadPath) return res.status(404).json({ success: false, error: "Batch master file not found" });
+
+  const uploadAbsPath = path.resolve(job.uploadPath);
+  if (!isSafeUnderWorkspace(uploadAbsPath) || !existsSync(uploadAbsPath)) {
+    return res.status(404).json({ success: false, error: "Batch master file not found" });
+  }
+
+  try {
+    const data = await fs.readFile(uploadAbsPath);
+    const ext = path.extname(uploadAbsPath).toLowerCase();
+    const fallbackName = `${job.id}-tracking-master${ext || ".xlsx"}`;
+    const filename = String(job.originalFilename ?? "").trim() || fallbackName;
+    const contentType =
+      ext === ".csv"
+        ? "text/csv"
+        : ext === ".xls"
+          ? "application/vnd.ms-excel"
+          : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
+    return res.send(data);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Download failed";
+    return res.status(500).json({ success: false, error: msg });
+  }
+});
+
+trackingRouter.post("/batches/:batchId/run", requireAuth, async (req, res) => {
+  // PROTECTED RENDER PATH: DO NOT MODIFY WITHOUT EXPLICIT APPROVAL.
+  // Unit reservation/refund behavior here must remain consistent with production billing logic.
+  const userId = (req as AuthedRequest).user!.id;
+  const batchId = String(req.params.batchId ?? "").trim();
+  if (!batchId) return res.status(400).json({ success: false, error: "Invalid batch id" });
+
+  const sourceBatch = await prisma.trackingJob.findFirst({
+    where: { id: batchId, userId, kind: "BULK_TRACK" },
+    select: {
+      id: true,
+      uploadPath: true,
+      originalFilename: true,
+      recordCount: true,
+    },
+  });
+  if (!sourceBatch || !sourceBatch.uploadPath) {
+    return res.status(404).json({ success: false, error: "Source batch not found" });
+  }
+
+  const uploadAbsPath = path.resolve(sourceBatch.uploadPath);
+  if (!isSafeUnderWorkspace(uploadAbsPath) || !existsSync(uploadAbsPath)) {
+    return res.status(404).json({ success: false, error: "Source batch file missing on server" });
+  }
+
+  const rerunJob = await prisma.trackingJob.create({
+    data: {
+      userId,
+      kind: "BULK_TRACK",
+      status: "QUEUED",
+      originalFilename: sourceBatch.originalFilename || `rerun-${sourceBatch.id}`,
+      uploadPath: uploadAbsPath,
+      recordCount: 0,
+    },
+  });
+
+  let trackingNumbers: string[] = [];
+  let reservedTracking = false;
+  let bulkLockKey: string | null = null;
+  let trackingUnitRequests: Array<{ actionType: "tracking"; requestKey: string }> = [];
+  const idempotencyKey = String(req.header("x-idempotency-key") ?? rerunJob.id).trim();
+
+  try {
+    trackingNumbers = await parseTrackingNumbersFromFile(uploadAbsPath);
+    trackingNumbers = Array.from(new Set(trackingNumbers.map((value) => value.trim()).filter(Boolean)));
+    if (trackingNumbers.length === 0) throw new Error("No tracking numbers found in source batch");
+    if (trackingNumbers.length > 2000) throw new Error("Batch exceeds max allowed size (2000)");
+
+    await prisma.trackingJob.update({
+      where: { id: rerunJob.id },
+      data: { recordCount: trackingNumbers.length, uploadPath: uploadAbsPath },
+    });
+
+    bulkLockKey = buildBulkLockKey(userId, trackingNumbers);
+    const lockAcquired = await getRedisConnection().set(bulkLockKey, rerunJob.id, "EX", 1800, "NX");
+    if (lockAcquired !== "OK") {
+      const existingJobId = (await getRedisConnection().get(bulkLockKey)) ?? null;
+      await prisma.trackingJob.update({
+        where: { id: rerunJob.id },
+        data: { status: "FAILED", error: "Duplicate rerun request ignored" },
+      });
+      return res.status(409).json({
+        success: false,
+        error: "Duplicate rerun request ignored",
+        existingJobId,
+      });
+    }
+
+    trackingUnitRequests = trackingNumbers.map((_, index) => ({ actionType: "tracking", requestKey: `${idempotencyKey}:tracking:${index}` }));
+    const consumeResult = await consumeUnits(userId, trackingUnitRequests);
+    if (!consumeResult.ok) throw new Error((consumeResult as any).reason ?? "Unit consumption failed");
+    reservedTracking = true;
+
+    await ensureRedisConnection();
+    await trackingQueue.add(
+      "track-bulk",
+      { jobId: rerunJob.id, kind: "BULK_TRACK", trackingNumbers, lockKey: bulkLockKey },
+      { jobId: rerunJob.id },
+    );
+
+    return res.json({
+      success: true,
+      jobId: rerunJob.id,
+      sourceBatchId: sourceBatch.id,
+      recordCount: trackingNumbers.length,
+      queued: true,
+    });
+  } catch (error) {
+    if (bulkLockKey && redisEnabled) {
+      try {
+        const currentLockValue = await getRedisConnection().get(bulkLockKey);
+        if (currentLockValue === rerunJob.id) {
+          await getRedisConnection().del(bulkLockKey);
+        }
+      } catch {
+        // Best effort lock cleanup.
+      }
+    }
+    if (reservedTracking) {
+      await refundUnits(userId, trackingUnitRequests);
+    }
+    const msg = error instanceof Error ? error.message : "Failed to rerun tracking batch";
+    await prisma.trackingJob.update({ where: { id: rerunJob.id }, data: { status: "FAILED", error: msg } });
+    return res.status(400).json({ success: false, error: msg });
+  }
+});
+
+trackingRouter.delete("/batches/:batchId", requireAuth, async (req, res) => {
+  const userId = (req as AuthedRequest).user!.id;
+  const batchId = String(req.params.batchId ?? "").trim();
+  if (!batchId) return res.status(400).json({ success: false, error: "Invalid batch id" });
+
+  const job = await prisma.trackingJob.findFirst({
+    where: { id: batchId, userId, kind: "BULK_TRACK" },
+    select: { id: true, uploadPath: true, resultPath: true },
+  });
+  if (!job) return res.status(404).json({ success: false, error: "Batch not found" });
+
+  const maybeRemove = async (candidate: string | null) => {
+    if (!candidate) return;
+    const absPath = path.resolve(candidate);
+    if (!isSafeUnderWorkspace(absPath) || !existsSync(absPath)) return;
+    try {
+      await fs.unlink(absPath);
+    } catch {
+      // Ignore cleanup failures.
+    }
+  };
+
+  await maybeRemove(job.resultPath);
+  // Only remove uploadPath if it belongs to this batch file naming scheme.
+  if (job.uploadPath && path.basename(job.uploadPath).startsWith(job.id)) {
+    await maybeRemove(job.uploadPath);
+  }
+
+  await prisma.trackingJob.delete({ where: { id: job.id } });
+  return res.json({ success: true, deleted: true, batchId: job.id });
 });
 
 trackingRouter.get("/:jobId", requireAuth, async (req, res) => {
