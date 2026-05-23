@@ -326,19 +326,18 @@ function renderUniversalAmountBlock(summary: LabelAmountSummary) {
 
   const formatRs = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
   return `
-    <div class="box amount-box premium-amount-box">
-      <div class="amount-title">MONEY ORDER SUMMARY</div>
+    <div class="box amount-box">
       <div class="amount-row">
-        <span class="amount-label">MO Amount</span>
-        <span class="amount-value">Rs. ${escapeHtml(formatRs(summary.moAmount))}</span>
+        <span>MO Amount</span>
+        <span>Rs. ${escapeHtml(formatRs(summary.moAmount))}</span>
       </div>
       <div class="amount-row">
-        <span class="amount-label">MO Commission</span>
-        <span class="amount-value">Rs. ${escapeHtml(formatRs(summary.commission))}</span>
+        <span>MO Commission</span>
+        <span>Rs. ${escapeHtml(formatRs(summary.commission))}</span>
       </div>
       <div class="amount-row amount-total">
-        <span class="amount-label">Gross Collect Amount</span>
-        <span class="amount-value">Rs. ${escapeHtml(formatRs(summary.grossAmount))}</span>
+        <span>Gross Collect Amount</span>
+        <span>Rs. ${escapeHtml(formatRs(summary.grossAmount))}</span>
       </div>
     </div>
   `;
@@ -682,37 +681,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
   };
 
   const pages = orders.map((order) => renderSingle(order)).join("");
-  const safetyCss = `<style>
-    .universal-page{width:9in;height:4in;box-sizing:border-box;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;}
-    .universal-page:last-child{page-break-after:auto;break-after:auto;}
-    .universal-page .header{height:56px;min-height:56px;}
-    .universal-page .logo-text{gap:0;}
-    .universal-page .barcode-area{justify-content:center;padding-top:0;padding-left:6px;padding-right:6px;gap:2px;overflow:hidden;}
-    .universal-page #barcode{display:block;width:100%;max-width:248px;max-height:40px;height:auto;object-fit:contain;object-position:center;box-sizing:border-box;}
-    .universal-page .barcode-fallback{width:100%;max-width:248px;height:40px;display:flex;align-items:center;justify-content:center;padding:0 8px;box-sizing:border-box;}
-    .universal-page .dispatch-date{grid-column:2;justify-self:end;font-size:8px;line-height:1.05;font-weight:700;letter-spacing:0.08mm;padding-top:1px;color:#222;}
-    .universal-page .right-column{align-content:stretch;}
-    .universal-page .info-table{table-layout:fixed;}
-    .universal-page .info-table td{word-break:normal;overflow-wrap:break-word;}
-    .universal-page .info-table .head{white-space:nowrap;word-break:keep-all;}
-    .universal-page .head-with-icon{white-space:nowrap;}
-    .universal-page .right-column .box{padding-left:8px;padding-right:8px;}
-    .universal-page .right-column .box .info-table td:last-child{line-height:1.2;padding:7px 9px;}
-    .universal-page .footer{height:32px;padding-top:1px;overflow:visible;}
-
-    .universal-page .premium-amount-box{padding:7px 9px;border-width:1.25px;border-color:#0f172a;background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%);gap:4px;}
-    .universal-page .premium-amount-box .amount-title{font-size:10px;font-weight:900;letter-spacing:0.6px;line-height:1.1;color:#0f172a;border-bottom:1px solid #cbd5e1;padding-bottom:3px;margin-bottom:2px;}
-    .universal-page .premium-amount-box .amount-row{font-size:12px;line-height:1.25;align-items:flex-start;gap:8px;}
-    .universal-page .premium-amount-box .amount-label{font-weight:700;color:#334155;}
-    .universal-page .premium-amount-box .amount-value{font-weight:800;color:#0f172a;text-align:right;white-space:nowrap;}
-    .universal-page .premium-amount-box .amount-total{margin-top:2px;padding-top:4px;border-top:1px dashed #64748b;}
-
-    .universal-page.universal-no-amount .body{grid-template-columns:minmax(0,2.45fr) minmax(0,2.55fr);align-items:stretch;gap:8px;padding-top:6px;padding-bottom:6px;}
-    .universal-page.universal-no-amount .dispatch-date{align-self:center;padding-top:0;padding-bottom:1px;}
-    .universal-page.universal-no-amount .right-column{grid-template-rows:auto minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:6px;align-content:stretch;}
-    .universal-page.universal-no-amount .right-column .box{justify-content:center;min-height:0;padding-top:6px;padding-bottom:6px;}
-    .universal-page.universal-no-amount .right-column .box .promo-content{justify-content:center;gap:4px;}
-  </style>`;
+  const safetyCss = `<style>.universal-page{width:9in;height:4in;box-sizing:border-box;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;}.universal-page:last-child{page-break-after:auto;break-after:auto;}.universal-page .header{height:56px;min-height:56px}.universal-page .logo-text{gap:0}.universal-page .barcode-area{justify-content:center;padding-top:0;padding-left:6px;padding-right:6px;gap:2px;overflow:visible}.universal-page #barcode{height:40px;max-width:248px;width:100%;object-fit:contain;box-sizing:border-box}.universal-page .dispatch-date{grid-column:2;justify-self:end;font-size:8px;line-height:1.05;font-weight:700;letter-spacing:0.08mm;padding-top:1px;color:#222}.universal-page .footer{height:32px;padding-top:1px;overflow:visible}.universal-page.universal-no-amount .body{grid-template-columns:minmax(0,2.55fr) minmax(0,2.45fr);align-items:stretch}.universal-page.universal-no-amount .right-column{grid-template-rows:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:6px;align-content:stretch}.universal-page.universal-no-amount .right-column .box{justify-content:center;min-height:0}</style>`;
   const outputHead = templateHead.replace(/<\/head>/i, `${safetyCss}</head>`);
 
   return `${outputHead}${pages}${template.tail}`;
