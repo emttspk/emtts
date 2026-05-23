@@ -1,5 +1,43 @@
 # Changelog
 
+## 2026-05-24 - Live Railway Upload Verification PASS
+
+### Scope
+Final live production verification for upload stuck-at-Uploading issue after commit `49e6c3f`.
+
+### Deployment Status
+- API deployment: `a8453673-770e-4a03-ba2b-90774b0060a8` -> `SUCCESS`
+- Worker deployment: `456da23d-5b3d-42f1-b07e-3855fe7ce082` -> `SUCCESS`
+
+### Migration Evidence
+- Railway API deployment logs confirm migration applied:
+  - `Applying migration 20260524041000_add_tracking_master_synced_at`
+  - `All migrations have been successfully applied.`
+  - Subsequent startup: `14 migrations found` and `No pending migrations to apply.`
+
+### Live Runtime Verification
+- `curl https://api.epost.pk/health` -> `200` with `{"status":"ok"}`
+- `curl https://api.epost.pk/health/worker` -> `200` (worker healthy)
+- Real upload path with same source filename evidence in live API logs:
+  - `POST /api/upload`
+  - `SOURCE_FILENAME_RECEIVED ... lcs 17-13-11-2024.xls`
+  - `Job added (filePath+fileBuffer dual-mode): 04729f8d-694c-4e23-8516-b75eb62d0a85`
+- LabelJob creation and polling/download flow observed:
+  - `GET /api/jobs/04729f8d-694c-4e23-8516-b75eb62d0a85`
+  - `GET /api/jobs/04729f8d-694c-4e23-8516-b75eb62d0a85/download/labels`
+- Worker picked and processed the same job from BullMQ/Redis:
+  - `[Worker] Processing job 04729f8d-694c-4e23-8516-b75eb62d0a85`
+  - `[Worker] Parsing success ... Rows: 10`
+  - `[Worker] Labels output file path: /app/storage/generated/04729f8d-694c-4e23-8516-b75eb62d0a85-labels.pdf`
+
+### Error Clearance
+- Previous Prisma runtime error is cleared in latest deployment/runtime window:
+  - No `P2022` for `LabelJob.trackingMasterSyncedAt` present in latest API logs after migration.
+
+### Result
+- Upload no longer remains stuck at `Uploading` for the verified live flow.
+- Backend returns successful JSON path and downstream job processing completes.
+
 ## 2026-05-24 - Retention Cleanup Final Verification PASS
 
 ### Scope
