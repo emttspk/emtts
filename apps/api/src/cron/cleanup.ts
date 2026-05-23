@@ -195,12 +195,17 @@ async function removeArtifactFromDualProviders(
 ) {
   if (!relPath) return;
   const { local, r2 } = getDualProviders();
-  const resolvedAbsPath = path.resolve(process.cwd(), relPath);
+  const localPathCandidates = new Set<string>([
+    path.resolve(process.cwd(), relPath),
+    ...(options.fallbackLegacyPaths ?? []).map((p) => path.resolve(process.cwd(), p)),
+  ]);
 
-  try {
-    await local.deleteArtifact("artifact", resolvedAbsPath);
-  } catch {
-    // ignore missing local files
+  for (const localPath of localPathCandidates) {
+    try {
+      await local.deleteArtifact("artifact", localPath);
+    } catch {
+      // ignore missing local files
+    }
   }
 
   const r2KeyCandidates = new Set<string>();
@@ -210,7 +215,7 @@ async function removeArtifactFromDualProviders(
     r2KeyCandidates.add(normalized.replace(/^(pdf|json|xlsx)\//, ""));
   }
 
-  const candidateBases = [relPath, resolvedAbsPath, ...(options.fallbackLegacyPaths ?? [])];
+  const candidateBases = [relPath, ...localPathCandidates, ...(options.fallbackLegacyPaths ?? [])];
   for (const base of candidateBases) {
     const candidates = resolveObjectKeyCandidates({
       type,
@@ -311,9 +316,11 @@ async function cleanupScheduledJobDeletions() {
     const job = await prisma.labelJob.findFirst({
       where: { id: row.job_id, userId: row.user_id },
       select: {
+        id: true,
         uploadPath: true,
         labelsPdfPath: true,
         moneyOrderPdfPath: true,
+        trackingMasterPath: true,
       },
     });
     const trackingJob = await prisma.trackingJob.findFirst({
@@ -321,11 +328,27 @@ async function cleanupScheduledJobDeletions() {
       select: { resultPath: true },
     });
 
+    const legacyTrackingMasterPath = path.join(outputsDir(), `${row.job_id}-tracking-master.xlsx`);
+
     await Promise.all([
       removeStoredFile(job?.uploadPath ?? null),
-      removeStoredFile(job?.labelsPdfPath ?? null),
-      removeStoredFile(job?.moneyOrderPdfPath ?? null),
-      removeStoredFile(trackingJob?.resultPath ?? null),
+      removeArtifactFromDualProviders("pdf", job?.labelsPdfPath ?? null, {
+        jobId: row.job_id,
+        artifactType: "labelsPdf",
+      }),
+      removeArtifactFromDualProviders("pdf", job?.moneyOrderPdfPath ?? null, {
+        jobId: row.job_id,
+        artifactType: "moneyOrderPdf",
+      }),
+      removeArtifactFromDualProviders("json", trackingJob?.resultPath ?? null, {
+        jobId: row.job_id,
+        artifactType: "trackingResult",
+      }),
+      removeArtifactFromDualProviders("xlsx", job?.trackingMasterPath ?? legacyTrackingMasterPath, {
+        jobId: row.job_id,
+        artifactType: "trackingMasterXlsx",
+        fallbackLegacyPaths: [legacyTrackingMasterPath],
+      }),
     ]);
 
     await prisma.$transaction([
