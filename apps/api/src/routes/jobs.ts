@@ -565,169 +565,170 @@ jobsRouter.post("/delete", requireAuth, async (req, res) => {
 });
 
 export async function handleLabelUpload(req: ExpressRequest, res: ExpressResponse) {
-  await prisma.$connect();
-  const userId = (req as AuthedRequest).user!.id;
-  if (!userId) {
-    return res.status(400).json({ success: false, error: "Missing user context", message: "Missing user context" });
-  }
-  await ensureStorageDirs();
+  try {
+    await prisma.$connect();
+    const userId = (req as AuthedRequest).user!.id;
+    if (!userId) {
+      return res.status(400).json({ success: false, error: "Missing user context", message: "Missing user context" });
+    }
+    await ensureStorageDirs();
 
-  const uploadedFile = req.file;
-  if (!uploadedFile) return res.status(400).json({ success: false, error: "Missing file", message: "Missing file" });
+    const uploadedFile = req.file;
+    if (!uploadedFile) return res.status(400).json({ success: false, error: "Missing file", message: "Missing file" });
 
   // Phase 2: Check for duplicate filename — only block if a COMPLETED job exists with same filename.
   // Failed/Queued/Processing jobs do NOT reserve the filename so re-uploads are always allowed.
-  const sourceOriginalFilenameRaw = String(req.body?.sourceOriginalFilename ?? "").trim();
-  const duplicateIdentityFilename = sourceOriginalFilenameRaw || uploadedFile.originalname;
-  const filenameDebug = getUploadFilenameDebug(duplicateIdentityFilename);
-  const normalizedFileName = filenameDebug.normalized;
-  const exemptFileNames = await getUploadExemptFileNames().catch(() => [] as string[]);
-  const isExemptFileName = exemptFileNames.some((entry) => normalizeUploadFilename(entry) === normalizedFileName);
-  const existingUserJobs = await prisma.labelJob.findMany({
-    where: { userId },
-    select: { id: true, status: true, originalFilename: true },
-  }).catch(() => []);
+    const sourceOriginalFilenameRaw = String(req.body?.sourceOriginalFilename ?? "").trim();
+    const duplicateIdentityFilename = sourceOriginalFilenameRaw || uploadedFile.originalname;
+    const filenameDebug = getUploadFilenameDebug(duplicateIdentityFilename);
+    const normalizedFileName = filenameDebug.normalized;
+    const exemptFileNames = await getUploadExemptFileNames().catch(() => [] as string[]);
+    const isExemptFileName = exemptFileNames.some((entry) => normalizeUploadFilename(entry) === normalizedFileName);
+    const existingUserJobs = await prisma.labelJob.findMany({
+      where: { userId },
+      select: { id: true, status: true, originalFilename: true },
+    }).catch(() => []);
 
-  const matchingJobs = existingUserJobs.filter(
-    (job) => normalizeUploadFilename(job.originalFilename) === normalizedFileName,
-  );
+    const matchingJobs = existingUserJobs.filter(
+      (job) => normalizeUploadFilename(job.originalFilename) === normalizedFileName,
+    );
 
-  const duplicateStatusCounts = matchingJobs.reduce<Record<string, number>>((acc, job) => {
-    const key = String(job.status ?? "UNKNOWN").toUpperCase();
-    acc[key] = (acc[key] ?? 0) + 1;
-    return acc;
-  }, {});
-  const completedDuplicateCount = duplicateStatusCounts.COMPLETED ?? 0;
-  const totalDuplicateCount = matchingJobs.length;
-  const isDuplicate = completedDuplicateCount > 0;
-  const duplicateFilenameBypassUsed = isExemptFileName && totalDuplicateCount > 0;
+    const duplicateStatusCounts = matchingJobs.reduce<Record<string, number>>((acc, job) => {
+      const key = String(job.status ?? "UNKNOWN").toUpperCase();
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    }, {});
+    const completedDuplicateCount = duplicateStatusCounts.COMPLETED ?? 0;
+    const totalDuplicateCount = matchingJobs.length;
+    const isDuplicate = completedDuplicateCount > 0;
+    const duplicateFilenameBypassUsed = isExemptFileName && totalDuplicateCount > 0;
 
-  console.info("SOURCE_FILENAME_RECEIVED", JSON.stringify({
-    sourceOriginalFilenameRaw,
-    uploadedOriginalname: uploadedFile.originalname,
-  }));
-  console.info("SOURCE_FILENAME_NORMALIZED", JSON.stringify({
-    raw: duplicateIdentityFilename,
-    normalized: normalizedFileName,
-  }));
-  console.info("FINAL_DUPLICATE_IDENTITY", JSON.stringify({
-    filename: duplicateIdentityFilename,
-    normalized: normalizedFileName,
-  }));
+    console.info("SOURCE_FILENAME_RECEIVED", JSON.stringify({
+      sourceOriginalFilenameRaw,
+      uploadedOriginalname: uploadedFile.originalname,
+    }));
+    console.info("SOURCE_FILENAME_NORMALIZED", JSON.stringify({
+      raw: duplicateIdentityFilename,
+      normalized: normalizedFileName,
+    }));
+    console.info("FINAL_DUPLICATE_IDENTITY", JSON.stringify({
+      filename: duplicateIdentityFilename,
+      normalized: normalizedFileName,
+    }));
 
-  console.info("UPLOAD_FILENAME_RAW", JSON.stringify({ value: filenameDebug.raw }));
-  console.info("UPLOAD_FILENAME_BASENAME", JSON.stringify({ value: filenameDebug.basename }));
-  console.info("UPLOAD_FILENAME_NORMALIZED", JSON.stringify({
-    original: filenameDebug.raw,
-    basename: filenameDebug.basename,
-    normalized: normalizedFileName,
-    exempt: isExemptFileName,
-  }));
-  console.info("UPLOAD_BYPASS_LIST", JSON.stringify({
-    count: exemptFileNames.length,
-    normalizedExemptFileNames: exemptFileNames.map((entry) => normalizeUploadFilename(entry)),
-  }));
-  console.info("UPLOAD_DUPLICATE_QUERY_RESULT", JSON.stringify({
-    normalized: normalizedFileName,
-    totalMatches: totalDuplicateCount,
-    completedMatches: completedDuplicateCount,
-    statusCounts: duplicateStatusCounts,
-    matchedJobIds: matchingJobs.map((job) => job.id),
-    matchedOriginalFilenames: matchingJobs.map((job) => job.originalFilename),
-  }));
+    console.info("UPLOAD_FILENAME_RAW", JSON.stringify({ value: filenameDebug.raw }));
+    console.info("UPLOAD_FILENAME_BASENAME", JSON.stringify({ value: filenameDebug.basename }));
+    console.info("UPLOAD_FILENAME_NORMALIZED", JSON.stringify({
+      original: filenameDebug.raw,
+      basename: filenameDebug.basename,
+      normalized: normalizedFileName,
+      exempt: isExemptFileName,
+    }));
+    console.info("UPLOAD_BYPASS_LIST", JSON.stringify({
+      count: exemptFileNames.length,
+      normalizedExemptFileNames: exemptFileNames.map((entry) => normalizeUploadFilename(entry)),
+    }));
+    console.info("UPLOAD_DUPLICATE_QUERY_RESULT", JSON.stringify({
+      normalized: normalizedFileName,
+      totalMatches: totalDuplicateCount,
+      completedMatches: completedDuplicateCount,
+      statusCounts: duplicateStatusCounts,
+      matchedJobIds: matchingJobs.map((job) => job.id),
+      matchedOriginalFilenames: matchingJobs.map((job) => job.originalFilename),
+    }));
 
-  if (isExemptFileName) {
-    console.log(`[Upload] Exempt filename detected — bypassing duplicate block: "${normalizedFileName}"`);
-    if (duplicateFilenameBypassUsed) {
-      console.info(`[AUDIT] TEST_FILENAME_BYPASS_APPLIED user=${userId} filename=\"${normalizedFileName}\"`);
+    if (isExemptFileName) {
+      console.log(`[Upload] Exempt filename detected — bypassing duplicate block: "${normalizedFileName}"`);
+      if (duplicateFilenameBypassUsed) {
+        console.info(`[AUDIT] TEST_FILENAME_BYPASS_APPLIED user=${userId} filename=\"${normalizedFileName}\"`);
+      }
     }
-  }
 
-  if (!isExemptFileName && isDuplicate) {
-    console.warn(`[SECONDARY_DUPLICATE_BLOCK] filename="${normalizedFileName}" exempt=${isExemptFileName} bypass=${duplicateFilenameBypassUsed}`);
-    console.warn(`[Upload] Filename reserved — blocked re-upload: "${normalizedFileName}"`);
-    return res.status(409).json({
-      success: false,
-      error: "This file name already exists.",
-      message: "This file name already exists.",
-    });
-  }
-
-  console.log(`[Upload] Filename not reserved — proceeding with upload: "${normalizedFileName}"`);
-
-  const ext = path.extname(uploadedFile.originalname).toLowerCase();
-  const generateMoneyOrderRequested = String(req.body?.generateMoneyOrder ?? "false").toLowerCase() === "true";
-  const autoGenerateTracking = String(req.body?.autoGenerateTracking ?? "false").toLowerCase() === "true";
-  const barcodeMode = String(req.body?.barcodeMode ?? "auto").toLowerCase() === "manual" ? "manual" : "auto";
-  const printMode = parsePrintMode(req.body?.printMode ?? req.body?.outputMode);
-  const trackAfterGenerate = String(req.body?.trackAfterGenerate ?? "false").toLowerCase() === "true";
-  const carrierType = String(req.body?.carrierType ?? "pakistan_post").toLowerCase() === "courier" ? "courier" : "pakistan_post";
-  const shipmentTypeRaw = String(req.body?.shipmentType ?? "").trim();
-  const resolvedShipmentType = resolveCanonicalShipmentTypeStrict(shipmentTypeRaw);
-  if (shipmentTypeRaw && !resolvedShipmentType) {
-    logCatalogShadowWarning("service_mismatch", `Upload requested unsupported shipment type '${shipmentTypeRaw}'.`);
-  }
-  const shipmentType = carrierType === "courier" ? "COURIER" : resolvedShipmentType;
-  const shipmentModeRaw = String(req.body?.shipmentMode ?? "single_service").toLowerCase();
-  const shipmentMode = (shipmentModeRaw === "mix_articles" || shipmentModeRaw === "mix_services")
-    ? "mix_articles"
-    : "single_service";
-  const eligibleForMoneyOrder = carrierType !== "courier" && (shipmentMode === "mix_articles" || shouldShowValuePayableAmount(shipmentType));
-  const generateMoneyOrder = generateMoneyOrderRequested && eligibleForMoneyOrder;
-  const trackingScheme = (() => {
-    const v = String(req.body?.trackingScheme ?? "standard").toLowerCase();
-    if (v === "rl") return "rl";
-    if (v === "ums") return "ums";
-    return "standard";
-  })();
-  if (autoGenerateTracking && shipmentMode === "single_service") {
-    if (!shipmentType || shipmentType === "COURIER") {
-      return res.status(400).json({
+    if (!isExemptFileName && isDuplicate) {
+      console.warn(`[SECONDARY_DUPLICATE_BLOCK] filename="${normalizedFileName}" exempt=${isExemptFileName} bypass=${duplicateFilenameBypassUsed}`);
+      console.warn(`[Upload] Filename reserved — blocked re-upload: "${normalizedFileName}"`);
+      return res.status(409).json({
         success: false,
-        error: "Auto tracking generation requires a valid Pakistan Post shipment type.",
-        message: "Auto tracking generation requires a valid Pakistan Post shipment type.",
+        error: "This file name already exists.",
+        message: "This file name already exists.",
       });
     }
+
+    console.log(`[Upload] Filename not reserved — proceeding with upload: "${normalizedFileName}"`);
+
+    const ext = path.extname(uploadedFile.originalname).toLowerCase();
+    const generateMoneyOrderRequested = String(req.body?.generateMoneyOrder ?? "false").toLowerCase() === "true";
+    const autoGenerateTracking = String(req.body?.autoGenerateTracking ?? "false").toLowerCase() === "true";
+    const barcodeMode = String(req.body?.barcodeMode ?? "auto").toLowerCase() === "manual" ? "manual" : "auto";
+    const printMode = parsePrintMode(req.body?.printMode ?? req.body?.outputMode);
+    const trackAfterGenerate = String(req.body?.trackAfterGenerate ?? "false").toLowerCase() === "true";
+    const carrierType = String(req.body?.carrierType ?? "pakistan_post").toLowerCase() === "courier" ? "courier" : "pakistan_post";
+    const shipmentTypeRaw = String(req.body?.shipmentType ?? "").trim();
+    const resolvedShipmentType = resolveCanonicalShipmentTypeStrict(shipmentTypeRaw);
+    if (shipmentTypeRaw && !resolvedShipmentType) {
+      logCatalogShadowWarning("service_mismatch", `Upload requested unsupported shipment type '${shipmentTypeRaw}'.`);
+    }
+    const shipmentType = carrierType === "courier" ? "COURIER" : resolvedShipmentType;
+    const shipmentModeRaw = String(req.body?.shipmentMode ?? "single_service").toLowerCase();
+    const shipmentMode = (shipmentModeRaw === "mix_articles" || shipmentModeRaw === "mix_services")
+      ? "mix_articles"
+      : "single_service";
+    const eligibleForMoneyOrder = carrierType !== "courier" && (shipmentMode === "mix_articles" || shouldShowValuePayableAmount(shipmentType));
+    const generateMoneyOrder = generateMoneyOrderRequested && eligibleForMoneyOrder;
+    const trackingScheme = (() => {
+      const v = String(req.body?.trackingScheme ?? "standard").toLowerCase();
+      if (v === "rl") return "rl";
+      if (v === "ums") return "ums";
+      return "standard";
+    })();
+    if (autoGenerateTracking && shipmentMode === "single_service") {
+      if (!shipmentType || shipmentType === "COURIER") {
+        return res.status(400).json({
+          success: false,
+          error: "Auto tracking generation requires a valid Pakistan Post shipment type.",
+          message: "Auto tracking generation requires a valid Pakistan Post shipment type.",
+        });
+      }
+      try {
+        getTrackingPrefix(shipmentType);
+      } catch {
+        return res.status(400).json({
+          success: false,
+          error: `Unsupported shipment type for auto tracking: ${shipmentType}`,
+          message: `Unsupported shipment type for auto tracking: ${shipmentType}`,
+        });
+      }
+    }
+
+    const job = await withReconnectRetry(async () => prisma.labelJob.create({
+      data: {
+        userId,
+        originalFilename: duplicateIdentityFilename,
+        recordCount: 0,
+        unitCount: 0,
+        includeMoneyOrders: generateMoneyOrder,
+        status: "QUEUED",
+        uploadPath: "pending",
+      },
+    }));
+
+    const uploadBaseDir = uploadsDir();
+    await fs.mkdir(uploadBaseDir, { recursive: true });
+
+    const fileName = `${job.id}${ext}`;
+    console.log("UPLOAD RECEIVED:", fileName);
+
+    const uploadPath = path.join(uploadBaseDir, fileName);
+    await fs.rename(uploadedFile.path, uploadPath);
+    console.log("[UPLOAD] Saved file:", uploadPath);
+
+    let ordersCount = 0;
+    let unitCount = 0;
+    let effectiveGenerateMoneyOrder = generateMoneyOrder;
+    const idempotencyKey = String(req.header("x-idempotency-key") ?? job.id).trim();
+    let actionRequests: Array<{ actionType: "label" | "tracking" | "money_order"; requestKey: string }> = [];
+
     try {
-      getTrackingPrefix(shipmentType);
-    } catch {
-      return res.status(400).json({
-        success: false,
-        error: `Unsupported shipment type for auto tracking: ${shipmentType}`,
-        message: `Unsupported shipment type for auto tracking: ${shipmentType}`,
-      });
-    }
-  }
-
-  const job = await withReconnectRetry(async () => prisma.labelJob.create({
-    data: {
-      userId,
-      originalFilename: duplicateIdentityFilename,
-      recordCount: 0,
-      unitCount: 0,
-      includeMoneyOrders: generateMoneyOrder,
-      status: "QUEUED",
-      uploadPath: "pending",
-    },
-  }));
-
-  const uploadBaseDir = uploadsDir();
-  await fs.mkdir(uploadBaseDir, { recursive: true });
-
-  const fileName = `${job.id}${ext}`;
-  console.log("UPLOAD RECEIVED:", fileName);
-
-  const uploadPath = path.join(uploadBaseDir, fileName);
-  await fs.rename(uploadedFile.path, uploadPath);
-  console.log("[UPLOAD] Saved file:", uploadPath);
-
-  let ordersCount = 0;
-  let unitCount = 0;
-  let effectiveGenerateMoneyOrder = generateMoneyOrder;
-  const idempotencyKey = String(req.header("x-idempotency-key") ?? job.id).trim();
-  let actionRequests: Array<{ actionType: "label" | "tracking" | "money_order"; requestKey: string }> = [];
-
-  try {
     const orders = await parseOrdersFromFile(uploadPath, { allowMissingTrackingId: autoGenerateTracking });
     for (const row of orders) {
       shadowCheckServicePrefix(
@@ -900,7 +901,7 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
     console.log(`Labels Generated: ${ordersCount} -> Units Deducted: ${labelUnits}`);
     console.log(`Money Orders: ${moneyOrderUnits} -> Units Deducted: ${moneyOrderUnits}`);
     console.log(`Tracking Uploaded: ${trackAfterGenerate ? ordersCount : 0} -> Units Deducted: ${trackingUnits}`);
-  } catch (e) {
+    } catch (e) {
     await withReconnectRetry(async () => prisma.labelJob.update({
       where: { id: job.id },
       data: {
@@ -912,9 +913,9 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
     }));
     const msg = e instanceof Error ? e.message : "Invalid upload";
     return res.status(400).json({ success: false, error: msg, message: msg });
-  }
+    }
 
-  try {
+    try {
     await withReconnectRetry(async () => prisma.labelJob.update({
       where: { id: job.id },
       data: { uploadPath, recordCount: ordersCount, unitCount, includeMoneyOrders: effectiveGenerateMoneyOrder, status: "QUEUED" },
@@ -980,14 +981,26 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
       recordCount: ordersCount,
       duplicateFilenameBypassUsed,
     });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Failed to upload file";
-    await withReconnectRetry(async () => prisma.labelJob.update({
-      where: { id: job.id },
-      data: { status: "FAILED", error: msg },
-    }));
-    await refundUnits(userId, actionRequests);
-    return res.status(500).json({ success: false, error: msg, message: msg });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to upload file";
+      await withReconnectRetry(async () => prisma.labelJob.update({
+        where: { id: job.id },
+        data: { status: "FAILED", error: msg },
+      }));
+      await refundUnits(userId, actionRequests);
+      return res.status(500).json({ success: false, error: msg, message: msg });
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Upload failed";
+    console.error("[Upload] Unhandled upload error:", message);
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        error: message,
+        message,
+      });
+    }
+    return;
   }
 }
 
