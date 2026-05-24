@@ -3694,7 +3694,7 @@ export default function BulkTracking() {
           <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
             {[
               { step: "STEP 1", title: "Generate Labels", text: "Generate labels and tracking IDs from validated rows." },
-              { step: "STEP 2", title: "Download Tracking Master File", text: "Export the tracking master file (.xlsx) after generation completes." },
+              { step: "STEP 2", title: "Download Tracking File.xls", text: "Export Tracking File.xls after generation completes." },
               { step: "STEP 3", title: "Upload Same File Here", text: "Upload the same exported file into this Track Parcel workspace." },
               { step: "STEP 4", title: "Track / Complaint / Settlement", text: "Use one source for statuses, complaint handling, and settlement checks." },
             ].map((card) => (
@@ -3743,7 +3743,7 @@ export default function BulkTracking() {
                             ? "border-indigo-200 bg-indigo-50 text-indigo-700"
                             : "border-amber-200 bg-amber-50 text-amber-700",
                     )}>
-                      Detected: {detectedUploadKind}
+                      Detected: {detectedUploadKind === "tracking master file" ? "Tracking File.xls" : detectedUploadKind}
                     </span>
                     <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
                       Tracking IDs: {detectedTrackingCount}
@@ -3868,7 +3868,7 @@ export default function BulkTracking() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-[0_30px_80px_rgba(15,23,42,0.28)]">
             <div className="text-lg font-semibold text-slate-900">No tracking IDs found</div>
-            <div className="mt-2 text-sm text-slate-600">No tracking IDs found. Please upload exported Tracking Master File.</div>
+            <div className="mt-2 text-sm text-slate-600">No tracking IDs found. Please upload exported Tracking File.xls.</div>
             <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"

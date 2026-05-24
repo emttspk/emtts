@@ -30,7 +30,7 @@ function DownloadButton(props: { jobId: string; kind: "labels" | "money-orders" 
       ? "Labels"
       : props.kind === "money-orders"
       ? "Money Orders"
-      : "Tracking Master";
+      : "Tracking File.xls";
 
   async function handleDownload() {
     if (busy) return;

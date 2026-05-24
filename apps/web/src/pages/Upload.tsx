@@ -98,10 +98,8 @@ function rowsToCsv(headers: string[], rows: Array<Record<string, unknown>>) {
 }
 
 function buildTrackingMasterFallbackName(value = new Date()) {
-  const day = String(value.getDate()).padStart(2, "0");
-  const month = String(value.getMonth() + 1).padStart(2, "0");
-  const year = String(value.getFullYear());
-  return `Tracking Master ${day}-${month}-${year}.xlsx`;
+  void value;
+  return "Tracking File.xls";
 }
 
 function formatExactDateTime(value: string | null | undefined) {
@@ -1658,12 +1656,12 @@ export default function Upload() {
           <div className="mt-0.5 text-sm font-normal text-slate-500">All actions consume units based on usage.</div>
           <div className="mt-2 text-sm text-gray-600">Tracking enabled from uploaded file for post-generation operations.</div>
           <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-            Tracking Master File is always generated with every completed job, even when "Track shipments after generating labels" is unchecked.
+            Tracking File.xls is always generated with every completed job, even when "Track shipments after generating labels" is unchecked.
           </div>
           <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
             <div className="font-semibold text-slate-800">Recommended workflow:</div>
             <div className="mt-1">1. Generate labels and tracking IDs from validated upload rows.</div>
-            <div>2. Export and retain the generated tracking master file.</div>
+            <div>2. Export and retain the generated Tracking File.xls.</div>
             <div>3. Use Track Parcel for delivery status updates and complaint submissions.</div>
             <div>4. Use the same export for settlement and reconciliation checks.</div>
           </div>
@@ -1766,7 +1764,7 @@ export default function Upload() {
                 </div>
                 <PageTitle className="mt-4 text-3xl text-slate-950">Your files are ready for export.</PageTitle>
                 <BodyText className="mt-2 max-w-xl text-sm text-slate-600">
-                  Download the generated labels, money order file, and tracking master from one place. Retention timing below is taken from the backend job record.
+                  Download the generated labels, money order file, and Tracking File.xls from one place. Retention timing below is taken from the backend job record.
                 </BodyText>
               </div>
 
@@ -1887,7 +1885,7 @@ export default function Upload() {
                   disabled={completionButtonsDisabled}
                   className="rounded-[1.4rem] border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-900 shadow-sm hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {completionAction === "tracking-master" ? "Preparing Tracking Master..." : "Tracking Master"}
+                  {completionAction === "tracking-master" ? "Preparing Tracking File.xls..." : "Tracking File.xls"}
                 </button>
               ) : null}
               <button
