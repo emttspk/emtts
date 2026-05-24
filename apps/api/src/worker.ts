@@ -373,6 +373,12 @@ function buildTrackingMasterRows(
   return labelOrdersForRender.map((order) => {
     const shipmentType = resolveOrderShipmentType(order, defaultShipmentType) ?? "";
     const collectAmount = normalizeAmount((order as any).CollectAmount ?? (order as any).amount ?? 0);
+    const mosNumbers = Array.isArray((order as any).moneyOrderNumbers)
+      ? ((order as any).moneyOrderNumbers as unknown[])
+          .map((item) => String(item ?? "").trim())
+          .filter(Boolean)
+      : [];
+    const mosNumberCell = mosNumbers.join(", ");
     const valuePayable = shouldApplyPakistanPostValuePayableRules(order.carrierType, shipmentType) && collectAmount > 0;
     const breakdown = valuePayable ? moneyOrderBreakdown(collectAmount, shipmentType) : [];
     const moAmount = breakdown.reduce((sum, line) => sum + Number(line.moAmount ?? 0), 0);
@@ -383,6 +389,7 @@ function buildTrackingMasterRows(
       "Batch ID": jobId,
       "Generated Date": generatedDate,
       "Tracking ID": normalizeText(order.trackingNumber),
+      "MOS Number": mosNumberCell,
       "Shipment Type": shipmentType,
       "Receiver Name": normalizeText((order as any).consigneeName),
       "Receiver Phone": normalizeText((order as any).consigneePhone),
@@ -1401,6 +1408,7 @@ const worker = new Worker(
             "Batch ID",
             "Generated Date",
             "Tracking ID",
+            "MOS Number",
             "Shipment Type",
             "Receiver Name",
             "Receiver Phone",

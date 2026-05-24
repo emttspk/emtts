@@ -15,7 +15,7 @@ import { trackingQueue } from "../queue/queue.js";
 import { ensureRedisConnection, getRedisConnection } from "../queue/redis.js";
 import { redisEnabled } from "../lib/redis.js";
 import { parseOrdersFromFile } from "../parse/orders.js";
-import { parseTrackingNumbersFromFile } from "../parse/tracking.js";
+import { parseTrackingNumbersFromFile, parseTrackingUploadRowsFromFile } from "../parse/tracking.js";
 import { validateUploadedTrackingId } from "../validation/trackingId.js";
 import { finalizeQueuedTrackingToGenerated, releaseQueuedTracking } from "../usage/limits.js";
 import { COMPLAINT_UNIT_COST, consumeUnits, getComplaintAllowance, recordUnitsUsed, refundUnits } from "../usage/unitConsumption.js";
@@ -658,7 +658,9 @@ export async function handleTrackingBulk(req: Request, res: Response) {
         trackingNumbers = rows.map((r) => String(r.TrackingID ?? "").trim()).filter(Boolean);
         uploadRowsByTracking = new Map(rows.map((r) => [String(r.TrackingID ?? "").trim(), r]));
       } catch {
-        trackingNumbers = await parseTrackingNumbersFromFile(uploadPath, trackingField || undefined);
+        const parsed = await parseTrackingUploadRowsFromFile(uploadPath, trackingField || undefined);
+        trackingNumbers = parsed.trackingNumbers;
+        uploadRowsByTracking = parsed.rowsByTracking;
       }
       if (trackingNumbers.length === 0) throw new Error("No tracking numbers found");
       if (trackingNumbers.length > 2000) throw new Error("Max upload size is 2000 tracking numbers");
