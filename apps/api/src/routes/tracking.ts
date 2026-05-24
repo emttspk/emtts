@@ -1515,9 +1515,12 @@ trackingRouter.get("/:jobId", requireAuth, async (req, res) => {
           try {
             const { getNormalizedObjectKey } = await import("../storage/key-normalization.js");
             const { getDualProviders } = await import("../storage/provider.js");
-            const r2Key = getNormalizedObjectKey(job.id, "trackingResult");
+            const r2Key = getNormalizedObjectKey(job.id, "trackingResult").replace(/^json\//, "");
             const r2Provider = getDualProviders().r2;
-            const r2Data = await r2Provider.readArtifact("json", r2Key);
+            const r2Data = await r2Provider.readArtifact("json", r2Key, {
+              jobId: job.id,
+              artifactType: "trackingResult",
+            });
             result = JSON.parse(r2Data.toString("utf8"));
             logTelemetry({
               event: "tracking_result_stream_success",
