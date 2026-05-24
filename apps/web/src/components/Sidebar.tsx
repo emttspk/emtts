@@ -130,7 +130,7 @@ export default function Sidebar(props: {
             className="flex h-12 w-full items-center gap-3 rounded-2xl px-3.5 text-sm font-medium text-slate-200 transition-all duration-200 ease-out hover:bg-white/10 hover:text-white md:h-[64px] md:flex-col md:justify-center md:gap-1.5 md:px-1.5 lg:h-12 lg:flex-row lg:justify-start lg:gap-3 lg:px-3.5"
             onClick={() => {
               clearSession();
-              navigate("/login");
+              navigate("/");
             }}
           >
             <LogOut className="h-5 w-5 flex-none opacity-90" />

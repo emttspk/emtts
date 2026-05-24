@@ -94,7 +94,7 @@ export default function Topbar(props: {
                   )}
                   onClick={() => {
                     clearSession();
-                    navigate("/login");
+                    navigate("/");
                   }}
                 >
                   <LogOut className="h-4 w-4" />

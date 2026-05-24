@@ -153,7 +153,7 @@ export default function Settings() {
             className="btn-secondary mt-6 w-full"
             onClick={() => {
               clearSession();
-              nav("/login");
+              nav("/");
             }}
           >
             Logout

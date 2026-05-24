@@ -52,7 +52,7 @@ export function useIdleTimeout(enabled: boolean = true) {
   const logout = useCallback(() => {
     clearAllAppCache();
     clearSession();
-    navigate("/login", { replace: true });
+    navigate("/", { replace: true });
   }, [navigate]);
 
   const resetTimer = useCallback(() => {
