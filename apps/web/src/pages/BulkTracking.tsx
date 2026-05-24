@@ -1250,6 +1250,12 @@ export default function BulkTracking() {
     if (polling.jobStatus === "FAILED" || polling.jobStatus === "COMPLETED") {
       submitTrackingRef.current = false;
       void refreshBatchHistory();
+      if (polling.jobStatus === "COMPLETED") {
+        // Force-refresh shipments so the table and cards reflect the completed batch result.
+        // Without this, the 60-second cache populated before the job ran prevents the UI
+        // from showing the actual rows written by the worker on job completion.
+        void refreshShipments({ force: true });
+      }
     }
   }, [polling.jobStatus]);
 
