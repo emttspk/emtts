@@ -15,22 +15,40 @@ const MODULES = [
     description: "Create verified money orders with dispatch records",
   },
   {
+    title: "Parcel Booking",
+    image: "/assets/package.png",
+    href: "/upload",
+    description: "Book single or bulk parcels with consistent data capture",
+  },
+  {
     title: "Tracking",
     image: "/assets/track.png",
     href: "/tracking",
     description: "Track parcel movement and delivery status in real time",
   },
   {
-    title: "Dashboard",
+    title: "Admin Dashboard",
     image: "/assets/dashboard.png",
     href: "/dashboard",
     description: "Manage shipments, analytics, and operational workflow",
   },
   {
-    title: "Complaints",
+    title: "Complaint Automation",
     image: "/assets/complaint.png",
     href: "/complaints",
-    description: "Register and monitor customer complaints",
+    description: "Register, monitor, and resolve customer complaints quickly",
+  },
+  {
+    title: "Billing Packages",
+    image: "/assets/money-order.png",
+    href: "/#billing-packages",
+    description: "Control usage and upgrade plans with clear monthly packages",
+  },
+  {
+    title: "Profile & Account",
+    image: "/assets/tracking.png",
+    href: "/login",
+    description: "Secure login, profile setup, and account recovery options",
   },
 ];
 
@@ -76,16 +94,16 @@ export default function OperationsModules() {
   }, [plans]);
 
   return (
-    <section className="relative overflow-hidden bg-[linear-gradient(180deg,#f4fbff_0%,#f8fcfa_45%,#eef6ff_100%)] py-14 md:py-16">
+    <section id="services" className="relative overflow-hidden bg-[linear-gradient(180deg,#f4fbff_0%,#f8fcfa_45%,#eef6ff_100%)] py-14 md:py-16">
       <div className="mx-auto w-full max-w-[1400px] px-4 md:px-6 lg:px-12">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-700">Operations Product Suite</p>
           <h2 className="mt-2 text-3xl font-black tracking-[-0.03em] text-slate-950 sm:text-4xl">
-            Core Modules
+            Everything You Need In One Place
           </h2>
         </div>
 
-        <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-5">
+        <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
           {MODULES.map((module) => (
             <article
               key={module.title}
@@ -100,13 +118,56 @@ export default function OperationsModules() {
                 href={module.href}
                 className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-4 text-sm font-bold text-white"
               >
-                Open Module
+                Explore
               </a>
             </article>
           ))}
         </div>
 
-        <div className="mt-16">
+        <div id="how-it-works" className="mt-16 rounded-3xl border border-white/80 bg-white/70 p-5 shadow-[0_18px_38px_rgba(15,23,42,0.12)] backdrop-blur-xl md:p-8">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-700">How It Works</p>
+          <h3 className="mt-2 text-2xl font-black tracking-[-0.03em] text-slate-950 sm:text-3xl">From Upload To Operations In 3 Steps</h3>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            {[
+              {
+                title: "Step 1",
+                detail: "Upload / enter shipment data",
+              },
+              {
+                title: "Step 2",
+                detail: "Generate labels and money orders",
+              },
+              {
+                title: "Step 3",
+                detail: "Track, complain, manage billing",
+              },
+            ].map((step) => (
+              <div key={step.title} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-emerald-700">{step.title}</p>
+                <p className="mt-2 text-sm font-semibold leading-6 text-slate-800">{step.detail}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-10 rounded-3xl border border-white/80 bg-white/75 p-5 shadow-[0_18px_38px_rgba(15,23,42,0.12)] backdrop-blur-xl md:p-8">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">Why Teams Trust ePost.pk</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {[
+              "Pakistan Post focused",
+              "Bulk seller friendly",
+              "Fast PDF generation",
+              "Complaint monitoring",
+              "Usage/package control",
+            ].map((item) => (
+              <div key={item} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700">
+                {item}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div id="billing-packages" className="mt-16">
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">Billing Plans</p>
             <h3 className="mt-2 text-3xl font-black tracking-[-0.03em] text-slate-950 sm:text-4xl">

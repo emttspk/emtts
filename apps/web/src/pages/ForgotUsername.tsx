@@ -51,6 +51,9 @@ export default function ForgotUsername() {
             }
           }}
         >
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/55 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
+            Recover username securely using your registered email
+          </div>
           <AuthInputField
             label="Email"
             icon={Mail}

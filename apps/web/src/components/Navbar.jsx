@@ -2,11 +2,11 @@ import { useState } from "react";
 import { Menu, X } from "lucide-react";
 
 const navLinks = [
-  { href: "/upload", label: "Book Parcel" },
-  { href: "#labels", label: "Generate Labels" },
-  { href: "#money-orders", label: "Money Order" },
-  { href: "#complaints", label: "Support" },
-  { href: "#contact", label: "Contact" },
+  { href: "/#services", label: "Services" },
+  { href: "/#how-it-works", label: "How It Works" },
+  { href: "/tracking", label: "Track" },
+  { href: "/#billing-packages", label: "Packages" },
+  { href: "/#support", label: "Support" },
 ];
 
 export default function Navbar() {

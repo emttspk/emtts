@@ -174,7 +174,7 @@ export default function Register() {
     <AuthShell
       mode="register"
       title="Create account"
-      subtitle="Enter your details to get started."
+      subtitle="Start your premium dispatch workspace in minutes."
     >
       {err ? <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">{err}</div> : null}
       {notice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">{notice}</div> : null}
@@ -243,6 +243,9 @@ export default function Register() {
           }
         }}
       >
+        <div className="rounded-2xl border border-sky-100 bg-sky-50/60 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-700">
+          Built for Pakistan Post operations, bulk sellers, and growing teams
+        </div>
         <div className="space-y-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">Identity</div>
           <label className="block text-sm">

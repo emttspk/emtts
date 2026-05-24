@@ -213,6 +213,16 @@ export default function HomeHero() {
   }, [scannerOpen, startBarcodeDetector, startHtml5Fallback, stopScanner]);
 
   const animationStyle = useMemo(() => ["flip", "rotate", "float"][activeCard % 3], [activeCard]);
+  const servicePills = [
+    "Bulk Labels",
+    "Money Orders",
+    "Parcel Tracking",
+    "Complaint Automation",
+    "Parcel Booking",
+    "Billing Packages",
+    "Profile & Account",
+    "Admin Operations",
+  ];
 
   return (
     <section className="relative overflow-hidden bg-[radial-gradient(circle_at_8%_10%,rgba(6,182,212,0.18),transparent_32%),radial-gradient(circle_at_90%_8%,rgba(16,185,129,0.16),transparent_30%),linear-gradient(180deg,#f7fcff_0%,#eef8f3_44%,#eef4ff_100%)]">
@@ -220,21 +230,48 @@ export default function HomeHero() {
         <div className="grid items-center gap-8 lg:grid-cols-[1.08fr_0.92fr]">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.16em] text-emerald-700">Pakistan Post Platform</p>
-            <h1 className="mt-3 text-balance text-4xl font-black tracking-[-0.03em] text-slate-950 sm:text-5xl lg:text-[3.35rem]">
-              Pakistan Post Operations Cloud
+            <h1 className="mt-3 text-balance text-3xl font-black tracking-[-0.03em] text-slate-950 sm:text-5xl lg:text-[3.35rem]">
+              One SaaS Workspace For Dispatch, Tracking, Complaints, And Billing
             </h1>
             <p className="mt-4 max-w-[760px] text-base leading-7 text-slate-700 sm:text-lg">
-              Complete dispatch software for labels, money orders, parcel tracking, customer complaints, package
-              management, and live monitoring.
+              Built for Pakistan Post teams and bulk sellers to run label generation, money orders, parcel booking,
+              public tracking, complaint monitoring, packages, and account operations from one dashboard.
             </p>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              {servicePills.map((pill) => (
+                <span
+                  key={pill}
+                  className="rounded-full border border-emerald-100 bg-white/90 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-700 shadow-sm"
+                >
+                  {pill}
+                </span>
+              ))}
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <a
+                href="/register"
+                className="inline-flex h-12 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-6 text-sm font-bold text-white shadow-[0_10px_24px_rgba(11,107,58,0.28)] transition hover:-translate-y-0.5"
+              >
+                Create Free Account
+              </a>
+              <a
+                href="/tracking"
+                className="inline-flex h-12 items-center justify-center rounded-xl border border-slate-300 bg-white px-6 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700"
+              >
+                Track Shipment
+              </a>
+            </div>
 
             <form
               onSubmit={(event) => {
                 event.preventDefault();
                 submitTracking(trackingId);
               }}
-              className="mt-6 max-w-[680px] rounded-2xl border border-slate-200 bg-white/85 p-2 shadow-[0_16px_44px_rgba(15,23,42,0.12)] backdrop-blur"
+              className="mt-5 max-w-[680px] rounded-2xl border border-slate-200 bg-white/85 p-2 shadow-[0_16px_44px_rgba(15,23,42,0.12)] backdrop-blur"
             >
+              <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Public Tracking</p>
               <div className="flex flex-col gap-2 md:flex-row md:items-center">
                 <input
                   type="text"

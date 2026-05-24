@@ -46,6 +46,9 @@ export default function ForgotPassword() {
           }
         }}
       >
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/55 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
+          Trusted account recovery for your operations workspace
+        </div>
         <AuthInputField
           label="Email"
           icon={Mail}

@@ -27,17 +27,17 @@ export default function AuthShell(props: AuthShellProps) {
     },
     {
       icon: BadgeCheck,
-      title: "Tracking",
+      title: "Public Tracking",
     },
     {
       icon: ArrowRight,
-      title: "Workspace",
+      title: "Operations Tools",
     },
   ];
 
   const trustItems = [
-    { icon: ShieldCheck, label: "Secure Login" },
-    { icon: BadgeCheck, label: "Verified Service" },
+    { icon: ShieldCheck, label: "Pakistan Post Focused" },
+    { icon: BadgeCheck, label: "Trusted SaaS Workspace" },
   ];
 
   return (
@@ -102,6 +102,9 @@ export default function AuthShell(props: AuthShellProps) {
               <h1 className="mt-2.5 text-[2rem] font-extrabold tracking-[-0.05em] text-[#0F172A] sm:text-[2.25rem] lg:text-[2.55rem] lg:leading-[0.98] xl:text-[2.9rem]">
                 Pakistan Post
               </h1>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                One platform for labels, money orders, tracking, complaints, booking, and billing operations.
+              </p>
             </motion.div>
 
             <motion.div
@@ -136,7 +139,10 @@ export default function AuthShell(props: AuthShellProps) {
               ))}
             </div>
 
-            <p className="relative z-10 mt-3 text-[11px] text-slate-400">© 2026 Pakistan Post</p>
+            <div className="relative z-10 mt-3 flex items-center justify-between gap-2 text-[11px] text-slate-400">
+              <p>© 2026 Pakistan Post</p>
+              <a href="/#support" className="font-medium text-slate-500 hover:text-slate-800">Support</a>
+            </div>
           </section>
 
           <section className="relative flex items-center justify-center bg-[linear-gradient(180deg,rgba(255,255,255,0.52),rgba(255,255,255,0.74))] px-4 py-4 sm:px-5 sm:py-5 md:px-6 lg:px-7 xl:px-8">
