@@ -223,14 +223,14 @@ export default function HomeHero() {
 
   return (
     <section className="relative overflow-hidden bg-[radial-gradient(circle_at_8%_10%,rgba(6,182,212,0.18),transparent_32%),radial-gradient(circle_at_90%_8%,rgba(16,185,129,0.16),transparent_30%),linear-gradient(180deg,#f7fcff_0%,#eef8f3_44%,#eef4ff_100%)]">
-      <div className="mx-auto max-w-[1400px] px-4 py-10 md:px-6 lg:px-12 lg:py-14">
-        <div className="grid items-center gap-8 lg:grid-cols-[1.08fr_0.92fr]">
+      <div className="mx-auto max-w-[1400px] px-4 py-8 md:px-6 md:py-10 lg:px-12 lg:py-14">
+        <div className="grid items-center gap-7 lg:grid-cols-[1.08fr_0.92fr]">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.16em] text-emerald-700">ePost.pk Platform</p>
-            <h1 className="mt-3 text-balance text-3xl font-black tracking-[-0.03em] text-slate-950 sm:text-5xl lg:text-[3.35rem]">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700 sm:text-sm">ePost.pk Platform</p>
+            <h1 className="mt-2.5 text-balance text-[26px] font-black leading-[1.15] tracking-[-0.03em] text-slate-950 sm:mt-3 sm:text-5xl lg:text-[3.35rem]">
                 Dispatch, Tracking, Complaints, And Billing In One Workspace
             </h1>
-            <p className="mt-4 max-w-[760px] text-base leading-7 text-slate-700 sm:text-lg">
+            <p className="mt-3.5 max-w-[760px] text-[15px] leading-6 text-slate-700 sm:mt-4 sm:text-lg sm:leading-7">
                 Built for fast daily operations: upload, generate, track, and manage complaints in one place.
             </p>
 
@@ -245,16 +245,16 @@ export default function HomeHero() {
               ))}
             </div>
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-5 flex flex-col gap-2.5 sm:mt-6 sm:flex-row sm:gap-3">
               <a
                 href="/register"
-                className="inline-flex h-12 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-6 text-sm font-bold text-white shadow-[0_10px_24px_rgba(11,107,58,0.28)] transition hover:-translate-y-0.5"
+                className="inline-flex h-[44px] items-center justify-center rounded-xl bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-5 text-sm font-bold text-white shadow-[0_10px_24px_rgba(11,107,58,0.28)] transition hover:-translate-y-0.5 sm:h-12 sm:px-6"
               >
                 Create Free Account
               </a>
               <a
                 href="/tracking"
-                className="inline-flex h-12 items-center justify-center rounded-xl border border-slate-300 bg-white px-6 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700"
+                className="inline-flex h-[44px] items-center justify-center rounded-xl border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 sm:h-12 sm:px-6"
               >
                 Track Parcel
               </a>
@@ -265,7 +265,7 @@ export default function HomeHero() {
                 event.preventDefault();
                 submitTracking(trackingId);
               }}
-              className="mt-5 max-w-[680px] rounded-2xl border border-slate-200 bg-white/85 p-2 shadow-[0_16px_44px_rgba(15,23,42,0.12)] backdrop-blur"
+              className="mt-5 max-w-[680px] rounded-2xl border border-slate-200 bg-white/85 p-1.5 shadow-[0_16px_44px_rgba(15,23,42,0.12)] backdrop-blur sm:p-2"
             >
               <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Track Parcel</p>
               <div className="flex flex-col gap-2 md:flex-row md:items-center">
@@ -274,12 +274,12 @@ export default function HomeHero() {
                   value={trackingId}
                   onChange={(event) => setTrackingId(event.target.value)}
                   placeholder="Enter tracking ID"
-                  className="h-14 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-base text-slate-900 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100"
+                  className="h-[42px] w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100 sm:h-14 sm:px-4 sm:text-base"
                 />
 
                 <button
                   type="submit"
-                  className="inline-flex h-14 items-center justify-center gap-2 rounded-xl bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-6 text-sm font-bold text-white transition hover:-translate-y-0.5"
+                  className="inline-flex h-[42px] items-center justify-center gap-2 rounded-xl bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] px-5 text-sm font-bold text-white transition hover:-translate-y-0.5 sm:h-14 sm:px-6"
                 >
                   <Search className="h-4 w-4" />
                   Track
@@ -288,7 +288,7 @@ export default function HomeHero() {
                 <button
                   type="button"
                   onClick={() => setScannerOpen(true)}
-                  className="inline-flex h-14 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700"
+                  className="inline-flex h-[42px] items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 sm:h-14 sm:px-5"
                 >
                   <ScanLine className="h-4 w-4" />
                   Scan Barcode
@@ -312,7 +312,7 @@ export default function HomeHero() {
                     <X className="h-4 w-4" />
                   </button>
                 </div>
-                <video ref={videoRef} className="mb-3 h-48 w-full rounded-xl border border-slate-200 object-cover" playsInline muted />
+                <video ref={videoRef} className="mb-3 h-40 w-full rounded-xl border border-slate-200 object-cover sm:h-48" playsInline muted />
                 <div id={SCANNER_CONTAINER_ID} className="overflow-hidden rounded-xl border border-slate-200" />
                 {scannerError ? <p className="mt-2 text-xs font-semibold text-red-600">{scannerError}</p> : null}
                 {scannerNotice ? <p className="mt-1 text-xs font-semibold text-emerald-700">{scannerNotice}</p> : null}
@@ -321,7 +321,7 @@ export default function HomeHero() {
           </div>
 
           <div className="relative flex items-center justify-center">
-            <div className="relative h-[360px] w-full max-w-[560px] sm:h-[420px]">
+            <div className="relative h-[300px] w-full max-w-[560px] sm:h-[420px]">
               <div className="absolute inset-0 -z-20 rounded-3xl bg-white/60 shadow-[0_26px_60px_rgba(15,23,42,0.16)] backdrop-blur-sm" />
               <div className="absolute inset-0 -z-10 translate-x-4 translate-y-4 rounded-3xl border border-slate-200 bg-white/45" />
 

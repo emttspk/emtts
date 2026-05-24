@@ -1148,11 +1148,11 @@ export default function BulkTracking() {
   const [refreshSummary, setRefreshSummary] = useState<string | null>(() => {
     const cached = readInitialWorkspaceRenderCache();
     if (!cached?.shipments.length) return null;
-    return `Restored ${cached.shipments.length} cached rows. Syncing latest updates in the background.`;
+    return `Restored ${cached.shipments.length} cached tracking rows. Syncing latest updates in the background.`;
   });
   const [refreshingPending, setRefreshingPending] = useState(false);
   const [selectedTracking, setSelectedTracking] = useState<FinalTrackingRecord | null>(null);
-  const { shipmentStats, refreshShipmentStats, shipmentStatsFetchedAt } = useShipmentStats();
+  const { refreshShipmentStats, shipmentStatsFetchedAt } = useShipmentStats();
   const [pageSize, setPageSize] = useState<20 | 50 | 100>(() => readInitialWorkspaceViewState()?.pageSize ?? 20);
   const [statusFilter, setStatusFilter] = useState<ExtendedStatusFilter>(() => readInitialWorkspaceViewState()?.statusFilter ?? "ALL");
   const [searchInput, setSearchInput] = useState(() => readInitialWorkspaceViewState()?.searchInput ?? "");
@@ -1304,7 +1304,7 @@ export default function BulkTracking() {
       if (isAdmin && snapshot.complaintQueue?.length) {
         setComplaintQueueByTracking(complaintQueueRowsToMap(snapshot.complaintQueue));
       }
-      setRefreshSummary(`Loaded ${snapshot.shipments.length.toLocaleString()} cached rows. Syncing latest updates in the background.`);
+      setRefreshSummary(`Loaded ${snapshot.shipments.length.toLocaleString()} cached tracking rows. Syncing latest updates in the background.`);
     }
 
     void hydrateFullWorkspaceSnapshot().finally(() => {
@@ -1706,7 +1706,7 @@ export default function BulkTracking() {
       }
 
       applyShipmentsSnapshot(nextRows, nextTotal);
-      setRefreshSummary(`Synced ${nextRows.length.toLocaleString()} rows at ${new Date(fetchedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}.`);
+      setRefreshSummary(`Synced ${nextRows.length.toLocaleString()} tracking rows at ${new Date(fetchedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}.`);
       void refreshSupportingWorkspaceData({ force: options?.forceFull });
     } finally {
       shipmentsRefreshInFlightRef.current = false;
@@ -2017,7 +2017,7 @@ export default function BulkTracking() {
             fetchedAt,
           };
           applyShipmentsSnapshot(allRows, total);
-          setRefreshSummary(`Background sync refreshed ${allRows.length.toLocaleString()} rows.`);
+          setRefreshSummary(`Background sync refreshed ${allRows.length.toLocaleString()} tracking rows.`);
           await refreshSupportingWorkspaceData({ force: true });
         } catch {
           // Ignore background sync failures.
@@ -2398,6 +2398,49 @@ export default function BulkTracking() {
     }
     return { total, active, closed };
   }, [trackingTableRows]);
+
+  const workspaceShipmentStats = useMemo(() => {
+    let totalAmount = 0;
+    let deliveredAmount = 0;
+    let pendingAmount = 0;
+    let returnedAmount = 0;
+    let complaintAmount = 0;
+
+    for (const row of trackingTableRows) {
+      const shipment = row.record.shipment;
+      const status = normalizeStatus(row.actionStatus);
+      const rawAmount = extractMoValue(shipment.rawJson, shipment.moValue ?? null);
+      const parsedAmount = Number(rawAmount ?? 0);
+      const amount = Number.isFinite(parsedAmount) ? Math.max(0, parsedAmount) : 0;
+
+      totalAmount += amount;
+
+      if (status === "DELIVERED" || status === "DELIVERED WITH PAYMENT") {
+        deliveredAmount += amount;
+      } else if (status === "RETURNED") {
+        returnedAmount += amount;
+      } else {
+        pendingAmount += amount;
+      }
+
+      if (row.lifecycle.exists) {
+        complaintAmount += amount;
+      }
+    }
+
+    return {
+      total: trackingTableRows.length,
+      delivered: summaryStats.delivered,
+      pending: summaryStats.pending,
+      returned: summaryStats.returned,
+      complaints: complaintTotals.total,
+      totalAmount,
+      deliveredAmount,
+      pendingAmount,
+      returnedAmount,
+      complaintAmount,
+    };
+  }, [trackingTableRows, summaryStats.delivered, summaryStats.pending, summaryStats.returned, complaintTotals.total]);
   // PROTECTED_SCOPE_END
 
   const complaintRows = complaintPrefill?.districtData ?? [];
@@ -3588,22 +3631,22 @@ export default function BulkTracking() {
       </Card>
 
       <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-      <Card className="w-full min-w-0 overflow-hidden border border-[color:var(--line)] bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_56%,#eefbf3_100%)] p-5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] md:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+      <Card className="w-full min-w-0 overflow-hidden border border-[color:var(--line)] bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_56%,#eefbf3_100%)] p-3.5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] sm:p-5 md:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
           <div className="min-w-0">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
               <Activity className="h-3 w-3" />
               Tracking Workspace
             </div>
-              <div className="mt-2 text-[28px] font-bold tracking-[-0.04em] text-slate-900">Shipment status</div>
-            <div className="mt-1 text-sm leading-relaxed text-slate-600">Live view of every shipment.</div>
+              <div className="mt-2 text-2xl font-bold tracking-[-0.04em] text-slate-900 sm:text-[28px]">Shipment status</div>
+            <div className="mt-1 text-xs leading-relaxed text-slate-600 sm:text-sm">Live view of every synced shipment row.</div>
           </div>
-          <div className="flex shrink-0 items-center gap-3">
-            <div className="min-w-[130px] rounded-2xl border border-[#E5E7EB] bg-white p-3">
+          <div className="flex w-full shrink-0 flex-wrap items-center gap-2.5 sm:w-auto sm:gap-3">
+            <div className="min-w-[120px] flex-1 rounded-2xl border border-[#E5E7EB] bg-white p-2.5 sm:flex-none sm:p-3">
               <div className="text-xs font-medium text-slate-500">Current File</div>
               <div className="mt-1 truncate text-sm font-semibold text-slate-900">{file?.name ?? "No file selected"}</div>
             </div>
-            <div className="min-w-[110px] rounded-2xl border border-[#E5E7EB] bg-white p-3">
+            <div className="min-w-[110px] rounded-2xl border border-[#E5E7EB] bg-white p-2.5 sm:p-3">
               <div className="text-xs font-medium text-slate-500">Job State</div>
               <div className="mt-1 text-sm font-semibold text-slate-900">{statusLabel}</div>
             </div>
@@ -3618,36 +3661,36 @@ export default function BulkTracking() {
           {
             key: "ALL",
             label: "Total",
-            parcels: shipmentStats?.total ?? 0,
-            amount: shipmentStats?.totalAmount ?? 0,
+            parcels: workspaceShipmentStats.total,
+            amount: workspaceShipmentStats.totalAmount,
             active: statusFilter === "ALL",
           },
           {
             key: "DELIVERED",
             label: "Delivered",
-            parcels: shipmentStats?.delivered ?? 0,
-            amount: shipmentStats?.deliveredAmount ?? 0,
+            parcels: workspaceShipmentStats.delivered,
+            amount: workspaceShipmentStats.deliveredAmount,
             active: statusFilter === "DELIVERED",
           },
           {
             key: "PENDING",
             label: "Pending",
-            parcels: shipmentStats?.pending ?? 0,
-            amount: shipmentStats?.pendingAmount ?? 0,
+            parcels: workspaceShipmentStats.pending,
+            amount: workspaceShipmentStats.pendingAmount,
             active: statusFilter === "PENDING",
           },
           {
             key: "RETURNED",
             label: "Returned",
-            parcels: shipmentStats?.returned ?? 0,
-            amount: shipmentStats?.returnedAmount ?? 0,
+            parcels: workspaceShipmentStats.returned,
+            amount: workspaceShipmentStats.returnedAmount,
             active: statusFilter === "RETURNED",
           },
           {
             key: "COMPLAINTS",
             label: "Complaints",
-            parcels: shipmentStats?.complaints ?? 0,
-            amount: shipmentStats?.complaintAmount ?? 0,
+            parcels: workspaceShipmentStats.complaints,
+            amount: workspaceShipmentStats.complaintAmount,
             active: statusFilter === "COMPLAINT_TOTAL",
           },
         ]}
@@ -3661,6 +3704,7 @@ export default function BulkTracking() {
           setPage(1);
         }}
       />
+      <div className="mt-1 text-[11px] font-medium text-slate-500">Cards and table now use the same synced tracking dataset.</div>
 
       {uiState === "processing" && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-brand px-6 py-3 text-white shadow-lg transition-all duration-300">
@@ -3968,18 +4012,18 @@ export default function BulkTracking() {
                   if (e.key === "Enter") applyTrackingSearch();
                 }}
                 placeholder="Search tracking, city, status, complaint..."
-                className="w-full rounded-xl border border-[#E5E7EB] bg-white px-3 py-2 text-xs font-medium text-[#111827] outline-none focus:border-brand sm:min-w-[280px]"
+                className="w-full rounded-xl border border-[#E5E7EB] bg-white px-3 py-2 text-xs font-medium text-[#111827] outline-none focus:border-brand sm:min-w-[240px]"
               />
               <button
                 type="button"
                 onClick={applyTrackingSearch}
-                className="inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl bg-brand px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-brand-dark transition-colors"
+                className="inline-flex min-h-[40px] w-full items-center justify-center gap-1.5 rounded-xl bg-brand px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark sm:w-auto"
               >
                 <Search className="h-3.5 w-3.5" />
                 Search
               </button>
             </div>
-            <label className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm">
+            <label className="inline-flex w-full items-center justify-between gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm sm:w-auto sm:justify-start">
               <span>Records:</span>
               <select
                 className="border-0 bg-transparent text-xs font-semibold text-slate-700 outline-none"
@@ -3994,7 +4038,7 @@ export default function BulkTracking() {
                 <option value={100}>100</option>
               </select>
             </label>
-            <label className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-medium text-[#6B7280] shadow-sm">
+            <label className="inline-flex w-full items-center justify-between gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-medium text-[#6B7280] shadow-sm sm:w-auto sm:justify-start">
               <span>Status:</span>
               <select
                 className="border-0 bg-transparent text-xs font-semibold text-[#111827] outline-none"
@@ -4019,7 +4063,7 @@ export default function BulkTracking() {
             {selectedIds.length > 0 && (
               <button
                 onClick={deleteSelected}
-                className="inline-flex items-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 shadow-sm hover:bg-red-100 transition-colors"
+                className="inline-flex w-full items-center justify-center gap-1 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 shadow-sm transition-colors hover:bg-red-100 sm:w-auto"
               >
                 <X className="h-3 w-3" />
                 Delete {selectedIds.length}
@@ -4028,14 +4072,14 @@ export default function BulkTracking() {
             <button
               onClick={refreshAllPending}
               disabled={refreshingPending}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-brand/30 bg-brand/10 px-3 py-1.5 text-xs font-semibold text-brand shadow-sm hover:bg-brand/20 transition-colors disabled:opacity-60"
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-brand/30 bg-brand/10 px-3 py-1.5 text-xs font-semibold text-brand shadow-sm transition-colors hover:bg-brand/20 disabled:opacity-60 sm:w-auto"
             >
               <RefreshCw className={cn("h-3.5 w-3.5", refreshingPending && "animate-spin")} />
               Refresh Pending
             </button>
             <button
               onClick={() => void refreshShipments({ force: true })}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-sm hover:border-brand/40 hover:bg-slate-50 transition-colors"
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-sm transition-colors hover:border-brand/40 hover:bg-slate-50 sm:w-auto"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Refresh
@@ -4043,7 +4087,7 @@ export default function BulkTracking() {
             <button
               type="button"
               onClick={exportFilteredTrackingCsv}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-semibold text-[#111827] shadow-sm hover:bg-[#F8FAF9] transition-colors"
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-semibold text-[#111827] shadow-sm transition-colors hover:bg-[#F8FAF9] sm:w-auto"
             >
               Export
             </button>
@@ -4052,7 +4096,7 @@ export default function BulkTracking() {
         {refreshSummary ? <div className="border-t border-[#E5E7EB] bg-[#F8FAF9] px-4 py-2 text-xs text-[#6B7280]">{refreshSummary}</div> : null}
         </div>
         <div className="p-0">
-          <div className="flex items-center justify-between border-y border-[#E5E7EB] bg-[linear-gradient(180deg,#f8fafc,#f1f5f9)] px-4 py-2 text-xs text-slate-600">
+          <div className="hidden items-center justify-between border-y border-[#E5E7EB] bg-[linear-gradient(180deg,#f8fafc,#f1f5f9)] px-4 py-2 text-xs text-slate-600 md:flex">
             <div className="text-slate-500">
               Page <span className="font-semibold text-slate-700">{page}</span> of <span className="font-semibold text-slate-700">{totalPages}</span> &nbsp;·&nbsp; <span className="font-semibold text-slate-700">{paginatedTrackingTableRows.length}</span> of <span className="font-semibold text-slate-700">{totalFilteredShipments}</span> filtered
             </div>
@@ -4105,7 +4149,121 @@ export default function BulkTracking() {
               </button>
             </div>
           </div>
-          <div className="w-full max-h-[72vh] overflow-y-auto overflow-x-auto rounded-[20px] border border-[#E5E7EB] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+          <div className="space-y-2 border-y border-[#E5E7EB] bg-[linear-gradient(180deg,#f8fafc,#ffffff)] p-3 md:hidden">
+            <div className="text-xs text-slate-600">
+              Page <span className="font-semibold text-slate-700">{page}</span> of <span className="font-semibold text-slate-700">{totalPages}</span> · <span className="font-semibold text-slate-700">{paginatedTrackingTableRows.length}</span> of <span className="font-semibold text-slate-700">{totalFilteredShipments}</span> filtered
+            </div>
+            <div className="grid gap-2.5">
+              {paginatedTrackingTableRows.map((row, index) => {
+                const s = row.record.shipment;
+                const lifecycle = row.lifecycle;
+                const queueSnapshot = complaintQueueByTracking.get(s.trackingNumber);
+                const isComplaintEnabled = isComplaintActionAllowed(row.actionStatus, lifecycle, queueSnapshot);
+                const complaintActionLabel = resolveComplaintActionLabel(row.actionStatus, lifecycle, queueSnapshot);
+                const statusUpper = normalizeStatus(row.actionStatus).toUpperCase();
+                const isWarning = row.record.delayed;
+                const fetchedMO = extractMoReference(s.rawJson, s.moIssued ?? null, s.moneyOrderIssued);
+                const issuedValue = extractMoValue(s.rawJson, s.moValue ?? null);
+                const actionOptions = [
+                  { label: "Pending", val: "PENDING" },
+                  { label: "Delivered", val: "DELIVERED" },
+                  { label: "Return", val: "RETURNED" },
+                ];
+                const validActionValues = new Set(actionOptions.map((opt) => opt.val));
+                const normalizedDisplayStatus = String(row.actionStatus ?? "").trim().toUpperCase().includes("RETURN")
+                  ? "RETURNED"
+                  : String(row.actionStatus ?? "").trim().toUpperCase();
+                const actionValue = !normalizedDisplayStatus || !validActionValues.has(normalizedDisplayStatus)
+                  ? "PENDING"
+                  : normalizedDisplayStatus;
+
+                return (
+                  <div key={s.id} className="rounded-2xl border border-[#E5E7EB] bg-white p-3 shadow-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="text-[11px] font-semibold text-slate-500">#{(page - 1) * pageSize + index + 1}</div>
+                      <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset", isWarning ? "bg-red-100 text-red-700 ring-red-200" : row.statusBadge)}>
+                        {statusUpper}
+                      </span>
+                    </div>
+                    <div className="mt-1 font-mono text-xs font-bold text-slate-800 break-all">{s.trackingNumber}</div>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+                      <div className="rounded-lg bg-slate-50 px-2 py-1.5">
+                        <div className="text-slate-500">City</div>
+                        <div className="mt-0.5 font-semibold text-slate-800">{row.displayCity || "-"}</div>
+                      </div>
+                      <div className="rounded-lg bg-slate-50 px-2 py-1.5">
+                        <div className="text-slate-500">Money Order</div>
+                        <div className="mt-0.5 font-semibold text-slate-800">{fetchedMO || "-"}</div>
+                      </div>
+                      <div className="rounded-lg bg-slate-50 px-2 py-1.5">
+                        <div className="text-slate-500">Amount</div>
+                        <div className="mt-0.5 font-semibold text-emerald-700">{issuedValue != null ? `Rs ${issuedValue.toLocaleString()}` : "-"}</div>
+                      </div>
+                      <div className="rounded-lg bg-slate-50 px-2 py-1.5">
+                        <div className="text-slate-500">Updated</div>
+                        <div className="mt-0.5 font-semibold text-slate-800">{row.updatedDateLabel}</div>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex flex-col gap-2">
+                      <select
+                        className="w-full rounded-lg border-[#E5E7EB] bg-white px-2.5 py-2 text-xs font-medium text-slate-700 shadow-sm focus:border-brand focus:ring-brand"
+                        value={actionValue}
+                        onChange={(e) => updateStatus(s.trackingNumber, e.target.value.includes("RETURN") ? "RETURNED" : e.target.value)}
+                      >
+                        {actionOptions.map((opt) => (
+                          <option key={opt.val} value={opt.val}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTracking(row.record)}
+                          className="inline-flex items-center justify-center rounded-lg bg-brand px-3 py-2 text-[11px] font-semibold text-white"
+                        >
+                          Track
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!isComplaintEnabled || complaintActionLabel === "In Process"}
+                          onClick={() => openComplaintModal(row.record)}
+                          className={cn(
+                            "inline-flex items-center justify-center rounded-lg px-3 py-2 text-[11px] font-semibold ring-1 ring-inset",
+                            isComplaintEnabled && complaintActionLabel !== "In Process"
+                              ? "bg-red-50 text-red-700 ring-red-200"
+                              : "cursor-not-allowed bg-gray-50 text-gray-400 ring-gray-200",
+                          )}
+                        >
+                          {complaintActionLabel}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {paginatedTrackingTableRows.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-sm text-slate-500">No shipments found.</div>
+              ) : null}
+            </div>
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <button
+                className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
+                disabled={page <= 1}
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              >
+                Previous
+              </button>
+              <button
+                className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-medium shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-40"
+                disabled={page >= totalPages}
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+          <div className="hidden w-full max-h-[72vh] overflow-y-auto overflow-x-auto rounded-[20px] border border-[#E5E7EB] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] md:block">
             <table className="min-w-[980px] w-full table-fixed text-[11px] leading-4">
               <thead className="sticky top-0 z-10 border-b border-[#E5E7EB] bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(241,245,249,0.98))] backdrop-blur-md">
               <tr>
@@ -4376,7 +4534,7 @@ export default function BulkTracking() {
             </tbody>
           </table>
         </div>
-          <div className="flex items-center justify-between border-t border-[#E5E7EB] bg-[linear-gradient(180deg,#ffffff,#f8fafc)] px-4 py-3 text-xs text-slate-600">
+          <div className="hidden items-center justify-between border-t border-[#E5E7EB] bg-[linear-gradient(180deg,#ffffff,#f8fafc)] px-4 py-3 text-xs text-slate-600 md:flex">
             <div className="text-slate-500">
               Page <span className="font-semibold text-slate-700">{page}</span> of <span className="font-semibold text-slate-700">{totalPages}</span> &nbsp;·&nbsp; <span className="font-semibold text-slate-700">{paginatedTrackingTableRows.length}</span> of <span className="font-semibold text-slate-700">{totalFilteredShipments}</span> filtered &nbsp;·&nbsp; <span className="font-semibold text-slate-700">{totalShipments}</span> total
             </div>

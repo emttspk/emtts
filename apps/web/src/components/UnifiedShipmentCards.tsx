@@ -43,14 +43,14 @@ export default function UnifiedShipmentCards({
   };
 
   return (
-    <div className={cn("grid gap-3 sm:grid-cols-2 xl:grid-cols-5", className)}>
+    <div className={cn("grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3 xl:grid-cols-5", className)}>
       {items.map((item) => (
         <button
           key={item.key}
           type="button"
           onClick={() => onSelect?.(item.key)}
           className={cn(
-            "rounded-2xl border p-4 text-left transition-all min-h-[138px]",
+            "rounded-2xl border p-3.5 text-left transition-all min-h-[124px] sm:min-h-[138px] sm:p-4",
             toneByKey[item.key],
             item.active ? "ring-2 ring-brand/35" : "hover:shadow-sm hover:-translate-y-0.5",
           )}
@@ -59,7 +59,7 @@ export default function UnifiedShipmentCards({
             <div className="text-slate-700">{iconByKey[item.key]}</div>
             <div className="ui-cell-wrap text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 text-right">{item.label}</div>
           </div>
-          <div className="mt-3 ui-cell-wrap text-xl font-bold text-slate-900">{item.parcels.toLocaleString()} Parcels</div>
+          <div className="mt-2.5 ui-cell-wrap text-lg font-bold text-slate-900 sm:mt-3 sm:text-xl">{item.parcels.toLocaleString()} Parcels</div>
           <div className="mt-1 ui-cell-wrap text-xs font-semibold text-slate-600">{formatAmount(item.amount)}</div>
         </button>
       ))}

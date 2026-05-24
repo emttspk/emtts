@@ -16,17 +16,17 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-[color:var(--line)] bg-white/95 shadow-[0_8px_24px_rgba(8,18,37,0.06)] backdrop-blur-2xl">
-      <div className="mx-auto flex h-[74px] w-full max-w-[1240px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
-        <div className="flex min-w-0 items-center gap-3.5">
+      <div className="mx-auto flex h-[62px] w-full max-w-[1240px] items-center justify-between gap-3 px-4 sm:h-[74px] sm:gap-4 sm:px-6 lg:px-8">
+        <div className="flex min-w-0 items-center gap-2.5 sm:gap-3.5">
           <a
             href="/"
-            className="inline-flex shrink-0 items-center justify-center rounded-2xl border border-[color:var(--line)] bg-white px-2 py-2 shadow-[0_12px_30px_rgba(16,185,129,0.12)]"
+            className="inline-flex shrink-0 items-center justify-center rounded-2xl border border-[color:var(--line)] bg-white px-1.5 py-1.5 shadow-[0_12px_30px_rgba(16,185,129,0.12)] sm:px-2 sm:py-2"
           >
-            <img src="/assets/pakistan-post-logo.png" alt="Pakistan Post" className="h-8 w-auto object-contain" />
+            <img src="/assets/pakistan-post-logo.png" alt="Pakistan Post" className="h-7 w-auto object-contain sm:h-8" />
           </a>
           <div className="min-w-0 leading-tight">
-            <div className="whitespace-nowrap text-[15px] font-extrabold tracking-[0.01em] text-slate-900">ePost.pk</div>
-            <div className="whitespace-nowrap text-[11px] font-medium text-slate-500">Pakistan Post workspace</div>
+            <div className="whitespace-nowrap text-[14px] font-extrabold tracking-[0.01em] text-slate-900 sm:text-[15px]">ePost.pk</div>
+            <div className="whitespace-nowrap text-[10px] font-medium text-slate-500 sm:text-[11px]">Pakistan Post workspace</div>
           </div>
         </div>
 
@@ -66,7 +66,7 @@ export default function Navbar() {
             type="button"
             aria-label="Toggle navigation"
             onClick={() => setOpen((v) => !v)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 sm:h-10 sm:w-10"
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
@@ -74,14 +74,14 @@ export default function Navbar() {
       </div>
 
       {open ? (
-        <div className="border-t border-slate-100 bg-white px-4 pb-6 pt-4 shadow-[0_16px_36px_rgba(15,23,42,0.10)] lg:hidden">
+        <div className="border-t border-slate-100 bg-white px-4 pb-5 pt-3.5 shadow-[0_16px_36px_rgba(15,23,42,0.10)] lg:hidden">
           <div className="mx-auto grid w-full max-w-[1240px] gap-2">
             {navLinks.map((item) => (
               <a
                 key={item.label}
                 href={item.href}
                 onClick={() => setOpen(false)}
-                className="rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 hover:bg-emerald-50 hover:text-emerald-800"
+                className="rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-emerald-50 hover:text-emerald-800"
               >
                 {item.label}
               </a>
