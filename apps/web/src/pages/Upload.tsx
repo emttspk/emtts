@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download } from "lucide-react";
+import { CheckCircle2, Clock3, Download, FileArchive, FileSpreadsheet, ReceiptText, ShieldCheck, Sparkles } from "lucide-react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import Card from "../components/Card";
 import SampleDownloadLink from "../components/SampleDownloadLink";
@@ -102,6 +102,26 @@ function buildTrackingMasterFallbackName(value = new Date()) {
   const month = String(value.getMonth() + 1).padStart(2, "0");
   const year = String(value.getFullYear());
   return `Tracking Master ${day}-${month}-${year}.xlsx`;
+}
+
+function formatExactDateTime(value: string | null | undefined) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "medium",
+  }).format(parsed);
+}
+
+function resolveRetentionHours(job: LabelJob | null, fallbackHours: number) {
+  if (!job?.deleteAfterAt) return fallbackHours;
+  const createdAt = new Date(job.createdAt);
+  const deleteAfterAt = new Date(job.deleteAfterAt);
+  if (Number.isNaN(createdAt.getTime()) || Number.isNaN(deleteAfterAt.getTime())) return fallbackHours;
+  const diffMs = deleteAfterAt.getTime() - createdAt.getTime();
+  const diffHours = Math.round(diffMs / (60 * 60 * 1000));
+  return diffHours > 0 ? diffHours : fallbackHours;
 }
 
 function isValidTrackingId(input: unknown) {
@@ -506,13 +526,13 @@ export default function Upload() {
     refreshJobs().catch(() => {});
   }, []);
 
-  function downloadPdf(jobId: string, kind: "labels" | "money-orders") {
+  async function downloadPdf(jobId: string, kind: "labels" | "money-orders") {
     const fallbackName = buildJobDownloadFallbackName(kind);
-    triggerBrowserDownload(`/api/jobs/${jobId}/download/${kind}`, fallbackName);
+    await triggerBrowserDownload(`/api/jobs/${jobId}/download/${kind}`, fallbackName);
   }
 
-  function downloadTrackingMaster(jobId: string) {
-    triggerBrowserDownload(`/api/jobs/${jobId}/download/tracking-master`, buildTrackingMasterFallbackName());
+  async function downloadTrackingMaster(jobId: string) {
+    await triggerBrowserDownload(`/api/jobs/${jobId}/download/tracking-master`, buildTrackingMasterFallbackName());
   }
 
   const latest = useMemo(() => jobs[0] ?? null, [jobs]);
@@ -557,6 +577,8 @@ export default function Upload() {
   const [progress, setProgress] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [estimatedTotalSec, setEstimatedTotalSec] = useState<number | null>(null);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [completionAction, setCompletionAction] = useState<"labels" | "money-orders" | "tracking-master" | "tracking-workspace" | null>(null);
   const progressTimer = useRef<number | null>(null);
   const stateRef = useRef(uiState);
 
@@ -610,7 +632,38 @@ export default function Upload() {
       .join(" | ");
   }, [uploadInsights?.serviceCounts, validationSummary?.acceptedServiceCounts]);
   const isPaidUser = Boolean(me?.subscription && Number(me.subscription.plan?.priceCents ?? 0) > 0);
-  const retentionHours = isPaidUser ? 72 : 24;
+  const retentionHours = resolveRetentionHours(activeJob, isPaidUser ? 72 : 24);
+  const exactDeletionTime = useMemo(() => formatExactDateTime(activeJob?.deleteAfterAt), [activeJob?.deleteAfterAt]);
+  const completionRetentionNote = useMemo(() => {
+    if (retentionHours === 72) return "Paid retention window: 72 hours";
+    if (retentionHours === 24) return "Free retention window: 24 hours";
+    return `Retention window from backend: ${retentionHours} hours`;
+  }, [retentionHours]);
+  const canDownloadMoneyOrders = Boolean(activeJob?.moneyOrderPdfPath || activeJob?.includeMoneyOrders);
+  const canDownloadTrackingMaster = Boolean(activeJob?.trackingMasterPath);
+  const completionButtonsDisabled = completionAction !== null;
+
+  async function runCompletionAction(action: "labels" | "money-orders" | "tracking-master" | "tracking-workspace") {
+    if (!polling.jobId || completionAction) return;
+    setCompletionAction(action);
+    try {
+      if (action === "labels") {
+        await downloadPdf(polling.jobId, "labels");
+        return;
+      }
+      if (action === "money-orders") {
+        await downloadPdf(polling.jobId, "money-orders");
+        return;
+      }
+      if (action === "tracking-master") {
+        await downloadTrackingMaster(polling.jobId);
+        return;
+      }
+      navigate("/tracking-workspace");
+    } finally {
+      setCompletionAction(null);
+    }
+  }
 
   async function startGenerate() {
     if (!file) return;
@@ -618,6 +671,8 @@ export default function Upload() {
     if (uiState === "uploading" || uiState === "processing") return;
     setUiError(null);
     setValidationSummary(null);
+    setShowCompletionModal(false);
+    setCompletionAction(null);
     setUiState("uploading");
     setProgress(10);
     setElapsed(0);
@@ -1103,6 +1158,7 @@ export default function Upload() {
     }
     if (polling.jobStatus === "COMPLETED") {
       setUiState("completed");
+      setShowCompletionModal(true);
       setProgress(100);
       if (progressTimer.current) window.clearInterval(progressTimer.current);
     }
@@ -1666,94 +1722,180 @@ export default function Upload() {
 
         {/* PROTECTED RENDER PATH: DO NOT MODIFY WITHOUT EXPLICIT APPROVAL. */}
         {/* Completion actions + retention warning are part of the finalized production operator workflow. */}
-        {uiState === "completed" && polling.jobId ? (
-          <Card className="border-emerald-200 bg-[linear-gradient(130deg,#ecfdf3_0%,#f0f9ff_55%,#ffffff_100%)] p-5 shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-3">
+        {uiState === "completed" && polling.jobId && !showCompletionModal ? (
+          <Card className="border-emerald-200 bg-[linear-gradient(135deg,#f5fff8_0%,#eefbf6_42%,#ffffff_100%)] p-5 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <CardTitle className="text-xl text-emerald-900">Generation Completed</CardTitle>
-                <div className="mt-1 text-sm text-emerald-800">Export all artifacts, then move to Track Parcel with the same tracking master file.</div>
+                <CardTitle className="text-lg text-emerald-950">Generation completed</CardTitle>
+                <div className="mt-1 text-sm text-slate-600">The completion window was closed. Reopen it to download artifacts and confirm the exact deletion schedule.</div>
               </div>
-              <div className="rounded-xl border border-emerald-300 bg-white px-3 py-1 text-xs font-semibold text-emerald-700">Job ID: {polling.jobId}</div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-emerald-900">
-                <div className="text-[11px] font-semibold uppercase tracking-wide">Labels Generated</div>
-                <div className="mt-0.5 text-base font-bold">{validationSummary?.accepted ?? activeJob?.recordCount ?? 0}</div>
-              </div>
-              <div className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-sky-900">
-                <div className="text-[11px] font-semibold uppercase tracking-wide">Tracking IDs Generated</div>
-                <div className="mt-0.5 text-base font-bold">{validationSummary?.accepted ?? activeJob?.recordCount ?? 0}</div>
-              </div>
-              <div className="rounded-xl border border-fuchsia-200 bg-white px-3 py-2 text-fuchsia-900">
-                <div className="text-[11px] font-semibold uppercase tracking-wide">Money Orders Generated</div>
-                <div className="mt-0.5 text-base font-bold">{includeMoneyOrders ? (validationSummary?.moEligibleRows ?? 0) : 0}</div>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-900">
-                <div className="text-[11px] font-semibold uppercase tracking-wide">Validation Passed</div>
-                <div className="mt-0.5 text-base font-bold">{validationSummary ? Math.max(0, validationSummary.accepted) : (activeJob?.recordCount ?? 0)}</div>
-              </div>
-            </div>
-
-            <div className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">
-              <span className="font-semibold text-slate-800">Service summary:</span> {successServiceSummary || "No service summary available"}
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
                 type="button"
-                onClick={() => downloadPdf(polling.jobId!, "labels")}
-                className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+                onClick={() => setShowCompletionModal(true)}
+                className="rounded-2xl border border-emerald-300 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 shadow-sm hover:bg-emerald-50"
               >
-                Download Labels PDF
+                Open Completion Window
               </button>
-              <button
-                type="button"
-                onClick={() => downloadPdf(polling.jobId!, "money-orders")}
-                disabled={!activeJob?.includeMoneyOrders}
-                className="rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Download Money Orders PDF
-              </button>
-              <button
-                type="button"
-                onClick={() => downloadTrackingMaster(polling.jobId!)}
-                className="rounded-2xl border border-sky-300 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-100"
-              >
-                Download Tracking Master File (.xlsx)
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/tracking-workspace")}
-                className="rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-emerald-700"
-              >
-                Track These Shipments
-              </button>
-            </div>
-
-            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-900">
-              <div className="flex items-start gap-2">
-                <svg className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
-                <div>
-                  <div className="font-semibold text-amber-900">Data Retention Notice</div>
-                  <div className="mt-1">
-                    Please download and securely save:
-                  </div>
-                  <div className="mt-1">• Labels PDF</div>
-                  <div>• Money Orders</div>
-                  <div>• Tracking Master File</div>
-                  <div className="mt-2">Files are automatically removed from server after retention period.</div>
-                  <div className="mt-1 text-xs font-semibold text-amber-800">
-                    {isPaidUser ? "PAID USERS: files deleted after 72 hours" : "FREE USERS: files deleted after 24 hours"}
-                  </div>
-                  <div className="mt-0.5 text-xs text-amber-700">Current retention for this account: {retentionHours} hours</div>
-                </div>
-              </div>
             </div>
           </Card>
         ) : null}
         </div>
       </div>
+      {uiState === "completed" && polling.jobId && showCompletionModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4">
+          <div className="relative max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-[2rem] border border-emerald-200 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.95),_rgba(240,253,250,0.98)_36%,_rgba(236,254,255,0.98)_100%)] p-6 shadow-[0_32px_90px_rgba(15,23,42,0.35)] sm:p-8">
+            <button
+              type="button"
+              onClick={() => setShowCompletionModal(false)}
+              className="absolute right-4 top-4 rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-sm font-semibold text-slate-600 shadow-sm hover:bg-white"
+            >
+              Close
+            </button>
+
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+              <div className="max-w-2xl">
+                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700 shadow-sm">
+                  <Sparkles className="h-4 w-4" />
+                  Generation Completed
+                </div>
+                <PageTitle className="mt-4 text-3xl text-slate-950">Your files are ready for export.</PageTitle>
+                <BodyText className="mt-2 max-w-xl text-sm text-slate-600">
+                  Download the generated labels, money order file, and tracking master from one place. Retention timing below is taken from the backend job record.
+                </BodyText>
+              </div>
+
+              <div className="grid min-w-[260px] gap-3 rounded-[1.5rem] border border-slate-200 bg-white/85 p-4 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Job Status</div>
+                    <div className="text-lg font-bold text-emerald-800">Completed</div>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Job ID</div>
+                  <div className="mt-1 break-all font-mono text-[13px] text-slate-900">{polling.jobId}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-[1.5rem] border border-emerald-200 bg-white/95 p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-700">Labels Generated</div>
+                    <div className="mt-2 text-3xl font-black text-slate-950">{validationSummary?.accepted ?? activeJob?.recordCount ?? 0}</div>
+                  </div>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+                    <FileArchive className="h-5 w-5" />
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-[1.5rem] border border-sky-200 bg-white/95 p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">Tracking IDs</div>
+                    <div className="mt-2 text-3xl font-black text-slate-950">{validationSummary?.accepted ?? activeJob?.recordCount ?? 0}</div>
+                  </div>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
+                    <FileSpreadsheet className="h-5 w-5" />
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-[1.5rem] border border-fuchsia-200 bg-white/95 p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-fuchsia-700">Money Orders</div>
+                    <div className="mt-2 text-3xl font-black text-slate-950">{includeMoneyOrders ? (validationSummary?.moEligibleRows ?? 0) : 0}</div>
+                  </div>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-fuchsia-100 text-fuchsia-700">
+                    <ReceiptText className="h-5 w-5" />
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-[1.5rem] border border-amber-200 bg-white/95 p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-700">Deletion Time</div>
+                    <div className="mt-2 text-sm font-bold leading-6 text-slate-950">{exactDeletionTime || "Pending backend retention timestamp"}</div>
+                  </div>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                    <Clock3 className="h-5 w-5" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-[1.35fr_0.95fr]">
+              <div className="rounded-[1.75rem] border border-slate-200 bg-white/92 p-5 shadow-sm">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                  <ShieldCheck className="h-4 w-4 text-emerald-700" />
+                  Service Summary
+                </div>
+                <div className="mt-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+                  <div><span className="font-semibold text-slate-900">Completed services:</span> {successServiceSummary || "No service summary available"}</div>
+                  <div className="mt-2"><span className="font-semibold text-slate-900">Exact deletion time:</span> {exactDeletionTime || "Pending backend retention timestamp"}</div>
+                  <div className="mt-2"><span className="font-semibold text-slate-900">Retention rule:</span> {completionRetentionNote}</div>
+                </div>
+              </div>
+
+              <div className="rounded-[1.75rem] border border-amber-200 bg-[linear-gradient(135deg,rgba(255,251,235,0.95),rgba(255,247,237,0.98))] p-5 shadow-sm">
+                <div className="text-sm font-semibold text-amber-950">Data Retention Notice</div>
+                <div className="mt-3 text-sm leading-6 text-amber-900">
+                  Download and store these files before the retention window ends. The deletion timestamp shown here is the exact backend schedule for this job.
+                </div>
+                <div className="mt-3 rounded-2xl border border-amber-200 bg-white/75 px-4 py-3 text-sm text-amber-900">
+                  <div className="font-semibold">{completionRetentionNote}</div>
+                  <div className="mt-1 text-xs font-semibold text-amber-800">FREE USERS: files deleted after 24 hours</div>
+                  <div className="mt-1 text-xs font-semibold text-amber-800">PAID USERS: files deleted after 72 hours</div>
+                  <div className="mt-1">Scheduled deletion: {exactDeletionTime || "Pending backend retention timestamp"}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <button
+                type="button"
+                onClick={() => void runCompletionAction("labels")}
+                disabled={completionButtonsDisabled}
+                className="rounded-[1.4rem] border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {completionAction === "labels" ? "Preparing Labels..." : "Generated Labels"}
+              </button>
+              {canDownloadMoneyOrders ? (
+                <button
+                  type="button"
+                  onClick={() => void runCompletionAction("money-orders")}
+                  disabled={completionButtonsDisabled}
+                  className="rounded-[1.4rem] border border-fuchsia-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm hover:bg-fuchsia-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {completionAction === "money-orders" ? "Preparing Money Order..." : "Money Order"}
+                </button>
+              ) : null}
+              {canDownloadTrackingMaster ? (
+                <button
+                  type="button"
+                  onClick={() => void runCompletionAction("tracking-master")}
+                  disabled={completionButtonsDisabled}
+                  className="rounded-[1.4rem] border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-900 shadow-sm hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {completionAction === "tracking-master" ? "Preparing Tracking Master..." : "Tracking Master"}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => void runCompletionAction("tracking-workspace")}
+                disabled={completionButtonsDisabled}
+                className="rounded-[1.4rem] bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-md hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {completionAction === "tracking-workspace" ? "Opening..." : "Track These Shipments"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {mismatchDecisionModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
           <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-[0_30px_80px_rgba(15,23,42,0.28)]">

@@ -8,6 +8,10 @@ export type LabelJob = {
   includeMoneyOrders?: boolean;
   status: JobStatus;
   error?: string | null;
+  labelsPdfPath?: string | null;
+  moneyOrderPdfPath?: string | null;
+  trackingMasterPath?: string | null;
+  deleteAfterAt?: string | null;
   createdAt: string;
 };
 
