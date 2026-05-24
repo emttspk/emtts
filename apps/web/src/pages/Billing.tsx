@@ -50,10 +50,10 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
   const modeTitle = entryMode === "select" ? "Select Package" : entryMode === "update" ? "Update Package" : "Pricing & Billing";
   const modeSubtitle =
     entryMode === "select"
-      ? "Choose an ePost.pk package to start dispatching."
+      ? "Choose a package to start dispatching."
       : entryMode === "update"
-        ? "Upgrade or switch based on your ePost.pk usage."
-        : "Choose an ePost.pk package for your team.";
+        ? "Upgrade or switch based on usage."
+        : "Choose a package for your team.";
 
   useEffect(() => {
     setLoadingPlans(true);
@@ -156,7 +156,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
               {modeTitle}
             </div>
             <div className="mt-5 text-xl font-semibold text-slate-900">Package summary</div>
-            <div className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Plan, usage, and billing status in one ePost.pk view.</div>
+            <div className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Plan, usage, and billing in one view.</div>
 
             {error ? <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
             {success ? <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div> : null}

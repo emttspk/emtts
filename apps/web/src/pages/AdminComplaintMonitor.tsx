@@ -113,7 +113,7 @@ export default function AdminComplaintMonitor() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="text-2xl font-semibold text-slate-900">Complaint Monitor</div>
-            <div className="mt-1 text-sm text-slate-600">Live queue and circuit status for complaint processing.</div>
+            <div className="mt-1 text-sm text-slate-600">Live queue and circuit status.</div>
           </div>
           <button
             type="button"
@@ -145,7 +145,7 @@ export default function AdminComplaintMonitor() {
       <Card className="overflow-hidden">
         <div className="border-b px-6 py-4">
           <div className="text-lg font-semibold text-slate-900">Retry Pending Queue</div>
-          <div className="mt-1 text-sm text-slate-600">Countdown visibility for rows waiting for next complaint retry.</div>
+          <div className="mt-1 text-sm text-slate-600">Rows waiting for next complaint retry.</div>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">

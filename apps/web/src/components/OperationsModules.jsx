@@ -6,49 +6,49 @@ const MODULES = [
     title: "Label Generation",
     image: "/assets/label.png",
     href: "/register",
-    description: "Generate printable shipping labels instantly",
+    description: "Generate printable labels fast",
   },
   {
     title: "Money Orders",
     image: "/assets/money-order.png",
     href: "/register",
-    description: "Create verified money orders with dispatch records",
+    description: "Create money orders with dispatch records",
   },
   {
     title: "Parcel Booking",
     image: "/assets/package.png",
     href: "/upload",
-    description: "Book single or bulk parcels with consistent data capture",
+    description: "Book single or bulk parcels",
   },
   {
     title: "Tracking",
     image: "/assets/track.png",
     href: "/tracking",
-    description: "Track parcel movement and delivery status in real time",
+    description: "Track shipment progress in real time",
   },
   {
     title: "Admin Dashboard",
     image: "/assets/dashboard.png",
     href: "/dashboard",
-    description: "Manage shipments, analytics, and operational workflow",
+    description: "Manage shipments and operations",
   },
   {
     title: "Complaint Automation",
     image: "/assets/complaint.png",
     href: "/complaints",
-    description: "Register, monitor, and resolve customer complaints quickly",
+    description: "File and monitor complaints quickly",
   },
   {
     title: "Billing Packages",
     image: "/assets/money-order.png",
     href: "/#billing-packages",
-    description: "Control usage and upgrade plans with clear monthly packages",
+    description: "Manage usage and plan upgrades",
   },
   {
     title: "Profile & Account",
     image: "/assets/tracking.png",
     href: "/login",
-    description: "Secure login, profile setup, and account recovery options",
+    description: "Secure login and account recovery",
   },
 ];
 
@@ -98,9 +98,7 @@ export default function OperationsModules() {
       <div className="mx-auto w-full max-w-[1400px] px-4 md:px-6 lg:px-12">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-700">Operations Product Suite</p>
-          <h2 className="mt-2 text-3xl font-black tracking-[-0.03em] text-slate-950 sm:text-4xl">
-            Everything You Need In One Place
-          </h2>
+          <h2 className="mt-2 text-3xl font-black tracking-[-0.03em] text-slate-950 sm:text-4xl">Core Operations In One Place</h2>
         </div>
 
         <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
@@ -126,16 +124,16 @@ export default function OperationsModules() {
 
         <div id="how-it-works" className="mt-16 rounded-3xl border border-white/80 bg-white/70 p-5 shadow-[0_18px_38px_rgba(15,23,42,0.12)] backdrop-blur-xl md:p-8">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-700">How It Works</p>
-          <h3 className="mt-2 text-2xl font-black tracking-[-0.03em] text-slate-950 sm:text-3xl">From Upload To Operations In 3 Steps</h3>
+          <h3 className="mt-2 text-2xl font-black tracking-[-0.03em] text-slate-950 sm:text-3xl">Run Operations In 3 Steps</h3>
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             {[
               {
                 title: "Step 1",
-                detail: "Upload / enter shipment data",
+                detail: "Upload shipment data",
               },
               {
                 title: "Step 2",
-                detail: "Generate labels and money orders",
+                detail: "Generate labels and MO",
               },
               {
                 title: "Step 3",
@@ -170,9 +168,7 @@ export default function OperationsModules() {
         <div id="billing-packages" className="mt-16">
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">Billing Plans</p>
-            <h3 className="mt-2 text-3xl font-black tracking-[-0.03em] text-slate-950 sm:text-4xl">
-              Flexible Billing Packages
-            </h3>
+            <h3 className="mt-2 text-3xl font-black tracking-[-0.03em] text-slate-950 sm:text-4xl">Billing Packages</h3>
           </div>
 
           <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-3">

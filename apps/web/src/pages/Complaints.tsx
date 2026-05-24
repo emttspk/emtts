@@ -84,7 +84,7 @@ export default function Complaints() {
           ePost.pk
         </div>
         <div className="mt-3 text-2xl font-semibold text-[#0F172A]">Complaint Automation</div>
-        <div className="mt-1 text-sm text-slate-600">Submit and manage complaint workflows from one ePost.pk dashboard.</div>
+        <div className="mt-1 text-sm text-slate-600">Submit and manage complaints from one dashboard.</div>
 
         {error ? <div className="mt-3 text-sm text-red-600">{error}</div> : null}
 

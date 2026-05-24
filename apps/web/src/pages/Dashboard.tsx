@@ -93,7 +93,7 @@ export default function Dashboard() {
       <PageHeader
         eyebrow="Dashboard"
         title="ePost.pk Command Center"
-        subtitle="Units, shipment flow, and complaint workload in one premium control panel."
+        subtitle="Units, shipment status, and complaint workload in one view."
         actions={
           <>
             <Link to="/generate-labels">
@@ -118,7 +118,7 @@ export default function Dashboard() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle>Package summary</CardTitle>
-              <BodyText className="mt-1">Plan, usage, and limits.</BodyText>
+              <BodyText className="mt-1">Plan, usage, limits.</BodyText>
             </div>
             <Link to="/update-package">
               <ActionButton variant="secondary" trailingIcon={<ArrowRight className="h-4 w-4" />}>Update package</ActionButton>
@@ -145,7 +145,7 @@ export default function Dashboard() {
 
         <Card className="min-w-0 w-full overflow-hidden xl:col-span-5 p-4 md:p-5">
           <CardTitle>Quick actions</CardTitle>
-          <BodyText className="mt-1">Common tasks.</BodyText>
+          <BodyText className="mt-1">Most-used actions.</BodyText>
           <div className="mt-3.5 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
             <Link to="/generate-labels"><ActionButton variant="secondary" className="w-full justify-between" trailingIcon={<ArrowRight className="h-4 w-4" />}>Generate labels</ActionButton></Link>
             <Link to="/generate-money-orders"><ActionButton variant="secondary" className="w-full justify-between" trailingIcon={<ArrowRight className="h-4 w-4" />}>Generate money order</ActionButton></Link>

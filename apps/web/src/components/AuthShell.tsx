@@ -36,8 +36,8 @@ export default function AuthShell(props: AuthShellProps) {
   ];
 
   const trustItems = [
-    { icon: ShieldCheck, label: "Pakistan Post Focused" },
-    { icon: BadgeCheck, label: "Trusted SaaS Workspace" },
+    { icon: ShieldCheck, label: "Pakistan Post Ready" },
+    { icon: BadgeCheck, label: "Trusted Workspace" },
   ];
 
   return (
@@ -68,7 +68,7 @@ export default function AuthShell(props: AuthShellProps) {
               <div className="flex items-center gap-3">
                 <div>
                   <img src="/assets/pakistan-post-logo.png" alt="Pakistan Post" className="h-10 w-auto object-contain sm:h-11" />
-                  <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#E1261C]">Pakistan Post</p>
+                  <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#E1261C]">ePost.pk</p>
                 </div>
               </div>
 
@@ -100,11 +100,9 @@ export default function AuthShell(props: AuthShellProps) {
                 <ArrowRight className="h-3.5 w-3.5" />
               </span>
               <h1 className="mt-2.5 text-[2rem] font-extrabold tracking-[-0.05em] text-[#0F172A] sm:text-[2.25rem] lg:text-[2.55rem] lg:leading-[0.98] xl:text-[2.9rem]">
-                Pakistan Post
+                ePost.pk
               </h1>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                One platform for labels, money orders, tracking, complaints, booking, and billing operations.
-              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">Labels, money orders, tracking, complaints, and billing.</p>
             </motion.div>
 
             <motion.div
@@ -140,7 +138,7 @@ export default function AuthShell(props: AuthShellProps) {
             </div>
 
             <div className="relative z-10 mt-3 flex items-center justify-between gap-2 text-[11px] text-slate-400">
-              <p>© 2026 Pakistan Post</p>
+              <p>© 2026 ePost.pk</p>
               <a href="/#support" className="font-medium text-slate-500 hover:text-slate-800">Support</a>
             </div>
           </section>

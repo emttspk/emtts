@@ -28,7 +28,7 @@ const columns = [
     links: [
       { label: "Forgot Password", href: "/forgot-password" },
       { label: "Recover Username", href: "/forgot-username" },
-      { label: "Help & Contact", href: "/#support" },
+          { label: "Help", href: "/#support" },
     ],
   },
   {
@@ -50,7 +50,7 @@ export default function Footer() {
             <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#0f172a,#0b6b3a)] text-sm font-extrabold text-white shadow-[0_10px_30px_rgba(11,107,58,0.34)]">EP</div>
             <div>
               <div className="text-sm font-extrabold tracking-[0.02em] text-slate-900">ePost.pk</div>
-              <div className="text-xs text-slate-500">Pakistan Post Operations Platform</div>
+              <div className="text-xs text-slate-500">Pakistan Post operations workspace</div>
             </div>
           </div>
           <a

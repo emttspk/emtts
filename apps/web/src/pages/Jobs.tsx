@@ -69,7 +69,7 @@ export default function Jobs() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <CardTitle>ePost.pk Jobs</CardTitle>
-            <div className="mt-1 text-sm font-normal text-slate-500">Monitor processing status and download-ready files from one queue.</div>
+            <div className="mt-1 text-sm font-normal text-slate-500">Monitor processing and download-ready files.</div>
           </div>
           <div className="grid w-full grid-cols-1 gap-2 rounded-2xl border border-[#E5E7EB] bg-[#F8FAF9] p-1 shadow-lg sm:inline-flex sm:w-auto sm:grid-cols-none sm:gap-0">
             <button

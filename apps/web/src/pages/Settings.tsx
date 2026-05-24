@@ -73,8 +73,8 @@ export default function Settings() {
     <PageShell className="space-y-4">
       <Card className="border-slate-200 bg-white p-5 shadow-sm md:p-6">
         <div className="ui-kicker">Profile settings</div>
-        <div className="mt-5 text-xl font-semibold text-slate-900">ePost.pk sender profile for labels, returns, and account control.</div>
-        <BodyText className="mt-2 max-w-2xl">Review account details and maintain sender information used when uploaded files do not provide return-address data.</BodyText>
+        <div className="mt-5 text-xl font-semibold text-slate-900">ePost.pk sender profile and account settings.</div>
+        <BodyText className="mt-2 max-w-2xl">Maintain sender details used when upload files do not provide return-address data.</BodyText>
 
         <div className="mt-7 grid gap-3 rounded-[28px] border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-4 sm:p-5 md:grid-cols-3">
           <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
@@ -162,9 +162,7 @@ export default function Settings() {
 
         <Card className="border-slate-200 bg-white p-6 shadow-sm md:p-8">
           <CardTitle>Sender Profile</CardTitle>
-          <div className="mt-1 text-sm font-normal text-slate-500">
-            These fields are used as the sender / return address on every label when not provided in your CSV.
-          </div>
+          <div className="mt-1 text-sm font-normal text-slate-500">Used as sender/return address when not present in CSV.</div>
 
           <form onSubmit={handleSave} className="mt-6 grid gap-4">
           <div>

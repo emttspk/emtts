@@ -15,7 +15,7 @@ export default function ForgotPassword() {
   const [loading, setLoading] = useState(false);
 
   return (
-    <AuthShell mode="login" title="Reset password" subtitle="Send a secure ePost.pk reset link to your email.">
+    <AuthShell mode="login" title="Reset password" subtitle="Send a reset link to your email.">
       {error ? <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</div> : null}
       {notice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">{notice}</div> : null}
 
@@ -46,9 +46,7 @@ export default function ForgotPassword() {
           }
         }}
       >
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/55 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
-          Trusted account recovery for your operations workspace
-        </div>
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/55 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Secure account recovery</div>
         <AuthInputField
           label="Email"
           icon={Mail}

@@ -12,7 +12,7 @@ export default function ForgotUsername() {
   const [loading, setLoading] = useState(false);
 
   return (
-    <AuthShell mode="login" title="Recover username" subtitle="Enter your email to retrieve your username.">
+    <AuthShell mode="login" title="Recover username" subtitle="Enter your email to find your username.">
       {err ? (
         <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
           {err}
@@ -51,9 +51,7 @@ export default function ForgotUsername() {
             }
           }}
         >
-          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/55 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
-            Recover username securely using your registered email
-          </div>
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/55 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Recover username with registered email</div>
           <AuthInputField
             label="Email"
             icon={Mail}

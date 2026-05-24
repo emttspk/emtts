@@ -9,7 +9,7 @@ export default function EmptyState(props: { onUploadClick?: () => void }) {
         <FileText className="h-7 w-7 text-[#2563EB]" />
       </div>
       <h3 className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-[color:var(--text-strong)]">No jobs yet</h3>
-      <p className="mt-2 text-sm leading-6 text-[color:var(--text-muted)]">Upload a file to start generating ePost.pk labels and downloadable outputs.</p>
+      <p className="mt-2 text-sm leading-6 text-[color:var(--text-muted)]">Upload a file to generate labels and downloads.</p>
       {props.onUploadClick ? (
         <ActionButton
           onClick={props.onUploadClick}

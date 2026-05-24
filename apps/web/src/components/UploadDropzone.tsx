@@ -42,7 +42,7 @@ export default function UploadDropzone(props: {
             <div className="text-xl font-semibold tracking-[-0.02em] text-gray-900">{props.title ?? "Bulk Tracking"}</div>
             <div className="mt-1 text-sm text-gray-600">
               {props.subtitle ??
-                "Upload CSV/XLS/XLSX using the strict shared sample columns."}
+                "Upload CSV/XLS/XLSX with required sample columns."}
             </div>
           </div>
           {props.headerAction ? <div className="shrink-0">{props.headerAction}</div> : null}

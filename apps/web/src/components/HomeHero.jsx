@@ -214,14 +214,11 @@ export default function HomeHero() {
 
   const animationStyle = useMemo(() => ["flip", "rotate", "float"][activeCard % 3], [activeCard]);
   const servicePills = [
-    "Bulk Labels",
-    "Money Orders",
-    "Parcel Tracking",
-    "Complaint Automation",
-    "Parcel Booking",
-    "Billing Packages",
-    "Profile & Account",
-    "Admin Operations",
+     "Labels",
+     "Money Orders",
+     "Tracking",
+     "Complaints",
+     "Billing",
   ];
 
   return (
@@ -229,13 +226,12 @@ export default function HomeHero() {
       <div className="mx-auto max-w-[1400px] px-4 py-10 md:px-6 lg:px-12 lg:py-14">
         <div className="grid items-center gap-8 lg:grid-cols-[1.08fr_0.92fr]">
           <div>
-            <p className="text-sm font-bold uppercase tracking-[0.16em] text-emerald-700">Pakistan Post Platform</p>
+            <p className="text-sm font-bold uppercase tracking-[0.16em] text-emerald-700">ePost.pk Platform</p>
             <h1 className="mt-3 text-balance text-3xl font-black tracking-[-0.03em] text-slate-950 sm:text-5xl lg:text-[3.35rem]">
-              One SaaS Workspace For Dispatch, Tracking, Complaints, And Billing
+                Dispatch, Tracking, Complaints, And Billing In One Workspace
             </h1>
             <p className="mt-4 max-w-[760px] text-base leading-7 text-slate-700 sm:text-lg">
-              Built for Pakistan Post teams and bulk sellers to run label generation, money orders, parcel booking,
-              public tracking, complaint monitoring, packages, and account operations from one dashboard.
+                Built for fast daily operations: upload, generate, track, and manage complaints in one place.
             </p>
 
             <div className="mt-5 flex flex-wrap gap-2">
@@ -260,7 +256,7 @@ export default function HomeHero() {
                 href="/tracking"
                 className="inline-flex h-12 items-center justify-center rounded-xl border border-slate-300 bg-white px-6 text-sm font-semibold text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700"
               >
-                Track Shipment
+                Track Parcel
               </a>
             </div>
 
@@ -271,7 +267,7 @@ export default function HomeHero() {
               }}
               className="mt-5 max-w-[680px] rounded-2xl border border-slate-200 bg-white/85 p-2 shadow-[0_16px_44px_rgba(15,23,42,0.12)] backdrop-blur"
             >
-              <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Public Tracking</p>
+              <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Track Parcel</p>
               <div className="flex flex-col gap-2 md:flex-row md:items-center">
                 <input
                   type="text"
@@ -303,7 +299,7 @@ export default function HomeHero() {
             {scannerOpen ? (
               <div className="mt-3 max-w-[680px] rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
                 <div className="mb-2 flex items-center justify-between">
-                  <p className="text-sm font-semibold text-slate-800">Scan Tracking Barcode</p>
+                  <p className="text-sm font-semibold text-slate-800">Scan Barcode</p>
                   <button
                     type="button"
                     onClick={() => {

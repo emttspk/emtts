@@ -127,7 +127,7 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--line)] bg-white px-4 py-4 sm:px-6 sm:py-5">
         <div>
           <div className="text-xl font-semibold tracking-[-0.03em] text-[color:var(--text-strong)]">{props.title ?? "Jobs"}</div>
-          <div className="mt-1 text-sm text-[color:var(--text-muted)]">Track status and download ePost.pk output files.</div>
+          <div className="mt-1 text-sm text-[color:var(--text-muted)]">Track status and download outputs.</div>
         </div>
         <div className="flex w-full flex-wrap items-center justify-start gap-2 text-sm text-[color:var(--text-muted)] sm:w-auto sm:justify-end">
           <div className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">

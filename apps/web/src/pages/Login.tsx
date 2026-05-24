@@ -53,7 +53,7 @@ export default function Login() {
     <AuthShell
       mode="login"
       title="Sign in"
-      subtitle="Access your Pakistan Post operations workspace."
+      subtitle="Access your ePost.pk workspace."
     >
       {err ? (
         <div
@@ -115,9 +115,7 @@ export default function Login() {
           }
         }}
       >
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/55 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
-          Secure SaaS login for labels, tracking, complaints, and billing controls
-        </div>
+        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/55 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Secure login for labels, tracking, complaints, and billing</div>
         <div className="space-y-3">
           <AuthInputField
             label="Username or Email"

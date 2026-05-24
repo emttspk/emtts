@@ -150,7 +150,7 @@ function TrackingResultCard({ result }: { result: TrackingResult }) {
     <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.08)] sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-extrabold tracking-tight text-slate-900">Tracking Result</h2>
+          <h2 className="text-xl font-extrabold tracking-tight text-slate-900">Shipment Status</h2>
           <p className="mt-1 font-mono text-sm font-semibold text-slate-600 break-all">Tracking ID: {result.tracking_number}</p>
           {result.consignee_name ? (
             <p className="mt-2 text-sm text-slate-500">
@@ -282,7 +282,7 @@ function TrackingResultCard({ result }: { result: TrackingResult }) {
             </ol>
           </div>
         ) : (
-          <div className="px-4 py-5 text-sm text-slate-500">No tracking history recorded yet for this shipment.</div>
+          <div className="px-4 py-5 text-sm text-slate-500">No tracking history yet for this shipment.</div>
         )}
       </div>
       <div className="mt-5 flex justify-end">
