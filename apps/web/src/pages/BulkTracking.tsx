@@ -1145,6 +1145,7 @@ export default function BulkTracking() {
   const [batchHistory, setBatchHistory] = useState<TrackingBatchHistoryItem[]>([]);
   const [batchHistoryLoading, setBatchHistoryLoading] = useState(false);
   const [batchActionLoadingId, setBatchActionLoadingId] = useState<string | null>(null);
+  const [showBatchHistory, setShowBatchHistory] = useState(false);
   const [refreshSummary, setRefreshSummary] = useState<string | null>(() => {
     const cached = readInitialWorkspaceRenderCache();
     if (!cached?.shipments.length) return null;
@@ -3519,116 +3520,137 @@ export default function BulkTracking() {
         actions={<SampleDownloadLink />}
       />
 
-      <Card className="w-full min-w-0 overflow-hidden border border-[#E5E7EB] bg-white p-0 shadow-sm">
-        <div className="border-b border-[#E5E7EB] px-4 py-3 md:px-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <CardTitle className="text-lg">Tracking Batch History</CardTitle>
-              <div className="mt-1 text-xs text-slate-500">Saved batches can be re-run without re-uploading file.</div>
+      <div className="flex items-center justify-end">
+        <button
+          type="button"
+          onClick={() => {
+            setShowBatchHistory((prev) => {
+              const next = !prev;
+              if (next) {
+                void refreshBatchHistory();
+              }
+              return next;
+            });
+          }}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          <ChevronRight className={cn("h-3.5 w-3.5 transition-transform", showBatchHistory && "rotate-90")} />
+          {showBatchHistory ? "Hide batch history" : "Show batch history"}
+        </button>
+      </div>
+
+      {showBatchHistory ? (
+        <Card className="w-full min-w-0 overflow-hidden border border-[#E5E7EB] bg-white p-0 shadow-sm">
+          <div className="border-b border-[#E5E7EB] px-4 py-3 md:px-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <CardTitle className="text-lg">Tracking Batch History</CardTitle>
+                <div className="mt-1 text-xs text-slate-500">Saved batches can be re-run without re-uploading file.</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => void refreshBatchHistory()}
+                className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                <RefreshCw className={cn("h-3.5 w-3.5", batchHistoryLoading && "animate-spin")} />
+                Refresh Batches
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => void refreshBatchHistory()}
-              className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              <RefreshCw className={cn("h-3.5 w-3.5", batchHistoryLoading && "animate-spin")} />
-              Refresh Batches
-            </button>
           </div>
-        </div>
-        <div className="w-full overflow-x-auto">
-          <table className="min-w-[1080px] w-full text-xs">
-            <thead className="bg-slate-50 text-slate-600">
-              <tr>
-                <th className="px-3 py-2 text-left font-semibold">Batch ID</th>
-                <th className="px-3 py-2 text-left font-semibold">Upload Date</th>
-                <th className="px-3 py-2 text-left font-semibold">Total Tracking IDs</th>
-                <th className="px-3 py-2 text-left font-semibold">Current Status</th>
-                <th className="px-3 py-2 text-left font-semibold">Last Tracking Run</th>
-                <th className="px-3 py-2 text-left font-semibold">Units Consumed</th>
-                <th className="px-3 py-2 text-left font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
-              {batchHistory.length === 0 ? (
+          <div className="w-full overflow-x-auto">
+            <table className="min-w-[1080px] w-full text-xs">
+              <thead className="bg-slate-50 text-slate-600">
                 <tr>
-                  <td colSpan={7} className="px-3 py-4 text-center text-slate-500">
-                    {batchHistoryLoading ? "Loading tracking batches..." : "No saved tracking batches yet."}
-                  </td>
+                  <th className="px-3 py-2 text-left font-semibold">Batch ID</th>
+                  <th className="px-3 py-2 text-left font-semibold">Upload Date</th>
+                  <th className="px-3 py-2 text-left font-semibold">Total Tracking IDs</th>
+                  <th className="px-3 py-2 text-left font-semibold">Current Status</th>
+                  <th className="px-3 py-2 text-left font-semibold">Last Tracking Run</th>
+                  <th className="px-3 py-2 text-left font-semibold">Units Consumed</th>
+                  <th className="px-3 py-2 text-left font-semibold">Actions</th>
                 </tr>
-              ) : batchHistory.map((batch) => {
-                const actionBusy = batchActionLoadingId === batch.id;
-                return (
-                  <tr key={batch.id}>
-                    <td className="px-3 py-2 font-mono text-[11px] text-slate-800">{batch.id}</td>
-                    <td className="px-3 py-2 text-slate-700">{formatBatchDateTime(batch.uploadDate)}</td>
-                    <td className="px-3 py-2 text-slate-700">{batch.totalTrackingIds}</td>
-                    <td className="px-3 py-2">
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
-                        {batch.currentStatus}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-slate-700">{formatBatchDateTime(batch.lastTrackingRun)}</td>
-                    <td className="px-3 py-2 text-slate-700">{batch.unitsConsumed}</td>
-                    <td className="px-3 py-2">
-                      <div className="flex flex-wrap gap-1.5">
-                        <button
-                          type="button"
-                          disabled={actionBusy}
-                          onClick={() => void runSavedBatch(batch.id)}
-                          className="rounded-lg border border-brand/30 bg-brand/10 px-2.5 py-1 text-[11px] font-semibold text-brand hover:bg-brand/20 disabled:opacity-50"
-                        >
-                          Run Tracking
-                        </button>
-                        <button
-                          type="button"
-                          disabled={actionBusy || !batch.hasMasterFile}
-                          onClick={() => downloadSavedBatchMaster(batch.id)}
-                          className="rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-50"
-                        >
-                          Download Master File
-                        </button>
-                        <button
-                          type="button"
-                          disabled={actionBusy}
-                          onClick={() => {
-                            setStatusFilter("COMPLAINT_TOTAL");
-                            setPage(1);
-                            document.getElementById("tracking-workspace-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                          }}
-                          className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
-                        >
-                          Complaints
-                        </button>
-                        <button
-                          type="button"
-                          disabled={actionBusy}
-                          onClick={() => {
-                            setStatusFilter("DELIVERED");
-                            setPage(1);
-                            document.getElementById("tracking-workspace-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                          }}
-                          className="rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
-                        >
-                          Settlement
-                        </button>
-                        <button
-                          type="button"
-                          disabled={actionBusy}
-                          onClick={() => void deleteSavedBatch(batch.id)}
-                          className="rounded-lg border border-red-300 bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
-                        >
-                          Delete Batch
-                        </button>
-                      </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {batchHistory.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-3 py-4 text-center text-slate-500">
+                      {batchHistoryLoading ? "Loading tracking batches..." : "No saved tracking batches yet."}
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+                ) : batchHistory.map((batch) => {
+                  const actionBusy = batchActionLoadingId === batch.id;
+                  return (
+                    <tr key={batch.id}>
+                      <td className="px-3 py-2 font-mono text-[11px] text-slate-800">{batch.id}</td>
+                      <td className="px-3 py-2 text-slate-700">{formatBatchDateTime(batch.uploadDate)}</td>
+                      <td className="px-3 py-2 text-slate-700">{batch.totalTrackingIds}</td>
+                      <td className="px-3 py-2">
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
+                          {batch.currentStatus}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-slate-700">{formatBatchDateTime(batch.lastTrackingRun)}</td>
+                      <td className="px-3 py-2 text-slate-700">{batch.unitsConsumed}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap gap-1.5">
+                          <button
+                            type="button"
+                            disabled={actionBusy}
+                            onClick={() => void runSavedBatch(batch.id)}
+                            className="rounded-lg border border-brand/30 bg-brand/10 px-2.5 py-1 text-[11px] font-semibold text-brand hover:bg-brand/20 disabled:opacity-50"
+                          >
+                            Run Tracking
+                          </button>
+                          <button
+                            type="button"
+                            disabled={actionBusy || !batch.hasMasterFile}
+                            onClick={() => downloadSavedBatchMaster(batch.id)}
+                            className="rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-700 hover:bg-sky-100 disabled:opacity-50"
+                          >
+                            Download Master File
+                          </button>
+                          <button
+                            type="button"
+                            disabled={actionBusy}
+                            onClick={() => {
+                              setStatusFilter("COMPLAINT_TOTAL");
+                              setPage(1);
+                              document.getElementById("tracking-workspace-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                            }}
+                            className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+                          >
+                            Complaints
+                          </button>
+                          <button
+                            type="button"
+                            disabled={actionBusy}
+                            onClick={() => {
+                              setStatusFilter("DELIVERED");
+                              setPage(1);
+                              document.getElementById("tracking-workspace-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                            }}
+                            className="rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                          >
+                            Settlement
+                          </button>
+                          <button
+                            type="button"
+                            disabled={actionBusy}
+                            onClick={() => void deleteSavedBatch(batch.id)}
+                            className="rounded-lg border border-red-300 bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                          >
+                            Delete Batch
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      ) : null}
 
       <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
       <Card className="w-full min-w-0 overflow-hidden border border-[color:var(--line)] bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_56%,#eefbf3_100%)] p-3.5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] sm:p-5 md:p-6">
