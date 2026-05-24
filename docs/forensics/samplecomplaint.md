@@ -1,6 +1,6 @@
 # Sample Complaint Document
 
-**Source:** Sanitized from production data — epost.pk  
+**Source:** Sanitized from production data — ePost.pk  
 **Date:** 2026-05-07  
 **Purpose:** Full example of a complaint lifecycle record, payloads, and stored metadata.
 

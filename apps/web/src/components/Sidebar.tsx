@@ -81,7 +81,7 @@ export default function Sidebar(props: {
                 <img src="/assets/pakistan-post-logo.png" alt="Pakistan Post" className="h-7 w-10 object-contain md:h-7 md:w-10 lg:h-8 lg:w-[84px]" />
               </div>
               <div className="min-w-0 leading-tight md:hidden lg:block">
-                <div className="text-sm font-semibold text-white">Epost.pk</div>
+                <div className="text-sm font-semibold text-white">ePost.pk</div>
                 <div className="truncate text-xs font-medium text-slate-300">Pakistan Post</div>
               </div>
             </div>

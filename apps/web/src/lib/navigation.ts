@@ -22,5 +22,5 @@ export function isRouteActive(pathname: string, item: Pick<NavItem, "matchPrefix
 
 export function resolvePageTitle(pathname: string) {
   const hit = APP_NAV_ITEMS.find((item) => isRouteActive(pathname, item));
-  return hit?.label ?? "Epost.pk";
+  return hit?.label ?? "ePost.pk";
 }

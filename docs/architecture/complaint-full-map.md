@@ -1,6 +1,6 @@
 # Complaint Full Map
 
-**System:** epost.pk — Pakistan Post complaint integration  
+**System:** ePost.pk — Pakistan Post complaint integration  
 **Version:** 2.0 (multi-attempt chain)  
 **Last Updated:** 2026-05-08
 

@@ -49,7 +49,7 @@ export default function Footer() {
           <div className="inline-flex items-center gap-3">
             <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(145deg,#0f172a,#0b6b3a)] text-sm font-extrabold text-white shadow-[0_10px_30px_rgba(11,107,58,0.34)]">EP</div>
             <div>
-              <div className="text-sm font-extrabold tracking-[0.02em] text-slate-900">Epost.pk</div>
+              <div className="text-sm font-extrabold tracking-[0.02em] text-slate-900">ePost.pk</div>
               <div className="text-xs text-slate-500">Pakistan Post Operations Platform</div>
             </div>
           </div>
@@ -79,7 +79,7 @@ export default function Footer() {
         </div>
 
         <div className="mt-10 border-t border-slate-200 pt-5 text-xs text-slate-500 sm:flex sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} Epost.pk. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} ePost.pk. All rights reserved.</p>
           <p className="mt-2 sm:mt-0">Built for Pakistan Post operations teams.</p>
         </div>
       </div>
