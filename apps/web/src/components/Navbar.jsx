@@ -25,7 +25,7 @@ export default function Navbar() {
             <img src="/assets/pakistan-post-logo.png" alt="Pakistan Post" className="h-8 w-auto object-contain" />
           </a>
           <div className="min-w-0 leading-tight">
-            <div className="whitespace-nowrap text-[15px] font-extrabold tracking-[0.01em] text-slate-900">Epost.pk</div>
+            <div className="whitespace-nowrap text-[15px] font-extrabold tracking-[0.01em] text-slate-900">ePost.pk</div>
             <div className="whitespace-nowrap text-[11px] font-medium text-slate-500">Pakistan Post logistics workspace</div>
           </div>
         </div>
