@@ -15,8 +15,8 @@ export default function Navbar() {
   const ctaClass = "inline-flex h-10 items-center justify-center rounded-full px-5 text-sm font-semibold tracking-[0.01em]";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[color:var(--line)] bg-white/95 shadow-[0_8px_24px_rgba(8,18,37,0.06)] backdrop-blur-2xl">
-      <div className="mx-auto flex h-[62px] w-full max-w-[1240px] items-center justify-between gap-3 px-4 sm:h-[74px] sm:gap-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-50 border-b border-[color:var(--line)] bg-white/92 shadow-[0_10px_28px_rgba(8,18,37,0.08)] backdrop-blur-2xl">
+      <div className="mx-auto flex h-[58px] w-full max-w-[1280px] items-center justify-between gap-3 px-4 sm:h-[68px] sm:gap-4 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-2.5 sm:gap-3.5">
           <a
             href="/"
@@ -26,12 +26,15 @@ export default function Navbar() {
           </a>
           <div className="min-w-0 leading-tight">
             <div className="whitespace-nowrap text-[14px] font-extrabold tracking-[0.01em] text-slate-900 sm:text-[15px]">ePost.pk</div>
-            <div className="whitespace-nowrap text-[10px] font-medium text-slate-500 sm:text-[11px]">Pakistan Post workspace</div>
+            <div className="inline-flex items-center gap-1 whitespace-nowrap text-[10px] font-medium text-slate-500 sm:text-[11px]">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              Live operations workspace
+            </div>
           </div>
         </div>
 
         <nav className="hidden min-w-0 flex-1 items-center justify-center px-4 lg:flex">
-          <div className="flex items-center gap-6 whitespace-nowrap text-[14px] font-semibold text-slate-700 xl:gap-8">
+          <div className="flex items-center gap-5 whitespace-nowrap text-[13px] font-semibold text-slate-700 xl:gap-7">
             {navLinks.map((item) => (
               <a
                 key={item.label}
@@ -49,15 +52,15 @@ export default function Navbar() {
         <div className="hidden items-center justify-end gap-2.5 whitespace-nowrap lg:flex">
           <a
             href="/login"
-            className={`${ctaClass} min-w-[132px] rounded-xl border border-[color:var(--line)] bg-white text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#10B981] hover:text-[#10B981]`}
+            className={`${ctaClass} min-w-[122px] rounded-xl border border-[color:var(--line)] bg-white text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#0F766E] hover:text-[#0F766E]`}
           >
             Login
           </a>
           <a
             href="/register"
-            className={`${ctaClass} min-w-[190px] rounded-xl bg-[linear-gradient(135deg,#081225,#10B981)] text-white shadow-[0_12px_28px_rgba(16,185,129,0.3)] transition-transform duration-200 hover:-translate-y-0.5`}
+            className={`${ctaClass} min-w-[162px] rounded-xl bg-[linear-gradient(135deg,#0F172A,#0F766E)] text-white shadow-[0_12px_28px_rgba(15,23,42,0.24)] transition-transform duration-200 hover:-translate-y-0.5`}
           >
-            Create Free Account
+            Start Free
           </a>
         </div>
 
@@ -90,8 +93,8 @@ export default function Navbar() {
               <a href="/login" className="inline-flex h-11 items-center justify-center rounded-xl border border-[color:var(--line)] bg-white px-3 text-center text-sm font-semibold text-slate-800 shadow-sm">
                 Login
               </a>
-              <a href="/register" className="inline-flex h-11 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#081225,#10B981)] px-3 text-center text-sm font-bold text-white shadow-[0_6px_18px_rgba(16,185,129,0.28)]">
-                Create Free Account
+              <a href="/register" className="inline-flex h-11 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#0F172A,#0F766E)] px-3 text-center text-sm font-bold text-white shadow-[0_6px_18px_rgba(15,23,42,0.2)]">
+                Start Free
               </a>
             </div>
           </div>

@@ -36,14 +36,14 @@ const columns = [
     links: [
       { label: "support@epost.pk", href: "mailto:support@epost.pk" },
       { label: "Mon-Sat 9:00am-6:00pm", href: "/#support" },
-      { label: "Privacy & Terms (Placeholder)", href: "/#support" },
+      { label: "Privacy Policy & Terms", href: "/#support" },
     ],
   },
 ];
 
 export default function Footer() {
   return (
-    <footer id="support" className="border-t border-slate-200 bg-white text-slate-900">
+    <footer id="support" className="border-t border-slate-200 bg-[linear-gradient(180deg,#ffffff,#f8fbff)] text-slate-900">
       <div className="mx-auto w-full max-w-[1240px] px-4 pb-8 pt-10 sm:px-6 lg:px-8">
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="inline-flex items-center gap-3">
@@ -57,7 +57,7 @@ export default function Footer() {
             href="/register"
             className="inline-flex h-11 items-center justify-center rounded-full border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-700 transition-all duration-200 hover:border-slate-500"
           >
-            Create Free Account
+            Start Free
           </a>
         </div>
 

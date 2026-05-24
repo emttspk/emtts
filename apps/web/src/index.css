@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -21,7 +21,7 @@
   }
 
   html {
-    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+    font-family: "Manrope", ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
     background: var(--bg);
     overflow-x: hidden;
     scrollbar-gutter: stable;
@@ -67,7 +67,7 @@
   h4,
   h5,
   h6 {
-    font-family: "Inter", ui-sans-serif, sans-serif;
+    font-family: "Sora", ui-sans-serif, sans-serif;
     letter-spacing: -0.035em;
   }
 }
@@ -184,7 +184,7 @@
 
   .google-auth-btn__label {
     @apply flex-1 text-center font-semibold tracking-[-0.01em];
-    font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+    font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
   }
 }
 
