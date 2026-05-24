@@ -28,7 +28,7 @@ export default function Topbar(props: {
 
   return (
     <header className="sticky top-0 z-30 shrink-0 border-b border-[color:var(--line)] bg-white/90 backdrop-blur-2xl">
-      <div className="flex min-h-[62px] w-full items-center justify-between gap-3 px-4 py-2 md:px-5">
+      <div className="flex min-h-[64px] w-full items-center justify-between gap-2.5 px-3 py-2 sm:px-4 md:px-5">
         <div className="flex min-w-0 items-center gap-2.5">
           <button onClick={() => props.setIsSidebarOpen(true)} className="btn-secondary px-2.5 py-2 md:hidden">
             <Menu className="h-5 w-5" />
@@ -40,12 +40,12 @@ export default function Topbar(props: {
           </div>
         </div>
 
-        <div className="flex flex-1 items-center justify-end gap-2">
+        <div className="flex flex-1 items-center justify-end gap-1.5 sm:gap-2">
           <SearchInput
             value={query}
             onChange={setQuery}
             placeholder="Search jobs or tracking IDs"
-              className="hidden min-w-[16rem] flex-1 lg:flex lg:max-w-lg"
+            className="hidden flex-1 md:flex md:min-w-[10rem] md:max-w-xs lg:max-w-lg"
           />
 
           <ActionButton
@@ -57,23 +57,23 @@ export default function Topbar(props: {
             New label
           </ActionButton>
 
-          <button className="btn-secondary p-2.5" title="Notifications">
+          <button className="btn-secondary ui-touch-target p-2.5" title="Notifications">
             <Bell className="h-5 w-5" />
           </button>
 
-          <button className="btn-secondary hidden p-2.5 md:inline-flex" title="Settings" onClick={() => navigate("/settings")}>
+          <button className="btn-secondary ui-touch-target hidden p-2.5 md:inline-flex" title="Settings" onClick={() => navigate("/settings")}>
             <Settings className="h-5 w-5" />
           </button>
 
           <div className="relative">
             <button
               onClick={() => setOpen((v) => !v)}
-              className="flex items-center gap-2 rounded-2xl border border-[color:var(--line)] bg-white px-2 py-1.5 shadow-sm transition-all duration-200 ease-out hover:shadow-card"
+              className="flex ui-touch-target items-center gap-2 rounded-2xl border border-[color:var(--line)] bg-white px-2 py-1.5 shadow-sm transition-all duration-200 ease-out hover:shadow-card"
             >
               <div className="flex h-8.5 w-8.5 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#10B981,#2563EB)] text-sm font-semibold text-white shadow-glow">
                 {badge}
               </div>
-              <div className="hidden max-w-[180px] text-left md:block">
+              <div className="hidden max-w-[140px] text-left md:block lg:max-w-[180px]">
                 <div className="truncate text-sm font-semibold text-[color:var(--text-strong)]">{props.userEmail ?? "Account"}</div>
                 <div className="truncate text-xs text-slate-500">Signed in</div>
               </div>

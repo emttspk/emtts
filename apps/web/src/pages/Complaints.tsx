@@ -79,7 +79,7 @@ export default function Complaints() {
 
   return (
     <div className="space-y-8">
-      <Card className="p-8">
+      <Card className="p-5 sm:p-6 md:p-8">
         <div className="inline-flex rounded-2xl border border-brand/30 bg-brand/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand">
           Epost.pk
         </div>
@@ -119,9 +119,9 @@ export default function Complaints() {
           </div>
         ) : null}
 
-        <div className="mt-5 flex flex-wrap gap-3">
+        <div className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:gap-3">
           <button
-            className="btn-secondary"
+            className="btn-secondary w-full sm:w-auto"
             onClick={async () => {
               setError(null);
               try {
@@ -135,7 +135,7 @@ export default function Complaints() {
           </button>
 
           <button
-            className="btn-primary disabled:opacity-50"
+            className="btn-primary w-full sm:w-auto disabled:opacity-50"
             disabled={!selected || !phone || polling.jobStatus === "PROCESSING" || polling.jobStatus === "QUEUED"}
             onClick={async () => {
               setError(null);
@@ -168,20 +168,46 @@ export default function Complaints() {
         ) : null}
       </Card>
 
-      <Card className="p-8">
+      <Card className="p-5 sm:p-6 md:p-8">
         <div className="text-lg font-medium text-[#0F172A]">Recent Shipments</div>
-        <div className="mt-3 flex items-center justify-between rounded-xl border border-[#E5E7EB] bg-[#F8FAF9] px-3 py-2 text-xs text-slate-600">
-          <div>
+        <div className="mt-3 flex flex-col items-start gap-2 rounded-xl border border-[#E5E7EB] bg-[#F8FAF9] px-3 py-2 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+          <div className="ui-cell-wrap">
             Page <span className="font-semibold text-slate-800">{page}</span> of <span className="font-semibold text-slate-800">{totalPages}</span> · <span className="font-semibold text-slate-800">{shipments.length}</span> shown · <span className="font-semibold text-slate-800">{totalShipments}</span> total
           </div>
-          <div className="flex items-center gap-1.5">
-            <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 disabled:opacity-40" disabled={page <= 1} onClick={() => setPage(1)}>First</button>
-            <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 disabled:opacity-40" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</button>
-            <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 disabled:opacity-40" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</button>
-            <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 disabled:opacity-40" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>Last</button>
+          <div className="grid w-full grid-cols-2 gap-1.5 sm:flex sm:w-auto sm:items-center">
+            <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1.5 disabled:opacity-40" disabled={page <= 1} onClick={() => setPage(1)}>First</button>
+            <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1.5 disabled:opacity-40" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</button>
+            <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1.5 disabled:opacity-40" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</button>
+            <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1.5 disabled:opacity-40" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>Last</button>
           </div>
         </div>
-        <div className="mt-4 overflow-x-auto rounded-2xl border border-[#E5E7EB] bg-white shadow-xl">
+
+        <div className="mt-4 grid gap-2.5 md:hidden">
+          {shipments.map((s) => (
+            <div key={`mobile-${s.id}`} className="rounded-2xl border border-[#E5E7EB] bg-white p-3 shadow-sm">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Tracking</div>
+              <div className="ui-cell-mono mt-1 text-slate-800">{s.trackingNumber}</div>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <div className="font-semibold uppercase tracking-[0.12em] text-slate-500">Status</div>
+                  <div className="ui-cell-wrap mt-1 text-slate-800">{s.status ?? "-"}</div>
+                </div>
+                <div>
+                  <div className="font-semibold uppercase tracking-[0.12em] text-slate-500">Complaint</div>
+                  <div className="ui-cell-wrap mt-1 text-slate-700">{s.complaintStatus ?? "-"}</div>
+                </div>
+              </div>
+              <div className="mt-2 text-xs text-slate-500">Updated: <span className="ui-cell-wrap text-slate-700">{new Date(s.updatedAt).toLocaleString()}</span></div>
+            </div>
+          ))}
+          {shipments.length === 0 ? (
+            <div className="rounded-2xl border border-[#E5E7EB] bg-white px-3 py-6 text-sm text-slate-600">
+              No shipments yet. Run Bulk Tracking first.
+            </div>
+          ) : null}
+        </div>
+
+        <div className="ui-table-scroll mt-4 hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-xl md:block">
           <table className="min-w-full text-sm">
             <thead className="bg-[#F8FAF9]">
               <tr>
@@ -194,10 +220,18 @@ export default function Complaints() {
             <tbody className="divide-y divide-[#E5E7EB]">
               {shipments.map((s) => (
                 <tr key={s.id}>
-                  <td className="px-3 py-2 font-mono text-xs text-slate-800 whitespace-nowrap">{s.trackingNumber}</td>
-                  <td className="px-3 py-2 text-slate-800 whitespace-nowrap">{s.status ?? "-"}</td>
-                  <td className="px-3 py-2 text-slate-700 whitespace-nowrap">{s.complaintStatus ?? "-"}</td>
-                  <td className="px-3 py-2 text-slate-700 whitespace-nowrap">{new Date(s.updatedAt).toLocaleString()}</td>
+                  <td className="px-3 py-2 font-mono text-xs text-slate-800">
+                    <div className="max-w-[18ch] truncate" title={s.trackingNumber}>{s.trackingNumber}</div>
+                  </td>
+                  <td className="px-3 py-2 text-slate-800">
+                    <div className="max-w-[16ch] truncate" title={s.status ?? "-"}>{s.status ?? "-"}</div>
+                  </td>
+                  <td className="px-3 py-2 text-slate-700">
+                    <div className="max-w-[16ch] truncate" title={s.complaintStatus ?? "-"}>{s.complaintStatus ?? "-"}</div>
+                  </td>
+                  <td className="px-3 py-2 text-slate-700">
+                    <div className="max-w-[24ch] truncate" title={new Date(s.updatedAt).toLocaleString()}>{new Date(s.updatedAt).toLocaleString()}</div>
+                  </td>
                 </tr>
               ))}
               {shipments.length === 0 ? (
@@ -210,11 +244,11 @@ export default function Complaints() {
             </tbody>
           </table>
         </div>
-        <div className="mt-3 flex items-center justify-end gap-1.5 text-xs text-slate-600">
-          <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 disabled:opacity-40" disabled={page <= 1} onClick={() => setPage(1)}>First</button>
-          <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 disabled:opacity-40" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</button>
-          <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 disabled:opacity-40" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</button>
-          <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1 disabled:opacity-40" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>Last</button>
+        <div className="mt-3 grid grid-cols-2 gap-1.5 text-xs text-slate-600 sm:flex sm:items-center sm:justify-end">
+          <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1.5 disabled:opacity-40" disabled={page <= 1} onClick={() => setPage(1)}>First</button>
+          <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1.5 disabled:opacity-40" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</button>
+          <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1.5 disabled:opacity-40" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next</button>
+          <button className="rounded-lg border border-[#E5E7EB] bg-white px-2.5 py-1.5 disabled:opacity-40" disabled={page >= totalPages} onClick={() => setPage(totalPages)}>Last</button>
         </div>
       </Card>
     </div>

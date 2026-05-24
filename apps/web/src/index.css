@@ -121,6 +121,10 @@
     @apply overflow-hidden rounded-[20px] border border-[color:var(--line)] bg-white shadow-card;
   }
 
+  .ui-table-scroll {
+    @apply w-full overflow-x-auto overscroll-x-contain;
+  }
+
   .ui-table table {
     @apply min-w-full text-left text-sm;
   }
@@ -135,6 +139,19 @@
 
   .ui-table td {
     @apply px-4 py-3 text-slate-700;
+  }
+
+  .ui-cell-wrap {
+    @apply break-words whitespace-normal;
+  }
+
+  .ui-cell-mono {
+    @apply font-mono text-xs;
+    word-break: break-all;
+  }
+
+  .ui-touch-target {
+    @apply min-h-[44px];
   }
 
   .status-pill {
@@ -185,6 +202,14 @@
 
   .ui-page {
     @apply px-4 py-6;
+  }
+
+  .ui-table th {
+    @apply px-3 py-2 text-[10px] tracking-[0.14em];
+  }
+
+  .ui-table td {
+    @apply px-3 py-2 text-xs;
   }
 
   h1,

@@ -124,18 +124,18 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
 
   return (
     <Card className="overflow-hidden border-[color:var(--line)]">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[color:var(--line)] bg-white px-6 py-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--line)] bg-white px-4 py-4 sm:px-6 sm:py-5">
         <div>
           <div className="text-xl font-semibold tracking-[-0.03em] text-[color:var(--text-strong)]">{props.title ?? "Jobs"}</div>
           <div className="mt-1 text-sm text-[color:var(--text-muted)]">Track status and download ready files.</div>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2 text-sm text-[color:var(--text-muted)]">
+        <div className="flex w-full flex-wrap items-center justify-start gap-2 text-sm text-[color:var(--text-muted)] sm:w-auto sm:justify-end">
           <div className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
             {sortKey} {sortDir}
           </div>
           <ActionButton
             variant="danger"
-            className="min-h-[40px] px-3 py-2 text-xs"
+            className="min-h-[44px] w-full px-3 py-2 text-xs sm:min-h-[40px] sm:w-auto"
             leadingIcon={<Trash2 className="h-3.5 w-3.5" />}
             onClick={() => submitDeletion(0)}
             disabled={selectedIds.length === 0 || submitting}
@@ -144,7 +144,7 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
           </ActionButton>
           <ActionButton
             variant="secondary"
-            className="min-h-[40px] px-3 py-2 text-xs"
+            className="min-h-[44px] w-full px-3 py-2 text-xs sm:min-h-[40px] sm:w-auto"
             onClick={() => submitDeletion(7)}
             disabled={selectedIds.length === 0 || submitting}
           >
@@ -153,7 +153,7 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
         </div>
       </div>
 
-      <div className="flex items-center justify-between border-b border-[color:var(--line)] bg-[#F8FAFC] px-6 py-3 text-xs text-slate-600">
+      <div className="flex items-center justify-between border-b border-[color:var(--line)] bg-[#F8FAFC] px-4 py-3 text-xs text-slate-600 sm:px-6">
         <label className="inline-flex items-center gap-2 font-medium text-slate-700">
           <input
             type="checkbox"
@@ -166,7 +166,66 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
         <div>{selectedIds.length} selected</div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="grid gap-3 p-4 sm:hidden">
+        {sorted.map((job) => {
+          const created = new Date(job.createdAt).toLocaleString();
+          const canDelete = job.status !== "QUEUED" && job.status !== "PROCESSING";
+          return (
+            <div key={`mobile-${job.id}`} className="rounded-2xl border border-[color:var(--line)] bg-white p-3 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Job ID</div>
+                  <div className="ui-cell-mono mt-1 text-slate-700">{job.id}</div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(job.id)}
+                  onChange={(event) => toggleJob(job.id, event.target.checked)}
+                  disabled={!canDelete}
+                  className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand disabled:opacity-40"
+                />
+              </div>
+
+              <div className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">File</div>
+              <div className="ui-cell-wrap mt-1 text-sm font-semibold text-[color:var(--text-strong)]">{job.originalFilename}</div>
+
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                <div>
+                  <div className="font-semibold uppercase tracking-[0.12em] text-slate-500">Rows</div>
+                  <div className="mt-1 text-sm font-semibold text-slate-800">{job.recordCount.toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="font-semibold uppercase tracking-[0.12em] text-slate-500">Created</div>
+                  <div className="ui-cell-wrap mt-1 text-sm text-slate-700">{created}</div>
+                </div>
+              </div>
+
+              <div className="mt-3">
+                <StatusBadge status={job.status} />
+                {job.status === "FAILED" && job.error ? (
+                  <div className="ui-cell-wrap mt-1 text-xs text-red-700" title={job.error}>
+                    {job.error}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {job.status === "COMPLETED" ? (
+                  <>
+                    <DownloadButton jobId={job.id} kind="labels" />
+                    {job.trackingMasterPath ? <DownloadButton jobId={job.id} kind="tracking-master" /> : null}
+                    {job.includeMoneyOrders ? <DownloadButton jobId={job.id} kind="money-orders" /> : null}
+                  </>
+                ) : (
+                  <span className="text-xs text-gray-400">Downloads pending</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="ui-table-scroll hidden sm:block">
         <table className="min-w-full divide-y divide-[color:var(--line)]">
           <thead className="sticky top-0 z-10 bg-[#F8FAFC]">
             <tr>
@@ -194,8 +253,10 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
                       className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand disabled:opacity-40"
                     />
                   </td>
-                  <td className="px-5 py-3 text-sm font-mono text-slate-600">{job.id}</td>
-                  <td className="px-5 py-3 text-sm font-semibold text-[color:var(--text-strong)]">{job.originalFilename}</td>
+                  <td className="px-5 py-3 font-mono text-xs text-slate-600">{job.id}</td>
+                  <td className="px-5 py-3 text-sm font-semibold text-[color:var(--text-strong)]">
+                    <div className="max-w-[28ch] truncate" title={job.originalFilename}>{job.originalFilename}</div>
+                  </td>
                   <td className="px-5 py-3 text-right text-sm text-gray-700">{job.recordCount.toLocaleString()}</td>
                   <td className="px-5 py-3 text-sm">
                     <StatusBadge status={job.status} />

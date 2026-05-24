@@ -42,15 +42,15 @@ export function MutedText(props: Classy) {
 }
 
 export function TableWrap(props: Classy) {
-  return <div className={cn("ui-table w-full overflow-x-auto", props.className)}>{props.children}</div>;
+  return <div className={cn("ui-table ui-table-scroll", props.className)}>{props.children}</div>;
 }
 
 export function TableHeaderCell(props: Classy) {
-  return <th className={cn("px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-600", props.className)}>{props.children}</th>;
+  return <th className={cn("px-4 py-3 align-middle text-left text-xs font-semibold uppercase tracking-wide text-slate-600", props.className)}>{props.children}</th>;
 }
 
 export function TableCell(props: Classy) {
-  return <td className={cn("px-4 py-3 text-sm font-medium text-slate-700", props.className)}>{props.children}</td>;
+  return <td className={cn("px-4 py-3 align-middle text-sm font-medium text-slate-700", props.className)}>{props.children}</td>;
 }
 
 export { PageHeader };

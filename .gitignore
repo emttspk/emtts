@@ -90,3 +90,10 @@ docs/internal/
 verification-*.json
 strict-runtime-verify-*.json
 retention-cleanup-verify-*.json
+
+# Local-only audit and UI review artifacts (never commit)
+docs/local-ui-audit/
+audit/
+reports/
+screenshots/
+tmp-audit/

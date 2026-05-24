@@ -44,7 +44,7 @@ export default function Sidebar(props: {
         title={p.label}
         className={cn(
           "group relative flex h-12 items-center rounded-2xl px-3.5 text-sm font-semibold transition-all duration-200 ease-out",
-          "gap-3",
+          "gap-3 md:h-[64px] md:flex-col md:justify-center md:gap-1.5 md:px-1.5 lg:h-12 lg:flex-row lg:justify-start lg:gap-3 lg:px-3.5",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/80 focus-visible:ring-offset-0",
           active
             ? "border border-emerald-300/30 bg-[linear-gradient(135deg,rgba(16,185,129,0.24),rgba(37,99,235,0.16))] text-white shadow-[0_12px_32px_rgba(16,185,129,0.18)]"
@@ -53,7 +53,7 @@ export default function Sidebar(props: {
         onClick={() => props.setIsOpen(false)}
       >
         <p.icon className={cn("h-5 w-5 flex-none transition-transform duration-200 ease-out group-hover:scale-105", active ? "opacity-100" : "opacity-90")} />
-        <span className="truncate md:hidden lg:inline">{p.label}</span>
+        <span className="ui-cell-wrap text-center text-[10px] leading-3 md:block lg:text-left lg:text-sm lg:leading-normal">{p.label}</span>
         {active ? <span className="absolute right-3 hidden h-1.5 w-1.5 rounded-full bg-emerald-200 lg:block" /> : null}
       </Link>
     );
@@ -127,14 +127,14 @@ export default function Sidebar(props: {
           </div>
           <button
             title="Logout"
-            className="flex h-12 w-full items-center gap-3 rounded-2xl px-3.5 text-sm font-medium text-slate-200 transition-all duration-200 ease-out hover:bg-white/10 hover:text-white"
+            className="flex h-12 w-full items-center gap-3 rounded-2xl px-3.5 text-sm font-medium text-slate-200 transition-all duration-200 ease-out hover:bg-white/10 hover:text-white md:h-[64px] md:flex-col md:justify-center md:gap-1.5 md:px-1.5 lg:h-12 lg:flex-row lg:justify-start lg:gap-3 lg:px-3.5"
             onClick={() => {
               clearSession();
               navigate("/login");
             }}
           >
             <LogOut className="h-5 w-5 flex-none opacity-90" />
-            <span className="md:hidden lg:inline">Logout</span>
+            <span className="ui-cell-wrap text-center text-[10px] leading-3 md:block lg:text-left lg:text-sm lg:leading-normal">Logout</span>
           </button>
         </div>
       </aside>
