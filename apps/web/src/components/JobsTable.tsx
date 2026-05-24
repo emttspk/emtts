@@ -23,15 +23,21 @@ function sortJobs(jobs: LabelJob[], key: SortKey, dir: SortDir) {
   return next;
 }
 
-function DownloadButton(props: { jobId: string; kind: "labels" | "money-orders" }) {
+function DownloadButton(props: { jobId: string; kind: "labels" | "money-orders" | "tracking-master" }) {
   const [busy, setBusy] = useState(false);
-  const label = props.kind === "labels" ? "Labels" : "Money Orders";
+  const label =
+    props.kind === "labels"
+      ? "Labels"
+      : props.kind === "money-orders"
+      ? "Money Orders"
+      : "Tracking Master";
 
   async function handleDownload() {
     if (busy) return;
     setBusy(true);
     try {
-      const fallbackName = buildJobDownloadFallbackName(props.kind);
+      const fallbackName =
+        props.kind === "tracking-master" ? "tracking-master.xlsx" : buildJobDownloadFallbackName(props.kind);
       triggerBrowserDownload(`/api/jobs/${props.jobId}/download/${props.kind}`, fallbackName);
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Download failed");
@@ -204,6 +210,7 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
                     {job.status === "COMPLETED" ? (
                       <div className="inline-flex flex-wrap items-center justify-end gap-2">
                         <DownloadButton jobId={job.id} kind="labels" />
+                        {job.trackingMasterPath ? <DownloadButton jobId={job.id} kind="tracking-master" /> : null}
                         {job.includeMoneyOrders ? <DownloadButton jobId={job.id} kind="money-orders" /> : null}
                       </div>
                     ) : (

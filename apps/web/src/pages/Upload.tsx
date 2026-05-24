@@ -645,6 +645,8 @@ export default function Upload() {
 
   async function runCompletionAction(action: "labels" | "money-orders" | "tracking-master" | "tracking-workspace") {
     if (!polling.jobId || completionAction) return;
+    const actionStart = Date.now();
+    const minLockMs = 600;
     setCompletionAction(action);
     try {
       if (action === "labels") {
@@ -661,6 +663,10 @@ export default function Upload() {
       }
       navigate("/tracking-workspace");
     } finally {
+      const elapsedMs = Date.now() - actionStart;
+      if (elapsedMs < minLockMs) {
+        await new Promise((resolve) => window.setTimeout(resolve, minLockMs - elapsedMs));
+      }
       setCompletionAction(null);
     }
   }
