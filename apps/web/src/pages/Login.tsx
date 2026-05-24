@@ -115,7 +115,7 @@ export default function Login() {
           }
         }}
       >
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/55 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Secure login for labels, tracking, complaints, and billing</div>
+        <div className="rounded-2xl border border-[#dce8f5] bg-[linear-gradient(145deg,#f5fbff,#eefaf5)] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#0b7f6d]">Secure login for labels, tracking, complaints, and billing</div>
         <div className="space-y-3">
           <AuthInputField
             label="Username or Email"
@@ -143,7 +143,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => setShowPassword((current) => !current)}
-                className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#12B347]"
+                className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0ea576]"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -158,17 +158,17 @@ export default function Login() {
               checked={rememberMe}
               onChange={(event) => setRememberMe(event.target.checked)}
               type="checkbox"
-              className="h-4.5 w-4.5 rounded border-slate-300 text-[#12B347] focus:ring-[#12B347]/20"
+              className="h-4.5 w-4.5 rounded border-slate-300 text-[#0ea576] focus:ring-[#0ea576]/20"
             />
             <span className="font-medium">Remember me</span>
           </label>
 
-          <Link to="/forgot-password" className="font-semibold text-[#0F9D58] transition hover:text-[#0b7d46]">
+          <Link to="/forgot-password" className="font-semibold text-[#0b7f6d] transition hover:text-[#096658]">
             Forgot Password?
           </Link>
         </div>
 
-        <button disabled={loading} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#0F9D58,#16C75A)] px-5 text-[15px] font-semibold text-white shadow-[0_16px_34px_rgba(18,179,71,0.26)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(18,179,71,0.3)] disabled:cursor-not-allowed disabled:opacity-70">
+        <button disabled={loading} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#0f1f3a,#0ea576)] px-5 text-[15px] font-semibold text-white shadow-[0_16px_34px_rgba(10,31,68,0.24)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(10,31,68,0.3)] disabled:cursor-not-allowed disabled:opacity-70">
           <span>{loading ? "Signing in..." : "Sign in"}</span>
           <span className="flex h-6.5 w-6.5 items-center justify-center rounded-full bg-white/20">
             <ArrowRight className="h-4.5 w-4.5" />
@@ -185,7 +185,7 @@ export default function Login() {
 
         <div className="pt-0.5 text-center text-sm text-slate-500">
           Don&apos;t have an account?{" "}
-          <Link to="/register" className="font-semibold text-[#0F9D58] transition hover:text-[#0b7d46]">
+          <Link to="/register" className="font-semibold text-[#0b7f6d] transition hover:text-[#096658]">
             Register now
           </Link>
         </div>

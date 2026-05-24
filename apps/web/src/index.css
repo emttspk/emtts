@@ -7,15 +7,17 @@
 @layer base {
   :root {
     color-scheme: light;
-    --bg: #f7f9fc;
+    --bg: #f4f9ff;
     --surface: rgba(255, 255, 255, 0.9);
     --surface-strong: #ffffff;
-    --text-strong: #111827;
-    --text-muted: #6b7280;
-    --brand: #10b981;
-    --brand-dark: #059669;
-    --line: #e8edf5;
-    --blue: #2563eb;
+    --text-strong: #0f1f3a;
+    --text-muted: #5f6f87;
+    --brand: #0ea576;
+    --brand-dark: #0b7f6d;
+    --line: #dce8f5;
+    --blue: #2f7edb;
+    --mint-soft: #ecfbf5;
+    --sky-soft: #eaf4ff;
     --sidebar: #0a1325;
     --sidebar-strong: #081225;
   }
@@ -31,9 +33,9 @@
 
   body {
     background:
-      radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 22%),
-      radial-gradient(circle at top right, rgba(16, 185, 129, 0.08), transparent 18%),
-      linear-gradient(180deg, #f7f9fc 0%, #f4f7fb 54%, #f7f9fc 100%);
+      radial-gradient(circle at 8% 2%, rgba(47, 126, 219, 0.16), transparent 28%),
+      radial-gradient(circle at 92% 4%, rgba(14, 165, 118, 0.14), transparent 25%),
+      linear-gradient(180deg, #f4f9ff 0%, #eef6ff 52%, #f2fbf8 100%);
     color: var(--text-strong);
     overflow-x: hidden;
     margin: 0;
@@ -81,6 +83,10 @@
     @apply rounded-[20px] border border-[color:var(--line)] bg-[color:var(--surface-strong)] shadow-card transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-cardHover;
   }
 
+  .ui-card-premium {
+    @apply rounded-[22px] border border-white/85 bg-[linear-gradient(160deg,rgba(255,255,255,0.95),rgba(246,252,255,0.9))] shadow-[0_18px_44px_rgba(10,31,68,0.1)] backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_54px_rgba(10,31,68,0.14)];
+  }
+
   .ui-glass {
     @apply rounded-[20px] border border-white/80 bg-white/72 backdrop-blur-2xl shadow-glass;
   }
@@ -89,12 +95,24 @@
     @apply rounded-[24px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,255,255,0.92))] shadow-card;
   }
 
+  .ui-command-surface {
+    @apply rounded-[26px] border border-[#dce8f5] bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(237,247,255,0.92)_55%,rgba(237,252,246,0.9))] shadow-[0_22px_56px_rgba(10,31,68,0.1)];
+  }
+
   .ui-section-title {
     @apply font-display text-3xl font-extrabold tracking-[-0.04em] text-brand-ink md:text-4xl;
   }
 
   .ui-kicker {
     @apply inline-flex items-center gap-2 rounded-full border border-brand/20 bg-white/90 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-brand shadow-sm backdrop-blur;
+  }
+
+  .ui-badge-soft {
+    @apply inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-700;
+  }
+
+  .ui-chip {
+    @apply inline-flex items-center rounded-full border border-slate-200 bg-white/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-700 shadow-sm;
   }
 
   .btn-primary {
@@ -115,6 +133,18 @@
 
   .field-input {
     @apply w-full rounded-xl border border-[color:var(--line)] bg-white px-4 py-3 text-sm font-medium text-[color:var(--text-strong)] shadow-[0_10px_24px_rgba(8,18,37,0.04)] outline-none transition-all duration-200 focus:border-[#BFDBFE] focus:ring-4 focus:ring-[#DBEAFE] placeholder:text-slate-400;
+  }
+
+  .input-premium {
+    @apply h-12 w-full rounded-2xl border border-[#dce8f5] bg-white/90 px-4 text-sm font-medium text-[color:var(--text-strong)] shadow-[0_12px_30px_rgba(10,31,68,0.06)] outline-none transition-all duration-200 placeholder:text-slate-400 focus:border-[#88c8b6] focus:bg-white focus:ring-4 focus:ring-[#d8f3ea];
+  }
+
+  .ui-pricing-card {
+    @apply rounded-[24px] border border-white/85 bg-[linear-gradient(165deg,rgba(255,255,255,0.96),rgba(244,251,255,0.88))] p-6 shadow-[0_24px_52px_rgba(10,31,68,0.11)] backdrop-blur-xl;
+  }
+
+  .ui-pricing-card-featured {
+    @apply border-emerald-300 bg-[linear-gradient(165deg,rgba(255,255,255,0.98),rgba(235,252,244,0.92))] shadow-[0_28px_60px_rgba(12,129,109,0.22)];
   }
 
   .ui-table {
@@ -159,16 +189,16 @@
   }
 
   .google-auth-btn {
-    @apply relative flex h-14 w-full items-center justify-between rounded-2xl border border-slate-200/90 bg-white/90 px-4 text-[15px] font-semibold text-slate-700 shadow-[0_12px_32px_rgba(15,23,42,0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#12B347]/30 hover:bg-white hover:shadow-[0_18px_40px_rgba(15,23,42,0.09)];
+    @apply relative flex h-12 w-full items-center justify-between rounded-2xl border border-[#dce8f5] bg-white/90 px-4 text-[14px] font-semibold text-slate-700 shadow-[0_12px_30px_rgba(10,31,68,0.07)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[#0ea576]/35 hover:bg-white hover:shadow-[0_18px_40px_rgba(10,31,68,0.12)];
   }
 
   .google-auth-btn:hover {
-    border-color: rgba(18, 179, 71, 0.28);
+    border-color: rgba(14, 165, 118, 0.35);
     background: rgba(255, 255, 255, 0.98);
   }
 
   .google-auth-btn:focus-visible {
-    outline: 2px solid rgba(18, 179, 71, 0.5);
+    outline: 2px solid rgba(14, 165, 118, 0.5);
     outline-offset: 2px;
   }
 
@@ -185,6 +215,10 @@
   .google-auth-btn__label {
     @apply flex-1 text-center font-semibold tracking-[-0.01em];
     font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  .public-shell {
+    @apply min-h-screen bg-[linear-gradient(180deg,#f4f9ff_0%,#eef6ff_50%,#f2fbf8_100%)] text-[#0f1f3a];
   }
 }
 

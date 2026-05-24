@@ -5,7 +5,7 @@ import OperationsModules from "../components/OperationsModules";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#f3f8ff,#f6fbff_45%,#f5fbf8)] text-slate-900">
+    <div className="public-shell">
       <Navbar />
       <main>
         <HomeHero />

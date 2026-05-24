@@ -40,21 +40,21 @@ export default function AuthInputField({
 
   return (
     <label className="block text-sm">
-      <div className="mb-2.5 flex items-center justify-between gap-3 text-[0.95rem] font-semibold text-slate-900">
+      <div className="mb-2.5 flex items-center justify-between gap-3 text-[0.95rem] font-semibold text-[#0f1f3a]">
         <span>{label}</span>
         {helpText ? <span className="text-xs font-medium text-slate-400">{helpText}</span> : null}
       </div>
 
       <div className="group relative">
-        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors duration-200 group-focus-within:text-[#12B347]">
+        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors duration-200 group-focus-within:text-[#0ea576]">
           <Icon className="h-5 w-5" strokeWidth={2} />
         </span>
 
         <input
           name={name}
           className={[
-            "h-14 w-full rounded-2xl border bg-slate-50/85 pl-12 pr-12 text-[15px] font-medium text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_10px_30px_rgba(15,23,42,0.05)] outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-[#12B347]/30 hover:bg-white focus:border-[#12B347] focus:bg-white focus:ring-4 focus:ring-[#12B347]/15",
-            hasError ? "border-red-300 bg-red-50/80 focus:border-red-500 focus:ring-red-200" : "border-slate-200/90",
+            "h-12 rounded-2xl border bg-white/92 pl-12 pr-12 text-[15px] font-medium text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_10px_28px_rgba(10,31,68,0.06)] outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-[#0ea576]/30 hover:bg-white focus:border-[#0ea576] focus:bg-white focus:ring-4 focus:ring-[#d8f3ea]",
+            hasError ? "border-red-300 bg-red-50/80 focus:border-red-500 focus:ring-red-200" : "border-[#dce8f5]",
           ].join(" ")}
           value={value}
           onChange={(event) => onChange(event.target.value)}

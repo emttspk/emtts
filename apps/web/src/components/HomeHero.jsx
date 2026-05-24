@@ -215,43 +215,43 @@ export default function HomeHero() {
   ];
 
   return (
-    <section className="relative overflow-hidden bg-[radial-gradient(circle_at_8%_0%,rgba(14,165,164,0.16),transparent_36%),radial-gradient(circle_at_90%_8%,rgba(15,23,42,0.14),transparent_34%),linear-gradient(175deg,#f6fbff_0%,#edf5ff_48%,#eef8f3_100%)]">
-      <div className="pointer-events-none absolute inset-0 [background-image:linear-gradient(rgba(15,23,42,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.04)_1px,transparent_1px)] [background-size:34px_34px] opacity-35" />
-      <div className="mx-auto max-w-[1320px] px-4 py-7 md:px-6 md:py-9 lg:px-10 lg:py-12">
-        <div className="grid items-start gap-5 lg:grid-cols-[1fr_1fr] lg:gap-6">
+    <section className="relative overflow-hidden bg-[radial-gradient(circle_at_8%_0%,rgba(47,126,219,0.2),transparent_36%),radial-gradient(circle_at_94%_10%,rgba(14,165,118,0.18),transparent_32%),linear-gradient(175deg,#f5faff_0%,#edf6ff_50%,#effbf5_100%)]">
+      <div className="pointer-events-none absolute inset-0 [background-image:linear-gradient(rgba(10,31,68,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(10,31,68,0.05)_1px,transparent_1px)] [background-size:36px_36px] opacity-30" />
+      <div className="mx-auto max-w-[1320px] px-4 py-8 md:px-6 md:py-10 lg:px-10 lg:py-12">
+        <div className="grid items-start gap-6 lg:grid-cols-[1fr_1fr] lg:gap-7">
           <div>
-            <p className="inline-flex items-center rounded-full border border-teal-200 bg-white/92 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-teal-700 shadow-sm sm:text-[11px]">
+            <p className="inline-flex items-center rounded-full border border-emerald-200 bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700 shadow-sm sm:text-[11px]">
               Pakistan Post Operations Platform
             </p>
-            <h1 className="mt-2.5 text-[29px] font-black leading-[1.08] tracking-[-0.03em] text-slate-950 sm:text-[42px] lg:text-[52px]">
-              <span className="sm:hidden">Ship, Track, Resolve</span>
+            <h1 className="mt-3 max-w-[21ch] text-[30px] font-black leading-[1.08] tracking-[-0.03em] text-[#0f1f3a] sm:text-[39px] md:text-[44px] lg:text-[52px]">
+              <span className="sm:hidden">Ship, Track, Resolve Faster</span>
               <span className="hidden sm:inline">Ship, Track, and Resolve Parcels Faster</span>
             </h1>
-            <p className="mt-3 max-w-[640px] text-[14px] leading-6 text-slate-700 sm:text-[16px] sm:leading-7">
+            <p className="mt-3 max-w-[620px] text-[14px] leading-6 text-slate-600 sm:text-[16px] sm:leading-7">
               Generate labels, track bulk parcels, manage complaints, and monitor billing from one workspace.
             </p>
 
-            <div className="mt-4 flex flex-wrap gap-1.5 sm:gap-2">
+            <div className="mt-4 flex flex-wrap gap-2">
               {servicePills.map((pill) => (
                 <span
                   key={pill}
-                  className="rounded-full border border-slate-200 bg-white/92 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-700 shadow-sm sm:px-3 sm:py-1.5 sm:text-[11px]"
+                  className="ui-chip"
                 >
                   {pill}
                 </span>
               ))}
             </div>
 
-            <div className="mt-4 flex flex-col gap-2 sm:mt-5 sm:flex-row sm:gap-2.5">
+            <div className="mt-5 grid w-full max-w-[560px] grid-cols-1 gap-2.5 sm:grid-cols-2">
               <a
                 href="/register"
-                className="inline-flex h-11 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#0f172a,#0f766e)] px-5 text-sm font-bold text-white shadow-[0_10px_24px_rgba(15,23,42,0.24)] transition hover:-translate-y-0.5"
+                className="btn-primary h-11 w-full rounded-xl px-4 text-sm font-bold"
               >
                 Start Free
               </a>
               <a
                 href="/tracking"
-                className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-teal-500 hover:text-teal-700"
+                className="btn-secondary h-11 w-full rounded-xl px-4 text-sm"
               >
                 Track Parcel
               </a>
@@ -262,21 +262,21 @@ export default function HomeHero() {
                 event.preventDefault();
                 submitTracking(trackingId);
               }}
-              className="mt-4 max-w-[680px] rounded-2xl border border-slate-200 bg-white/88 p-1.5 shadow-[0_16px_36px_rgba(15,23,42,0.12)] backdrop-blur sm:mt-5 sm:p-2"
+              className="mt-5 max-w-[700px] rounded-3xl border border-[#dce8f5] bg-white/90 p-2 shadow-[0_18px_44px_rgba(10,31,68,0.12)] backdrop-blur"
             >
               <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Track Parcel</p>
-              <div className="flex flex-col gap-2 md:flex-row md:items-center">
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto_auto] md:items-center">
                 <input
                   type="text"
                   value={trackingId}
                   onChange={(event) => setTrackingId(event.target.value)}
                   placeholder="Enter tracking ID"
-                  className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 outline-none transition focus:border-teal-400 focus:bg-white focus:ring-4 focus:ring-teal-100 sm:h-12 sm:px-4"
+                  className="input-premium h-11 sm:h-12"
                 />
 
                 <button
                   type="submit"
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[linear-gradient(135deg,#0f172a,#0f766e)] px-5 text-sm font-bold text-white transition hover:-translate-y-0.5 sm:h-12"
+                  className="btn-primary h-11 gap-2 rounded-xl px-5 text-sm font-bold sm:h-12"
                 >
                   <Search className="h-4 w-4" />
                   Track
@@ -285,7 +285,7 @@ export default function HomeHero() {
                 <button
                   type="button"
                   onClick={() => setScannerOpen(true)}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-teal-500 hover:text-teal-700 sm:h-12"
+                  className="btn-secondary h-11 gap-2 rounded-xl px-4 text-sm sm:h-12"
                 >
                   <ScanLine className="h-4 w-4" />
                   Scan Barcode
@@ -294,7 +294,7 @@ export default function HomeHero() {
             </form>
 
             {scannerOpen ? (
-              <div className="mt-3 max-w-[680px] rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+              <div className="mt-3 max-w-[700px] rounded-2xl border border-[#dce8f5] bg-white/95 p-3 shadow-[0_16px_36px_rgba(10,31,68,0.1)]">
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-sm font-semibold text-slate-800">Scan Barcode</p>
                   <button
@@ -318,8 +318,8 @@ export default function HomeHero() {
           </div>
 
           <div className="relative">
-            <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white/90 p-3 shadow-[0_26px_58px_rgba(15,23,42,0.16)] backdrop-blur-xl sm:p-4">
-              <div className="rounded-2xl border border-slate-200 bg-[linear-gradient(170deg,#0f172a,#0b2947_46%,#0f766e)] p-4 text-white sm:p-5">
+            <div className="relative overflow-hidden rounded-3xl border border-[#dce8f5] bg-white/92 p-3 shadow-[0_26px_58px_rgba(10,31,68,0.16)] backdrop-blur-xl sm:p-4">
+              <div className="rounded-2xl border border-white/20 bg-[linear-gradient(170deg,#0f1f3a,#153153_45%,#0b7f6d)] p-4 text-white sm:p-5">
                 <div className="flex items-center justify-between">
                   <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/85">Operations Dashboard</p>
                   <span className="rounded-full border border-white/30 bg-white/15 px-2.5 py-1 text-[10px] font-semibold">Live</span>

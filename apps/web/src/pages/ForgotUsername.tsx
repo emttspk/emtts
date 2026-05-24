@@ -24,7 +24,7 @@ export default function ForgotUsername() {
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
             {result}
           </div>
-          <Link to="/login" className="block text-center text-sm font-semibold text-brand hover:text-brand-dark">
+          <Link to="/login" className="block text-center text-sm font-semibold text-[#0b7f6d] hover:text-[#096658]">
             Back to Login
           </Link>
         </div>
@@ -51,7 +51,7 @@ export default function ForgotUsername() {
             }
           }}
         >
-          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/55 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Recover username with registered email</div>
+          <div className="rounded-2xl border border-[#dce8f5] bg-[linear-gradient(145deg,#f4faff,#eefaf5)] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#0b7f6d]">Recover username with registered email</div>
           <AuthInputField
             label="Email"
             icon={Mail}
@@ -64,7 +64,7 @@ export default function ForgotUsername() {
             name="email"
           />
 
-          <button disabled={loading} className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#0F9D58,#16C75A)] px-6 text-base font-semibold text-white shadow-[0_18px_40px_rgba(18,179,71,0.28)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_50px_rgba(18,179,71,0.34)] disabled:cursor-not-allowed disabled:opacity-70">
+          <button disabled={loading} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#0f1f3a,#0ea576)] px-6 text-base font-semibold text-white shadow-[0_18px_40px_rgba(10,31,68,0.26)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_50px_rgba(10,31,68,0.34)] disabled:cursor-not-allowed disabled:opacity-70">
             <span>{loading ? "Looking up..." : "Recover Username"}</span>
             <Search className="h-4.5 w-4.5" />
           </button>

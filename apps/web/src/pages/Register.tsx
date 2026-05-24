@@ -144,7 +144,7 @@ export default function Register() {
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
           <p className="font-semibold text-slate-900">A verification link was sent to:</p>
-          <p className="mt-1 font-medium text-brand">{email}</p>
+            <p className="mt-1 font-medium text-[#0b7f6d]">{email}</p>
           <p className="mt-3 text-slate-600">Click the link in your email, then return here and press <strong>Continue</strong>.</p>
         </div>
 
@@ -243,9 +243,9 @@ export default function Register() {
           }
         }}
       >
-        <div className="rounded-2xl border border-sky-100 bg-sky-50/60 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-700">Built for Pakistan Post operations teams</div>
-        <div className="space-y-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">Identity</div>
+        <div className="rounded-2xl border border-[#dce8f5] bg-[linear-gradient(145deg,#f4faff,#eefaf5)] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2f7edb]">Built for Pakistan Post operations teams</div>
+        <div className="space-y-3 rounded-2xl border border-[#dce8f5] bg-white/82 p-4 shadow-[0_14px_30px_rgba(10,31,68,0.06)]">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#0b7f6d]">Identity</div>
           <label className="block text-sm">
             <div className="mb-2 font-medium text-slate-700">Username *</div>
             <input
@@ -276,7 +276,7 @@ export default function Register() {
                       <button
                         key={s}
                         type="button"
-                        className="font-medium text-brand hover:underline"
+                        className="font-medium text-[#0b7f6d] hover:underline"
                         onClick={() => handleUsernameChange(s)}
                       >
                         {s}{i < usernameSuggestions.length - 1 ? ", " : ""}
@@ -304,7 +304,7 @@ export default function Register() {
         <GoogleAuthButton className="w-full" label="Sign up with Google" disabled={loading} loading={loading} onClick={handleGoogleRegister} />
 
         <div className="flex items-center justify-between text-sm text-slate-500">
-          <Link to={`/login${email ? `?email=${encodeURIComponent(email)}` : ""}`} className="font-semibold text-brand transition hover:text-brand-dark">
+          <Link to={`/login${email ? `?email=${encodeURIComponent(email)}` : ""}`} className="font-semibold text-[#0b7f6d] transition hover:text-[#096658]">
             Login
           </Link>
         </div>

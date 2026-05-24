@@ -87,34 +87,34 @@ export default function OperationsModules() {
           complaintLimits: `Complaint Limits: ${complaintLimitText(plan)}`,
           cta: priceCents > 0 ? "Buy Now" : "Get Started Free",
           checkoutHref: priceCents > 0 ? `/billing/checkout?plan=${encodeURIComponent(planSlug)}` : "/register",
-          badge: index === 1 ? "Most Popular" : null,
-          featured: index === 1,
+          badge: index === 1 || (planSlug || "").toUpperCase() === "STANDARD" ? "Most Popular" : null,
+          featured: index === 1 || (planSlug || "").toUpperCase() === "STANDARD",
         };
       });
   }, [plans]);
 
   return (
-    <section id="services" className="relative overflow-hidden bg-[linear-gradient(180deg,#eef6ff_0%,#f7fcfb_46%,#eef3ff_100%)] py-10 md:py-12">
+    <section id="services" className="relative overflow-hidden bg-[linear-gradient(180deg,#edf6ff_0%,#f7fcfb_46%,#edf4ff_100%)] py-10 md:py-12">
       <div className="mx-auto w-full max-w-[1320px] px-4 md:px-6 lg:px-10">
         <div className="mx-auto max-w-3xl text-center">
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-teal-700">Operations Product Suite</p>
-          <h2 className="mt-2 text-2xl font-black tracking-[-0.03em] text-slate-950 sm:text-3xl">Core Modules For Daily Dispatch Control</h2>
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-700">Operations Product Suite</p>
+          <h2 className="mt-2 text-2xl font-black tracking-[-0.03em] text-[#0f1f3a] sm:text-3xl">Core Modules For Daily Dispatch Control</h2>
         </div>
 
-        <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {MODULES.map((module) => (
             <article
               key={module.title}
-              className="rounded-2xl border border-white/90 bg-white/82 p-3 shadow-[0_16px_32px_rgba(15,23,42,0.12)] backdrop-blur-lg transition hover:-translate-y-1 hover:shadow-[0_20px_42px_rgba(15,23,42,0.16)] sm:p-4"
+              className="ui-card-premium p-4"
             >
-              <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 sm:h-12 sm:w-12">
+              <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-[linear-gradient(145deg,#ffffff,#eef6ff)] sm:h-12 sm:w-12">
                 <img src={module.image} alt={module.title} className="h-6 w-6 object-contain sm:h-7 sm:w-7" loading="lazy" />
               </div>
-              <h3 className="mt-3 text-[14px] font-black tracking-[-0.02em] text-slate-900 sm:text-[16px]">{module.title}</h3>
-              <p className="mt-1.5 text-[12px] leading-5 text-slate-600 sm:text-[13px]">{module.description}</p>
+              <h3 className="mt-3 text-[15px] font-black tracking-[-0.02em] text-[#0f1f3a] sm:text-[16px]">{module.title}</h3>
+              <p className="mt-1.5 min-h-[40px] text-[12px] leading-5 text-slate-600 sm:text-[13px]">{module.description}</p>
               <a
                 href={module.href}
-                className="mt-3 inline-flex h-9 items-center justify-center rounded-lg bg-[linear-gradient(135deg,#0f172a,#0f766e)] px-3 text-xs font-bold text-white sm:h-10 sm:px-4 sm:text-sm"
+                className="btn-primary mt-3 inline-flex h-10 rounded-xl px-4 text-xs font-bold sm:text-sm"
               >
                 Explore
               </a>
@@ -122,9 +122,9 @@ export default function OperationsModules() {
           ))}
         </div>
 
-        <div id="how-it-works" className="mt-11 rounded-3xl border border-white/80 bg-white/75 p-5 shadow-[0_18px_38px_rgba(15,23,42,0.12)] backdrop-blur-xl md:p-8">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-700">How It Works</p>
-          <h3 className="mt-2 text-2xl font-black tracking-[-0.03em] text-slate-950 sm:text-3xl">Run Operations In 3 Steps</h3>
+        <div id="how-it-works" className="ui-command-surface mt-11 p-5 md:p-8">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#2f7edb]">How It Works</p>
+          <h3 className="mt-2 text-2xl font-black tracking-[-0.03em] text-[#0f1f3a] sm:text-3xl">Run Operations In 3 Steps</h3>
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             {[
               {
@@ -139,8 +139,9 @@ export default function OperationsModules() {
                 title: "Step 3",
                 detail: "Track, complain, manage billing",
               },
-            ].map((step) => (
-              <div key={step.title} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            ].map((step, idx) => (
+              <div key={step.title} className="relative rounded-2xl border border-[#dce8f5] bg-white/92 p-4 shadow-[0_12px_26px_rgba(10,31,68,0.08)]">
+                <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-[linear-gradient(135deg,#0f1f3a,#0ea576)] text-xs font-bold text-white">{idx + 1}</div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-emerald-700">{step.title}</p>
                 <p className="mt-2 text-sm font-semibold leading-6 text-slate-800">{step.detail}</p>
               </div>
@@ -148,7 +149,7 @@ export default function OperationsModules() {
           </div>
         </div>
 
-        <div className="mt-8 rounded-3xl border border-white/80 bg-white/75 p-5 shadow-[0_18px_38px_rgba(15,23,42,0.12)] backdrop-blur-xl md:p-8">
+        <div className="ui-command-surface mt-8 p-5 md:p-8">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">Why Teams Trust ePost.pk</p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {[
@@ -158,7 +159,7 @@ export default function OperationsModules() {
               "Complaint monitoring",
               "Usage/package control",
             ].map((item) => (
-              <div key={item} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700">
+              <div key={item} className="rounded-2xl border border-[#dce8f5] bg-white/92 px-4 py-3 text-sm font-semibold text-slate-700 shadow-[0_10px_22px_rgba(10,31,68,0.06)]">
                 {item}
               </div>
             ))}
@@ -168,28 +169,24 @@ export default function OperationsModules() {
         <div id="billing-packages" className="mt-12">
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">Billing Plans</p>
-            <h3 className="mt-2 text-3xl font-black tracking-[-0.03em] text-slate-950 sm:text-4xl">Billing Packages</h3>
+            <h3 className="mt-2 text-3xl font-black tracking-[-0.03em] text-[#0f1f3a] sm:text-4xl">Billing Packages</h3>
           </div>
 
           <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-3">
             {billingPackages.map((plan) => (
               <article
                 key={plan.name}
-                className={`rounded-2xl border bg-white/75 p-6 shadow-[0_22px_44px_rgba(15,23,42,0.14)] backdrop-blur-xl ${
-                  plan.featured
-                    ? "border-emerald-400/60 shadow-[0_22px_44px_rgba(11,107,58,0.18)]"
-                    : "border-white/80"
-                }`}
+                className={`ui-pricing-card ${plan.featured ? "ui-pricing-card-featured" : ""}`}
               >
                 <div className="flex items-center justify-between">
                   <div className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-700">{plan.name}</div>
                   {plan.badge ? (
-                    <span className="rounded-full bg-emerald-700 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                    <span className="rounded-full bg-[linear-gradient(135deg,#0f1f3a,#0ea576)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
                       {plan.badge}
                     </span>
                   ) : null}
                 </div>
-                <div className="mt-2 text-2xl font-black tracking-[-0.02em] text-slate-950">{plan.price}</div>
+                <div className="mt-2 text-2xl font-black tracking-[-0.02em] text-[#0f1f3a]">{plan.price}</div>
                 <ul className="mt-5 space-y-2 text-sm leading-6 text-slate-700">
                   <li>{plan.totalSharedUnits}</li>
                   <li className="font-semibold text-slate-600">Services Included:</li>
@@ -204,8 +201,8 @@ export default function OperationsModules() {
                   href={plan.checkoutHref}
                   className={`mt-6 inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-bold transition-all duration-200 hover:-translate-y-0.5 ${
                     plan.name === "FREE"
-                      ? "border border-slate-300 bg-white text-slate-800 hover:border-emerald-500 hover:text-emerald-700"
-                      : "bg-[linear-gradient(135deg,#0f172a,#0b6b3a)] text-white shadow-[0_8px_20px_rgba(11,107,58,0.28)]"
+                      ? "border border-[#dce8f5] bg-white text-slate-800 hover:border-emerald-500 hover:text-emerald-700"
+                      : "bg-[linear-gradient(135deg,#0f1f3a,#0ea576)] text-white shadow-[0_10px_24px_rgba(12,129,109,0.28)]"
                   }`}
                 >
                   {plan.cta}

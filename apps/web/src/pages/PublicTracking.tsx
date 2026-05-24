@@ -147,10 +147,10 @@ function TrackingResultCard({ result }: { result: TrackingResult }) {
   });
 
   return (
-    <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.08)] sm:p-5">
+    <section className="rounded-[24px] border border-[#dce8f5] bg-[linear-gradient(165deg,#ffffff,#f5fbff_58%,#f3fbf7)] p-4 shadow-[0_14px_34px_rgba(10,31,68,0.1)] sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-xl font-extrabold tracking-tight text-slate-900">Shipment Status</h2>
+          <h2 className="text-xl font-extrabold tracking-tight text-[#0f1f3a]">Shipment Status</h2>
           <p className="mt-1 font-mono text-sm font-semibold text-slate-600 break-all">Tracking ID: {result.tracking_number}</p>
           {result.consignee_name ? (
             <p className="mt-2 text-sm text-slate-500">
@@ -176,7 +176,7 @@ function TrackingResultCard({ result }: { result: TrackingResult }) {
       </div>
 
       {showMoSection ? (
-        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-3 flex flex-wrap items-center gap-3">
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">Value Payable</div>
           {moNumber ? (
             <span className="rounded-full border border-amber-300 bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800">
@@ -202,44 +202,44 @@ function TrackingResultCard({ result }: { result: TrackingResult }) {
       ) : null}
 
       <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+        <div className="rounded-2xl border border-[#dce8f5] bg-white/88 p-3">
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Origin</div>
           <div className="mt-2 text-sm font-semibold text-slate-800">{result.origin || result.booking_office || "-"}</div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+        <div className="rounded-2xl border border-[#dce8f5] bg-white/88 p-3">
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Destination</div>
           <div className="mt-2 text-sm font-semibold text-slate-800">{result.destination || result.delivery_office || "-"}</div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+        <div className="rounded-2xl border border-[#dce8f5] bg-white/88 p-3">
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Current Location</div>
           <div className="mt-2 text-sm font-semibold text-slate-800">{currentLocation}</div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+        <div className="rounded-2xl border border-[#dce8f5] bg-white/88 p-3">
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Latest Event</div>
           <div className="mt-2 text-sm font-semibold text-slate-800">{presentation.latestEvent?.description || "-"}</div>
           {presentation.latestEvent?.location ? <div className="mt-1 text-xs text-slate-500">{presentation.latestEvent.location}</div> : null}
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+        <div className="rounded-2xl border border-[#dce8f5] bg-white/88 p-3">
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Estimated Delivery</div>
           <div className="mt-2 text-sm font-semibold text-slate-800">{result.estimated_delivery || "-"}</div>
         </div>
       </div>
 
-      <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="mt-5 rounded-2xl border border-[#dce8f5] bg-white/88 p-4">
         <div className="flex items-center justify-between gap-3">
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Delivery Progress</div>
           <div className="text-sm font-semibold text-slate-700">{progress}%</div>
         </div>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
-          <div className="h-full rounded-full bg-[linear-gradient(135deg,#0f172a,#0b6b3a)]" style={{ width: `${progress}%` }} />
+          <div className="h-full rounded-full bg-[linear-gradient(135deg,#0f1f3a,#0ea576)]" style={{ width: `${progress}%` }} />
         </div>
       </div>
 
-      <div className="mt-5 rounded-2xl border border-slate-200 bg-white">
+      <div className="mt-5 rounded-2xl border border-[#dce8f5] bg-white">
         <div className="border-b border-slate-200 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">History</div>
         {timeline.length > 0 ? (
           <div className="grid gap-4 p-3 sm:p-4 lg:grid-cols-[200px_1fr]">
-            <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+            <aside className="rounded-2xl border border-[#dce8f5] bg-[linear-gradient(165deg,#ffffff,#f1f8ff)] p-3">
               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Shipment Stages</div>
               <ol className="relative mt-3 space-y-2.5">
                 {presentation.stageLabels.map((stage, idx) => {
@@ -263,7 +263,7 @@ function TrackingResultCard({ result }: { result: TrackingResult }) {
                 return (
                   <li
                     key={`${result.tracking_number}-${event.date}-${event.time}-${index}`}
-                    className="relative translate-y-0 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 opacity-100 transition-all duration-500"
+                    className="relative translate-y-0 rounded-2xl border border-[#e4edf8] bg-white px-4 py-3 opacity-100 shadow-[0_8px_20px_rgba(10,31,68,0.06)] transition-all duration-500"
                     style={{ transitionDelay: `${Math.min(index * 60, 320)}ms` }}
                   >
                     <span className="absolute left-[-1px] top-4 h-4 w-4 rounded-full border-2 border-emerald-500 bg-white shadow-[0_0_0_4px_rgba(16,185,129,0.15)]" />
@@ -452,12 +452,12 @@ export default function PublicTracking() {
   const activeResult = results[safeActiveIndex] ?? null;
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#F7F9FC,#F4F7FB)] text-slate-900">
+    <div className="public-shell">
       <Navbar />
       <main className="mx-auto w-full max-w-[1120px] px-4 py-8 sm:px-6 sm:py-10">
-        <div className="rounded-[28px] border border-[color:var(--line)] bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_60%,#eefbf3_100%)] p-6 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
-          <div className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#2563EB]">Parcel Tracking</div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Track your ePost.pk shipment</h1>
+        <div className="rounded-[28px] border border-[#dce8f5] bg-[linear-gradient(135deg,#ffffff_0%,#f3f9ff_58%,#eefbf5_100%)] p-5 shadow-[0_20px_50px_rgba(10,31,68,0.1)] sm:p-6">
+          <div className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#2f7edb]">Parcel Tracking</div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-[#0f1f3a] sm:text-3xl">Track your ePost.pk shipment</h1>
           <p className="mt-1 text-sm text-slate-500">Enter one tracking ID or up to 5 IDs separated by commas.</p>
           <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-2 sm:flex-row">
             <input
@@ -465,12 +465,12 @@ export default function PublicTracking() {
               value={input}
               onChange={(event) => setInput(event.target.value)}
               placeholder="e.g. VPL26030700 or VPL26030700,PK123,PK456"
-              className="h-12 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-900 outline-none transition-all focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100"
+              className="input-premium h-12 flex-1"
             />
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#081225,#10B981)] px-5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)] transition-all hover:-translate-y-0.5 disabled:opacity-60"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#0f1f3a,#0ea576)] px-5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(10,31,68,0.22)] transition-all hover:-translate-y-0.5 disabled:opacity-60"
             >
               {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
               {loading ? "Tracking..." : "Track"}
@@ -485,7 +485,7 @@ export default function PublicTracking() {
         ) : null}
 
         {requestedIds.length > 1 ? (
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+          <div className="mt-6 rounded-2xl border border-[#dce8f5] bg-white/84 p-4 text-sm text-slate-700">
             <span className="font-semibold">Tracking IDs:</span> {requestedIds.join(", ")}
           </div>
         ) : null}
@@ -541,7 +541,7 @@ export default function PublicTracking() {
                       key={`${result.tracking_number}-dot`}
                       type="button"
                       onClick={() => setActiveCardIndex(index)}
-                      className={`rounded-full px-3 py-1 text-xs font-semibold transition ${index === safeActiveIndex ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold transition ${index === safeActiveIndex ? "bg-[#0f1f3a] text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
                     >
                       {result.tracking_number}
                     </button>
@@ -552,11 +552,11 @@ export default function PublicTracking() {
               activeResult ? <TrackingResultCard key={activeResult.tracking_number} result={activeResult} /> : null
             )}
 
-            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4">
+            <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#dce8f5] bg-white/90 px-5 py-4">
               <div className="flex-1 text-sm text-slate-600">Need complaints or dispatch tools?</div>
               <a
                 href="/register"
-                className="inline-flex items-center gap-1.5 rounded-full bg-[linear-gradient(135deg,#081225,#10B981)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-transform hover:-translate-y-0.5"
+                className="inline-flex items-center gap-1.5 rounded-full bg-[linear-gradient(135deg,#0f1f3a,#0ea576)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-transform hover:-translate-y-0.5"
               >
                 Create Free Account <ArrowRight className="h-3.5 w-3.5" />
               </a>
