@@ -50,10 +50,10 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
   const modeTitle = entryMode === "select" ? "Select Package" : entryMode === "update" ? "Update Package" : "Pricing & Billing";
   const modeSubtitle =
     entryMode === "select"
-      ? "Choose a package to start dispatching."
+      ? "Choose an ePost.pk package to start dispatching."
       : entryMode === "update"
-        ? "Upgrade or switch based on usage."
-        : "Choose a package for your team.";
+        ? "Upgrade or switch based on your ePost.pk usage."
+        : "Choose an ePost.pk package for your team.";
 
   useEffect(() => {
     setLoadingPlans(true);
@@ -145,10 +145,10 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
 
   return (
     <>
-      <PageShell className="space-y-6">
+      <PageShell className="space-y-5">
         <PageHeader eyebrow="Billing" title={modeTitle} subtitle={modeSubtitle} />
 
-      <Card className="overflow-hidden border-slate-200 bg-white p-6 shadow-sm">
+      <Card className="overflow-hidden border-slate-200 bg-white p-5 shadow-sm md:p-6">
         <div className="grid gap-6 lg:grid-cols-[1.35fr_0.65fr] lg:items-center">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/10 px-4 py-2 text-sm font-semibold text-brand">
@@ -156,7 +156,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
               {modeTitle}
             </div>
             <div className="mt-5 text-xl font-semibold text-slate-900">Package summary</div>
-            <div className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Plan, usage, and billing status in one place.</div>
+            <div className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Plan, usage, and billing status in one ePost.pk view.</div>
 
             {error ? <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
             {success ? <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div> : null}
@@ -173,22 +173,22 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
               </div>
             ) : null}
           </div>
-          <div className="rounded-[20px] border border-[color:var(--line)] bg-[#F8FAFC] p-6 shadow-sm">
+          <div className="rounded-[20px] border border-[color:var(--line)] bg-[#F8FAFC] p-5 shadow-sm">
             <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Active package</div>
-            <div className="mt-3 text-3xl font-semibold text-slate-900">{activePlanName}</div>
+            <div className="mt-3 ui-cell-wrap text-3xl font-semibold text-slate-900">{activePlanName}</div>
             <div className="mt-4 grid gap-3 text-sm text-slate-600">
-              <div className="flex items-center justify-between gap-4"><span>Used Units</span><span>{usedUnits.toLocaleString()}</span></div>
-              <div className="flex items-center justify-between gap-4"><span>Remaining Units</span><span>{remainingUnits.toLocaleString()}</span></div>
-              <div className="flex items-center justify-between gap-4"><span>Total Shared Units</span><span>{totalUnits.toLocaleString()}</span></div>
-              <div className="flex items-center justify-between gap-4"><span>Tracking Actions</span><span>{(me?.usage?.trackingGenerated ?? 0).toLocaleString()}</span></div>
-              <div className={`flex items-center justify-between gap-4 ${nearExpiry ? "text-amber-300" : expired ? "text-red-300" : ""}`}><span>Expiry Date</span><span>{expiryDateObj ? expiryDateObj.toLocaleDateString("en-PK") : "-"}</span></div>
-              <div className="flex items-center justify-between gap-4"><span>Billing Status</span><span>{billingStatus}</span></div>
+              <div className="flex items-center justify-between gap-4"><span>Used Units</span><span className="font-semibold">{usedUnits.toLocaleString()}</span></div>
+              <div className="flex items-center justify-between gap-4"><span>Remaining Units</span><span className="font-semibold">{remainingUnits.toLocaleString()}</span></div>
+              <div className="flex items-center justify-between gap-4"><span>Total Shared Units</span><span className="font-semibold">{totalUnits.toLocaleString()}</span></div>
+              <div className="flex items-center justify-between gap-4"><span>Tracking Actions</span><span className="font-semibold">{(me?.usage?.trackingGenerated ?? 0).toLocaleString()}</span></div>
+              <div className={`flex items-center justify-between gap-4 ${nearExpiry ? "text-amber-700" : expired ? "text-red-700" : ""}`}><span>Expiry Date</span><span className="font-semibold">{expiryDateObj ? expiryDateObj.toLocaleDateString("en-PK") : "-"}</span></div>
+              <div className="flex items-center justify-between gap-4"><span>Billing Status</span><span className="font-semibold">{billingStatus}</span></div>
             </div>
           </div>
         </div>
       </Card>
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-3">
         {loadingPlans ? <Card className="p-6 text-sm text-slate-600">Loading packages...</Card> : null}
         {plans.map((plan, index) => {
           const isCurrent = currentPlanId === plan.id && !expired && !nearExpiry;
@@ -201,7 +201,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
           const discountPct = fullPrice > 0 ? Math.max(0, Math.round(((fullPrice - discountedPrice) / fullPrice) * 100)) : 0;
           return (
             <Card key={plan.id} className={highlight ? "border-brand/30 bg-white shadow-sm" : "border-slate-200 bg-white shadow-sm"}>
-              <div className="p-6">
+              <div className="flex h-full flex-col p-5 md:p-6">
                 <div className="flex items-start justify-between">
                   <div>
                     <CardTitle className="text-slate-900">{plan.name}</CardTitle>
@@ -238,6 +238,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                 </div>
                 {plan.isSuspended ? <div className="mt-3 text-xs font-medium text-red-600">Temporarily suspended by admin.</div> : null}
 
+                <div className="mt-auto pt-5">
                 <ActionButton
                   className="mt-6 w-full"
                   type="button"
@@ -269,6 +270,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                     {initiatingWalletPlanId === plan.id ? "Creating invoice…" : "Pay via JazzCash / Easypaisa / Bank Transfer"}
                   </ActionButton>
                 )}
+                </div>
               </div>
             </Card>
           );

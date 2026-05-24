@@ -5,7 +5,7 @@ import JobsTable from "../components/JobsTable";
 import EmptyState from "../components/EmptyState";
 import { api, triggerBrowserDownload } from "../lib/api";
 import type { LabelJob } from "../lib/types";
-import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
+import { CardTitle, PageShell } from "../components/ui/PageSystem";
 
 export default function Jobs() {
   const nav = useNavigate();
@@ -64,24 +64,24 @@ export default function Jobs() {
   if (!loading && visibleJobs.length === 0) return <EmptyState onUploadClick={() => nav("/upload")} />;
 
   return (
-    <PageShell className="space-y-3">
-      <Card className="border-slate-200 bg-white p-5 shadow-sm">
+    <PageShell className="space-y-4">
+      <Card className="border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <CardTitle>Jobs</CardTitle>
-            <div className="mt-1 text-sm font-normal text-slate-500">Downloads are now part of the same jobs workflow. Switch between all activity and ready files here.</div>
+            <CardTitle>ePost.pk Jobs</CardTitle>
+            <div className="mt-1 text-sm font-normal text-slate-500">Monitor processing status and download-ready files from one queue.</div>
           </div>
-          <div className="inline-flex rounded-2xl border border-[#E5E7EB] bg-[#F8FAF9] p-1 shadow-lg">
+          <div className="grid w-full grid-cols-1 gap-2 rounded-2xl border border-[#E5E7EB] bg-[#F8FAF9] p-1 shadow-lg sm:inline-flex sm:w-auto sm:grid-cols-none sm:gap-0">
             <button
               type="button"
-              className={`rounded-2xl px-4 py-2 text-sm font-medium transition ${filter === "all" ? "bg-white text-slate-950 shadow-lg" : "text-slate-600"}`}
+              className={`rounded-2xl px-4 py-2.5 text-sm font-medium transition ${filter === "all" ? "bg-white text-slate-950 shadow-lg" : "text-slate-600"}`}
               onClick={() => setParams({ filter: "all" })}
             >
               All Jobs ({jobs.length})
             </button>
             <button
               type="button"
-              className={`rounded-2xl px-4 py-2 text-sm font-medium transition ${filter === "completed" ? "bg-white text-slate-950 shadow-lg" : "text-slate-600"}`}
+              className={`rounded-2xl px-4 py-2.5 text-sm font-medium transition ${filter === "completed" ? "bg-white text-slate-950 shadow-lg" : "text-slate-600"}`}
               onClick={() => setParams({ filter: "completed" })}
             >
               Ready Downloads ({completedCount})

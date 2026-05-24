@@ -31,14 +31,14 @@ export default function ActionButton({
     <button
       type={type}
       className={cn(
-        "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60",
+        "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold leading-5 transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60",
         variants[variant],
         className,
       )}
       {...rest}
     >
       {leadingIcon ? <span className="shrink-0">{leadingIcon}</span> : null}
-      <span>{children}</span>
+      <span className="text-center">{children}</span>
       {trailingIcon ? <span className="shrink-0">{trailingIcon}</span> : null}
     </button>
   );

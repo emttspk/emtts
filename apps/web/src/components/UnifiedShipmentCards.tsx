@@ -43,24 +43,24 @@ export default function UnifiedShipmentCards({
   };
 
   return (
-    <div className={cn("grid gap-3 sm:grid-cols-5", className)}>
+    <div className={cn("grid gap-3 sm:grid-cols-2 xl:grid-cols-5", className)}>
       {items.map((item) => (
         <button
           key={item.key}
           type="button"
           onClick={() => onSelect?.(item.key)}
           className={cn(
-            "rounded-2xl border p-4 text-left transition-all",
+            "rounded-2xl border p-4 text-left transition-all min-h-[138px]",
             toneByKey[item.key],
-            item.active ? "ring-2 ring-brand/35" : "hover:shadow-sm",
+            item.active ? "ring-2 ring-brand/35" : "hover:shadow-sm hover:-translate-y-0.5",
           )}
         >
           <div className="flex items-center justify-between gap-2">
             <div className="text-slate-700">{iconByKey[item.key]}</div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">{item.label}</div>
+            <div className="ui-cell-wrap text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500 text-right">{item.label}</div>
           </div>
-          <div className="mt-3 text-xl font-bold text-slate-900">{item.parcels.toLocaleString()} Parcels</div>
-          <div className="mt-1 text-xs font-semibold text-slate-600">{formatAmount(item.amount)}</div>
+          <div className="mt-3 ui-cell-wrap text-xl font-bold text-slate-900">{item.parcels.toLocaleString()} Parcels</div>
+          <div className="mt-1 ui-cell-wrap text-xs font-semibold text-slate-600">{formatAmount(item.amount)}</div>
         </button>
       ))}
     </div>

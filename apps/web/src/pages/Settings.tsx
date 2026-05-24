@@ -70,13 +70,13 @@ export default function Settings() {
   }
 
   return (
-    <PageShell className="space-y-3">
+    <PageShell className="space-y-4">
       <Card className="border-slate-200 bg-white p-5 shadow-sm md:p-6">
         <div className="ui-kicker">Profile settings</div>
-        <div className="mt-5 text-xl font-semibold text-slate-900">Premium sender profile for labels, returns, and account control.</div>
-        <BodyText className="mt-2 max-w-2xl">Review account details and maintain the sender information used when your uploaded files do not provide return-address data.</BodyText>
+        <div className="mt-5 text-xl font-semibold text-slate-900">ePost.pk sender profile for labels, returns, and account control.</div>
+        <BodyText className="mt-2 max-w-2xl">Review account details and maintain sender information used when uploaded files do not provide return-address data.</BodyText>
 
-        <div className="mt-7 grid gap-4 rounded-[28px] border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-5 md:grid-cols-3">
+        <div className="mt-7 grid gap-3 rounded-[28px] border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-4 sm:p-5 md:grid-cols-3">
           <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">Subscription</div>
             <div className="mt-2 text-xl font-semibold text-emerald-900">{packageMeta.displayName}</div>
@@ -123,13 +123,13 @@ export default function Settings() {
         </div>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-[0.72fr_1.28fr]">
+      <div className="grid gap-4 xl:grid-cols-[0.72fr_1.28fr]">
         <Card className="border-slate-200 bg-white p-6 shadow-sm">
           <CardTitle>Account</CardTitle>
           <div className="mt-4 grid gap-3 text-sm text-gray-600">
             <div className="flex items-center justify-between gap-4 rounded-2xl bg-slate-50/80 px-4 py-3">
               <div>Email</div>
-              <div className="font-medium text-gray-900">{me?.user.email ?? "-"}</div>
+              <div className="ui-cell-wrap text-right font-medium text-gray-900">{me?.user.email ?? "-"}</div>
             </div>
             <div className="flex items-center justify-between gap-4 rounded-2xl bg-slate-50/80 px-4 py-3">
               <div>Role</div>
@@ -170,7 +170,7 @@ export default function Settings() {
           <div>
 
           {canUseTemplateDesigner ? (
-            <Card className="border-slate-200 bg-white p-6 shadow-sm">
+            <Card className="mb-4 border-slate-200 bg-slate-50/60 p-5 shadow-sm">
               <CardTitle>Admin tools</CardTitle>
               <div className="mt-1 text-sm font-normal text-slate-500">Internal-only controls for advanced money order layout management.</div>
               <div className="mt-4">

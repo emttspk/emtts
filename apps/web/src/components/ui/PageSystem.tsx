@@ -22,7 +22,7 @@ export function SurfaceCard(props: Classy) {
 }
 
 export function PageTitle(props: Classy) {
-  return <h1 className={cn("text-[2rem] font-extrabold tracking-[-0.04em] text-[color:var(--text-strong)]", props.className)}>{props.children}</h1>;
+  return <h1 className={cn("text-[1.9rem] font-extrabold tracking-[-0.04em] text-[color:var(--text-strong)] sm:text-[2rem]", props.className)}>{props.children}</h1>;
 }
 
 export function SectionTitle(props: Classy) {
@@ -30,11 +30,11 @@ export function SectionTitle(props: Classy) {
 }
 
 export function CardTitle(props: Classy) {
-  return <h3 className={cn("text-[15px] font-semibold tracking-[-0.02em] text-[color:var(--text-strong)]", props.className)}>{props.children}</h3>;
+  return <h3 className={cn("text-[15px] font-semibold tracking-[-0.02em] text-[color:var(--text-strong)] sm:text-[16px]", props.className)}>{props.children}</h3>;
 }
 
 export function BodyText(props: Classy) {
-  return <p className={cn("text-[13px] font-medium leading-5 text-[color:var(--text-muted)]", props.className)}>{props.children}</p>;
+  return <p className={cn("text-[13px] font-medium leading-5 text-[color:var(--text-muted)] sm:text-[13.5px]", props.className)}>{props.children}</p>;
 }
 
 export function MutedText(props: Classy) {

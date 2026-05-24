@@ -51,7 +51,7 @@ function DownloadButton(props: { jobId: string; kind: "labels" | "money-orders" 
       type="button"
       onClick={handleDownload}
       disabled={busy}
-      className="inline-flex items-center gap-2 rounded-xl border border-[color:var(--line)] bg-white px-3 py-2 text-xs font-semibold text-[color:var(--text-strong)] shadow-sm transition-all duration-200 hover:border-slate-300 hover:bg-slate-50"
+      className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-[color:var(--line)] bg-white px-3 py-2 text-xs font-semibold text-[color:var(--text-strong)] shadow-sm transition-all duration-200 hover:border-slate-300 hover:bg-slate-50"
     >
       <Download className="h-4 w-4" />
       {busy ? "Preparing..." : label}
@@ -127,7 +127,7 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--line)] bg-white px-4 py-4 sm:px-6 sm:py-5">
         <div>
           <div className="text-xl font-semibold tracking-[-0.03em] text-[color:var(--text-strong)]">{props.title ?? "Jobs"}</div>
-          <div className="mt-1 text-sm text-[color:var(--text-muted)]">Track status and download ready files.</div>
+          <div className="mt-1 text-sm text-[color:var(--text-muted)]">Track status and download ePost.pk output files.</div>
         </div>
         <div className="flex w-full flex-wrap items-center justify-start gap-2 text-sm text-[color:var(--text-muted)] sm:w-auto sm:justify-end">
           <div className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
@@ -209,7 +209,7 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
                 ) : null}
               </div>
 
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-3 grid grid-cols-1 gap-2">
                 {job.status === "COMPLETED" ? (
                   <>
                     <DownloadButton jobId={job.id} kind="labels" />
@@ -253,9 +253,11 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
                       className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand disabled:opacity-40"
                     />
                   </td>
-                  <td className="px-5 py-3 font-mono text-xs text-slate-600">{job.id}</td>
+                  <td className="px-5 py-3">
+                    <div className="ui-cell-mono text-slate-600">{job.id}</div>
+                  </td>
                   <td className="px-5 py-3 text-sm font-semibold text-[color:var(--text-strong)]">
-                    <div className="max-w-[28ch] truncate" title={job.originalFilename}>{job.originalFilename}</div>
+                    <div className="max-w-[28ch] truncate ui-cell-wrap" title={job.originalFilename}>{job.originalFilename}</div>
                   </td>
                   <td className="px-5 py-3 text-right text-sm text-gray-700">{job.recordCount.toLocaleString()}</td>
                   <td className="px-5 py-3 text-sm">
@@ -266,7 +268,9 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
                       </div>
                     ) : null}
                   </td>
-                  <td className="px-5 py-3 text-sm text-gray-600">{created}</td>
+                  <td className="px-5 py-3 text-sm text-gray-600">
+                    <div className="ui-cell-wrap max-w-[22ch]">{created}</div>
+                  </td>
                   <td className="px-5 py-3 text-right text-sm">
                     {job.status === "COMPLETED" ? (
                       <div className="inline-flex flex-wrap items-center justify-end gap-2">
