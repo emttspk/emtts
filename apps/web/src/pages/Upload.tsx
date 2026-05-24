@@ -1189,14 +1189,31 @@ export default function Upload() {
   }
 
   return (
-    <PageShell className="space-y-3">
+    <PageShell className="space-y-4">
     <div className="grid grid-cols-1 gap-3">
       <div className="min-w-0 w-full space-y-3">
+        <Card className="border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">ePost.pk Generation Workflow</div>
+          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              { step: "Step 1", title: "Upload file" },
+              { step: "Step 2", title: "Review validation" },
+              { step: "Step 3", title: "Generate labels/MO" },
+              { step: "Step 4", title: "Download job output" },
+            ].map((item) => (
+              <div key={item.step} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">{item.step}</div>
+                <div className="mt-1 text-sm font-semibold text-slate-900">{item.title}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
         <div className="grid grid-cols-1 gap-3">
           <div className="space-y-3 min-w-0 w-full">
         <UploadDropzone
           title="Upload Orders File"
-          subtitle="CSV/XLS/XLSX supported with strict shared columns. Configure options below, then generate labels."
+          subtitle="CSV/XLS/XLSX supported with strict shared columns. Configure options below, then generate ePost.pk labels."
           headerAction={<SampleDownloadLink className="inline-flex items-center justify-center rounded-2xl bg-brand px-3 py-2 text-xs font-medium text-white shadow-lg hover:bg-brand-dark" />}
           file={file}
           onFileChange={(next) => {
@@ -1245,8 +1262,8 @@ export default function Upload() {
           </Card>
         ) : null}
 
-        <Card className="border-slate-200 bg-white p-5 shadow-sm">
-          <CardTitle>Generate Label</CardTitle>
+        <Card className="border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <CardTitle>Generate Labels</CardTitle>
           <div className="mt-0.5 text-sm font-normal text-slate-500">All actions consume units based on usage.</div>
           <div className="mt-3 space-y-4 text-sm text-gray-700">
             <div>
@@ -1260,7 +1277,7 @@ export default function Upload() {
                     onChange={() => setCarrierType("pakistan_post")}
                     className="h-4 w-4 border-gray-300 text-brand focus:ring-brand"
                   />
-                  Epost.pk
+                  ePost.pk
                 </label>
                 <label className="flex items-center gap-2">
                   <input
@@ -1305,7 +1322,7 @@ export default function Upload() {
             {shipmentMode === "single_service" ? (
             <div>
               <div className="font-medium text-gray-900">3) Category</div>
-              <div className="mt-2 text-sm text-gray-600">Available across carriers. Epost.pk uses this selection to preset shipment options.</div>
+              <div className="mt-2 text-sm text-gray-600">Available across carriers. ePost.pk uses this selection to preset shipment options.</div>
               <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
                 {[
                   { id: "general_post", label: "General" },
@@ -1424,8 +1441,8 @@ export default function Upload() {
 
             <div>
               <div className="font-medium text-gray-900">6) Output Mode</div>
-              <div className="mt-3 grid min-w-0 grid-cols-2 gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                <div className="grid min-w-0 grid-cols-1 gap-2 border-r border-slate-200 p-3 sm:grid-cols-2">
+              <div className="mt-3 grid min-w-0 grid-cols-1 gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white xl:grid-cols-2">
+                <div className="grid min-w-0 grid-cols-1 gap-2 border-b border-slate-200 p-3 sm:grid-cols-2 xl:border-b-0 xl:border-r">
                   {([
                     { id: "envelope-9x4" as const, label: "Envelope 9x4", desc: "Dedicated 9 x 4 layout with right-side compact amount/barcode" },
                     { id: "universal-9x4" as const, label: "Universal 9x4", desc: "Template-driven 9 x 4 layout for all shipment types" },
@@ -1651,7 +1668,7 @@ export default function Upload() {
           </Card>
         ) : null}
 
-        <Card className="border-slate-200 bg-white p-5 shadow-sm">
+        <Card className="border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <CardTitle>Track Parcel</CardTitle>
           <div className="mt-0.5 text-sm font-normal text-slate-500">All actions consume units based on usage.</div>
           <div className="mt-2 text-sm text-gray-600">Tracking enabled from uploaded file for post-generation operations.</div>
@@ -1690,7 +1707,7 @@ export default function Upload() {
         </div>
 
         <div>
-        <Card className="border-slate-200 bg-white p-6 shadow-sm">
+        <Card className="border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle className="text-xl">Generate Labels</CardTitle>
@@ -1709,12 +1726,12 @@ export default function Upload() {
               ) : null}
             </div>
 
-            <div className="flex flex-col items-end gap-2">
+            <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
               <button
                 type="button"
                 onClick={startGenerate}
                 disabled={!isReadyToGenerate || uiState === "uploading" || uiState === "processing"}
-                className="rounded-2xl bg-brand px-6 py-3 text-sm font-semibold text-white shadow-md hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-2xl bg-brand px-6 py-3 text-sm font-semibold text-white shadow-md hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] w-full sm:w-auto"
               >
                 Generate Labels
               </button>

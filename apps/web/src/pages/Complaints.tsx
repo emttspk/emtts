@@ -78,13 +78,13 @@ export default function Complaints() {
   }
 
   return (
-    <div className="space-y-8">
-      <Card className="p-5 sm:p-6 md:p-8">
+    <div className="space-y-6">
+      <Card className="p-4 sm:p-6 md:p-8">
         <div className="inline-flex rounded-2xl border border-brand/30 bg-brand/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-brand">
-          Epost.pk
+          ePost.pk
         </div>
         <div className="mt-3 text-2xl font-semibold text-[#0F172A]">Complaint Automation</div>
-        <div className="mt-1 text-sm text-slate-600">Submit and manage complaint workflows from one dashboard.</div>
+        <div className="mt-1 text-sm text-slate-600">Submit and manage complaint workflows from one ePost.pk dashboard.</div>
 
         {error ? <div className="mt-3 text-sm text-red-600">{error}</div> : null}
 
@@ -168,7 +168,7 @@ export default function Complaints() {
         ) : null}
       </Card>
 
-      <Card className="p-5 sm:p-6 md:p-8">
+      <Card className="p-4 sm:p-6 md:p-8">
         <div className="text-lg font-medium text-[#0F172A]">Recent Shipments</div>
         <div className="mt-3 flex flex-col items-start gap-2 rounded-xl border border-[#E5E7EB] bg-[#F8FAF9] px-3 py-2 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between">
           <div className="ui-cell-wrap">
@@ -221,16 +221,16 @@ export default function Complaints() {
               {shipments.map((s) => (
                 <tr key={s.id}>
                   <td className="px-3 py-2 font-mono text-xs text-slate-800">
-                    <div className="max-w-[18ch] truncate" title={s.trackingNumber}>{s.trackingNumber}</div>
+                    <div className="max-w-[18ch] truncate ui-cell-mono" title={s.trackingNumber}>{s.trackingNumber}</div>
                   </td>
                   <td className="px-3 py-2 text-slate-800">
-                    <div className="max-w-[16ch] truncate" title={s.status ?? "-"}>{s.status ?? "-"}</div>
+                    <div className="max-w-[16ch] truncate ui-cell-wrap" title={s.status ?? "-"}>{s.status ?? "-"}</div>
                   </td>
                   <td className="px-3 py-2 text-slate-700">
-                    <div className="max-w-[16ch] truncate" title={s.complaintStatus ?? "-"}>{s.complaintStatus ?? "-"}</div>
+                    <div className="max-w-[16ch] truncate ui-cell-wrap" title={s.complaintStatus ?? "-"}>{s.complaintStatus ?? "-"}</div>
                   </td>
                   <td className="px-3 py-2 text-slate-700">
-                    <div className="max-w-[24ch] truncate" title={new Date(s.updatedAt).toLocaleString()}>{new Date(s.updatedAt).toLocaleString()}</div>
+                    <div className="max-w-[24ch] truncate ui-cell-wrap" title={new Date(s.updatedAt).toLocaleString()}>{new Date(s.updatedAt).toLocaleString()}</div>
                   </td>
                 </tr>
               ))}

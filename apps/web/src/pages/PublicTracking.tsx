@@ -147,17 +147,17 @@ function TrackingResultCard({ result }: { result: TrackingResult }) {
   });
 
   return (
-    <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
+    <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-[0_10px_30px_rgba(15,23,42,0.08)] sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-xl font-extrabold tracking-tight text-slate-900">Tracking Result</h2>
-          <p className="mt-1 font-mono text-sm font-semibold text-slate-600">Tracking ID: {result.tracking_number}</p>
+          <p className="mt-1 font-mono text-sm font-semibold text-slate-600 break-all">Tracking ID: {result.tracking_number}</p>
           {result.consignee_name ? (
             <p className="mt-2 text-sm text-slate-500">
               Consignee: <span className="font-semibold text-slate-700">{result.consignee_name}</span>
             </p>
           ) : null}
-          {result.consignee_address ? <p className="mt-1 text-xs text-slate-500">{result.consignee_address}</p> : null}
+          {result.consignee_address ? <p className="mt-1 text-xs text-slate-500 break-words">{result.consignee_address}</p> : null}
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -238,7 +238,7 @@ function TrackingResultCard({ result }: { result: TrackingResult }) {
       <div className="mt-5 rounded-2xl border border-slate-200 bg-white">
         <div className="border-b border-slate-200 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">History</div>
         {timeline.length > 0 ? (
-          <div className="grid gap-4 p-4 lg:grid-cols-[200px_1fr]">
+          <div className="grid gap-4 p-3 sm:p-4 lg:grid-cols-[200px_1fr]">
             <aside className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Shipment Stages</div>
               <ol className="relative mt-3 space-y-2.5">
@@ -268,7 +268,7 @@ function TrackingResultCard({ result }: { result: TrackingResult }) {
                   >
                     <span className="absolute left-[-1px] top-4 h-4 w-4 rounded-full border-2 border-emerald-500 bg-white shadow-[0_0_0_4px_rgba(16,185,129,0.15)]" />
                     <div className="ml-5 flex flex-wrap items-center justify-between gap-2">
-                      <div className="text-sm font-semibold text-slate-800">{event.description || "-"}</div>
+                      <div className="text-sm font-semibold text-slate-800 break-words">{event.description || "-"}</div>
                       <div className="text-xs text-slate-400">{[event.date, event.time].filter(Boolean).join(" ") || "-"}</div>
                     </div>
                     <div className="ml-5 mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
@@ -454,10 +454,10 @@ export default function PublicTracking() {
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#F7F9FC,#F4F7FB)] text-slate-900">
       <Navbar />
-      <main className="mx-auto w-full max-w-[1120px] px-4 py-10 sm:px-6">
+      <main className="mx-auto w-full max-w-[1120px] px-4 py-8 sm:px-6 sm:py-10">
         <div className="rounded-[28px] border border-[color:var(--line)] bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_60%,#eefbf3_100%)] p-6 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
           <div className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#2563EB]">Parcel Tracking</div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Track your shipment</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Track your ePost.pk shipment</h1>
           <p className="mt-1 text-sm text-slate-500">Enter one tracking ID or up to 5 IDs separated by commas.</p>
           <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-2 sm:flex-row">
             <input
@@ -520,7 +520,7 @@ export default function PublicTracking() {
                   </div>
                 </div>
 
-                <div className="relative min-h-[520px]">
+                <div className="relative min-h-[560px] sm:min-h-[520px]">
                   {results.map((result, index) => {
                     const isActive = index === safeActiveIndex;
                     return (

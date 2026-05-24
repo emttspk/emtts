@@ -36,10 +36,10 @@ export default function UploadDropzone(props: {
 
   return (
     <Card>
-      <div className="border-b px-6 py-4">
+      <div className="border-b px-4 py-4 sm:px-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="text-xl font-medium text-gray-900">{props.title ?? "Bulk Tracking"}</div>
+            <div className="text-xl font-semibold tracking-[-0.02em] text-gray-900">{props.title ?? "Bulk Tracking"}</div>
             <div className="mt-1 text-sm text-gray-600">
               {props.subtitle ??
                 "Upload CSV/XLS/XLSX using the strict shared sample columns."}
@@ -49,11 +49,11 @@ export default function UploadDropzone(props: {
         </div>
       </div>
 
-      <div className="grid gap-4 p-6">
+      <div className="grid gap-4 p-4 sm:p-6">
         <div
           {...getRootProps()}
           className={cn(
-            "relative rounded-xl border border-dashed bg-white p-8 transition-all duration-200 ease-in-out",
+            "relative rounded-xl border border-dashed bg-white p-5 sm:p-8 transition-all duration-200 ease-in-out",
             isDragActive ? "border-indigo-600 bg-indigo-50/40" : "border-gray-200 hover:border-gray-300",
           )}
         >
@@ -64,7 +64,7 @@ export default function UploadDropzone(props: {
               <UploadCloud className={cn("h-6 w-6", props.busy ? "text-amber-600" : "text-gray-600")} />
             </div>
 
-            <div className="mt-4 text-base font-medium text-gray-900">Drag & drop Excel/CSV</div>
+            <div className="mt-4 text-base font-semibold text-gray-900">Drag and drop Excel/CSV</div>
             <div className="mt-1 text-sm text-gray-600">
               or{" "}
               <button type="button" className="font-medium text-indigo-600 hover:text-indigo-700" onClick={open}>
@@ -74,7 +74,7 @@ export default function UploadDropzone(props: {
 
             <div className="mt-4 w-full max-w-xl">
               <div className="flex items-center justify-between text-xs text-gray-600">
-                <span>{props.file ? props.file.name : "No file selected"}</span>
+                <span className="max-w-[64%] truncate" title={props.file ? props.file.name : "No file selected"}>{props.file ? props.file.name : "No file selected"}</span>
                 <span className={cn("font-medium", props.busy ? "text-amber-600" : "text-gray-700")}>{props.statusLabel}</span>
               </div>
               <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-100">
@@ -90,14 +90,14 @@ export default function UploadDropzone(props: {
           {isDragActive ? <div className="pointer-events-none absolute inset-2 rounded-lg ring-1 ring-indigo-600/40" /> : null}
         </div>
 
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
           <div className="text-sm text-gray-600">
             File: <span className="font-medium text-gray-900">{props.file ? "Selected" : "Not selected"}</span>
           </div>
           <button
             type="button"
             onClick={() => props.onFileChange(null)}
-            className="rounded-lg border bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all duration-200 ease-in-out hover:bg-gray-50"
+            className="rounded-lg border bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all duration-200 ease-in-out hover:bg-gray-50 min-h-[44px] w-full sm:w-auto"
             disabled={props.busy}
           >
             Reset File

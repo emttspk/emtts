@@ -1022,7 +1022,7 @@ function buildPrintMarkup(record: FinalTrackingRecord, detail: TrackingDetailDat
     <section class="print-doc print-container">
       <div class="print-branding print-branding-top"><strong>${escapePrintHtml(PRINT_MARKETING_LINE)}</strong></div>
       <div class="print-panel no-break">
-        <div class="print-title">Epost.pk Tracking Print</div>
+        <div class="print-title">ePost.pk Tracking Print</div>
         <div class="print-subtitle">${escapePrintHtml(record.shipment.trackingNumber)}</div>
         <div class="print-meta-grid">
           <div class="print-meta-card"><div class="print-meta-label">Tracking</div><div class="print-meta-value">${escapePrintHtml(record.shipment.trackingNumber)}</div></div>
@@ -3684,7 +3684,7 @@ export default function BulkTracking() {
         <div className="border-b px-4 py-3 md:px-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <CardTitle className="text-xl">Bulk Tracking</CardTitle>
+              <CardTitle className="text-xl">ePost.pk Bulk Tracking</CardTitle>
               <div className="mt-1 text-sm font-normal text-slate-500">Follow this 4-step flow to keep tracking, complaint, and settlement data aligned.</div>
             </div>
           </div>
@@ -3968,12 +3968,12 @@ export default function BulkTracking() {
                   if (e.key === "Enter") applyTrackingSearch();
                 }}
                 placeholder="Search tracking, city, status, complaint..."
-                className="w-full rounded-xl border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-medium text-[#111827] outline-none focus:border-brand sm:min-w-[280px]"
+                className="w-full rounded-xl border border-[#E5E7EB] bg-white px-3 py-2 text-xs font-medium text-[#111827] outline-none focus:border-brand sm:min-w-[280px]"
               />
               <button
                 type="button"
                 onClick={applyTrackingSearch}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-brand-dark transition-colors"
+                className="inline-flex min-h-[40px] items-center justify-center gap-1.5 rounded-xl bg-brand px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-brand-dark transition-colors"
               >
                 <Search className="h-3.5 w-3.5" />
                 Search
@@ -4254,9 +4254,9 @@ export default function BulkTracking() {
                         <span className="text-xs font-semibold text-slate-900">{row.updatedDateLabel}</span>
                       </div>
                     </td>
-                    <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle font-mono text-xs font-bold text-slate-800 group-hover:text-brand truncate whitespace-nowrap" title={s.trackingNumber}>
+                    <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle font-mono text-xs font-bold text-slate-800 group-hover:text-brand" title={s.trackingNumber}>
                       <div className="flex flex-col items-start gap-1.5">
-                        <span>{s.trackingNumber}</span>
+                        <span className="break-all">{s.trackingNumber}</span>
                         <button
                           type="button"
                           onClick={() => setSelectedTracking(row.record)}
@@ -4276,7 +4276,7 @@ export default function BulkTracking() {
                       </div>
                     </td>
                     <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle text-xs leading-4 text-slate-600 whitespace-normal break-words" title={row.displayCity}>{row.displayCity}</td>
-                    <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle text-xs font-semibold text-slate-700 truncate whitespace-nowrap" title={moValue || undefined}>{moValue}</td>
+                    <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle text-xs font-semibold text-slate-700" title={moValue || undefined}><span className="break-all">{moValue}</span></td>
                     <td className="border-r border-[#E5E7EB] px-2 py-2.5 align-middle text-xs font-medium text-slate-700 whitespace-nowrap">
                       {issuedValue != null ? `Rs ${issuedValue.toLocaleString()}` : "-"}
                     </td>
@@ -4309,7 +4309,7 @@ export default function BulkTracking() {
                           : "";
                         return (
                           <div className="w-full rounded-xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff,#f8fafc)] px-2.5 py-2 text-left text-[10px] shadow-sm">
-                            <div className="truncate font-semibold text-[#111827]" title={complaintId}>{complaintId}</div>
+                            <div className="font-semibold text-[#111827] break-all" title={complaintId}>{complaintId}</div>
                             <div className="mt-0.5 text-[#6B7280]">Due: {dueDate}</div>
                             <div className="mt-0.5 text-[#6B7280]">Complaint Count: {lifecycle.complaintCount.toLocaleString()}</div>
                             <div className="mt-0.5">
@@ -4594,7 +4594,7 @@ export default function BulkTracking() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5">
               <div className="grid gap-2">
                 {complaintSubmitNotice ? (
                   <div className={cn(
@@ -4623,7 +4623,7 @@ export default function BulkTracking() {
                     </div>
                   </div>
                 ) : null}
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <label>
                     <div className="text-[10px] font-semibold text-slate-700 mb-0.5 uppercase tracking-wide">Article No</div>
                     <input value={complaintRecord.shipment.trackingNumber} readOnly className="w-full rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-mono text-slate-800" />
@@ -4647,7 +4647,7 @@ export default function BulkTracking() {
                   </label>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <label>
                     <div className="text-[10px] font-semibold text-slate-700 mb-0.5 uppercase tracking-wide">Complainant Name</div>
                     <input ref={complaintFirstInputRef} value={complainantNameInput} onChange={(e) => setComplainantNameInput(e.target.value)} className={`w-full rounded border px-2 py-1 text-xs text-slate-800 ${complaintValidationState.SenderName ? "border-slate-300 bg-white" : "border-red-400 bg-red-50"}`} />
@@ -4674,7 +4674,7 @@ export default function BulkTracking() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="text-xs font-bold text-slate-800 uppercase tracking-wide">Sender Detail</div>
                   </div>
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <label>
                       <div className="text-[10px] font-semibold text-slate-700 mb-0.5">Name {!senderNameIsLocked && <span className="text-red-600">*</span>}</div>
                       <input
@@ -4712,7 +4712,7 @@ export default function BulkTracking() {
                     <div className="text-xs font-bold text-slate-800 uppercase tracking-wide">Addressee Detail</div>
                     {complaintPrefillLoading ? <div className="text-[10px] font-medium text-blue-600 bg-blue-50 rounded px-2 py-0.5">Autofilling from article data...</div> : null}
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     <label>
                       <div className="text-[10px] font-semibold text-slate-700 mb-0.5">Name {!receiverNameIsLocked && <span className="text-red-600">*</span>}</div>
                       <input
@@ -4762,7 +4762,7 @@ export default function BulkTracking() {
                       <div className="text-[10px] text-slate-400 bg-slate-100 rounded px-2 py-0.5">Delivery office auto-selected from tracking</div>
                     )}
                   </div>
-                  <div className="grid grid-cols-3 gap-2 mb-2">
+                  <div className="grid grid-cols-1 gap-2 mb-2 sm:grid-cols-2 lg:grid-cols-3">
                     <select
                       value={selectedDistrict}
                       onChange={(e) => { setSelectedDistrict(e.target.value); setSelectedTehsil(""); setSelectedLocation(""); }}
@@ -4854,7 +4854,7 @@ export default function BulkTracking() {
               </div>
             </div>
 
-            <div className="sticky bottom-0 border-t border-slate-200 bg-white px-4 py-2 flex items-center justify-between gap-2">
+            <div className="sticky bottom-0 border-t border-slate-200 bg-white px-4 py-2 flex flex-col items-stretch justify-between gap-2 sm:flex-row sm:items-center">
               <button
                 type="button"
                 className="rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
@@ -4903,7 +4903,7 @@ export default function BulkTracking() {
 
             <div className="flex-1 overflow-y-auto p-3">
               <div className="grid gap-2">
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
                   <div className={`rounded border p-2 text-xs ${complaintValidationState.ArticleNo ? "border-[#E5E7EB]" : "border-red-300 bg-red-50"}`}>
                     <div className="text-[10px] font-medium text-slate-500">Article No</div>
                     <div className={`mt-0.5 font-semibold text-sm ${complaintValidationState.ArticleNo ? "text-slate-900" : "text-red-900"}`}>
@@ -4937,7 +4937,7 @@ export default function BulkTracking() {
 
                 <div className="border-t border-[#E5E7EB] pt-2 mt-2">
                   <div className="text-xs font-semibold text-slate-800 mb-1">Sender Detail</div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     <div className={`rounded border p-2 text-xs ${complaintValidationState.SenderName ? "border-[#E5E7EB]" : "border-red-300 bg-red-50"}`}>
                       <div className="text-[10px] font-medium text-slate-500">Name</div>
                       <div className={`mt-0.5 font-semibold text-sm ${complaintValidationState.SenderName ? "text-slate-900" : "text-red-900"}`}>
@@ -4961,7 +4961,7 @@ export default function BulkTracking() {
 
                 <div className="border-t border-[#E5E7EB] pt-2 mt-2">
                   <div className="text-xs font-semibold text-slate-800 mb-1">Addressee Detail</div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     <div className={`rounded border p-2 text-xs ${complaintValidationState.ReceiverName ? "border-[#E5E7EB]" : "border-red-300 bg-red-50"}`}>
                       <div className="text-[10px] font-medium text-slate-500">Name</div>
                       <div className={`mt-0.5 font-semibold text-sm ${complaintValidationState.ReceiverName ? "text-slate-900" : "text-red-900"}`}>
@@ -4996,7 +4996,7 @@ export default function BulkTracking() {
 
                 <div className="border-t border-[#E5E7EB] pt-2 mt-2">
                   <div className="text-xs font-semibold text-slate-800 mb-1">Location (District/Tehsil)</div>
-                  <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2 lg:grid-cols-3">
                     <div className="rounded border border-[#E5E7EB] p-2">
                       <div className="text-[10px] font-medium text-slate-500 mb-0.5">District</div>
                       <div className="font-semibold text-sm text-slate-900">{selectedDistrict || "Not selected"}</div>
@@ -5014,7 +5014,7 @@ export default function BulkTracking() {
               </div>
             </div>
 
-              <div className="sticky bottom-0 border-t border-slate-200 bg-white px-4 py-2 flex items-center justify-between gap-2">
+              <div className="sticky bottom-0 border-t border-slate-200 bg-white px-4 py-2 flex flex-col items-stretch justify-between gap-2 sm:flex-row sm:items-center">
                 <button
                   type="button"
                   className="rounded border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
