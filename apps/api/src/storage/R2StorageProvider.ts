@@ -324,6 +324,21 @@ export class R2StorageProvider implements StorageProvider {
     }
   }
 
+  async artifactExistsWithKey(objectKey: string): Promise<boolean> {
+    try {
+      await this.client.send(
+        new HeadObjectCommand({
+          Bucket: this.bucket,
+          Key: objectKey,
+        })
+      );
+      return true;
+    } catch (err: any) {
+      if (err?.$metadata?.httpStatusCode === 404) return false;
+      return false;
+    }
+  }
+
   async readArtifact(type: string, key: string, options?: R2ReadCompatibilityOptions): Promise<Buffer> {
     const resolvedKey = await this.resolveCompatibleObjectKey(type, key, options);
     const objectKey = resolvedKey.objectKey;

@@ -285,11 +285,13 @@ export async function writeArtifactWithDualUpload(
 
           const existsCheckType = type === "pdf" || type === "json" || type === "xlsx" ? type : "pdf";
           const uploadVerified = await withTimeout(
-            r2.artifactExists(existsCheckType, key, {
-              keyVersion: uploadKeyVersion,
-              jobId: syncTrackingContext?.jobId,
-              artifactType: syncTrackingContext?.artifactType,
-            }),
+            typeof r2.artifactExistsWithKey === "function"
+              ? r2.artifactExistsWithKey(uploadObjectKey)
+              : r2.artifactExists(existsCheckType, uploadObjectKey, {
+                  keyVersion: uploadKeyVersion,
+                  jobId: syncTrackingContext?.jobId,
+                  artifactType: syncTrackingContext?.artifactType,
+                }),
             r2Config.TIMEOUT_MS,
           );
           if (!uploadVerified) {
