@@ -178,7 +178,7 @@ export async function getComplaintAllowance(userId: string): Promise<ComplaintAl
       }),
       prisma.user.findUnique({
         where: { id: userId },
-        select: { extraLabelCredits: true, extraTrackingCredits: true },
+        select: { extraLabelCredits: true, extraTrackingCredits: true, role: true },
       }),
       prisma.usageMonthly.findUnique({ where: { userId_month: { userId, month } } }),
       prisma.$queryRaw<Array<{ count: number }>>`
@@ -212,8 +212,9 @@ export async function getComplaintAllowance(userId: string): Promise<ComplaintAl
     const fallbackLimits = getComplaintLimits(subscription?.plan?.name ?? null);
     const planColumnLimits = await getPlanComplaintLimitsFromColumns(subscription?.planId ?? null);
     const limits = planColumnLimits ?? fallbackLimits;
-    const dailyLimit = limits.daily;
-    const monthlyLimit = limits.monthly;
+    const isAdminUser = String(user?.role ?? "").toUpperCase() === "ADMIN";
+    const dailyLimit = isAdminUser ? Number.MAX_SAFE_INTEGER : limits.daily;
+    const monthlyLimit = isAdminUser ? Number.MAX_SAFE_INTEGER : limits.monthly;
     const dailyUsed = complaintCountRows[0]?.count ?? 0;
     const monthlyUsed = (complaintMonthlyCountRows[0]?.count ?? 0) as number;
 

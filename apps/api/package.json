@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "tsx watch --ignore storage/** --ignore apps/api/storage/** --env-file=.env src/index.ts",
     "build": "rimraf dist && tsc",
+    "test:complaint-units": "tsx src/usage/complaintUnitAccounting.test.ts",
     "test:tracking": "tsx src/parse/tracking.test.ts && tsx src/services/trackingStatus.test.ts && tsx src/services/trackingLifecycle.test.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .js,.jsx,.ts,.tsx",

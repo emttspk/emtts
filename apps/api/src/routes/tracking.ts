@@ -2105,14 +2105,15 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
     });
   }
 
+  const isAdminUser = String((req as AuthedRequest).user?.role ?? "").toUpperCase() === "ADMIN";
   const complaintAllowance = await getComplaintAllowance(userId);
-  if (complaintAllowance.dailyRemaining <= 0) {
+  if (!isAdminUser && complaintAllowance.dailyRemaining <= 0) {
     return res.status(429).json({
       success: false,
       message: `Daily complaint limit reached (${complaintAllowance.dailyLimit}/day).`,
     });
   }
-  if (complaintAllowance.monthlyRemaining <= 0) {
+  if (!isAdminUser && complaintAllowance.monthlyRemaining <= 0) {
     return res.status(429).json({
       success: false,
       message: `Monthly complaint limit reached (${complaintAllowance.monthlyLimit}/month).`,
@@ -2150,6 +2151,25 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
     complaintContext.complaint_text = finalRemarks;
   }
 
+  const complaintUnitRequest = {
+    actionType: "complaint" as const,
+    requestKey: `complaint:${trackingNumber}:${Date.now()}:${randomUUID()}`,
+    unitsUsed: COMPLAINT_UNIT_COST,
+  };
+  const consumeResult = await consumeUnits(userId, [complaintUnitRequest]);
+  if (!consumeResult.ok) {
+    const reason = String(consumeResult.reason ?? "").trim().toLowerCase();
+    const message = reason.includes("plan")
+      ? "Active plan is required for complaint submission."
+      : reason.includes("insufficient")
+        ? "Insufficient units for complaint submission."
+        : "Unable to reserve complaint units right now.";
+    return res.status(402).json({
+      success: false,
+      message,
+    });
+  }
+
   const payload: ComplaintQueuePayload = {
     tracking_number: trackingNumber,
     phone: normalizedPhone,
@@ -2176,52 +2196,61 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
     recipient_location: body.recipient_location,
   };
 
-  const queueRow = await enqueueComplaint({
-    userId,
-    trackingId: trackingNumber,
-    payload,
-    browserSession: body.browser_session ?? null,
-  });
-
-  const complaintJob = await prisma.trackingJob.create({
-    data: {
+  try {
+    const queueRow = await enqueueComplaint({
       userId,
-      kind: "COMPLAINT",
-      status: "QUEUED",
-      recordCount: 1,
-      originalFilename: null,
-      uploadPath: null,
-    },
-    select: { id: true, status: true },
-  });
+      trackingId: trackingNumber,
+      payload,
+      browserSession: body.browser_session ?? null,
+    });
 
-  await trackingQueue.add(
-    "process-complaint",
-    {
+    const complaintJob = await prisma.trackingJob.create({
+      data: {
+        userId,
+        kind: "COMPLAINT",
+        status: "QUEUED",
+        recordCount: 1,
+        originalFilename: null,
+        uploadPath: null,
+      },
+      select: { id: true, status: true },
+    });
+
+    await trackingQueue.add(
+      "process-complaint",
+      {
+        jobId: complaintJob.id,
+        kind: "COMPLAINT",
+        queueId: queueRow.id,
+        trackingNumber,
+        phone: normalizedPhone,
+        complaintText: finalRemarks,
+      },
+      { jobId: complaintJob.id },
+    );
+
+    await logComplaintAudit({
+      actorEmail: String((req as any).user?.email ?? body.reply_email ?? normalizedPhone ?? "system").trim() || "system",
+      action: "complaint_updated",
+      trackingId: trackingNumber,
+      details: `queue_id:${queueRow.id};job_id:${complaintJob.id};status:queued`,
+    });
+
+    return res.json({
+      success: true,
+      queued: true,
       jobId: complaintJob.id,
-      kind: "COMPLAINT",
-      queueId: queueRow.id,
-      trackingNumber,
-      phone: normalizedPhone,
-      complaintText: finalRemarks,
-    },
-    { jobId: complaintJob.id },
-  );
-
-  await logComplaintAudit({
-    actorEmail: String((req as any).user?.email ?? body.reply_email ?? normalizedPhone ?? "system").trim() || "system",
-    action: "complaint_updated",
-    trackingId: trackingNumber,
-    details: `queue_id:${queueRow.id};job_id:${complaintJob.id};status:queued`,
-  });
-
-  return res.json({
-    success: true,
-    queued: true,
-    jobId: complaintJob.id,
-    trackingId: trackingNumber,
-    tracking_id: trackingNumber,
-    status: "QUEUED",
-    message: "Complaint queued for worker processing.",
-  });
+      trackingId: trackingNumber,
+      tracking_id: trackingNumber,
+      status: "QUEUED",
+      message: "Complaint queued for worker processing.",
+    });
+  } catch (error) {
+    await refundUnits(userId, [complaintUnitRequest]);
+    console.error(`[ComplaintAPI] Queueing failed for ${trackingNumber}:`, error instanceof Error ? error.message : error);
+    return res.status(500).json({
+      success: false,
+      message: "Complaint queueing failed. Please retry.",
+    });
+  }
 });
