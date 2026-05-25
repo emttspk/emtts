@@ -15,6 +15,26 @@ function recentEvent(hoursAgo: number, description: string, location = "Lahore D
 
 const tests: TestCase[] = [
   {
+    name: "resolves a full booking-to-delivery chain as DELIVERED",
+    run() {
+      const resolution = buildTrackingLifecycleResolution({
+        trackingNumber: "LET26050000",
+        events: [
+          recentEvent(12, "Booked at counter", "Lahore Booking Office"),
+          recentEvent(10, "Dispatch from district mail office Lahore to district mail office Karachi", "Lahore DMO"),
+          recentEvent(8, "Received at DMO", "Karachi DMO"),
+          recentEvent(6, "Dispatch to delivery office Karachi Delivery Office", "Karachi DMO"),
+          recentEvent(3, "Sent out for delivery", "Karachi Delivery Office"),
+          recentEvent(1, "Delivered to addressee", "Karachi Delivery Office"),
+        ],
+      });
+
+      assert.equal(resolution.normalized_status, "DELIVERED");
+      assert.equal(resolution.current_stage, "Delivered");
+      assert.equal(resolution.canonical_status, "DELIVERED");
+    },
+  },
+  {
     name: "resolves booking-only sequences as BOOKED",
     run() {
       const resolution = buildTrackingLifecycleResolution({
@@ -113,6 +133,111 @@ const tests: TestCase[] = [
 
       assert.equal(resolution.normalized_status, "RETURNED");
       assert.equal(resolution.canonical_status, "RETURNED");
+    },
+  },
+  {
+    name: "keeps refused/address-issue outcomes as failed-delivery pending without completion",
+    run() {
+      const resolution = buildTrackingLifecycleResolution({
+        trackingNumber: "LET26050009",
+        events: [
+          recentEvent(9, "Booked", "Lahore Booking Office"),
+          recentEvent(6, "Dispatch to delivery office Karachi Delivery Office", "Karachi DMO"),
+          recentEvent(4, "Sent out for delivery", "Karachi Delivery Office"),
+          recentEvent(1, "Undelivered - address insufficient / refused by addressee", "Karachi Delivery Office"),
+        ],
+      });
+
+      assert.equal(resolution.normalized_status, "FAILED_DELIVERY_PENDING");
+      assert.equal(resolution.canonical_status, "PENDING");
+      assert.equal(resolution.display_status, "Failed Delivery Pending");
+    },
+  },
+  {
+    name: "marks reverse movement after failed delivery as RETURN_IN_TRANSIT",
+    run() {
+      const resolution = buildTrackingLifecycleResolution({
+        trackingNumber: "LET26050010",
+        events: [
+          recentEvent(10, "Booked", "Lahore Booking Office"),
+          recentEvent(8, "Dispatch to delivery office Karachi Delivery Office", "Karachi DMO"),
+          recentEvent(5, "Undelivered addressee not found", "Karachi Delivery Office"),
+          recentEvent(3, "Dispatch from district mail office Karachi to district mail office Lahore", "Karachi DMO"),
+        ],
+      });
+
+      assert.equal(resolution.normalized_status, "RETURN_IN_TRANSIT");
+      assert.equal(resolution.canonical_status, "RETURNED");
+      assert.equal(resolution.current_stage, "Return in Transit");
+    },
+  },
+  {
+    name: "flags stale non-terminal sequences as STUCK with bucket",
+    run() {
+      const dt = new Date(Date.now() - 16 * 24 * 60 * 60 * 1000);
+      const resolution = buildTrackingLifecycleResolution({
+        trackingNumber: "LET26050011",
+        events: [
+          {
+            date: dt.toISOString().slice(0, 10),
+            time: "09:00",
+            description: "Booked at counter",
+            location: "Lahore Booking Office",
+          },
+        ],
+      });
+
+      assert.equal(resolution.normalized_status, "STUCK");
+      assert.equal(resolution.underlying_status, "BOOKED");
+      assert.equal(resolution.stuck_bucket, "15_DAYS");
+      assert.equal(resolution.canonical_status, "PENDING");
+    },
+  },
+  {
+    name: "requires payment completion to keep value-payable delivery terminal",
+    run() {
+      const baseEvents = [
+        recentEvent(4, "Sent out for delivery", "Karachi Delivery Office"),
+        recentEvent(2, "Delivered to addressee", "Karachi Delivery Office"),
+      ];
+
+      const withoutPayment = buildTrackingLifecycleResolution({
+        trackingNumber: "VPL26050012",
+        events: baseEvents,
+      });
+      const withPayment = buildTrackingLifecycleResolution({
+        trackingNumber: "VPL26050012",
+        events: baseEvents,
+        cycleInterpretation: {
+          tracking_number: "VPL26050012",
+          final_status: "DELIVERED WITH PAYMENT",
+          cycle_detected: "Cycle 3",
+          current_stage: "MOS Delivered",
+          cycle_type: "MONEY_ORDER",
+          cycle_status: "COMPLETED",
+          mos_status: "COMPLETED",
+          flags: ["PAYMENT_SETTLED"],
+        },
+      });
+
+      assert.notEqual(withoutPayment.normalized_status, "DELIVERED");
+      assert.equal(withPayment.normalized_status, "DELIVERED");
+      assert.equal(withPayment.money_order_status, "COMPLETED");
+    },
+  },
+  {
+    name: "marks MOS/UMO mention as money-order in progress when not completed",
+    run() {
+      const resolution = buildTrackingLifecycleResolution({
+        trackingNumber: "COD26050013",
+        events: [
+          recentEvent(6, "Delivered to addressee", "Karachi Delivery Office"),
+          recentEvent(2, "UMO issued for COD remittance", "Karachi DMO"),
+        ],
+      });
+
+      assert.equal(resolution.money_order_status, "IN_PROGRESS");
+      assert.equal(resolution.canonical_status, "PENDING");
     },
   },
   {
