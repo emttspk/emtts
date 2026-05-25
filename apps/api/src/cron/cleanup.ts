@@ -11,6 +11,12 @@ import { getNormalizedObjectKey, resolveObjectKeyCandidates } from "../storage/k
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+const R2_SYNC_LOCAL_DELETE_GRACE_MS = Math.max(60_000, Number(process.env.R2_SYNC_LOCAL_DELETE_GRACE_MS ?? 24 * 60 * 60 * 1000));
+const FAILED_JOB_LEFTOVER_GRACE_MS = Math.max(60_000, Number(process.env.FAILED_JOB_LEFTOVER_GRACE_MS ?? 24 * 60 * 60 * 1000));
+
+function logCleanupDecision(action: "deleted" | "skipped", filePath: string, ageMs: number, reason: string) {
+  console.log(`[Cleanup] ${action.toUpperCase()} path=${filePath} ageMs=${Math.max(0, Math.floor(ageMs))} reason=${reason}`);
+}
 
 function isDatabaseUnavailable(error: unknown) {
   if (!error || typeof error !== "object") return false;
@@ -141,25 +147,87 @@ async function deleteOrphanedFiles(dir: string) {
     const full = path.join(dir, entry);
     try {
       const stat = await fs.stat(full); // stat is used for validation, keep as-is
-      if (now - stat.mtimeMs > SEVEN_DAYS_MS) {
-        // Only delete if not referenced by any active/retryable/delayed job
-        if (!referencedFiles.has(full)) {
-          // Additional check for PDF files: verify R2 sync status if dual-write enabled
-          const isPdfFile = entry.endsWith(".pdf");
-          if (isPdfFile && storageFeatureFlags.ENABLE_DUAL_WRITE) {
-            const safeToDelete = await isSafeToDeletePdfFile(entry);
-            if (!safeToDelete) {
-              console.log(`[Cleanup] Skipped file (R2 sync pending): ${full}`);
-              continue;
-            }
-          }
-
-          await getStorageProvider().deleteArtifact("artifact", full);
-          console.log(`[Cleanup] Deleted orphaned file: ${full}`);
-        }
+      const ageMs = now - stat.mtimeMs;
+      if (referencedFiles.has(full)) {
+        logCleanupDecision("skipped", full, ageMs, "referenced_by_active_or_queued_job");
+        continue;
       }
+
+      const isTrackedArtifact = entry.endsWith(".pdf") || entry.endsWith(".json") || entry.endsWith(".xlsx");
+      const canUseR2SyncedGrace = storageFeatureFlags.ENABLE_DUAL_WRITE && isTrackedArtifact;
+      const defaultAgeThreshold = SEVEN_DAYS_MS;
+
+      if (canUseR2SyncedGrace) {
+        const safeToDelete = await isSafeToDeletePdfFile(entry);
+        if (!safeToDelete) {
+          logCleanupDecision("skipped", full, ageMs, "r2_sync_pending_or_unknown");
+          continue;
+        }
+
+        if (ageMs < R2_SYNC_LOCAL_DELETE_GRACE_MS) {
+          logCleanupDecision("skipped", full, ageMs, "within_r2_synced_grace_period");
+          continue;
+        }
+
+        await getStorageProvider().deleteArtifact("artifact", full);
+        logCleanupDecision("deleted", full, ageMs, "r2_synced_or_legacy_safe_orphan");
+        continue;
+      }
+
+      if (ageMs < defaultAgeThreshold) {
+        logCleanupDecision("skipped", full, ageMs, "age_below_orphan_threshold");
+        continue;
+      }
+
+      await getStorageProvider().deleteArtifact("artifact", full);
+      logCleanupDecision("deleted", full, ageMs, "orphan_older_than_threshold");
     } catch {
       // ignore errors for individual files
+    }
+  }
+}
+
+async function cleanupFailedJobLeftovers() {
+  const cutoff = new Date(Date.now() - FAILED_JOB_LEFTOVER_GRACE_MS);
+  const failedJobs = await prisma.labelJob.findMany({
+    where: {
+      status: "FAILED",
+      updatedAt: { lt: cutoff },
+    },
+    select: {
+      id: true,
+      uploadPath: true,
+      labelsPdfPath: true,
+      moneyOrderPdfPath: true,
+      trackingMasterPath: true,
+      updatedAt: true,
+    },
+  });
+
+  for (const job of failedJobs) {
+    const trackingJob = await prisma.trackingJob.findUnique({
+      where: { id: job.id },
+      select: { resultPath: true },
+    });
+
+    const paths = [
+      job.uploadPath,
+      job.labelsPdfPath,
+      job.moneyOrderPdfPath,
+      job.trackingMasterPath,
+      trackingJob?.resultPath,
+    ].filter(Boolean) as string[];
+
+    for (const relPath of paths) {
+      const full = path.resolve(process.cwd(), relPath);
+      try {
+        const stat = await fs.stat(full);
+        const ageMs = Date.now() - stat.mtimeMs;
+        await getStorageProvider().deleteArtifact("artifact", full);
+        logCleanupDecision("deleted", full, ageMs, "failed_job_leftover");
+      } catch {
+        // ignore if file does not exist
+      }
     }
   }
 }
@@ -373,6 +441,7 @@ async function runCleanup() {
   });
 
   await Promise.all([deleteOrphanedFiles(outputsDir()), deleteOrphanedFiles(uploadsDir())]);
+  await cleanupFailedJobLeftovers();
   await cleanupExpiredLabelJobsByDeleteAfterAt();
   await cleanupScheduledJobDeletions();
 

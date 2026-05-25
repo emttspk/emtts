@@ -30,6 +30,7 @@ const ENABLE_DUAL_WRITE = process.env.ENABLE_DUAL_WRITE === "true";
 const ENABLE_DUAL_READ = process.env.ENABLE_DUAL_READ === "true";
 const ENABLE_R2_UPLOADS = process.env.ENABLE_R2_UPLOADS === "true";
 const ENABLE_R2_DOWNLOADS = process.env.ENABLE_R2_DOWNLOADS === "true";
+const DELETE_LOCAL_AFTER_R2_SYNC = process.env.DELETE_LOCAL_AFTER_R2_SYNC === "true";
 
 // Stage S1 Staging: Canary mode tracking
 let dualWriteJobsThisSession = 0;
@@ -281,6 +282,19 @@ export async function writeArtifactWithDualUpload(
             // Defensive fallback — should never be reached in normal deployments
             await withTimeout(getR2Provider().writeArtifact(type, uploadObjectKey, data), r2Config.TIMEOUT_MS);
           }
+
+          const existsCheckType = type === "pdf" || type === "json" || type === "xlsx" ? type : "pdf";
+          const uploadVerified = await withTimeout(
+            r2.artifactExists(existsCheckType, key, {
+              keyVersion: uploadKeyVersion,
+              jobId: syncTrackingContext?.jobId,
+              artifactType: syncTrackingContext?.artifactType,
+            }),
+            r2Config.TIMEOUT_MS,
+          );
+          if (!uploadVerified) {
+            throw new Error(`dual_write_upload_verify_failed:${uploadObjectKey}`);
+          }
         });
 
         const latency = Date.now() - start;
@@ -301,6 +315,27 @@ export async function writeArtifactWithDualUpload(
           const syncPersisted = await markArtifactSyncedToR2(syncTrackingContext.jobId, syncTrackingContext.artifactType);
           if (syncPersisted) {
             decrementUnsyncedArtifacts();
+            if (DELETE_LOCAL_AFTER_R2_SYNC) {
+              try {
+                await localProvider.deleteArtifact("artifact", localPath);
+                logTelemetry({
+                  event: "local_artifact_deleted_after_r2_sync",
+                  artifactType: syncTrackingContext.artifactType,
+                  jobId: syncTrackingContext.jobId,
+                  localPath,
+                  objectKey: uploadObjectKey,
+                });
+              } catch (deleteErr) {
+                logTelemetry({
+                  event: "local_artifact_delete_after_r2_sync_failed",
+                  artifactType: syncTrackingContext.artifactType,
+                  jobId: syncTrackingContext.jobId,
+                  localPath,
+                  objectKey: uploadObjectKey,
+                  error: deleteErr instanceof Error ? deleteErr.message : String(deleteErr),
+                });
+              }
+            }
             if (syncTrackingContext.artifactType === "trackingMasterXlsx") {
               logTelemetry({
                 event: "TRACKING_MASTER_SYNC_SUCCESS",
@@ -316,6 +351,25 @@ export async function writeArtifactWithDualUpload(
           }
         } else {
           decrementUnsyncedArtifacts();
+          if (DELETE_LOCAL_AFTER_R2_SYNC) {
+            try {
+              await localProvider.deleteArtifact("artifact", localPath);
+              logTelemetry({
+                event: "local_artifact_deleted_after_r2_sync",
+                artifactType: type,
+                localPath,
+                objectKey: uploadObjectKey,
+              });
+            } catch (deleteErr) {
+              logTelemetry({
+                event: "local_artifact_delete_after_r2_sync_failed",
+                artifactType: type,
+                localPath,
+                objectKey: uploadObjectKey,
+                error: deleteErr instanceof Error ? deleteErr.message : String(deleteErr),
+              });
+            }
+          }
         }
       } catch (err) {
         if (err instanceof Error && err.message.includes("dual_write_upload_timeout")) {

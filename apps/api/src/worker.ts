@@ -20,7 +20,7 @@ import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, toStoredPath, upl
 import { writeArtifactWithDualUpload } from "./storage/provider.js";
 import { parseOrdersFromBuffer } from "./parse/orders.js";
 import { moneyOrderHtml, renderLabelDocumentHtml, type LabelOrder } from "./templates/labels.js";
-import { htmlToPdfBuffer, htmlToPdfBufferInFreshBrowser, launchPuppeteerBrowser } from "./pdf/render.js";
+import { htmlToPdfBuffer, launchPuppeteerBrowser } from "./pdf/render.js";
 import { finalizeQueuedToGenerated, finalizeQueuedTrackingToGenerated, releaseQueuedLabels, releaseQueuedTracking } from "./usage/limits.js";
 import { prepareLabelOrders } from "./services/labelDocument.js";
 import { listCatalogServices } from "./catalog/serviceCatalog.js";
@@ -85,6 +85,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: s
 }
 
 const JOB_TIMEOUT_MS = 60_000;
+const MAX_RECORDS_BEFORE_RENDER = Math.max(1, Number(process.env.MAX_RECORDS_BEFORE_RENDER ?? "2000"));
 const WORKER_SINGLETON_LOCK_KEY = "worker:singleton:label-generator";
 const WORKER_SINGLETON_LOCK_TTL_SECONDS = 60;
 const WORKER_WAITING_LOG_EVERY = Math.max(1, Number(process.env.WORKER_WAITING_LOG_EVERY ?? "3"));
@@ -891,6 +892,12 @@ const worker = new Worker(
           throw new Error(`Upload parsing failed: ${parseMessage}`);
         }
 
+        if (orders.length > MAX_RECORDS_BEFORE_RENDER) {
+          throw new UnrecoverableError(
+            `Record count ${orders.length} exceeds safe worker render limit ${MAX_RECORDS_BEFORE_RENDER}. Split upload into smaller batches to avoid memory exhaustion.`,
+          );
+        }
+
         const manualTrackingIds = orders
           .map((order, idx) => ({
             idx,
@@ -1094,6 +1101,11 @@ const worker = new Worker(
       }
       if (validRowsCount === 0) {
         throw new Error("No valid rows available for label generation. All rows were skipped after validation.");
+      }
+      if (validRowsCount > MAX_RECORDS_BEFORE_RENDER) {
+        throw new UnrecoverableError(
+          `Renderable rows ${validRowsCount} exceed safe worker render limit ${MAX_RECORDS_BEFORE_RENDER}. Split upload into smaller batches to avoid memory exhaustion.`,
+        );
       }
       console.log(`[Worker] Proceeding with ${validRowsCount} valid row(s) for label generation.`);
 
@@ -1336,6 +1348,10 @@ const worker = new Worker(
           } else {
           console.log("MoneyOrderData:", printableOrders);
           const renderMoneyOrderPdf = async () => {
+            const activeBrowser = browser;
+            if (!activeBrowser) {
+              throw new Error("Browser is not available for money-order PDF rendering");
+            }
             const moneyHtml = moneyOrderHtml(printableOrders);
             const moneyHtmlSize = Buffer.byteLength(String(moneyHtml ?? ""), "utf8");
             console.log(`[Worker] Money-order HTML size: ${moneyHtmlSize} bytes`);
@@ -1343,15 +1359,15 @@ const worker = new Worker(
               throw new Error("EMPTY_HTML_BLOCKED");
             }
             try {
-              const moneyPdfData = await htmlToPdfBufferInFreshBrowser(moneyHtml, "A4");
+              const moneyPdfData = await htmlToPdfBuffer(moneyHtml, activeBrowser, "A4");
               return Buffer.from(moneyPdfData);
             } catch (err) {
               const message = err instanceof Error ? err.message : String(err ?? "");
               if (!message.toLowerCase().includes("detached")) {
                 throw err;
               }
-              console.warn("[Worker] Detached frame during money-order render; relaunching browser for one retry...");
-              const moneyPdfData = await htmlToPdfBufferInFreshBrowser(moneyHtml, "A4");
+              console.warn("[Worker] Detached frame during money-order render; retrying with current browser...");
+              const moneyPdfData = await htmlToPdfBuffer(moneyHtml, activeBrowser, "A4");
               return Buffer.from(moneyPdfData);
             }
           };

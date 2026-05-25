@@ -82,12 +82,18 @@ export async function waitForStoredFile(storedPath: string, attempts = 8, delayM
 // Quick R2 existence check (fail-fast, no retries)
 // Returns true if R2 file exists, false otherwise (including errors)
 function resolveR2FallbackKey(storedPath: string, options?: R2ReadCompatibilityOptions): string {
-  if (options?.jobId && options?.artifactType) {
+  if (
+    process.env.NORMALIZED_KEYS_FOR_NEW_UPLOADS === "true" &&
+    options?.jobId &&
+    options?.artifactType
+  ) {
     const normalized = getNormalizedObjectKey(options.jobId, options.artifactType);
     return normalized.replace(/^(pdf|json|xlsx)\//, "");
   }
 
-  return storedPath;
+  // Legacy dual-write uses absolute storage paths as key payload.
+  // When normalized uploads are disabled, probe R2 with the same absolute form.
+  return resolveStoredPath(storedPath);
 }
 
 function resolveArtifactStorageType(storedPath: string, options?: R2ReadCompatibilityOptions): "pdf" | "json" | "xlsx" {
@@ -103,7 +109,11 @@ async function checkR2ExistsQuick(
   timeoutMs = 2000,
   options?: R2ReadCompatibilityOptions
 ): Promise<boolean> {
-  if (!storageFeatureFlags.ENABLE_DUAL_READ || !storageFeatureFlags.ENABLE_R2_UPLOADS) {
+  const allowR2Fallback =
+    storageFeatureFlags.ENABLE_R2_UPLOADS &&
+    (storageFeatureFlags.ENABLE_DUAL_READ || process.env.DELETE_LOCAL_AFTER_R2_SYNC === "true");
+
+  if (!allowR2Fallback) {
     return false;
   }
 
@@ -135,6 +145,9 @@ export async function waitForStoredFileWithFallback(
 ): Promise<{path: string, provider: 'local' | 'r2'} | null> {
   const absPath = resolveStoredPath(storedPath);
   const r2Key = resolveR2FallbackKey(storedPath, options);
+  const allowR2Fallback =
+    storageFeatureFlags.ENABLE_R2_UPLOADS &&
+    (storageFeatureFlags.ENABLE_DUAL_READ || process.env.DELETE_LOCAL_AFTER_R2_SYNC === "true");
   
   // PHASE 1: Try local first (8 attempts, normal polling cadence)
   for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -152,7 +165,7 @@ export async function waitForStoredFileWithFallback(
   }
 
   // PHASE 2: Fallback to R2 if enabled
-  if (storageFeatureFlags.ENABLE_DUAL_READ && storageFeatureFlags.ENABLE_R2_UPLOADS) {
+  if (allowR2Fallback) {
     try {
       const { metrics } = await import("../metrics.js");
       const { logTelemetry } = await import("../telemetry.js");

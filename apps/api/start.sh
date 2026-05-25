@@ -74,38 +74,38 @@ else
 fi
 
 case "$MODE" in
-  # combined)
-  #   run_prisma_startup
-  #   echo "[startup] Starting BullMQ Worker..."
-  #   node dist/worker.js &
-  #   WORKER_PID=$!
-  #
-  #   echo "[startup] Starting API server..."
-  #   node dist/index.js &
-  #   API_PID=$!
-  #
-  #   shutdown() {
-  #     kill "$WORKER_PID" "$API_PID" 2>/dev/null || true
-  #   }
-  #
-  #   trap shutdown INT TERM EXIT
-  #
-  #   WORKER_REPORTED_DOWN=0
-  #   while kill -0 "$API_PID" 2>/dev/null; do
-  #     if [ "$WORKER_REPORTED_DOWN" -eq 0 ] && ! kill -0 "$WORKER_PID" 2>/dev/null; then
-  #       echo "[startup] Worker exited; API will continue running in degraded mode"
-  #       WORKER_REPORTED_DOWN=1
-  #     fi
-  #     sleep 2
-  #   done
-  #
-  #   echo "[startup] API exited; stopping container"
-  #   wait "$API_PID"
-  #   EXIT_CODE=$?
-  #
-  #   shutdown
-  #   exit "${EXIT_CODE:-1}"
-  #   ;;
+  combined)
+    run_prisma_startup
+    echo "[startup] Starting BullMQ Worker..."
+    node dist/worker.js &
+    WORKER_PID=$!
+
+    echo "[startup] Starting API server..."
+    node dist/index.js &
+    API_PID=$!
+
+    shutdown() {
+      kill "$WORKER_PID" "$API_PID" 2>/dev/null || true
+    }
+
+    trap shutdown INT TERM EXIT
+
+    WORKER_REPORTED_DOWN=0
+    while kill -0 "$API_PID" 2>/dev/null; do
+      if [ "$WORKER_REPORTED_DOWN" -eq 0 ] && ! kill -0 "$WORKER_PID" 2>/dev/null; then
+        echo "[startup] Worker exited; API will continue running in degraded mode"
+        WORKER_REPORTED_DOWN=1
+      fi
+      sleep 2
+    done
+
+    echo "[startup] API exited; stopping container"
+    wait "$API_PID"
+    EXIT_CODE=$?
+
+    shutdown
+    exit "${EXIT_CODE:-1}"
+    ;;
   worker)
     if [ -z "${DATABASE_URL:-}" ]; then
       echo "[startup] Worker mode: DATABASE_URL missing; starting idle process to avoid restart loop"
