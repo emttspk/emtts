@@ -1058,15 +1058,48 @@ jobsRouter.get("/:jobId/download/labels", requireAuth, async (req, res) => {
 
   relPath = await waitForResolvedLabelsRelPath(jobId, relPath);
   if (!relPath) {
+    logTelemetry({
+      event: "labels_download_404",
+      jobId,
+      reason: "labels_path_unresolved",
+    });
     return res.status(404).json({ success: false, message: "Labels file not found" });
   }
 
-  // Dual-read aware: Try local first, fallback to R2 if enabled
+  // Try existing local behavior first; when local is unavailable, allow safe R2 fallback.
   const fileResult = await waitForStoredFileWithFallback(relPath, 8, 500, {
     jobId,
     artifactType: "labelsPdf",
+    forceR2FallbackOnLocalMiss: true,
   });
+
+  if (fileResult?.provider !== "local") {
+    logTelemetry({
+      event: "labels_download_local_miss",
+      jobId,
+      relPath,
+    });
+    logTelemetry({
+      event: "labels_download_r2_fallback_attempt",
+      jobId,
+      relPath,
+    });
+  }
+
+  if (fileResult?.provider === "r2") {
+    logTelemetry({
+      event: "labels_download_r2_fallback_success",
+      jobId,
+      r2Key: fileResult.path,
+    });
+  }
+
   if (!fileResult) {
+    logTelemetry({
+      event: "labels_download_r2_fallback_miss",
+      jobId,
+      relPath,
+    });
     const fallbackPath = resolveStoredPath(relPath);
     if (existsSync(fallbackPath)) {
       const stats = fsSync.statSync(fallbackPath);
@@ -1074,6 +1107,12 @@ jobsRouter.get("/:jobId/download/labels", requireAuth, async (req, res) => {
         return res.status(422).json({ success: false, message: "Labels file is empty" });
       }
     }
+    logTelemetry({
+      event: "labels_download_404",
+      jobId,
+      reason: "local_and_r2_missing",
+      relPath,
+    });
     return res.status(404).json({ success: false, message: "File not found on disk" });
   }
 

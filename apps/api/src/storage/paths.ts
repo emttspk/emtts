@@ -8,6 +8,11 @@ import { getDualProviders, storageFeatureFlags } from "./provider.js";
 import type { R2ReadCompatibilityOptions } from "./R2StorageProvider.js";
 import { getNormalizedObjectKey } from "./key-normalization.js";
 
+type StoredFileFallbackOptions = R2ReadCompatibilityOptions & {
+  // Opt-in override for read paths that must fallback to R2 even when dual-read flag is off.
+  forceR2FallbackOnLocalMiss?: boolean;
+};
+
 export function appRoot() {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 }
@@ -81,19 +86,22 @@ export async function waitForStoredFile(storedPath: string, attempts = 8, delayM
 
 // Quick R2 existence check (fail-fast, no retries)
 // Returns true if R2 file exists, false otherwise (including errors)
-function resolveR2FallbackKey(storedPath: string, options?: R2ReadCompatibilityOptions): string {
-  if (
-    process.env.NORMALIZED_KEYS_FOR_NEW_UPLOADS === "true" &&
-    options?.jobId &&
-    options?.artifactType
-  ) {
+function resolveR2FallbackKeys(storedPath: string, options?: StoredFileFallbackOptions): string[] {
+  const keys: string[] = [];
+
+  // Always probe normalized key first when metadata is available.
+  if (options?.jobId && options?.artifactType) {
     const normalized = getNormalizedObjectKey(options.jobId, options.artifactType);
-    return normalized.replace(/^(pdf|json|xlsx)\//, "");
+    keys.push(normalized.replace(/^(pdf|json|xlsx)\//, ""));
   }
 
   // Legacy dual-write uses absolute storage paths as key payload.
-  // When normalized uploads are disabled, probe R2 with the same absolute form.
-  return resolveStoredPath(storedPath);
+  const legacyKey = resolveStoredPath(storedPath);
+  if (!keys.includes(legacyKey)) {
+    keys.push(legacyKey);
+  }
+
+  return keys;
 }
 
 function resolveArtifactStorageType(storedPath: string, options?: R2ReadCompatibilityOptions): "pdf" | "json" | "xlsx" {
@@ -107,31 +115,40 @@ function resolveArtifactStorageType(storedPath: string, options?: R2ReadCompatib
 async function checkR2ExistsQuick(
   storedPath: string,
   timeoutMs = 2000,
-  options?: R2ReadCompatibilityOptions
-): Promise<boolean> {
+  options?: StoredFileFallbackOptions
+): Promise<{ exists: boolean; key?: string }> {
   const allowR2Fallback =
     storageFeatureFlags.ENABLE_R2_UPLOADS &&
-    (storageFeatureFlags.ENABLE_DUAL_READ || process.env.DELETE_LOCAL_AFTER_R2_SYNC === "true");
+    (
+      options?.forceR2FallbackOnLocalMiss === true ||
+      storageFeatureFlags.ENABLE_DUAL_READ ||
+      process.env.DELETE_LOCAL_AFTER_R2_SYNC === "true"
+    );
 
   if (!allowR2Fallback) {
-    return false;
+    return { exists: false };
   }
 
   try {
     const r2Provider = getDualProviders().r2;
-    const r2Key = resolveR2FallbackKey(storedPath, options);
+    const r2Keys = resolveR2FallbackKeys(storedPath, options);
     const storageType = resolveArtifactStorageType(storedPath, options);
-    const promise = r2Provider.artifactExists(storageType, r2Key, options);
-    
-    // Race against timeout to fail fast
-    const timeoutPromise = new Promise<boolean>((_, reject) =>
-      setTimeout(() => reject(new Error("R2 check timeout")), timeoutMs)
-    );
-    
-    return await Promise.race([promise, timeoutPromise]);
+
+    for (const r2Key of r2Keys) {
+      const promise = r2Provider.artifactExists(storageType, r2Key, options);
+      const timeoutPromise = new Promise<boolean>((_, reject) =>
+        setTimeout(() => reject(new Error("R2 check timeout")), timeoutMs)
+      );
+      const exists = await Promise.race([promise, timeoutPromise]);
+      if (exists) {
+        return { exists: true, key: r2Key };
+      }
+    }
+
+    return { exists: false };
   } catch {
     // Any R2 error (timeout, network, auth) → assume R2 unavailable
-    return false;
+    return { exists: false };
   }
 }
 
@@ -141,13 +158,18 @@ export async function waitForStoredFileWithFallback(
   storedPath: string,
   attempts = 8,
   delayMs = 200,
-  options?: R2ReadCompatibilityOptions
+  options?: StoredFileFallbackOptions
 ): Promise<{path: string, provider: 'local' | 'r2'} | null> {
   const absPath = resolveStoredPath(storedPath);
-  const r2Key = resolveR2FallbackKey(storedPath, options);
+  const r2Keys = resolveR2FallbackKeys(storedPath, options);
+  const r2PrimaryKey = r2Keys[0] || storedPath;
   const allowR2Fallback =
     storageFeatureFlags.ENABLE_R2_UPLOADS &&
-    (storageFeatureFlags.ENABLE_DUAL_READ || process.env.DELETE_LOCAL_AFTER_R2_SYNC === "true");
+    (
+      options?.forceR2FallbackOnLocalMiss === true ||
+      storageFeatureFlags.ENABLE_DUAL_READ ||
+      process.env.DELETE_LOCAL_AFTER_R2_SYNC === "true"
+    );
   
   // PHASE 1: Try local first (8 attempts, normal polling cadence)
   for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -173,23 +195,23 @@ export async function waitForStoredFileWithFallback(
       logTelemetry({
         event: "dual_read_fallback",
         provider: "r2",
-        objectKey: r2Key,
+        objectKey: r2PrimaryKey,
       });
-      const r2Exists = await checkR2ExistsQuick(storedPath, 2000, options);
-      if (r2Exists) {
+      const r2Result = await checkR2ExistsQuick(storedPath, 2000, options);
+      if (r2Result.exists && r2Result.key) {
         logTelemetry({
           event: "provider_fallback",
           provider: "r2",
-          objectKey: r2Key,
+          objectKey: r2Result.key,
         });
-        return { path: r2Key, provider: 'r2' };
+        return { path: r2Result.key, provider: 'r2' };
       }
     } catch (err) {
       const { logTelemetry } = await import("../telemetry.js");
       logTelemetry({
         event: "provider_fallback",
         provider: "r2",
-        objectKey: r2Key,
+        objectKey: r2PrimaryKey,
         error: err instanceof Error ? err.message : String(err),
       });
     }
