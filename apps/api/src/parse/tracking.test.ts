@@ -99,6 +99,23 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "accepts valid non-VPL prefixes under relaxed upload validation rules",
+    async run() {
+      await withWorkbook(
+        [
+          { TrackingID: "PAR26050008", shipperName: "Parcel Sender" },
+          { TrackingID: "RGL26050009", shipperName: "Registered Sender" },
+          { TrackingID: "UMS26050010", shipperName: "Urgent Sender" },
+        ],
+        async (filePath) => {
+          const parsed = await parseTrackingUploadRowsFromFile(filePath);
+          assert.deepEqual(parsed.trackingNumbers, ["PAR26050008", "RGL26050009", "UMS26050010"]);
+          assert.equal(parsed.rowsByTracking.size, 3);
+        },
+      );
+    },
+  },
+  {
     name: "rejects invalid tracking ids with row details",
     async run() {
       await withWorkbook(
