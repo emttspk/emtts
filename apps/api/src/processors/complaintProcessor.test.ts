@@ -198,6 +198,17 @@ const tests: TestCase[] = [
           assert.equal(getQueueRow()?.complaintStatus, "submitted");
           assert.equal(getShipment()?.complaintStatus, "FILED");
           assert.ok(String(getShipment()?.complaintText ?? "").includes("COMPLAINT_ID: CMP-7788"));
+          const snapshotText = String(getShipment()?.complaintText ?? "");
+          const marker = "COMPLAINT_HISTORY_JSON:";
+          const markerIndex = snapshotText.lastIndexOf(marker);
+          assert.ok(markerIndex > -1);
+          const snapshotRaw = snapshotText.slice(markerIndex + marker.length).trim();
+          const snapshotJson = JSON.parse(snapshotRaw) as { entries?: Array<Record<string, unknown>> };
+          assert.ok(Array.isArray(snapshotJson.entries));
+          assert.equal(snapshotJson.entries?.length, 1);
+          assert.equal(String(snapshotJson.entries?.[0]?.complaintId ?? ""), "CMP-7788");
+          assert.equal(String(snapshotJson.entries?.[0]?.trackingId ?? ""), "VPL26050001");
+          assert.equal(Number(snapshotJson.entries?.[0]?.attemptNumber ?? 0), 1);
           assert.ok(getAuditWrites() >= 1);
         });
       });

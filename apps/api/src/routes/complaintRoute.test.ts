@@ -119,6 +119,27 @@ function makeDeliveredShipment(trackingNumber = "UMS26050001") {
   };
 }
 
+function makeDeliveredWithPaymentShipment(trackingNumber = "VPL26050001") {
+  return {
+    ...makePendingShipment(trackingNumber),
+    rawJson: JSON.stringify({
+      tracking: {
+        history: [
+          ["2026-05-01", "09:00", "Booked at counter", "Lahore Booking Office"],
+          ["2026-05-04", "14:15", "Delivered to addressee", "Karachi Delivery Office"],
+          ["2026-05-05", "10:00", "MOS Delivered MOS12345", "Karachi Delivery Office"],
+        ],
+      },
+      sender_name: "Sender One",
+      sender_address: "Addr S",
+      receiver_name: "Receiver One",
+      receiver_address: "Addr R",
+      booking_city: "Lahore",
+      receiver_city: "Karachi",
+    }),
+  };
+}
+
 function defaultBody(overrides?: Record<string, unknown>) {
   return {
     tracking_number: "VPL26050001",
@@ -423,12 +444,41 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: "route handles delivered-like shipment status based on current lifecycle mapping",
+    name: "route skips delivered-with-payment shipment for complaint eligibility",
     async run() {
-      const state = makeState({ shipmentRow: makeDeliveredShipment("UMS26050001") });
-      const result = await runComplaintRoute({ state, body: defaultBody({ tracking_number: "UMS26050001" }) });
-      assert.equal(result.statusCode, 200);
-      assert.equal(result.body?.queued, true);
+      const state = makeState({ shipmentRow: makeDeliveredWithPaymentShipment("VPL26050001") });
+      const before = state.usageLogs.length;
+      const result = await runComplaintRoute({ state, body: defaultBody({ tracking_number: "VPL26050001" }) });
+      assert.equal(result.statusCode, 403);
+      assert.match(String(result.body?.message ?? ""), /pending shipments/i);
+      assert.equal(state.queueCreates.length, 0);
+      assert.equal(state.trackingJobCreates.length, 0);
+      assert.equal(state.queueAddCalls.length, 0);
+      assert.equal(state.usageLogs.length, before);
+    },
+  },
+  {
+    name: "route handles missing recipient geography fields safely",
+    async run() {
+      const state = makeState({ shipmentRow: makePendingShipment("VPL26050001") });
+      const before = state.usageLogs.length;
+      const result = await runComplaintRoute({
+        state,
+        body: defaultBody({
+          recipient_district: undefined,
+          recipient_tehsil: undefined,
+          recipient_location: undefined,
+        }),
+      });
+      assert.equal(result.statusCode, 400);
+      assert.match(String(result.body?.message ?? ""), /missing required fields/i);
+      assert.match(String(result.body?.message ?? ""), /District/i);
+      assert.match(String(result.body?.message ?? ""), /Tehsil/i);
+      assert.match(String(result.body?.message ?? ""), /DeliveryOffice/i);
+      assert.equal(state.queueCreates.length, 0);
+      assert.equal(state.trackingJobCreates.length, 0);
+      assert.equal(state.queueAddCalls.length, 0);
+      assert.equal(state.usageLogs.length, before);
     },
   },
   {
