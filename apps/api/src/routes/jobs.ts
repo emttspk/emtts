@@ -1314,14 +1314,35 @@ async function handleMoneyOrdersDownload(req: ExpressRequest, res: ExpressRespon
   }
 
   relPath = await waitForResolvedMoneyOrderRelPath(jobId, relPath);
+  const moneyOrderExpected = owned.includeMoneyOrders === true;
+  let fileResult: { path: string; provider: "local" | "r2" } | null = null;
+
   if (!relPath) {
-    return res.status(404).json({ success: false, message: "Money order file was not generated" });
+    const legacyProbePath = toStoredPath(moneyOrdersOutputPath(jobId));
+    fileResult = await waitForStoredFileWithFallback(legacyProbePath, 1, 0, {
+      jobId,
+      artifactType: "moneyOrderPdf",
+      forceR2FallbackOnLocalMiss: true,
+    });
+
+    if (!fileResult) {
+      if (!moneyOrderExpected) {
+        return res.status(404).json({ success: false, message: "Money order was not generated because no money-order eligible records were found" });
+      }
+      return res.status(404).json({ success: false, message: "Money order file path is missing for a money-order-enabled job" });
+    }
+
+    relPath = legacyProbePath;
   }
 
-  const fileResult = await waitForStoredFileWithFallback(relPath, 8, 500, {
-    jobId,
-    artifactType: "moneyOrderPdf",
-  });
+  if (!fileResult) {
+    fileResult = await waitForStoredFileWithFallback(relPath, 8, 500, {
+      jobId,
+      artifactType: "moneyOrderPdf",
+      forceR2FallbackOnLocalMiss: true,
+    });
+  }
+
   if (!fileResult) {
     const fallbackPath = resolveStoredPath(relPath);
     if (existsSync(fallbackPath)) {
@@ -1330,7 +1351,10 @@ async function handleMoneyOrdersDownload(req: ExpressRequest, res: ExpressRespon
         return res.status(422).json({ success: false, message: "Money order file is empty" });
       }
     }
-    return res.status(404).json({ success: false, message: "Money order file was not generated" });
+    if (!moneyOrderExpected) {
+      return res.status(404).json({ success: false, message: "Money order was not generated because no money-order eligible records were found" });
+    }
+    return res.status(404).json({ success: false, message: "Money order file was generated but artifact is missing" });
   }
 
   if (owned.moneyOrderPdfPath !== relPath) {
@@ -1536,6 +1560,7 @@ async function handleTrackingMasterDownload(req: ExpressRequest, res: ExpressRes
     fileResult = await waitForStoredFileWithFallback(legacyProbePath, 1, 0, {
       jobId,
       artifactType: "trackingMasterXlsx",
+      forceR2FallbackOnLocalMiss: true,
     });
     if (!fileResult) {
       return res.status(404).json({ success: false, message: "Tracking master file was not generated" });
@@ -1547,6 +1572,7 @@ async function handleTrackingMasterDownload(req: ExpressRequest, res: ExpressRes
     fileResult = await waitForStoredFileWithFallback(relPath, 1, 0, {
       jobId,
       artifactType: "trackingMasterXlsx",
+      forceR2FallbackOnLocalMiss: true,
     });
   }
 
