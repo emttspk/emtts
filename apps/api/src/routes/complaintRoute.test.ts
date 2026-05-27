@@ -454,6 +454,8 @@ const tests: TestCase[] = [
       const result = await runComplaintRoute({ state, body: defaultBody() });
       assert.equal(result.statusCode, 200);
       assert.equal(result.body?.queued, true);
+      assert.equal(result.body?.status, "QUEUED");
+      assert.equal(result.body?.tracking_id, "VPL26050001");
       assert.equal(state.queueCreates.length, 1);
       assert.equal(state.trackingJobCreates.length, 1);
       assert.equal(state.queueAddCalls.length, 1);
@@ -507,6 +509,8 @@ const tests: TestCase[] = [
       const before = state.usageLogs.length;
       const result = await runComplaintRoute({ state, body: defaultBody() });
       assert.equal(result.statusCode, 409);
+      assert.equal(result.body?.duplicate, true);
+      assert.equal(result.body?.status, "DUPLICATE");
       assert.equal(state.usageLogs.length, before);
     },
   },
@@ -597,18 +601,17 @@ const tests: TestCase[] = [
       assert.equal(payload?.phone, "03001234567");
       assert.ok(String(payload?.complaint_text ?? "").length > 0);
       const consumedComplaint = state.usageLogs.find((row) => row.action_type === "complaint" && row.status === "CONSUMED");
-      assert.ok(consumedComplaint);
-      assert.equal(consumedComplaint?.units_used, 10);
+      assert.equal(consumedComplaint, undefined);
     },
   },
   {
-    name: "queue enqueue failure returns safe error and refunds complaint units",
+    name: "queue enqueue failure returns safe error without mutating complaint usage logs",
     async run() {
       const state = makeState({ shipmentRow: makePendingShipment(), queueAddShouldFail: true });
       const result = await runComplaintRoute({ state, body: defaultBody() });
       assert.equal(result.statusCode, 500);
       const refunded = state.usageLogs.find((row) => row.action_type === "complaint" && row.status === "REFUNDED");
-      assert.ok(refunded);
+      assert.equal(refunded, undefined);
       assert.equal(state.usageMonthly.labelsQueued, 0);
     },
   },

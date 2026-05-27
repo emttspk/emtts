@@ -454,6 +454,11 @@ function resolveComplaintActionLabel(
 
   if (!hasComplaint) return "Complaint";
 
+  const queueState = normalizeQueueStatusLabel(queueSnapshot?.complaintStatus);
+  if (queueState === "QUEUED") return "Queued";
+  if (queueState === "RETRY PENDING") return "Retry Pending";
+  if (queueState === "MANUAL REVIEW") return "Processing failed";
+
   const dueExpired = lifecycle.dueDateTs != null && lifecycle.dueDateTs < todayStart.getTime();
   const terminal = ["RESOLVED", "CLOSED", "REJECTED"].includes(lifecycleStateUp) || dueExpired;
   if (statusUpper === "PENDING" && terminal) return "Reopen Complaint";
@@ -473,6 +478,10 @@ function complaintStateBadgeClass(stateLabel: string) {
   if (token === "RESOLVED" || token === "CLOSED") return "border-emerald-200 bg-emerald-50 text-emerald-800";
   if (token === "MANUAL REVIEW") return "border-red-200 bg-red-50 text-red-800";
   return "border-violet-200 bg-violet-50 text-violet-800";
+}
+
+function isComplaintActionLocked(label: string) {
+  return ["In Process", "Queued", "Retry Pending", "Processing failed"].includes(String(label ?? "").trim());
 }
 
 function formatRetryCountdown(nextRetryAt: string | null | undefined, nowMs: number): string {
@@ -864,6 +873,18 @@ function formatBatchDateTime(value: string | null | undefined) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function dedupeShipmentRows(rows: Shipment[]) {
+  const deduped = new Map<string, Shipment>();
+  for (const row of rows) {
+    const trackingNumber = String(row.trackingNumber ?? "").trim();
+    const rowId = String(row.id ?? "").trim();
+    const key = trackingNumber || rowId;
+    if (!key) continue;
+    deduped.set(key, row);
+  }
+  return Array.from(deduped.values());
 }
 
 function resolveShipmentBookingMeta(shipment: Shipment) {
@@ -1280,7 +1301,7 @@ export default function BulkTracking() {
     if (cached?.shipments.length) {
       trackingCacheRef.current = {
         shipments: cached.shipments,
-        total: cached.total || cached.shipments.length,
+        total: cached.total ?? cached.shipments.length,
         fetchedAt: cached.fetchedAt,
       };
       complaintQueueCacheRef.current = {
@@ -1288,7 +1309,7 @@ export default function BulkTracking() {
         fetchedAt: cached.latestSyncAt || cached.fetchedAt,
         inFlight: null,
       };
-      applyShipmentsSnapshot(cached.shipments, cached.total);
+      applyShipmentsSnapshot(cached.shipments, cached.total ?? cached.shipments.length);
       if (isAdmin && cached.complaintQueue?.length) {
         setComplaintQueueByTracking(complaintQueueRowsToMap(cached.complaintQueue));
       }
@@ -1299,7 +1320,7 @@ export default function BulkTracking() {
       if (!active || !snapshot?.shipments.length) return;
       trackingCacheRef.current = {
         shipments: snapshot.shipments,
-        total: snapshot.total || snapshot.shipments.length,
+        total: snapshot.total ?? snapshot.shipments.length,
         fetchedAt: snapshot.fetchedAt,
       };
       complaintQueueCacheRef.current = {
@@ -1307,7 +1328,7 @@ export default function BulkTracking() {
         fetchedAt: snapshot.latestSyncAt || snapshot.fetchedAt,
         inFlight: null,
       };
-      applyShipmentsSnapshot(snapshot.shipments, snapshot.total);
+      applyShipmentsSnapshot(snapshot.shipments, snapshot.total ?? snapshot.shipments.length);
       if (isAdmin && snapshot.complaintQueue?.length) {
         setComplaintQueueByTracking(complaintQueueRowsToMap(snapshot.complaintQueue));
       }
@@ -1468,9 +1489,7 @@ export default function BulkTracking() {
 
   async function refreshComplaintQueueSnapshot(options?: { force?: boolean }) {
     if (!isAdmin) {
-      setComplaintQueueByTracking(new Map());
-      complaintQueueCacheRef.current = { rows: [], fetchedAt: Date.now(), inFlight: null };
-      return new Map<string, ComplaintQueueSnapshot>();
+      return complaintQueueByTracking;
     }
     const cachedRows = complaintQueueCacheRef.current.rows;
     const cacheFresh = Boolean(
@@ -1506,6 +1525,24 @@ export default function BulkTracking() {
 
     complaintQueueCacheRef.current.inFlight = request;
     return request;
+  }
+
+  function schedulePostSubmitRefresh() {
+    void refreshShipments({ force: true });
+    if (isAdmin) {
+      void refreshComplaintQueueSnapshot({ force: true });
+    }
+    let attempts = 0;
+    const timer = window.setInterval(() => {
+      attempts += 1;
+      void refreshShipments({ force: true });
+      if (isAdmin) {
+        void refreshComplaintQueueSnapshot({ force: true });
+      }
+      if (attempts >= 2) {
+        window.clearInterval(timer);
+      }
+    }, 1500);
   }
 
   // PROTECTED RENDER PATH: DO NOT MODIFY WITHOUT EXPLICIT APPROVAL.
@@ -1577,8 +1614,12 @@ export default function BulkTracking() {
   }
 
   function applyShipmentsSnapshot(allRows: Shipment[], total: number) {
-    setShipments(allRows);
-    setTotalShipments(total || allRows.length);
+    const dedupedRows = dedupeShipmentRows(Array.isArray(allRows) ? allRows : []);
+    const normalizedTotal = Number.isFinite(total) && total > 0
+      ? Math.max(total, dedupedRows.length)
+      : dedupedRows.length;
+    setShipments(dedupedRows);
+    setTotalShipments(normalizedTotal);
   }
 
   function queueOptimisticComplaintState(input: { trackingId: string; status: ComplaintQueueSnapshot["complaintStatus"]; complaintId?: string; dueDate?: string }) {
@@ -1606,7 +1647,8 @@ export default function BulkTracking() {
     const total = Math.max(0, Number(firstPage.total ?? 0));
     const firstRows = Array.isArray(firstPage.shipments) ? firstPage.shipments : [];
     if (firstRows.length < hardLimit || total <= firstRows.length) {
-      return { allRows: firstRows, total: total || firstRows.length };
+      const deduped = dedupeShipmentRows(firstRows);
+      return { allRows: deduped, total: Math.max(total, deduped.length) };
     }
 
     const totalPages = Math.min(50, Math.ceil(total / hardLimit));
@@ -1619,7 +1661,8 @@ export default function BulkTracking() {
       ...remainingResults.flatMap((pageResult) => Array.isArray(pageResult.shipments) ? pageResult.shipments : []),
     ];
 
-    return { allRows, total };
+    const deduped = dedupeShipmentRows(allRows);
+    return { allRows: deduped, total: Math.max(total, deduped.length) };
   }
 
   async function fetchShipmentsDiff(rows: Shipment[]) {
@@ -1663,7 +1706,7 @@ export default function BulkTracking() {
       next.push(extra);
     }
 
-    return next;
+    return dedupeShipmentRows(next);
   }
 
   async function refreshSupportingWorkspaceData(options?: { force?: boolean }) {
@@ -1683,7 +1726,7 @@ export default function BulkTracking() {
     try {
       const cachedRows = trackingCacheRef.current?.shipments ?? [];
       const hasCachedRows = cachedRows.length > 0;
-      const cachedTotal = trackingCacheRef.current?.total || cachedRows.length;
+      const cachedTotal = trackingCacheRef.current?.total ?? cachedRows.length;
       const cappedCache = hasCachedRows && cachedRows.length < cachedTotal;
       let nextRows: Shipment[];
       let nextTotal: number;
@@ -1692,16 +1735,16 @@ export default function BulkTracking() {
         try {
           const diff = await fetchShipmentsDiff(cachedRows);
           nextRows = applyChangedRows(cachedRows, Array.isArray(diff.changedRows) ? diff.changedRows : []);
-          nextTotal = trackingCacheRef.current?.total || nextRows.length;
+          nextTotal = trackingCacheRef.current?.total ?? nextRows.length;
         } catch {
           const full = await fetchShipmentsFromServer();
           nextRows = full.allRows;
-          nextTotal = full.total || full.allRows.length;
+          nextTotal = full.total ?? full.allRows.length;
         }
       } else {
         const full = await fetchShipmentsFromServer();
         nextRows = full.allRows;
-        nextTotal = full.total || full.allRows.length;
+        nextTotal = full.total ?? full.allRows.length;
       }
 
       const fetchedAt = Date.now();
@@ -1727,7 +1770,7 @@ export default function BulkTracking() {
   async function refreshShipments(options?: { force?: boolean }) {
     const cached = trackingCacheRef.current;
     const cacheFresh = Boolean(cached && Date.now() - cached.fetchedAt < TRACKING_CACHE_TTL_MS);
-    const cappedCache = Boolean(cached && cached.shipments.length > 0 && cached.shipments.length < (cached.total || cached.shipments.length));
+    const cappedCache = Boolean(cached && cached.shipments.length > 0 && cached.shipments.length < (cached.total ?? cached.shipments.length));
 
     if (cached && !options?.force) {
       applyShipmentsSnapshot(cached.shipments, cached.total);
@@ -1758,10 +1801,11 @@ export default function BulkTracking() {
   }
 
   function draftFor(row: CycleAuditRecord): CycleAuditDraft {
+    const missingDetection = Array.isArray(row.missing_detection) ? row.missing_detection : [];
     return auditDrafts[row.tracking_number] ?? {
       expected_status: (row.expected_status === "DELIVERED WITH PAYMENT" ? "DELIVERED WITH PAYMENT" : row.expected_status === "RETURNED" ? "RETURNED" : row.expected_status === "DELIVERED" ? "DELIVERED" : "PENDING"),
       cycle_detected: (row.cycle_detected === "Cycle 1" || row.cycle_detected === "Cycle 2" || row.cycle_detected === "Cycle 3" ? row.cycle_detected : "Cycle Unknown"),
-      missing_steps: row.missing_detection.join("; "),
+      missing_steps: missingDetection.join("; "),
       reason: "",
       apply_to_issue_code: false,
     };
@@ -2119,7 +2163,7 @@ export default function BulkTracking() {
     setShipments(optimisticRows);
     trackingCacheRef.current = {
       shipments: optimisticRows,
-      total: trackingCacheRef.current?.total || optimisticRows.length,
+      total: trackingCacheRef.current?.total ?? optimisticRows.length,
       fetchedAt: Date.now(),
     };
     try {
@@ -2188,13 +2232,24 @@ export default function BulkTracking() {
   useEffect(() => {
     if (!Array.isArray(polling.result)) return;
     const liveResults = polling.result as TrackResult[];
-    setResults(liveResults);
+    setResults((prev) => {
+      if (prev.length !== liveResults.length) return liveResults;
+      const unchanged = prev.every((item, index) => {
+        const next = liveResults[index];
+        return String(item.tracking_number ?? "") === String(next?.tracking_number ?? "")
+          && String(item.status ?? "") === String(next?.status ?? "")
+          && String(item.latest_date ?? "") === String(next?.latest_date ?? "")
+          && String(item.latest_time ?? "") === String(next?.latest_time ?? "")
+          && Number(item.days_passed ?? 0) === Number(next?.days_passed ?? 0);
+      });
+      return unchanged ? prev : liveResults;
+    });
     if (uiState !== "processing") return;
 
     const total = Math.max(recordCount, liveResults.length, 1);
     const processed = liveResults.filter((item) => String(item.status ?? "").toUpperCase() !== "QUEUED").length;
     const pct = Math.max(0, Math.min(99, Math.round((processed / total) * 100)));
-    setProgress(pct);
+    setProgress((prev) => (prev === pct ? prev : pct));
   }, [polling.result, uiState, recordCount]);
 
   useEffect(() => {
@@ -2327,9 +2382,9 @@ export default function BulkTracking() {
       const cached = readTrackingWorkspaceRenderCache<Shipment, ComplaintQueueSnapshot>();
       if (cached?.shipments.length) {
         const cachedCount = cached.shipments.length;
-        const cachedTotal = cached.total || cachedCount;
+        const cachedTotal = cached.total ?? cachedCount;
         const currentCount = shipments.length;
-        const currentTotal = totalShipments || currentCount;
+        const currentTotal = totalShipments ?? currentCount;
         if (currentCount === 0 || cachedCount >= currentCount || cachedTotal >= currentTotal) {
           setShipments(cached.shipments);
           setTotalShipments(cachedTotal);
@@ -2492,11 +2547,24 @@ export default function BulkTracking() {
 
   useEffect(() => {
     if (!selectedTracking) return;
-    const latest = shipmentByTracking.get(selectedTracking.shipment.trackingNumber);
-    if (latest && latest !== selectedTracking) {
-      setSelectedTracking(latest);
-    }
-  }, [selectedTracking, shipmentByTracking]);
+    const trackingNumber = String(selectedTracking.shipment.trackingNumber ?? "").trim();
+    if (!trackingNumber) return;
+    const latest = shipmentByTracking.get(trackingNumber);
+    if (!latest) return;
+
+    setSelectedTracking((prev) => {
+      if (!prev) return prev;
+      if (String(prev.shipment.trackingNumber ?? "").trim() !== trackingNumber) {
+        return prev;
+      }
+      const sameSnapshot =
+        String(latest.shipment.id ?? "") === String(prev.shipment.id ?? "")
+        && String(latest.shipment.updatedAt ?? "") === String(prev.shipment.updatedAt ?? "")
+        && String(latest.shipment.status ?? "") === String(prev.shipment.status ?? "")
+        && String(latest.shipment.complaint_status ?? "") === String(prev.shipment.complaint_status ?? "");
+      return sameSnapshot ? prev : latest;
+    });
+  }, [selectedTracking?.shipment.trackingNumber, shipmentByTracking]);
 
   const pieSlices = useMemo(() => {
     const delivered = summaryStats.delivered;
@@ -2808,7 +2876,7 @@ export default function BulkTracking() {
     const timer = window.setTimeout(() => {
       writeTrackingWorkspaceRenderCache<Shipment, ComplaintQueueSnapshot>({
         shipments,
-        total: totalShipments || shipments.length,
+        total: totalShipments ?? shipments.length,
         complaintQueue: complaintQueueMapToRows(complaintQueueByTracking),
         fetchedAt: trackingCacheRef.current?.fetchedAt ?? Date.now(),
         latestSyncAt: Math.max(trackingCacheRef.current?.fetchedAt ?? 0, shipmentStatsFetchedAt ?? 0, complaintQueueCacheRef.current.fetchedAt ?? 0),
@@ -2822,7 +2890,7 @@ export default function BulkTracking() {
     const timer = window.setTimeout(() => {
       void writeTrackingWorkspaceSnapshot<Shipment, ComplaintQueueSnapshot>({
         shipments,
-        total: totalShipments || shipments.length,
+        total: totalShipments ?? shipments.length,
         complaintQueue: complaintQueueMapToRows(complaintQueueByTracking),
         fetchedAt: trackingCacheRef.current?.fetchedAt ?? Date.now(),
         latestSyncAt: Math.max(trackingCacheRef.current?.fetchedAt ?? 0, shipmentStatsFetchedAt ?? 0, complaintQueueCacheRef.current.fetchedAt ?? 0),
@@ -2846,19 +2914,33 @@ export default function BulkTracking() {
   }, [uiState]);
 
   useEffect(() => {
+    const sameOfficeResults = (
+      a: Array<{ district: string; tehsil: string; location: string }>,
+      b: Array<{ district: string; tehsil: string; location: string }>,
+    ) => {
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i += 1) {
+        if (a[i].district !== b[i].district || a[i].tehsil !== b[i].tehsil || a[i].location !== b[i].location) {
+          return false;
+        }
+      }
+      return true;
+    };
+
     if (complaintSelectionLocked) {
-      setOfficeSearchLoading(false);
-      setOfficeSearchResults([]);
+      setOfficeSearchLoading((prev) => (prev ? false : prev));
+      setOfficeSearchResults((prev) => (prev.length === 0 ? prev : []));
       return;
     }
     if (officeSearchQuery.trim().length < 3) {
-      setOfficeSearchLoading(false);
-      setOfficeSearchResults([]);
+      setOfficeSearchLoading((prev) => (prev ? false : prev));
+      setOfficeSearchResults((prev) => (prev.length === 0 ? prev : []));
       return;
     }
     setOfficeSearchLoading(true);
     const timer = window.setTimeout(() => {
-      setOfficeSearchResults(searchOfficeRows(officeSearchQuery, complaintRows));
+      const nextResults = searchOfficeRows(officeSearchQuery, complaintRows);
+      setOfficeSearchResults((prev) => (sameOfficeResults(prev, nextResults) ? prev : nextResults));
       setOfficeSearchLoading(false);
     }, 140);
     return () => window.clearTimeout(timer);
@@ -3237,18 +3319,24 @@ export default function BulkTracking() {
       return t === "-" ? "" : t;
     };
     const missing: string[] = [];
+    const lockedPrefillDistrict = complaintSelectionLocked ? clean(complaintPrefill?.matched?.district ?? "") : "";
+    const lockedPrefillTehsil = complaintSelectionLocked ? clean(complaintPrefill?.matched?.tehsil ?? "") : "";
+    const lockedPrefillLocation = complaintSelectionLocked ? clean(complaintPrefill?.matched?.location ?? "") : "";
+    const effectiveDistrict = clean(selectedDistrict) || lockedPrefillDistrict;
+    const effectiveTehsil = clean(selectedTehsil) || lockedPrefillTehsil;
+    const effectiveLocation = clean(selectedLocation) || lockedPrefillLocation;
     if (!clean(senderNameInput)) missing.push("sender_name");
     if (!clean(senderAddressInput)) missing.push("sender_address");
     if (!clean(receiverNameInput)) missing.push("receiver_name");
     if (!clean(receiverAddressInput)) missing.push("receiver_address");
     if (!clean(receiverCityValue) && !clean(receiverCitySearch)) missing.push("receiver_city");
-    if (!clean(selectedDistrict)) missing.push("district");
-    if (!clean(selectedTehsil)) missing.push("tehsil");
-    if (!clean(selectedLocation)) missing.push("location");
+    if (!effectiveDistrict) missing.push("district");
+    if (!effectiveTehsil) missing.push("tehsil");
+    if (!effectiveLocation) missing.push("location");
     if (!clean(complaintText)) missing.push("remarks");
     return missing;
   })();
-  const complaintSubmitReady = !complaintPrefillLoading && complaintSubmitMissingFields.length === 0;
+  const complaintSubmitReady = !(complaintPrefillLoading && !complaintPrefill) && complaintSubmitMissingFields.length === 0;
   const senderNameIsLocked = false;
   const receiverNameIsLocked = false;
   const senderCityIsLocked = false;
@@ -3437,16 +3525,18 @@ export default function BulkTracking() {
           kind: "warning",
           message: complaintNumber
             ? `Complaint already exists for ${trackingId}. Complaint ID ${complaintNumber}.`
-            : `Complaint already exists for ${trackingId}.`,
+            : "Complaint already queued. Waiting for complaint number.",
         });
         closeComplaintModal();
+        schedulePostSubmitRefresh();
       } else if (finalUiStatus === "QUEUED") {
         queueOptimisticComplaintState({ trackingId, status: "queued" });
         setComplaintToast({
           kind: "info",
-          message: `Complaint queued successfully for ${trackingId}.`,
+          message: "Complaint queued. Complaint ID will appear after processing.",
         });
         closeComplaintModal();
+        schedulePostSubmitRefresh();
       } else if (finalUiStatus === "SUCCESS") {
         queueOptimisticComplaintState({
           trackingId,
@@ -3458,9 +3548,10 @@ export default function BulkTracking() {
           kind: "info",
           message: complaintNumber
             ? `Complaint submitted for ${trackingId}. Complaint ID ${complaintNumber}.`
-            : `Complaint queued successfully for ${trackingId}.`,
+            : "Complaint queued. Complaint ID will appear after processing.",
         });
         closeComplaintModal();
+        schedulePostSubmitRefresh();
       } else {
         setComplaintSubmitNotice({
           kind: "error",
@@ -3469,12 +3560,30 @@ export default function BulkTracking() {
             : friendlyComplaintMessage(res.message),
         });
       }
-      void refreshComplaintQueueSnapshot();
-      void refreshShipments();
     } catch (e) {
+      const message = friendlyComplaintMessage(e instanceof Error ? e.message : "Complaint submission failed");
+      if (/already\s+(active|registered)|duplicate/i.test(message)) {
+        const duplicateComplaintId = message.match(/(?:complaint\s*(?:id|#)|id)\s*[:#-]?\s*([A-Z0-9\-]+)/i)?.[1] ?? "";
+        const duplicateDueDate = message.match(/due\s*date\s*[:#-]?\s*([0-3]?\d[\/-][0-1]?\d[\/-]\d{2,4})/i)?.[1] ?? "";
+        queueOptimisticComplaintState({
+          trackingId: trackingNumber,
+          status: duplicateComplaintId ? "duplicate" : "queued",
+          complaintId: duplicateComplaintId,
+          dueDate: duplicateDueDate,
+        });
+        setComplaintToast({
+          kind: "warning",
+          message: duplicateComplaintId
+            ? `Complaint already exists. Complaint ID ${duplicateComplaintId}.`
+            : "Complaint already queued. Waiting for complaint number.",
+        });
+        closeComplaintModal();
+        schedulePostSubmitRefresh();
+        return;
+      }
       setComplaintSubmitNotice({
         kind: "error",
-        message: friendlyComplaintMessage(e instanceof Error ? e.message : "Complaint submission failed"),
+        message,
       });
     } finally {
       setSubmittingComplaint(false);
@@ -4188,6 +4297,7 @@ export default function BulkTracking() {
                 const queueSnapshot = complaintQueueByTracking.get(s.trackingNumber);
                 const isComplaintEnabled = isComplaintActionAllowed(row.actionStatus, lifecycle, queueSnapshot);
                 const complaintActionLabel = resolveComplaintActionLabel(row.actionStatus, lifecycle, queueSnapshot);
+                const complaintActionLocked = isComplaintActionLocked(complaintActionLabel);
                 const statusUpper = normalizeStatus(row.actionStatus).toUpperCase();
                 const isWarning = row.record.delayed;
                 const fetchedMO = extractMoReference(s.rawJson, s.moIssued ?? null, s.moneyOrderIssued);
@@ -4254,11 +4364,11 @@ export default function BulkTracking() {
                         </button>
                         <button
                           type="button"
-                          disabled={!isComplaintEnabled || complaintActionLabel === "In Process"}
+                          disabled={!isComplaintEnabled || complaintActionLocked}
                           onClick={() => openComplaintModal(row.record)}
                           className={cn(
                             "inline-flex items-center justify-center rounded-lg px-3 py-2 text-[11px] font-semibold ring-1 ring-inset",
-                            isComplaintEnabled && complaintActionLabel !== "In Process"
+                            isComplaintEnabled && !complaintActionLocked
                               ? "bg-red-50 text-red-700 ring-red-200"
                               : "cursor-not-allowed bg-gray-50 text-gray-400 ring-gray-200",
                           )}
@@ -4377,6 +4487,7 @@ export default function BulkTracking() {
                 const statusUpper = normalizeStatus(displayStatus).toUpperCase();
                 const isComplaintEnabled = isComplaintActionAllowed(actionStatus, lifecycle, queueSnapshot);
                 const complaintActionLabel = resolveComplaintActionLabel(actionStatus, lifecycle, queueSnapshot);
+                const complaintActionLocked = isComplaintActionLocked(complaintActionLabel);
 
                 const actionOptions = [
                   { label: "Pending", val: "PENDING" },
@@ -4484,7 +4595,10 @@ export default function BulkTracking() {
                     <td className="px-2 py-2.5 pl-3 align-middle min-w-[160px]">
                       {lifecycle.exists || queueSnapshot ? (() => {
                         const stateStyle = complaintStateBadgeClass(complaintCardState);
-                        const complaintId = lifecycle.complaintId || queueSnapshot?.complaintId || "Complaint";
+                        const waitingComplaintId = complaintCardState.toUpperCase() === "QUEUED"
+                          && !String(lifecycle.complaintId ?? "").trim()
+                          && !String(queueSnapshot?.complaintId ?? "").trim();
+                        const complaintId = lifecycle.complaintId || queueSnapshot?.complaintId || (waitingComplaintId ? "Queued" : "Complaint");
                         const dueDate = lifecycle.dueDateText
                           || (queueSnapshot?.dueDate ? new Date(queueSnapshot.dueDate).toLocaleDateString("en-GB") : "-");
                         const retryHint = complaintCardState === "RETRY PENDING"
@@ -4493,6 +4607,11 @@ export default function BulkTracking() {
                         const processingElapsed = complaintCardState === "PROCESSING"
                           ? formatProcessingElapsed(queueSnapshot?.updatedAt, retryCountdownNow)
                           : "";
+                        const stateMessage = waitingComplaintId
+                          ? "Complaint already queued. Waiting for complaint number."
+                          : complaintCardState.toUpperCase() === "MANUAL REVIEW"
+                            ? "Processing failed. Pending retry/manual review."
+                            : "";
                         return (
                           <div className="w-full rounded-xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff,#f8fafc)] px-2.5 py-2 text-left text-[10px] shadow-sm">
                             <div className="font-semibold text-[#111827] break-all" title={complaintId}>{complaintId}</div>
@@ -4509,13 +4628,16 @@ export default function BulkTracking() {
                             {complaintCardState === "PROCESSING" ? (
                               <div className="mt-1 text-[9px] font-semibold text-purple-700">Processing... {processingElapsed}</div>
                             ) : null}
+                            {stateMessage ? (
+                              <div className="mt-1 text-[9px] font-medium text-slate-600">{stateMessage}</div>
+                            ) : null}
                             <button
                               type="button"
                               onClick={() => openComplaintModal(row.record)}
-                              disabled={!isComplaintEnabled || complaintActionLabel === "In Process"}
+                              disabled={!isComplaintEnabled || complaintActionLocked}
                               className={cn(
                                 "mt-1.5 inline-flex w-full items-center justify-center rounded px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset transition-all",
-                                isComplaintEnabled && complaintActionLabel !== "In Process"
+                                isComplaintEnabled && !complaintActionLocked
                                   ? "bg-white text-emerald-800 ring-emerald-300 hover:bg-emerald-100"
                                   : "cursor-not-allowed bg-gray-50 text-gray-400 ring-gray-200"
                               )}
@@ -5287,7 +5409,7 @@ export default function BulkTracking() {
                       latestAttempt: 0,
                       previousComplaintReference: "",
                     }, selectedQueue);
-                    const disabled = actionLabel === "In Process";
+                    const disabled = isComplaintActionLocked(actionLabel);
                     return (
                   <button
                     type="button"

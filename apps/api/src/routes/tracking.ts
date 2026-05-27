@@ -1934,13 +1934,14 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
       return res.status(409).json({
         success: false,
         message: `Complaint already registered. Complaint ID: ${existing.id || "-"} Due Date: ${existing.dueDate || "-"}`,
+        duplicate: true,
         complaintId: existing.id || "",
         dueDate: toDdMmYyyy(existing.dueDate || ""),
         trackingId: trackingNumber,
         complaint_id: existing.id || "",
         due_date: toDdMmYyyy(existing.dueDate || ""),
         tracking_id: trackingNumber,
-        status: "FILED",
+        status: "DUPLICATE",
       });
     }
 
@@ -1983,6 +1984,7 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
         due_date: duplicateDueDateText,
         tracking_id: trackingNumber,
         duplicate: true,
+        status: "DUPLICATE",
       });
     }
   }
@@ -2151,25 +2153,6 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
     complaintContext.complaint_text = finalRemarks;
   }
 
-  const complaintUnitRequest = {
-    actionType: "complaint" as const,
-    requestKey: `complaint:${trackingNumber}:${Date.now()}:${randomUUID()}`,
-    unitsUsed: COMPLAINT_UNIT_COST,
-  };
-  const consumeResult = await consumeUnits(userId, [complaintUnitRequest]);
-  if (!consumeResult.ok) {
-    const reason = String(consumeResult.reason ?? "").trim().toLowerCase();
-    const message = reason.includes("plan")
-      ? "Active plan is required for complaint submission."
-      : reason.includes("insufficient")
-        ? "Insufficient units for complaint submission."
-        : "Unable to reserve complaint units right now.";
-    return res.status(402).json({
-      success: false,
-      message,
-    });
-  }
-
   const payload: ComplaintQueuePayload = {
     tracking_number: trackingNumber,
     phone: normalizedPhone,
@@ -2246,7 +2229,6 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
       message: "Complaint queued for worker processing.",
     });
   } catch (error) {
-    await refundUnits(userId, [complaintUnitRequest]);
     console.error(`[ComplaintAPI] Queueing failed for ${trackingNumber}:`, error instanceof Error ? error.message : error);
     return res.status(500).json({
       success: false,
