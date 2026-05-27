@@ -99,7 +99,7 @@ function rowsToCsv(headers: string[], rows: Array<Record<string, unknown>>) {
 
 function buildTrackingMasterFallbackName(value = new Date()) {
   void value;
-  return "Tracking File.xls";
+  return "Tracking Master.xlsx";
 }
 
 function formatExactDateTime(value: string | null | undefined) {
@@ -548,7 +548,10 @@ export default function Upload() {
     if (activeJob?.includeMoneyOrders) {
       window.setTimeout(() => downloadPdf(polling.jobId!, "money-orders"), 600);
     }
-  }, [activeJob?.includeMoneyOrders, polling.jobId, polling.jobStatus]);
+    if (activeJob?.trackingMasterPath) {
+      window.setTimeout(() => downloadTrackingMaster(polling.jobId!), 1200);
+    }
+  }, [activeJob?.includeMoneyOrders, activeJob?.trackingMasterPath, polling.jobId, polling.jobStatus]);
 
   const isReadyToGenerate = Boolean(
     file
@@ -1900,7 +1903,7 @@ export default function Upload() {
                   disabled={completionButtonsDisabled}
                   className="rounded-[1.4rem] border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-900 shadow-sm hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {completionAction === "tracking-master" ? "Preparing Tracking File.xls..." : "Tracking File.xls"}
+                  {completionAction === "tracking-master" ? "Preparing Tracking Master.xlsx..." : "Tracking Master.xlsx"}
                 </button>
               ) : null}
               <button

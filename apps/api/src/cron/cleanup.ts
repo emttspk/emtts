@@ -11,11 +11,21 @@ import { getNormalizedObjectKey, resolveObjectKeyCandidates } from "../storage/k
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const THREE_DAYS_MS = 72 * 60 * 60 * 1000;
 const R2_SYNC_LOCAL_DELETE_GRACE_MS = Math.max(60_000, Number(process.env.R2_SYNC_LOCAL_DELETE_GRACE_MS ?? 24 * 60 * 60 * 1000));
-const FAILED_JOB_LEFTOVER_GRACE_MS = Math.max(60_000, Number(process.env.FAILED_JOB_LEFTOVER_GRACE_MS ?? 24 * 60 * 60 * 1000));
+const FAILED_JOB_LEFTOVER_GRACE_MS = Math.max(60_000, Number(process.env.FAILED_JOB_LEFTOVER_GRACE_MS ?? THREE_DAYS_MS));
+const UPLOAD_TEMP_CLEANUP_GRACE_MS = Math.max(60_000, Number(process.env.UPLOAD_TEMP_CLEANUP_GRACE_MS ?? ONE_DAY_MS));
 
-function logCleanupDecision(action: "deleted" | "skipped", filePath: string, ageMs: number, reason: string) {
-  console.log(`[Cleanup] ${action.toUpperCase()} path=${filePath} ageMs=${Math.max(0, Math.floor(ageMs))} reason=${reason}`);
+type CleanupEventName =
+  | "cleanup_delete"
+  | "cleanup_skip_unsynced"
+  | "cleanup_skip_recent"
+  | "cleanup_delete_failed_leftover"
+  | "cleanup_delete_r2_synced_local_copy";
+
+function logCleanupDecision(event: CleanupEventName, action: "deleted" | "skipped", filePath: string, ageMs: number, reason: string) {
+  console.log(`[Cleanup] event=${event} action=${action.toUpperCase()} path=${filePath} ageMs=${Math.max(0, Math.floor(ageMs))} reason=${reason}`);
 }
 
 function isDatabaseUnavailable(error: unknown) {
@@ -25,6 +35,38 @@ function isDatabaseUnavailable(error: unknown) {
 }
 
 import { getQueue } from "../lib/queue.js";
+
+function parseTrackedArtifact(fileName: string): {
+  jobId: string;
+  artifactType: "labels" | "moneyOrders" | "tracking" | "trackingMaster";
+} | null {
+  const fileNameWithoutExt = fileName.replace(/\.(pdf|json|xlsx)$/i, "");
+  if (fileNameWithoutExt.endsWith("-labels")) {
+    return {
+      jobId: fileNameWithoutExt.substring(0, fileNameWithoutExt.length - "-labels".length),
+      artifactType: "labels",
+    };
+  }
+  if (fileNameWithoutExt.endsWith("-money-orders")) {
+    return {
+      jobId: fileNameWithoutExt.substring(0, fileNameWithoutExt.length - "-money-orders".length),
+      artifactType: "moneyOrders",
+    };
+  }
+  if (fileNameWithoutExt.endsWith("-tracking")) {
+    return {
+      jobId: fileNameWithoutExt.substring(0, fileNameWithoutExt.length - "-tracking".length),
+      artifactType: "tracking",
+    };
+  }
+  if (fileNameWithoutExt.endsWith("-tracking-master")) {
+    return {
+      jobId: fileNameWithoutExt.substring(0, fileNameWithoutExt.length - "-tracking-master".length),
+      artifactType: "trackingMaster",
+    };
+  }
+  return null;
+}
 
 // Check if a PDF file is safe to delete based on R2 sync status
 // Safe to delete if:
@@ -39,25 +81,10 @@ async function isSafeToDeletePdfFile(fileName: string): Promise<boolean> {
   }
 
   // Dual-write enabled: check if file is synced to R2
-  const fileNameWithoutExt = fileName.replace(/\.pdf$/, "").replace(/\.json$/, "");
-  
-  // Try to find the job this file belongs to
-  // File naming: {jobId}-labels.pdf, {jobId}-money-orders.pdf, {jobId}-tracking.json
-  let jobId: string | null = null;
-  let artifactType: "labels" | "moneyOrders" | "tracking" | null = null;
-  
-  if (fileNameWithoutExt.endsWith("-labels")) {
-    jobId = fileNameWithoutExt.substring(0, fileNameWithoutExt.length - "-labels".length);
-    artifactType = "labels";
-  } else if (fileNameWithoutExt.endsWith("-money-orders")) {
-    jobId = fileNameWithoutExt.substring(0, fileNameWithoutExt.length - "-money-orders".length);
-    artifactType = "moneyOrders";
-  } else if (fileNameWithoutExt.endsWith("-tracking")) {
-    jobId = fileNameWithoutExt.substring(0, fileNameWithoutExt.length - "-tracking".length);
-    artifactType = "tracking";
-  }
-
-  if (!jobId || !artifactType) {
+  // Try to find the job this file belongs to.
+  // File naming: {jobId}-labels.pdf, {jobId}-money-orders.pdf, {jobId}-tracking.json, {jobId}-tracking-master.xlsx
+  const tracked = parseTrackedArtifact(fileName);
+  if (!tracked) {
     // Not a tracked file, safe to delete
     return true;
   }
@@ -65,27 +92,30 @@ async function isSafeToDeletePdfFile(fileName: string): Promise<boolean> {
   // Check if job exists and has sync status
   try {
     // For labels and money orders, check LabelJob; for tracking, check TrackingJob
-    if (artifactType === "tracking") {
+    if (tracked.artifactType === "tracking") {
       const trackingJob = await prisma.trackingJob.findUnique({
-        where: { id: jobId },
+        where: { id: tracked.jobId },
         select: { resultSyncedAt: true },
       });
       if (!trackingJob) return true; // Job doesn't exist, safe to delete
       return trackingJob.resultSyncedAt !== null; // Safe only if synced
     } else {
       const labelJob = await prisma.labelJob.findUnique({
-        where: { id: jobId },
+        where: { id: tracked.jobId },
         select: {
           labelsPdfSyncedAt: true,
           moneyOrderPdfSyncedAt: true,
+          trackingMasterSyncedAt: true,
         },
       });
       if (!labelJob) return true; // Job doesn't exist, safe to delete
-      
-      if (artifactType === "labels") {
+
+      if (tracked.artifactType === "labels") {
         return labelJob.labelsPdfSyncedAt !== null; // Safe only if synced
-      } else if (artifactType === "moneyOrders") {
+      } else if (tracked.artifactType === "moneyOrders") {
         return labelJob.moneyOrderPdfSyncedAt !== null; // Safe only if synced
+      } else if (tracked.artifactType === "trackingMaster") {
+        return labelJob.trackingMasterSyncedAt !== null; // Safe only if synced
       }
     }
     
@@ -106,6 +136,11 @@ async function deleteOrphanedFiles(dir: string) {
     return; // dir may not exist yet
   }
   const now = Date.now();
+  const normalizedUploadsDir = path.resolve(uploadsDir());
+  const normalizedOutputsDir = path.resolve(outputsDir());
+  const dirResolved = path.resolve(dir);
+  const isUploadsDirectory = dirResolved === normalizedUploadsDir;
+  const isOutputsDirectory = dirResolved === normalizedOutputsDir;
   const queue = getQueue();
 
   // Gather all job file references from DB (labelJob, trackingJob)
@@ -149,38 +184,64 @@ async function deleteOrphanedFiles(dir: string) {
       const stat = await fs.stat(full); // stat is used for validation, keep as-is
       const ageMs = now - stat.mtimeMs;
       if (referencedFiles.has(full)) {
-        logCleanupDecision("skipped", full, ageMs, "referenced_by_active_or_queued_job");
+        logCleanupDecision("cleanup_skip_recent", "skipped", full, ageMs, "referenced_by_active_or_queued_job");
         continue;
       }
 
-      const isTrackedArtifact = entry.endsWith(".pdf") || entry.endsWith(".json") || entry.endsWith(".xlsx");
-      const canUseR2SyncedGrace = storageFeatureFlags.ENABLE_DUAL_WRITE && isTrackedArtifact;
-      const defaultAgeThreshold = SEVEN_DAYS_MS;
+      const trackedArtifact = parseTrackedArtifact(entry);
+      const canUseR2SyncedGrace = storageFeatureFlags.ENABLE_DUAL_WRITE && trackedArtifact !== null;
 
-      if (canUseR2SyncedGrace) {
+      if (canUseR2SyncedGrace && trackedArtifact) {
         const safeToDelete = await isSafeToDeletePdfFile(entry);
         if (!safeToDelete) {
-          logCleanupDecision("skipped", full, ageMs, "r2_sync_pending_or_unknown");
+          if (ageMs < FAILED_JOB_LEFTOVER_GRACE_MS) {
+            logCleanupDecision("cleanup_skip_unsynced", "skipped", full, ageMs, "r2_sync_pending_or_unknown");
+            continue;
+          }
+          await getStorageProvider().deleteArtifact("artifact", full);
+          logCleanupDecision("cleanup_delete_failed_leftover", "deleted", full, ageMs, "unsynced_beyond_failed_leftover_grace");
           continue;
         }
 
         if (ageMs < R2_SYNC_LOCAL_DELETE_GRACE_MS) {
-          logCleanupDecision("skipped", full, ageMs, "within_r2_synced_grace_period");
+          logCleanupDecision("cleanup_skip_recent", "skipped", full, ageMs, "within_r2_synced_grace_period");
           continue;
         }
 
         await getStorageProvider().deleteArtifact("artifact", full);
-        logCleanupDecision("deleted", full, ageMs, "r2_synced_or_legacy_safe_orphan");
+        logCleanupDecision("cleanup_delete_r2_synced_local_copy", "deleted", full, ageMs, "r2_synced_or_legacy_safe_orphan");
         continue;
       }
 
-      if (ageMs < defaultAgeThreshold) {
-        logCleanupDecision("skipped", full, ageMs, "age_below_orphan_threshold");
+      if (isUploadsDirectory) {
+        if (ageMs < UPLOAD_TEMP_CLEANUP_GRACE_MS) {
+          logCleanupDecision("cleanup_skip_recent", "skipped", full, ageMs, "upload_temp_within_grace_period");
+          continue;
+        }
+
+        await getStorageProvider().deleteArtifact("artifact", full);
+        logCleanupDecision("cleanup_delete", "deleted", full, ageMs, "upload_temp_older_than_grace");
+        continue;
+      }
+
+      if (isOutputsDirectory && entry.endsWith("-complaint.json")) {
+        if (ageMs < ONE_DAY_MS) {
+          logCleanupDecision("cleanup_skip_recent", "skipped", full, ageMs, "complaint_result_within_grace_period");
+          continue;
+        }
+
+        await getStorageProvider().deleteArtifact("artifact", full);
+        logCleanupDecision("cleanup_delete", "deleted", full, ageMs, "complaint_result_older_than_grace");
+        continue;
+      }
+
+      if (ageMs < FAILED_JOB_LEFTOVER_GRACE_MS) {
+        logCleanupDecision("cleanup_skip_recent", "skipped", full, ageMs, "age_below_failed_leftover_threshold");
         continue;
       }
 
       await getStorageProvider().deleteArtifact("artifact", full);
-      logCleanupDecision("deleted", full, ageMs, "orphan_older_than_threshold");
+      logCleanupDecision("cleanup_delete_failed_leftover", "deleted", full, ageMs, "orphan_older_than_failed_leftover_threshold");
     } catch {
       // ignore errors for individual files
     }
@@ -224,7 +285,7 @@ async function cleanupFailedJobLeftovers() {
         const stat = await fs.stat(full);
         const ageMs = Date.now() - stat.mtimeMs;
         await getStorageProvider().deleteArtifact("artifact", full);
-        logCleanupDecision("deleted", full, ageMs, "failed_job_leftover");
+        logCleanupDecision("cleanup_delete_failed_leftover", "deleted", full, ageMs, "failed_job_leftover");
       } catch {
         // ignore if file does not exist
       }
