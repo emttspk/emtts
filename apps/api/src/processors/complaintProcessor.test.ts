@@ -256,6 +256,34 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "processor failure does not corrupt existing shipment complaint metadata",
+    async run() {
+      await withComplaintApiResponse({
+        success: false,
+        response_text: "Submission failed: remote timeout",
+      }, async () => {
+        await withProcessorPrismaMock({
+          queueRow: makeQueueRow({ retryCount: 1 }),
+          shipment: {
+            userId: "user-1",
+            trackingNumber: "VPL26050001",
+            complaintStatus: "FILED",
+            complaintText: "COMPLAINT_ID: CMP-777 | DUE_DATE: 26-05-2026 | COMPLAINT_STATE: ACTIVE",
+          },
+        }, async ({ getQueueRow, getShipment }) => {
+          const result = await processComplaintQueueById("cq-1");
+          assert.equal(result.success, false);
+          assert.equal(result.status, "ERROR");
+          assert.equal(getQueueRow()?.complaintStatus, "retry_pending");
+          assert.equal(getShipment()?.trackingNumber, "VPL26050001");
+          assert.equal(getShipment()?.complaintStatus, "ERROR");
+          assert.match(String(getShipment()?.complaintText ?? ""), /COMPLAINT_ID:\s*CMP-777/i);
+          assert.match(String(getShipment()?.complaintText ?? ""), /DUE_DATE:\s*26-05-2026/i);
+        });
+      });
+    },
+  },
+  {
     name: "processor reports missing queue row safely",
     async run() {
       await withProcessorPrismaMock({

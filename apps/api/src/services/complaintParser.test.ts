@@ -33,6 +33,15 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "preserves due date text while parsing complaint metadata",
+    run() {
+      const slash = parseComplaintRecord("COMPLAINT_ID: CMP-101 | DUE_DATE: 26/05/2026 | COMPLAINT_STATE: ACTIVE", "FILED");
+      const dash = parseComplaintRecord("COMPLAINT_ID: CMP-102 | DUE_DATE: 26-05-2026 | COMPLAINT_STATE: ACTIVE", "FILED");
+      assert.equal(slash.dueDate, "26/05/2026");
+      assert.equal(dash.dueDate, "26-05-2026");
+    },
+  },
+  {
     name: "handles missing complaint ID and due date safely",
     run() {
       const parsed = parseComplaintRecord("Response only without identifiers", "ERROR");
@@ -98,6 +107,21 @@ const tests: TestCase[] = [
       assert.equal(history.length, 1);
       assert.equal(history[0]?.complaintId, "CMP-551");
       assert.equal(history[0]?.trackingId, "VPL2");
+    },
+  },
+  {
+    name: "preserves canonical complaint status header format",
+    run() {
+      const text = composeComplaintText({
+        complaintId: "CMP-7001",
+        dueDate: "26-05-2026",
+        state: "ACTIVE",
+        userComplaint: "Pending too long",
+        responseText: "Queued",
+        historyEntries: [],
+      });
+      const firstLine = String(text.split(/\r?\n/)[0] ?? "").trim();
+      assert.equal(firstLine, "COMPLAINT_ID: CMP-7001 | DUE_DATE: 26-05-2026 | COMPLAINT_STATE: ACTIVE");
     },
   },
 ];

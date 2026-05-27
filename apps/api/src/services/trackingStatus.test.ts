@@ -144,6 +144,147 @@ const tests: TestCase[] = [
       assert.equal(canonicalShipmentStatus("-"), "PENDING");
     },
   },
+  {
+    name: "keeps booking-to-delivery pipeline states pending without downgrading",
+    run() {
+      const scenarios = [
+        {
+          trackingNumber: "UMS26051001",
+          detail: "Booked at booking office Lahore GPO",
+        },
+        {
+          trackingNumber: "UMS26051002",
+          detail: "Received at DMO Lahore",
+        },
+        {
+          trackingNumber: "UMS26051003",
+          detail: "Dispatch from DMO Lahore to DMO Karachi",
+        },
+        {
+          trackingNumber: "UMS26051004",
+          detail: "Dispatch to delivery office Karachi GPO",
+        },
+        {
+          trackingNumber: "UMS26051005",
+          detail: "Sent out for delivery Karachi Delivery Office",
+        },
+      ];
+
+      for (const scenario of scenarios) {
+        const result = processTracking(
+          {
+            tracking: {
+              history: [["2026-05-10", "09:00", scenario.detail, "-"]],
+            },
+          },
+          { trackingNumber: scenario.trackingNumber },
+        );
+        assert.equal(result.status, "PENDING");
+        assert.equal(canonicalShipmentStatus(result.systemStatus), "PENDING");
+      }
+    },
+  },
+  {
+    name: "marks delivered and undelivered lifecycle outcomes safely",
+    run() {
+      const delivered = processTracking(
+        {
+          tracking: {
+            history: [
+              ["2026-05-01", "10:00", "Delivered to addressee", "Karachi Delivery Office"],
+              ["2026-05-02", "11:00", "MOS delivered to addressee", "Lahore Booking Office"],
+            ],
+          },
+        },
+        { trackingNumber: "VPL26051006" },
+      );
+      assert.equal(delivered.status, "DELIVERED");
+      assert.equal(canonicalShipmentStatus(delivered.systemStatus), "DELIVERED");
+
+      const undelivered = processTracking(
+        {
+          tracking: {
+            history: [
+              ["2026-05-01", "09:00", "Sent out for delivery", "Karachi Delivery Office"],
+              ["2026-05-02", "14:00", "Undelivered - addressee not available", "Karachi Delivery Office"],
+            ],
+          },
+        },
+        { trackingNumber: "UMS26051007" },
+      );
+      assert.equal(undelivered.status, "PENDING");
+      assert.match(undelivered.systemStatus, /RETURN/i);
+      assert.equal(canonicalShipmentStatus(undelivered.systemStatus), "PENDING");
+    },
+  },
+  {
+    name: "marks pending shipments complaint-eligible after inactivity threshold",
+    run() {
+      const result = processTracking(
+        {
+          first_date: "2026-05-01",
+          tracking: {
+            history: [["2026-05-01", "09:00", "Dispatch from DMO Lahore to DMO Karachi", "-"]],
+          },
+        },
+        { trackingNumber: "UMS26051008" },
+      );
+
+      assert.equal(result.status, "PENDING");
+      assert.equal(result.complaintEligible, true);
+    },
+  },
+  {
+    name: "keeps MOS and UMO recognition from breaking shipment status",
+    run() {
+      const mosArticle = processTracking(
+        {
+          tracking: {
+            history: [["2026-05-01", "09:00", "Received at DMO Lahore", "Lahore DMO"]],
+          },
+        },
+        { trackingNumber: "MOS26051009" },
+      );
+      const mosCanonical = canonicalShipmentStatus(mosArticle.systemStatus);
+      assert.ok(["PENDING", "DELIVERED"].includes(mosCanonical));
+      assert.notEqual(mosCanonical, "RETURN");
+
+      const umoArticle = processTracking(
+        {
+          tracking: {
+            history: [["2026-05-01", "11:00", "Delivered to addressee", "Karachi Delivery Office"]],
+          },
+        },
+        { trackingNumber: "UMO26051010" },
+      );
+      const umoCanonical = canonicalShipmentStatus(umoArticle.systemStatus);
+      assert.ok(["PENDING", "DELIVERED"].includes(umoCanonical));
+      assert.notEqual(umoCanonical, "RETURN");
+    },
+  },
+  {
+    name: "handles multi-word cities without false return downgrade",
+    run() {
+      const result = processTracking(
+        {
+          tracking: {
+            booking_office: "Rawalpindi Saddar Booking Office",
+            delivery_office: "Karachi South Delivery Office",
+            history: [
+              ["2026-05-01", "09:00", "Dispatch from DMO Rawalpindi Saddar to DMO Karachi South", "-"],
+              ["2026-05-02", "12:00", "Dispatch to delivery office Karachi South", "-"],
+              ["2026-05-03", "15:00", "Delivered at delivery office Karachi South", "-"],
+            ],
+          },
+        },
+        { trackingNumber: "UMS26051011" },
+      );
+
+      assert.equal(result.status, "PENDING");
+      assert.equal(canonicalShipmentStatus(result.systemStatus), "PENDING");
+      assert.notEqual(canonicalShipmentStatus(result.systemStatus), "RETURN");
+    },
+  },
 ];
 
 let failed = false;

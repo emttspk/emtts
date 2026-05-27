@@ -140,6 +140,22 @@ function makeDeliveredWithPaymentShipment(trackingNumber = "VPL26050001") {
   };
 }
 
+function makePendingShipmentMissingAddressee(trackingNumber = "VPL26050001") {
+  return {
+    ...makePendingShipment(trackingNumber),
+    rawJson: JSON.stringify({
+      tracking: {
+        history: [
+          ["2026-05-01", "09:00", "Dispatch from DMO Lahore to DMO Karachi", "-"]],
+      },
+      sender_name: "Sender One",
+      sender_address: "Addr S",
+      booking_city: "Lahore",
+      receiver_city: "Karachi",
+    }),
+  };
+}
+
 function defaultBody(overrides?: Record<string, unknown>) {
   return {
     tracking_number: "VPL26050001",
@@ -492,6 +508,47 @@ const tests: TestCase[] = [
       const result = await runComplaintRoute({ state, body: defaultBody() });
       assert.equal(result.statusCode, 409);
       assert.equal(state.usageLogs.length, before);
+    },
+  },
+  {
+    name: "route blocks complaint when addressee name is unavailable",
+    async run() {
+      const state = makeState({ shipmentRow: makePendingShipmentMissingAddressee("VPL26050002") });
+      const result = await runComplaintRoute({
+        state,
+        body: defaultBody({
+          tracking_number: "VPL26050002",
+          receiver_name: undefined,
+        }),
+      });
+
+      assert.equal(result.thrown, null);
+      assert.equal(result.statusCode, 400);
+      assert.match(String(result.body?.message ?? ""), /missing required fields/i);
+      assert.match(String(result.body?.message ?? ""), /ReceiverName/i);
+      assert.equal(state.queueCreates.length, 0);
+      assert.equal(state.trackingJobCreates.length, 0);
+      assert.equal(state.queueAddCalls.length, 0);
+    },
+  },
+  {
+    name: "route treats dash placeholders as empty required receiver field",
+    async run() {
+      const state = makeState({ shipmentRow: makePendingShipmentMissingAddressee("VPL26050003") });
+      const result = await runComplaintRoute({
+        state,
+        body: defaultBody({
+          tracking_number: "VPL26050003",
+          receiver_name: "-",
+        }),
+      });
+
+      assert.equal(result.statusCode, 400);
+      assert.match(String(result.body?.message ?? ""), /missing required fields/i);
+      assert.match(String(result.body?.message ?? ""), /ReceiverName/i);
+      assert.equal(state.queueCreates.length, 0);
+      assert.equal(state.trackingJobCreates.length, 0);
+      assert.equal(state.queueAddCalls.length, 0);
     },
   },
   {

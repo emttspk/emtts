@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { prisma } from "../lib/prisma.js";
 import {
   COMPLAINT_MAX_RETRIES,
+  getComplaintNextRetryAt,
   enqueueComplaint,
   findActiveComplaintDuplicate,
   getQueuedComplaintsForRetry,
@@ -233,6 +234,27 @@ const tests: TestCase[] = [
         assert.equal(rows.length, 2);
         assert.ok(rows.every((row) => ["queued", "retry_pending", "retrying"].includes(String(row.complaintStatus))));
       });
+    },
+  },
+  {
+    name: "keeps retry delay schedule bounded at max backoff",
+    run() {
+      const now = Date.now();
+      const toMinutes = (date: Date) => Math.round((date.getTime() - now) / (60 * 1000));
+
+      const retry1 = toMinutes(getComplaintNextRetryAt(1));
+      const retry2 = toMinutes(getComplaintNextRetryAt(2));
+      const retry3 = toMinutes(getComplaintNextRetryAt(3));
+      const retry4 = toMinutes(getComplaintNextRetryAt(4));
+      const retry5 = toMinutes(getComplaintNextRetryAt(5));
+      const retry9 = toMinutes(getComplaintNextRetryAt(9));
+
+      assert.ok(retry1 >= 4 && retry1 <= 6);
+      assert.ok(retry2 >= 14 && retry2 <= 16);
+      assert.ok(retry3 >= 29 && retry3 <= 31);
+      assert.ok(retry4 >= 59 && retry4 <= 61);
+      assert.ok(retry5 >= 179 && retry5 <= 181);
+      assert.ok(retry9 >= 179 && retry9 <= 181);
     },
   },
 ];
