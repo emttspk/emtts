@@ -1109,6 +1109,8 @@ export default function Upload() {
         }
       }
 
+      const trackAfterGenerate = false;
+
       console.info("UPLOAD_REPLAY_REQUEST", {
         fileName: uploadFileForApi.name,
         shipmentMode,
