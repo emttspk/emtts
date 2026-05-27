@@ -87,30 +87,30 @@ export async function triggerBrowserDownload(path: string, filename?: string) {
   const token = getToken();
   const url = apiUrl(path);
 
-  try {
-    const res = await fetch(url, {
-      headers: token ? { authorization: `Bearer ${token}` } : undefined,
-    });
-    if (!res.ok) {
-      throw new Error(`Download failed with status ${res.status}`);
+  const res = await fetch(url, {
+    headers: token ? { authorization: `Bearer ${token}` } : undefined,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    try {
+      const body = JSON.parse(text) as { error?: string; message?: string };
+      throw new Error(body.error ?? body.message ?? `Download failed with status ${res.status}`);
+    } catch {
+      throw new Error(text || `Download failed with status ${res.status}`);
     }
-
-    const blob = await res.blob();
-    const objectUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = objectUrl;
-    link.download = getFilenameFromContentDisposition(res.headers.get("content-disposition"), filename);
-    link.rel = "noopener";
-    link.style.display = "none";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000);
-    return;
-  } catch {
-    const fallbackUrl = buildAuthenticatedApiUrl(path);
-    window.open(fallbackUrl, "_blank", "noopener");
   }
+
+  const blob = await res.blob();
+  const objectUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = getFilenameFromContentDisposition(res.headers.get("content-disposition"), filename);
+  link.rel = "noopener";
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000);
 }
 
 async function executeApiRequest<T>(path: string, url: string, init: RequestInit, headers: Headers) {

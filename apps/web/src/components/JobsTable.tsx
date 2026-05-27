@@ -38,7 +38,7 @@ function DownloadButton(props: { jobId: string; kind: "labels" | "money-orders" 
     try {
       const fallbackName =
         props.kind === "tracking-master" ? "tracking-master.xlsx" : buildJobDownloadFallbackName(props.kind);
-      triggerBrowserDownload(`/api/jobs/${props.jobId}/download/${props.kind}`, fallbackName);
+      await triggerBrowserDownload(`/api/jobs/${props.jobId}/download/${props.kind}`, fallbackName);
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Download failed");
     } finally {
@@ -213,7 +213,7 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
                 {job.status === "COMPLETED" ? (
                   <>
                     <DownloadButton jobId={job.id} kind="labels" />
-                    {job.trackingMasterPath ? <DownloadButton jobId={job.id} kind="tracking-master" /> : null}
+                    <DownloadButton jobId={job.id} kind="tracking-master" />
                     {job.includeMoneyOrders ? <DownloadButton jobId={job.id} kind="money-orders" /> : null}
                   </>
                 ) : (
@@ -275,7 +275,7 @@ export default function JobsTable(props: { jobs: LabelJob[]; title?: string; onJ
                     {job.status === "COMPLETED" ? (
                       <div className="inline-flex flex-wrap items-center justify-end gap-2">
                         <DownloadButton jobId={job.id} kind="labels" />
-                        {job.trackingMasterPath ? <DownloadButton jobId={job.id} kind="tracking-master" /> : null}
+                        <DownloadButton jobId={job.id} kind="tracking-master" />
                         {job.includeMoneyOrders ? <DownloadButton jobId={job.id} kind="money-orders" /> : null}
                       </div>
                     ) : (

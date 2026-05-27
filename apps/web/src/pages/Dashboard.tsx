@@ -8,6 +8,7 @@ import { BodyText, CardTitle, PageHeader, PageShell } from "../components/ui/Pag
 import StatsCard from "../components/ui/StatsCard";
 import UnifiedShipmentCards from "../components/UnifiedShipmentCards";
 import { useShipmentStats } from "../hooks/useShipmentStats";
+import { formatComplaintLimitValue } from "../lib/complaintLimits";
 
 type ShellCtx = { me: MeResponse | null; refreshMe: () => Promise<void> };
 
@@ -72,6 +73,8 @@ export default function Dashboard() {
   const billingStatus = me?.subscription?.status ?? me?.activePackage?.status ?? "-";
   const complaintDaily = me?.balances?.complaintDailyLimit ?? me?.subscription?.plan?.dailyComplaintLimit ?? 0;
   const complaintMonthly = me?.balances?.complaintMonthlyLimit ?? me?.subscription?.plan?.monthlyComplaintLimit ?? 0;
+  const complaintDailyLabel = formatComplaintLimitValue(complaintDaily);
+  const complaintMonthlyLabel = formatComplaintLimitValue(complaintMonthly);
 
   const activity = useMemo(() => [...stats.graphData].slice(-6), [stats.graphData]);
   const maxActivity = useMemo(() => Math.max(1, ...activity.map((item) => item.total)), [activity]);
@@ -109,7 +112,7 @@ export default function Dashboard() {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatsCard title="Active package" value={activePlanName} detail={`Status: ${billingStatus}`} icon={Boxes} tone="blue" />
         <StatsCard title="Remaining units" value={remainingUnits.toLocaleString()} detail={`${usedUnits.toLocaleString()} used of ${packageLimit.toLocaleString()}`} icon={Package2} tone="green" />
-        <StatsCard title="Complaint limits" value={`${complaintDaily}/${complaintMonthly}`} detail="Daily / monthly" icon={ShieldCheck} tone="amber" />
+        <StatsCard title="Complaint limits" value={`Daily: ${complaintDailyLabel}`} detail={`Monthly: ${complaintMonthlyLabel}`} icon={ShieldCheck} tone="amber" />
         <StatsCard title="Tracking used" value={stats.trackingUsed.toLocaleString()} detail="Tracking actions" icon={Clock3} tone="purple" />
       </div>
 

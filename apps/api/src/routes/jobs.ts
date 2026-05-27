@@ -313,11 +313,12 @@ async function waitForResolvedTrackingMasterRelPath(jobId: string, relPath: stri
   return resolved;
 }
 
-function buildTrackingMasterFileName(value = new Date()) {
-  const day = String(value.getDate()).padStart(2, "0");
-  const month = String(value.getMonth() + 1).padStart(2, "0");
-  const year = String(value.getFullYear());
-  return `Tracking Master ${day}-${month}-${year}.xlsx`;
+function buildTrackingMasterFileName(_value = new Date(), jobId?: string) {
+  if (jobId) return `Tracking-Master-${jobId}.xlsx`;
+  const day = String(_value.getDate()).padStart(2, "0");
+  const month = String(_value.getMonth() + 1).padStart(2, "0");
+  const year = String(_value.getFullYear());
+  return `Tracking-Master-${day}-${month}-${year}.xlsx`;
 }
 
 async function waitForResolvedMoneyOrderRelPath(jobId: string, relPath: string | null | undefined, attempts = 20, delayMs = 500) {
@@ -1557,19 +1558,25 @@ async function handleTrackingMasterDownload(req: ExpressRequest, res: ExpressRes
       jobId,
       probePath: legacyProbePath,
     });
-    fileResult = await waitForStoredFileWithFallback(legacyProbePath, 1, 0, {
+    fileResult = await waitForStoredFileWithFallback(legacyProbePath, 8, 250, {
       jobId,
       artifactType: "trackingMasterXlsx",
       forceR2FallbackOnLocalMiss: true,
     });
     if (!fileResult) {
+      logTelemetry({
+        event: "tracking_master_download_missing",
+        jobId,
+        reason: "path_unresolved_and_not_found",
+        probePath: legacyProbePath,
+      });
       return res.status(404).json({ success: false, message: "Tracking master file was not generated" });
     }
     relPath = legacyProbePath;
     resolvedFrom = "LOCAL";
   } else {
     // Resolver has already done local polling. Keep this second-stage local check minimal.
-    fileResult = await waitForStoredFileWithFallback(relPath, 1, 0, {
+    fileResult = await waitForStoredFileWithFallback(relPath, 8, 250, {
       jobId,
       artifactType: "trackingMasterXlsx",
       forceR2FallbackOnLocalMiss: true,
@@ -1577,6 +1584,12 @@ async function handleTrackingMasterDownload(req: ExpressRequest, res: ExpressRes
   }
 
   if (!fileResult) {
+    logTelemetry({
+      event: "tracking_master_download_missing",
+      jobId,
+      reason: "resolved_path_not_found_local_or_r2",
+      relPath,
+    });
     return res.status(404).json({ success: false, message: "Tracking master file not found" });
   }
 
@@ -1596,7 +1609,7 @@ async function handleTrackingMasterDownload(req: ExpressRequest, res: ExpressRes
   }
   console.log(`[TrackingMaster] Resolution source=${finalSource} jobId=${jobId} path=${relPath}`);
 
-  const fileName = buildTrackingMasterFileName();
+  const fileName = buildTrackingMasterFileName(new Date(), jobId);
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
 

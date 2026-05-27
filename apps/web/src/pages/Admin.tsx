@@ -5,6 +5,7 @@ import { api, apiUrl, buildAuthenticatedApiUrl, triggerBrowserDownload } from ".
 import { FALLBACK_SERVICE_CATALOG } from "../lib/serviceCatalog";
 import { TEMPLATE_DESIGNER_ENABLED } from "../lib/featureFlags";
 import { BodyText, CardTitle, PageShell, PageTitle, TableWrap } from "../components/ui/PageSystem";
+import { formatComplaintLimitValue } from "../lib/complaintLimits";
 
 type Plan = {
   id: string;
@@ -694,7 +695,7 @@ export default function Admin() {
                 <div className="mt-1 text-sm text-slate-700">✔ Money Orders</div>
                 <div className="mt-1 text-sm text-slate-700">✔ Complaints</div>
                 <div className="mt-2 text-sm text-slate-700">Complaint Cost: 10 Units Each</div>
-                <div className="mt-1 text-sm text-slate-700">Complaint Limits: {(plan.dailyComplaintLimit ?? 0).toLocaleString()}/day, {(plan.monthlyComplaintLimit ?? 0).toLocaleString()}/month</div>
+                <div className="mt-1 text-sm text-slate-700">Complaint Limits: Daily: {formatComplaintLimitValue(plan.dailyComplaintLimit)} | Monthly: {formatComplaintLimitValue(plan.monthlyComplaintLimit)}</div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <button className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700" onClick={() => updatePlan(plan)}>Edit</button>
                   <button className={`rounded-xl px-3 py-1.5 text-xs font-medium ${plan.isSuspended ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : "border border-amber-200 bg-amber-50 text-amber-700"}`} onClick={() => toggleSuspendPlan(plan)}>{plan.isSuspended ? "Unsuspend" : "Suspend"}</button>

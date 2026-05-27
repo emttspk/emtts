@@ -1,5 +1,6 @@
 import Card from "./Card";
 import type { MeResponse } from "../lib/types";
+import { formatComplaintLimitValue } from "../lib/complaintLimits";
 
 type Props = {
   me: MeResponse | null;
@@ -21,6 +22,8 @@ export default function SenderProfileSidecard({ me, className = "" }: Props) {
   const totalSharedUnits = me?.balances?.labelLimit ?? me?.subscription?.plan?.monthlyLabelLimit ?? 0;
   const complaintDaily = me?.balances?.complaintDailyLimit ?? me?.subscription?.plan?.dailyComplaintLimit ?? 0;
   const complaintMonthly = me?.balances?.complaintMonthlyLimit ?? me?.subscription?.plan?.monthlyComplaintLimit ?? 0;
+  const complaintDailyLabel = formatComplaintLimitValue(complaintDaily);
+  const complaintMonthlyLabel = formatComplaintLimitValue(complaintMonthly);
 
   return (
     <Card className={`p-5 ${className}`}>
@@ -38,7 +41,7 @@ export default function SenderProfileSidecard({ me, className = "" }: Props) {
         <div className="mt-1 flex items-center justify-between gap-3 text-xs text-slate-600"><span>Remaining Units</span><span className="font-semibold text-slate-900">{Number(remainingUnits).toLocaleString()}</span></div>
         <div className="mt-1 text-xs text-slate-600">Services Included: <span className="font-semibold text-slate-900">✔ Labels ✔ Tracking ✔ Money Orders ✔ Complaints</span></div>
         <div className="mt-1 text-xs text-slate-600">Complaint Cost: <span className="font-semibold text-slate-900">10 Units Each</span></div>
-        <div className="mt-1 text-xs text-slate-600">Complaint Limits: <span className="font-semibold text-slate-900">{complaintDaily}/day, {complaintMonthly}/month</span></div>
+        <div className="mt-1 text-xs text-slate-600">Complaint Limits: <span className="font-semibold text-slate-900">Daily: {complaintDailyLabel} | Monthly: {complaintMonthlyLabel}</span></div>
       </div>
     </Card>
   );

@@ -177,9 +177,9 @@ const tests: TestCase[] = [
 
         assert.equal(response.statusCode, 200);
         assert.equal(response.headers["content-type"], "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-        assert.ok(String(response.headers["content-disposition"] ?? "").includes("Tracking Master"));
+        assert.ok(String(response.headers["content-disposition"] ?? "").includes(`Tracking-Master-${jobId}.xlsx`));
         assert.equal(response.downloadedPath, path.resolve(localPath));
-        assert.ok(String(response.downloadedName ?? "").endsWith(".xlsx"));
+        assert.equal(String(response.downloadedName ?? ""), `Tracking-Master-${jobId}.xlsx`);
       } finally {
         await fs.rm(localPath, { force: true });
       }
@@ -211,8 +211,43 @@ const tests: TestCase[] = [
 
       assert.equal(response.statusCode, 200);
       assert.equal(response.headers["content-type"], "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      assert.ok(String(response.headers["content-disposition"] ?? "").includes(`Tracking-Master-${jobId}.xlsx`));
       assert.ok(Buffer.isBuffer(response.body));
       assert.equal(response.body.toString("utf8"), "r2-xlsx-bytes");
+    },
+  },
+  {
+    name: "returns 200 from deterministic R2 fallback when trackingMasterPath is null",
+    async run() {
+      const jobId = "job-r2-null-path-200";
+      const state = makeDownloadState({
+        findFirstImpl: async () => ({
+          id: jobId,
+          userId: "user-1",
+          status: "COMPLETED",
+          trackingMasterPath: null,
+        }),
+        r2ArtifactExists: async (type: string, key: string) => {
+          assert.equal(type, "xlsx");
+          return key.includes(`/`);
+        },
+        r2ReadArtifact: async (type: string) => {
+          assert.equal(type, "xlsx");
+          return Buffer.from("r2-xlsx-deterministic-bytes");
+        },
+      });
+
+      const { res, state: response } = makeRes();
+
+      await withDownloadMocks(state, async () => {
+        await trackingMasterHandler(makeAuthedReq(jobId), res);
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.equal(response.headers["content-type"], "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      assert.ok(String(response.headers["content-disposition"] ?? "").includes(`Tracking-Master-${jobId}.xlsx`));
+      assert.ok(Buffer.isBuffer(response.body));
+      assert.equal(response.body.toString("utf8"), "r2-xlsx-deterministic-bytes");
     },
   },
   {

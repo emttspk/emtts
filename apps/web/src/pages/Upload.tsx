@@ -171,9 +171,7 @@ export default function Upload() {
 
   // Money order (shipment-type gated)
   const [includeMoneyOrders, setIncludeMoneyOrders] = useState(false);
-  const [trackAfterGenerate, setTrackAfterGenerate] = useState(false);
   const [showMoUnitNotice, setShowMoUnitNotice] = useState(false);
-  const [showTrackUnitNotice, setShowTrackUnitNotice] = useState(false);
   const [showCnicRequiredModal, setShowCnicRequiredModal] = useState(false);
   const [showManualTrackingRequiredModal, setShowManualTrackingRequiredModal] = useState(false);
   const [uploadInsights, setUploadInsights] = useState<UploadInsights | null>(null);
@@ -548,10 +546,8 @@ export default function Upload() {
     if (activeJob?.includeMoneyOrders) {
       window.setTimeout(() => downloadPdf(polling.jobId!, "money-orders"), 600);
     }
-    if (activeJob?.trackingMasterPath) {
-      window.setTimeout(() => downloadTrackingMaster(polling.jobId!), 1200);
-    }
-  }, [activeJob?.includeMoneyOrders, activeJob?.trackingMasterPath, polling.jobId, polling.jobStatus]);
+    window.setTimeout(() => downloadTrackingMaster(polling.jobId!), 1200);
+  }, [activeJob?.includeMoneyOrders, polling.jobId, polling.jobStatus]);
 
   const isReadyToGenerate = Boolean(
     file
@@ -641,7 +637,7 @@ export default function Upload() {
     return `Retention window from backend: ${retentionHours} hours`;
   }, [retentionHours]);
   const canDownloadMoneyOrders = Boolean(activeJob?.moneyOrderPdfPath || activeJob?.includeMoneyOrders);
-  const canDownloadTrackingMaster = Boolean(activeJob?.trackingMasterPath);
+  const canDownloadTrackingMaster = Boolean(polling.jobId && polling.jobStatus === "COMPLETED");
   const completionButtonsDisabled = completionAction !== null;
 
   async function runCompletionAction(action: "labels" | "money-orders" | "tracking-master" | "tracking-workspace") {
@@ -663,6 +659,8 @@ export default function Upload() {
         return;
       }
       navigate("/tracking-workspace");
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Download failed");
     } finally {
       const elapsedMs = Date.now() - actionStart;
       if (elapsedMs < minLockMs) {
@@ -1672,36 +1670,17 @@ export default function Upload() {
         <Card className="border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <CardTitle>Track Parcel</CardTitle>
           <div className="mt-0.5 text-sm font-normal text-slate-500">All actions consume units based on usage.</div>
-          <div className="mt-2 text-sm text-gray-600">Tracking enabled from uploaded file for post-generation operations.</div>
+          <div className="mt-2 text-sm text-gray-600">Tracking file is generated with completed jobs. Use Tracking page to upload or process tracking updates.</div>
           <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-            Tracking File.xls is always generated with every completed job, even when "Track shipments after generating labels" is unchecked.
+            Tracking Master.xlsx is generated with every completed job.
           </div>
           <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
             <div className="font-semibold text-slate-800">Recommended workflow:</div>
             <div className="mt-1">1. Generate labels and tracking IDs from validated upload rows.</div>
-            <div>2. Export and retain the generated Tracking File.xls.</div>
+            <div>2. Export and retain the generated Tracking Master.xlsx.</div>
             <div>3. Use Track Parcel for delivery status updates and complaint submissions.</div>
             <div>4. Use the same export for settlement and reconciliation checks.</div>
           </div>
-          <label className="mt-4 flex items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={trackAfterGenerate}
-              onChange={(e) => {
-                setTrackAfterGenerate(e.target.checked);
-                if (e.target.checked) {
-                  setShowTrackUnitNotice(true);
-                }
-              }}
-              className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
-            />
-            Track shipments after generating labels
-          </label>
-          {showTrackUnitNotice && trackAfterGenerate ? (
-            <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              Standard unit consumption will be applied for this action.
-            </div>
-          ) : null}
         </Card>
 
           </div>
