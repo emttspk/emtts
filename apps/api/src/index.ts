@@ -171,6 +171,13 @@ function normalizeOrigin(value: string | undefined): string {
   return String(value ?? "").trim().replace(/\/+$/, "").toLowerCase();
 }
 
+function parseOriginList(value: string | undefined): string[] {
+  return String(value ?? "")
+    .split(",")
+    .map((entry) => normalizeOrigin(entry))
+    .filter(Boolean);
+}
+
 const allowedCorsOrigins = new Set(
   [
     env.WEB_ORIGIN,
@@ -185,8 +192,27 @@ const allowedCorsOrigins = new Set(
     .filter(Boolean),
 );
 
+const jazzcashAllowedCorsOrigins = new Set(
+  [
+    ...parseOriginList(env.JAZZCASH_ALLOWED_ORIGINS),
+    "https://sandbox.jazzcash.com.pk",
+    "https://payments.jazzcash.com.pk",
+  ].map(normalizeOrigin).filter(Boolean),
+);
+
+function isJazzcashCorsPath(path: string | undefined): boolean {
+  const normalized = String(path ?? "").toLowerCase();
+  return normalized === "/api/payments/jazzcash/callback"
+    || normalized === "/api/payments/jazzcash/ipn"
+    || normalized === "/api/payments/jazzcash/relay";
+}
+
 function isAllowedCorsOrigin(origin: string | undefined): boolean {
   return allowedCorsOrigins.has(normalizeOrigin(origin));
+}
+
+function isAllowedJazzcashCorsOrigin(origin: string | undefined): boolean {
+  return jazzcashAllowedCorsOrigins.has(normalizeOrigin(origin));
 }
 
 if (!fs.existsSync(UPLOAD_DIR)) {
@@ -549,17 +575,24 @@ app.use(
   }),
 );
 app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin || isAllowedCorsOrigin(origin)) {
-        return callback(null, true);
-      }
+  cors((req, callback) => {
+    const origin = req.header("Origin");
+    const requestPath = req.originalUrl || req.path;
+    const allowOrigin = !origin
+      || isAllowedCorsOrigin(origin)
+      || (isJazzcashCorsPath(requestPath) && isAllowedJazzcashCorsOrigin(origin));
+
+    if (!allowOrigin) {
       return callback(new Error(`CORS blocked for origin: ${origin}`));
-    },
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Authorization", "Content-Type"],
-    exposedHeaders: ["Content-Disposition"],
-    credentials: true,
+    }
+
+    return callback(null, {
+      origin: true,
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Authorization", "Content-Type"],
+      exposedHeaders: ["Content-Disposition"],
+      credentials: true,
+    });
   }),
 );
 app.use(express.json({ limit: "2mb" }));

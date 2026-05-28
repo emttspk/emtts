@@ -212,6 +212,7 @@ const envSchema = z.object({
   JAZZCASH_RETURN_URL: z.string().url().optional(),
   JAZZCASH_SANDBOX_ENDPOINT: z.string().url().optional(),
   JAZZCASH_LIVE_ENDPOINT: z.string().url().optional(),
+  JAZZCASH_ALLOWED_ORIGINS: z.string().optional(),
   JAZZCASH_TXN_TYPE: z.string().optional(),
   JAZZCASH_BANK_ID: z.string().optional(),
   JAZZCASH_PRODUCT_ID: z.string().optional(),
