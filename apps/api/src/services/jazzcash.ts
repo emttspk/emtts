@@ -310,6 +310,8 @@ function buildJazzcashMobileWalletFields(input: {
     pp_MerchantID: getJazzcashMerchantId(),
     pp_SubMerchantID: getJazzcashSubMerchantId(),
     pp_Password: getJazzcashPassword(),
+    pp_BankID: getJazzcashBankId(),
+    pp_ProductID: getJazzcashProductId(),
     pp_TxnType: getJazzcashTxnType(),
     pp_TxnRefNo: input.txnRefNo,
     pp_MobileNumber: input.mobileNumber,
