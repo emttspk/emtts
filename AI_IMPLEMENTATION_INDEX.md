@@ -43,6 +43,8 @@
 - `JAZZCASH_BANK_ID`
 - `JAZZCASH_PRODUCT_ID`
 - `JAZZCASH_SUBMERCHANT_ID`
+- `JAZZCASH_STATUS_INQUIRY_ENDPOINT_SANDBOX`
+- `JAZZCASH_STATUS_INQUIRY_ENDPOINT_LIVE`
 
 ## API Endpoints
 
@@ -53,6 +55,49 @@
 - `GET /api/payments/jazzcash/ipn`
 - `GET /api/payments/:id/status`
 - `POST /api/payments/jazzcash/relay`
+- `POST /api/payments/jazzcash/status-inquiry`
+- `POST /api/payments/jazzcash/status-inquiry/:txnRefNo`
+
+## Jawad Onboarding Compliance Pass (2026-05-29)
+
+Mandatory onboarding items from Muhammad Jawad Khan were implemented in code:
+
+1. Status Inquiry API:
+	 - Added service integration and authenticated routes:
+		 - `POST /api/payments/jazzcash/status-inquiry`
+		 - `POST /api/payments/jazzcash/status-inquiry/:txnRefNo`
+2. IPN mandatory behavior:
+	 - IPN now rejects missing/unknown `pp_TxnRefNo` instead of silently accepting unknown references.
+3. Amount multiplied by 100:
+	 - Mobile wallet and checkout builders continue to emit `pp_Amount` in paisa (`amountCents`).
+4. TxnRefNo format:
+	 - Updated to `EpoYYYYMMDDHHMMSS` for new transactions.
+5. Request/response secure hash:
+	 - Request hash generation and callback/IPN hash verification retained.
+	 - Status inquiry request/response hash verification added.
+
+Local verification status after implementation:
+
+- `node scripts/jazzcash-mobile-wallet-check.mjs` -> PASS
+- `node scripts/jazzcash-status-inquiry-check.mjs` -> PASS
+- `npm run phase-3-verify` -> PASS
+- `npm run build` -> PASS
+
+## Live Validation Snapshot (2026-05-29)
+
+- Commit `7e42eba` deployed and confirmed live:
+	- Mobile wallet create now emits `Epo...` transaction references.
+	- Deterministic provider response for sandbox test numbers remains `199`.
+- Live runtime findings from authenticated matrix:
+	- Status inquiry endpoint reachable in production, but inquiry execution failed with:
+		- `Failed to parse URL from undefined`
+	- Third rapid create call hit:
+		- `Unique constraint failed on the fields: (invoiceNumber)`
+- Hotfix prepared and pushed in commit `a4cc0ac`:
+	- Endpoint fallback handling fixed (`undefined` env values no longer treated as URL strings).
+	- Invoice number generation changed to full `txnRefNo` to avoid truncation collisions.
+- Pending action:
+	- Await Railway rollout of `a4cc0ac`, then rerun full authenticated matrix (`03123456789/80/81`) with status inquiry for each returned `txnRefNo`.
 
 ## Payment Flow
 

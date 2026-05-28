@@ -187,3 +187,39 @@ All combinations returned provider code `199`.
   - allowed transaction type/profile/channel mapping for this merchant,
   - whether sandbox success numbers apply to direct REST flow or only hosted/testing subsets,
   - whether this merchant should use a different API type/path for one-time wallet transactions.
+
+## Onboarding Email Compliance Update (2026-05-29)
+
+Per onboarding requirements shared by Muhammad Jawad Khan, the backend now includes:
+
+- Status Inquiry API integration
+  - sandbox endpoint: `https://sandbox.jazzcash.com.pk/ApplicationAPI/API/PaymentInquiry/Inquire`
+  - live endpoint: `https://payments.jazzcash.com.pk/ApplicationAPI/API/PaymentInquiry/Inquire`
+  - app routes:
+    - `POST /api/payments/jazzcash/status-inquiry`
+    - `POST /api/payments/jazzcash/status-inquiry/:txnRefNo`
+- Mandatory `TxnRefNo` pattern updated to:
+  - `EpoYYYYMMDDHHMMSS`
+- IPN mandatory handling tightened:
+  - Unknown/missing txn reference is now rejected.
+- Amount normalization preserved:
+  - `pp_Amount` remains paisa (`PKR * 100`).
+- Hash requirements preserved/expanded:
+  - Unique request hash per request.
+  - Response hash verification for callback/IPN and status inquiry responses.
+
+### Live Runtime Observation After First Deploy
+
+- New transaction references were confirmed live in `Epo...` format.
+- Mobile wallet create continued returning provider code `199` for sandbox numbers.
+- Two runtime defects were discovered and fixed in follow-up commit `a4cc0ac`:
+  - Status inquiry used a misread optional env value (`undefined`) causing URL parse failure.
+  - Invoice number truncation (`INV-${txnRefNo}` sliced to 20 chars) caused uniqueness collisions under rapid creates.
+
+### Hotfix Status
+
+- Hotfix commit: `a4cc0ac`
+- Fixes included:
+  - Safe endpoint fallback for optional status inquiry env values.
+  - Invoice number set to full `txnRefNo` to preserve uniqueness.
+- Final post-hotfix live matrix rerun remains pending until Railway marks the latest Api deployment `SUCCESS`.
