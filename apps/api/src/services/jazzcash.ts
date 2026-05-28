@@ -59,8 +59,8 @@ function getJazzcashMode(): JazzcashMode {
 
 export function getJazzcashEndpoint() {
   const mode = getJazzcashMode();
-  const sandbox = String(env.JAZZCASH_SANDBOX_ENDPOINT ?? "https://sandbox.jazzcash.com.pk/ApplicationAPI/API/Payment/DoTransaction").trim();
-  const live = String(env.JAZZCASH_LIVE_ENDPOINT ?? "https://payments.jazzcash.com.pk/ApplicationAPI/API/Payment/DoTransaction").trim();
+  const sandbox = String(env.JAZZCASH_SANDBOX_ENDPOINT ?? "https://sandbox.jazzcash.com.pk/CustomerPortal/transactionmanagement/merchantform/").trim();
+  const live = String(env.JAZZCASH_LIVE_ENDPOINT ?? "https://payments.jazzcash.com.pk/CustomerPortal/transactionmanagement/merchantform/").trim();
   return mode === "sandbox" ? sandbox : live;
 }
 
@@ -440,7 +440,7 @@ function buildCallbackPayload(payload: Record<string, unknown>) {
   };
 }
 
-export async function processJazzcashCallback(payload: JazzcashCallbackInput) {
+export async function processJazzcashCallback(payload: JazzcashCallbackInput, source: "CALLBACK" | "IPN" = "CALLBACK") {
   const normalized = buildCallbackPayload(payload);
   const reference = String(normalized.reference ?? "").trim();
   if (!reference) {
@@ -495,7 +495,7 @@ export async function processJazzcashCallback(payload: JazzcashCallbackInput) {
       data: {
         paymentId: payment.id,
         eventId,
-        source: "CALLBACK",
+        source,
         status: finalStatus,
         payloadHash: createHmac("sha256", getJazzcashIntegritySalt()).update(JSON.stringify(payload)).digest("hex"),
         signature: normalizeFieldValue(payload.pp_SecureHash) || null,

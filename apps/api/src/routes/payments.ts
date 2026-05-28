@@ -115,7 +115,7 @@ paymentsRouter.post("/jazzcash/relay", async (req, res) => {
 async function handleJazzcashCallback(req: any, res: any) {
   try {
     const payload = (req.method === "POST" ? req.body : req.query) as Record<string, unknown>;
-    const result = await processJazzcashCallback(payload);
+    const result = await processJazzcashCallback(payload, "CALLBACK");
     return res.redirect(302, result.redirect);
   } catch (error) {
     console.error("[JazzCash] callback error", error);
@@ -128,8 +128,28 @@ async function handleJazzcashCallback(req: any, res: any) {
   }
 }
 
+async function handleJazzcashIpn(req: any, res: any) {
+  try {
+    const payload = (req.body ?? {}) as Record<string, unknown>;
+    const result = await processJazzcashCallback(payload, "IPN");
+    return res.status(200).json({
+      success: true,
+      status: "processed",
+      paymentStatus: result.status,
+    });
+  } catch (error) {
+    console.error("[JazzCash] ipn error", error);
+    return res.status(400).json({
+      success: false,
+      status: "failed",
+      error: error instanceof Error ? error.message : "IPN processing failed",
+    });
+  }
+}
+
 paymentsRouter.get("/jazzcash/callback", handleJazzcashCallback);
 paymentsRouter.post("/jazzcash/callback", handleJazzcashCallback);
+paymentsRouter.post("/jazzcash/ipn", handleJazzcashIpn);
 
 paymentsRouter.get("/:id/status", requireAuth, async (req: AuthedRequest, res) => {
   const status = await getJazzcashPaymentStatus(String(req.params.id ?? ""), req.user!.id);

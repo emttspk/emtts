@@ -45,6 +45,7 @@
 - `POST /api/payments/jazzcash/create`
 - `POST /api/payments/jazzcash/callback`
 - `GET /api/payments/jazzcash/callback`
+- `POST /api/payments/jazzcash/ipn`
 - `GET /api/payments/:id/status`
 - `POST /api/payments/jazzcash/relay`
 
@@ -63,6 +64,19 @@
 
 - Default callback: `POST/GET /api/payments/jazzcash/callback`
 - If configured, `JAZZCASH_RETURN_URL` overrides the callback URL.
+
+## JazzCash Portal URL Setup
+
+- Return URL (preferred): `https://www.epost.pk/api/payments/jazzcash/callback`
+- IPN URL (preferred): `https://www.epost.pk/api/payments/jazzcash/ipn`
+- If `/api` is not routed via `epost.pk`, use Railway API domain:
+	- `https://labelgenapi-production.up.railway.app/api/payments/jazzcash/callback`
+	- `https://labelgenapi-production.up.railway.app/api/payments/jazzcash/ipn`
+
+## Health/Readiness Check
+
+- Verify API health before setting JazzCash portal URLs: `https://www.epost.pk/api/health`
+- If health check fails, configure Return URL and IPN URL using Railway API domain.
 
 ## Testing Status
 
