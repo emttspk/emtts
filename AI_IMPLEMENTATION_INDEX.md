@@ -77,6 +77,7 @@
 
 - Return URL: `https://api.epost.pk/api/payments/jazzcash/callback`
 - IPN URL: `https://api.epost.pk/api/payments/jazzcash/ipn`
+- Do not use web origin URLs for callback or IPN: `https://www.epost.pk/api/...`
 - Browser/portal readiness check: `GET /api/payments/jazzcash/ipn` returns JSON and does not process payments.
 - Live verification: `GET https://api.epost.pk/api/payments/jazzcash/ipn` returns `200 OK` JSON readiness metadata.
 - Live verification: `POST https://api.epost.pk/api/payments/jazzcash/ipn` returns a safe JSON processing response.
@@ -156,3 +157,33 @@
 - The sandbox currently rejects the merchant profile with `insufficient merchant information`.
 - The generated payload is correct and includes masked live-tested values from the production API service.
 - Remaining action is merchant-profile / portal-side activation or URL/credential correction, not app relay changes.
+
+## Legacy EP Gateway Mock Checkout Handling
+
+- Billing resume flow no longer redirects normal users to `/api/subscriptions/checkout/...`.
+- Pending JazzCash resumes via JazzCash modal flow only.
+- Pending non-JazzCash payments resume through the manual payment modal only.
+- Legacy EP Gateway hosted mock checkout route is disabled in production and only available for development/internal testing.
+
+## JazzCash Sandbox Support / Escalation Note
+
+- Merchant ID: `MC771933`
+- Return URL: `https://api.epost.pk/api/payments/jazzcash/callback`
+- IPN URL: `https://api.epost.pk/api/payments/jazzcash/ipn`
+- Verified app payload:
+	- `pp_MerchantID` present
+	- `pp_Password` present
+	- `pp_ReturnURL` correct
+	- `pp_Amount=99900` for Rs.999
+	- `pp_TxnType=MWALLET`
+	- `pp_SubMerchantID` blank
+	- `ppmpf_1=03123456789`
+	- `pp_SecureHash` present
+	- Sandbox endpoint in use
+- Issue observed in sandbox:
+	- `Sorry! Your transaction could not be processed due to insufficient merchant information.`
+- Request to JazzCash support:
+	- Activate/verify hosted checkout + `MWALLET` for this sandbox merchant profile.
+	- Confirm whether this merchant account requires a different transaction type.
+	- Confirm whether blank `pp_SubMerchantID` is correct for this profile.
+	- Confirm whether IPN may be the same URL as Return URL for this profile.

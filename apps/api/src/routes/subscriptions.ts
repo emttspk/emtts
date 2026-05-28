@@ -99,6 +99,10 @@ subscriptionsRouter.post("/start", requireAuth, async (req: AuthedRequest, res) 
 });
 
 subscriptionsRouter.get("/checkout/:reference", async (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(404).send("Legacy hosted checkout is disabled");
+  }
+
   await ensureBillingTables();
   const reference = String(req.params.reference ?? "").trim();
   const token = String(req.query.token ?? "").trim();
@@ -156,6 +160,10 @@ subscriptionsRouter.get("/checkout/:reference", async (req, res) => {
 });
 
 subscriptionsRouter.post("/checkout/:reference/complete", async (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.status(404).send("Legacy hosted checkout is disabled");
+  }
+
   await ensureBillingTables();
   const reference = String(req.params.reference ?? "").trim();
   const outcome = z.enum(["success", "failed", "canceled"]).parse(req.query.outcome);

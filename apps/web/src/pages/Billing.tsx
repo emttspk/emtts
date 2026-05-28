@@ -117,6 +117,48 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
     setJazzcashModalError(null);
   }
 
+  function findPendingPlan() {
+    const pendingPlanId = me?.pendingPayment?.planId;
+    if (!pendingPlanId) return null;
+    return plans.find((plan) => plan.id === pendingPlanId) ?? null;
+  }
+
+  function resumePendingPayment() {
+    const pendingPayment = me?.pendingPayment;
+    if (!pendingPayment) return;
+
+    setError(null);
+    setSuccess(null);
+
+    if (pendingPayment.resumeMode === "JAZZCASH") {
+      const pendingPlan = findPendingPlan();
+      if (!pendingPlan) {
+        setError("Pending JazzCash plan was not found. Select the package and start JazzCash checkout again.");
+        return;
+      }
+      openJazzcashModal(pendingPlan);
+      return;
+    }
+
+    if (pendingPayment.invoice) {
+      const pendingPlan = findPendingPlan();
+      if (!pendingPlan) {
+        setError("Pending invoice plan was not found. Select the package and re-open manual payment.");
+        return;
+      }
+      setManualPaymentPlan(pendingPlan);
+      setManualPaymentInvoice({
+        id: pendingPayment.invoice.id,
+        invoiceNumber: pendingPayment.invoice.invoiceNumber,
+        amountCents: pendingPayment.invoice.amountCents,
+        currency: pendingPayment.invoice.currency,
+      });
+      return;
+    }
+
+    setError("This pending payment cannot be resumed from hosted checkout in production. Start a fresh payment from this page.");
+  }
+
   function submitJazzcashForm(actionUrl: string, fields: Record<string, string>) {
     const resolvedActionUrl = actionUrl.startsWith("http") ? actionUrl : apiUrl(actionUrl);
     const form = document.createElement("form");
@@ -228,11 +270,16 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
             {success ? <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div> : null}
             {me?.pendingPayment ? (
               <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                Pending payment for {me.pendingPayment.planName}. Invoice {me.pendingPayment.invoiceNumber ?? "pending"}.
+                Pending payment for {me.pendingPayment.planName}. Invoice {me.pendingPayment.invoice?.invoiceNumber ?? "pending"}.
+                {me.pendingPayment.legacyMockCheckout?.enabled ? (
+                  <div className="mt-2 rounded-lg border border-slate-300 bg-white/80 px-3 py-2 text-xs text-slate-700">
+                    Legacy mock payment. Not available in production.
+                  </div>
+                ) : null}
                 <button
                   className="ml-3 rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
                   type="button"
-                  onClick={() => window.location.assign(apiUrl(me.pendingPayment!.checkoutUrl))}
+                  onClick={resumePendingPayment}
                 >
                   Resume payment
                 </button>

@@ -162,14 +162,26 @@ export type MeResponse = {
     unitsRemaining: number;
   };
   pendingPayment?: {
+    provider: string;
     reference: string;
     status: string;
     kind: string;
+    planId: string;
     amountCents: number;
     currency: string;
     planName: string;
-    invoiceNumber: string | null;
-    checkoutUrl: string;
+    invoice: {
+      id: string;
+      invoiceNumber: string;
+      amountCents: number;
+      currency: string;
+      status: string;
+    } | null;
+    resumeMode: "JAZZCASH" | "MANUAL";
+    legacyMockCheckout: {
+      enabled: boolean;
+      checkoutUrl: string;
+    } | null;
     createdAt: string;
   } | null;
 };

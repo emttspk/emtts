@@ -63,6 +63,37 @@ meRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
   const periodEnd = subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd) : null;
   const isExpired = !periodEnd || periodEnd.getTime() < Date.now();
   const isNearExpiry = Boolean(periodEnd && periodEnd.getTime() - Date.now() <= 3 * 24 * 60 * 60 * 1000 && !isExpired);
+  const isLegacyMockAvailable = process.env.NODE_ENV !== "production";
+
+  const pendingPaymentPayload = pendingPayment
+    ? {
+        provider: pendingPayment.provider,
+        reference: pendingPayment.reference,
+        status: pendingPayment.status,
+        kind: pendingPayment.kind,
+        planId: pendingPayment.planId,
+        amountCents: pendingPayment.amountCents,
+        currency: pendingPayment.currency,
+        planName: pendingPayment.plan.name,
+        invoice: pendingPayment.invoice
+          ? {
+              id: pendingPayment.invoice.id,
+              invoiceNumber: pendingPayment.invoice.invoiceNumber,
+              amountCents: pendingPayment.invoice.amountCents,
+              currency: pendingPayment.invoice.currency,
+              status: pendingPayment.invoice.status,
+            }
+          : null,
+        resumeMode: pendingPayment.provider === "JAZZCASH" ? "JAZZCASH" : "MANUAL",
+        legacyMockCheckout: pendingPayment.provider === "EP_GATEWAY" && isLegacyMockAvailable
+          ? {
+              enabled: true,
+              checkoutUrl: buildHostedCheckoutUrl(pendingPayment.reference, pendingPayment.checkoutToken),
+            }
+          : null,
+        createdAt: pendingPayment.createdAt,
+      }
+    : null;
 
   return res.json({
     user,
@@ -121,19 +152,7 @@ meRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
       nearExpiry: isNearExpiry,
       unitsRemaining: remainingUnits,
     },
-    pendingPayment: pendingPayment
-      ? {
-          reference: pendingPayment.reference,
-          status: pendingPayment.status,
-          kind: pendingPayment.kind,
-          amountCents: pendingPayment.amountCents,
-          currency: pendingPayment.currency,
-          planName: pendingPayment.plan.name,
-          invoiceNumber: pendingPayment.invoice?.invoiceNumber ?? null,
-          checkoutUrl: buildHostedCheckoutUrl(pendingPayment.reference, pendingPayment.checkoutToken),
-          createdAt: pendingPayment.createdAt,
-        }
-      : null,
+    pendingPayment: pendingPaymentPayload,
   });
 });
 
