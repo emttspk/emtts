@@ -1,4 +1,4 @@
-import { Router } from "express";
+import express, { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
@@ -15,6 +15,7 @@ import {
 } from "../services/jazzcash.js";
 
 export const paymentsRouter = Router();
+paymentsRouter.use(express.urlencoded({ extended: false }));
 
 const createSchema = z.object({
   planId: z.string().uuid(),
