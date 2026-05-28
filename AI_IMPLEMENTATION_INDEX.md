@@ -62,6 +62,12 @@
 8. Backend verifies `pp_SecureHash`, validates amount and reference, updates payment status, and activates the subscription once.
 9. User is redirected back to `/billing?payment=success|failed|pending`.
 
+## JazzCash Fresh Test Rule
+
+- The old EP Gateway pending-payment URL is not a JazzCash checkout path.
+- Fresh JazzCash testing must always start from `/billing` and the `Pay with JazzCash` button.
+- Do not use `Resume payment` from an older pending EP Gateway invoice for JazzCash validation.
+
 ## Callback URL
 
 - Default callback: `POST/GET /api/payments/jazzcash/callback`
@@ -143,3 +149,10 @@
 - Execute sandbox declined/canceled transaction and verify callback lands on `/billing?payment=failed`.
 - Promote to live by setting `JAZZCASH_ENV=production` and live credential set in deployment secrets only.
 - Keep manual wallet payment path available for rollback until live JazzCash canary confirms stability.
+
+## Final Tested Result
+
+- Fresh hosted JazzCash checkout reaches the sandbox merchant page.
+- The sandbox currently rejects the merchant profile with `insufficient merchant information`.
+- The generated payload is correct and includes masked live-tested values from the production API service.
+- Remaining action is merchant-profile / portal-side activation or URL/credential correction, not app relay changes.
