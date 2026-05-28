@@ -47,7 +47,8 @@ type JazzcashCheckoutCreateInput = {
 type JazzcashCallbackInput = Record<string, unknown>;
 
 const SUCCESS_RESPONSE_CODES = new Set(["000", "121"]);
-const CANCELED_RESPONSE_CODES = new Set(["124", "125", "126", "127", "128", "129"]);
+const PENDING_RESPONSE_CODES = new Set(["124", "157", "210"]);
+const CANCELED_RESPONSE_CODES = new Set(["112", "129"]);
 
 function stripTrailingSlashes(value: string) {
   return String(value ?? "").trim().replace(/\/+$/, "");
@@ -62,6 +63,31 @@ export function getJazzcashEndpoint() {
   const sandbox = String(env.JAZZCASH_SANDBOX_ENDPOINT ?? "https://sandbox.jazzcash.com.pk/CustomerPortal/transactionmanagement/merchantform/").trim();
   const live = String(env.JAZZCASH_LIVE_ENDPOINT ?? "https://payments.jazzcash.com.pk/CustomerPortal/transactionmanagement/merchantform/").trim();
   return mode === "sandbox" ? sandbox : live;
+}
+
+function deriveApiOriginFromHostedEndpoint(value: string) {
+  const trimmed = String(value ?? "").trim();
+  if (!trimmed) return "";
+  try {
+    const parsed = new URL(trimmed);
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    return "";
+  }
+}
+
+export function getJazzcashMobileWalletEndpoint() {
+  const mode = getJazzcashMode();
+  const configured = String(
+    mode === "sandbox"
+      ? env.JAZZCASH_MOBILE_WALLET_ENDPOINT_SANDBOX
+      : env.JAZZCASH_MOBILE_WALLET_ENDPOINT_LIVE,
+  ).trim();
+  if (configured) return configured;
+  const hostedEndpoint = getJazzcashEndpoint();
+  const origin = deriveApiOriginFromHostedEndpoint(hostedEndpoint);
+  const fallbackOrigin = mode === "sandbox" ? "https://sandbox.jazzcash.com.pk" : "https://payments.jazzcash.com.pk";
+  return `${origin || fallbackOrigin}/ApplicationAPI/API/Payment/DoTransaction`;
 }
 
 export function getJazzcashReturnUrl() {
@@ -114,6 +140,16 @@ function getJazzcashProductId() {
   return getJazzcashMode() === "sandbox" ? "RETL" : "";
 }
 
+function getJazzcashMobileWalletCnic() {
+  const configured = String(env.JAZZCASH_MOBILE_WALLET_CNIC ?? "").trim();
+  if (configured) return configured;
+  return getJazzcashMode() === "sandbox" ? "345678" : "";
+}
+
+export function isJazzcashMobileWalletEnabled() {
+  return String(env.JAZZCASH_MOBILE_WALLET_ENABLED ?? "true").trim().toLowerCase() !== "false";
+}
+
 export function getMissingJazzcashCredentials() {
   const missing: string[] = [];
   if (!getJazzcashMerchantId()) missing.push("JAZZCASH_MERCHANT_ID");
@@ -156,26 +192,36 @@ function isHashField(key: string) {
   return /^pp/i.test(key) && key.toLowerCase() !== "pp_securehash";
 }
 
-export function buildJazzcashHashInput(fields: Record<string, unknown>) {
+function buildJazzcashHashInput(fields: Record<string, unknown>, options?: { includeEmptyFields?: boolean }) {
+  const includeEmptyFields = options?.includeEmptyFields ?? true;
   const entries = Object.entries(fields)
-    .filter(([key, value]) => isHashField(key) && normalizeFieldValue(value) !== "")
+    .filter(([key, value]) => isHashField(key) && (includeEmptyFields || normalizeFieldValue(value) !== ""))
     .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey, "en", { sensitivity: "variant" }));
   const concatenated = entries.map(([, value]) => normalizeFieldValue(value)).join("&");
   return `${getJazzcashIntegritySalt()}&${concatenated}`;
 }
 
-export function generateJazzcashSecureHash(fields: Record<string, unknown>) {
-  const input = buildJazzcashHashInput(fields);
+export function generateJazzcashSecureHash(fields: Record<string, unknown>, options?: { includeEmptyFields?: boolean }) {
+  const input = buildJazzcashHashInput(fields, options);
   return createHmac("sha256", getJazzcashIntegritySalt()).update(input, "utf8").digest("hex").toUpperCase();
+}
+
+function secureHashEquals(expected: string, actual: string) {
+  const left = Buffer.from(String(expected).trim().toUpperCase(), "utf8");
+  const right = Buffer.from(String(actual).trim().toUpperCase(), "utf8");
+  if (left.length !== right.length) return false;
+  return left.equals(right);
 }
 
 export function verifyJazzcashSecureHash(fields: Record<string, unknown>, secureHash?: string | null) {
   if (!secureHash) return false;
-  const expected = generateJazzcashSecureHash(fields);
-  const left = Buffer.from(expected, "utf8");
-  const right = Buffer.from(String(secureHash).trim().toUpperCase(), "utf8");
-  if (left.length !== right.length) return false;
-  return left.equals(right);
+  const incoming = String(secureHash).trim().toUpperCase();
+  const strictExpected = generateJazzcashSecureHash(fields, { includeEmptyFields: true });
+  if (secureHashEquals(strictExpected, incoming)) return true;
+
+  // Backward compatibility path for older integrations that excluded empty PP fields.
+  const legacyExpected = generateJazzcashSecureHash(fields, { includeEmptyFields: false });
+  return secureHashEquals(legacyExpected, incoming);
 }
 
 function buildJazzcashStatus(status: string, responseCode: string | null, message: string | null) {
@@ -184,6 +230,7 @@ function buildJazzcashStatus(status: string, responseCode: string | null, messag
   const normalizedMessage = String(message ?? "").trim().toUpperCase();
 
   if (normalizedStatus.includes("PEND")) return "PENDING";
+  if (PENDING_RESPONSE_CODES.has(normalizedCode)) return "PENDING";
   if (SUCCESS_RESPONSE_CODES.has(normalizedCode)) return "SUCCEEDED";
   if (CANCELED_RESPONSE_CODES.has(normalizedCode) || normalizedMessage.includes("CANCEL")) return "CANCELED";
   return "FAILED";
@@ -241,6 +288,43 @@ function buildJazzcashSignedFields(input: {
     ppmpf_4: "",
     ppmpf_5: "",
   };
+  fields.pp_SecureHash = generateJazzcashSecureHash(fields);
+  return fields;
+}
+
+function buildJazzcashMobileWalletFields(input: {
+  amountCents: number;
+  billReference: string;
+  description: string;
+  txnDateTime: string;
+  txnExpiryDateTime: string;
+  txnRefNo: string;
+  mobileNumber: string;
+  cnic?: string;
+}) {
+  const fields: Record<string, string> = {
+    pp_Language: "EN",
+    pp_MerchantID: getJazzcashMerchantId(),
+    pp_SubMerchantID: getJazzcashSubMerchantId(),
+    pp_Password: getJazzcashPassword(),
+    pp_TxnRefNo: input.txnRefNo,
+    pp_MobileNumber: input.mobileNumber,
+    pp_Amount: String(input.amountCents),
+    pp_DiscountedAmount: "",
+    pp_TxnCurrency: "PKR",
+    pp_TxnDateTime: input.txnDateTime,
+    pp_BillReference: input.billReference,
+    pp_Description: input.description,
+    pp_TxnExpiryDateTime: input.txnExpiryDateTime,
+    ppmpf_1: "",
+    ppmpf_2: "",
+    ppmpf_3: "",
+    ppmpf_4: "",
+    ppmpf_5: "",
+  };
+  if (input.cnic) {
+    fields.pp_CNIC = input.cnic;
+  }
   fields.pp_SecureHash = generateJazzcashSecureHash(fields);
   return fields;
 }
@@ -432,6 +516,191 @@ export function renderJazzcashRelayPage(actionUrl: string, fields: Record<string
 </html>`;
 }
 
+type JazzcashMobileWalletCreateInput = {
+  userId: string;
+  userContactNumber: string | null;
+  plan: JazzcashPlan;
+  amountCents: number;
+};
+
+type JazzcashMobileWalletCreateResult = {
+  paymentId: string;
+  reference: string;
+  status: "success" | "failed" | "pending" | "awaiting_customer_approval" | "error";
+  paymentStatus: "SUCCEEDED" | "FAILED" | "CANCELED" | "PENDING";
+  message: string;
+  providerResponseCode: string | null;
+};
+
+function mapPaymentStatusToMobileWalletResult(status: string) {
+  if (status === "SUCCEEDED") return "success" as const;
+  if (status === "PENDING") return "awaiting_customer_approval" as const;
+  return "failed" as const;
+}
+
+export async function createJazzcashMobileWalletPayment(input: JazzcashMobileWalletCreateInput): Promise<JazzcashMobileWalletCreateResult> {
+  const [plan, activeSubscription, pendingPayment] = await Promise.all([
+    prisma.plan.findUnique({ where: { id: input.plan.id } }),
+    getActiveSubscription(input.userId),
+    prisma.payment.findFirst({
+      where: { userId: input.userId, planId: input.plan.id, provider: "JAZZCASH", status: "PENDING" },
+      include: { invoice: true },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+
+  if (!plan) {
+    throw new Error("Plan not found");
+  }
+
+  const mobileNumber = normalizeJazzcashMobileNumber(input.userContactNumber);
+  if (!mobileNumber) {
+    throw new Error("Enter a valid JazzCash mobile number to continue.");
+  }
+
+  const endpoint = getJazzcashMobileWalletEndpoint();
+  const txnRefNo = pendingPayment?.txnRefNo ?? pendingPayment?.reference ?? buildJazzcashTxnRefNo();
+  const kind = activeSubscription ? (activeSubscription.planId === plan.id ? "RENEWAL" : "UPGRADE") : "PURCHASE";
+  const txnDateTime = formatPkDateTime(new Date());
+  const txnExpiryDateTime = formatPkDateTime(addPkDays(new Date(), 1));
+
+  const requestFields = buildJazzcashMobileWalletFields({
+    amountCents: input.amountCents,
+    billReference: txnRefNo,
+    description: `${plan.name} subscription`,
+    txnDateTime,
+    txnExpiryDateTime,
+    txnRefNo,
+    mobileNumber,
+    cnic: getJazzcashMobileWalletCnic() || undefined,
+  });
+
+  let paymentId = pendingPayment?.id;
+  if (pendingPayment) {
+    await prisma.payment.update({
+      where: { id: pendingPayment.id },
+      data: {
+        txnRefNo,
+        gatewayOrderId: txnRefNo,
+        idempotencyKey: `${input.userId}:${plan.id}:${txnRefNo}`,
+        kind,
+        amountCents: input.amountCents,
+        currency: "PKR",
+        provider: "JAZZCASH",
+        rawRequest: {
+          endpoint,
+          mode: "MOBILE_WALLET_API",
+          fields: requestFields,
+        } as Prisma.InputJsonValue,
+      },
+    });
+  } else {
+    const created = await prisma.payment.create({
+      data: {
+        id: randomUUID(),
+        userId: input.userId,
+        planId: plan.id,
+        provider: "JAZZCASH",
+        reference: txnRefNo,
+        txnRefNo,
+        gatewayOrderId: txnRefNo,
+        gatewayTransactionId: null,
+        idempotencyKey: `${input.userId}:${plan.id}:${txnRefNo}`,
+        checkoutToken: randomUUID(),
+        kind,
+        status: "PENDING",
+        amountCents: input.amountCents,
+        currency: "PKR",
+        hashVerified: false,
+        rawRequest: {
+          endpoint,
+          mode: "MOBILE_WALLET_API",
+          fields: requestFields,
+        } as Prisma.InputJsonValue,
+      },
+    });
+    paymentId = created.id;
+    await prisma.invoice.create({
+      data: {
+        id: randomUUID(),
+        userId: input.userId,
+        planId: plan.id,
+        paymentId: created.id,
+        invoiceNumber: `INV-${txnRefNo}`.slice(0, 20),
+        amountCents: input.amountCents,
+        currency: "PKR",
+        status: "OPEN",
+      },
+    });
+  }
+
+  let rawBody = "";
+  let responsePayload: Record<string, unknown> = {};
+  let responseStatus = 0;
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestFields),
+    });
+    responseStatus = response.status;
+    rawBody = await response.text();
+    try {
+      responsePayload = rawBody ? JSON.parse(rawBody) as Record<string, unknown> : {};
+    } catch {
+      responsePayload = { responseBody: rawBody };
+    }
+  } catch (error) {
+    await prisma.payment.update({
+      where: { id: paymentId! },
+      data: {
+        status: "FAILED",
+        failureReason: "MOBILE_WALLET_API_REQUEST_FAILED",
+        responseMessage: error instanceof Error ? error.message : "Failed to contact JazzCash mobile wallet API",
+        verifiedAt: new Date(),
+      },
+    });
+    await prisma.invoice.updateMany({ where: { paymentId: paymentId! }, data: { status: "FAILED" } });
+    throw new Error("Failed to contact JazzCash mobile wallet API");
+  }
+
+  const callbackPayload: Record<string, unknown> = {
+    ...responsePayload,
+    pp_TxnRefNo: normalizeFieldValue(responsePayload.pp_TxnRefNo) || txnRefNo,
+    pp_Amount: normalizeFieldValue(responsePayload.pp_Amount) || String(input.amountCents),
+    pp_TxnCurrency: normalizeFieldValue(responsePayload.pp_TxnCurrency) || "PKR",
+  };
+
+  logSafe("mobile wallet api response", {
+    reference: txnRefNo,
+    httpStatus: responseStatus,
+    responseCode: normalizeFieldValue(callbackPayload.pp_ResponseCode || callbackPayload.pp_PaymentResponseCode || null) || null,
+    responseMessage: normalizeFieldValue(callbackPayload.pp_ResponseMessage || callbackPayload.pp_PaymentResponseMessage || null) || null,
+    hasSecureHash: Boolean(normalizeFieldValue(callbackPayload.pp_SecureHash)),
+  });
+
+  const processed = await processJazzcashCallback(callbackPayload, "CALLBACK");
+  const paymentStatus = String(processed.status ?? "FAILED") as "SUCCEEDED" | "FAILED" | "CANCELED" | "PENDING";
+  const status = mapPaymentStatusToMobileWalletResult(paymentStatus);
+  const message = normalizeFieldValue(responsePayload.pp_ResponseMessage || responsePayload.pp_PaymentResponseMessage || "")
+    || (paymentStatus === "PENDING"
+      ? "Payment request sent to your JazzCash mobile number. Please approve with MPIN on your phone."
+      : paymentStatus === "SUCCEEDED"
+        ? "Payment verified and subscription activated."
+        : "JazzCash payment failed.");
+
+  return {
+    paymentId: paymentId!,
+    reference: txnRefNo,
+    status,
+    paymentStatus,
+    message,
+    providerResponseCode: normalizeFieldValue(responsePayload.pp_ResponseCode || responsePayload.pp_PaymentResponseCode || null) || null,
+  };
+}
+
 function pickProviderTxnId(payload: Record<string, unknown>) {
   return normalizeFieldValue(payload.pp_RetreivalReferenceNo || payload.pp_RetrievalReferenceNo || payload.pp_AuthCode || payload.pp_TransactionId || payload.pp_TransactionID || "") || null;
 }
@@ -512,7 +781,7 @@ export async function processJazzcashCallback(payload: JazzcashCallbackInput, so
   }
 
   if (payment.status !== "PENDING") {
-    const currentStatus = payment.status === "SUCCEEDED" ? "success" : payment.status === "CANCELED" ? "failed" : "pending";
+    const currentStatus = payment.status === "SUCCEEDED" ? "success" : payment.status === "PENDING" ? "pending" : "failed";
     return { redirect: buildFrontendBillingUrl(currentStatus, reference, "Duplicate callback ignored"), status: payment.status as "SUCCEEDED" | "FAILED" | "CANCELED" | "PENDING" };
   }
 
@@ -533,7 +802,7 @@ export async function processJazzcashCallback(payload: JazzcashCallbackInput, so
     if (error instanceof Error && /unique|constraint/i.test(error.message)) {
       const current = await prisma.payment.findUnique({ where: { id: payment.id }, include: { invoice: true, plan: true } });
       return {
-        redirect: buildFrontendBillingUrl(current?.status === "SUCCEEDED" ? "success" : current?.status === "CANCELED" ? "failed" : "pending", reference, "Duplicate callback ignored"),
+        redirect: buildFrontendBillingUrl(current?.status === "SUCCEEDED" ? "success" : current?.status === "PENDING" ? "pending" : "failed", reference, "Duplicate callback ignored"),
         status: current?.status ?? "PENDING",
       };
     }
@@ -585,7 +854,7 @@ export async function processJazzcashCallback(payload: JazzcashCallbackInput, so
     const updatedInvoice = await tx.invoice.update({
       where: { paymentId: payment.id },
       data: {
-        status: finalStatus === "SUCCEEDED" ? "PAID" : finalStatus === "CANCELED" ? "CANCELED" : "FAILED",
+        status: finalStatus === "SUCCEEDED" ? "PAID" : finalStatus === "PENDING" ? "OPEN" : "FAILED",
         paidAt: finalStatus === "SUCCEEDED" ? new Date() : null,
         subscriptionId: finalStatus === "SUCCEEDED" ? subscriptionId : payment.subscriptionId,
       },
@@ -594,7 +863,7 @@ export async function processJazzcashCallback(payload: JazzcashCallbackInput, so
     return { payment: updatedPayment, invoice: updatedInvoice, subscriptionId };
   });
 
-  const redirectStatus = finalStatus === "SUCCEEDED" ? "success" : finalStatus === "CANCELED" ? "failed" : "failed";
+  const redirectStatus = finalStatus === "SUCCEEDED" ? "success" : finalStatus === "PENDING" ? "pending" : "failed";
   logSafe("callback processed", { reference, status: finalStatus, amountCents: amount, hashVerified, providerTxnId: normalized.providerTxnId });
 
   return {

@@ -3,7 +3,14 @@ import { Check, Sparkles, X } from "lucide-react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import Card from "../components/Card";
 import ManualPaymentModal from "../components/ManualPaymentModal";
-import { changePackage, createJazzcashPayment, fetchPlans, type Plan } from "../lib/PackageService";
+import {
+  changePackage,
+  createJazzcashHostedCheckoutPayment,
+  createJazzcashMobileWalletPayment,
+  fetchJazzcashPaymentStatus,
+  fetchPlans,
+  type Plan,
+} from "../lib/PackageService";
 import type { MeResponse } from "../lib/types";
 import { apiUrl } from "../lib/api";
 import ActionButton from "../components/ui/ActionButton";
@@ -38,6 +45,9 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
   const [jazzcashModalPlan, setJazzcashModalPlan] = useState<Plan | null>(null);
   const [jazzcashModalMobile, setJazzcashModalMobile] = useState("");
   const [jazzcashModalError, setJazzcashModalError] = useState<string | null>(null);
+  const [jazzcashPendingReference, setJazzcashPendingReference] = useState<string | null>(null);
+  const [jazzcashPendingMessage, setJazzcashPendingMessage] = useState<string | null>(null);
+  const jazzcashPollingTimerRef = useRef<number | null>(null);
   const planParam = searchParams.get("plan")?.toLowerCase() ?? null;
   const autoInitDone = useRef(false);
   const remainingUnits = me?.balances?.unitsRemaining ?? me?.activePackage?.unitsRemaining ?? me?.balances?.labelsRemaining ?? 0;
@@ -94,6 +104,14 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
     }
   }, [refreshMe, searchParams]);
 
+  useEffect(() => {
+    return () => {
+      if (jazzcashPollingTimerRef.current) {
+        window.clearInterval(jazzcashPollingTimerRef.current);
+      }
+    };
+  }, []);
+
   function normalizeJazzcashMobile(value: string) {
     const digits = value.replace(/\D/g, "");
     return /^03\d{9}$/.test(digits) ? digits : "";
@@ -115,6 +133,56 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
     setJazzcashModalPlan(null);
     setJazzcashModalMobile("");
     setJazzcashModalError(null);
+  }
+
+  function clearJazzcashPolling() {
+    if (jazzcashPollingTimerRef.current) {
+      window.clearInterval(jazzcashPollingTimerRef.current);
+      jazzcashPollingTimerRef.current = null;
+    }
+  }
+
+  function startJazzcashPolling(reference: string) {
+    clearJazzcashPolling();
+    let attempts = 0;
+    const maxAttempts = 30;
+    let inFlight = false;
+
+    jazzcashPollingTimerRef.current = window.setInterval(async () => {
+      if (inFlight) return;
+      inFlight = true;
+      attempts += 1;
+      try {
+        const status = await fetchJazzcashPaymentStatus(reference);
+        const paymentStatus = status.status;
+        if (paymentStatus === "SUCCEEDED") {
+          clearJazzcashPolling();
+          setJazzcashPendingReference(null);
+          setJazzcashPendingMessage(null);
+          await refreshMe();
+          setSuccess(status.responseMessage ?? `Payment verified and subscription activated. Ref: ${reference}`);
+          return;
+        }
+        if (paymentStatus === "FAILED" || paymentStatus === "CANCELED") {
+          clearJazzcashPolling();
+          setJazzcashPendingReference(null);
+          setJazzcashPendingMessage(null);
+          setError(status.responseMessage ?? `Payment failed. Ref: ${reference}`);
+          return;
+        }
+
+        setJazzcashPendingMessage(status.responseMessage ?? "Payment request sent to your JazzCash mobile number. Please approve with MPIN on your phone.");
+      } catch {
+        // Keep polling despite transient errors.
+      } finally {
+        inFlight = false;
+      }
+
+      if (attempts >= maxAttempts) {
+        clearJazzcashPolling();
+        setJazzcashPendingMessage("Still waiting for JazzCash confirmation. You can keep this page open and click Resume payment later.");
+      }
+    }, 4000);
   }
 
   function findPendingPlan() {
@@ -241,11 +309,45 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
     setJazzcashModalError(null);
     setInitiatingJazzcashPlanId(plan.id);
     try {
-      const response = await createJazzcashPayment(plan.id, normalizedMobile);
+      const response = await createJazzcashMobileWalletPayment(plan.id, normalizedMobile);
+      closeJazzcashModal();
+      if (response.status === "success") {
+        await refreshMe();
+        setSuccess(response.message || "Payment verified and subscription activated.");
+        return;
+      }
+
+      if (response.status === "pending" || response.status === "awaiting_customer_approval") {
+        setJazzcashPendingReference(response.payment.reference);
+        setJazzcashPendingMessage(response.message || "Payment request sent to your JazzCash mobile number. Please approve with MPIN on your phone.");
+        startJazzcashPolling(response.payment.reference);
+        return;
+      }
+
+      setError(response.message || "JazzCash payment failed.");
+    } catch (err) {
+      setJazzcashModalError(err instanceof Error ? err.message : "Failed to initiate JazzCash payment");
+    } finally {
+      setInitiatingJazzcashPlanId(null);
+    }
+  }
+
+  async function confirmJazzcashHostedFallbackPayment() {
+    const plan = jazzcashModalPlan;
+    if (!plan) return;
+    const normalizedMobile = normalizeJazzcashMobile(jazzcashModalMobile);
+    if (!normalizedMobile) {
+      setJazzcashModalError("Enter a valid JazzCash mobile number in 03XXXXXXXXX format.");
+      return;
+    }
+    setJazzcashModalError(null);
+    setInitiatingJazzcashPlanId(plan.id);
+    try {
+      const response = await createJazzcashHostedCheckoutPayment(plan.id, normalizedMobile);
       closeJazzcashModal();
       submitJazzcashForm(response.actionUrl, response.fields);
     } catch (err) {
-      setJazzcashModalError(err instanceof Error ? err.message : "Failed to initiate JazzCash payment");
+      setJazzcashModalError(err instanceof Error ? err.message : "Failed to initiate hosted JazzCash checkout");
     } finally {
       setInitiatingJazzcashPlanId(null);
     }
@@ -283,6 +385,13 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                 >
                   Resume payment
                 </button>
+              </div>
+            ) : null}
+            {jazzcashPendingReference ? (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                <div className="font-semibold">JazzCash request sent</div>
+                <div className="mt-1">{jazzcashPendingMessage ?? "Payment request sent to your JazzCash mobile number. Please approve with MPIN on your phone."}</div>
+                <div className="mt-1 text-xs">Reference: {jazzcashPendingReference}</div>
               </div>
             ) : null}
           </div>
@@ -419,7 +528,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
           </div>
           <div className="space-y-4 px-6 py-5">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              Enter the JazzCash number you want to use for checkout. Format: 03XXXXXXXXX.
+              Enter your JazzCash mobile number, then send a payment request. Approve on your phone with MPIN when prompted.
             </div>
             <div>
               <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500" htmlFor="jazzcash-modal-mobile">
@@ -447,9 +556,18 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                 Cancel
               </ActionButton>
               <ActionButton type="button" className="flex-1" onClick={() => void confirmJazzcashPayment()} disabled={initiatingJazzcashPlanId === jazzcashModalPlan.id}>
-                {initiatingJazzcashPlanId === jazzcashModalPlan.id ? "Starting checkout…" : "Pay Now"}
+                {initiatingJazzcashPlanId === jazzcashModalPlan.id ? "Sending request…" : "Pay Now"}
               </ActionButton>
             </div>
+            <ActionButton
+              type="button"
+              variant="secondary"
+              className="w-full text-xs"
+              onClick={() => void confirmJazzcashHostedFallbackPayment()}
+              disabled={initiatingJazzcashPlanId === jazzcashModalPlan.id}
+            >
+              Try hosted checkout instead (fallback)
+            </ActionButton>
           </div>
         </div>
       </div>

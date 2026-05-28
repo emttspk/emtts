@@ -5,11 +5,13 @@ import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import { getOrCreateBillingSettings, resolveConfiguredPlanPrice } from "../services/billing-settings.service.js";
 import { ensurePlanManagementColumns } from "./plans.js";
 import {
+  createJazzcashMobileWalletPayment,
   createJazzcashCheckout,
   getJazzcashFrontendUrl,
   getJazzcashPaymentStatus,
   getJazzcashReturnUrl,
   hasJazzcashCredentials,
+  isJazzcashMobileWalletEnabled,
   processJazzcashCallback,
   renderJazzcashRelayPage,
 } from "../services/jazzcash.js";
@@ -21,6 +23,79 @@ const createSchema = z.object({
   planId: z.string().uuid(),
   customerMobile: z.string().trim().optional(),
   contactNumber: z.string().trim().optional(),
+});
+
+const mobileWalletCreateSchema = z.object({
+  planId: z.string().uuid(),
+  mobileNumber: z.string().trim(),
+});
+
+paymentsRouter.post("/jazzcash/mobile-wallet/create", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    await ensurePlanManagementColumns();
+    if (!isJazzcashMobileWalletEnabled()) {
+      return res.status(409).json({ error: "JazzCash mobile wallet API is currently disabled" });
+    }
+
+    const body = mobileWalletCreateSchema.parse(req.body);
+    const mobileNumber = String(body.mobileNumber ?? "").replace(/\D/g, "");
+    if (!/^03\d{9}$/.test(mobileNumber)) {
+      return res.status(400).json({ error: "Enter a valid JazzCash mobile number in 03XXXXXXXXX format" });
+    }
+
+    const plan = await prisma.plan.findUnique({ where: { id: body.planId } });
+    if (!plan) return res.status(404).json({ error: "Plan not found" });
+
+    const suspendedRows = await prisma.$queryRaw<Array<{ is_suspended: boolean }>>`
+      SELECT is_suspended FROM "Plan" WHERE id = ${plan.id}
+    `;
+    if (Boolean(suspendedRows[0]?.is_suspended)) {
+      return res.status(409).json({ error: "This plan is currently suspended" });
+    }
+
+    const settings = await getOrCreateBillingSettings();
+    const amountCents = resolveConfiguredPlanPrice(plan.name, plan.priceCents, settings);
+    if (amountCents <= 0) {
+      return res.status(400).json({ error: "JazzCash is only available for paid plans" });
+    }
+
+    if (!hasJazzcashCredentials()) {
+      return res.status(400).json({ error: "JazzCash credentials are not configured" });
+    }
+
+    const result = await createJazzcashMobileWalletPayment({
+      userId: req.user!.id,
+      userContactNumber: mobileNumber,
+      plan: {
+        id: plan.id,
+        name: plan.name,
+        priceCents: amountCents,
+        monthlyLabelLimit: plan.monthlyLabelLimit,
+        monthlyTrackingLimit: plan.monthlyTrackingLimit,
+      },
+      amountCents,
+    });
+
+    return res.status(201).json({
+      payment: {
+        id: result.paymentId,
+        reference: result.reference,
+      },
+      status: result.status,
+      paymentStatus: result.paymentStatus,
+      providerResponseCode: result.providerResponseCode,
+      message: result.message,
+      pollAfterSeconds: result.status === "awaiting_customer_approval" || result.status === "pending" ? 4 : 0,
+      fallback: {
+        hostedCheckoutPath: "/api/payments/jazzcash/create",
+      },
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: "Validation failed", details: error.errors });
+    }
+    return res.status(400).json({ error: error instanceof Error ? error.message : "Failed to create JazzCash mobile wallet payment" });
+  }
 });
 
 paymentsRouter.post("/jazzcash/create", requireAuth, async (req: AuthedRequest, res) => {
@@ -165,6 +240,21 @@ paymentsRouter.get("/jazzcash/ipn", (_req, res) => {
 paymentsRouter.get("/jazzcash/callback", handleJazzcashCallback);
 paymentsRouter.post("/jazzcash/callback", handleJazzcashCallback);
 paymentsRouter.post("/jazzcash/ipn", handleJazzcashIpn);
+
+paymentsRouter.get("/jazzcash/status/:txnRefNo", requireAuth, async (req: AuthedRequest, res) => {
+  const status = await getJazzcashPaymentStatus(String(req.params.txnRefNo ?? ""), req.user!.id);
+  if (!status) return res.status(404).json({ error: "Payment not found" });
+
+  return res.json({
+    reference: status.txnRefNo ?? status.reference,
+    status: status.status,
+    planName: status.plan?.name ?? null,
+    amountCents: status.amountCents,
+    currency: status.currency,
+    responseMessage: status.responseMessage,
+    updatedAt: status.updatedAt,
+  });
+});
 
 paymentsRouter.get("/:id/status", requireAuth, async (req: AuthedRequest, res) => {
   const status = await getJazzcashPaymentStatus(String(req.params.id ?? ""), req.user!.id);

@@ -66,6 +66,31 @@ export type JazzcashCreateResponse = {
   };
 };
 
+export type JazzcashMobileWalletCreateResponse = {
+  payment: {
+    id: string;
+    reference: string;
+  };
+  status: "success" | "failed" | "pending" | "awaiting_customer_approval" | "error";
+  paymentStatus: "SUCCEEDED" | "FAILED" | "CANCELED" | "PENDING";
+  providerResponseCode: string | null;
+  message: string;
+  pollAfterSeconds?: number;
+  fallback?: {
+    hostedCheckoutPath: string;
+  };
+};
+
+export type JazzcashPaymentStatusResponse = {
+  reference: string;
+  status: "SUCCEEDED" | "FAILED" | "CANCELED" | "PENDING";
+  planName: string | null;
+  amountCents: number;
+  currency: string;
+  responseMessage: string | null;
+  updatedAt: string;
+};
+
 export async function fetchPlans() {
   const cacheKey = "plans.public.cache.v1";
   const cachedRaw = window.localStorage.getItem(cacheKey);
@@ -100,9 +125,20 @@ export async function changePackage(planId: string) {
   });
 }
 
-export async function createJazzcashPayment(planId: string, customerMobile?: string) {
+export async function createJazzcashHostedCheckoutPayment(planId: string, customerMobile?: string) {
   return api<JazzcashCreateResponse>("/api/payments/jazzcash/create", {
     method: "POST",
     body: JSON.stringify({ planId, customerMobile }),
   });
+}
+
+export async function createJazzcashMobileWalletPayment(planId: string, mobileNumber: string) {
+  return api<JazzcashMobileWalletCreateResponse>("/api/payments/jazzcash/mobile-wallet/create", {
+    method: "POST",
+    body: JSON.stringify({ planId, mobileNumber }),
+  });
+}
+
+export async function fetchJazzcashPaymentStatus(reference: string) {
+  return api<JazzcashPaymentStatusResponse>(`/api/payments/jazzcash/status/${encodeURIComponent(reference)}`);
 }

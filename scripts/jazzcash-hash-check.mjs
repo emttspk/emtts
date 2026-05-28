@@ -2,9 +2,9 @@ import crypto from "node:crypto";
 
 function buildHashInput(fields, integritySalt) {
   const hashFields = Object.entries(fields)
-    .filter(([key, value]) => /^pp/i.test(key) && !/^pp_securehash$/i.test(key) && value !== undefined && value !== null && String(value).trim() !== "")
+    .filter(([key]) => /^pp/i.test(key) && !/^pp_securehash$/i.test(key))
     .sort(([a], [b]) => a.localeCompare(b, "en", { sensitivity: "base" }))
-    .map(([, value]) => String(value));
+    .map(([, value]) => String(value ?? ""));
 
   return [integritySalt, ...hashFields].join("&");
 }

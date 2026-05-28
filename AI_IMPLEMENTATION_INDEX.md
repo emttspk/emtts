@@ -471,6 +471,62 @@ From JazzCash v4.2 docs (ApiReferences.html), the **Hosted Checkout + Mobile Acc
 - Billing resume flow no longer redirects normal users to `/api/subscriptions/checkout/...`.
 - Pending JazzCash resumes via JazzCash modal flow only.
 - Pending non-JazzCash payments resume through the manual payment modal only.
+
+## JazzCash Mobile Wallet API Primary Flow (2026-05-28)
+
+- v4.2 docs checked:
+	- `https://sandbox.jazzcash.com.pk/SandboxDocumentation/v4.2/index.html`
+	- `https://sandbox.jazzcash.com.pk/SandboxDocumentation/v4.2/ApiReferences.html`
+	- `https://sandbox.jazzcash.com.pk/SandboxDocumentation/v4.2/Resources.html`
+- Invalid-hash diagnosis for hosted checkout path:
+	- Logs confirmed callback/IPN traffic for reference `JZ202605281835146A1C`.
+	- No definitive callback-transport corruption signal found.
+	- Hash verification was hardened to accept strict v4.2 all-PP-field hashing and legacy non-empty-field hashing during verification.
+	- Hosted checkout remains available as fallback only.
+- Mobile Wallet API primary endpoint used:
+	- `https://sandbox.jazzcash.com.pk/ApplicationAPI/API/Payment/DoTransaction` (sandbox)
+	- `https://payments.jazzcash.com.pk/ApplicationAPI/API/Payment/DoTransaction` (live)
+	- Derived automatically from configured JazzCash host if explicit env value is not set.
+- Mobile Wallet API request fields implemented:
+	- `pp_Language`, `pp_MerchantID`, `pp_SubMerchantID`, `pp_Password`
+	- `pp_TxnRefNo`, `pp_MobileNumber`, `pp_Amount`, `pp_DiscountedAmount`
+	- `pp_TxnCurrency`, `pp_TxnDateTime`, `pp_BillReference`, `pp_Description`, `pp_TxnExpiryDateTime`
+	- `ppmpf_1..ppmpf_5`
+	- `pp_CNIC` (included from env/default sandbox value)
+	- `pp_SecureHash`
+- CNIC handling:
+	- v4.2 REST Mobile Account samples include `pp_CNIC`.
+	- App keeps user input as mobile-only UX and injects CNIC from backend config (`JAZZCASH_MOBILE_WALLET_CNIC`, default `345678` in sandbox).
+- Backend changes:
+	- Added `POST /api/payments/jazzcash/mobile-wallet/create` as primary create path.
+	- Added `GET /api/payments/jazzcash/status/:txnRefNo` (authenticated, safe fields only).
+	- Reused callback/IPN processing and activation guardrails:
+		- Invalid hash never activates.
+		- Success activates once.
+		- Pending/failed do not activate.
+	- Status mapping aligned with docs (`000/121` success, `124/157/210` pending).
+- Frontend billing changes:
+	- JazzCash modal now sends Mobile Wallet API request first.
+	- Pending UX added: waiting message + polling by txn reference.
+	- Hosted checkout retained as explicit fallback button: `Try hosted checkout instead (fallback)`.
+- New env variables added:
+	- `JAZZCASH_MOBILE_WALLET_ENDPOINT_SANDBOX`
+	- `JAZZCASH_MOBILE_WALLET_ENDPOINT_LIVE`
+	- `JAZZCASH_MOBILE_WALLET_ENABLED`
+	- `JAZZCASH_MOBILE_WALLET_CNIC`
+- Added local script:
+	- `scripts/jazzcash-mobile-wallet-check.mjs` for payload shape + hash sanity.
+- Verification results:
+	- `npm run prisma:generate --workspace=@labelgen/api` -> PASS
+	- `node scripts/jazzcash-hash-check.mjs` -> PASS
+	- `npm run phase-3-verify` -> PASS
+	- `npm run build` -> PASS
+- Live terminal/browser execution limits in this run:
+	- Authenticated live calls to `POST /api/payments/jazzcash/mobile-wallet/create` were not executed from this agent session due missing user auth token in terminal/browser context.
+	- Endpoint, payload, and flow wiring were fully implemented and compile-verified.
+- Protected Scope Protocol status:
+	- Only JazzCash payment flow, billing UX, and documentation were modified.
+	- No changes to label generation, money orders, tracking, complaints, R2, dashboard/auth internals, or unrelated EP Gateway logic.
 - Legacy EP Gateway hosted mock checkout route is disabled in production and only available for development/internal testing.
 
 ## JazzCash Sandbox Support / Escalation Note
