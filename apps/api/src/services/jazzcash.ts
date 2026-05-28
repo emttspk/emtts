@@ -178,7 +178,8 @@ function addPkDays(date: Date, days: number) {
 }
 
 export function buildJazzcashTxnRefNo(date = new Date()) {
-  return `JZ${formatPkDateTime(date)}${randomBytes(2).toString("hex").toUpperCase()}`;
+  // JazzCash examples and validator expect TxnRefNo to start with "T" followed by timestamp.
+  return `T${formatPkDateTime(date)}`;
 }
 
 function normalizeFieldValue(value: unknown): string {
