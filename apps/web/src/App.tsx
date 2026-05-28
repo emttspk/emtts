@@ -27,6 +27,7 @@ const SelectPackage = lazy(() => import("./pages/SelectPackage"));
 const UpdatePackage = lazy(() => import("./pages/UpdatePackage"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Admin = lazy(() => import("./pages/Admin"));
+const AdminCommandCenter = lazy(() => import("./pages/admin/AdminCommandCenter"));
 const AdminComplaintMonitor = lazy(() => import("./pages/AdminComplaintMonitor"));
 const TemplateDesigner = lazy(() => import("./pages/TemplateDesigner"));
 const GenerateLabels = lazy(() => import("./pages/GenerateLabels"));
@@ -104,6 +105,14 @@ export default function App() {
           <Route path="/profile" element={<Settings />} />
           <Route
             path="/admin"
+            element={
+              <RequireAdmin>
+                <AdminCommandCenter />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/admin/legacy"
             element={
               <RequireAdmin>
                 <Admin />

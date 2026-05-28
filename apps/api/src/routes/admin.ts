@@ -8,7 +8,7 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { monthKeyUTC } from "../usage/month.js";
 import { env } from "../config.js";
-import { labelQueue } from "../queue/queue.js";
+import { labelQueue, trackingQueue } from "../queue/queue.js";
 import { refundUnitsByAmount } from "../usage/unitConsumption.js";
 import { buildComplaintExportCsv, listComplaintAlerts, listComplaintRecords } from "../services/complaint.service.js";
 import { listComplaintAuditLogs, logComplaintAudit } from "../services/complaint-audit.service.js";
@@ -30,6 +30,7 @@ import { getOrCreateBillingSettings, syncConfiguredPlanPrices } from "../service
 import { getUploadExemptFileNames, saveUploadExemptFileNames } from "../services/upload-file-exemptions.service.js";
 import { ensurePlanManagementColumns, getPlanExtrasByIds } from "./plans.js";
 import { buildPdfAttachmentHeader, PRINT_MARKETING_LINE } from "../lib/printBranding.js";
+import { redis as redisClient, redisEnabled } from "../lib/redis.js";
 
 export const adminRouter = Router();
 
@@ -84,6 +85,759 @@ adminRouter.post("/bootstrap", async (req, res) => {
 });
 
 adminRouter.use(requireAuth, requireAdmin);
+
+function startOfUtcDay(date = new Date()) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function startOfUtcMonth(date = new Date()) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+}
+
+function toPositiveInt(value: unknown, fallback: number, max = 200) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(1, Math.trunc(parsed)));
+}
+
+function isResolvedComplaintState(state: string) {
+  return ["RESOLVED", "CLOSED"].includes(state);
+}
+
+function isPendingComplaintState(state: string) {
+  return ["FILED", "ACTIVE", "OPEN", "IN_PROCESS", "IN PROCESS", "PROCESSING", "PENDING"].includes(state);
+}
+
+async function getRevenueTotals() {
+  const todayStart = startOfUtcDay();
+  const monthStart = startOfUtcMonth();
+  const successStatuses = ["PAID", "SUCCESS", "APPROVED", "COMPLETED", "VERIFIED"];
+  const pendingStatuses = ["PENDING", "OPEN"];
+
+  const [gatewayAll, gatewayToday, gatewayMonth, manualApprovedAll, manualApprovedToday, manualApprovedMonth, gatewayPending, manualPending] = await Promise.all([
+    prisma.payment.aggregate({
+      where: { status: { in: successStatuses } },
+      _sum: { amountCents: true },
+    }),
+    prisma.payment.aggregate({
+      where: { status: { in: successStatuses }, createdAt: { gte: todayStart } },
+      _sum: { amountCents: true },
+    }),
+    prisma.payment.aggregate({
+      where: { status: { in: successStatuses }, createdAt: { gte: monthStart } },
+      _sum: { amountCents: true },
+    }),
+    prisma.manualPaymentRequest.aggregate({
+      where: { status: "APPROVED" },
+      _sum: { amountCents: true },
+    }),
+    prisma.manualPaymentRequest.aggregate({
+      where: { status: "APPROVED", createdAt: { gte: todayStart } },
+      _sum: { amountCents: true },
+    }),
+    prisma.manualPaymentRequest.aggregate({
+      where: { status: "APPROVED", createdAt: { gte: monthStart } },
+      _sum: { amountCents: true },
+    }),
+    prisma.payment.aggregate({
+      where: { status: { in: pendingStatuses } },
+      _sum: { amountCents: true },
+    }),
+    prisma.manualPaymentRequest.aggregate({
+      where: { status: "PENDING" },
+      _sum: { amountCents: true },
+    }),
+  ]);
+
+  const totalCents = (gatewayAll._sum.amountCents ?? 0) + (manualApprovedAll._sum.amountCents ?? 0);
+  const todayCents = (gatewayToday._sum.amountCents ?? 0) + (manualApprovedToday._sum.amountCents ?? 0);
+  const monthCents = (gatewayMonth._sum.amountCents ?? 0) + (manualApprovedMonth._sum.amountCents ?? 0);
+  const pendingCents = (gatewayPending._sum.amountCents ?? 0) + (manualPending._sum.amountCents ?? 0);
+
+  return {
+    totalCents,
+    todayCents,
+    monthCents,
+    pendingCents,
+  };
+}
+
+async function getUnitsTotals() {
+  await prisma.$executeRaw`
+    CREATE TABLE IF NOT EXISTS usage_logs (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      action_type TEXT NOT NULL,
+      units_used INTEGER NOT NULL DEFAULT 1,
+      request_key TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'CONSUMED',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      refunded_at TEXT
+    )
+  `;
+
+  const [totalRows, todayRows, monthRows] = await Promise.all([
+    prisma.$queryRaw<Array<{ units: number }>>`
+      SELECT COALESCE(SUM(units_used), 0)::int AS units
+      FROM usage_logs
+      WHERE status = 'CONSUMED'
+    `,
+    prisma.$queryRaw<Array<{ units: number }>>`
+      SELECT COALESCE(SUM(units_used), 0)::int AS units
+      FROM usage_logs
+      WHERE status = 'CONSUMED'
+        AND DATE(created_at::timestamp) = DATE(NOW() AT TIME ZONE 'UTC')
+    `,
+    prisma.$queryRaw<Array<{ units: number }>>`
+      SELECT COALESCE(SUM(units_used), 0)::int AS units
+      FROM usage_logs
+      WHERE status = 'CONSUMED'
+        AND TO_CHAR(created_at::timestamp AT TIME ZONE 'UTC', 'YYYY-MM') = TO_CHAR(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
+    `,
+  ]);
+
+  return {
+    totalUnits: totalRows[0]?.units ?? 0,
+    todayUnits: todayRows[0]?.units ?? 0,
+    monthUnits: monthRows[0]?.units ?? 0,
+  };
+}
+
+async function getHealthSnapshot() {
+  type HealthStatus = "ok" | "warning" | "error" | "unknown" | "disabled" | "offline";
+  type ServiceHealth = { status: HealthStatus; message: string };
+  type QueueHealth = ServiceHealth & { counts: { waiting: number; active: number; completed: number; failed: number; delayed: number } };
+
+  const health: {
+    api: ServiceHealth;
+    db: ServiceHealth;
+    redis: ServiceHealth;
+    worker: ServiceHealth;
+    queue: QueueHealth;
+  } = {
+    api: { status: "ok", message: "API router healthy" },
+    db: { status: "ok", message: "Database reachable" },
+    redis: { status: "unknown", message: "Redis status unavailable" },
+    worker: { status: "unknown", message: "Worker status unavailable" },
+    queue: { status: "unknown", message: "Queue status unavailable", counts: { waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0 } },
+  };
+
+  let dbStatus: ServiceHealth = { ...health.db };
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+  } catch (error) {
+    dbStatus = { status: "error", message: error instanceof Error ? error.message : String(error ?? "DB check failed") };
+  }
+
+  let redisStatus: ServiceHealth = { ...health.redis };
+  let workerStatus: ServiceHealth = { ...health.worker };
+  let queueStatus: QueueHealth = { ...health.queue };
+  if (!redisEnabled) {
+    redisStatus = { status: "disabled", message: "REDIS_URL not configured" };
+    workerStatus = { status: "unknown", message: "Redis required for worker heartbeat" };
+    queueStatus = { ...queueStatus, status: "unknown", message: "Redis required for queue counts" };
+  } else {
+    try {
+      const pong = await redisClient.ping();
+      redisStatus = { status: pong === "PONG" ? "ok" : "error", message: `Ping: ${pong}` };
+      const workerLock = await redisClient.get("worker:singleton:label-generator");
+      workerStatus = workerLock
+        ? { status: "ok", message: "Worker singleton lock held" }
+        : { status: "offline", message: "Worker singleton lock not held" };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error ?? "Redis check failed");
+      redisStatus = { status: "error", message };
+      workerStatus = { status: "unknown", message: "Unable to validate worker heartbeat" };
+    }
+
+    try {
+      const counts = await labelQueue.getJobCounts("waiting", "active", "completed", "failed", "delayed");
+      const waiting = Number(counts.waiting ?? 0);
+      const active = Number(counts.active ?? 0);
+      const failed = Number(counts.failed ?? 0);
+      queueStatus = {
+        status: failed > 0 ? "warning" : "ok",
+        message: failed > 0 ? "Queue has failed jobs" : "Queue healthy",
+        counts: {
+          waiting,
+          active,
+          completed: Number(counts.completed ?? 0),
+          failed,
+          delayed: Number(counts.delayed ?? 0),
+        },
+      };
+    } catch (error) {
+      queueStatus = {
+        ...queueStatus,
+        status: "error",
+        message: error instanceof Error ? error.message : String(error ?? "Queue check failed"),
+      };
+    }
+  }
+
+  return {
+    api: health.api,
+    db: dbStatus,
+    redis: redisStatus,
+    worker: workerStatus,
+    queue: queueStatus,
+    checkedAt: new Date().toISOString(),
+  };
+}
+
+adminRouter.get("/dashboard/summary", async (_req, res) => {
+  const todayStart = startOfUtcDay();
+  const monthStart = startOfUtcMonth();
+
+  const [
+    totalUsers,
+    activeUsers,
+    newUsersToday,
+    paidUsers,
+    freeUsers,
+    labelsTotalAgg,
+    labelsTodayAgg,
+    labelsMonthAgg,
+    jobsCompleted,
+    jobsProcessing,
+    jobsWaiting,
+    jobsFailed,
+    complaintsRows,
+    moneyOrderGenerated,
+    bulkTrackingCompleted,
+    bulkTrackingProcessing,
+    health,
+    revenue,
+    units,
+  ] = await Promise.all([
+    prisma.user.count(),
+    prisma.user.count({ where: { suspended: false } }),
+    prisma.user.count({ where: { createdAt: { gte: todayStart } } }),
+    prisma.user.count({
+      where: {
+        subscriptions: {
+          some: {
+            status: "ACTIVE",
+            plan: { priceCents: { gt: 0 } },
+          },
+        },
+      },
+    }),
+    prisma.user.count({
+      where: {
+        OR: [
+          { subscriptions: { none: {} } },
+          {
+            subscriptions: {
+              some: {
+                status: "ACTIVE",
+                plan: { priceCents: 0 },
+              },
+            },
+          },
+        ],
+      },
+    }),
+    prisma.labelJob.aggregate({ where: { status: "COMPLETED" }, _sum: { recordCount: true } }),
+    prisma.labelJob.aggregate({ where: { status: "COMPLETED", createdAt: { gte: todayStart } }, _sum: { recordCount: true } }),
+    prisma.labelJob.aggregate({ where: { status: "COMPLETED", createdAt: { gte: monthStart } }, _sum: { recordCount: true } }),
+    prisma.labelJob.count({ where: { status: "COMPLETED" } }),
+    prisma.labelJob.count({ where: { status: "PROCESSING" } }),
+    prisma.labelJob.count({ where: { status: "QUEUED" } }),
+    prisma.labelJob.count({ where: { status: "FAILED" } }),
+    prisma.shipment.findMany({ select: { complaintStatus: true } }),
+    prisma.labelJob.count({ where: { status: "COMPLETED", includeMoneyOrders: true, moneyOrderPdfPath: { not: null } } }),
+    prisma.trackingJob.count({ where: { kind: "BULK_TRACK", status: "COMPLETED" } }),
+    prisma.trackingJob.count({ where: { kind: "BULK_TRACK", status: { in: ["QUEUED", "PROCESSING"] } } }),
+    getHealthSnapshot(),
+    getRevenueTotals(),
+    getUnitsTotals(),
+  ]);
+
+  const complaintFiledCount = complaintsRows.filter((row) => String(row.complaintStatus ?? "").trim().length > 0 && String(row.complaintStatus ?? "").toUpperCase() !== "NOT_REQUIRED").length;
+  const complaintPendingCount = complaintsRows.filter((row) => isPendingComplaintState(String(row.complaintStatus ?? "").trim().toUpperCase())).length;
+  const complaintResolvedCount = complaintsRows.filter((row) => isResolvedComplaintState(String(row.complaintStatus ?? "").trim().toUpperCase())).length;
+
+  return res.json({
+    users: {
+      totalUsers,
+      activeUsers,
+      newUsersToday,
+      paidUsers,
+      freeUsers,
+    },
+    labels: {
+      totalLabelsGenerated: labelsTotalAgg._sum.recordCount ?? 0,
+      labelsGeneratedToday: labelsTodayAgg._sum.recordCount ?? 0,
+      labelsGeneratedThisMonth: labelsMonthAgg._sum.recordCount ?? 0,
+    },
+    jobs: {
+      jobsCompleted,
+      jobsProcessing,
+      jobsWaiting,
+      jobsFailed,
+    },
+    revenue,
+    usage: {
+      unitsConsumedToday: units.todayUnits,
+      unitsConsumedThisMonth: units.monthUnits,
+      totalUnitsConsumed: units.totalUnits,
+    },
+    complaints: {
+      complaintFiledCount,
+      complaintPendingCount,
+      complaintResolvedCount,
+    },
+    moneyOrders: {
+      moneyOrderGeneratedCount: moneyOrderGenerated,
+    },
+    bulkTracking: {
+      jobsCompleted: bulkTrackingCompleted,
+      jobsProcessing: bulkTrackingProcessing,
+    },
+    health,
+    updatedAt: new Date().toISOString(),
+  });
+});
+
+adminRouter.get("/dashboard/jobs", async (req, res) => {
+  const page = toPositiveInt(req.query.page, 1, 5000);
+  const limit = toPositiveInt(req.query.limit, 20, 100);
+  const status = typeof req.query.status === "string" ? req.query.status.trim().toUpperCase() : "FAILED";
+
+  const [counts, failedReasons, total, jobs] = await Promise.all([
+    labelQueue.getJobCounts("waiting", "active", "completed", "failed", "delayed"),
+    prisma.labelJob.groupBy({
+      by: ["error"],
+      where: { status: "FAILED", error: { not: null } },
+      _count: { _all: true },
+      orderBy: { _count: { error: "desc" } },
+      take: 10,
+    }),
+    prisma.labelJob.count({ where: { status } }),
+    prisma.labelJob.findMany({
+      where: { status },
+      orderBy: { updatedAt: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+      select: {
+        id: true,
+        userId: true,
+        status: true,
+        error: true,
+        recordCount: true,
+        unitCount: true,
+        includeMoneyOrders: true,
+        labelsPdfPath: true,
+        moneyOrderPdfPath: true,
+        trackingMasterPath: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }),
+  ]);
+
+  return res.json({
+    queue: {
+      waiting: Number(counts.waiting ?? 0),
+      active: Number(counts.active ?? 0),
+      completed: Number(counts.completed ?? 0),
+      failed: Number(counts.failed ?? 0),
+      delayed: Number(counts.delayed ?? 0),
+    },
+    failedReasons: failedReasons.map((row) => ({
+      reason: row.error ?? "Unknown failure",
+      count: row._count._all,
+    })),
+    list: {
+      status,
+      page,
+      limit,
+      total,
+      jobs,
+    },
+    updatedAt: new Date().toISOString(),
+  });
+});
+
+adminRouter.get("/dashboard/revenue", async (_req, res) => {
+  const [revenue, topPaidUsers, pendingManualPayments] = await Promise.all([
+    getRevenueTotals(),
+    prisma.payment.groupBy({
+      by: ["userId"],
+      where: { status: { in: ["PAID", "SUCCESS", "APPROVED", "COMPLETED", "VERIFIED"] } },
+      _sum: { amountCents: true },
+      orderBy: { _sum: { amountCents: "desc" } },
+      take: 10,
+    }),
+    prisma.manualPaymentRequest.count({ where: { status: "PENDING" } }),
+  ]);
+
+  const users = await prisma.user.findMany({
+    where: { id: { in: topPaidUsers.map((row) => row.userId) } },
+    select: { id: true, email: true, companyName: true },
+  });
+  const userMap = new Map(users.map((user) => [user.id, user]));
+
+  return res.json({
+    ...revenue,
+    pendingManualPayments,
+    topUsers: topPaidUsers.map((row) => ({
+      userId: row.userId,
+      email: userMap.get(row.userId)?.email ?? "unknown",
+      companyName: userMap.get(row.userId)?.companyName ?? null,
+      amountCents: row._sum.amountCents ?? 0,
+    })),
+    updatedAt: new Date().toISOString(),
+  });
+});
+
+adminRouter.get("/dashboard/usage", async (_req, res) => {
+  const month = monthKeyUTC();
+  const [units, monthlyUsageTop, complaintTopRows] = await Promise.all([
+    getUnitsTotals(),
+    prisma.usageMonthly.findMany({
+      where: { month },
+      orderBy: [{ labelsGenerated: "desc" }, { trackingGenerated: "desc" }],
+      take: 10,
+      include: { user: { select: { id: true, email: true, companyName: true } } },
+    }),
+    prisma.$queryRaw<Array<{ userId: string; complaintCount: number }>>`
+      SELECT user_id as "userId", COUNT(*)::int as "complaintCount"
+      FROM usage_logs
+      WHERE action_type = 'complaint' AND status = 'CONSUMED'
+      GROUP BY user_id
+      ORDER BY COUNT(*) DESC
+      LIMIT 10
+    `,
+  ]);
+
+  const complaintUsers = await prisma.user.findMany({
+    where: { id: { in: complaintTopRows.map((row) => row.userId) } },
+    select: { id: true, email: true, companyName: true },
+  });
+  const complaintUserMap = new Map(complaintUsers.map((user) => [user.id, user]));
+
+  return res.json({
+    month,
+    units,
+    topUsersByUnits: monthlyUsageTop.map((row) => ({
+      userId: row.user.id,
+      email: row.user.email,
+      companyName: row.user.companyName,
+      labelsGenerated: row.labelsGenerated,
+      labelsQueued: row.labelsQueued,
+      trackingGenerated: row.trackingGenerated,
+      trackingQueued: row.trackingQueued,
+      totalUnits: (row.labelsGenerated ?? 0) + (row.labelsQueued ?? 0) + (row.trackingGenerated ?? 0) + (row.trackingQueued ?? 0),
+    })),
+    topUsersByComplaints: complaintTopRows.map((row) => ({
+      userId: row.userId,
+      email: complaintUserMap.get(row.userId)?.email ?? "unknown",
+      companyName: complaintUserMap.get(row.userId)?.companyName ?? null,
+      complaintsFiled: row.complaintCount,
+    })),
+    updatedAt: new Date().toISOString(),
+  });
+});
+
+adminRouter.get("/dashboard/users", async (_req, res) => {
+  const month = monthKeyUTC();
+  const [
+    totalUsers,
+    activeUsers,
+    newUsersToday,
+    newUsersThisMonth,
+    suspendedUsers,
+    paidUsers,
+    freeUsers,
+    topUsage,
+    topLabels,
+    topComplaints,
+  ] = await Promise.all([
+    prisma.user.count(),
+    prisma.user.count({ where: { suspended: false } }),
+    prisma.user.count({ where: { createdAt: { gte: startOfUtcDay() } } }),
+    prisma.user.count({ where: { createdAt: { gte: startOfUtcMonth() } } }),
+    prisma.user.count({ where: { suspended: true } }),
+    prisma.user.count({ where: { subscriptions: { some: { status: "ACTIVE", plan: { priceCents: { gt: 0 } } } } } }),
+    prisma.user.count({ where: { OR: [{ subscriptions: { none: {} } }, { subscriptions: { some: { status: "ACTIVE", plan: { priceCents: 0 } } } }] } }),
+    prisma.usageMonthly.findMany({
+      where: { month },
+      orderBy: [{ labelsGenerated: "desc" }, { trackingGenerated: "desc" }],
+      take: 10,
+      include: { user: { select: { id: true, email: true, companyName: true } } },
+    }),
+    prisma.labelJob.groupBy({
+      by: ["userId"],
+      where: { status: "COMPLETED" },
+      _sum: { recordCount: true },
+      orderBy: { _sum: { recordCount: "desc" } },
+      take: 10,
+    }),
+    prisma.$queryRaw<Array<{ userId: string; complaintCount: number }>>`
+      SELECT user_id as "userId", COUNT(*)::int as "complaintCount"
+      FROM usage_logs
+      WHERE action_type = 'complaint' AND status = 'CONSUMED'
+      GROUP BY user_id
+      ORDER BY COUNT(*) DESC
+      LIMIT 10
+    `,
+  ]);
+
+  const topLabelUsers = await prisma.user.findMany({
+    where: { id: { in: topLabels.map((row) => row.userId) } },
+    select: { id: true, email: true, companyName: true },
+  });
+  const topLabelUserMap = new Map(topLabelUsers.map((user) => [user.id, user]));
+
+  const topComplaintUsers = await prisma.user.findMany({
+    where: { id: { in: topComplaints.map((row) => row.userId) } },
+    select: { id: true, email: true, companyName: true },
+  });
+  const topComplaintUserMap = new Map(topComplaintUsers.map((user) => [user.id, user]));
+
+  return res.json({
+    summary: {
+      totalUsers,
+      activeUsers,
+      newUsersToday,
+      newUsersThisMonth,
+      paidUsers,
+      freeUsers,
+      suspendedUsers,
+    },
+    topUsersByUnits: topUsage.map((row) => ({
+      userId: row.user.id,
+      email: row.user.email,
+      companyName: row.user.companyName,
+      totalUnits: (row.labelsGenerated ?? 0) + (row.labelsQueued ?? 0) + (row.trackingGenerated ?? 0) + (row.trackingQueued ?? 0),
+    })),
+    topUsersByLabels: topLabels.map((row) => ({
+      userId: row.userId,
+      email: topLabelUserMap.get(row.userId)?.email ?? "unknown",
+      companyName: topLabelUserMap.get(row.userId)?.companyName ?? null,
+      labelsGenerated: row._sum.recordCount ?? 0,
+    })),
+    topUsersByComplaints: topComplaints.map((row) => ({
+      userId: row.userId,
+      email: topComplaintUserMap.get(row.userId)?.email ?? "unknown",
+      companyName: topComplaintUserMap.get(row.userId)?.companyName ?? null,
+      complaintsFiled: row.complaintCount,
+    })),
+    updatedAt: new Date().toISOString(),
+  });
+});
+
+adminRouter.get("/dashboard/health", async (_req, res) => {
+  const [health, trackingQueueCounts] = await Promise.all([
+    getHealthSnapshot(),
+    trackingQueue.getJobCounts("waiting", "active", "completed", "failed", "delayed").catch(() => ({ waiting: 0, active: 0, completed: 0, failed: 0, delayed: 0 })),
+  ]);
+
+  const warnings: string[] = [];
+  if (health.db.status !== "ok") warnings.push(`DB: ${health.db.message}`);
+  if (health.redis.status !== "ok") warnings.push(`Redis: ${health.redis.message}`);
+  if (health.worker.status !== "ok") warnings.push(`Worker: ${health.worker.message}`);
+  if (health.queue.status !== "ok") warnings.push(`Queue: ${health.queue.message}`);
+
+  return res.json({
+    ...health,
+    trackingQueue: {
+      waiting: Number(trackingQueueCounts.waiting ?? 0),
+      active: Number(trackingQueueCounts.active ?? 0),
+      completed: Number(trackingQueueCounts.completed ?? 0),
+      failed: Number(trackingQueueCounts.failed ?? 0),
+      delayed: Number(trackingQueueCounts.delayed ?? 0),
+    },
+    warnings,
+    updatedAt: new Date().toISOString(),
+  });
+});
+
+adminRouter.get("/storage", async (req, res) => {
+  const page = toPositiveInt(req.query.page, 1, 5000);
+  const limit = toPositiveInt(req.query.limit, 20, 100);
+
+  const [
+    labelTotals,
+    moneyOrderTotals,
+    trackingMasterTotals,
+    trackingResultTotals,
+    recentLabelFiles,
+    recentTrackingFiles,
+    failedJobs,
+    failedTracking,
+    health,
+  ] = await Promise.all([
+    prisma.labelJob.count({ where: { labelsPdfPath: { not: null } } }),
+    prisma.labelJob.count({ where: { moneyOrderPdfPath: { not: null } } }),
+    prisma.labelJob.count({ where: { trackingMasterPath: { not: null } } }),
+    prisma.trackingJob.count({ where: { resultPath: { not: null } } }),
+    prisma.labelJob.findMany({
+      where: { status: "COMPLETED" },
+      orderBy: { updatedAt: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+      select: {
+        id: true,
+        labelsPdfPath: true,
+        moneyOrderPdfPath: true,
+        trackingMasterPath: true,
+        labelsPdfSyncedAt: true,
+        moneyOrderPdfSyncedAt: true,
+        trackingMasterSyncedAt: true,
+        updatedAt: true,
+      },
+    }),
+    prisma.trackingJob.findMany({
+      where: { status: "COMPLETED", resultPath: { not: null } },
+      orderBy: { updatedAt: "desc" },
+      take: limit,
+      select: { id: true, resultPath: true, resultSyncedAt: true, updatedAt: true },
+    }),
+    prisma.labelJob.findMany({
+      where: { status: "FAILED" },
+      orderBy: { updatedAt: "desc" },
+      take: 20,
+      select: { id: true, error: true, updatedAt: true },
+    }),
+    prisma.trackingJob.findMany({
+      where: { status: "FAILED" },
+      orderBy: { updatedAt: "desc" },
+      take: 20,
+      select: { id: true, error: true, updatedAt: true },
+    }),
+    getHealthSnapshot(),
+  ]);
+
+  const unsynced = {
+    labels: await prisma.labelJob.count({ where: { labelsPdfPath: { not: null }, labelsPdfSyncedAt: null } }),
+    moneyOrders: await prisma.labelJob.count({ where: { moneyOrderPdfPath: { not: null }, moneyOrderPdfSyncedAt: null } }),
+    trackingMaster: await prisma.labelJob.count({ where: { trackingMasterPath: { not: null }, trackingMasterSyncedAt: null } }),
+    trackingResult: await prisma.trackingJob.count({ where: { resultPath: { not: null }, resultSyncedAt: null } }),
+  };
+
+  return res.json({
+    provider: process.env.STORAGE_PROVIDER ?? "local",
+    dualWriteEnabled: String(process.env.ENABLE_DUAL_WRITE ?? "false").toLowerCase() === "true",
+    dualReadEnabled: String(process.env.ENABLE_DUAL_READ ?? "false").toLowerCase() === "true",
+    r2UploadsEnabled: String(process.env.ENABLE_R2_UPLOADS ?? "false").toLowerCase() === "true",
+    totals: {
+      labels: labelTotals,
+      moneyOrders: moneyOrderTotals,
+      trackingMaster: trackingMasterTotals,
+      trackingResult: trackingResultTotals,
+    },
+    unsynced,
+    recentGeneratedFiles: {
+      labelJobs: recentLabelFiles,
+      trackingJobs: recentTrackingFiles,
+      page,
+      limit,
+    },
+    recentFailures: {
+      labelJobs: failedJobs,
+      trackingJobs: failedTracking,
+      failedDownloads: [],
+    },
+    health,
+    updatedAt: new Date().toISOString(),
+  });
+});
+
+adminRouter.get("/audit", async (req, res) => {
+  const page = toPositiveInt(req.query.page, 1, 5000);
+  const limit = toPositiveInt(req.query.limit, 50, 200);
+
+  const [complaintAudit, manualPaymentAudit, refundAudit, failedJobs] = await Promise.all([
+    listComplaintAuditLogs(limit),
+    prisma.manualPaymentRequest.findMany({
+      orderBy: { updatedAt: "desc" },
+      take: limit,
+      select: {
+        id: true,
+        status: true,
+        verifiedBy: true,
+        userId: true,
+        updatedAt: true,
+        transactionId: true,
+      },
+    }),
+    prisma.refundRequest.findMany({
+      orderBy: { updatedAt: "desc" },
+      take: limit,
+      select: { id: true, status: true, userId: true, updatedAt: true, trackingId: true, units: true },
+    }),
+    prisma.labelJob.findMany({
+      where: { status: "FAILED" },
+      orderBy: { updatedAt: "desc" },
+      take: limit,
+      select: { id: true, userId: true, error: true, updatedAt: true },
+    }),
+  ]);
+
+  const merged = [
+    ...complaintAudit.map((row) => ({
+      id: `complaint:${row.id}`,
+      source: "complaint_audit",
+      action: row.action,
+      actor: row.actorEmail,
+      userId: null,
+      trackingId: row.trackingId,
+      details: row.details,
+      createdAt: row.createdAt,
+    })),
+    ...manualPaymentAudit.map((row) => ({
+      id: `manual_payment:${row.id}`,
+      source: "manual_payment",
+      action: `manual_payment_${String(row.status ?? "").toLowerCase()}`,
+      actor: row.verifiedBy ?? "system",
+      userId: row.userId,
+      trackingId: null,
+      details: `transaction:${row.transactionId}`,
+      createdAt: row.updatedAt.toISOString(),
+    })),
+    ...refundAudit.map((row) => ({
+      id: `refund:${row.id}`,
+      source: "refund_request",
+      action: `refund_${String(row.status ?? "").toLowerCase()}`,
+      actor: "admin",
+      userId: row.userId,
+      trackingId: row.trackingId ?? null,
+      details: `units:${row.units}`,
+      createdAt: row.updatedAt.toISOString(),
+    })),
+    ...failedJobs.map((row) => ({
+      id: `failed_job:${row.id}`,
+      source: "label_job",
+      action: "job_failed",
+      actor: "system",
+      userId: row.userId,
+      trackingId: null,
+      details: row.error ?? "Unknown failure",
+      createdAt: row.updatedAt.toISOString(),
+    })),
+  ]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const total = merged.length;
+  const start = (page - 1) * limit;
+  const events = merged.slice(start, start + limit);
+
+  return res.json({
+    page,
+    limit,
+    total,
+    events,
+    sources: ["complaint_audit", "manual_payment", "refund_request", "label_job"],
+    notes: [
+      "Auth audit events are currently log-based and not persisted in a queryable table.",
+      "Complaint audit logs are the primary persisted admin audit source.",
+    ],
+    updatedAt: new Date().toISOString(),
+  });
+});
 
 adminRouter.get("/complaints", async (_req, res) => {
   const complaints = await listComplaintRecords();

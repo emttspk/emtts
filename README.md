@@ -248,6 +248,20 @@ BulkTracking.tsx  →  POST /api/tracking/complaint  →  Python /submit-complai
 - After registering a user, promote them once (only works if no admins exist yet):
   - `POST /api/admin/bootstrap` with header `x-bootstrap-secret: <ADMIN_BOOTSTRAP_SECRET>` and JSON `{ "email": "you@example.com" }`
 
+## Admin Command Center
+- Main admin route: `/admin`
+- Legacy admin route: `/admin/legacy`
+
+New additive command-center API endpoints:
+- `GET /api/admin/dashboard/summary`
+- `GET /api/admin/dashboard/jobs`
+- `GET /api/admin/dashboard/revenue`
+- `GET /api/admin/dashboard/usage`
+- `GET /api/admin/dashboard/users`
+- `GET /api/admin/dashboard/health`
+- `GET /api/admin/storage`
+- `GET /api/admin/audit`
+
 # stop everything
 CTRL + C
 

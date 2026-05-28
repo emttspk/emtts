@@ -1,5 +1,33 @@
 # AI Implementation Index
 
+## SaaS Admin Command Dashboard Rollout (2026-05-29)
+
+### Scope
+- Additive admin dashboard APIs and command-center UI scaffolding.
+- No protected rendering/tracking core business logic changes.
+
+### Backend Endpoints Added
+- `GET /api/admin/dashboard/summary`
+- `GET /api/admin/dashboard/jobs`
+- `GET /api/admin/dashboard/revenue`
+- `GET /api/admin/dashboard/usage`
+- `GET /api/admin/dashboard/users`
+- `GET /api/admin/dashboard/health`
+- `GET /api/admin/storage`
+- `GET /api/admin/audit`
+
+### Frontend Command Center Added
+- New page: `apps/web/src/pages/admin/AdminCommandCenter.tsx`
+- New widgets: `apps/web/src/components/admin/AdminWidgets.tsx`
+- Route switch:
+	- `/admin` -> `AdminCommandCenter`
+	- `/admin/legacy` -> existing legacy admin page
+
+### Notes
+- Storage, audit, jobs, usage, users, revenue, and health are now available through dedicated aggregate APIs.
+- Placeholder sections were scaffolded for staged expansion (plans, shipments, complaints, payments, invoices, settings).
+- Existing admin and complaint-monitor APIs remain intact.
+
 ## JazzCash Files Read
 
 - `jazz cash/PR_V2.0/Controllers/MerchantController.cs`
