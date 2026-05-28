@@ -75,14 +75,21 @@ model Payment {
   subscriptionId       String?
   provider             String        @default("EP_GATEWAY")
   reference            String        @unique
+  txnRefNo             String?
   gatewayOrderId       String        @unique
   gatewayTransactionId String?
+  providerTxnId        String?
   idempotencyKey       String        @unique
   checkoutToken        String        @unique
   kind                 String        @default("PURCHASE")
   status               String        @default("PENDING")
   amountCents          Int
   currency             String        @default("PKR")
+  responseCode         String?
+  responseMessage      String?
+  rawRequest           Json?
+  rawResponse          Json?
+  hashVerified         Boolean       @default(false)
   verifiedAt           DateTime?
   paidAt               DateTime?
   failureReason        String?
@@ -99,6 +106,7 @@ model Payment {
   @@index([userId, status])
   @@index([planId])
   @@index([subscriptionId])
+  @@index([txnRefNo])
 }
 
 model Invoice {

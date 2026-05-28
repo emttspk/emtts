@@ -3,7 +3,7 @@ import { Check, Sparkles } from "lucide-react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import Card from "../components/Card";
 import ManualPaymentModal from "../components/ManualPaymentModal";
-import { changePackage, fetchPlans, type Plan } from "../lib/PackageService";
+import { changePackage, createJazzcashPayment, fetchPlans, type Plan } from "../lib/PackageService";
 import type { MeResponse } from "../lib/types";
 import { apiUrl } from "../lib/api";
 import ActionButton from "../components/ui/ActionButton";
@@ -34,6 +34,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
   const [manualPaymentPlan, setManualPaymentPlan] = useState<Plan | null>(null);
   const [manualPaymentInvoice, setManualPaymentInvoice] = useState<{ id: string; invoiceNumber: string; amountCents: number; currency: string } | null>(null);
   const [initiatingWalletPlanId, setInitiatingWalletPlanId] = useState<string | null>(null);
+  const [initiatingJazzcashPlanId, setInitiatingJazzcashPlanId] = useState<string | null>(null);
   const planParam = searchParams.get("plan")?.toLowerCase() ?? null;
   const autoInitDone = useRef(false);
   const remainingUnits = me?.balances?.unitsRemaining ?? me?.activePackage?.unitsRemaining ?? me?.balances?.labelsRemaining ?? 0;
@@ -75,20 +76,37 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
   }, [planParam, loadingPlans, plans]);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const payment = params.get("payment");
-    const reference = params.get("reference");
+    const payment = searchParams.get("payment");
+    const reference = searchParams.get("reference");
+    const message = searchParams.get("message");
     if (!payment) return;
 
     if (payment === "success") {
-      setSuccess(reference ? `Payment verified and subscription activated. Ref: ${reference}` : "Payment verified and subscription activated.");
+      setSuccess(message ?? (reference ? `Payment verified and subscription activated. Ref: ${reference}` : "Payment verified and subscription activated."));
       void refreshMe();
-    } else if (payment === "canceled") {
-      setError(reference ? `Payment canceled. Ref: ${reference}` : "Payment canceled.");
+    } else if (payment === "pending") {
+      setError(message ?? (reference ? `Payment is still pending. Ref: ${reference}` : "Payment is still pending."));
     } else {
-      setError(reference ? `Payment failed. Ref: ${reference}` : "Payment failed.");
+      setError(message ?? (reference ? `Payment failed. Ref: ${reference}` : "Payment failed."));
     }
-  }, [refreshMe]);
+  }, [refreshMe, searchParams]);
+
+  function submitJazzcashForm(actionUrl: string, fields: Record<string, string>) {
+    const form = document.createElement("form");
+    form.method = "post";
+    form.action = actionUrl;
+    form.acceptCharset = "utf-8";
+    form.style.display = "none";
+    for (const [key, value] of Object.entries(fields)) {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = key;
+      input.value = value;
+      form.appendChild(input);
+    }
+    document.body.appendChild(form);
+    form.submit();
+  }
 
   async function choosePlan(plan: Plan) {
     if (plan.isSuspended) {
@@ -140,6 +158,24 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
       setError(err instanceof Error ? err.message : "Failed to initiate payment");
     } finally {
       setInitiatingWalletPlanId(null);
+    }
+  }
+
+  async function initiateJazzcashPayment(plan: Plan) {
+    if (plan.isSuspended) {
+      setError(`${plan.name} is temporarily suspended and cannot be purchased right now.`);
+      return;
+    }
+    setInitiatingJazzcashPlanId(plan.id);
+    setError(null);
+    setSuccess(null);
+    try {
+      const response = await createJazzcashPayment(plan.id);
+      submitJazzcashForm(response.actionUrl, response.fields);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to initiate JazzCash payment");
+    } finally {
+      setInitiatingJazzcashPlanId(null);
     }
   }
 
@@ -260,15 +296,26 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                               : `Buy Now`}
                 </ActionButton>
                 {discountedPrice > 0 && !isCurrent && !plan.isSuspended && (
-                  <ActionButton
-                    type="button"
-                    variant="secondary"
-                    className="mt-2 w-full text-xs"
-                    disabled={initiatingWalletPlanId === plan.id}
-                    onClick={() => initiateWalletPayment(plan)}
-                  >
-                    {initiatingWalletPlanId === plan.id ? "Creating invoice…" : "Pay via JazzCash / Easypaisa / Bank Transfer"}
-                  </ActionButton>
+                  <div className="mt-2 space-y-2">
+                    <ActionButton
+                      type="button"
+                      variant="secondary"
+                      className="w-full text-xs"
+                      disabled={initiatingJazzcashPlanId === plan.id}
+                      onClick={() => initiateJazzcashPayment(plan)}
+                    >
+                      {initiatingJazzcashPlanId === plan.id ? "Opening JazzCash…" : "Pay with JazzCash"}
+                    </ActionButton>
+                    <ActionButton
+                      type="button"
+                      variant="secondary"
+                      className="w-full text-xs"
+                      disabled={initiatingWalletPlanId === plan.id}
+                      onClick={() => initiateWalletPayment(plan)}
+                    >
+                      {initiatingWalletPlanId === plan.id ? "Creating invoice…" : "Pay via Easypaisa / Bank Transfer"}
+                    </ActionButton>
+                  </div>
                 )}
                 </div>
               </div>

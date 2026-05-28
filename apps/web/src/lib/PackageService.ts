@@ -45,6 +45,27 @@ export type ChangePackageResponse = {
   subscription?: unknown;
 };
 
+export type JazzcashCreateResponse = {
+  actionUrl: string;
+  fields: Record<string, string>;
+  payment: {
+    id: string;
+    reference: string;
+    checkoutToken?: string;
+  };
+  invoice?: {
+    id: string;
+    invoiceNumber: string;
+    status: string;
+    amountCents: number;
+    currency: string;
+  };
+  plan?: {
+    id: string;
+    name: string;
+  };
+};
+
 export async function fetchPlans() {
   const cacheKey = "plans.public.cache.v1";
   const cachedRaw = window.localStorage.getItem(cacheKey);
@@ -74,6 +95,13 @@ export async function fetchPlans() {
 
 export async function changePackage(planId: string) {
   return api<ChangePackageResponse>("/api/subscriptions/start", {
+    method: "POST",
+    body: JSON.stringify({ planId }),
+  });
+}
+
+export async function createJazzcashPayment(planId: string) {
+  return api<JazzcashCreateResponse>("/api/payments/jazzcash/create", {
     method: "POST",
     body: JSON.stringify({ planId }),
   });
