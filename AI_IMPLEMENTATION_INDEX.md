@@ -327,6 +327,94 @@
 - Added JazzCash as a narrow subscription/package purchase path only.
 - Billing UI now uses a JazzCash popup/modal instead of exposing the mobile number field on the card.
 
+## JazzCash Return /login Redirect Fix (2026-05-28)
+
+### Root Cause
+
+- After JazzCash processed a payment, the sandbox POSTed to `https://api.epost.pk/api/payments/jazzcash/callback`.
+- The callback validated the payload and redirected the browser to `https://www.epost.pk/billing?payment=success|failed|pending&reference=...`.
+- `/billing` is wrapped in `RequireAuth` → `RequireProfileCompletion` → `AppShell` in `apps/web/src/App.tsx`.
+- `RequireAuth` checks `getToken()` (JWT in localStorage). JazzCash opens a redirect in the same browser tab but the tab was initiated from the JazzCash sandbox domain — the JWT stored in epost.pk's localStorage was NOT present in that navigation context on return.
+- Result: `RequireAuth` evaluated `getToken()` → `null` → `<Navigate to="/login" replace />` immediately.
+
+### Fix Applied
+
+**Backend (`apps/api/src/services/jazzcash.ts`):**
+- Renamed function logic: `buildFrontendBillingUrl` now redirects to `/payment/jazzcash/result` (public) instead of `/billing` (protected).
+- Query params changed from `?payment=success&reference=...` to `?status=success&ref=...`.
+- All callback result paths (success, failed, pending, duplicate, hash-failed, amount-mismatch) use the new public URL.
+
+**Backend (`apps/api/src/routes/payments.ts`):**
+- Error-catch fallback in `handleJazzcashCallback` updated to target `/payment/jazzcash/result?status=failed&ref=...`.
+
+**Frontend (`apps/web/src/pages/JazzCashResult.tsx`) — NEW FILE:**
+- Public page at `/payment/jazzcash/result` with no auth requirement.
+- Reads `?status=` (`success|failed|pending`) and `?ref=` from URL.
+- Shows contextual heading, provider message, transaction reference, and either "Go to Billing" (if logged in) or "Login to View Subscription" (if not).
+- Never activates package — backend remains sole activation source.
+- Styled consistently with epost.pk card layout.
+
+**Frontend (`apps/web/src/App.tsx`):**
+- Added `const JazzCashResult = lazy(() => import("./pages/JazzCashResult"))`.
+- Registered `<Route path="/payment/jazzcash/result" element={<JazzCashResult />} />` outside `RequireAuth` wrapper.
+
+### Verification
+
+- No TypeScript errors in all 4 changed files.
+- `npm run prisma:generate` → PASS
+- `node scripts/jazzcash-hash-check.mjs` → PASS
+- `npm run phase-3-verify` → PASS (28 labels, 3 MO PDFs, 4 contradiction cases)
+- `npm run build` → PASS (web + api)
+
+### Commit and Deploy
+
+- Commit: `e50718d` — "fix: stabilize JazzCash return result flow"
+- Files committed: `apps/api/src/services/jazzcash.ts`, `apps/api/src/routes/payments.ts`, `apps/web/src/App.tsx`, `apps/web/src/pages/JazzCashResult.tsx`
+- Pushed to `origin/main` — Railway Api + Web deployments triggered.
+
+---
+
+## TransactionSelection Blank Page Diagnosis (2026-05-28)
+
+### What was observed
+
+- After relay to JazzCash sandbox, browser lands on:
+  `https://sandbox.jazzcash.com.pk/CustomerPortal/TransactionManagement/TransactionSelection`
+- Page renders only JazzCash logo/header.
+- Only two hidden inputs visible: `DTFormat` and `__RequestVerificationToken`, plus one empty `<A>` tag.
+- No mobile number field, no CNIC field, no payment button, no visible form controls.
+- Confirmed in both headless and headful browser automation (Puppeteer), no console errors, no failed network requests.
+
+### Root Cause Assessment
+
+From JazzCash v4.2 docs (ApiReferences.html), the **Hosted Checkout + Mobile Account** flow works as follows:
+- Merchant POSTs form to `CustomerPortal/transactionmanagement/merchantform/`.
+- JazzCash validates merchant credentials, transaction type, and payload at its server.
+- If validation passes, JazzCash redirects to the `TransactionSelection` page **and injects** the mobile/CNIC/payment-method UI.
+- The blank page with hidden inputs only means JazzCash accepted the POST but **did not inject actionable controls** — this is a server-side rendering decision by JazzCash's portal.
+
+**Two known causes** for this behavior on `TransactionSelection`:
+1. **Sandbox merchant not fully activated** — the JazzCash sandbox merchant profile for `MC771933` has MWALLET/hosted checkout feature not explicitly enabled, so the portal accepts the request but renders an empty selection screen.
+2. **`pp_TxnType=MWALLET` without explicit Mobile Account enablement** — JazzCash sandbox sometimes renders a blank `TransactionSelection` when the merchant is not mapped to a specific payment method (Mobile Account, Card, etc.) in their portal configuration.
+
+### What is NOT the cause on our side
+
+- `pp_BankID=TBANK`, `pp_ProductID=RETL`, `pp_TxnType=MWALLET` are all correctly set per v4.2 docs.
+- `ppmpf_1` (mobile number) is present in the signed payload.
+- `pp_SecureHash` is valid (hash-check passes locally and against v4.2 sample).
+- CORS on callback/IPN is confirmed working.
+- No frontend console errors or network failures observed.
+
+### Next Required Action (Manual, Merchant Portal)
+
+- Log in to JazzCash sandbox merchant portal for `MC771933`.
+- Confirm "Mobile Account (MWALLET)" is enabled as an active payment method for hosted checkout.
+- Confirm `TransactionSelection` display mode is set to show the Mobile Account option.
+- If it requires JazzCash support ticket: request MWALLET activation for sandbox merchant `MC771933` and page-redirection mode enablement.
+- Once that is active, the sandbox `TransactionSelection` page should show the mobile number + CNIC entry form, matching the standard Daraz-style JazzCash wallet flow.
+
+---
+
 ## Pending Manual Steps
 
 - Insert real JazzCash live credentials into environment variables only outside version control.
