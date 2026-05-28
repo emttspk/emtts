@@ -118,9 +118,10 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
   }
 
   function submitJazzcashForm(actionUrl: string, fields: Record<string, string>) {
+    const resolvedActionUrl = actionUrl.startsWith("http") ? actionUrl : apiUrl(actionUrl);
     const form = document.createElement("form");
     form.method = "post";
-    form.action = actionUrl;
+    form.action = resolvedActionUrl;
     form.acceptCharset = "utf-8";
     form.style.display = "none";
     for (const [key, value] of Object.entries(fields)) {

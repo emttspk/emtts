@@ -56,7 +56,7 @@
 2. User clicks `Pay with JazzCash`, enters the JazzCash mobile number in a modal, then clicks `Pay Now`.
 3. Frontend calls the JazzCash create endpoint only after the modal confirmation.
 4. Backend validates the plan and price, creates a pending payment row, and returns public form fields plus a relay token.
-5. Frontend auto-submits the form to the backend relay endpoint.
+5. Frontend auto-submits the form to the backend relay endpoint on the API origin, not the web origin.
 6. Backend relay injects JazzCash secrets server-side and auto-submits the signed form to JazzCash.
 7. JazzCash posts back to the callback URL.
 8. Backend verifies `pp_SecureHash`, validates amount and reference, updates payment status, and activates the subscription once.
