@@ -166,6 +166,24 @@
 - Return URL remains API-origin callback URL only.
 - IPN remains configured in JazzCash portal and processed on `POST /api/payments/jazzcash/ipn`.
 
+## Post-Fix Live Validation (2026-05-28)
+
+- Billing flow validation:
+	- `/billing` -> `Pay with JazzCash` opens popup modal.
+	- Pending `Resume payment` now reopens JazzCash modal (not legacy mock checkout URL).
+	- Modal submit redirects through API relay to JazzCash sandbox.
+- Live create+relay payload validation after update:
+	- `pp_TxnType=MWALLET`
+	- `pp_BankID=TBANK`
+	- `pp_ProductID=RETL`
+	- `pp_SubMerchantID` present blank
+	- `pp_ReturnURL=https://api.epost.pk/api/payments/jazzcash/callback`
+- Sandbox outcome remains:
+	- `Sorry! Your transaction could not be processed due to insufficient merchant information.`
+- Conclusion:
+	- App-side payload and redirect flow are aligned with v4.2 Mobile Account sample.
+	- Remaining blocker is sandbox merchant profile/configuration on JazzCash side.
+
 ## Testing Status
 
 - `node scripts/jazzcash-hash-check.mjs` -> PASS (official sample hash matched exactly)
