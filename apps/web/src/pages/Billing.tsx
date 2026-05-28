@@ -428,7 +428,10 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
               <input
                 id="jazzcash-modal-mobile"
                 className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand"
+                name="jazzcashMobile"
+                autoComplete="tel"
                 inputMode="numeric"
+                pattern="03[0-9]{9}"
                 maxLength={11}
                 placeholder="03123456789"
                 value={jazzcashModalMobile}

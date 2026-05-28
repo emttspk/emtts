@@ -417,6 +417,41 @@ From JazzCash v4.2 docs (ApiReferences.html), the **Hosted Checkout + Mobile Acc
 
 ## Pending Manual Steps
 
+## Final Sandbox Validation and Autofill Handling (2026-05-28)
+
+- Deployment baseline:
+	- `railway status` shows Api and Web services online.
+	- `GET https://api.epost.pk/api/health` returns `200 OK`.
+	- `GET https://api.epost.pk/api/payments/jazzcash/ipn` returns `200 OK` readiness JSON.
+- Public result route verification:
+	- Opened `https://www.epost.pk/payment/jazzcash/result?status=failed&ref=TEST&message=Transaction+has+been+timed+out` in browser.
+	- Result page renders directly (no redirect to `/login`).
+	- CTA shows login/billing actions as expected for unauthenticated context.
+- Billing-to-sandbox flow status:
+	- In this agent browser session, `/billing` redirects to `/login` because no active epost session token is present.
+	- A real production checkout was still observed in API logs with create -> relay -> callback sequence.
+- Callback/IPN log evidence (`railway logs --service Api --environment production --since 15m`):
+	- `POST /api/payments/jazzcash/create`
+	- `POST /api/payments/jazzcash/relay`
+	- `POST /api/payments/jazzcash/callback`
+	- Callback processed with status `FAILED` for reference `JZ2026052818112992B5`.
+	- `GET /api/payments/jazzcash/ipn` reached readiness endpoint.
+- Timeout interpretation:
+	- User-observed `Transaction has been timed out` on `/payment/jazzcash/result?status=failed...` is treated as a valid failed provider outcome (not an app crash).
+	- Package/subscription activation remains backend-gated and must not occur on failed/pending statuses.
+- Autofill diagnosis:
+	- User screenshot shows JazzCash TransactionSelection now rendering normal wallet form (`Please enter wallet details`, mobile field, captcha, PAY).
+	- The email-like value in JazzCash mobile field (e.g., `ags.rom@gma`) is browser autofill behavior on JazzCash domain and not sourced from our backend payload.
+	- Operator guidance: clear the field, enter `03123456789`, complete captcha, proceed before timer expiry, then provide CNIC (`345678`) if prompted.
+- App-side UX hardening applied to reduce autofill confusion:
+	- Updated Billing JazzCash modal input attributes in `apps/web/src/pages/Billing.tsx`:
+		- `name="jazzcashMobile"`
+		- `autoComplete="tel"`
+		- `inputMode="numeric"`
+		- `pattern="03[0-9]{9}"`
+	- Existing sanitization (`digits only`, max `11`) remains active.
+
+
 - Insert real JazzCash live credentials into environment variables only outside version control.
 - Confirm the JazzCash merchant profile uses the same approved return/callback URL.
 - Execute sandbox transaction with merchant-provided test wallet and verify callback lands on `/billing?payment=success`.
