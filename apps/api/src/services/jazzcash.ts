@@ -196,7 +196,8 @@ function buildJazzcashHashInput(fields: Record<string, unknown>, options?: { inc
   const includeEmptyFields = options?.includeEmptyFields ?? true;
   const entries = Object.entries(fields)
     .filter(([key, value]) => isHashField(key) && (includeEmptyFields || normalizeFieldValue(value) !== ""))
-    .sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey, "en", { sensitivity: "variant" }));
+    // JazzCash requires concatenation in ascending ASCII order of field names.
+    .sort(([leftKey], [rightKey]) => (leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0));
   const concatenated = entries.map(([, value]) => normalizeFieldValue(value)).join("&");
   return `${getJazzcashIntegritySalt()}&${concatenated}`;
 }
