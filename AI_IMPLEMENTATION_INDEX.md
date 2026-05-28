@@ -551,3 +551,48 @@ From JazzCash v4.2 docs (ApiReferences.html), the **Hosted Checkout + Mobile Acc
 	- Confirm whether this merchant account requires a different transaction type.
 	- Confirm whether blank `pp_SubMerchantID` is correct for this profile.
 	- Confirm whether IPN may be the same URL as Return URL for this profile.
+
+## JazzCash Mobile Wallet Hash Fix + Live Matrix (2026-05-29)
+
+- Objective:
+	- Eliminate provider `110` / `Please provide valid value for pp_SecureHash` in Mobile Wallet API flow.
+- Root cause confirmed:
+	- Previous payload/hash included fields not accepted for current sandbox merchant hash validation path (`pp_BankID`, `pp_ProductID`, `pp_CNIC`, plus other legacy carryover).
+	- Hash became valid when using the REST v1.1 (Without CNIC) request shape from merchant guide.
+- Implemented code change:
+	- File updated: `apps/api/src/services/jazzcash.ts`
+	- Function updated: `buildJazzcashMobileWalletFields(...)`
+	- Removed from outbound request/hash set:
+		- `pp_BankID`
+		- `pp_ProductID`
+		- `pp_CNIC`
+		- legacy empty-only fields not required by REST v1.1 request shape
+	- Kept required v1.1 fields:
+		- `pp_Amount`, `pp_BillReference`, `pp_Description`, `pp_Language`
+		- `pp_MerchantID`, `pp_Password`, `pp_ReturnURL`
+		- `pp_TxnCurrency`, `pp_TxnDateTime`, `pp_TxnExpiryDateTime`, `pp_TxnRefNo`
+		- `pp_TxnType=MWALLET`, `pp_Version=1.1`
+		- `ppmpf_1` (wallet number), `ppmpf_2..5` blank
+		- `pp_SecureHash` (HMAC-SHA256 over non-empty sorted `pp*` fields with salt prepended)
+- Verification before deploy:
+	- `npx tsc --noEmit -p apps/api/tsconfig.json` -> PASS
+	- `npm run phase-3-verify` -> PASS
+- Commit + deploy:
+	- Commit: `749aff1`
+	- Message: `fix: correct JazzCash mobile wallet secure hash`
+	- Railway Api deployment: `4caf03a4-e20e-4932-b404-b746dac9b666` -> `SUCCESS`
+
+### Authenticated Live Matrix Results (post-success deploy)
+
+- Test script: `scripts/tmp-jazzcash-live-auth-tests.sh`
+- Environment: `JAZZCASH_ENV=sandbox`
+- Result summary:
+	- `03123456789` -> HTTP `201`, provider code `199`, app status `failed`, DB status `FAILED`
+	- `03123456780` -> HTTP `201`, provider code `199`, app status `failed`, DB status `FAILED`
+	- `03123456781` -> HTTP `201`, provider code `199`, app status `failed`, DB status `FAILED`
+- Provider message for all three:
+	- `Sorry! Your transaction was not successful. Please try again later.`
+- Key conclusion:
+	- `pp_SecureHash` error (`110`) is resolved in live authenticated API flow.
+	- Current blocker is now provider-side transaction outcome (`199`) for sandbox test wallets/merchant profile, not request hashing.
+	- No package activation occurred (subscriptions remained `Free Plan|ACTIVE`), as expected for failed provider responses.
