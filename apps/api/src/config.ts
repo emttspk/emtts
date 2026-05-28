@@ -214,6 +214,8 @@ const envSchema = z.object({
   JAZZCASH_LIVE_ENDPOINT: z.string().url().optional(),
   JAZZCASH_MOBILE_WALLET_ENDPOINT_SANDBOX: z.string().url().optional(),
   JAZZCASH_MOBILE_WALLET_ENDPOINT_LIVE: z.string().url().optional(),
+  JAZZCASH_STATUS_INQUIRY_ENDPOINT_SANDBOX: z.string().url().optional(),
+  JAZZCASH_STATUS_INQUIRY_ENDPOINT_LIVE: z.string().url().optional(),
   JAZZCASH_MOBILE_WALLET_ENABLED: z.string().default("true"),
   JAZZCASH_MOBILE_WALLET_CNIC: z.string().optional(),
   JAZZCASH_ALLOWED_ORIGINS: z.string().optional(),

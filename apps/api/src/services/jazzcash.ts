@@ -90,6 +90,19 @@ export function getJazzcashMobileWalletEndpoint() {
   return `${origin || fallbackOrigin}/ApplicationAPI/API/Payment/DoTransaction`;
 }
 
+export function getJazzcashStatusInquiryEndpoint() {
+  const mode = getJazzcashMode();
+  const configured = String(
+    mode === "sandbox"
+      ? env.JAZZCASH_STATUS_INQUIRY_ENDPOINT_SANDBOX
+      : env.JAZZCASH_STATUS_INQUIRY_ENDPOINT_LIVE,
+  ).trim();
+  if (configured) return configured;
+  return mode === "sandbox"
+    ? "https://sandbox.jazzcash.com.pk/ApplicationAPI/API/PaymentInquiry/Inquire"
+    : "https://payments.jazzcash.com.pk/ApplicationAPI/API/PaymentInquiry/Inquire";
+}
+
 export function getJazzcashReturnUrl() {
   const configured = String(env.JAZZCASH_RETURN_URL ?? "").trim();
   if (configured) return configured;
@@ -178,8 +191,30 @@ function addPkDays(date: Date, days: number) {
 }
 
 export function buildJazzcashTxnRefNo(date = new Date()) {
-  // JazzCash examples and validator expect TxnRefNo to start with "T" followed by timestamp.
-  return `T${formatPkDateTime(date)}`;
+  // Per onboarding guidance, prefix with first three letters of domain and keep YmdHis shape.
+  return `Epo${formatPkDateTime(date)}`;
+}
+
+async function allocateUniqueJazzcashTxnRefNo(preferred?: string | null) {
+  const existing = String(preferred ?? "").trim();
+  if (existing) return existing;
+
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const candidate = buildJazzcashTxnRefNo(new Date(Date.now() + attempt * 1000));
+    const collision = await prisma.payment.findFirst({
+      where: {
+        OR: [
+          { reference: candidate },
+          { txnRefNo: candidate },
+          { gatewayOrderId: candidate },
+        ],
+      },
+      select: { id: true },
+    });
+    if (!collision) return candidate;
+  }
+
+  throw new Error("Could not allocate a unique JazzCash transaction reference");
 }
 
 function normalizeFieldValue(value: unknown): string {
@@ -371,7 +406,7 @@ export async function createJazzcashCheckout(input: JazzcashCheckoutCreateInput)
     throw new Error("Plan not found");
   }
 
-  const txnRefNo = pendingPayment?.txnRefNo ?? pendingPayment?.reference ?? buildJazzcashTxnRefNo();
+  const txnRefNo = await allocateUniqueJazzcashTxnRefNo(pendingPayment?.txnRefNo ?? pendingPayment?.reference ?? null);
   const kind = activeSubscription ? (activeSubscription.planId === plan.id ? "RENEWAL" : "UPGRADE") : "PURCHASE";
   const txnDateTime = formatPkDateTime(new Date());
   const txnExpiryDateTime = formatPkDateTime(addPkDays(new Date(), 1));
@@ -564,7 +599,7 @@ export async function createJazzcashMobileWalletPayment(input: JazzcashMobileWal
   }
 
   const endpoint = getJazzcashMobileWalletEndpoint();
-  const txnRefNo = pendingPayment?.txnRefNo ?? pendingPayment?.reference ?? buildJazzcashTxnRefNo();
+  const txnRefNo = await allocateUniqueJazzcashTxnRefNo(pendingPayment?.txnRefNo ?? pendingPayment?.reference ?? null);
   const kind = activeSubscription ? (activeSubscription.planId === plan.id ? "RENEWAL" : "UPGRADE") : "PURCHASE";
   const txnDateTime = formatPkDateTime(new Date());
   const txnExpiryDateTime = formatPkDateTime(addPkDays(new Date(), 1));
@@ -745,6 +780,9 @@ export async function processJazzcashCallback(payload: JazzcashCallbackInput, so
   const normalized = buildCallbackPayload(payload);
   const reference = String(normalized.reference ?? "").trim();
   if (!reference) {
+    if (source === "IPN") {
+      throw new Error("Missing transaction reference");
+    }
     return { redirect: buildFrontendBillingUrl("failed", "unknown", "Missing transaction reference"), status: "FAILED" as const };
   }
 
@@ -754,6 +792,9 @@ export async function processJazzcashCallback(payload: JazzcashCallbackInput, so
   });
 
   if (!payment) {
+    if (source === "IPN") {
+      throw new Error(`Unknown transaction reference: ${reference}`);
+    }
     return { redirect: buildFrontendBillingUrl("failed", reference, "Unknown transaction reference"), status: "FAILED" as const };
   }
 
@@ -877,6 +918,191 @@ export async function processJazzcashCallback(payload: JazzcashCallbackInput, so
     payment: result.payment,
     invoice: result.invoice,
   };
+}
+
+type JazzcashStatusInquiryResult = {
+  reference: string;
+  status: "SUCCEEDED" | "FAILED" | "CANCELED" | "PENDING";
+  responseCode: string | null;
+  paymentResponseCode: string | null;
+  responseMessage: string | null;
+  paymentResponseMessage: string | null;
+  providerTxnId: string | null;
+  hashVerified: boolean;
+  rawResponse: Record<string, unknown>;
+};
+
+function pickInquiryPaymentResponseCode(payload: Record<string, unknown>) {
+  return normalizeFieldValue(payload.pp_PaymentResponseCode || payload.pp_ResponseCode || "") || null;
+}
+
+function pickInquiryPaymentResponseMessage(payload: Record<string, unknown>) {
+  return normalizeFieldValue(payload.pp_PaymentResponseMessage || payload.pp_ResponseMessage || "") || null;
+}
+
+function pickInquiryProviderTxnId(payload: Record<string, unknown>) {
+  return normalizeFieldValue(payload.pp_RetrievalReferenceNo || payload.pp_RetreivalReferenceNo || payload.pp_AuthCode || "") || null;
+}
+
+function buildStatusInquiryRequestFields(txnRefNo: string) {
+  const fields: Record<string, string> = {
+    pp_TxnRefNo: txnRefNo,
+    pp_MerchantID: getJazzcashMerchantId(),
+    pp_Password: getJazzcashPassword(),
+  };
+  fields.pp_SecureHash = generateJazzcashSecureHash(fields, { includeEmptyFields: false });
+  return fields;
+}
+
+function applyInquiryStatusFromPayload(payload: Record<string, unknown>) {
+  const opResponseCode = normalizeFieldValue(payload.pp_ResponseCode || "") || null;
+  const paymentResponseCode = pickInquiryPaymentResponseCode(payload);
+  const paymentResponseMessage = pickInquiryPaymentResponseMessage(payload);
+  const providerStatusText = normalizeFieldValue(payload.pp_Status || payload.status || "");
+
+  if (opResponseCode && opResponseCode !== "000") {
+    return "FAILED" as const;
+  }
+
+  return buildJazzcashStatus(providerStatusText, paymentResponseCode, paymentResponseMessage);
+}
+
+export async function queryJazzcashTransactionStatus(input: { txnRefNo: string; userId: string }) {
+  const txnRefNo = String(input.txnRefNo ?? "").trim();
+  if (!txnRefNo) {
+    throw new Error("Transaction reference is required");
+  }
+
+  const payment = await prisma.payment.findFirst({
+    where: {
+      userId: input.userId,
+      provider: "JAZZCASH",
+      OR: [{ reference: txnRefNo }, { txnRefNo }],
+    },
+    include: { plan: true, invoice: true, subscription: true },
+  });
+
+  if (!payment) {
+    throw new Error("Payment not found");
+  }
+
+  const endpoint = getJazzcashStatusInquiryEndpoint();
+  const requestFields = buildStatusInquiryRequestFields(payment.txnRefNo ?? payment.reference);
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(requestFields),
+  });
+  const rawBody = await response.text();
+  let parsed: Record<string, unknown> = {};
+  try {
+    parsed = rawBody ? JSON.parse(rawBody) as Record<string, unknown> : {};
+  } catch {
+    parsed = { rawBody };
+  }
+
+  const hashVerified = verifyJazzcashSecureHash(parsed, normalizeFieldValue(parsed.pp_SecureHash) || null);
+  const responseCode = normalizeFieldValue(parsed.pp_ResponseCode || "") || null;
+  const paymentResponseCode = pickInquiryPaymentResponseCode(parsed);
+  const responseMessage = normalizeFieldValue(parsed.pp_ResponseMessage || "") || null;
+  const paymentResponseMessage = pickInquiryPaymentResponseMessage(parsed);
+  const providerTxnId = pickInquiryProviderTxnId(parsed);
+  const resolvedStatus = hashVerified ? applyInquiryStatusFromPayload(parsed) : "FAILED";
+
+  const eventId = `JAZZCASH_INQUIRY:${payment.reference}:${paymentResponseCode ?? responseCode ?? "NO_CODE"}:${providerTxnId ?? "NO_TXN"}`;
+  try {
+    await prisma.paymentEvent.create({
+      data: {
+        paymentId: payment.id,
+        eventId,
+        source: "STATUS_INQUIRY",
+        status: resolvedStatus,
+        payloadHash: createHmac("sha256", getJazzcashIntegritySalt()).update(JSON.stringify(parsed)).digest("hex"),
+        signature: normalizeFieldValue(parsed.pp_SecureHash) || null,
+        payloadJson: parsed as Prisma.InputJsonValue,
+      },
+    });
+  } catch (error) {
+    if (!(error instanceof Error) || !/unique|constraint/i.test(error.message)) {
+      throw error;
+    }
+  }
+
+  if (payment.status === "PENDING") {
+    const existingActive = await prisma.subscription.findFirst({
+      where: { userId: payment.userId, status: "ACTIVE" },
+      include: { plan: true },
+      orderBy: { createdAt: "desc" },
+    });
+    const subscriptionKind = existingActive ? (existingActive.planId === payment.planId ? "RENEWAL" : "UPGRADE") : "PURCHASE";
+    const window = buildSubscriptionWindow(payment.plan.name, subscriptionKind, existingActive?.currentPeriodEnd ?? null);
+
+    await prisma.$transaction(async (tx) => {
+      let subscriptionId = payment.subscriptionId;
+      if (resolvedStatus === "SUCCEEDED") {
+        await tx.subscription.updateMany({ where: { userId: payment.userId, status: "ACTIVE" }, data: { status: "CANCELED" } });
+        const subscription = await tx.subscription.create({
+          data: {
+            userId: payment.userId,
+            planId: payment.planId,
+            status: "ACTIVE",
+            currentPeriodStart: window.start,
+            currentPeriodEnd: window.end,
+          },
+        });
+        subscriptionId = subscription.id;
+      }
+
+      await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          providerTxnId,
+          responseCode: paymentResponseCode ?? responseCode,
+          responseMessage: paymentResponseMessage ?? responseMessage,
+          rawResponse: parsed as Prisma.InputJsonValue,
+          hashVerified,
+          status: resolvedStatus,
+          verifiedAt: new Date(),
+          paidAt: resolvedStatus === "SUCCEEDED" ? new Date() : null,
+          failureReason: resolvedStatus === "SUCCEEDED" ? null : (paymentResponseCode ?? responseCode ?? "FAILED"),
+          subscriptionId: resolvedStatus === "SUCCEEDED" ? subscriptionId : payment.subscriptionId,
+        },
+      });
+
+      await tx.invoice.updateMany({
+        where: { paymentId: payment.id },
+        data: {
+          status: resolvedStatus === "SUCCEEDED" ? "PAID" : resolvedStatus === "PENDING" ? "OPEN" : "FAILED",
+          paidAt: resolvedStatus === "SUCCEEDED" ? new Date() : null,
+          subscriptionId: resolvedStatus === "SUCCEEDED" ? subscriptionId : payment.subscriptionId,
+        },
+      });
+    });
+  }
+
+  logSafe("status inquiry processed", {
+    reference: payment.txnRefNo ?? payment.reference,
+    status: resolvedStatus,
+    responseCode,
+    paymentResponseCode,
+    hashVerified,
+    providerTxnId,
+    endpoint,
+  });
+
+  const safe: JazzcashStatusInquiryResult = {
+    reference: payment.txnRefNo ?? payment.reference,
+    status: resolvedStatus,
+    responseCode,
+    paymentResponseCode,
+    responseMessage,
+    paymentResponseMessage,
+    providerTxnId,
+    hashVerified,
+    rawResponse: parsed,
+  };
+  return safe;
 }
 
 export async function getJazzcashPaymentStatus(paymentIdOrReference: string, userId: string) {

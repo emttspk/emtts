@@ -13,6 +13,7 @@ import {
   hasJazzcashCredentials,
   isJazzcashMobileWalletEnabled,
   processJazzcashCallback,
+  queryJazzcashTransactionStatus,
   renderJazzcashRelayPage,
 } from "../services/jazzcash.js";
 
@@ -28,6 +29,10 @@ const createSchema = z.object({
 const mobileWalletCreateSchema = z.object({
   planId: z.string().uuid(),
   mobileNumber: z.string().trim(),
+});
+
+const statusInquirySchema = z.object({
+  txnRefNo: z.string().trim().min(1),
 });
 
 paymentsRouter.post("/jazzcash/mobile-wallet/create", requireAuth, async (req: AuthedRequest, res) => {
@@ -262,6 +267,58 @@ paymentsRouter.get("/jazzcash/status/:txnRefNo", requireAuth, async (req: Authed
     responseMessage: status.responseMessage,
     updatedAt: status.updatedAt,
   });
+});
+
+paymentsRouter.post("/jazzcash/status-inquiry", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const body = statusInquirySchema.parse(req.body);
+    const result = await queryJazzcashTransactionStatus({ txnRefNo: body.txnRefNo, userId: req.user!.id });
+    return res.status(200).json({
+      reference: result.reference,
+      status: result.status,
+      responseCode: result.responseCode,
+      paymentResponseCode: result.paymentResponseCode,
+      responseMessage: result.responseMessage,
+      paymentResponseMessage: result.paymentResponseMessage,
+      providerTxnId: result.providerTxnId,
+      hashVerified: result.hashVerified,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: "Validation failed", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Status inquiry failed";
+    if (message.toLowerCase().includes("not found")) {
+      return res.status(404).json({ error: message });
+    }
+    return res.status(400).json({ error: message });
+  }
+});
+
+paymentsRouter.post("/jazzcash/status-inquiry/:txnRefNo", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const txnRefNo = String(req.params.txnRefNo ?? "").trim();
+    if (!txnRefNo) {
+      return res.status(400).json({ error: "Transaction reference is required" });
+    }
+    const result = await queryJazzcashTransactionStatus({ txnRefNo, userId: req.user!.id });
+    return res.status(200).json({
+      reference: result.reference,
+      status: result.status,
+      responseCode: result.responseCode,
+      paymentResponseCode: result.paymentResponseCode,
+      responseMessage: result.responseMessage,
+      paymentResponseMessage: result.paymentResponseMessage,
+      providerTxnId: result.providerTxnId,
+      hashVerified: result.hashVerified,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Status inquiry failed";
+    if (message.toLowerCase().includes("not found")) {
+      return res.status(404).json({ error: message });
+    }
+    return res.status(400).json({ error: message });
+  }
 });
 
 paymentsRouter.get("/:id/status", requireAuth, async (req: AuthedRequest, res) => {
