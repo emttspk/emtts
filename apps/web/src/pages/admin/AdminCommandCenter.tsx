@@ -21,6 +21,30 @@ type NavKey =
 
 type AnyObject = Record<string, any>;
 
+type SortOrder = "asc" | "desc";
+
+type FilterState = {
+  search: string;
+  status: string;
+  from: string;
+  to: string;
+  page: number;
+  pageSize: number;
+  sortBy: string;
+  sortOrder: SortOrder;
+};
+
+const DEFAULT_FILTER: FilterState = {
+  search: "",
+  status: "",
+  from: "",
+  to: "",
+  page: 1,
+  pageSize: 20,
+  sortBy: "updatedAt",
+  sortOrder: "desc",
+};
+
 const NAV_ITEMS: Array<{ key: NavKey; label: string }> = [
   { key: "dashboard", label: "Dashboard" },
   { key: "users", label: "Users" },
@@ -48,7 +72,7 @@ function centsToPkr(value?: number) {
   return money.format((value ?? 0) / 100);
 }
 
-function DataTable(props: { headers: string[]; rows: Array<Array<string | number | null>> }) {
+function DataTable(props: { headers: string[]; rows: Array<Array<string | number | null | React.ReactNode>> }) {
   return (
     <TableWrap>
       <table>
@@ -70,7 +94,7 @@ function DataTable(props: { headers: string[]; rows: Array<Array<string | number
             props.rows.map((row, index) => (
               <tr key={index} className="border-t border-slate-100">
                 {row.map((cell, cellIdx) => (
-                  <td key={`${index}-${cellIdx}`} className="px-4 py-3 text-sm text-slate-700">
+                  <td key={`${index}-${cellIdx}`} className="max-w-[320px] truncate px-4 py-3 text-sm text-slate-700">
                     {cell ?? "-"}
                   </td>
                 ))}
@@ -81,6 +105,63 @@ function DataTable(props: { headers: string[]; rows: Array<Array<string | number
       </table>
     </TableWrap>
   );
+}
+
+function dateForInput(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function isWithinDate(value: string | null | undefined, from: string, to: string) {
+  if (!value) return false;
+  const millis = new Date(value).getTime();
+  if (Number.isNaN(millis)) return false;
+  const fromMillis = from ? new Date(`${from}T00:00:00.000Z`).getTime() : null;
+  const toMillis = to ? new Date(`${to}T23:59:59.999Z`).getTime() : null;
+  if (fromMillis !== null && millis < fromMillis) return false;
+  if (toMillis !== null && millis > toMillis) return false;
+  return true;
+}
+
+function includesSearch(value: unknown, search: string) {
+  if (!search.trim()) return true;
+  return String(value ?? "").toLowerCase().includes(search.trim().toLowerCase());
+}
+
+function quickRange(key: "today" | "week" | "month" | "all") {
+  const now = new Date();
+  const to = dateForInput(now.toISOString());
+  if (key === "all") return { from: "", to: "" };
+  if (key === "today") return { from: to, to };
+  if (key === "week") {
+    const fromDate = new Date(now);
+    fromDate.setUTCDate(fromDate.getUTCDate() - 6);
+    return { from: dateForInput(fromDate.toISOString()), to };
+  }
+  const fromDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  return { from: dateForInput(fromDate.toISOString()), to };
+}
+
+function sectionUsesRowFilters(section: NavKey) {
+  return !["dashboard", "health", "settings"].includes(section);
+}
+
+function buildQuery(filters: FilterState) {
+  const params = new URLSearchParams();
+  if (filters.search) params.set("search", filters.search);
+  if (filters.status) params.set("status", filters.status);
+  if (filters.from) params.set("from", filters.from);
+  if (filters.to) params.set("to", filters.to);
+  params.set("page", String(filters.page));
+  params.set("pageSize", String(filters.pageSize));
+  if (filters.sortBy) params.set("sortBy", filters.sortBy);
+  params.set("sortOrder", filters.sortOrder);
+  return params.toString();
 }
 
 export default function AdminCommandCenter() {
@@ -95,6 +176,34 @@ export default function AdminCommandCenter() {
   const [audit, setAudit] = useState<AnyObject | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const [filters, setFilters] = useState<Record<NavKey, FilterState>>(() => {
+    const map = {} as Record<NavKey, FilterState>;
+    for (const item of NAV_ITEMS) {
+      map[item.key] = { ...DEFAULT_FILTER };
+    }
+    return map;
+  });
+
+  const activeFilters = filters[active];
+
+  function updateActiveFilters(patch: Partial<FilterState>) {
+    setFilters((prev) => ({
+      ...prev,
+      [active]: {
+        ...prev[active],
+        ...patch,
+      },
+    }));
+  }
+
+  function resetFilters(target: NavKey = active) {
+    setFilters((prev) => ({
+      ...prev,
+      [target]: { ...DEFAULT_FILTER },
+    }));
+  }
 
   async function loadDashboard() {
     const [summaryRes, healthRes] = await Promise.all([
@@ -113,56 +222,105 @@ export default function AdminCommandCenter() {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function loadSection() {
-      if (active === "dashboard" || active === "plans" || active === "shipments" || active === "complaints" || active === "payments" || active === "invoices" || active === "settings") {
-        return;
+  async function loadSection(target: NavKey = active, force = false) {
+    const targetFilters = filters[target] ?? DEFAULT_FILTER;
+    const query = buildQuery(targetFilters);
+    const q = query ? `?${query}` : "";
+    setLoading(true);
+    setError(null);
+    try {
+      if (target === "dashboard") {
+        await loadDashboard();
       }
-      setLoading(true);
-      setError(null);
-      try {
-        if (active === "users" && !users) {
-          const data = await api<AnyObject>("/api/admin/dashboard/users");
-          if (!cancelled) setUsers(data);
-        }
-        if (active === "revenue" && !revenue) {
-          const data = await api<AnyObject>("/api/admin/dashboard/revenue");
-          if (!cancelled) setRevenue(data);
-        }
-        if (active === "usage" && !usage) {
-          const data = await api<AnyObject>("/api/admin/dashboard/usage");
-          if (!cancelled) setUsage(data);
-        }
-        if (active === "jobs" && !jobs) {
-          const data = await api<AnyObject>("/api/admin/dashboard/jobs?status=FAILED&limit=20");
-          if (!cancelled) setJobs(data);
-        }
-        if (active === "storage" && !storage) {
-          const data = await api<AnyObject>("/api/admin/storage?limit=20");
-          if (!cancelled) setStorage(data);
-        }
-        if (active === "audit" && !audit) {
-          const data = await api<AnyObject>("/api/admin/audit?limit=50");
-          if (!cancelled) setAudit(data);
-        }
-        if (active === "health") {
-          const data = await api<AnyObject>("/api/admin/dashboard/health");
-          if (!cancelled) setHealth(data);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load admin section");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
+      if (target === "users" && (force || !users)) {
+        const [dashboardUsers, listUsers] = await Promise.all([
+          api<AnyObject>("/api/admin/dashboard/users"),
+          api<AnyObject>(`/api/admin/users${q}`),
+        ]);
+        setUsers({ ...dashboardUsers, list: listUsers.users ?? [] });
       }
+      if (target === "plans" && (force || !users?.plans)) {
+        const data = await api<AnyObject>("/api/admin/plans");
+        setUsers((prev) => ({ ...(prev ?? {}), plans: data.plans ?? [] }));
+      }
+      if (target === "revenue" && (force || !revenue)) {
+        const data = await api<AnyObject>("/api/admin/dashboard/revenue");
+        setRevenue(data);
+      }
+      if (target === "usage" && (force || !usage)) {
+        const data = await api<AnyObject>(`/api/admin/usage${q}`);
+        setUsage(data);
+      }
+      if (target === "jobs" && (force || !jobs)) {
+        const data = await api<AnyObject>(`/api/admin/jobs${q}`);
+        setJobs(data);
+      }
+      if (target === "shipments" && (force || !jobs?.shipments)) {
+        const data = await api<AnyObject>(`/api/admin/shipments${q}`);
+        setJobs((prev) => ({ ...(prev ?? {}), shipments: data.shipments ?? [], shipmentTotal: data.total ?? 0 }));
+      }
+      if (target === "complaints" && (force || !jobs?.complaints)) {
+        const [complaintsData, queueData] = await Promise.all([
+          api<AnyObject>("/api/admin/complaints"),
+          api<AnyObject>("/api/admin/complaints/queue"),
+        ]);
+        setJobs((prev) => ({ ...(prev ?? {}), complaints: complaintsData.complaints ?? [], complaintAlerts: complaintsData.alerts ?? [], complaintQueue: queueData.queue ?? [] }));
+      }
+      if (target === "payments" && (force || !revenue?.payments)) {
+        const data = await api<AnyObject>(`/api/admin/manual-payments${q}`);
+        setRevenue((prev) => ({ ...(prev ?? {}), payments: data.requests ?? [] }));
+      }
+      if (target === "invoices" && (force || !revenue?.invoices)) {
+        const data = await api<AnyObject>(`/api/admin/invoices${q}`);
+        setRevenue((prev) => ({ ...(prev ?? {}), invoices: data.invoices ?? [] }));
+      }
+      if (target === "storage" && (force || !storage)) {
+        const data = await api<AnyObject>(`/api/admin/storage${q}`);
+        setStorage(data);
+      }
+      if (target === "audit" && (force || !audit)) {
+        const data = await api<AnyObject>(`/api/admin/audit${q}`);
+        setAudit(data);
+      }
+      if (target === "health") {
+        const data = await api<AnyObject>("/api/admin/dashboard/health");
+        setHealth(data);
+      }
+      if (target === "settings" && (force || !health?.settings)) {
+        const data = await api<AnyObject>("/api/admin/billing-settings");
+        setHealth((prev) => ({ ...(prev ?? {}), settings: data.settings ?? null }));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load admin section");
+    } finally {
+      setLoading(false);
     }
-    void loadSection();
-    return () => {
-      cancelled = true;
-    };
-  }, [active, users, revenue, usage, jobs, storage, audit]);
+  }
+
+  useEffect(() => {
+    void loadSection(active);
+  }, [active]);
+
+  useEffect(() => {
+    if (!sectionUsesRowFilters(active)) return;
+    const timer = window.setTimeout(() => {
+      void loadSection(active, true);
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [active, activeFilters.search, activeFilters.status, activeFilters.from, activeFilters.to, activeFilters.page, activeFilters.pageSize, activeFilters.sortBy, activeFilters.sortOrder]);
+
+  async function runSafeAction(action: () => Promise<unknown>) {
+    setSaving(true);
+    setError(null);
+    try {
+      await action();
+      await loadSection(active, true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed action");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const summaryCards = useMemo(() => {
     if (!summary) return [];
@@ -219,6 +377,15 @@ export default function AdminCommandCenter() {
   function renderSectionBody() {
     if (active === "dashboard") return renderDashboard();
     if (active === "users") {
+      const list: AnyObject[] = users?.list ?? [];
+      const filtered = list.filter((row) => {
+        const text = `${row.email ?? ""} ${row.companyName ?? ""} ${row.id ?? ""}`;
+        const statusOk = !activeFilters.status || (activeFilters.status === "SUSPENDED" ? Boolean(row.suspended) : !Boolean(row.suspended));
+        const dateOk = !activeFilters.from && !activeFilters.to ? true : isWithinDate(row.createdAt, activeFilters.from, activeFilters.to);
+        return includesSearch(text, activeFilters.search) && statusOk && dateOk;
+      });
+      const start = (activeFilters.page - 1) * activeFilters.pageSize;
+      const pageRows = filtered.slice(start, start + activeFilters.pageSize);
       return (
         <div className="space-y-4">
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -228,8 +395,96 @@ export default function AdminCommandCenter() {
             <MetricCard label="Suspended" value={users?.summary?.suspendedUsers ?? 0} tone={(users?.summary?.suspendedUsers ?? 0) > 0 ? "warn" : "good"} />
           </section>
           <DataTable
-            headers={["Top Users by Labels", "Email", "Labels"]}
-            rows={(users?.topUsersByLabels ?? []).map((row: AnyObject) => [row.companyName ?? "-", row.email, row.labelsGenerated])}
+            headers={["Company", "Email", "Status", "Joined", "Edit", "Safe Action"]}
+            rows={pageRows.map((row: AnyObject) => [
+              row.companyName ?? "-",
+              row.email,
+              row.suspended ? "SUSPENDED" : "ACTIVE",
+              String(row.createdAt ?? "-").slice(0, 10),
+              <button
+                type="button"
+                className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+                onClick={() => {
+                  const next = window.prompt("Update company name", String(row.companyName ?? ""));
+                  if (next === null) return;
+                  void runSafeAction(async () => {
+                    await api(`/api/admin/users/${encodeURIComponent(row.id)}`, {
+                      method: "PATCH",
+                      body: JSON.stringify({ companyName: next.trim() || null }),
+                    });
+                  });
+                }}
+              >
+                Edit
+              </button>,
+              <button
+                type="button"
+                className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+                onClick={() => {
+                  void runSafeAction(async () => {
+                    await api(`/api/admin/users/${encodeURIComponent(row.id)}/${row.suspended ? "unsuspend" : "suspend"}`, { method: "POST" });
+                  });
+                }}
+              >
+                {row.suspended ? "Reactivate" : "Suspend"}
+              </button>,
+            ])}
+          />
+          <p className="text-xs text-slate-500">Showing {pageRows.length} of {filtered.length} users</p>
+        </div>
+      );
+    }
+    if (active === "plans") {
+      const plans: AnyObject[] = users?.plans ?? [];
+      const filtered = plans.filter((row) => {
+        const text = `${row.name ?? ""} ${row.id ?? ""}`;
+        const statusOk = !activeFilters.status || (activeFilters.status === "SUSPENDED" ? Boolean(row.isSuspended) : !Boolean(row.isSuspended));
+        return includesSearch(text, activeFilters.search) && statusOk;
+      });
+      const start = (activeFilters.page - 1) * activeFilters.pageSize;
+      const pageRows = filtered.slice(start, start + activeFilters.pageSize);
+      return (
+        <div className="space-y-4">
+          <DataTable
+            headers={["Plan", "Price", "Units", "Status", "Edit", "Safe Action"]}
+            rows={pageRows.map((row: AnyObject) => [
+              row.name,
+              centsToPkr(row.discountPriceCents ?? row.priceCents),
+              row.unitsIncluded ?? row.monthlyLabelLimit ?? 0,
+              row.isSuspended ? "SUSPENDED" : "ACTIVE",
+              <button
+                type="button"
+                className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+                onClick={() => {
+                  const next = window.prompt("Update discount price cents", String(row.discountPriceCents ?? row.priceCents ?? 0));
+                  if (next === null) return;
+                  const value = Number(next);
+                  if (!Number.isFinite(value) || value < 0) return;
+                  void runSafeAction(async () => {
+                    await api(`/api/admin/plans/${encodeURIComponent(row.id)}`, {
+                      method: "PUT",
+                      body: JSON.stringify({ discountPriceCents: Math.trunc(value) }),
+                    });
+                  });
+                }}
+              >
+                Edit
+              </button>,
+              <button
+                type="button"
+                className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+                onClick={() => {
+                  void runSafeAction(async () => {
+                    await api(`/api/admin/plans/${encodeURIComponent(row.id)}/suspend`, {
+                      method: "POST",
+                      body: JSON.stringify({ isSuspended: !Boolean(row.isSuspended) }),
+                    });
+                  });
+                }}
+              >
+                {row.isSuspended ? "Activate" : "Deactivate"}
+              </button>,
+            ])}
           />
         </div>
       );
@@ -251,6 +506,14 @@ export default function AdminCommandCenter() {
       );
     }
     if (active === "usage") {
+      const rows: AnyObject[] = usage?.usage ?? [];
+      const filtered = rows.filter((row) => {
+        const text = `${row.user?.email ?? ""} ${row.id ?? ""} ${row.month ?? ""}`;
+        const dateOk = !activeFilters.from && !activeFilters.to ? true : isWithinDate(row.createdAt ?? row.month, activeFilters.from, activeFilters.to);
+        return includesSearch(text, activeFilters.search) && dateOk;
+      });
+      const start = (activeFilters.page - 1) * activeFilters.pageSize;
+      const pageRows = filtered.slice(start, start + activeFilters.pageSize);
       return (
         <div className="space-y-4">
           <section className="grid gap-3 sm:grid-cols-3">
@@ -259,30 +522,296 @@ export default function AdminCommandCenter() {
             <MetricCard label="Month Units" value={usage?.units?.monthUnits ?? 0} />
           </section>
           <DataTable
-            headers={["Company", "Email", "Units"]}
-            rows={(usage?.topUsersByUnits ?? []).map((row: AnyObject) => [row.companyName ?? "-", row.email, row.totalUnits])}
+            headers={["Month", "User", "Labels", "Tracking", "Safe Action"]}
+            rows={pageRows.map((row: AnyObject) => [
+              row.month,
+              row.user?.email ?? "-",
+              (row.labelsGenerated ?? 0) + (row.labelsQueued ?? 0),
+              (row.trackingGenerated ?? 0) + (row.trackingQueued ?? 0),
+              "View/Export",
+            ])}
           />
         </div>
       );
     }
     if (active === "jobs") {
+      const rows: AnyObject[] = jobs?.jobs ?? [];
+      const filtered = rows.filter((row) => {
+        const text = `${row.id ?? ""} ${row.user?.email ?? ""} ${row.error ?? ""}`;
+        const statusOk = !activeFilters.status || String(row.status ?? "").toUpperCase() === activeFilters.status.toUpperCase();
+        const dateOk = !activeFilters.from && !activeFilters.to ? true : isWithinDate(row.updatedAt ?? row.createdAt, activeFilters.from, activeFilters.to);
+        return includesSearch(text, activeFilters.search) && statusOk && dateOk;
+      });
+      const start = (activeFilters.page - 1) * activeFilters.pageSize;
+      const pageRows = filtered.slice(start, start + activeFilters.pageSize);
       return (
         <div className="space-y-4">
-          <section className="grid gap-3 sm:grid-cols-5">
-            <MetricCard label="Waiting" value={jobs?.queue?.waiting ?? 0} />
-            <MetricCard label="Active" value={jobs?.queue?.active ?? 0} />
-            <MetricCard label="Completed" value={jobs?.queue?.completed ?? 0} />
-            <MetricCard label="Failed" value={jobs?.queue?.failed ?? 0} tone={(jobs?.queue?.failed ?? 0) > 0 ? "warn" : "good"} />
-            <MetricCard label="Delayed" value={jobs?.queue?.delayed ?? 0} />
-          </section>
           <DataTable
-            headers={["Job ID", "User", "Records", "Error"]}
-            rows={(jobs?.list?.jobs ?? []).map((row: AnyObject) => [row.id, row.userId, row.recordCount ?? 0, row.error ?? "-"])}
+            headers={["Job", "Status", "User", "Updated", "Edit", "Safe Action"]}
+            rows={pageRows.map((row: AnyObject) => [
+              row.id,
+              row.status,
+              row.user?.email ?? row.userId,
+              String(row.updatedAt ?? "-").slice(0, 19).replace("T", " "),
+              <button
+                type="button"
+                className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+                onClick={() => {
+                  const next = window.prompt("Tracking override", "");
+                  if (!next) return;
+                  void runSafeAction(async () => {
+                    await api(`/api/admin/jobs/${encodeURIComponent(row.id)}/tracking`, {
+                      method: "PATCH",
+                      body: JSON.stringify({ trackingNumber: next.trim() }),
+                    });
+                  });
+                }}
+              >
+                Edit
+              </button>,
+              <button
+                type="button"
+                className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+                onClick={() => {
+                  void runSafeAction(async () => {
+                    await api(`/api/admin/jobs/${encodeURIComponent(row.id)}/cancel`, { method: "POST" });
+                  });
+                }}
+              >
+                Cancel
+              </button>,
+            ])}
           />
         </div>
       );
     }
+    if (active === "shipments") {
+      const rows: AnyObject[] = jobs?.shipments ?? [];
+      const filtered = rows.filter((row) => {
+        const text = `${row.trackingNumber ?? ""} ${row.user?.email ?? ""} ${row.status ?? ""}`;
+        const statusOk = !activeFilters.status || String(row.status ?? "").toUpperCase().includes(activeFilters.status.toUpperCase());
+        const dateOk = !activeFilters.from && !activeFilters.to ? true : isWithinDate(row.updatedAt ?? row.createdAt, activeFilters.from, activeFilters.to);
+        return includesSearch(text, activeFilters.search) && statusOk && dateOk;
+      });
+      const start = (activeFilters.page - 1) * activeFilters.pageSize;
+      const pageRows = filtered.slice(start, start + activeFilters.pageSize);
+      return (
+        <DataTable
+          headers={["Tracking", "Status", "City", "Updated", "Edit", "Safe Action"]}
+          rows={pageRows.map((row: AnyObject) => [
+            row.trackingNumber,
+            row.status ?? "-",
+            row.city ?? "-",
+            String(row.updatedAt ?? "-").slice(0, 19).replace("T", " "),
+            <button
+              type="button"
+              className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+              onClick={() => {
+                const next = window.prompt("Update shipment status", String(row.status ?? ""));
+                if (next === null) return;
+                void runSafeAction(async () => {
+                  await api(`/api/admin/shipments/${encodeURIComponent(row.id)}`, {
+                    method: "PATCH",
+                    body: JSON.stringify({ status: next.trim() || null }),
+                  });
+                });
+              }}
+            >
+              Edit
+            </button>,
+            <button
+              type="button"
+              className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+              onClick={() => {
+                void runSafeAction(async () => {
+                  await api(`/api/admin/shipments/${encodeURIComponent(row.id)}`, {
+                    method: "PATCH",
+                    body: JSON.stringify({ status: "ARCHIVED" }),
+                  });
+                });
+              }}
+            >
+              Archive
+            </button>,
+          ])}
+        />
+      );
+    }
+    if (active === "complaints") {
+      const rows: AnyObject[] = jobs?.complaints ?? [];
+      const filtered = rows.filter((row) => {
+        const text = `${row.trackingId ?? ""} ${row.complaintId ?? ""} ${row.state ?? ""}`;
+        const statusOk = !activeFilters.status || String(row.state ?? "").toUpperCase().includes(activeFilters.status.toUpperCase());
+        const dateOk = !activeFilters.from && !activeFilters.to ? true : isWithinDate(row.updatedAt ?? row.createdAt ?? row.dueDate, activeFilters.from, activeFilters.to);
+        return includesSearch(text, activeFilters.search) && statusOk && dateOk;
+      });
+      const start = (activeFilters.page - 1) * activeFilters.pageSize;
+      const pageRows = filtered.slice(start, start + activeFilters.pageSize);
+      return (
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold"
+              onClick={() => {
+                void runSafeAction(async () => {
+                  await api("/api/admin/complaints/sync", { method: "POST", body: JSON.stringify({}) });
+                });
+              }}
+            >
+              Sync Complaints
+            </button>
+            <button
+              type="button"
+              className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold"
+              onClick={() => {
+                window.open("/api/admin/complaints/export", "_blank", "noopener,noreferrer");
+              }}
+            >
+              Export CSV
+            </button>
+          </div>
+          <DataTable
+            headers={["Tracking", "Complaint", "State", "Due", "Edit", "Safe Action"]}
+            rows={pageRows.map((row: AnyObject) => [
+              row.trackingId ?? "-",
+              row.complaintId ?? "-",
+              row.state ?? "-",
+              row.dueDate ?? "-",
+              <button
+                type="button"
+                className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+                onClick={() => {
+                  const next = window.prompt("Set complaint state (OPEN/IN_PROCESS/RESOLVED/CLOSED/ACTIVE)", String(row.state ?? "ACTIVE"));
+                  if (!next) return;
+                  void runSafeAction(async () => {
+                    await api("/api/admin/complaints/manual-override", {
+                      method: "POST",
+                      body: JSON.stringify({
+                        trackingId: row.trackingId,
+                        complaintId: row.complaintId ?? "MANUAL",
+                        dueDate: row.dueDate ?? dateForInput(new Date().toISOString()),
+                        state: next,
+                      }),
+                    });
+                  });
+                }}
+              >
+                Edit
+              </button>,
+              <button
+                type="button"
+                className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+                onClick={() => {
+                  void runSafeAction(async () => {
+                    await api("/api/admin/complaints/sync", {
+                      method: "POST",
+                      body: JSON.stringify({ trackingIds: [row.trackingId] }),
+                    });
+                  });
+                }}
+              >
+                Sync
+              </button>,
+            ])}
+          />
+        </div>
+      );
+    }
+    if (active === "payments") {
+      const rows: AnyObject[] = revenue?.payments ?? [];
+      const filtered = rows.filter((row) => {
+        const text = `${row.transactionId ?? ""} ${row.user?.email ?? ""} ${row.plan?.name ?? ""}`;
+        const statusOk = !activeFilters.status || String(row.status ?? "").toUpperCase() === activeFilters.status.toUpperCase();
+        const dateOk = !activeFilters.from && !activeFilters.to ? true : isWithinDate(row.createdAt, activeFilters.from, activeFilters.to);
+        return includesSearch(text, activeFilters.search) && statusOk && dateOk;
+      });
+      const start = (activeFilters.page - 1) * activeFilters.pageSize;
+      const pageRows = filtered.slice(start, start + activeFilters.pageSize);
+      return (
+        <DataTable
+          headers={["Txn", "User", "Plan", "Status", "Edit", "Safe Action"]}
+          rows={pageRows.map((row: AnyObject) => [
+            row.transactionId,
+            row.user?.email ?? "-",
+            row.plan?.name ?? "-",
+            row.status,
+            "Review Notes",
+            row.status === "PENDING" ? (
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  className="rounded-lg border border-emerald-200 px-2 py-1 text-xs font-semibold text-emerald-700"
+                  onClick={() => {
+                    void runSafeAction(async () => {
+                      await api(`/api/admin/manual-payments/${encodeURIComponent(row.id)}/approve`, { method: "POST" });
+                    });
+                  }}
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-700"
+                  onClick={() => {
+                    const notes = window.prompt("Reject notes", "");
+                    void runSafeAction(async () => {
+                      await api(`/api/admin/manual-payments/${encodeURIComponent(row.id)}/reject`, {
+                        method: "POST",
+                        body: JSON.stringify({ notes: notes ?? "" }),
+                      });
+                    });
+                  }}
+                >
+                  Reject
+                </button>
+              </div>
+            ) : "-",
+          ])}
+        />
+      );
+    }
+    if (active === "invoices") {
+      const rows: AnyObject[] = revenue?.invoices ?? [];
+      const filtered = rows.filter((row) => {
+        const text = `${row.invoiceNumber ?? ""} ${row.user?.email ?? ""} ${row.plan?.name ?? ""}`;
+        const statusOk = !activeFilters.status || String(row.status ?? "").toUpperCase() === activeFilters.status.toUpperCase();
+        const dateOk = !activeFilters.from && !activeFilters.to ? true : isWithinDate(row.createdAt, activeFilters.from, activeFilters.to);
+        return includesSearch(text, activeFilters.search) && statusOk && dateOk;
+      });
+      const start = (activeFilters.page - 1) * activeFilters.pageSize;
+      const pageRows = filtered.slice(start, start + activeFilters.pageSize);
+      return (
+        <DataTable
+          headers={["Invoice", "User", "Amount", "Status", "Edit", "Safe Action"]}
+          rows={pageRows.map((row: AnyObject) => [
+            row.invoiceNumber,
+            row.user?.email ?? "-",
+            centsToPkr(row.amountCents),
+            row.status,
+            "View",
+            <button
+              type="button"
+              className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+              onClick={() => {
+                window.open(`/api/admin/invoices/${encodeURIComponent(row.id)}/download`, "_blank", "noopener,noreferrer");
+              }}
+            >
+              Download
+            </button>,
+          ])}
+        />
+      );
+    }
     if (active === "storage") {
+      const rows: AnyObject[] = storage?.recentGeneratedFiles?.labelJobs ?? [];
+      const filtered = rows.filter((row) => {
+        const text = `${row.id ?? ""} ${row.labelsPdfPath ?? ""} ${row.moneyOrderPdfPath ?? ""}`;
+        const dateOk = !activeFilters.from && !activeFilters.to ? true : isWithinDate(row.updatedAt, activeFilters.from, activeFilters.to);
+        return includesSearch(text, activeFilters.search) && dateOk;
+      });
+      const start = (activeFilters.page - 1) * activeFilters.pageSize;
+      const pageRows = filtered.slice(start, start + activeFilters.pageSize);
       return (
         <div className="space-y-4">
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -292,17 +821,32 @@ export default function AdminCommandCenter() {
             <MetricCard label="Tracking Result" value={storage?.totals?.trackingResult ?? 0} />
           </section>
           <DataTable
-            headers={["Provider", "Dual Write", "Dual Read", "R2 Uploads"]}
-            rows={[[storage?.provider ?? "local", String(storage?.dualWriteEnabled ?? false), String(storage?.dualReadEnabled ?? false), String(storage?.r2UploadsEnabled ?? false)]]}
+            headers={["Job", "Label PDF", "Money Order PDF", "Updated", "Safe Action"]}
+            rows={pageRows.map((row: AnyObject) => [
+              row.id,
+              row.labelsPdfPath ? "Available" : "-",
+              row.moneyOrderPdfPath ? "Available" : "-",
+              String(row.updatedAt ?? "-").slice(0, 19).replace("T", " "),
+              "View metadata",
+            ])}
           />
         </div>
       );
     }
     if (active === "audit") {
+      const rows: AnyObject[] = audit?.events ?? [];
+      const filtered = rows.filter((row) => {
+        const text = `${row.source ?? ""} ${row.action ?? ""} ${row.actor ?? ""} ${row.userId ?? ""}`;
+        const statusOk = !activeFilters.status || String(row.source ?? "").toUpperCase().includes(activeFilters.status.toUpperCase());
+        const dateOk = !activeFilters.from && !activeFilters.to ? true : isWithinDate(row.createdAt, activeFilters.from, activeFilters.to);
+        return includesSearch(text, activeFilters.search) && statusOk && dateOk;
+      });
+      const start = (activeFilters.page - 1) * activeFilters.pageSize;
+      const pageRows = filtered.slice(start, start + activeFilters.pageSize);
       return (
         <DataTable
           headers={["Source", "Action", "Actor", "User", "Created"]}
-          rows={(audit?.events ?? []).map((row: AnyObject) => [row.source, row.action, row.actor, row.userId ?? "-", row.createdAt])}
+          rows={pageRows.map((row: AnyObject) => [row.source, row.action, row.actor, row.userId ?? "-", String(row.createdAt ?? "-").slice(0, 19).replace("T", " ")])}
         />
       );
     }
@@ -324,6 +868,51 @@ export default function AdminCommandCenter() {
               <p className="mt-2 text-xs text-slate-600">{entry[2] ?? "-"}</p>
             </article>
           ))}
+        </div>
+      );
+    }
+
+    if (active === "settings") {
+      const settings = health?.settings as AnyObject | null;
+      return (
+        <div className="space-y-4">
+          <DataTable
+            headers={["Key", "Value", "Edit", "Safe Action"]}
+            rows={[
+              ["JazzCash Number", settings?.jazzcashNumber ?? "-", "Prompt", "Save"],
+              ["EasyPaisa Number", settings?.easypaisaNumber ?? "-", "Prompt", "Save"],
+              ["Bank Name", settings?.bankName ?? "-", "Prompt", "Save"],
+            ]}
+          />
+          <button
+            type="button"
+            className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold"
+            onClick={() => {
+              if (!settings) return;
+              const next = window.prompt("Update JazzCash number", String(settings.jazzcashNumber ?? ""));
+              if (next === null) return;
+              void runSafeAction(async () => {
+                await api("/api/admin/billing-settings", {
+                  method: "PUT",
+                  body: JSON.stringify({
+                    jazzcashNumber: next.trim() || settings.jazzcashNumber,
+                    jazzcashTitle: settings.jazzcashTitle,
+                    easypaisaNumber: settings.easypaisaNumber,
+                    easypaisaTitle: settings.easypaisaTitle,
+                    bankName: settings.bankName ?? "",
+                    bankTitle: settings.bankTitle ?? "",
+                    bankAccountNumber: settings.bankAccountNumber ?? "",
+                    bankIban: settings.bankIban ?? "",
+                    standardPrice: settings.standardPrice,
+                    businessPrice: settings.businessPrice,
+                    exemptFileNames: JSON.stringify(settings.exemptFileNames ?? []),
+                  }),
+                });
+              });
+            }}
+          >
+            Edit Safe Settings
+          </button>
         </div>
       );
     }
@@ -368,7 +957,55 @@ export default function AdminCommandCenter() {
         <main className="rounded-2xl border border-[color:var(--line)] bg-white p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-bold tracking-[-0.02em]">{NAV_ITEMS.find((item) => item.key === active)?.label}</h2>
-            {loading ? <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Loading</span> : null}
+            <div className="flex items-center gap-2">
+              {saving ? <span className="text-xs font-semibold uppercase tracking-[0.14em] text-amber-600">Saving</span> : null}
+              {loading ? <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Loading</span> : null}
+            </div>
+          </div>
+          <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <input
+              value={activeFilters.search}
+              onChange={(event) => updateActiveFilters({ search: event.target.value, page: 1 })}
+              placeholder="Search"
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            />
+            <input
+              value={activeFilters.status}
+              onChange={(event) => updateActiveFilters({ status: event.target.value, page: 1 })}
+              placeholder="Status"
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            />
+            <input
+              type="date"
+              value={activeFilters.from}
+              onChange={(event) => updateActiveFilters({ from: event.target.value, page: 1 })}
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            />
+            <input
+              type="date"
+              value={activeFilters.to}
+              onChange={(event) => updateActiveFilters({ to: event.target.value, page: 1 })}
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            />
+          </div>
+          <div className="mb-4 flex flex-wrap gap-2">
+            <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" onClick={() => updateActiveFilters({ ...quickRange("today"), page: 1 })}>Today</button>
+            <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" onClick={() => updateActiveFilters({ ...quickRange("week"), page: 1 })}>Last 7 Days</button>
+            <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" onClick={() => updateActiveFilters({ ...quickRange("month"), page: 1 })}>This Month</button>
+            <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" onClick={() => updateActiveFilters({ ...quickRange("all"), page: 1 })}>All</button>
+            <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" onClick={() => void loadSection(active, true)}>Refresh</button>
+            <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" onClick={() => resetFilters(active)}>Clear Filters</button>
+            <select
+              value={String(activeFilters.pageSize)}
+              onChange={(event) => updateActiveFilters({ pageSize: Number(event.target.value), page: 1 })}
+              className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold"
+            >
+              {[10, 20, 50, 100].map((size) => (
+                <option key={size} value={size}>{size} / page</option>
+              ))}
+            </select>
+            <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" onClick={() => updateActiveFilters({ page: Math.max(1, activeFilters.page - 1) })}>Prev</button>
+            <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" onClick={() => updateActiveFilters({ page: activeFilters.page + 1 })}>Next</button>
           </div>
           {error ? <p className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
           {renderSectionBody()}

@@ -1,5 +1,97 @@
 # AI Implementation Index
 
+## SaaS Admin Command Center Cleanup Cycle (2026-05-29)
+
+### Task
+- Complete pending cleanup and finish remaining admin tab functionality in one controlled cycle.
+
+### Pending Files Cleanup Result
+- Phase 1 inspection commands run: `git status --short`, `git diff --stat`, `git diff --name-only`, `git ls-files --others --exclude-standard`.
+- Classification:
+	- A. Approved source/admin files: current cycle updates in admin API and command center UI.
+	- B. Documentation files: implementation index/changelog/readme updates.
+	- C. Build output/dist/cache/generated: present under unrelated local bundle subtree.
+	- D. Dependency artifacts: present under unrelated local bundle subtree.
+	- E. Generated PDFs/storage outputs: present in local bundle subtree and existing ignored runtime paths.
+	- F. Unrelated user folder/files: `jazz cash/`.
+	- G. Unknown: none requiring destructive cleanup.
+- Safety action:
+	- No blind deletion executed.
+	- Added ignore rule for `jazz cash/` to clear pendency safely without removing user/business files.
+
+### Admin Route Confirmation
+- `/admin` is protected and routed to `AdminCommandCenter` via admin guard.
+- `/admin/legacy` remains protected for legacy operations.
+- Admin route is not exposed publicly.
+
+### Tabs Completed
+- Dashboard
+- Users
+- Plans/Packages
+- Revenue
+- Usage Logs
+- Label Jobs
+- Bulk Tracking/Shipments
+- Complaints
+- Billing/Payments
+- Invoices
+- File Storage
+- Audit Logs
+- System Health
+- Settings
+
+### Search/Edit/Safe Action/Date Filter Status
+- Common controls implemented in command center for applicable tabs:
+	- Search
+	- Date range (`from`/`to`) + quick filters (`Today`, `Last 7 Days`, `This Month`, `All`)
+	- Status filter input
+	- Refresh
+	- Pagination controls
+	- Clear filters
+- Safe actions implemented by tab where applicable (suspend/reactivate, approve/reject, cancel/archive, sync/export, download/view metadata).
+
+### APIs Added/Updated
+- Added compatibility and safety endpoints:
+	- `PATCH /api/admin/plans/:planId`
+	- `PATCH /api/admin/payments/:paymentId/status`
+	- `PATCH /api/admin/jobs/:jobId/status`
+	- `POST /api/admin/jobs/:jobId/retry`
+	- `POST /api/admin/complaints/:trackingId/sync`
+- Updated list APIs with query params support for search/date/status/pagination/sort:
+	- `GET /api/admin/usage`
+	- `GET /api/admin/jobs`
+	- `GET /api/admin/shipments`
+	- `GET /api/admin/invoices`
+
+### Protected Scope Protocol
+- Not touched:
+	- `labels.ts`
+	- `multipage-label.html`
+	- barcode engine internals
+	- MOS/UMO amount calculation logic
+	- finalized label generation logic
+	- finalized tracking upload logic
+	- finalized complaint filing/sync engine internals
+	- PDF rendering templates used by label/money-order generation
+
+### Validation
+- `npm run build`: PASS
+- `npm run lint`: PASS
+- `npm run typecheck`: FAIL (pre-existing unrelated web issues)
+	- `apps/web/src/pages/Billing.tsx:263` (`apiUrl` missing)
+	- `apps/web/src/pages/BulkTracking.tsx:2236,2237` (`prev` possibly null)
+	- `apps/web/src/pages/BulkTracking.tsx:2564` (`complaint_status` vs `complaintStatus`)
+
+### Git
+- Commit hash: pending
+- Push status: pending
+
+### Completion
+- Current completion percentage: 99%
+- Remaining percentage: 1%
+- Remaining items:
+	- finalize commit hash and push result
+
 ## SaaS Admin Command Dashboard Rollout (2026-05-29)
 
 ### Scope

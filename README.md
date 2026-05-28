@@ -251,6 +251,7 @@ BulkTracking.tsx  →  POST /api/tracking/complaint  →  Python /submit-complai
 ## Admin Command Center
 - Main admin route: `/admin`
 - Legacy admin route: `/admin/legacy`
+- `/admin` is guarded by admin auth (`RequireAdmin`); non-admin users are redirected away.
 
 New additive command-center API endpoints:
 - `GET /api/admin/dashboard/summary`
@@ -261,6 +262,16 @@ New additive command-center API endpoints:
 - `GET /api/admin/dashboard/health`
 - `GET /api/admin/storage`
 - `GET /api/admin/audit`
+
+Safe admin mutation and compatibility endpoints:
+- `PATCH /api/admin/plans/:planId`
+- `PATCH /api/admin/payments/:paymentId/status`
+- `PATCH /api/admin/jobs/:jobId/status`
+- `POST /api/admin/jobs/:jobId/retry`
+- `POST /api/admin/complaints/:trackingId/sync`
+
+List query support for admin tables:
+- `search`, `from`, `to`, `status`, `page`, `pageSize`, `sortBy`, `sortOrder`
 
 # stop everything
 CTRL + C

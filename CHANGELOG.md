@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-05-29 - SaaS Admin Command Dashboard Cleanup and Controls
+
+### Scope
+Completed full admin command-center control cycle with pending-file cleanup safety and tab-level operational controls.
+
+### Pending Cleanup
+- Executed required git inspection commands and classified pending files.
+- Preserved unrelated user data by avoiding destructive cleanup.
+- Added ignore coverage for local unrelated folder: `jazz cash/`.
+
+### Admin UI
+- Upgraded `apps/web/src/pages/admin/AdminCommandCenter.tsx` from scaffold to functional tab operations.
+- Added common controls across applicable tabs:
+  - search, date range, quick date filters, status input, refresh, pagination, clear filters.
+- Added safe row actions across tabs (edit/suspend, approve/reject, cancel/archive, sync/export/download where applicable).
+- Confirmed `/admin` remains protected under admin guard and `/admin/legacy` remains protected.
+
+### Admin API
+- Added compatibility/safe mutation endpoints:
+  - `PATCH /api/admin/plans/:planId`
+  - `PATCH /api/admin/payments/:paymentId/status`
+  - `PATCH /api/admin/jobs/:jobId/status`
+  - `POST /api/admin/jobs/:jobId/retry`
+  - `POST /api/admin/complaints/:trackingId/sync`
+- Added/expanded list query support (`search`, `from`, `to`, `status`, `page`, `pageSize`, `sortBy`, `sortOrder`) on:
+  - `GET /api/admin/usage`
+  - `GET /api/admin/jobs`
+  - `GET /api/admin/shipments`
+  - `GET /api/admin/invoices`
+
+### Protected Scope Compliance
+- No changes to protected label rendering, money-order amount logic, barcode engine, finalized tracking upload logic, or finalized complaint engine internals.
+
 ## 2026-05-29 - SaaS Admin Command Dashboard Phase 1
 
 ### Scope

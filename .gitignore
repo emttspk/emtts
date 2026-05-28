@@ -97,3 +97,6 @@ audit/
 reports/
 screenshots/
 tmp-audit/
+
+# Local third-party reference bundle (not part of product source)
+jazz cash/

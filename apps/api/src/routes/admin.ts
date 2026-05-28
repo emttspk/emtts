@@ -100,6 +100,17 @@ function toPositiveInt(value: unknown, fallback: number, max = 200) {
   return Math.min(max, Math.max(1, Math.trunc(parsed)));
 }
 
+function toDateOrNull(value: unknown, endOfDay = false) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const normalized = value.trim();
+  const date = new Date(endOfDay ? `${normalized}T23:59:59.999Z` : `${normalized}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function normalizeSortOrder(value: unknown): "asc" | "desc" {
+  return String(value ?? "").toLowerCase() === "asc" ? "asc" : "desc";
+}
+
 function isResolvedComplaintState(state: string) {
   return ["RESOLVED", "CLOSED"].includes(state);
 }
@@ -1451,6 +1462,49 @@ adminRouter.put("/plans/:planId", async (req, res) => {
   });
 });
 
+adminRouter.patch("/plans/:planId", async (req, res) => {
+  const body = z
+    .object({
+      name: z.string().min(1).optional(),
+      fullPriceCents: z.number().int().nonnegative().optional(),
+      discountPriceCents: z.number().int().nonnegative().optional(),
+      unitsIncluded: z.number().int().nonnegative().optional(),
+      labelsIncluded: z.number().int().nonnegative().optional(),
+      trackingIncluded: z.number().int().nonnegative().optional(),
+      moneyOrdersIncluded: z.number().int().nonnegative().optional(),
+      complaintsIncluded: z.number().int().nonnegative().optional(),
+      dailyComplaintLimit: z.number().int().nonnegative().optional(),
+      monthlyComplaintLimit: z.number().int().nonnegative().optional(),
+      isSuspended: z.boolean().optional(),
+      monthlyLabelLimit: z.number().int().positive().optional(),
+      monthlyTrackingLimit: z.number().int().positive().optional(),
+    })
+    .parse(req.body ?? {});
+
+  const existing = await prisma.plan.findUnique({ where: { id: req.params.planId } });
+  if (!existing) return res.status(404).json({ error: "Plan not found" });
+
+  const updated = await prisma.plan.update({
+    where: { id: existing.id },
+    data: {
+      name: body.name ?? existing.name,
+      priceCents: body.discountPriceCents ?? existing.priceCents,
+      monthlyLabelLimit: body.monthlyLabelLimit ?? existing.monthlyLabelLimit,
+      monthlyTrackingLimit: body.monthlyTrackingLimit ?? existing.monthlyTrackingLimit,
+    },
+  });
+
+  if (typeof body.isSuspended === "boolean") {
+    await prisma.$executeRaw`
+      UPDATE "Plan"
+      SET is_suspended = ${body.isSuspended}
+      WHERE id = ${existing.id}
+    `;
+  }
+
+  res.json({ plan: updated });
+});
+
 adminRouter.post("/plans/:planId/suspend", async (req, res) => {
   await ensurePlanManagementColumns();
   const body = z.object({ isSuspended: z.boolean().default(true) }).parse(req.body ?? {});
@@ -1728,12 +1782,30 @@ adminRouter.get("/usage", async (req, res) => {
     .optional()
     .parse(req.query.month);
   const m = month ?? monthKeyUTC();
+  const search = String(req.query.search ?? "").trim();
+  const from = toDateOrNull(req.query.from, false);
+  const to = toDateOrNull(req.query.to, true);
+  const page = toPositiveInt(req.query.page, 1, 5000);
+  const pageSize = toPositiveInt(req.query.pageSize, 50, 200);
   const usage = await prisma.usageMonthly.findMany({
-    where: { month: m },
+    where: {
+      month: m,
+      ...(search
+        ? {
+            OR: [
+              { user: { email: { contains: search, mode: "insensitive" } } },
+              { user: { companyName: { contains: search, mode: "insensitive" } } },
+            ],
+          }
+        : {}),
+      ...(from || to ? { createdAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
+    },
     include: { user: { select: { id: true, email: true } } },
     orderBy: { labelsGenerated: "desc" },
+    skip: (page - 1) * pageSize,
+    take: pageSize,
   });
-  res.json({ month: m, usage });
+  res.json({ month: m, page, pageSize, usage });
 });
 
 adminRouter.post("/plans/seed", async (_req, res) => {
@@ -1796,18 +1868,75 @@ adminRouter.post("/plans/seed", async (_req, res) => {
 /* ── Admin: Jobs management ── */
 
 adminRouter.get("/jobs", async (req, res) => {
-  const page = Math.max(1, Number(req.query.page ?? 1));
-  const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? 50)));
+  const page = toPositiveInt(req.query.page, 1, 5000);
+  const pageSize = toPositiveInt(req.query.pageSize ?? req.query.limit, 50, 100);
+  const search = String(req.query.search ?? "").trim();
+  const status = String(req.query.status ?? "").trim().toUpperCase();
+  const from = toDateOrNull(req.query.from, false);
+  const to = toDateOrNull(req.query.to, true);
+  const sortBy = String(req.query.sortBy ?? "createdAt").trim();
+  const sortOrder = normalizeSortOrder(req.query.sortOrder);
+  const sortKey = ["createdAt", "updatedAt", "status"].includes(sortBy) ? sortBy : "createdAt";
+  const where: any = {
+    ...(status ? { status } : {}),
+    ...(from || to ? { createdAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
+    ...(search
+      ? {
+          OR: [
+            { id: { contains: search, mode: "insensitive" } },
+            { error: { contains: search, mode: "insensitive" } },
+            { user: { email: { contains: search, mode: "insensitive" } } },
+          ],
+        }
+      : {}),
+  };
   const [total, jobs] = await Promise.all([
-    prisma.labelJob.count(),
+    prisma.labelJob.count({ where }),
     prisma.labelJob.findMany({
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * limit,
-      take: limit,
+      where,
+      orderBy: { [sortKey]: sortOrder } as any,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
       include: { user: { select: { id: true, email: true } } },
     }),
   ]);
-  res.json({ total, page, limit, jobs });
+  res.json({ total, page, pageSize, jobs });
+});
+
+adminRouter.patch("/jobs/:jobId/status", async (req, res) => {
+  const body = z.object({ status: z.enum(["QUEUED", "PROCESSING", "FAILED", "COMPLETED", "ARCHIVED", "CANCELED"]) }).parse(req.body ?? {});
+  const job = await prisma.labelJob.findUnique({ where: { id: req.params.jobId } });
+  if (!job) return res.status(404).json({ error: "Job not found" });
+
+  const nextStatus = body.status === "CANCELED" ? "FAILED" : body.status === "ARCHIVED" ? "COMPLETED" : body.status;
+  const updated = await prisma.labelJob.update({
+    where: { id: job.id },
+    data: {
+      status: nextStatus as any,
+      error: body.status === "CANCELED" ? "Cancelled by admin" : job.error,
+    },
+  });
+  res.json({ job: updated });
+});
+
+adminRouter.post("/jobs/:jobId/retry", async (req, res) => {
+  const job = await prisma.labelJob.findUnique({ where: { id: req.params.jobId } });
+  if (!job) return res.status(404).json({ error: "Job not found" });
+  if (job.status !== "FAILED") return res.status(409).json({ error: "Only failed jobs can be retried" });
+
+  const updated = await prisma.labelJob.update({
+    where: { id: job.id },
+    data: { status: "QUEUED", error: null },
+  });
+
+  await logComplaintAudit({
+    actorEmail: String((req as any).user?.email ?? "system").trim() || "system",
+    action: "complaint_updated",
+    trackingId: job.id,
+    details: "admin_retry_label_job",
+  });
+
+  res.json({ success: true, job: updated });
 });
 
 adminRouter.post("/jobs/:jobId/cancel", async (req, res) => {
@@ -1845,18 +1974,74 @@ adminRouter.patch("/jobs/:jobId/tracking", async (req, res) => {
 /* ── Admin: Shipments management ── */
 
 adminRouter.get("/shipments", async (req, res) => {
-  const page = Math.max(1, Number(req.query.page ?? 1));
-  const limit = Math.min(100, Math.max(1, Number(req.query.limit ?? 50)));
+  const page = toPositiveInt(req.query.page, 1, 5000);
+  const pageSize = toPositiveInt(req.query.pageSize ?? req.query.limit, 50, 100);
+  const search = String(req.query.search ?? "").trim();
+  const status = String(req.query.status ?? "").trim();
+  const from = toDateOrNull(req.query.from, false);
+  const to = toDateOrNull(req.query.to, true);
+  const sortBy = String(req.query.sortBy ?? "updatedAt").trim();
+  const sortOrder = normalizeSortOrder(req.query.sortOrder);
+  const sortKey = ["updatedAt", "createdAt", "status", "trackingNumber"].includes(sortBy) ? sortBy : "updatedAt";
+  const where: any = {
+    ...(status ? { status: { contains: status, mode: "insensitive" } } : {}),
+    ...(from || to ? { updatedAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
+    ...(search
+      ? {
+          OR: [
+            { trackingNumber: { contains: search, mode: "insensitive" } },
+            { city: { contains: search, mode: "insensitive" } },
+            { status: { contains: search, mode: "insensitive" } },
+            { user: { email: { contains: search, mode: "insensitive" } } },
+          ],
+        }
+      : {}),
+  };
   const [total, shipments] = await Promise.all([
-    prisma.shipment.count(),
+    prisma.shipment.count({ where }),
     prisma.shipment.findMany({
-      orderBy: { updatedAt: "desc" },
-      skip: (page - 1) * limit,
-      take: limit,
+      where,
+      orderBy: { [sortKey]: sortOrder } as any,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
       include: { user: { select: { id: true, email: true } } },
     }),
   ]);
-  res.json({ total, page, limit, shipments });
+  res.json({ total, page, pageSize, shipments });
+});
+
+adminRouter.patch("/payments/:paymentId/status", async (req, res) => {
+  const body = z.object({ status: z.enum(["PENDING", "APPROVED", "REJECTED", "PAID", "FAILED"]) }).parse(req.body ?? {});
+  const manual = await prisma.manualPaymentRequest.findUnique({ where: { id: req.params.paymentId } });
+  if (manual) {
+    const updated = await prisma.manualPaymentRequest.update({
+      where: { id: manual.id },
+      data: {
+        status: body.status as any,
+        verifiedBy: String((req as any).user?.email ?? "admin"),
+        verifiedAt: new Date(),
+      },
+    });
+    return res.json({ payment: updated, source: "manual" });
+  }
+
+  const payment = await prisma.payment.findUnique({ where: { id: req.params.paymentId } });
+  if (!payment) return res.status(404).json({ error: "Payment not found" });
+
+  const updated = await prisma.payment.update({
+    where: { id: payment.id },
+    data: { status: body.status as any },
+  });
+  return res.json({ payment: updated, source: "gateway" });
+});
+
+adminRouter.post("/complaints/:trackingId/sync", async (req, res) => {
+  const trackingId = String(req.params.trackingId ?? "").trim();
+  if (!trackingId) return res.status(400).json({ error: "Tracking id is required" });
+
+  const actorEmail = String((req as any).user?.email ?? "system").trim() || "system";
+  const result = await runComplaintSyncJob({ trackingIds: [trackingId], actorEmail });
+  return res.json({ success: true, count: result.length, result });
 });
 
 adminRouter.patch("/shipments/:shipmentId", async (req, res) => {
@@ -1953,8 +2138,29 @@ adminRouter.post("/manual-payments/:id/reject", adminRejectManualPayment);
 /* ── Admin: Invoice list ── */
 
 adminRouter.get("/invoices", async (req, res) => {
-  const status = typeof req.query.status === "string" ? req.query.status : undefined;
-  const where = status ? { status } : {};
+  const page = toPositiveInt(req.query.page, 1, 5000);
+  const pageSize = toPositiveInt(req.query.pageSize, 50, 200);
+  const status = typeof req.query.status === "string" ? req.query.status.trim() : "";
+  const search = String(req.query.search ?? "").trim();
+  const from = toDateOrNull(req.query.from, false);
+  const to = toDateOrNull(req.query.to, true);
+  const sortBy = String(req.query.sortBy ?? "createdAt").trim();
+  const sortOrder = normalizeSortOrder(req.query.sortOrder);
+  const sortKey = ["createdAt", "issuedAt", "amountCents", "status"].includes(sortBy) ? sortBy : "createdAt";
+  const where: any = {
+    ...(status ? { status } : {}),
+    ...(from || to ? { createdAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
+    ...(search
+      ? {
+          OR: [
+            { invoiceNumber: { contains: search, mode: "insensitive" } },
+            { user: { email: { contains: search, mode: "insensitive" } } },
+            { user: { companyName: { contains: search, mode: "insensitive" } } },
+            { plan: { name: { contains: search, mode: "insensitive" } } },
+          ],
+        }
+      : {}),
+  };
   const invoices = await prisma.invoice.findMany({
     where,
     include: {
@@ -1966,10 +2172,11 @@ adminRouter.get("/invoices", async (req, res) => {
         take: 5,
       },
     },
-    orderBy: { createdAt: "desc" },
-    take: 200,
+    orderBy: { [sortKey]: sortOrder } as any,
+    skip: (page - 1) * pageSize,
+    take: pageSize,
   });
-  return res.json({ invoices });
+  return res.json({ page, pageSize, invoices });
 });
 
 adminRouter.get("/invoices/:invoiceId/download", async (req, res) => {
