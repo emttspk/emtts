@@ -288,7 +288,8 @@ function buildJazzcashSignedFields(input: {
     ppmpf_4: "",
     ppmpf_5: "",
   };
-  fields.pp_SecureHash = generateJazzcashSecureHash(fields);
+  // JazzCash sample integration excludes empty PP fields when computing outbound request hash.
+  fields.pp_SecureHash = generateJazzcashSecureHash(fields, { includeEmptyFields: false });
   return fields;
 }
 
@@ -328,7 +329,8 @@ function buildJazzcashMobileWalletFields(input: {
   if (input.cnic) {
     fields.pp_CNIC = input.cnic;
   }
-  fields.pp_SecureHash = generateJazzcashSecureHash(fields);
+  // JazzCash sample integration excludes empty PP fields when computing outbound request hash.
+  fields.pp_SecureHash = generateJazzcashSecureHash(fields, { includeEmptyFields: false });
   return fields;
 }
 
