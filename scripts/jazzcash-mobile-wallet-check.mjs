@@ -32,7 +32,7 @@ const fields = {
   pp_BillReference: "JZ20260528190000ABCD",
   pp_Description: "Mobile wallet test",
   pp_TxnExpiryDateTime: "20260529190000",
-  ppmpf_1: "",
+  ppmpf_1: "03123456789",
   ppmpf_2: "",
   ppmpf_3: "",
   ppmpf_4: "",
@@ -47,9 +47,11 @@ const requiredChecks = [
   ["pp_ReturnURL present", Boolean(fields.pp_ReturnURL)],
   ["pp_ReturnURL exact", fields.pp_ReturnURL === "https://api.epost.pk/api/payments/jazzcash/callback"],
   ["pp_MobileNumber present", Boolean(fields.pp_MobileNumber)],
+  ["ppmpf_1 present", Boolean(fields.ppmpf_1)],
   ["pp_CNIC present", Boolean(fields.pp_CNIC)],
   ["pp_SecureHash computed", Boolean(secureHash)],
   ["hash input includes pp_ReturnURL", hashInput.includes(fields.pp_ReturnURL)],
+  ["hash input includes ppmpf_1", hashInput.includes(fields.ppmpf_1)],
 ];
 
 const failed = requiredChecks.filter(([, pass]) => !pass);

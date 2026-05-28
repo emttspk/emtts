@@ -319,7 +319,7 @@ function buildJazzcashMobileWalletFields(input: {
     pp_BillReference: input.billReference,
     pp_Description: input.description,
     pp_TxnExpiryDateTime: input.txnExpiryDateTime,
-    ppmpf_1: "",
+    ppmpf_1: input.mobileNumber,
     ppmpf_2: "",
     ppmpf_3: "",
     ppmpf_4: "",
