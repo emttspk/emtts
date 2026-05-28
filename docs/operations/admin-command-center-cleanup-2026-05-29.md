@@ -35,3 +35,6 @@ List query compatibility in admin list endpoints:
 
 ## Protected Scope
 No edits were made to protected finalized rendering and core business logic modules (labels, barcode engine, MOS/UMO amount logic, finalized upload and complaint engines).
+
+## Follow-up Restore Audit
+- Legacy restore audit and function inventory: `docs/operations/admin-legacy-restore-audit-2026-05-29.md`

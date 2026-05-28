@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../../lib/api";
 import { BodyText, PageShell, PageTitle, TableWrap } from "../../components/ui/PageSystem";
 import { MetricCard, StatusPill } from "../../components/admin/AdminWidgets";
+import AdminLegacy from "../Admin";
+import { TEMPLATE_DESIGNER_ENABLED } from "../../lib/featureFlags";
 
 type NavKey =
   | "dashboard"
@@ -148,7 +150,18 @@ function quickRange(key: "today" | "week" | "month" | "all") {
 }
 
 function sectionUsesRowFilters(section: NavKey) {
-  return !["dashboard", "health", "settings"].includes(section);
+  return !["dashboard", "health"].includes(section);
+}
+
+function legacyEmbeddedSectionForNav(section: NavKey): "plans" | "customers" | "usage" | "shipments" | "payments" | "invoices" | "billing" | null {
+  if (section === "users") return "customers";
+  if (section === "plans") return "plans";
+  if (section === "usage") return "usage";
+  if (section === "shipments") return "shipments";
+  if (section === "payments") return "payments";
+  if (section === "invoices") return "invoices";
+  if (section === "settings") return "billing";
+  return null;
 }
 
 function buildQuery(filters: FilterState) {
@@ -370,11 +383,32 @@ export default function AdminCommandCenter() {
             </div>
           </article>
         </section>
+        {TEMPLATE_DESIGNER_ENABLED ? (
+          <section className="rounded-2xl border border-[color:var(--line)] bg-white p-4">
+            <h3 className="text-base font-bold">Money Order Designer</h3>
+            <p className="mt-1 text-sm text-slate-600">Legacy admin MO template access is restored for admin operators.</p>
+            <a href="/admin/template-designer" className="mt-3 inline-flex rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+              Open Money Order Designer
+            </a>
+          </section>
+        ) : null}
       </div>
     );
   }
 
   function renderSectionBody() {
+    const embeddedLegacySection = legacyEmbeddedSectionForNav(active);
+    if (embeddedLegacySection) {
+      return (
+        <div className="space-y-3">
+          <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+            Legacy stable admin operations restored for this tab (full working controls preserved inside command center).
+          </p>
+          <AdminLegacy embeddedSection={embeddedLegacySection} />
+        </div>
+      );
+    }
+
     if (active === "dashboard") return renderDashboard();
     if (active === "users") {
       const list: AnyObject[] = users?.list ?? [];
@@ -962,6 +996,7 @@ export default function AdminCommandCenter() {
               {loading ? <span className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Loading</span> : null}
             </div>
           </div>
+          {legacyEmbeddedSectionForNav(active) ? null : (
           <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <input
               value={activeFilters.search}
@@ -988,6 +1023,8 @@ export default function AdminCommandCenter() {
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
             />
           </div>
+          )}
+          {legacyEmbeddedSectionForNav(active) ? null : (
           <div className="mb-4 flex flex-wrap gap-2">
             <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" onClick={() => updateActiveFilters({ ...quickRange("today"), page: 1 })}>Today</button>
             <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" onClick={() => updateActiveFilters({ ...quickRange("week"), page: 1 })}>Last 7 Days</button>
@@ -1007,6 +1044,7 @@ export default function AdminCommandCenter() {
             <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" onClick={() => updateActiveFilters({ page: Math.max(1, activeFilters.page - 1) })}>Prev</button>
             <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" onClick={() => updateActiveFilters({ page: activeFilters.page + 1 })}>Next</button>
           </div>
+          )}
           {error ? <p className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
           {renderSectionBody()}
         </main>

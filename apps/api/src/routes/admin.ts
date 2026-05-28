@@ -6,6 +6,7 @@ import { z } from "zod";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { hashPassword } from "../auth/password.js";
 import { monthKeyUTC } from "../usage/month.js";
 import { env } from "../config.js";
 import { labelQueue, trackingQueue } from "../queue/queue.js";
@@ -1095,6 +1096,82 @@ adminRouter.get("/users", async (_req, res) => {
   });
 });
 
+adminRouter.post("/users", async (req, res) => {
+  const body = z.object({
+    email: z.string().email(),
+    password: z.string().min(8).max(128),
+    companyName: z.string().max(120).nullable().optional(),
+    address: z.string().max(300).nullable().optional(),
+    contactNumber: z.string().max(30).nullable().optional(),
+    originCity: z.string().max(80).nullable().optional(),
+    role: z.enum(["USER", "ADMIN"]).optional(),
+    suspended: z.boolean().optional(),
+    planId: z.string().uuid().optional(),
+  }).parse(req.body ?? {});
+
+  const email = body.email.trim().toLowerCase();
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) return res.status(409).json({ error: "Email already registered" });
+
+  const passwordHash = await hashPassword(body.password);
+  const created = await prisma.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: {
+        email,
+        passwordHash,
+        role: body.role ?? "USER",
+        suspended: Boolean(body.suspended),
+        companyName: body.companyName ?? null,
+        address: body.address ?? null,
+        contactNumber: body.contactNumber ?? null,
+        originCity: body.originCity ?? null,
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        suspended: true,
+        companyName: true,
+        contactNumber: true,
+        createdAt: true,
+      },
+    });
+
+    if (body.planId) {
+      const plan = await tx.plan.findUnique({ where: { id: body.planId } });
+      if (plan) {
+        const now = new Date();
+        const end = new Date(now);
+        if (plan.name.toLowerCase().includes("free")) {
+          end.setUTCDate(end.getUTCDate() + 15);
+        } else {
+          end.setUTCMonth(end.getUTCMonth() + 1);
+        }
+        await tx.subscription.create({
+          data: {
+            userId: user.id,
+            planId: plan.id,
+            status: "ACTIVE",
+            currentPeriodStart: now,
+            currentPeriodEnd: end,
+          },
+        });
+      }
+    }
+
+    return user;
+  });
+
+  await logComplaintAudit({
+    actorEmail: String((req as any).user?.email ?? "system").trim() || "system",
+    action: "complaint_updated",
+    trackingId: created.id,
+    details: `admin_user_created:${created.email}`,
+  });
+
+  res.status(201).json({ user: created });
+});
+
 adminRouter.post("/users/:userId/role", async (req, res) => {
   const body = z.object({ role: z.enum(["USER", "ADMIN"]) }).parse(req.body);
   const user = await prisma.user.update({
@@ -1117,6 +1194,17 @@ adminRouter.post("/users/:userId/suspend", async (req, res) => {
 });
 
 adminRouter.post("/users/:userId/unsuspend", async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.params.userId } });
+  if (!user) return res.status(404).json({ error: "User not found" });
+  const updated = await prisma.user.update({
+    where: { id: req.params.userId },
+    data: { suspended: false },
+    select: { id: true, email: true, role: true, suspended: true },
+  });
+  res.json({ user: updated });
+});
+
+adminRouter.post("/users/:userId/reactivate", async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.params.userId } });
   if (!user) return res.status(404).json({ error: "User not found" });
   const updated = await prisma.user.update({
@@ -1178,6 +1266,32 @@ adminRouter.post("/users/:userId/credits", async (req, res) => {
     data: {
       extraLabelCredits: { increment: body.labelCredits },
       extraTrackingCredits: { increment: body.trackingCredits },
+    },
+    select: { id: true, email: true, extraLabelCredits: true, extraTrackingCredits: true },
+  });
+
+  res.json({ user });
+});
+
+adminRouter.post("/users/:userId/units", async (req, res) => {
+  const body = z.object({
+    units: z.number().int(),
+  }).parse(req.body ?? {});
+
+  const delta = body.units;
+  const existing = await prisma.user.findUnique({
+    where: { id: req.params.userId },
+    select: { id: true, extraLabelCredits: true, extraTrackingCredits: true },
+  });
+  if (!existing) return res.status(404).json({ error: "User not found" });
+
+  const nextLabel = Math.max(0, (existing.extraLabelCredits ?? 0) + delta);
+  const nextTracking = Math.max(0, (existing.extraTrackingCredits ?? 0) + delta);
+  const user = await prisma.user.update({
+    where: { id: req.params.userId },
+    data: {
+      extraLabelCredits: nextLabel,
+      extraTrackingCredits: nextTracking,
     },
     select: { id: true, email: true, extraLabelCredits: true, extraTrackingCredits: true },
   });
@@ -2134,6 +2248,8 @@ adminRouter.post("/refund-requests/:id/reject", async (req, res) => {
 adminRouter.get("/manual-payments", adminListManualPayments);
 adminRouter.post("/manual-payments/:id/approve", adminApproveManualPayment);
 adminRouter.post("/manual-payments/:id/reject", adminRejectManualPayment);
+adminRouter.post("/payments/:id/approve", adminApproveManualPayment);
+adminRouter.post("/payments/:id/reject", adminRejectManualPayment);
 
 /* ── Admin: Invoice list ── */
 
@@ -2177,6 +2293,59 @@ adminRouter.get("/invoices", async (req, res) => {
     take: pageSize,
   });
   return res.json({ page, pageSize, invoices });
+});
+
+adminRouter.patch("/invoices/:invoiceId", async (req, res) => {
+  const body = z.object({ status: z.enum(["OPEN", "PAID", "VOID", "CANCELED"]) }).parse(req.body ?? {});
+  const invoiceId = String(req.params.invoiceId ?? "").trim();
+  if (!invoiceId) return res.status(400).json({ error: "Missing invoice id" });
+
+  const existing = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+  if (!existing) return res.status(404).json({ error: "Invoice not found" });
+
+  const updated = await prisma.invoice.update({
+    where: { id: invoiceId },
+    data: {
+      status: body.status,
+      paidAt: body.status === "PAID" ? new Date() : null,
+    },
+  });
+
+  await logComplaintAudit({
+    actorEmail: String((req as any).user?.email ?? "system").trim() || "system",
+    action: "complaint_updated",
+    trackingId: invoiceId,
+    details: `admin_invoice_status:${body.status}`,
+  });
+
+  return res.json({ invoice: updated });
+});
+
+adminRouter.delete("/invoices/:invoiceId", async (req, res) => {
+  const invoiceId = String(req.params.invoiceId ?? "").trim();
+  if (!invoiceId) return res.status(400).json({ error: "Missing invoice id" });
+
+  const existing = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    include: { manualPayments: { select: { id: true, status: true } } },
+  });
+  if (!existing) return res.status(404).json({ error: "Invoice not found" });
+
+  const hasApprovedPayments = existing.manualPayments.some((payment) => payment.status === "APPROVED");
+  if (hasApprovedPayments || existing.status === "PAID") {
+    return res.status(409).json({ error: "Paid invoices cannot be deleted. Use VOID/CANCELED status instead." });
+  }
+
+  await prisma.invoice.delete({ where: { id: invoiceId } });
+
+  await logComplaintAudit({
+    actorEmail: String((req as any).user?.email ?? "system").trim() || "system",
+    action: "complaint_updated",
+    trackingId: invoiceId,
+    details: "admin_invoice_deleted",
+  });
+
+  return res.json({ success: true });
 });
 
 adminRouter.get("/invoices/:invoiceId/download", async (req, res) => {

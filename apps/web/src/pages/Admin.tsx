@@ -127,6 +127,10 @@ type BillingSettings = {
 
 type SectionKey = "overview" | "plans" | "customers" | "usage" | "shipments" | "payments" | "invoices" | "billing";
 
+type AdminProps = {
+  embeddedSection?: SectionKey;
+};
+
 const formatPKR = new Intl.NumberFormat("en-PK", {
   style: "currency",
   currency: "PKR",
@@ -147,7 +151,7 @@ function getPaymentMethodLabel(method: string) {
   return method;
 }
 
-export default function Admin() {
+export default function Admin(props: AdminProps = {}) {
   const navigate = useNavigate();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -208,9 +212,27 @@ export default function Admin() {
     fileName: null,
   });
   const [creditDrafts, setCreditDrafts] = useState<Record<string, { labelCredits: string; trackingCredits: string; planId: string }>>({});
-  const [section, setSection] = useState<SectionKey>("overview");
+  const [section, setSection] = useState<SectionKey>(props.embeddedSection ?? "overview");
   const [previewUserId, setPreviewUserId] = useState<string | null>(null);
+  const [creatingAccount, setCreatingAccount] = useState(false);
+  const [createAccountModalOpen, setCreateAccountModalOpen] = useState(false);
+  const [createAccountDraft, setCreateAccountDraft] = useState({
+    email: "",
+    password: "",
+    companyName: "",
+    contactNumber: "",
+    originCity: "",
+    planId: "",
+    role: "USER" as "USER" | "ADMIN",
+  });
   const adminTablePageSize = 20;
+  const sectionLocked = Boolean(props.embeddedSection);
+
+  useEffect(() => {
+    if (props.embeddedSection) {
+      setSection(props.embeddedSection);
+    }
+  }, [props.embeddedSection]);
 
   function draftFor(userId: string, currentPlanId?: string | null) {
     return creditDrafts[userId] ?? { labelCredits: "", trackingCredits: "", planId: currentPlanId ?? "" };
@@ -509,6 +531,64 @@ export default function Admin() {
     );
   }
 
+  async function handleCreateAccount() {
+    setErr(null);
+    setCreatingAccount(true);
+    try {
+      await api("/api/admin/users", {
+        method: "POST",
+        body: JSON.stringify({
+          email: createAccountDraft.email,
+          password: createAccountDraft.password,
+          companyName: createAccountDraft.companyName || null,
+          contactNumber: createAccountDraft.contactNumber || null,
+          originCity: createAccountDraft.originCity || null,
+          role: createAccountDraft.role,
+          planId: createAccountDraft.planId || undefined,
+        }),
+      });
+      setCreateAccountModalOpen(false);
+      setCreateAccountDraft({
+        email: "",
+        password: "",
+        companyName: "",
+        contactNumber: "",
+        originCity: "",
+        planId: "",
+        role: "USER",
+      });
+      await refresh();
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : "Failed to create account");
+    } finally {
+      setCreatingAccount(false);
+    }
+  }
+
+  async function handleUpdateInvoiceStatus(invoiceId: string, status: "OPEN" | "PAID" | "VOID" | "CANCELED") {
+    setErr(null);
+    try {
+      await api(`/api/admin/invoices/${invoiceId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+      await refreshInvoices(invoiceFilter);
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : "Failed to update invoice");
+    }
+  }
+
+  async function handleDeleteInvoice(invoiceId: string, invoiceNumber: string) {
+    if (!confirm(`Delete invoice ${invoiceNumber}? This is only allowed for unpaid invoices.`)) return;
+    setErr(null);
+    try {
+      await api(`/api/admin/invoices/${invoiceId}`, { method: "DELETE" });
+      await refreshInvoices(invoiceFilter);
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : "Failed to delete invoice");
+    }
+  }
+
   useEffect(() => {
     refresh().catch((e) => setErr(e instanceof Error ? e.message : "Failed"));
   }, [month]);
@@ -554,6 +634,7 @@ export default function Admin() {
 
   return (
     <PageShell className="space-y-3">
+      {!sectionLocked ? (
       <Card className="min-w-0 w-full overflow-hidden border-slate-200 bg-white p-5 shadow-sm md:p-6">
         <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
           <div>
@@ -587,6 +668,7 @@ export default function Admin() {
           ))}
         </div>
       </Card>
+      ) : null}
 
       {section === "overview" ? (
         <div className="grid min-w-0 w-full gap-5 overflow-hidden md:grid-cols-3">
@@ -709,9 +791,12 @@ export default function Admin() {
 
       {section === "customers" ? (
         <div className="min-w-0 w-full space-y-4 overflow-hidden">
-          <div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
             <div className="text-xl font-semibold text-slate-950">Customers</div>
             <div className="mt-1 text-sm text-slate-600">Open a customer preview to manage status, balances, credits, suspension, and manual payment confirmation.</div>
+            </div>
+            <button className="rounded-2xl bg-brand px-4 py-2 text-sm font-medium text-white" onClick={() => setCreateAccountModalOpen(true)}>Add Account</button>
           </div>
           <div className="grid min-w-0 w-full gap-5 overflow-hidden xl:grid-cols-2">
             {users.map((user) => (
@@ -912,13 +997,36 @@ export default function Admin() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => handleDownloadInvoicePdf(inv.id, inv.invoiceNumber)}
-                        className="rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-lg hover:bg-slate-50"
-                      >
-                        Download PDF
-                      </button>
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadInvoicePdf(inv.id, inv.invoiceNumber)}
+                          className="rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-lg hover:bg-slate-50"
+                        >
+                          Download PDF
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateInvoiceStatus(inv.id, inv.status === "PAID" ? "OPEN" : "PAID")}
+                          className="rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 shadow-lg hover:bg-slate-50"
+                        >
+                          {inv.status === "PAID" ? "Mark Open" : "Mark Paid"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateInvoiceStatus(inv.id, "VOID")}
+                          className="rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100"
+                        >
+                          Void
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteInvoice(inv.id, inv.invoiceNumber)}
+                          className="rounded-xl border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -932,6 +1040,40 @@ export default function Admin() {
             <button className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 disabled:opacity-40" disabled={invoicesPage >= totalInvoicePages} onClick={() => setInvoicesPage(totalInvoicePages)}>Last</button>
           </div>
         </Card>
+      ) : null}
+
+      {createAccountModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4">
+          <div className="w-full max-w-2xl rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-lg font-semibold text-slate-950">Add Account</div>
+                <div className="mt-1 text-sm text-slate-600">Create a user account and optionally assign a plan.</div>
+              </div>
+              <button className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700" onClick={() => setCreateAccountModalOpen(false)}>Close</button>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <input className="rounded-2xl border bg-white px-3 py-2 text-sm" placeholder="Email" value={createAccountDraft.email} onChange={(e) => setCreateAccountDraft((prev) => ({ ...prev, email: e.target.value }))} />
+              <input className="rounded-2xl border bg-white px-3 py-2 text-sm" placeholder="Temporary Password" value={createAccountDraft.password} onChange={(e) => setCreateAccountDraft((prev) => ({ ...prev, password: e.target.value }))} />
+              <input className="rounded-2xl border bg-white px-3 py-2 text-sm" placeholder="Company Name" value={createAccountDraft.companyName} onChange={(e) => setCreateAccountDraft((prev) => ({ ...prev, companyName: e.target.value }))} />
+              <input className="rounded-2xl border bg-white px-3 py-2 text-sm" placeholder="Contact Number" value={createAccountDraft.contactNumber} onChange={(e) => setCreateAccountDraft((prev) => ({ ...prev, contactNumber: e.target.value }))} />
+              <input className="rounded-2xl border bg-white px-3 py-2 text-sm" placeholder="Origin City" value={createAccountDraft.originCity} onChange={(e) => setCreateAccountDraft((prev) => ({ ...prev, originCity: e.target.value }))} />
+              <select className="rounded-2xl border bg-white px-3 py-2 text-sm" value={createAccountDraft.role} onChange={(e) => setCreateAccountDraft((prev) => ({ ...prev, role: e.target.value as "USER" | "ADMIN" }))}>
+                <option value="USER">USER</option>
+                <option value="ADMIN">ADMIN</option>
+              </select>
+              <select className="sm:col-span-2 rounded-2xl border bg-white px-3 py-2 text-sm" value={createAccountDraft.planId} onChange={(e) => setCreateAccountDraft((prev) => ({ ...prev, planId: e.target.value }))}>
+                <option value="">No plan assigned</option>
+                {plans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>{plan.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button className="rounded-2xl bg-brand px-4 py-2 text-sm font-medium text-white disabled:opacity-60" disabled={creatingAccount} onClick={() => void handleCreateAccount()}>{creatingAccount ? "Creating..." : "Create Account"}</button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {section === "billing" ? (

@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-05-29 - Admin Legacy Function Restore in Command Center
+
+### Scope
+Restored lost legacy admin operations into `/admin` command center while keeping protected scope intact.
+
+### UI Restore
+- Reconnected stable legacy operational panels for users/plans/usage/shipments/payments/invoices/settings inside new command center tabs.
+- Restored account management actions (add/edit/suspend/reactivate/delete, manual units, plan assignment).
+- Restored invoice management actions (download, status update, void, guarded delete).
+- Restored exempt file option in billing settings panel.
+- Restored Money Order Designer access link in command center dashboard.
+
+### API Restore/Compatibility
+- Added `POST /api/admin/users`
+- Added `PATCH /api/admin/invoices/:invoiceId`
+- Added `DELETE /api/admin/invoices/:invoiceId`
+- Added `POST /api/admin/users/:userId/units`
+- Added `POST /api/admin/users/:userId/reactivate`
+- Added compatibility aliases:
+  - `POST /api/admin/payments/:id/approve`
+  - `POST /api/admin/payments/:id/reject`
+
+### Safety
+- Guarded invoice deletion to unpaid/non-approved-payment records only.
+- No changes to protected rendering/tracking/complaint core engines.
+
 ## 2026-05-29 - SaaS Admin Command Dashboard Cleanup and Controls
 
 ### Scope

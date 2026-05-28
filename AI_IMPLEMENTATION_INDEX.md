@@ -1,5 +1,65 @@
 # AI Implementation Index
 
+## Admin Legacy Function Restore in Command Center (2026-05-29)
+
+### Task
+- Audit previous stable admin version and restore missing legacy admin functions into `/admin` command center.
+
+### Previous Stable Commit Audited
+- `23d6cda` (pre new admin dashboard commits)
+
+### Old Functions Found
+- Legacy operational coverage in `apps/web/src/pages/Admin.tsx` across users, plans, usage, shipments, payments, invoices, billing settings.
+
+### Missing Functions Restored
+- Add account
+- Delete account
+- Suspend/reactivate account
+- Manual add units
+- Plan/package assign
+- Payment approve/reject
+- Invoice status management and guarded delete
+- Exempt file controls
+- Money Order designer access
+
+### APIs Restored/Added
+- `POST /api/admin/users`
+- `PATCH /api/admin/invoices/:invoiceId`
+- `DELETE /api/admin/invoices/:invoiceId`
+- `POST /api/admin/users/:userId/units`
+- `POST /api/admin/users/:userId/reactivate`
+- Compatibility aliases:
+	- `POST /api/admin/payments/:id/approve`
+	- `POST /api/admin/payments/:id/reject`
+
+### Frontend Tabs/Actions Restored
+- New command center tabs now embed legacy stable operations for: users, plans, usage, shipments, payments, invoices, settings/billing.
+- Dashboard includes restored MO designer access entry point.
+
+### Protected Files Not Touched
+- `labels.ts`
+- `multipage-label.html`
+- barcode engine internals
+- MOS/UMO calculation logic
+- finalized label generation logic
+- finalized tracking upload logic
+- finalized complaint filing/sync engine internals
+
+### Validation
+- `npm run build`: PASS
+- `npm run lint`: PASS
+- `npm run typecheck`: FAIL (pre-existing unrelated web issues)
+	- `apps/web/src/pages/Billing.tsx:263` (`apiUrl` missing)
+	- `apps/web/src/pages/BulkTracking.tsx:2236,2237` (`prev` possibly null)
+	- `apps/web/src/pages/BulkTracking.tsx:2564` (`complaint_status` vs `complaintStatus`)
+
+### Git
+- Commit hash: pending
+
+### Completion
+- Updated project completion percentage: 99%
+- Remaining work: 1% (final commit/push)
+
 ## SaaS Admin Command Center Cleanup Cycle (2026-05-29)
 
 ### Task
