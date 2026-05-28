@@ -318,6 +318,94 @@
 ## GitHub Reference Cross-Check (Non-Authoritative)
 
 - Cross-checked against `https://github.com/zfhassaan/jazzcash` for hosted form flow, hidden-field submit behavior, field set shape, and hash-array approach.
+
+## Final Provider 199 Classification (2026-05-29)
+
+### Cleanup Execution
+
+- Removed safe untracked temporary artifacts:
+	- `scripts/tmp-jazzcash-live-auth-tests.sh`
+	- `scripts/tmp-jazzcash-provider-199-amount-sweep.mjs`
+	- `scripts/tmp-jazzcash-provider-199-diag.mjs`
+	- `debug.log`
+	- `apps/api/startup-api.log`
+	- `.local-docs/s1-first-canary-telemetry.log`
+- Kept protected assets and docs, including `jazz cash/` and all tracked source.
+- Tracked debug JSON files under `python-service/` were kept for manual review only.
+
+### Baseline + Health Snapshot
+
+- `git log --oneline -10` confirmed latest docs commit lineage ending at `ad38dd9`.
+- Railway status: Api service online.
+- Latest deployment list: `4caf03a4-e20e-4932-b404-b746dac9b666` remains latest `SUCCESS`; newer entries were `SKIPPED`.
+- `GET https://api.epost.pk/api/health` returned `200 OK`.
+
+### Railway Variables Validation (Api/production)
+
+- `JAZZCASH_ENV=sandbox`
+- `JAZZCASH_MERCHANT_ID=MC771933`
+- `JAZZCASH_PASSWORD` present
+- `JAZZCASH_INTEGRITY_SALT` present
+- `JAZZCASH_RETURN_URL=https://api.epost.pk/api/payments/jazzcash/callback`
+- `JAZZCASH_MOBILE_WALLET_ENABLED=true`
+- `JAZZCASH_MOBILE_WALLET_ENDPOINT_SANDBOX=https://sandbox.jazzcash.com.pk/ApplicationAPI/API/Payment/DoTransaction`
+- `JAZZCASH_MOBILE_WALLET_ENDPOINT_LIVE=https://payments.jazzcash.com.pk/ApplicationAPI/API/Payment/DoTransaction`
+- Secrets verified but masked in reporting.
+
+### JazzCash Sandbox API Testing Correlation
+
+- User-confirmed sandbox API Testing page response: `199` with message `Sorry! Your transaction was not successful. Please try again later.`
+- This matches backend and direct terminal diagnostics when hash-valid request shape is used.
+
+### Direct Provider Reproduction (Terminal)
+
+- Endpoint: `https://sandbox.jazzcash.com.pk/ApplicationAPI/API/Payment/DoTransaction`
+- Request shape (hash-valid):
+	- `pp_Amount`, `pp_BillReference`, `pp_Description`, `pp_Language`, `pp_MerchantID`, `pp_Password`, `pp_ReturnURL`, `pp_TxnCurrency`, `pp_TxnDateTime`, `pp_TxnExpiryDateTime`, `pp_TxnRefNo`, `pp_TxnType=MWALLET`, `pp_Version=1.1`, `ppmpf_1`, `pp_SecureHash`
+- Result sample:
+	- HTTP `200`
+	- `pp_ResponseCode=199`
+	- `pp_ResponseMessage=Sorry! Your transaction was not successful. Please try again later.`
+	- `pp_RetreivalReferenceNo` returned
+	- Hash accepted (no `110`)
+
+### Focused Provider Matrix (DoTransaction)
+
+- Ran 12 variants against sandbox `DoTransaction` without changing production code.
+- Results summary:
+	- Hash-valid v1.1 variants (with/without optional `ppmpf_2..5`, JSON/form): response `199`.
+	- Amounts `500`, `1000`, `250000`: all `199`.
+	- Mobiles `03123456789`, `03123456780`, `03123456781`: all `199`.
+	- Adding `pp_CNIC=345678` to current accepted v1.1 shape produced `110` (`pp_SecureHash`) and is therefore not compatible with this merchant's accepted hash contract for this path.
+- Interpretation:
+	- Request formatting/hashing is accepted in the proven shape.
+	- Business/provider layer still rejects with deterministic `199`.
+
+### External Source Conclusions
+
+- Official docs remain primary source (`ApiReferences`, `index`, `Resources`).
+- `Resources` maps `199` to `System error`.
+- `shehryar96/Jazzcash-mobile-wallet-Integration` is token/recurring oriented (`/API/4.0/purchase/domwallettransactionviatoken`) and depends on wallet-linking/token retrieval path.
+- `zfhassaan/jazzcash` is hosted checkout centric and explicitly not direct REST mobile wallet.
+- `aticmatic/laravel-jazzcash` documents direct v2.0 REST interpretation with CNIC emphasis, but still non-authoritative versus official docs and merchant profile behavior.
+
+### Final Diagnosis
+
+- `pp_SecureHash` defect is resolved for active one-time v1.1 request shape.
+- Since:
+	- hash-valid direct terminal calls return `199`, and
+	- JazzCash sandbox API Testing page also returns `199`,
+- classification is: **vendor-side sandbox merchant/profile/channel limitation or test-profile enablement issue**, not an app signing/field-order defect.
+
+### Protected Scope Protocol Status
+
+- No unrelated system changes were introduced.
+- Work stayed limited to JazzCash diagnostics, documentation, and temporary script cleanup.
+
+### Support Packet
+
+- Support-ready escalation note added at:
+	- `docs/jazzcash-support-escalation-2026-05-29.md`
 - Conclusion: local implementation aligns on hosted-form pattern and hash strategy, while preserving stronger secret isolation via backend relay.
 
 ## Protected Scope Protocol Status

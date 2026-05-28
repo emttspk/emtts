@@ -123,3 +123,67 @@ All combinations returned provider code `199`.
 - Keep credentials in environment variables only.
 - Do not commit merchant password or integrity salt in plaintext.
 - In docs/reports, mask secrets (for example, `y7v***825`).
+
+## Final Revalidation (2026-05-29)
+
+### Cleanup Status
+
+- Temporary JazzCash diagnostic scripts and loose log artifacts were cleaned from the workspace.
+- Official documentation assets under `jazz cash/` were explicitly preserved.
+
+### Environment and Health Baseline
+
+- API health endpoint returned `200`.
+- Railway Api service online; latest active successful deployment remained `4caf03a4` with newer docs-only pipeline entries marked `SKIPPED`.
+- Production env still points Mobile Wallet to `DoTransaction` sandbox/live endpoints with `JAZZCASH_ENV=sandbox`.
+
+### Sandbox API Testing Page Correlation
+
+- JazzCash sandbox API Testing page was reported by user as:
+  - `pp_ResponseCode=199`
+  - `Sorry! Your transaction was not successful. Please try again later.`
+- This is strong independent evidence that request shape can be accepted while transaction is rejected at provider/business layer.
+
+### Direct Terminal Reproduction (Hash-Valid)
+
+- Endpoint: `https://sandbox.jazzcash.com.pk/ApplicationAPI/API/Payment/DoTransaction`
+- Core request fields used:
+  - `pp_Amount`, `pp_BillReference`, `pp_Description`, `pp_Language`, `pp_MerchantID`, `pp_Password`, `pp_ReturnURL`, `pp_TxnCurrency`, `pp_TxnDateTime`, `pp_TxnExpiryDateTime`, `pp_TxnRefNo`, `pp_TxnType`, `pp_Version`, `ppmpf_1`, `pp_SecureHash`
+- Result:
+  - HTTP `200`
+  - `pp_ResponseCode=199`
+  - `pp_ResponseMessage=Sorry! Your transaction was not successful. Please try again later.`
+  - `pp_RetreivalReferenceNo` present
+  - Hash accepted (no `110`)
+
+### Focused Provider 12-Variant Matrix
+
+- Hash-valid variants across request encoding/optional field shapes returned `199`.
+- Amounts tested: `500`, `1000`, `250000` -> all `199`.
+- Mobiles tested: `03123456789`, `03123456780`, `03123456781` -> all `199`.
+- CNIC variant result:
+  - Adding `pp_CNIC=345678` to the current accepted v1.1 one-time payload produced `110` hash error for this merchant/path.
+
+### Interpretation Against Sources
+
+- Official `Resources` page maps `199` to `System error`.
+- `shehryar96/Jazzcash-mobile-wallet-Integration` aligns to token/recurring flow (`domwallettransactionviatoken`) and should not be blindly applied to one-time `DoTransaction`.
+- `zfhassaan/jazzcash` is hosted checkout-focused and non-applicable for direct REST Mobile Wallet API behavior.
+- `aticmatic/laravel-jazzcash` is useful for v2.0 ideas and hash/callback structure but remains non-authoritative compared to official docs and actual merchant profile behavior.
+
+### Final Diagnosis
+
+- Current app-side secure hash and request shape are valid for the active one-time flow.
+- Deterministic `199` from:
+  - backend live requests,
+  - direct terminal requests, and
+  - JazzCash sandbox API Testing page,
+  indicates a sandbox merchant/profile/channel enablement issue on provider side, not unresolved app signing bug.
+
+### Required Provider Confirmation
+
+- Ask JazzCash support to confirm for merchant `MC771933` sandbox profile:
+  - direct Mobile Wallet REST `DoTransaction` is enabled,
+  - allowed transaction type/profile/channel mapping for this merchant,
+  - whether sandbox success numbers apply to direct REST flow or only hosted/testing subsets,
+  - whether this merchant should use a different API type/path for one-time wallet transactions.
