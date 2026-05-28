@@ -53,13 +53,14 @@
 ## Payment Flow
 
 1. User selects a plan in `/billing`.
-2. Frontend calls the JazzCash create endpoint.
-3. Backend validates the plan and price, creates a pending payment row, and returns public form fields plus a relay token.
-4. Frontend auto-submits the form to the backend relay endpoint.
-5. Backend relay injects JazzCash secrets server-side and auto-submits the signed form to JazzCash.
-6. JazzCash posts back to the callback URL.
-7. Backend verifies `pp_SecureHash`, validates amount and reference, updates payment status, and activates the subscription once.
-8. User is redirected back to `/billing?payment=success|failed|pending`.
+2. User clicks `Pay with JazzCash`, enters the JazzCash mobile number in a modal, then clicks `Pay Now`.
+3. Frontend calls the JazzCash create endpoint only after the modal confirmation.
+4. Backend validates the plan and price, creates a pending payment row, and returns public form fields plus a relay token.
+5. Frontend auto-submits the form to the backend relay endpoint.
+6. Backend relay injects JazzCash secrets server-side and auto-submits the signed form to JazzCash.
+7. JazzCash posts back to the callback URL.
+8. Backend verifies `pp_SecureHash`, validates amount and reference, updates payment status, and activates the subscription once.
+9. User is redirected back to `/billing?payment=success|failed|pending`.
 
 ## Callback URL
 
@@ -71,6 +72,9 @@
 - Return URL: `https://api.epost.pk/api/payments/jazzcash/callback`
 - IPN URL: `https://api.epost.pk/api/payments/jazzcash/ipn`
 - Browser/portal readiness check: `GET /api/payments/jazzcash/ipn` returns JSON and does not process payments.
+- Live verification: `GET https://api.epost.pk/api/payments/jazzcash/ipn` returns `200 OK` JSON readiness metadata.
+- Live verification: `POST https://api.epost.pk/api/payments/jazzcash/ipn` returns a safe JSON processing response.
+- Live verification: `POST https://api.epost.pk/api/payments/jazzcash/callback` returns the expected safe redirect behavior for empty payloads.
 
 ## Health/Readiness Check
 
@@ -87,6 +91,18 @@
 - Pending:
 	- Mobile Number: any other value
 	- CNIC last 6 digits: `345678`
+
+## Railway Variable Status (2026-05-28)
+
+- `JAZZCASH_ENV=sandbox`
+- `JAZZCASH_RETURN_URL=https://api.epost.pk/api/payments/jazzcash/callback`
+- `FRONTEND_URL=https://www.epost.pk`
+- `JAZZCASH_MERCHANT_ID` present
+- `JAZZCASH_PASSWORD` present
+- `JAZZCASH_INTEGRITY_SALT` present
+- `JAZZCASH_SANDBOX_ENDPOINT` present
+- `JAZZCASH_LIVE_ENDPOINT` present
+- Values were checked in Railway and masked before reporting.
 
 ## Testing Status
 
@@ -117,6 +133,7 @@
 - Preserved the existing label generation, money order generation, tracking, complaints, R2 storage, auth, and admin dashboard paths.
 - Kept the existing manual wallet payment flow available.
 - Added JazzCash as a narrow subscription/package purchase path only.
+- Billing UI now uses a JazzCash popup/modal instead of exposing the mobile number field on the card.
 
 ## Pending Manual Steps
 

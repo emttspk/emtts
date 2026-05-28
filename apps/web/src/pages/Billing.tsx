@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, Sparkles } from "lucide-react";
+import { Check, Sparkles, X } from "lucide-react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import Card from "../components/Card";
 import ManualPaymentModal from "../components/ManualPaymentModal";
@@ -35,7 +35,9 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
   const [manualPaymentInvoice, setManualPaymentInvoice] = useState<{ id: string; invoiceNumber: string; amountCents: number; currency: string } | null>(null);
   const [initiatingWalletPlanId, setInitiatingWalletPlanId] = useState<string | null>(null);
   const [initiatingJazzcashPlanId, setInitiatingJazzcashPlanId] = useState<string | null>(null);
-  const [jazzcashMobile, setJazzcashMobile] = useState("");
+  const [jazzcashModalPlan, setJazzcashModalPlan] = useState<Plan | null>(null);
+  const [jazzcashModalMobile, setJazzcashModalMobile] = useState("");
+  const [jazzcashModalError, setJazzcashModalError] = useState<string | null>(null);
   const planParam = searchParams.get("plan")?.toLowerCase() ?? null;
   const autoInitDone = useRef(false);
   const remainingUnits = me?.balances?.unitsRemaining ?? me?.activePackage?.unitsRemaining ?? me?.balances?.labelsRemaining ?? 0;
@@ -92,17 +94,27 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
     }
   }, [refreshMe, searchParams]);
 
-  useEffect(() => {
-    if (jazzcashMobile) return;
-    const profileMobile = String(me?.user?.contactNumber ?? "").replace(/\D/g, "");
-    if (/^03\d{9}$/.test(profileMobile)) {
-      setJazzcashMobile(profileMobile);
-    }
-  }, [jazzcashMobile, me?.user?.contactNumber]);
-
   function normalizeJazzcashMobile(value: string) {
     const digits = value.replace(/\D/g, "");
     return /^03\d{9}$/.test(digits) ? digits : "";
+  }
+
+  function openJazzcashModal(plan: Plan) {
+    if (plan.isSuspended) {
+      setError(`${plan.name} is temporarily suspended and cannot be purchased right now.`);
+      return;
+    }
+    setJazzcashModalPlan(plan);
+    setJazzcashModalMobile(normalizeJazzcashMobile(String(me?.user?.contactNumber ?? "")));
+    setJazzcashModalError(null);
+    setError(null);
+    setSuccess(null);
+  }
+
+  function closeJazzcashModal() {
+    setJazzcashModalPlan(null);
+    setJazzcashModalMobile("");
+    setJazzcashModalError(null);
   }
 
   function submitJazzcashForm(actionUrl: string, fields: Record<string, string>) {
@@ -175,24 +187,22 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
     }
   }
 
-  async function initiateJazzcashPayment(plan: Plan) {
-    if (plan.isSuspended) {
-      setError(`${plan.name} is temporarily suspended and cannot be purchased right now.`);
-      return;
-    }
-    const normalizedMobile = normalizeJazzcashMobile(jazzcashMobile);
+  async function confirmJazzcashPayment() {
+    const plan = jazzcashModalPlan;
+    if (!plan) return;
+    const normalizedMobile = normalizeJazzcashMobile(jazzcashModalMobile);
     if (!normalizedMobile) {
-      setError("Enter JazzCash mobile number to continue.");
+      setJazzcashModalError("Enter a valid JazzCash mobile number in 03XXXXXXXXX format.");
       return;
     }
+    setJazzcashModalError(null);
     setInitiatingJazzcashPlanId(plan.id);
-    setError(null);
-    setSuccess(null);
     try {
       const response = await createJazzcashPayment(plan.id, normalizedMobile);
+      closeJazzcashModal();
       submitJazzcashForm(response.actionUrl, response.fields);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to initiate JazzCash payment");
+      setJazzcashModalError(err instanceof Error ? err.message : "Failed to initiate JazzCash payment");
     } finally {
       setInitiatingJazzcashPlanId(null);
     }
@@ -316,29 +326,13 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                 </ActionButton>
                 {discountedPrice > 0 && !isCurrent && !plan.isSuspended && (
                   <div className="mt-2 space-y-2">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                      <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500" htmlFor="jazzcash-mobile">
-                        JazzCash mobile number
-                      </label>
-                      <input
-                        id="jazzcash-mobile"
-                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand"
-                        inputMode="numeric"
-                        maxLength={11}
-                        placeholder="03123456789"
-                        value={jazzcashMobile}
-                        onChange={(event) => setJazzcashMobile(event.target.value.replace(/\D/g, "").slice(0, 11))}
-                      />
-                      <p className="mt-2 text-xs text-slate-500">Enter JazzCash mobile number to continue. Format: 03XXXXXXXXX.</p>
-                    </div>
                     <ActionButton
                       type="button"
                       variant="secondary"
                       className="w-full text-xs"
-                      disabled={initiatingJazzcashPlanId === plan.id}
-                      onClick={() => initiateJazzcashPayment(plan)}
+                      onClick={() => openJazzcashModal(plan)}
                     >
-                      {initiatingJazzcashPlanId === plan.id ? "Opening JazzCash…" : "Pay with JazzCash"}
+                      Pay with JazzCash
                     </ActionButton>
                     <ActionButton
                       type="button"
@@ -358,6 +352,57 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
         })}
       </div>
     </PageShell>
+    {jazzcashModalPlan ? (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+        <div className="w-full max-w-md rounded-[24px] border border-white/70 bg-white shadow-2xl" role="dialog" aria-modal="true" aria-label="Enter JazzCash Mobile Number">
+          <div className="flex items-start justify-between border-b border-slate-200 px-6 py-4">
+            <div>
+              <div className="text-base font-semibold text-slate-900">Enter JazzCash Mobile Number</div>
+              <div className="mt-1 text-xs text-slate-500">{jazzcashModalPlan.name}</div>
+            </div>
+            <button
+              type="button"
+              onClick={closeJazzcashModal}
+              className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              aria-label="Close JazzCash modal"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="space-y-4 px-6 py-5">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              Enter the JazzCash number you want to use for checkout. Format: 03XXXXXXXXX.
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500" htmlFor="jazzcash-modal-mobile">
+                JazzCash mobile number
+              </label>
+              <input
+                id="jazzcash-modal-mobile"
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand"
+                inputMode="numeric"
+                maxLength={11}
+                placeholder="03123456789"
+                value={jazzcashModalMobile}
+                onChange={(event) => {
+                  setJazzcashModalMobile(event.target.value.replace(/\D/g, "").slice(0, 11));
+                  if (jazzcashModalError) setJazzcashModalError(null);
+                }}
+              />
+            </div>
+            {jazzcashModalError ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{jazzcashModalError}</div> : null}
+            <div className="flex gap-3">
+              <ActionButton type="button" variant="secondary" className="flex-1" onClick={closeJazzcashModal} disabled={initiatingJazzcashPlanId === jazzcashModalPlan.id}>
+                Cancel
+              </ActionButton>
+              <ActionButton type="button" className="flex-1" onClick={() => void confirmJazzcashPayment()} disabled={initiatingJazzcashPlanId === jazzcashModalPlan.id}>
+                {initiatingJazzcashPlanId === jazzcashModalPlan.id ? "Starting checkout…" : "Pay Now"}
+              </ActionButton>
+            </div>
+          </div>
+        </div>
+      </div>
+    ) : null}
     {manualPaymentPlan && manualPaymentInvoice && (
       <ManualPaymentModal
         plan={manualPaymentPlan}
