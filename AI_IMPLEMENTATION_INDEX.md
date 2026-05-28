@@ -217,6 +217,85 @@
 	- Confirm latest generated merchant password and integrity salt are active.
 	- Confirm required portal URL mapping (`Return URL` and `IPN URL`) for this merchant profile.
 
+## Exact Portal/Railway Sync Check (2026-05-28)
+
+- Railway Api variable comparison against user-provided sandbox portal values:
+	- `JAZZCASH_ENV=sandbox` matched.
+	- `JAZZCASH_MERCHANT_ID=MC771933` matched exactly.
+	- `JAZZCASH_PASSWORD` matched portal value exactly (masked in reporting).
+	- `JAZZCASH_INTEGRITY_SALT` matched portal value exactly (masked in reporting).
+	- `JAZZCASH_RETURN_URL=https://api.epost.pk/api/payments/jazzcash/callback` already matched exactly.
+	- `JAZZCASH_SANDBOX_ENDPOINT=https://sandbox.jazzcash.com.pk/CustomerPortal/transactionmanagement/merchantform/` matched.
+	- `JAZZCASH_LIVE_ENDPOINT=https://payments.jazzcash.com.pk/CustomerPortal/transactionmanagement/merchantform/` matched.
+	- `FRONTEND_URL=https://www.epost.pk` matched.
+	- `JAZZCASH_TXN_TYPE=MWALLET` matched.
+	- `JAZZCASH_BANK_ID=TBANK` matched.
+	- `JAZZCASH_PRODUCT_ID=RETL` matched.
+	- `JAZZCASH_SUBMERCHANT_ID` not set in Railway; live payload continues to emit present blank.
+- Railway changes applied:
+	- No variable mismatch was found on the Api service, so no Railway variable edits were required.
+	- Api service was redeployed successfully after the exact-value verification and returned to `Online` state.
+- Portal-side Return URL status:
+	- Correct callback target remains `https://api.epost.pk/api/payments/jazzcash/callback`.
+	- The previously reported portal Return URL using `https://www.epost.pk/api/...` is wrong for backend callback handling.
+	- Direct JazzCash portal editing was not executable from this environment because no authenticated portal session/browser handle was available in the shared tools.
+	- No new JazzCash password or integrity salt was generated during this session.
+- Post-redeploy live endpoint checks:
+	- `GET https://api.epost.pk/api/health` returned `200 OK`.
+	- `GET https://api.epost.pk/api/payments/jazzcash/ipn` returned `200 OK`.
+- Post-redeploy live payload check (fresh create -> relay):
+	- `pp_MerchantID=MC771933`
+	- `pp_TxnType=MWALLET`
+	- `pp_BankID=TBANK`
+	- `pp_ProductID=RETL`
+	- `pp_ReturnURL=https://api.epost.pk/api/payments/jazzcash/callback`
+	- `pp_Amount=99900`
+	- `pp_TxnCurrency=PKR`
+	- `pp_SubMerchantID` present blank
+	- `ppmpf_1` present masked
+	- `pp_SecureHash` present with length `64`
+	- Action URL remained `https://sandbox.jazzcash.com.pk/CustomerPortal/transactionmanagement/merchantform/`
+- Fresh browser checkout result after redeploy:
+	- Flow started from `/billing` using `Pay with JazzCash` only.
+	- Sandbox no longer returned `insufficient merchant information` during this fresh run.
+	- Redirect landed on JazzCash `TransactionSelection` page instead.
+	- In headless capture, that page rendered only the JazzCash header/logo and no visible payment controls, so callback completion and package activation could not be completed in this environment.
+- Protected Scope Protocol status:
+	- No code path outside JazzCash billing validation was changed.
+	- Label generation, money orders, tracking, complaints, R2 storage, auth, manual payment approval, package logic, and EP Gateway internals were left untouched.
+
+## JazzCash CORS Fix (2026-05-28)
+
+- Root cause found:
+	- Global API CORS middleware in `apps/api/src/index.ts` allowed only web/local origins.
+	- JazzCash sandbox origin `https://sandbox.jazzcash.com.pk` reached callback/IPN endpoints with an `Origin` header and was rejected before route logic executed.
+	- This produced `{"success":false,"message":"CORS blocked for origin: https://sandbox.jazzcash.com.pk"}` instead of normal callback/IPN processing.
+- Fix applied:
+	- Added route-aware JazzCash origin handling in `apps/api/src/index.ts`.
+	- Callback, IPN, and relay routes now allow JazzCash origins only:
+		- `https://sandbox.jazzcash.com.pk`
+		- `https://payments.jazzcash.com.pk`
+	- Requests with no `Origin` remain allowed for server-to-server notifications.
+	- Added optional env support in `apps/api/src/config.ts` and `apps/api/.env.example`:
+		- `JAZZCASH_ALLOWED_ORIGINS=https://sandbox.jazzcash.com.pk,https://payments.jazzcash.com.pk`
+- Railway/runtime state:
+	- `JAZZCASH_ALLOWED_ORIGINS` set on Railway Api service in masked form.
+	- Api deployment `3c47513b-853a-46ec-8fea-5d8dee8eabbd` reached `SUCCESS`.
+- Live CORS verification after deploy:
+	- `OPTIONS /api/payments/jazzcash/callback` with `Origin: https://sandbox.jazzcash.com.pk` -> `204 No Content`
+	- `OPTIONS /api/payments/jazzcash/ipn` with `Origin: https://sandbox.jazzcash.com.pk` -> `204 No Content`
+	- `POST /api/payments/jazzcash/callback` with JazzCash origin and dummy form payload -> no CORS block; normal fallback redirect to `/billing?payment=failed&message=Missing+transaction+reference`
+	- `POST /api/payments/jazzcash/ipn` with JazzCash origin and dummy form payload -> no CORS block; normal JSON response path reached
+- Final sandbox result after CORS fix:
+	- Fresh billing flow still reaches JazzCash sandbox successfully.
+	- Previous `CORS blocked for origin: https://sandbox.jazzcash.com.pk` issue is resolved.
+	- Sandbox now stops on a blank `TransactionSelection` page showing only the JazzCash header/logo.
+	- The blank `TransactionSelection` result reproduces in both headless and visible browser automation, with no frontend console errors and no failed network requests captured locally.
+	- Callback return to billing and package activation could not complete because the sandbox page itself did not expose actionable controls in this environment.
+- Protected Scope Protocol status:
+	- Change stayed limited to API bootstrap/config and JazzCash documentation.
+	- No unrelated label, money-order, tracking, complaints, R2, dashboard, auth, package, or EP Gateway internals were modified for this fix.
+
 ## Testing Status
 
 - `node scripts/jazzcash-hash-check.mjs` -> PASS (official sample hash matched exactly)
