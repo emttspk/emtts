@@ -79,9 +79,9 @@ function deriveApiOriginFromHostedEndpoint(value: string) {
 export function getJazzcashMobileWalletEndpoint() {
   const mode = getJazzcashMode();
   const configured = String(
-    mode === "sandbox"
+    (mode === "sandbox"
       ? env.JAZZCASH_MOBILE_WALLET_ENDPOINT_SANDBOX
-      : env.JAZZCASH_MOBILE_WALLET_ENDPOINT_LIVE,
+      : env.JAZZCASH_MOBILE_WALLET_ENDPOINT_LIVE) ?? "",
   ).trim();
   if (configured) return configured;
   const hostedEndpoint = getJazzcashEndpoint();
@@ -93,9 +93,9 @@ export function getJazzcashMobileWalletEndpoint() {
 export function getJazzcashStatusInquiryEndpoint() {
   const mode = getJazzcashMode();
   const configured = String(
-    mode === "sandbox"
+    (mode === "sandbox"
       ? env.JAZZCASH_STATUS_INQUIRY_ENDPOINT_SANDBOX
-      : env.JAZZCASH_STATUS_INQUIRY_ENDPOINT_LIVE,
+      : env.JAZZCASH_STATUS_INQUIRY_ENDPOINT_LIVE) ?? "",
   ).trim();
   if (configured) return configured;
   return mode === "sandbox"
@@ -491,7 +491,8 @@ export async function createJazzcashCheckout(input: JazzcashCheckoutCreateInput)
         userId: input.userId,
         planId: plan.id,
         paymentId: payment.id,
-        invoiceNumber: `INV-${txnRefNo}`.slice(0, 20),
+          // Keep the full txn reference to preserve uniqueness across adjacent seconds.
+          invoiceNumber: txnRefNo,
         amountCents: input.amountCents,
         currency: "PKR",
         status: "OPEN",
@@ -666,7 +667,8 @@ export async function createJazzcashMobileWalletPayment(input: JazzcashMobileWal
         userId: input.userId,
         planId: plan.id,
         paymentId: created.id,
-        invoiceNumber: `INV-${txnRefNo}`.slice(0, 20),
+        // Keep the full txn reference to preserve uniqueness across adjacent seconds.
+        invoiceNumber: txnRefNo,
         amountCents: input.amountCents,
         currency: "PKR",
         status: "OPEN",
