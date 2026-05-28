@@ -100,9 +100,9 @@ export async function changePackage(planId: string) {
   });
 }
 
-export async function createJazzcashPayment(planId: string) {
+export async function createJazzcashPayment(planId: string, customerMobile?: string) {
   return api<JazzcashCreateResponse>("/api/payments/jazzcash/create", {
     method: "POST",
-    body: JSON.stringify({ planId }),
+    body: JSON.stringify({ planId, customerMobile }),
   });
 }

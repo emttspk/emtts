@@ -46,6 +46,7 @@
 - `POST /api/payments/jazzcash/callback`
 - `GET /api/payments/jazzcash/callback`
 - `POST /api/payments/jazzcash/ipn`
+- `GET /api/payments/jazzcash/ipn`
 - `GET /api/payments/:id/status`
 - `POST /api/payments/jazzcash/relay`
 
@@ -67,16 +68,25 @@
 
 ## JazzCash Portal URL Setup
 
-- Return URL (preferred): `https://www.epost.pk/api/payments/jazzcash/callback`
-- IPN URL (preferred): `https://www.epost.pk/api/payments/jazzcash/ipn`
-- If `/api` is not routed via `epost.pk`, use Railway API domain:
-	- `https://labelgenapi-production.up.railway.app/api/payments/jazzcash/callback`
-	- `https://labelgenapi-production.up.railway.app/api/payments/jazzcash/ipn`
+- Return URL: `https://api.epost.pk/api/payments/jazzcash/callback`
+- IPN URL: `https://api.epost.pk/api/payments/jazzcash/ipn`
+- Browser/portal readiness check: `GET /api/payments/jazzcash/ipn` returns JSON and does not process payments.
 
 ## Health/Readiness Check
 
-- Verify API health before setting JazzCash portal URLs: `https://www.epost.pk/api/health`
-- If health check fails, configure Return URL and IPN URL using Railway API domain.
+- Verify API health before setting JazzCash portal URLs: `https://api.epost.pk/api/health`
+
+## Sandbox Test Data
+
+- Success:
+	- Mobile Number: `03123456789`
+	- CNIC last 6 digits: `345678`
+- Authentication Error:
+	- Mobile Number: `03123456780`
+	- CNIC last 6 digits: `345678`
+- Pending:
+	- Mobile Number: any other value
+	- CNIC last 6 digits: `345678`
 
 ## Testing Status
 

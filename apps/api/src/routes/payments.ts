@@ -8,6 +8,7 @@ import {
   createJazzcashCheckout,
   getJazzcashFrontendUrl,
   getJazzcashPaymentStatus,
+  getJazzcashReturnUrl,
   hasJazzcashCredentials,
   processJazzcashCallback,
   renderJazzcashRelayPage,
@@ -15,7 +16,11 @@ import {
 
 export const paymentsRouter = Router();
 
-const createSchema = z.object({ planId: z.string().uuid() });
+const createSchema = z.object({
+  planId: z.string().uuid(),
+  customerMobile: z.string().trim().optional(),
+  contactNumber: z.string().trim().optional(),
+});
 
 paymentsRouter.post("/jazzcash/create", requireAuth, async (req: AuthedRequest, res) => {
   try {
@@ -42,7 +47,7 @@ paymentsRouter.post("/jazzcash/create", requireAuth, async (req: AuthedRequest, 
     }
 
     const authUser = req.user as { id: string; contactNumber?: string | null } | undefined;
-    const contactNumber = String(authUser?.contactNumber ?? "").trim();
+    const contactNumber = String(body.customerMobile ?? body.contactNumber ?? authUser?.contactNumber ?? "").trim();
     const result = await createJazzcashCheckout({
       userId: req.user!.id,
       userContactNumber: contactNumber,
@@ -146,6 +151,15 @@ async function handleJazzcashIpn(req: any, res: any) {
     });
   }
 }
+
+paymentsRouter.get("/jazzcash/ipn", (_req, res) => {
+  return res.status(200).json({
+    success: true,
+    message: "JazzCash IPN endpoint is ready. Use POST for payment notifications.",
+    method: "POST",
+    returnUrl: getJazzcashReturnUrl(),
+  });
+});
 
 paymentsRouter.get("/jazzcash/callback", handleJazzcashCallback);
 paymentsRouter.post("/jazzcash/callback", handleJazzcashCallback);

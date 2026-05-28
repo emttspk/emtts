@@ -35,6 +35,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
   const [manualPaymentInvoice, setManualPaymentInvoice] = useState<{ id: string; invoiceNumber: string; amountCents: number; currency: string } | null>(null);
   const [initiatingWalletPlanId, setInitiatingWalletPlanId] = useState<string | null>(null);
   const [initiatingJazzcashPlanId, setInitiatingJazzcashPlanId] = useState<string | null>(null);
+  const [jazzcashMobile, setJazzcashMobile] = useState("");
   const planParam = searchParams.get("plan")?.toLowerCase() ?? null;
   const autoInitDone = useRef(false);
   const remainingUnits = me?.balances?.unitsRemaining ?? me?.activePackage?.unitsRemaining ?? me?.balances?.labelsRemaining ?? 0;
@@ -90,6 +91,19 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
       setError(message ?? (reference ? `Payment failed. Ref: ${reference}` : "Payment failed."));
     }
   }, [refreshMe, searchParams]);
+
+  useEffect(() => {
+    if (jazzcashMobile) return;
+    const profileMobile = String(me?.user?.contactNumber ?? "").replace(/\D/g, "");
+    if (/^03\d{9}$/.test(profileMobile)) {
+      setJazzcashMobile(profileMobile);
+    }
+  }, [jazzcashMobile, me?.user?.contactNumber]);
+
+  function normalizeJazzcashMobile(value: string) {
+    const digits = value.replace(/\D/g, "");
+    return /^03\d{9}$/.test(digits) ? digits : "";
+  }
 
   function submitJazzcashForm(actionUrl: string, fields: Record<string, string>) {
     const form = document.createElement("form");
@@ -166,11 +180,16 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
       setError(`${plan.name} is temporarily suspended and cannot be purchased right now.`);
       return;
     }
+    const normalizedMobile = normalizeJazzcashMobile(jazzcashMobile);
+    if (!normalizedMobile) {
+      setError("Enter JazzCash mobile number to continue.");
+      return;
+    }
     setInitiatingJazzcashPlanId(plan.id);
     setError(null);
     setSuccess(null);
     try {
-      const response = await createJazzcashPayment(plan.id);
+      const response = await createJazzcashPayment(plan.id, normalizedMobile);
       submitJazzcashForm(response.actionUrl, response.fields);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to initiate JazzCash payment");
@@ -297,6 +316,21 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                 </ActionButton>
                 {discountedPrice > 0 && !isCurrent && !plan.isSuspended && (
                   <div className="mt-2 space-y-2">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                      <label className="block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500" htmlFor="jazzcash-mobile">
+                        JazzCash mobile number
+                      </label>
+                      <input
+                        id="jazzcash-mobile"
+                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-brand"
+                        inputMode="numeric"
+                        maxLength={11}
+                        placeholder="03123456789"
+                        value={jazzcashMobile}
+                        onChange={(event) => setJazzcashMobile(event.target.value.replace(/\D/g, "").slice(0, 11))}
+                      />
+                      <p className="mt-2 text-xs text-slate-500">Enter JazzCash mobile number to continue. Format: 03XXXXXXXXX.</p>
+                    </div>
                     <ActionButton
                       type="button"
                       variant="secondary"

@@ -72,6 +72,11 @@ export function getJazzcashReturnUrl() {
   return `${apiOrigin}/api/payments/jazzcash/callback`;
 }
 
+export function normalizeJazzcashMobileNumber(value: string | null | undefined) {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  return /^03\d{9}$/.test(digits) ? digits : "";
+}
+
 export function getJazzcashFrontendUrl() {
   const configured = String(env.FRONTEND_URL ?? env.WEB_ORIGIN ?? "").trim();
   return stripTrailingSlashes(configured);
@@ -259,9 +264,9 @@ export async function createJazzcashCheckout(input: JazzcashCheckoutCreateInput)
   const kind = activeSubscription ? (activeSubscription.planId === plan.id ? "RENEWAL" : "UPGRADE") : "PURCHASE";
   const txnDateTime = formatPkDateTime(new Date());
   const txnExpiryDateTime = formatPkDateTime(addPkDays(new Date(), 1));
-  const mobileNumber = input.userContactNumber?.trim() ?? "";
+  const mobileNumber = normalizeJazzcashMobileNumber(input.userContactNumber);
   if (!mobileNumber) {
-    throw new Error("Contact number is required for JazzCash checkout");
+    throw new Error("Enter a valid JazzCash mobile number to continue.");
   }
 
   const signedFields = buildJazzcashSignedFields({
