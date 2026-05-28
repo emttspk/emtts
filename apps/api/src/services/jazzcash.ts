@@ -305,34 +305,30 @@ function buildJazzcashMobileWalletFields(input: {
   mobileNumber: string;
   cnic?: string;
 }) {
+  // Field set per JazzCash MWallet REST API v1.1 (Without CNIC) spec.
+  // pp_BankID and pp_ProductID are excluded: they are not part of the REST v1.1 field set
+  // and the server does not include them when computing its hash → including them causes mismatch.
+  // pp_CNIC is excluded: REST v1.1 (Without CNIC) spec does not include it in hash computation.
   const fields: Record<string, string> = {
-    pp_Language: "EN",
-    pp_Version: "1.1",
-    pp_MerchantID: getJazzcashMerchantId(),
-    pp_SubMerchantID: getJazzcashSubMerchantId(),
-    pp_Password: getJazzcashPassword(),
-    pp_BankID: getJazzcashBankId(),
-    pp_ProductID: getJazzcashProductId(),
-    pp_TxnType: getJazzcashTxnType(),
-    pp_TxnRefNo: input.txnRefNo,
-    pp_MobileNumber: input.mobileNumber,
-    pp_ReturnURL: getJazzcashReturnUrl(),
     pp_Amount: String(input.amountCents),
-    pp_DiscountedAmount: "",
-    pp_TxnCurrency: "PKR",
-    pp_TxnDateTime: input.txnDateTime,
     pp_BillReference: input.billReference,
     pp_Description: input.description,
+    pp_Language: "EN",
+    pp_MerchantID: getJazzcashMerchantId(),
+    pp_Password: getJazzcashPassword(),
+    pp_ReturnURL: getJazzcashReturnUrl(),
+    pp_TxnCurrency: "PKR",
+    pp_TxnDateTime: input.txnDateTime,
     pp_TxnExpiryDateTime: input.txnExpiryDateTime,
+    pp_TxnRefNo: input.txnRefNo,
+    pp_TxnType: getJazzcashTxnType(),
+    pp_Version: "1.1",
     ppmpf_1: input.mobileNumber,
     ppmpf_2: "",
     ppmpf_3: "",
     ppmpf_4: "",
     ppmpf_5: "",
   };
-  if (input.cnic) {
-    fields.pp_CNIC = input.cnic;
-  }
   // JazzCash sample integration excludes empty PP fields when computing outbound request hash.
   fields.pp_SecureHash = generateJazzcashSecureHash(fields, { includeEmptyFields: false });
   return fields;
