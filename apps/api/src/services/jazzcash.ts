@@ -94,6 +94,26 @@ function getJazzcashIntegritySalt() {
   return String(env.JAZZCASH_INTEGRITY_SALT ?? "").trim();
 }
 
+function getJazzcashTxnType() {
+  return String(env.JAZZCASH_TXN_TYPE ?? "MWALLET").trim() || "MWALLET";
+}
+
+function getJazzcashSubMerchantId() {
+  return String(env.JAZZCASH_SUBMERCHANT_ID ?? "").trim();
+}
+
+function getJazzcashBankId() {
+  const configured = String(env.JAZZCASH_BANK_ID ?? "").trim();
+  if (configured) return configured;
+  return getJazzcashMode() === "sandbox" ? "TBANK" : "";
+}
+
+function getJazzcashProductId() {
+  const configured = String(env.JAZZCASH_PRODUCT_ID ?? "").trim();
+  if (configured) return configured;
+  return getJazzcashMode() === "sandbox" ? "RETL" : "";
+}
+
 export function getMissingJazzcashCredentials() {
   const missing: string[] = [];
   if (!getJazzcashMerchantId()) missing.push("JAZZCASH_MERCHANT_ID");
@@ -198,20 +218,20 @@ function buildJazzcashSignedFields(input: {
 }) {
   const fields: Record<string, string> = {
     pp_Amount: String(input.amountCents),
-    pp_BankID: "",
+    pp_BankID: getJazzcashBankId(),
     pp_BillReference: input.billReference,
     pp_Description: input.description,
     pp_Language: "EN",
     pp_MerchantID: getJazzcashMerchantId(),
     pp_Password: getJazzcashPassword(),
-    pp_ProductID: "",
+    pp_ProductID: getJazzcashProductId(),
     pp_ReturnURL: getJazzcashReturnUrl(),
-    pp_SubMerchantID: "",
+    pp_SubMerchantID: getJazzcashSubMerchantId(),
     pp_TxnCurrency: "PKR",
     pp_TxnDateTime: input.txnDateTime,
     pp_TxnExpiryDateTime: input.txnExpiryDateTime,
     pp_TxnRefNo: input.txnRefNo,
-    pp_TxnType: "MWALLET",
+    pp_TxnType: getJazzcashTxnType(),
     pp_Version: "1.1",
     ppmpf_1: input.mobileNumber,
     ppmpf_2: "",

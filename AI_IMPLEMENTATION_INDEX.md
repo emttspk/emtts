@@ -39,6 +39,10 @@
 - `JAZZCASH_RETURN_URL`
 - `JAZZCASH_SANDBOX_ENDPOINT`
 - `JAZZCASH_LIVE_ENDPOINT`
+- `JAZZCASH_TXN_TYPE`
+- `JAZZCASH_BANK_ID`
+- `JAZZCASH_PRODUCT_ID`
+- `JAZZCASH_SUBMERCHANT_ID`
 
 ## API Endpoints
 
@@ -109,7 +113,58 @@
 - `JAZZCASH_INTEGRITY_SALT` present
 - `JAZZCASH_SANDBOX_ENDPOINT` present
 - `JAZZCASH_LIVE_ENDPOINT` present
+- `JAZZCASH_TXN_TYPE` missing
+- `JAZZCASH_BANK_ID` missing
+- `JAZZCASH_PRODUCT_ID` missing
 - Values were checked in Railway and masked before reporting.
+
+## v4.2 Documentation Cross-Check (2026-05-28)
+
+- Source checked: `https://sandbox.jazzcash.com.pk/SandboxDocumentation/v4.2/index.html`
+- Source checked: `https://sandbox.jazzcash.com.pk/SandboxDocumentation/v4.2/features.html`
+- Source checked: `https://sandbox.jazzcash.com.pk/SandboxDocumentation/v4.2/Resources.html`
+- Source checked: `https://sandbox.jazzcash.com.pk/SandboxDocumentation/v4.2/ApiReferences.html`
+- Confirmed from v4.2 HTTP POST Mobile Account sample:
+	- `pp_Version=1.1`
+	- `pp_TxnType=MWALLET`
+	- `pp_BankID=TBANK`
+	- `pp_ProductID=RETL`
+	- `pp_SubMerchantID` present and typically blank unless assigned
+	- `ppmpf_1..ppmpf_5` present
+- Confirmed from v4.2 resources:
+	- `000` = success
+	- `124` = pending voucher financials
+	- `157` = pending (Mwallet/MIgs)
+	- `101` = invalid merchant credentials
+	- `115` = invalid hash
+
+## v4.2 vs Live Payload Snapshot (Pre-Fix)
+
+- Endpoint action URL: `https://sandbox.jazzcash.com.pk/CustomerPortal/transactionmanagement/merchantform/`
+- `pp_MerchantID`: present
+- `pp_TxnType`: `MWALLET`
+- `pp_ReturnURL`: `https://api.epost.pk/api/payments/jazzcash/callback`
+- `pp_Amount`: `99900`
+- `pp_TxnCurrency`: `PKR`
+- `pp_BillReference`: present
+- `pp_Description`: present
+- `pp_SubMerchantID`: present blank
+- `pp_BankID`: present blank
+- `pp_ProductID`: present blank
+- `ppmpf_1`: present (mobile)
+- `pp_SecureHash`: present
+- Main mismatch found against v4.2 sample: `pp_BankID` and `pp_ProductID` were blank instead of `TBANK` and `RETL` for Mobile Account page redirection.
+
+## Corrected Payload Rules (Code)
+
+- `pp_TxnType` is now configurable via `JAZZCASH_TXN_TYPE` (default `MWALLET`).
+- `pp_BankID` is now configurable via `JAZZCASH_BANK_ID`.
+	- Default: `TBANK` in sandbox mode.
+- `pp_ProductID` is now configurable via `JAZZCASH_PRODUCT_ID`.
+	- Default: `RETL` in sandbox mode.
+- `pp_SubMerchantID` is now configurable via `JAZZCASH_SUBMERCHANT_ID` (default blank).
+- Return URL remains API-origin callback URL only.
+- IPN remains configured in JazzCash portal and processed on `POST /api/payments/jazzcash/ipn`.
 
 ## Testing Status
 
