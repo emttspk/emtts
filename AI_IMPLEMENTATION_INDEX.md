@@ -184,6 +184,39 @@
 	- App-side payload and redirect flow are aligned with v4.2 Mobile Account sample.
 	- Remaining blocker is sandbox merchant profile/configuration on JazzCash side.
 
+## Final Sandbox Diagnosis (2026-05-28)
+
+- Deployment status:
+	- API service online and serving live traffic.
+	- Health endpoint and JazzCash IPN readiness endpoint return `200`.
+- Confirmed production variable set (masked check):
+	- `JAZZCASH_ENV=sandbox`
+	- `JAZZCASH_RETURN_URL=https://api.epost.pk/api/payments/jazzcash/callback`
+	- `JAZZCASH_TXN_TYPE=MWALLET`
+	- `JAZZCASH_BANK_ID=TBANK`
+	- `JAZZCASH_PRODUCT_ID=RETL`
+	- Merchant/password/salt present in Railway (masked).
+- Fresh production create->relay payload snapshot (masked):
+	- `pp_TxnType=MWALLET`
+	- `pp_BankID=TBANK`
+	- `pp_ProductID=RETL`
+	- `pp_ReturnURL=https://api.epost.pk/api/payments/jazzcash/callback`
+	- `pp_SubMerchantID` present blank
+	- `ppmpf_1` present masked (`031******89`)
+	- `pp_SecureHash` present (`length=64`)
+- Fresh browser checkout result:
+	- `/billing` -> JazzCash modal opens.
+	- `Pay Now` redirects to JazzCash sandbox URL.
+	- Sandbox still returns `Sorry! Your transaction could not be processed due to insufficient merchant information.`
+- Final conclusion:
+	- App-side integration work is complete for v4.2 Mobile Account payload/relay/callback/IPN wiring.
+	- Failure occurs at JazzCash sandbox merchant validation stage and is now account-side.
+- Ask JazzCash support:
+	- Confirm sandbox merchant `MC771933` is enabled for hosted checkout + `MWALLET`.
+	- Confirm merchant profile allows `TBANK`/`RETL` for page redirection mode.
+	- Confirm latest generated merchant password and integrity salt are active.
+	- Confirm required portal URL mapping (`Return URL` and `IPN URL`) for this merchant profile.
+
 ## Testing Status
 
 - `node scripts/jazzcash-hash-check.mjs` -> PASS (official sample hash matched exactly)
