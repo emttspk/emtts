@@ -5,14 +5,12 @@ import Card from "../components/Card";
 import ManualPaymentModal from "../components/ManualPaymentModal";
 import {
   changePackage,
-  createJazzcashHostedCheckoutPayment,
   createJazzcashMobileWalletPayment,
   fetchJazzcashPaymentStatus,
   fetchPlans,
   type Plan,
 } from "../lib/PackageService";
 import type { MeResponse } from "../lib/types";
-import { apiUrl } from "../lib/api";
 import ActionButton from "../components/ui/ActionButton";
 import { BodyText, CardTitle, PageHeader, PageShell } from "../components/ui/PageSystem";
 
@@ -142,6 +140,22 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
     }
   }
 
+  function mapJazzcashInitiationError(error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to initiate JazzCash payment";
+    const normalized = message.toLowerCase();
+
+    if (normalized.includes("mobile wallet api is currently disabled")) {
+      return "JazzCash service is updating. Please try again in a minute.";
+    }
+    if (normalized.includes("failed to contact jazzcash mobile wallet api")) {
+      return "JazzCash wallet service did not respond. Please try again.";
+    }
+    if (normalized.includes("non-json response") || normalized.includes("cannot post") || normalized.includes("404")) {
+      return "JazzCash service is updating. Please try again in a minute.";
+    }
+    return message;
+  }
+
   function startJazzcashPolling(reference: string) {
     clearJazzcashPolling();
     let attempts = 0;
@@ -227,24 +241,6 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
     setError("This pending payment cannot be resumed from hosted checkout in production. Start a fresh payment from this page.");
   }
 
-  function submitJazzcashForm(actionUrl: string, fields: Record<string, string>) {
-    const resolvedActionUrl = actionUrl.startsWith("http") ? actionUrl : apiUrl(actionUrl);
-    const form = document.createElement("form");
-    form.method = "post";
-    form.action = resolvedActionUrl;
-    form.acceptCharset = "utf-8";
-    form.style.display = "none";
-    for (const [key, value] of Object.entries(fields)) {
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = key;
-      input.value = value;
-      form.appendChild(input);
-    }
-    document.body.appendChild(form);
-    form.submit();
-  }
-
   async function choosePlan(plan: Plan) {
     if (plan.isSuspended) {
       setError(`${plan.name} is temporarily suspended and cannot be purchased right now.`);
@@ -326,28 +322,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
 
       setError(response.message || "JazzCash payment failed.");
     } catch (err) {
-      setJazzcashModalError(err instanceof Error ? err.message : "Failed to initiate JazzCash payment");
-    } finally {
-      setInitiatingJazzcashPlanId(null);
-    }
-  }
-
-  async function confirmJazzcashHostedFallbackPayment() {
-    const plan = jazzcashModalPlan;
-    if (!plan) return;
-    const normalizedMobile = normalizeJazzcashMobile(jazzcashModalMobile);
-    if (!normalizedMobile) {
-      setJazzcashModalError("Enter a valid JazzCash mobile number in 03XXXXXXXXX format.");
-      return;
-    }
-    setJazzcashModalError(null);
-    setInitiatingJazzcashPlanId(plan.id);
-    try {
-      const response = await createJazzcashHostedCheckoutPayment(plan.id, normalizedMobile);
-      closeJazzcashModal();
-      submitJazzcashForm(response.actionUrl, response.fields);
-    } catch (err) {
-      setJazzcashModalError(err instanceof Error ? err.message : "Failed to initiate hosted JazzCash checkout");
+      setJazzcashModalError(mapJazzcashInitiationError(err));
     } finally {
       setInitiatingJazzcashPlanId(null);
     }
@@ -559,15 +534,6 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                 {initiatingJazzcashPlanId === jazzcashModalPlan.id ? "Sending request…" : "Pay Now"}
               </ActionButton>
             </div>
-            <ActionButton
-              type="button"
-              variant="secondary"
-              className="w-full text-xs"
-              onClick={() => void confirmJazzcashHostedFallbackPayment()}
-              disabled={initiatingJazzcashPlanId === jazzcashModalPlan.id}
-            >
-              Try hosted checkout instead (fallback)
-            </ActionButton>
           </div>
         </div>
       </div>

@@ -86,15 +86,23 @@ paymentsRouter.post("/jazzcash/mobile-wallet/create", requireAuth, async (req: A
       providerResponseCode: result.providerResponseCode,
       message: result.message,
       pollAfterSeconds: result.status === "awaiting_customer_approval" || result.status === "pending" ? 4 : 0,
-      fallback: {
-        hostedCheckoutPath: "/api/payments/jazzcash/create",
-      },
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: "Validation failed", details: error.errors });
     }
-    return res.status(400).json({ error: error instanceof Error ? error.message : "Failed to create JazzCash mobile wallet payment" });
+
+    const message = error instanceof Error ? error.message : "Failed to create JazzCash mobile wallet payment";
+    const normalized = message.toLowerCase();
+
+    if (normalized.includes("failed to contact jazzcash mobile wallet api")) {
+      return res.status(502).json({ error: "JazzCash wallet service did not respond. Please try again." });
+    }
+    if (normalized.includes("mobile wallet api is currently disabled") || normalized.includes("endpoint")) {
+      return res.status(503).json({ error: "JazzCash service is updating. Please try again in a minute." });
+    }
+
+    return res.status(400).json({ error: message });
   }
 });
 
