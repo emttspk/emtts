@@ -304,9 +304,11 @@ function buildJazzcashMobileWalletFields(input: {
 }) {
   const fields: Record<string, string> = {
     pp_Language: "EN",
+    pp_Version: "1.1",
     pp_MerchantID: getJazzcashMerchantId(),
     pp_SubMerchantID: getJazzcashSubMerchantId(),
     pp_Password: getJazzcashPassword(),
+    pp_TxnType: getJazzcashTxnType(),
     pp_TxnRefNo: input.txnRefNo,
     pp_MobileNumber: input.mobileNumber,
     pp_Amount: String(input.amountCents),
