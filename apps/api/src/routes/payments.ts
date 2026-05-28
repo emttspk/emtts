@@ -128,8 +128,8 @@ async function handleJazzcashCallback(req: any, res: any) {
     const reference = String((req.body?.pp_TxnRefNo ?? req.query?.pp_TxnRefNo ?? req.query?.reference ?? "unknown") as string);
     const frontendBase = getJazzcashFrontendUrl();
     const fallback = frontendBase
-      ? `${frontendBase}/billing?payment=failed&reference=${encodeURIComponent(reference)}`
-      : `/billing?payment=failed&reference=${encodeURIComponent(reference)}`;
+      ? `${frontendBase}/payment/jazzcash/result?status=failed&ref=${encodeURIComponent(reference)}`
+      : `/payment/jazzcash/result?status=failed&ref=${encodeURIComponent(reference)}`;
     return res.redirect(302, fallback);
   }
 }

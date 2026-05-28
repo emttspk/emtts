@@ -191,10 +191,12 @@ function buildJazzcashStatus(status: string, responseCode: string | null, messag
 
 function buildFrontendBillingUrl(status: "success" | "failed" | "pending", reference: string, message?: string) {
   const base = getJazzcashFrontendUrl();
-  const targetBase = base ? `${base}/billing` : "/billing";
+  // Redirect to the public (no-auth) result page so unauthenticated JazzCash
+  // return tabs are never bounced to /login.
+  const targetBase = base ? `${base}/payment/jazzcash/result` : "/payment/jazzcash/result";
   const url = new URL(targetBase, base || "http://localhost");
-  url.searchParams.set("payment", status);
-  if (reference) url.searchParams.set("reference", reference);
+  url.searchParams.set("status", status);
+  if (reference) url.searchParams.set("ref", reference);
   if (message) url.searchParams.set("message", message.slice(0, 160));
   return base ? url.toString() : `${url.pathname}${url.search}`;
 }

@@ -31,6 +31,7 @@ const AdminComplaintMonitor = lazy(() => import("./pages/AdminComplaintMonitor")
 const TemplateDesigner = lazy(() => import("./pages/TemplateDesigner"));
 const GenerateLabels = lazy(() => import("./pages/GenerateLabels"));
 const GenerateMoneyOrder = lazy(() => import("./pages/admin/GenerateMoneyOrder"));
+const JazzCashResult = lazy(() => import("./pages/JazzCashResult"));
 
 function Loading() {
   return (
@@ -69,6 +70,7 @@ export default function App() {
         <Route path="/track" element={<Navigate to="/tracking" replace />} />
         <Route path="/tracking" element={<TrackingEntry />} />
         <Route path="/tracking/:trackingId" element={<PublicTracking />} />
+        <Route path="/payment/jazzcash/result" element={<JazzCashResult />} />
 
         <Route
           element={
