@@ -596,3 +596,97 @@ From JazzCash v4.2 docs (ApiReferences.html), the **Hosted Checkout + Mobile Acc
 	- `pp_SecureHash` error (`110`) is resolved in live authenticated API flow.
 	- Current blocker is now provider-side transaction outcome (`199`) for sandbox test wallets/merchant profile, not request hashing.
 	- No package activation occurred (subscriptions remained `Free Plan|ACTIVE`), as expected for failed provider responses.
+
+## JazzCash Provider 199 Deep Investigation (2026-05-29)
+
+- Goal:
+	- Resolve provider response code `199` for Mobile Wallet API only (`DoTransaction`).
+
+### External References Reviewed
+
+- Official docs:
+	- `https://sandbox.jazzcash.com.pk/SandboxDocumentation/v4.2/ApiReferences.html`
+	- `https://sandbox.jazzcash.com.pk/SandboxDocumentation/v4.2/index.html`
+	- `https://sandbox.jazzcash.com.pk/SandboxDocumentation/v4.2/Resources.html`
+- Community:
+	- `https://github.com/shehryar96/Jazzcash-mobile-wallet-Integration` (recurring/token flow examples)
+	- `https://github.com/zfhassaan/jazzcash` (hosted checkout only; used for hash reference only)
+	- `https://packagist.org/packages/aticmatic/laravel-jazzcash` (direct mobile wallet v2 focus; CNIC-oriented guidance)
+
+### Flow Type Determination (Evidence-Based)
+
+- Merchant `MC771933` on sandbox `DoTransaction` currently validates against a payload shape that requires:
+	- `pp_Version=1.1`
+	- `pp_TxnType=MWALLET`
+	- `pp_ReturnURL` (non-empty)
+- For this merchant/endpoint behavior:
+	- Omitting `pp_Version` returns `110` with invalid version message.
+	- Omitting `pp_ReturnURL` returns `110` with invalid return URL message.
+	- Including `pp_CNIC` in current hash set returns `110` invalid `pp_SecureHash`.
+- This confirms merchant behavior is not using the CNIC-enabled v2 hash set currently.
+
+### Provider 199 Diagnostic Matrix (Direct-to-Provider)
+
+- Temporary script used (not committed): `scripts/tmp-jazzcash-provider-199-diag.mjs`
+- Endpoint tested:
+	- `https://sandbox.jazzcash.com.pk/ApplicationAPI/API/Payment/DoTransaction`
+	- `https://sandbox.jazzcash.com.pk/ApplicationAPI/API/4.0/purchase/domwallettransactionviatoken` (reference check)
+- Variant outcomes:
+	- V1 current app JSON -> `199`
+	- V2 current app form-urlencoded -> `199`
+	- V3 current + `pp_CNIC` -> `110` (`pp_SecureHash` invalid)
+	- V4 current without `pp_ReturnURL` -> `110` (invalid return URL)
+	- V5 v4-style requestId/mpin payload on DoTransaction -> `110` (invalid version)
+	- V6 v3 hosted-mpin-style payload on DoTransaction -> `110` (invalid version)
+	- V7 v1.1/v2-like payload without version/txnType -> `110` (invalid version)
+	- V8 aticmatic-like CNIC-enabled payload -> `110` (invalid version)
+	- V9 shehryar token endpoint payload without payment token -> `110` (invalid payment token)
+	- V10 v1.1 + txnType + returnURL + mobile -> `199`
+
+### Amount/Number Sweep (Hash-Valid Payload)
+
+- Temporary script used (not committed): `scripts/tmp-jazzcash-provider-199-amount-sweep.mjs`
+- Hash-valid payload shape (v1.1 + txnType + returnURL + mobile number) was tested across:
+	- Numbers: `03123456789`, `03123456780`, `03123456781`
+	- Amounts: `100`, `200`, `500`, `1000`, `10000`, `99900`
+- Result:
+	- Every combination returned provider code `199` with message:
+		- `Sorry! Your transaction was not successful. Please try again later.`
+
+### Interpretation
+
+- Official resources map `199` to `System error`.
+- Since:
+	- hash is now valid (no `110`/`115`) for the accepted payload,
+	- multiple content types, numbers, and amounts all fail with `199`,
+	- and alternate API-flow payloads fail at validation stage as expected,
+- the remaining issue is classified as vendor-side sandbox merchant/profile enablement for direct Mobile Wallet API processing.
+
+### Support-Ready Escalation Note (JazzCash)
+
+- Merchant ID: `MC771933`
+- API endpoint: `https://sandbox.jazzcash.com.pk/ApplicationAPI/API/Payment/DoTransaction`
+- Environment: `sandbox`
+- Hash issue status:
+	- `pp_SecureHash` validation issue (`110`) is resolved.
+- Current issue:
+	- All hash-valid requests return `199` (`System error` / transaction not successful).
+- Request to JazzCash:
+	- Confirm `MC771933` is enabled for direct Mobile Wallet REST API on `DoTransaction` (not only hosted checkout).
+	- Confirm required API version/profile mapping for this merchant (`v1.1` vs `v2 CNIC` vs `v3 hosted MPIN`).
+	- Confirm whether sandbox test wallets `03123456789/80/81` are enabled for this merchant profile on direct API channel.
+	- Confirm whether additional merchant-side enablement flags are pending for API Testing mode.
+
+### Final Live Matrix (Current Active Deployment)
+
+- Script: `scripts/tmp-jazzcash-live-auth-tests.sh`
+- Active deployment at test time: `4caf03a4-e20e-4932-b404-b746dac9b666` (`SUCCESS`)
+- Results:
+	- `03123456789` -> HTTP `201`, provider `199`, app `failed`, DB `FAILED`, activation unchanged (`Free Plan|ACTIVE`)
+	- `03123456780` -> HTTP `201`, provider `199`, app `failed`, DB `FAILED`, activation unchanged (`Free Plan|ACTIVE`)
+	- `03123456781` -> HTTP `201`, provider `199`, app `failed`, DB `FAILED`, activation unchanged (`Free Plan|ACTIVE`)
+
+### Protected Scope Status
+
+- Confirmed: only JazzCash Mobile Wallet API investigation, diagnostics, and documentation touched.
+- No modifications to label generation, money orders, tracking, complaints, R2, dashboard/auth, manual payment approval, package logic, or unrelated EP Gateway internals.

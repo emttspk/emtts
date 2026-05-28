@@ -62,6 +62,57 @@ Post-fix authenticated matrix against deployed API:
 
 All three requests now pass hash validation (no provider `110`). Current failure mode is provider business response `199` (`Sorry! Your transaction was not successful. Please try again later.`), indicating a sandbox profile/wallet-state issue rather than hash construction.
 
+## Provider 199 Investigation Summary (2026-05-29)
+
+### External References Checked
+
+- Official:
+  - `https://sandbox.jazzcash.com.pk/SandboxDocumentation/v4.2/ApiReferences.html`
+  - `https://sandbox.jazzcash.com.pk/SandboxDocumentation/v4.2/index.html`
+  - `https://sandbox.jazzcash.com.pk/SandboxDocumentation/v4.2/Resources.html`
+- Community:
+  - `https://github.com/shehryar96/Jazzcash-mobile-wallet-Integration` (token/recurring flow)
+  - `https://github.com/zfhassaan/jazzcash` (hosted checkout only)
+  - `https://packagist.org/packages/aticmatic/laravel-jazzcash` (direct MWallet v2 package notes)
+
+### Direct Provider Diagnostics (Sandbox)
+
+Using temporary scripts (not committed), direct calls were sent to JazzCash sandbox with masked credentials:
+
+- `scripts/tmp-jazzcash-provider-199-diag.mjs`
+- `scripts/tmp-jazzcash-provider-199-amount-sweep.mjs`
+
+Key observed outcomes:
+
+- Payloads with `pp_Version=1.1`, `pp_TxnType=MWALLET`, `pp_ReturnURL` and valid hash consistently pass hash validation and return `199`.
+- Removing `pp_ReturnURL` returns `110` (invalid return URL).
+- Omitting `pp_Version` returns `110` (invalid version).
+- Adding `pp_CNIC` to the currently accepted flow causes hash rejection (`110` invalid `pp_SecureHash`).
+- v4 token endpoint variant correctly rejects missing token with `110` invalid payment token.
+
+### Amount/Number Sweep Result
+
+With hash-valid payload shape:
+
+- Numbers: `03123456789`, `03123456780`, `03123456781`
+- Amounts: `100`, `200`, `500`, `1000`, `10000`, `99900`
+
+All combinations returned provider code `199`.
+
+### Conclusion
+
+- Hash construction is valid for the active merchant flow (code `110` resolved).
+- Provider code `199` aligns with official `Resources` mapping (`System error`).
+- Remaining blocker is vendor-side sandbox merchant/profile enablement for direct Mobile Wallet API on `DoTransaction`.
+
+### Support Escalation Data Points
+
+- Merchant: `MC771933`
+- Endpoint: `https://sandbox.jazzcash.com.pk/ApplicationAPI/API/Payment/DoTransaction`
+- Return URL in use: `https://api.epost.pk/api/payments/jazzcash/callback`
+- Symptom: all hash-valid transactions return `199` across numbers and amounts
+- Ask JazzCash to verify direct Mobile Wallet REST API enablement/profile mapping for this merchant.
+
 ## Deployment Evidence
 
 - Git commit: `749aff1`
