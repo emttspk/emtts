@@ -2,6 +2,18 @@
 
 Date: 2026-05-18
 
+## 2026-05-30 Production Exposure Hardening Verification (Protected Scope)
+
+Verification completed for bootstrap, CORS, error handling, support attachment access, static/public exposure, mounted route exposure, and environment examples.
+
+Safe hardening applied:
+- Production CORS now blocks localhost/127.0.0.1 origins while preserving local development origins outside production.
+- Global and health/database connection error responses now return generic messages in production.
+- Startup warnings no longer echo partial DATABASE_URL content.
+
+No route removals, dependency removals, UI changes, workflow changes, or business logic changes were introduced.
+Protected Scope Protocol preserved.
+
 ## Scope
 
 This document records only the critical S1 readiness hardening fixes implemented after forensic validation.

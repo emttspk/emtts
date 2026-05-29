@@ -173,6 +173,17 @@ function normalizeOrigin(value: string | undefined): string {
   return String(value ?? "").trim().replace(/\/+$/, "").toLowerCase();
 }
 
+function isLocalOrigin(origin: string | undefined): boolean {
+  const normalized = normalizeOrigin(origin);
+  if (!normalized) return false;
+  try {
+    const url = new URL(normalized);
+    return isLocalHost(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 function parseOriginList(value: string | undefined): string[] {
   return String(value ?? "")
     .split(",")
@@ -185,12 +196,17 @@ const allowedCorsOrigins = new Set(
     env.WEB_ORIGIN,
     "https://www.epost.pk",
     "https://epost.pk",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
+    ...(!isProduction
+      ? [
+          "http://localhost:5173",
+          "http://127.0.0.1:5173",
+          "http://localhost:3000",
+          "http://127.0.0.1:3000",
+        ]
+      : []),
   ]
     .map(normalizeOrigin)
+    .filter((origin) => !isProduction || !isLocalOrigin(origin))
     .filter(Boolean),
 );
 
@@ -231,7 +247,7 @@ if (!process.env.DATABASE_URL) {
   console.warn("For local dev: Ensure .env file exists with DATABASE_URL set.");
 } else if (!process.env.DATABASE_URL.startsWith("postgresql://") && !process.env.DATABASE_URL.startsWith("postgres://")) {
   console.warn("Invalid DATABASE_URL format");
-  console.warn(`Received: ${process.env.DATABASE_URL.substring(0, 50)}...`);
+  console.warn("Received: [redacted]");
   console.warn("Must start with postgresql:// or postgres://");
 }
 
@@ -309,7 +325,7 @@ function validateEnvironment() {
     const dbUrl = process.env.DATABASE_URL;
     const isValidPostgres = dbUrl.startsWith("postgresql://") || dbUrl.startsWith("postgres://");
     if (!isValidPostgres) {
-      warnings.push(`DATABASE_URL is invalid: ${dbUrl.substring(0, 50)}... Must start with postgresql:// or postgres://`);
+      warnings.push("DATABASE_URL is invalid. Must start with postgresql:// or postgres://");
     }
   }
 
@@ -615,7 +631,7 @@ app.get("/health/db", async (_req, res) => {
     await prisma.$queryRaw`SELECT 1`;
     return res.json({ status: "ok", service: "db" });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = isProduction ? "Database health check failed" : (err instanceof Error ? err.message : String(err));
     return res.status(503).json({ status: "error", service: "db", message });
   }
 });
@@ -629,7 +645,7 @@ app.get("/health/redis", async (_req, res) => {
     const pong = await redisClient.ping();
     return res.json({ status: pong === "PONG" ? "ok" : "error", service: "redis" });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = isProduction ? "Redis health check failed" : (err instanceof Error ? err.message : String(err));
     return res.status(503).json({ status: "error", service: "redis", message });
   }
 });
@@ -647,7 +663,7 @@ app.get("/health/worker", async (_req, res) => {
     }
     return res.status(503).json({ status: "offline", service: "worker", message: "Worker singleton lock not held" });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = isProduction ? "Worker health check failed" : (err instanceof Error ? err.message : String(err));
     return res.status(503).json({ status: "error", service: "worker", message });
   }
 });
@@ -659,7 +675,7 @@ const ensureApiDatabaseConnection: express.RequestHandler = async (_req, res, ne
     await prisma.$connect();
     return next();
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Database connection failed";
+    const message = isProduction ? "Database connection failed" : (error instanceof Error ? error.message : "Database connection failed");
     return res.status(503).json({ success: false, message });
   }
 };
@@ -800,8 +816,13 @@ app.use((_req, res) => {
 
 // Global Error Handler
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error("GLOBAL ERROR:", err);
-  const message = err instanceof Error ? err.message : "An unknown server error occurred.";
+  const detail = err instanceof Error ? err.message : String(err);
+  if (isProduction) {
+    console.error("GLOBAL ERROR:", detail);
+  } else {
+    console.error("GLOBAL ERROR:", err);
+  }
+  const message = isProduction ? "Internal server error" : (err instanceof Error ? err.message : "An unknown server error occurred.");
   if (!res.headersSent) {
     res.status(500).json({ success: false, message });
   }
@@ -962,7 +983,7 @@ async function validateStartupPhase3() {
     const dbUrl = process.env.DATABASE_URL;
     const isValidPostgres = dbUrl.startsWith("postgresql://") || dbUrl.startsWith("postgres://");
     if (!isValidPostgres) {
-      warnings.push(`DATABASE_URL is invalid: ${dbUrl.substring(0, 50)}... Must start with postgresql:// or postgres://`);
+      warnings.push("DATABASE_URL is invalid. Must start with postgresql:// or postgres://");
     }
   }
 
