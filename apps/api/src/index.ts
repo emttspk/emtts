@@ -184,6 +184,39 @@ function isLocalOrigin(origin: string | undefined): boolean {
   }
 }
 
+const SENSITIVE_QUERY_KEYS = new Set([
+  "token",
+  "access_token",
+  "refresh_token",
+  "password",
+  "secret",
+  "key",
+  "api_key",
+  "code",
+  "auth",
+  "authorization",
+  "jwt",
+  "session",
+  "cookie",
+  "payment_token",
+  "transaction_secret",
+]);
+
+function formatRequestUrlForLog(originalUrl: string): string {
+  const [pathname, search = ""] = String(originalUrl ?? "").split("?", 2);
+  if (!search) return pathname || "/";
+
+  const params = new URLSearchParams(search);
+  for (const key of params.keys()) {
+    if (SENSITIVE_QUERY_KEYS.has(key.toLowerCase())) {
+      params.set(key, "[redacted]");
+    }
+  }
+
+  const redactedSearch = params.toString();
+  return redactedSearch ? `${pathname}?${redactedSearch}` : pathname;
+}
+
 function parseOriginList(value: string | undefined): string[] {
   return String(value ?? "")
     .split(",")
@@ -616,7 +649,7 @@ app.use(
 app.use(express.json({ limit: "2mb" }));
 
 app.use((req, _res, next) => {
-  console.log(`[REQ] ${req.method} ${req.originalUrl}`);
+  console.log(`[REQ] ${req.method} ${formatRequestUrlForLog(req.originalUrl || req.url || "/")}`);
   return next();
 });
 

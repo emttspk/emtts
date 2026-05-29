@@ -2,6 +2,17 @@
 
 Date: 2026-05-18
 
+## 2026-05-30 Final Production Safety Polish (Protected Scope)
+
+Final production safety polish completed for two manual confirmation items.
+
+Safe hardening applied:
+- Bootstrap endpoint now returns generic forbidden response in production when bootstrap secret is unavailable.
+- Request logging now redacts sensitive query parameter values while preserving method and route visibility.
+
+No business flow changed.
+Protected Scope Protocol maintained.
+
 ## 2026-05-30 Production Exposure Hardening Verification (Protected Scope)
 
 Verification completed for bootstrap, CORS, error handling, support attachment access, static/public exposure, mounted route exposure, and environment examples.

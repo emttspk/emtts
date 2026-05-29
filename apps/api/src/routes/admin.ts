@@ -70,7 +70,12 @@ startComplaintRetryJob();
 
 adminRouter.post("/bootstrap", async (req, res) => {
   const secret = req.header("x-bootstrap-secret");
-  if (!env.ADMIN_BOOTSTRAP_SECRET) return res.status(500).json({ error: "Bootstrap not configured" });
+  if (!env.ADMIN_BOOTSTRAP_SECRET) {
+    if (env.NODE_ENV === "production") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    return res.status(500).json({ error: "Bootstrap not configured" });
+  }
   if (!secret || secret !== env.ADMIN_BOOTSTRAP_SECRET) {
     return res.status(401).json({ error: "Unauthorized" });
   }
