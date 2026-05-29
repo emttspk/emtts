@@ -6,6 +6,7 @@ export type NavItem = {
 
 export const APP_NAV_ITEMS: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", matchPrefixes: ["/dashboard"] },
+  { to: "/booking-quote", label: "Booking Quote", matchPrefixes: ["/booking-quote"] },
   { to: "/generate-labels", label: "Generate Labels", matchPrefixes: ["/generate-labels", "/admin/generate-labels"] },
   { to: "/generate-money-orders", label: "Generate Money Order", matchPrefixes: ["/generate-money-orders", "/admin/generate-money-orders"] },
   { to: "/tracking-workspace", label: "Tracking", matchPrefixes: ["/tracking", "/tracking-workspace"] },

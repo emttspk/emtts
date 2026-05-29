@@ -35,6 +35,7 @@ const GenerateMoneyOrder = lazy(() => import("./pages/admin/GenerateMoneyOrder")
 const JazzCashResult = lazy(() => import("./pages/JazzCashResult"));
 const SupportTicketsPage = lazy(() => import("./pages/SupportTicketsPage"));
 const SupportTicketDetailPage = lazy(() => import("./pages/SupportTicketDetailPage"));
+const BookingQuote = lazy(() => import("./pages/BookingQuote"));
 
 function Loading() {
   return (
@@ -94,6 +95,7 @@ export default function App() {
             path="/upload"
             element={<Upload />}
           />
+          <Route path="/booking-quote" element={<BookingQuote />} />
           <Route path="/jobs" element={<Jobs />} />
           <Route path="/download-labels" element={<Navigate to="/jobs?filter=completed" replace />} />
           <Route path="/downloads" element={<Navigate to="/jobs?filter=completed" replace />} />

@@ -1,5 +1,54 @@
 # AI Implementation Index
 
+## 2026-05-30 - Aggregator Booking Quote Phase 1 (Separate Lane)
+
+### Task Name
+- Implement Phase 1 of separate Aggregator Booking Quote module with Pakistan Post per-article postage estimation.
+
+### Files Changed
+- `apps/api/src/utils/postageRates.ts`
+- `apps/api/src/utils/postageRates.test.ts`
+- `apps/api/src/services/bookingQuoteService.ts`
+- `apps/api/src/routes/bookingQuotes.ts`
+- `apps/api/src/index.ts`
+- `apps/web/src/pages/BookingQuote.tsx`
+- `apps/web/src/components/booking/PostageSummaryCard.tsx`
+- `apps/web/src/components/booking/PostageBreakdownTable.tsx`
+- `apps/web/src/components/booking/BookingRecommendationCard.tsx`
+- `apps/web/src/App.tsx`
+- `apps/web/src/components/Sidebar.tsx`
+- `apps/web/src/lib/navigation.ts`
+- `docs/architecture/aggregator-booking-business-plan.md`
+- `docs/architecture/postage-rates.md`
+- `docs/architecture/booking-lifecycle.md`
+- `docs/operations/aggregator-booking-rollout-checklist.md`
+- `docs/operations/leopards-pickup-email-sop.md`
+- `docs/operations/hub-receiving-and-post-booking-sop.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Scope Status
+- Separate booking quote lane: COMPLETED
+- Per-article Pakistan Post postage calculator: COMPLETED
+- Separate quote API route: COMPLETED
+- Separate booking quote page: COMPLETED
+- Existing upload generation flow unchanged: VERIFIED
+- Payment/pickup/courier API automation: NOT IMPLEMENTED (deferred)
+- Live booking execution: NOT IMPLEMENTED (deferred)
+
+### Protected Scope Verification
+- `apps/api/src/routes/jobs.ts`: NOT TOUCHED
+- `apps/web/src/pages/Upload.tsx`: NOT TOUCHED
+- money order commission and MOS/UMO logic: NOT TOUCHED
+- tracking logic: NOT TOUCHED
+- complaint logic: NOT TOUCHED
+- billing/unit consumption logic: NOT TOUCHED
+- storage/worker behavior: NOT TOUCHED
+
+### Notes
+- Phase 1 remains quote-only.
+- No service charges, handling charges, pickup charges, profit margin, or discount logic added.
+- Aggregator booking remains separate from existing unit-based SaaS workflow.
+
 ## 2026-05-30 - Final Production Safety Polish (Protected Scope)
 
 - Final production safety polish completed.

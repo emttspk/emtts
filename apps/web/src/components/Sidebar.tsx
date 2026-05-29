@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Bell,
+  Calculator,
   Download,
   LayoutDashboard,
   LogOut,
@@ -20,6 +21,7 @@ import { APP_NAV_ITEMS, isRouteActive } from "../lib/navigation";
 
 const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, matchPrefixes: ["/dashboard"] },
+  { to: "/booking-quote", label: "Booking Quote", icon: Calculator, matchPrefixes: ["/booking-quote"] },
   { to: "/generate-labels", label: "Generate Labels", icon: UploadCloud, matchPrefixes: ["/generate-labels", "/admin/generate-labels"] },
   { to: "/generate-money-orders", label: "Generate Money Order", icon: Wallet, matchPrefixes: ["/generate-money-orders", "/admin/generate-money-orders"] },
   { to: "/tracking-workspace", label: "Tracking", icon: Radar, matchPrefixes: ["/tracking", "/tracking-workspace"] },
