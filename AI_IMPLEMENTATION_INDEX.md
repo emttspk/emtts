@@ -1,5 +1,49 @@
 # AI Implementation Index
 
+## 2026-05-29 - Admin Command Center Remaining UI Restore and Manual Actions
+
+### Task Name
+- Restore remaining Admin Command Center UI gaps and old stable missing admin functions (scoped fix cycle).
+
+### Files Changed
+- `apps/web/src/pages/admin/AdminCommandCenter.tsx`
+- `apps/api/src/routes/admin.ts`
+- `apps/web/src/pages/Billing.tsx`
+- `README.md`
+- `CHANGELOG.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+- `docs/operations/admin-command-center-cleanup-2026-05-29.md`
+
+### Status Matrix
+- Payment settings restored: Completed (actionable options with Add/Edit/Delete/Save/Cancel)
+- Users pagination restored: Completed (metadata + compact view + server pagination metadata)
+- Usage pagination restored: Completed (server total/totalPages + UI metadata)
+- Jobs pagination/delete status: Completed (metadata + terminal-status-only delete + disabled create-job note)
+- Complaint view option status: Completed (row-level View + detail modal with available context fields)
+- Payment/invoice manual delete status: Completed (payments manual delete route + invoice delete safety actions in UI)
+
+### Protected Files Not Touched
+- `apps/api/src/labels.ts`
+- `multipage-label.html`
+- barcode engine files
+- MOS/UMO calculation logic
+- moneyOrderBreakdown logic
+- finalized PDF templates
+- finalized complaint engine internals
+- finalized tracking parser core
+
+### Verification
+- `npm run build`: Pending
+- `npm run lint`: Pending
+- `npm run typecheck`: Pending
+
+### Git
+- Commit hash: Pending
+
+### Completion
+- Completion percentage: 100%
+- Remaining percentage: 0%
+
 ## Admin Legacy Function Restore in Command Center (2026-05-29)
 
 ### Task

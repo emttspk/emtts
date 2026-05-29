@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-05-29 - Admin Command Center Remaining UI Restore (Scoped)
+
+### Scope
+- Restored remaining actionable admin UI gaps only, without touching protected rendering/tracking/complaint core business logic.
+
+### UI Fixes
+- Restored payment settings controls from prompt-only state to actionable option controls:
+  - `Add Payment Option`, `Edit`, `Delete`, `Save`, `Cancel`
+  - JazzCash, EasyPaisa, and Bank option configuration fields.
+- Added compact users table mode and explicit users pagination metadata display.
+- Added usage tab pagination metadata display and server-backed pagination totals.
+- Added jobs pagination metadata display, terminal-status-only delete behavior, and disabled create-job guidance.
+- Added complaints `View` option with a details modal (tracking/complaint/due/status/addressee/city-office/latest-tracking/history lines when available).
+- Added manual delete controls in payments and invoices tabs with confirmations and safety guards.
+- Added visible sortable header controls with direction indicators for supported tabs.
+- Strengthened active sidebar tab highlight with filled state + left border.
+- Improved Date Filter UX:
+  - Label renamed to `Date Filter`
+  - Active quick filter highlight
+  - helper text for quick ranges
+  - hidden quick date controls for tabs that do not use date filtering.
+
+### API Fixes
+- Enhanced `GET /api/admin/users` with status/date filters and `totalPages`.
+- Enhanced `GET /api/admin/usage` with totals and sorting support.
+- Enhanced `GET /api/admin/jobs` and `GET /api/admin/invoices` with `totalPages`.
+- Replaced admin manual-payment list route with query-aware handler (search/date/status/pagination/sort + totals).
+- Added `DELETE /api/admin/manual-payments/:id` with safety checks (pending/rejected/manual-test only).
+
+### Typecheck Blocker
+- Fixed missing `apiUrl` import in `apps/web/src/pages/Billing.tsx`.
+
 ## 2026-05-29 - Scoped Admin Controls, Queue Diagnostics, and Tracking Stability Fixes
 
 ### Scope

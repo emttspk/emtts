@@ -254,6 +254,10 @@ BulkTracking.tsx  →  POST /api/tracking/complaint  →  Python /submit-complai
 - `/admin` is guarded by admin auth (`RequireAdmin`); non-admin users are redirected away.
 - Legacy stable operations remain embedded for plans/usage/shipments/payments/invoices.
 - Users, Settings, and Allow/Test File Names are now managed directly in command center tabs.
+- Settings tab now exposes actionable payment option controls with `Add Payment Option`, `Edit`, `Delete`, `Save`, `Cancel`.
+- Users/Usage/Jobs tabs include explicit pagination metadata (`page`, `total`, `totalPages`, `pageSize`) and compact table mode.
+- Jobs tab delete is gated to terminal statuses only (completed/failed/cancelled).
+- Payments and invoices include manual delete actions with server-side safety checks.
 
 New additive command-center API endpoints:
 - `GET /api/admin/dashboard/summary`
@@ -280,6 +284,7 @@ Safe admin mutation and compatibility endpoints:
 - `POST /api/admin/users/bulk`
 - `POST /api/admin/payments/:id/approve`
 - `POST /api/admin/payments/:id/reject`
+- `DELETE /api/admin/manual-payments/:id`
 
 List query support for admin tables:
 - `search`, `from`, `to`, `status`, `page`, `pageSize`, `sortBy`, `sortOrder`

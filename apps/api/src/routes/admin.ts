@@ -22,7 +22,6 @@ import { getComplaintCircuitState } from "../services/complaint-circuit.service.
 import { processComplaintQueueById } from "../processors/complaint.processor.js";
 import { normalizeComplaintQueueStatus } from "../services/complaint-queue.service.js";
 import {
-  adminListManualPayments,
   adminApproveManualPayment,
   adminRejectManualPayment,
 } from "./manualPayments.js";
@@ -1099,20 +1098,27 @@ adminRouter.get("/users", async (req, res) => {
   const page = toPositiveInt(req.query.page, 1, 5000);
   const pageSize = toPositiveInt(req.query.pageSize ?? req.query.limit, 50, 200);
   const search = String(req.query.search ?? "").trim();
+  const status = String(req.query.status ?? "").trim().toUpperCase();
+  const from = toDateOrNull(req.query.from, false);
+  const to = toDateOrNull(req.query.to, true);
   const sortBy = String(req.query.sortBy ?? "createdAt").trim();
   const sortOrder = normalizeSortOrder(req.query.sortOrder);
   const sortKey = ["createdAt", "email", "companyName", "role", "suspended"].includes(sortBy) ? sortBy : "createdAt";
 
-  const where: any = search
-    ? {
-        OR: [
-          { email: { contains: search, mode: "insensitive" } },
-          { companyName: { contains: search, mode: "insensitive" } },
-          { contactNumber: { contains: search, mode: "insensitive" } },
-          { originCity: { contains: search, mode: "insensitive" } },
-        ],
-      }
-    : {};
+  const where: any = {
+    ...(search
+      ? {
+          OR: [
+            { email: { contains: search, mode: "insensitive" } },
+            { companyName: { contains: search, mode: "insensitive" } },
+            { contactNumber: { contains: search, mode: "insensitive" } },
+            { originCity: { contains: search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+    ...(status === "SUSPENDED" ? { suspended: true } : status === "ACTIVE" ? { suspended: false } : {}),
+    ...(from || to ? { createdAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
+  };
 
   const [total, users] = await Promise.all([
     prisma.user.count({ where }),
@@ -1141,6 +1147,7 @@ adminRouter.get("/users", async (req, res) => {
     page,
     pageSize,
     total,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
     users: users.map((user) => {
       const subscription = user.subscriptions[0] ?? null;
       const usage = user.usage[0] ?? {
@@ -1868,18 +1875,20 @@ adminRouter.put(
     { name: "bankQr", maxCount: 1 },
   ]),
   async (req, res) => {
+    const current = await getOrCreateBillingSettings();
+
     const body = z
       .object({
-        jazzcashNumber: z.string().trim().min(1),
-        jazzcashTitle: z.string().trim().min(1),
-        easypaisaNumber: z.string().trim().min(1),
-        easypaisaTitle: z.string().trim().min(1),
+        jazzcashNumber: z.string().trim().optional(),
+        jazzcashTitle: z.string().trim().optional(),
+        easypaisaNumber: z.string().trim().optional(),
+        easypaisaTitle: z.string().trim().optional(),
         bankName: z.string().trim().optional(),
         bankTitle: z.string().trim().optional(),
         bankAccountNumber: z.string().trim().optional(),
         bankIban: z.string().trim().optional(),
-        standardPrice: z.coerce.number().int().positive(),
-        businessPrice: z.coerce.number().int().positive(),
+        standardPrice: z.coerce.number().int().positive().optional(),
+        businessPrice: z.coerce.number().int().positive().optional(),
         clearJazzcashQr: z
           .string()
           .optional()
@@ -1942,7 +1951,13 @@ adminRouter.put(
       clearBankQr: body.clearBankQr,
     });
 
-    const current = await getOrCreateBillingSettings();
+    const jazzcashNumber = body.jazzcashNumber ?? current.jazzcashNumber;
+    const jazzcashTitle = body.jazzcashTitle ?? current.jazzcashTitle;
+    const easypaisaNumber = body.easypaisaNumber ?? current.easypaisaNumber;
+    const easypaisaTitle = body.easypaisaTitle ?? current.easypaisaTitle;
+    const standardPrice = body.standardPrice ?? current.standardPrice;
+    const businessPrice = body.businessPrice ?? current.businessPrice;
+
     const jazzcashQrPath = jazzcashQr
       ? toStoredPath(jazzcashQr.path)
       : body.clearJazzcashQr
@@ -1963,34 +1978,34 @@ adminRouter.put(
       where: { id: 1 },
       create: {
         id: 1,
-        jazzcashNumber: body.jazzcashNumber,
-        jazzcashTitle: body.jazzcashTitle,
+        jazzcashNumber,
+        jazzcashTitle,
         jazzcashQrPath,
-        easypaisaNumber: body.easypaisaNumber,
-        easypaisaTitle: body.easypaisaTitle,
+        easypaisaNumber,
+        easypaisaTitle,
         easypaisaQrPath,
         bankName: body.bankName ?? null,
         bankTitle: body.bankTitle ?? null,
         bankAccountNumber: body.bankAccountNumber ?? null,
         bankIban: body.bankIban ?? null,
         bankQrPath,
-        standardPrice: body.standardPrice,
-        businessPrice: body.businessPrice,
+        standardPrice,
+        businessPrice,
       },
       update: {
-        jazzcashNumber: body.jazzcashNumber,
-        jazzcashTitle: body.jazzcashTitle,
+        jazzcashNumber,
+        jazzcashTitle,
         jazzcashQrPath,
-        easypaisaNumber: body.easypaisaNumber,
-        easypaisaTitle: body.easypaisaTitle,
+        easypaisaNumber,
+        easypaisaTitle,
         easypaisaQrPath,
         bankName: body.bankName ?? null,
         bankTitle: body.bankTitle ?? null,
         bankAccountNumber: body.bankAccountNumber ?? null,
         bankIban: body.bankIban ?? null,
         bankQrPath,
-        standardPrice: body.standardPrice,
-        businessPrice: body.businessPrice,
+        standardPrice,
+        businessPrice,
       },
     });
 
@@ -2054,25 +2069,36 @@ adminRouter.get("/usage", async (req, res) => {
   const to = toDateOrNull(req.query.to, true);
   const page = toPositiveInt(req.query.page, 1, 5000);
   const pageSize = toPositiveInt(req.query.pageSize, 50, 200);
-  const usage = await prisma.usageMonthly.findMany({
-    where: {
-      month: m,
-      ...(search
-        ? {
-            OR: [
-              { user: { email: { contains: search, mode: "insensitive" } } },
-              { user: { companyName: { contains: search, mode: "insensitive" } } },
-            ],
-          }
-        : {}),
-      ...(from || to ? { createdAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
-    },
-    include: { user: { select: { id: true, email: true } } },
-    orderBy: { labelsGenerated: "desc" },
-    skip: (page - 1) * pageSize,
-    take: pageSize,
-  });
-  res.json({ month: m, page, pageSize, usage });
+  const sortBy = String(req.query.sortBy ?? "labelsGenerated").trim();
+  const sortOrder = normalizeSortOrder(req.query.sortOrder);
+  const sortKey = ["createdAt", "labelsGenerated", "trackingGenerated", "labelsQueued", "trackingQueued"].includes(sortBy)
+    ? sortBy
+    : "labelsGenerated";
+  const where: any = {
+    month: m,
+    ...(search
+      ? {
+          OR: [
+            { user: { email: { contains: search, mode: "insensitive" } } },
+            { user: { companyName: { contains: search, mode: "insensitive" } } },
+          ],
+        }
+      : {}),
+    ...(from || to ? { createdAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
+  };
+
+  const [total, usage] = await Promise.all([
+    prisma.usageMonthly.count({ where }),
+    prisma.usageMonthly.findMany({
+      where,
+      include: { user: { select: { id: true, email: true } } },
+      orderBy: sortBy === "email" ? ({ user: { email: sortOrder } } as any) : ({ [sortKey]: sortOrder } as any),
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
+
+  res.json({ month: m, page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)), usage });
 });
 
 adminRouter.post("/plans/seed", async (_req, res) => {
@@ -2143,7 +2169,7 @@ adminRouter.get("/jobs", async (req, res) => {
   const to = toDateOrNull(req.query.to, true);
   const sortBy = String(req.query.sortBy ?? "createdAt").trim();
   const sortOrder = normalizeSortOrder(req.query.sortOrder);
-  const sortKey = ["createdAt", "updatedAt", "status"].includes(sortBy) ? sortBy : "createdAt";
+  const sortKey = ["createdAt", "updatedAt", "status", "recordCount"].includes(sortBy) ? sortBy : "createdAt";
   const where: any = {
     ...(status ? { status } : {}),
     ...(from || to ? { createdAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
@@ -2167,7 +2193,7 @@ adminRouter.get("/jobs", async (req, res) => {
       include: { user: { select: { id: true, email: true } } },
     }),
   ]);
-  res.json({ total, page, pageSize, jobs });
+  res.json({ total, page, pageSize, totalPages: Math.max(1, Math.ceil(total / pageSize)), jobs });
 });
 
 adminRouter.patch("/jobs/:jobId/status", async (req, res) => {
@@ -2423,11 +2449,94 @@ adminRouter.post("/refund-requests/:id/reject", async (req, res) => {
 
 /* ── Admin: Manual wallet payment queue ── */
 
-adminRouter.get("/manual-payments", adminListManualPayments);
+adminRouter.get("/manual-payments", async (req, res) => {
+  const page = toPositiveInt(req.query.page, 1, 5000);
+  const pageSize = toPositiveInt(req.query.pageSize ?? req.query.limit, 50, 200);
+  const status = String(req.query.status ?? "").trim().toUpperCase();
+  const search = String(req.query.search ?? "").trim();
+  const from = toDateOrNull(req.query.from, false);
+  const to = toDateOrNull(req.query.to, true);
+  const sortBy = String(req.query.sortBy ?? "createdAt").trim();
+  const sortOrder = normalizeSortOrder(req.query.sortOrder);
+  const sortKey = ["createdAt", "updatedAt", "amountCents", "status", "transactionId"].includes(sortBy) ? sortBy : "createdAt";
+
+  const where: any = {
+    ...(status ? { status } : {}),
+    ...(from || to ? { createdAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
+    ...(search
+      ? {
+          OR: [
+            { transactionId: { contains: search, mode: "insensitive" } },
+            { notes: { contains: search, mode: "insensitive" } },
+            { user: { email: { contains: search, mode: "insensitive" } } },
+            { user: { companyName: { contains: search, mode: "insensitive" } } },
+            { plan: { name: { contains: search, mode: "insensitive" } } },
+          ],
+        }
+      : {}),
+  };
+
+  const [total, requests] = await Promise.all([
+    prisma.manualPaymentRequest.count({ where }),
+    prisma.manualPaymentRequest.findMany({
+      where,
+      include: {
+        plan: { select: { id: true, name: true, priceCents: true } },
+        user: { select: { id: true, email: true, companyName: true } },
+        invoice: { select: { id: true, invoiceNumber: true, status: true, amountCents: true } },
+      },
+      orderBy: { [sortKey]: sortOrder } as any,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
+
+  return res.json({
+    page,
+    pageSize,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    requests: requests.map((request) => ({
+      ...request,
+      screenshotUrl: request.screenshotPath
+        ? buildAbsoluteApiUrl(req, `/api/manual-payments/screenshot/${encodeURIComponent(request.id)}`)
+        : null,
+    })),
+  });
+});
 adminRouter.post("/manual-payments/:id/approve", adminApproveManualPayment);
 adminRouter.post("/manual-payments/:id/reject", adminRejectManualPayment);
 adminRouter.post("/payments/:id/approve", adminApproveManualPayment);
 adminRouter.post("/payments/:id/reject", adminRejectManualPayment);
+
+adminRouter.delete("/manual-payments/:id", async (req, res) => {
+  const id = String(req.params.id ?? "").trim();
+  if (!id) return res.status(400).json({ error: "Missing payment id" });
+
+  const payment = await prisma.manualPaymentRequest.findUnique({
+    where: { id },
+    include: { invoice: { select: { id: true, status: true } } },
+  });
+  if (!payment) return res.status(404).json({ error: "Payment request not found" });
+
+  const status = String(payment.status ?? "").toUpperCase();
+  const isManualTestRecord = /test|sandbox|dummy/i.test(String(payment.transactionId ?? "")) || /test|sandbox|dummy/i.test(String(payment.notes ?? ""));
+  const canDelete = status === "PENDING" || status === "REJECTED" || isManualTestRecord;
+  if (!canDelete) {
+    return res.status(409).json({ error: "Only pending/rejected/manual-test payments can be deleted" });
+  }
+
+  await prisma.manualPaymentRequest.delete({ where: { id } });
+
+  await logComplaintAudit({
+    actorEmail: String((req as any).user?.email ?? "system").trim() || "system",
+    action: "complaint_updated",
+    trackingId: id,
+    details: "admin_manual_payment_deleted",
+  });
+
+  return res.json({ success: true, deletedPaymentId: id });
+});
 
 /* ── Admin: Invoice list ── */
 
@@ -2455,22 +2564,25 @@ adminRouter.get("/invoices", async (req, res) => {
         }
       : {}),
   };
-  const invoices = await prisma.invoice.findMany({
-    where,
-    include: {
-      user: { select: { id: true, email: true, companyName: true } },
-      plan: { select: { id: true, name: true } },
-      manualPayments: {
-        select: { id: true, status: true, transactionId: true, paymentMethod: true, createdAt: true },
-        orderBy: { createdAt: "desc" },
-        take: 5,
+  const [total, invoices] = await Promise.all([
+    prisma.invoice.count({ where }),
+    prisma.invoice.findMany({
+      where,
+      include: {
+        user: { select: { id: true, email: true, companyName: true } },
+        plan: { select: { id: true, name: true } },
+        manualPayments: {
+          select: { id: true, status: true, transactionId: true, paymentMethod: true, createdAt: true },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+        },
       },
-    },
-    orderBy: { [sortKey]: sortOrder } as any,
-    skip: (page - 1) * pageSize,
-    take: pageSize,
-  });
-  return res.json({ page, pageSize, invoices });
+      orderBy: { [sortKey]: sortOrder } as any,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
+  return res.json({ page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)), invoices });
 });
 
 adminRouter.patch("/invoices/:invoiceId", async (req, res) => {

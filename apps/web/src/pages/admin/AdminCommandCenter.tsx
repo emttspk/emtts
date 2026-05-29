@@ -35,6 +35,7 @@ type FilterState = {
   pageSize: number;
   sortBy: string;
   sortOrder: SortOrder;
+  quickDate: "today" | "week" | "month" | "all" | "custom";
 };
 
 const DEFAULT_FILTER: FilterState = {
@@ -46,6 +47,7 @@ const DEFAULT_FILTER: FilterState = {
   pageSize: 20,
   sortBy: "createdAt",
   sortOrder: "desc",
+  quickDate: "all",
 };
 
 const NAV_ITEMS: Array<{ key: NavKey; label: string }> = [
@@ -76,14 +78,18 @@ function centsToPkr(value?: number) {
   return money.format((value ?? 0) / 100);
 }
 
-function DataTable(props: { headers: string[]; rows: Array<Array<string | number | null | React.ReactNode>> }) {
+function DataTable(props: { headers: Array<string | React.ReactNode>; rows: Array<Array<string | number | null | React.ReactNode>>; compact?: boolean }) {
+  const bodyCellClass = props.compact
+    ? "max-w-[320px] truncate px-3 py-2 text-xs text-slate-700"
+    : "max-w-[320px] truncate px-4 py-3 text-sm text-slate-700";
+
   return (
     <TableWrap>
       <table>
         <thead>
           <tr>
-            {props.headers.map((header) => (
-              <th key={header}>{header}</th>
+            {props.headers.map((header, index) => (
+              <th key={index}>{header}</th>
             ))}
           </tr>
         </thead>
@@ -98,7 +104,7 @@ function DataTable(props: { headers: string[]; rows: Array<Array<string | number
             props.rows.map((row, index) => (
               <tr key={index} className="border-t border-slate-100">
                 {row.map((cell, cellIdx) => (
-                  <td key={`${index}-${cellIdx}`} className="max-w-[320px] truncate px-4 py-3 text-sm text-slate-700">
+                  <td key={`${index}-${cellIdx}`} className={bodyCellClass}>
                     {cell ?? "-"}
                   </td>
                 ))}
@@ -152,7 +158,11 @@ function quickRange(key: "today" | "week" | "month" | "all") {
 }
 
 function sectionUsesRowFilters(section: NavKey) {
-  return !["dashboard", "health", "settings", "allow-files"].includes(section);
+  return !["dashboard", "health", "settings", "allow-files", "revenue"].includes(section);
+}
+
+function sectionUsesDateFilters(section: NavKey) {
+  return ["users", "usage", "jobs", "shipments", "complaints", "payments", "invoices", "storage", "audit"].includes(section);
 }
 
 function legacyEmbeddedSectionForNav(section: NavKey): "plans" | "customers" | "usage" | "shipments" | "payments" | "invoices" | "billing" | null {
@@ -182,6 +192,16 @@ function sortOptionsForSection(section: NavKey): Array<{ value: string; label: s
       { value: "recordCount", label: "Records" },
     ];
   }
+  if (section === "usage") {
+    return [
+      { value: "labelsGenerated", label: "Labels" },
+      { value: "trackingGenerated", label: "Tracking" },
+      { value: "labelsQueued", label: "Labels Queued" },
+      { value: "trackingQueued", label: "Tracking Queued" },
+      { value: "createdAt", label: "Created" },
+      { value: "email", label: "User" },
+    ];
+  }
   if (section === "shipments") {
     return [
       { value: "updatedAt", label: "Updated" },
@@ -195,6 +215,23 @@ function sortOptionsForSection(section: NavKey): Array<{ value: string; label: s
       { value: "createdAt", label: "Created" },
       { value: "source", label: "Source" },
       { value: "action", label: "Action" },
+    ];
+  }
+  if (section === "payments") {
+    return [
+      { value: "createdAt", label: "Created" },
+      { value: "updatedAt", label: "Updated" },
+      { value: "amountCents", label: "Amount" },
+      { value: "status", label: "Status" },
+      { value: "transactionId", label: "Transaction" },
+    ];
+  }
+  if (section === "invoices") {
+    return [
+      { value: "createdAt", label: "Created" },
+      { value: "issuedAt", label: "Issued" },
+      { value: "amountCents", label: "Amount" },
+      { value: "status", label: "Status" },
     ];
   }
   return [
@@ -216,6 +253,38 @@ function buildQuery(filters: FilterState) {
   return params.toString();
 }
 
+function quickDateHelpText(key: FilterState["quickDate"]) {
+  if (key === "today") return "Today = records created today";
+  if (key === "week") return "Last 7 Days = records created in last 7 days";
+  if (key === "month") return "This Month = records created in this calendar month";
+  if (key === "all") return "All = no date filter";
+  return "Custom = date range selected manually";
+}
+
+function SortHeader(props: {
+  label: string;
+  sortKey: string;
+  activeSortBy: string;
+  activeSortOrder: SortOrder;
+  onToggle: (nextSortBy: string, nextSortOrder: SortOrder) => void;
+}) {
+  const isActive = props.activeSortBy === props.sortKey;
+  const arrow = isActive ? (props.activeSortOrder === "asc" ? "↑" : "↓") : "↕";
+  return (
+    <button
+      type="button"
+      className={`inline-flex items-center gap-1 text-left ${isActive ? "text-slate-900" : "text-slate-500"}`}
+      onClick={() => {
+        const nextOrder: SortOrder = isActive && props.activeSortOrder === "asc" ? "desc" : "asc";
+        props.onToggle(props.sortKey, nextOrder);
+      }}
+    >
+      <span>{props.label}</span>
+      <span className="text-[11px]">{arrow}</span>
+    </button>
+  );
+}
+
 export default function AdminCommandCenter() {
   const [active, setActive] = useState<NavKey>("dashboard");
   const [summary, setSummary] = useState<AnyObject | null>(null);
@@ -231,6 +300,9 @@ export default function AdminCommandCenter() {
   const [saving, setSaving] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [currentAdminId, setCurrentAdminId] = useState<string>("");
+  const [complaintDetail, setComplaintDetail] = useState<AnyObject | null>(null);
+  const [settingsDraft, setSettingsDraft] = useState<AnyObject | null>(null);
+  const [editingPaymentOption, setEditingPaymentOption] = useState<"jazzcash" | "easypaisa" | "bank" | null>(null);
 
   const [filters, setFilters] = useState<Record<NavKey, FilterState>>(() => {
     const map = {} as Record<NavKey, FilterState>;
@@ -334,11 +406,11 @@ export default function AdminCommandCenter() {
       }
       if (target === "payments" && (force || !revenue?.payments)) {
         const data = await api<AnyObject>(`/api/admin/manual-payments${q}`);
-        setRevenue((prev) => ({ ...(prev ?? {}), payments: data.requests ?? [] }));
+        setRevenue((prev) => ({ ...(prev ?? {}), payments: data.requests ?? [], paymentsTotal: data.total ?? (data.requests ?? []).length }));
       }
       if (target === "invoices" && (force || !revenue?.invoices)) {
         const data = await api<AnyObject>(`/api/admin/invoices${q}`);
-        setRevenue((prev) => ({ ...(prev ?? {}), invoices: data.invoices ?? [] }));
+        setRevenue((prev) => ({ ...(prev ?? {}), invoices: data.invoices ?? [], invoicesTotal: data.total ?? (data.invoices ?? []).length }));
       }
       if (target === "storage" && (force || !storage)) {
         const data = await api<AnyObject>(`/api/admin/storage${q}`);
@@ -355,6 +427,7 @@ export default function AdminCommandCenter() {
       if ((target === "settings" || target === "allow-files") && (force || !health?.settings)) {
         const data = await api<AnyObject>("/api/admin/billing-settings");
         setHealth((prev) => ({ ...(prev ?? {}), settings: data.settings ?? null }));
+        setSettingsDraft(data.settings ?? null);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load admin section");
@@ -389,6 +462,67 @@ export default function AdminCommandCenter() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function applyQuickDate(range: "today" | "week" | "month" | "all") {
+    updateActiveFilters({ ...quickRange(range), page: 1, quickDate: range });
+  }
+
+  function applySort(sortBy: string, sortOrder: SortOrder) {
+    updateActiveFilters({ sortBy, sortOrder, page: 1 });
+  }
+
+  async function openComplaintDetail(row: AnyObject) {
+    const trackingId = String(row?.trackingId ?? "").trim();
+    if (!trackingId) return;
+
+    const queueRows: AnyObject[] = jobs?.complaintQueue ?? [];
+    const queueEntry = queueRows.find((entry) => String(entry?.trackingId ?? "").trim() === trackingId) ?? null;
+    let latestTrackingState: string | null = null;
+
+    try {
+      const shipment = await api<AnyObject>(`/api/admin/shipments?search=${encodeURIComponent(trackingId)}&page=1&pageSize=1`);
+      latestTrackingState = shipment?.shipments?.[0]?.status ?? null;
+    } catch {
+      latestTrackingState = null;
+    }
+
+    const historyLines = String(row?.complaintText ?? "")
+      .split(/\r?\n/)
+      .filter((line) => /COMPLAINT|DUE_DATE|COMPLAINT_STATE|Response|User complaint/i.test(line))
+      .slice(0, 12);
+
+    setComplaintDetail({
+      trackingId,
+      complaintId: row?.complaintId ?? "-",
+      dueDate: row?.dueDate ?? "-",
+      complaintStatus: row?.state ?? row?.complaintStatus ?? "-",
+      addressee: row?.userEmail ?? "-",
+      cityOrOffice: queueEntry?.postOffice ?? queueEntry?.office ?? "-",
+      latestTrackingState: latestTrackingState ?? "-",
+      queueStatus: queueEntry?.complaintStatus ?? "-",
+      queueUpdatedAt: queueEntry?.updatedAt ?? null,
+      historyLines,
+    });
+  }
+
+  async function saveBillingDraft(nextDraft: AnyObject) {
+    await api("/api/admin/billing-settings", {
+      method: "PUT",
+      body: JSON.stringify({
+        jazzcashNumber: String(nextDraft?.jazzcashNumber ?? "").trim(),
+        jazzcashTitle: String(nextDraft?.jazzcashTitle ?? "").trim(),
+        easypaisaNumber: String(nextDraft?.easypaisaNumber ?? "").trim(),
+        easypaisaTitle: String(nextDraft?.easypaisaTitle ?? "").trim(),
+        bankName: String(nextDraft?.bankName ?? "").trim(),
+        bankTitle: String(nextDraft?.bankTitle ?? "").trim(),
+        bankAccountNumber: String(nextDraft?.bankAccountNumber ?? "").trim(),
+        bankIban: String(nextDraft?.bankIban ?? "").trim(),
+        standardPrice: Number(nextDraft?.standardPrice ?? 1),
+        businessPrice: Number(nextDraft?.businessPrice ?? 1),
+        exemptFileNames: JSON.stringify(Array.isArray(nextDraft?.exemptFileNames) ? nextDraft.exemptFileNames : []),
+      }),
+    });
   }
 
   const summaryCards = useMemo(() => {
@@ -497,13 +631,11 @@ export default function AdminCommandCenter() {
     if (active === "dashboard") return renderDashboard();
     if (active === "users") {
       const list: AnyObject[] = users?.list ?? [];
-      const filtered = list.filter((row) => {
-        const text = `${row.email ?? ""} ${row.companyName ?? ""} ${row.id ?? ""}`;
-        const statusOk = !activeFilters.status || (activeFilters.status === "SUSPENDED" ? Boolean(row.suspended) : !Boolean(row.suspended));
-        const dateOk = !activeFilters.from && !activeFilters.to ? true : isWithinDate(row.createdAt, activeFilters.from, activeFilters.to);
-        return includesSearch(text, activeFilters.search) && statusOk && dateOk;
-      });
-      const pageRows = filtered;
+      const pageRows = list;
+      const total = Number(users?.listTotal ?? pageRows.length);
+      const pageSize = Number(users?.listPageSize ?? activeFilters.pageSize);
+      const currentPage = Number(users?.listPage ?? activeFilters.page);
+      const totalPages = Math.max(1, Math.ceil(total / Math.max(1, pageSize)));
       const allSelectableIds = pageRows
         .filter((row) => String(row.id ?? "") !== currentAdminId)
         .map((row) => String(row.id ?? ""))
@@ -570,7 +702,16 @@ export default function AdminCommandCenter() {
           </section>
 
           <DataTable
-            headers={["Select", "Company", "Email", "Status", "Joined", "Edit", "Safe Action"]}
+            compact
+            headers={[
+              "Select",
+              <SortHeader key="company" label="Company" sortKey="companyName" activeSortBy={activeFilters.sortBy} activeSortOrder={activeFilters.sortOrder} onToggle={applySort} />,
+              <SortHeader key="email" label="Email" sortKey="email" activeSortBy={activeFilters.sortBy} activeSortOrder={activeFilters.sortOrder} onToggle={applySort} />,
+              <SortHeader key="status" label="Status" sortKey="suspended" activeSortBy={activeFilters.sortBy} activeSortOrder={activeFilters.sortOrder} onToggle={applySort} />,
+              <SortHeader key="joined" label="Joined" sortKey="createdAt" activeSortBy={activeFilters.sortBy} activeSortOrder={activeFilters.sortOrder} onToggle={applySort} />,
+              "Edit",
+              "Safe Action",
+            ]}
             rows={pageRows.map((row: AnyObject) => [
               String(row.id ?? "") === currentAdminId ? (
                 <span className="text-[11px] font-semibold text-slate-500">self</span>
@@ -622,7 +763,10 @@ export default function AdminCommandCenter() {
               </button>,
             ])}
           />
-          <p className="text-xs text-slate-500">Showing {pageRows.length} of {users?.listTotal ?? filtered.length} users</p>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600">
+            <span>Page {currentPage} of {totalPages} | Total records: {total} | Page size: {pageSize}</span>
+            <span>Showing {pageRows.length} record(s)</span>
+          </div>
         </div>
       );
     }
@@ -699,13 +843,11 @@ export default function AdminCommandCenter() {
     }
     if (active === "usage") {
       const rows: AnyObject[] = usage?.usage ?? [];
-      const filtered = rows.filter((row) => {
-        const text = `${row.user?.email ?? ""} ${row.id ?? ""} ${row.month ?? ""}`;
-        const dateOk = !activeFilters.from && !activeFilters.to ? true : isWithinDate(row.createdAt ?? row.month, activeFilters.from, activeFilters.to);
-        return includesSearch(text, activeFilters.search) && dateOk;
-      });
-      const start = (activeFilters.page - 1) * activeFilters.pageSize;
-      const pageRows = filtered.slice(start, start + activeFilters.pageSize);
+      const pageRows = rows;
+      const total = Number(usage?.total ?? pageRows.length);
+      const pageSize = Number(usage?.pageSize ?? activeFilters.pageSize);
+      const currentPage = Number(usage?.page ?? activeFilters.page);
+      const totalPages = Math.max(1, Math.ceil(total / Math.max(1, pageSize)));
       return (
         <div className="space-y-4">
           <section className="grid gap-3 sm:grid-cols-3">
@@ -714,7 +856,14 @@ export default function AdminCommandCenter() {
             <MetricCard label="Month Units" value={usage?.units?.monthUnits ?? 0} />
           </section>
           <DataTable
-            headers={["Month", "User", "Labels", "Tracking", "Safe Action"]}
+            compact
+            headers={[
+              "Month",
+              <SortHeader key="user" label="User" sortKey="email" activeSortBy={activeFilters.sortBy} activeSortOrder={activeFilters.sortOrder} onToggle={applySort} />,
+              "Labels",
+              "Tracking",
+              "Safe Action",
+            ]}
             rows={pageRows.map((row: AnyObject) => [
               row.month,
               row.user?.email ?? "-",
@@ -723,19 +872,20 @@ export default function AdminCommandCenter() {
               "View/Export",
             ])}
           />
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600">
+            <span>Page {currentPage} of {totalPages} | Total records: {total} | Page size: {pageSize}</span>
+            <span>Showing {pageRows.length} record(s)</span>
+          </div>
         </div>
       );
     }
     if (active === "jobs") {
       const rows: AnyObject[] = jobs?.jobs ?? [];
-      const filtered = rows.filter((row) => {
-        const text = `${row.id ?? ""} ${row.user?.email ?? ""} ${row.error ?? ""}`;
-        const statusOk = !activeFilters.status || String(row.status ?? "").toUpperCase() === activeFilters.status.toUpperCase();
-        const dateOk = !activeFilters.from && !activeFilters.to ? true : isWithinDate(row.updatedAt ?? row.createdAt, activeFilters.from, activeFilters.to);
-        return includesSearch(text, activeFilters.search) && statusOk && dateOk;
-      });
-      const start = (activeFilters.page - 1) * activeFilters.pageSize;
-      const pageRows = filtered.slice(start, start + activeFilters.pageSize);
+      const pageRows = rows;
+      const total = Number(jobs?.total ?? pageRows.length);
+      const pageSize = Number(jobs?.pageSize ?? activeFilters.pageSize);
+      const currentPage = Number(jobs?.page ?? activeFilters.page);
+      const totalPages = Math.max(1, Math.ceil(total / Math.max(1, pageSize)));
       return (
         <div className="space-y-4">
           {(jobs?.queueOverview?.failed ?? 0) > 0 ? (
@@ -745,8 +895,27 @@ export default function AdminCommandCenter() {
               <p className="mt-1">At: {String(jobs?.queueOverview?.latestFailedAt ?? "-").slice(0, 19).replace("T", " ")}</p>
             </div>
           ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-500"
+              disabled
+              title="Use label generation page to create jobs."
+            >
+              Create Job (disabled)
+            </button>
+            <span className="text-xs text-slate-500">Use label generation page to create jobs.</span>
+          </div>
           <DataTable
-            headers={["Job", "Status", "User", "Updated", "Edit", "Safe Actions"]}
+            compact
+            headers={[
+              <SortHeader key="job" label="Job" sortKey="createdAt" activeSortBy={activeFilters.sortBy} activeSortOrder={activeFilters.sortOrder} onToggle={applySort} />,
+              <SortHeader key="status" label="Status" sortKey="status" activeSortBy={activeFilters.sortBy} activeSortOrder={activeFilters.sortOrder} onToggle={applySort} />,
+              "User",
+              <SortHeader key="updated" label="Updated" sortKey="updatedAt" activeSortBy={activeFilters.sortBy} activeSortOrder={activeFilters.sortOrder} onToggle={applySort} />,
+              "Edit",
+              "Safe Actions",
+            ]}
             rows={pageRows.map((row: AnyObject) => [
               row.id,
               row.status,
@@ -795,8 +964,10 @@ export default function AdminCommandCenter() {
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-700"
+                  className="rounded-lg border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!(["COMPLETED", "FAILED", "CANCELED", "CANCELLED"].includes(String(row.status ?? "").toUpperCase()))}
                   onClick={() => {
+                    if (!(["COMPLETED", "FAILED", "CANCELED", "CANCELLED"].includes(String(row.status ?? "").toUpperCase()))) return;
                     if (!window.confirm(`Delete job ${row.id}?`)) return;
                     void runSafeAction(async () => {
                       await api(`/api/admin/jobs/${encodeURIComponent(row.id)}`, { method: "DELETE" });
@@ -808,6 +979,10 @@ export default function AdminCommandCenter() {
               </div>,
             ])}
           />
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600">
+            <span>Page {currentPage} of {totalPages} | Total records: {total} | Page size: {pageSize}</span>
+            <span>Showing {pageRows.length} record(s)</span>
+          </div>
         </div>
       );
     }
@@ -898,12 +1073,22 @@ export default function AdminCommandCenter() {
             </button>
           </div>
           <DataTable
-            headers={["Tracking", "Complaint", "State", "Due", "Edit", "Safe Action"]}
+            compact
+            headers={["Tracking", "Complaint", "State", "Due", "View", "Edit", "Safe Action"]}
             rows={pageRows.map((row: AnyObject) => [
               row.trackingId ?? "-",
               row.complaintId ?? "-",
               row.state ?? "-",
               row.dueDate ?? "-",
+              <button
+                type="button"
+                className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+                onClick={() => {
+                  void openComplaintDetail(row);
+                }}
+              >
+                View
+              </button>,
               <button
                 type="button"
                 className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
@@ -946,17 +1131,21 @@ export default function AdminCommandCenter() {
     }
     if (active === "payments") {
       const rows: AnyObject[] = revenue?.payments ?? [];
-      const filtered = rows.filter((row) => {
-        const text = `${row.transactionId ?? ""} ${row.user?.email ?? ""} ${row.plan?.name ?? ""}`;
-        const statusOk = !activeFilters.status || String(row.status ?? "").toUpperCase() === activeFilters.status.toUpperCase();
-        const dateOk = !activeFilters.from && !activeFilters.to ? true : isWithinDate(row.createdAt, activeFilters.from, activeFilters.to);
-        return includesSearch(text, activeFilters.search) && statusOk && dateOk;
-      });
-      const start = (activeFilters.page - 1) * activeFilters.pageSize;
-      const pageRows = filtered.slice(start, start + activeFilters.pageSize);
+      const pageRows = rows;
+      const total = Number(revenue?.paymentsTotal ?? pageRows.length);
+      const totalPages = Math.max(1, Math.ceil(total / Math.max(1, activeFilters.pageSize)));
       return (
+        <div className="space-y-2">
         <DataTable
-          headers={["Txn", "User", "Plan", "Status", "Edit", "Safe Action"]}
+          compact
+          headers={[
+            <SortHeader key="txn" label="Txn" sortKey="transactionId" activeSortBy={activeFilters.sortBy} activeSortOrder={activeFilters.sortOrder} onToggle={applySort} />,
+            "User",
+            "Plan",
+            <SortHeader key="status" label="Status" sortKey="status" activeSortBy={activeFilters.sortBy} activeSortOrder={activeFilters.sortOrder} onToggle={applySort} />,
+            "Edit",
+            "Safe Action",
+          ]}
           rows={pageRows.map((row: AnyObject) => [
             row.transactionId,
             row.user?.email ?? "-",
@@ -991,42 +1180,97 @@ export default function AdminCommandCenter() {
                 >
                   Reject
                 </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-700"
+                  onClick={() => {
+                    if (!window.confirm(`Delete payment request ${row.transactionId}?`)) return;
+                    void runSafeAction(async () => {
+                      await api(`/api/admin/manual-payments/${encodeURIComponent(row.id)}`, { method: "DELETE" });
+                    });
+                  }}
+                >
+                  Delete
+                </button>
               </div>
-            ) : "-",
+            ) : (String(row.status ?? "").toUpperCase() === "REJECTED" ? (
+              <button
+                type="button"
+                className="rounded-lg border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-700"
+                onClick={() => {
+                  if (!window.confirm(`Delete rejected payment request ${row.transactionId}?`)) return;
+                  void runSafeAction(async () => {
+                    await api(`/api/admin/manual-payments/${encodeURIComponent(row.id)}`, { method: "DELETE" });
+                  });
+                }}
+              >
+                Delete
+              </button>
+            ) : "-"),
           ])}
         />
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600">
+          <span>Page {activeFilters.page} of {totalPages} | Total records: {total} | Page size: {activeFilters.pageSize}</span>
+          <span>Showing {pageRows.length} record(s)</span>
+        </div>
+        </div>
       );
     }
     if (active === "invoices") {
       const rows: AnyObject[] = revenue?.invoices ?? [];
-      const filtered = rows.filter((row) => {
-        const text = `${row.invoiceNumber ?? ""} ${row.user?.email ?? ""} ${row.plan?.name ?? ""}`;
-        const statusOk = !activeFilters.status || String(row.status ?? "").toUpperCase() === activeFilters.status.toUpperCase();
-        const dateOk = !activeFilters.from && !activeFilters.to ? true : isWithinDate(row.createdAt, activeFilters.from, activeFilters.to);
-        return includesSearch(text, activeFilters.search) && statusOk && dateOk;
-      });
-      const start = (activeFilters.page - 1) * activeFilters.pageSize;
-      const pageRows = filtered.slice(start, start + activeFilters.pageSize);
+      const pageRows = rows;
+      const total = Number(revenue?.invoicesTotal ?? pageRows.length);
+      const totalPages = Math.max(1, Math.ceil(total / Math.max(1, activeFilters.pageSize)));
       return (
+        <div className="space-y-2">
         <DataTable
-          headers={["Invoice", "User", "Amount", "Status", "Edit", "Safe Action"]}
+          compact
+          headers={[
+            <SortHeader key="invoice" label="Invoice" sortKey="createdAt" activeSortBy={activeFilters.sortBy} activeSortOrder={activeFilters.sortOrder} onToggle={applySort} />,
+            "User",
+            <SortHeader key="amount" label="Amount" sortKey="amountCents" activeSortBy={activeFilters.sortBy} activeSortOrder={activeFilters.sortOrder} onToggle={applySort} />,
+            <SortHeader key="status" label="Status" sortKey="status" activeSortBy={activeFilters.sortBy} activeSortOrder={activeFilters.sortOrder} onToggle={applySort} />,
+            "Edit",
+            "Safe Action",
+          ]}
           rows={pageRows.map((row: AnyObject) => [
             row.invoiceNumber,
             row.user?.email ?? "-",
             centsToPkr(row.amountCents),
             row.status,
             "View",
-            <button
-              type="button"
-              className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
-              onClick={() => {
-                window.open(`/api/admin/invoices/${encodeURIComponent(row.id)}/download`, "_blank", "noopener,noreferrer");
-              }}
-            >
-              Download
-            </button>,
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+                onClick={() => {
+                  window.open(`/api/admin/invoices/${encodeURIComponent(row.id)}/download`, "_blank", "noopener,noreferrer");
+                }}
+              >
+                Download
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!(["OPEN", "VOID", "CANCELED", "CANCELLED", "DRAFT", "UNPAID"].includes(String(row.status ?? "").toUpperCase()))}
+                onClick={() => {
+                  if (!(["OPEN", "VOID", "CANCELED", "CANCELLED", "DRAFT", "UNPAID"].includes(String(row.status ?? "").toUpperCase()))) return;
+                  if (!window.confirm(`Delete invoice ${row.invoiceNumber}?`)) return;
+                  void runSafeAction(async () => {
+                    await api(`/api/admin/invoices/${encodeURIComponent(row.id)}`, { method: "DELETE" });
+                  });
+                }}
+              >
+                Delete
+              </button>
+            </div>,
           ])}
         />
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600">
+          <span>Page {activeFilters.page} of {totalPages} | Total records: {total} | Page size: {activeFilters.pageSize}</span>
+          <span>Showing {pageRows.length} record(s)</span>
+        </div>
+        </div>
       );
     }
     if (active === "storage") {
@@ -1129,48 +1373,171 @@ export default function AdminCommandCenter() {
     }
 
     if (active === "settings") {
-      const settings = health?.settings as AnyObject | null;
+      const persisted = health?.settings as AnyObject | null;
+      const settings = (settingsDraft ?? persisted) as AnyObject | null;
+      if (!settings) return <p className="text-sm text-slate-500">Settings are unavailable.</p>;
+
+      const optionLabelMap: Record<string, string> = {
+        jazzcash: "JazzCash",
+        easypaisa: "EasyPaisa",
+        bank: "Bank",
+      };
+
+      const optionEnabled = {
+        jazzcash: Boolean(String(settings.jazzcashNumber ?? "").trim() || String(settings.jazzcashTitle ?? "").trim()),
+        easypaisa: Boolean(String(settings.easypaisaNumber ?? "").trim() || String(settings.easypaisaTitle ?? "").trim()),
+        bank: Boolean(String(settings.bankName ?? "").trim() || String(settings.bankAccountNumber ?? "").trim() || String(settings.bankIban ?? "").trim()),
+      };
+
+      const missingOptions = (Object.keys(optionEnabled) as Array<"jazzcash" | "easypaisa" | "bank">).filter((key) => !optionEnabled[key]);
+
       return (
         <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={missingOptions.length === 0}
+              onClick={() => {
+                if (!missingOptions.length) return;
+                const picked = window.prompt(`Add Payment Option (${missingOptions.map((key) => optionLabelMap[key]).join(", ")})`, optionLabelMap[missingOptions[0]]);
+                if (!picked) return;
+                const normalized = picked.trim().toLowerCase();
+                const selected = (Object.keys(optionLabelMap) as Array<"jazzcash" | "easypaisa" | "bank">)
+                  .find((key) => optionLabelMap[key].toLowerCase() === normalized || key === normalized);
+                if (!selected || !missingOptions.includes(selected)) return;
+                setEditingPaymentOption(selected);
+              }}
+            >
+              Add Payment Option
+            </button>
+            <span className="text-xs text-slate-500">Configure JazzCash, EasyPaisa, and Bank with Save/Cancel controls.</span>
+          </div>
+
           <DataTable
-            headers={["Key", "Value", "Edit", "Safe Action"]}
+            compact
+            headers={["Payment Option", "Configuration", "Actions"]}
             rows={[
-              ["JazzCash Number", settings?.jazzcashNumber ?? "-", "Prompt", "Save"],
-              ["EasyPaisa Number", settings?.easypaisaNumber ?? "-", "Prompt", "Save"],
-              ["Bank Name", settings?.bankName ?? "-", "Prompt", "Save"],
-              ["Standard Price", settings?.standardPrice ?? "-", "Prompt", "Save"],
-              ["Business Price", settings?.businessPrice ?? "-", "Prompt", "Save"],
+              [
+                "JazzCash",
+                editingPaymentOption === "jazzcash" ? (
+                  <div className="grid gap-1">
+                    <input className="rounded border border-slate-200 px-2 py-1" value={String(settings.jazzcashTitle ?? "")} onChange={(event) => setSettingsDraft((prev) => ({ ...(prev ?? settings), jazzcashTitle: event.target.value }))} placeholder="Account title" />
+                    <input className="rounded border border-slate-200 px-2 py-1" value={String(settings.jazzcashNumber ?? "")} onChange={(event) => setSettingsDraft((prev) => ({ ...(prev ?? settings), jazzcashNumber: event.target.value }))} placeholder="Account/mobile number" />
+                  </div>
+                ) : `${String(settings.jazzcashTitle ?? "-")} | ${String(settings.jazzcashNumber ?? "-")}`,
+                editingPaymentOption === "jazzcash" ? (
+                  <div className="flex gap-1">
+                    <button type="button" className="rounded border border-emerald-300 px-2 py-1 font-semibold text-emerald-800" onClick={() => {
+                      void runSafeAction(async () => {
+                        await saveBillingDraft(settings);
+                        setEditingPaymentOption(null);
+                      });
+                    }}>Save</button>
+                    <button type="button" className="rounded border border-slate-300 px-2 py-1 font-semibold text-slate-700" onClick={() => {
+                      setSettingsDraft(persisted);
+                      setEditingPaymentOption(null);
+                    }}>Cancel</button>
+                  </div>
+                ) : (
+                  <div className="flex gap-1">
+                    <button type="button" className="rounded border border-slate-300 px-2 py-1 font-semibold text-slate-700" onClick={() => setEditingPaymentOption("jazzcash")}>Edit</button>
+                    <button type="button" className="rounded border border-rose-300 px-2 py-1 font-semibold text-rose-800" onClick={() => {
+                      if (!window.confirm("Delete JazzCash payment option?")) return;
+                      const next = { ...(settings ?? {}), jazzcashTitle: "", jazzcashNumber: "" };
+                      void runSafeAction(async () => {
+                        await saveBillingDraft(next);
+                        setSettingsDraft(next);
+                      });
+                    }}>Delete</button>
+                  </div>
+                ),
+              ],
+              [
+                "EasyPaisa",
+                editingPaymentOption === "easypaisa" ? (
+                  <div className="grid gap-1">
+                    <input className="rounded border border-slate-200 px-2 py-1" value={String(settings.easypaisaTitle ?? "")} onChange={(event) => setSettingsDraft((prev) => ({ ...(prev ?? settings), easypaisaTitle: event.target.value }))} placeholder="Account title" />
+                    <input className="rounded border border-slate-200 px-2 py-1" value={String(settings.easypaisaNumber ?? "")} onChange={(event) => setSettingsDraft((prev) => ({ ...(prev ?? settings), easypaisaNumber: event.target.value }))} placeholder="Account/mobile number" />
+                  </div>
+                ) : `${String(settings.easypaisaTitle ?? "-")} | ${String(settings.easypaisaNumber ?? "-")}`,
+                editingPaymentOption === "easypaisa" ? (
+                  <div className="flex gap-1">
+                    <button type="button" className="rounded border border-emerald-300 px-2 py-1 font-semibold text-emerald-800" onClick={() => {
+                      void runSafeAction(async () => {
+                        await saveBillingDraft(settings);
+                        setEditingPaymentOption(null);
+                      });
+                    }}>Save</button>
+                    <button type="button" className="rounded border border-slate-300 px-2 py-1 font-semibold text-slate-700" onClick={() => {
+                      setSettingsDraft(persisted);
+                      setEditingPaymentOption(null);
+                    }}>Cancel</button>
+                  </div>
+                ) : (
+                  <div className="flex gap-1">
+                    <button type="button" className="rounded border border-slate-300 px-2 py-1 font-semibold text-slate-700" onClick={() => setEditingPaymentOption("easypaisa")}>Edit</button>
+                    <button type="button" className="rounded border border-rose-300 px-2 py-1 font-semibold text-rose-800" onClick={() => {
+                      if (!window.confirm("Delete EasyPaisa payment option?")) return;
+                      const next = { ...(settings ?? {}), easypaisaTitle: "", easypaisaNumber: "" };
+                      void runSafeAction(async () => {
+                        await saveBillingDraft(next);
+                        setSettingsDraft(next);
+                      });
+                    }}>Delete</button>
+                  </div>
+                ),
+              ],
+              [
+                "Bank",
+                editingPaymentOption === "bank" ? (
+                  <div className="grid gap-1">
+                    <input className="rounded border border-slate-200 px-2 py-1" value={String(settings.bankName ?? "")} onChange={(event) => setSettingsDraft((prev) => ({ ...(prev ?? settings), bankName: event.target.value }))} placeholder="Bank name" />
+                    <input className="rounded border border-slate-200 px-2 py-1" value={String(settings.bankTitle ?? "")} onChange={(event) => setSettingsDraft((prev) => ({ ...(prev ?? settings), bankTitle: event.target.value }))} placeholder="Account title" />
+                    <input className="rounded border border-slate-200 px-2 py-1" value={String(settings.bankAccountNumber ?? "")} onChange={(event) => setSettingsDraft((prev) => ({ ...(prev ?? settings), bankAccountNumber: event.target.value }))} placeholder="Account number" />
+                    <input className="rounded border border-slate-200 px-2 py-1" value={String(settings.bankIban ?? "")} onChange={(event) => setSettingsDraft((prev) => ({ ...(prev ?? settings), bankIban: event.target.value }))} placeholder="IBAN" />
+                  </div>
+                ) : `${String(settings.bankName ?? "-")} | ${String(settings.bankTitle ?? "-")} | ${String(settings.bankAccountNumber ?? settings.bankIban ?? "-")}`,
+                editingPaymentOption === "bank" ? (
+                  <div className="flex gap-1">
+                    <button type="button" className="rounded border border-emerald-300 px-2 py-1 font-semibold text-emerald-800" onClick={() => {
+                      void runSafeAction(async () => {
+                        await saveBillingDraft(settings);
+                        setEditingPaymentOption(null);
+                      });
+                    }}>Save</button>
+                    <button type="button" className="rounded border border-slate-300 px-2 py-1 font-semibold text-slate-700" onClick={() => {
+                      setSettingsDraft(persisted);
+                      setEditingPaymentOption(null);
+                    }}>Cancel</button>
+                  </div>
+                ) : (
+                  <div className="flex gap-1">
+                    <button type="button" className="rounded border border-slate-300 px-2 py-1 font-semibold text-slate-700" onClick={() => setEditingPaymentOption("bank")}>Edit</button>
+                    <button type="button" className="rounded border border-rose-300 px-2 py-1 font-semibold text-rose-800" onClick={() => {
+                      if (!window.confirm("Delete Bank payment option?")) return;
+                      const next = { ...(settings ?? {}), bankName: "", bankTitle: "", bankAccountNumber: "", bankIban: "" };
+                      void runSafeAction(async () => {
+                        await saveBillingDraft(next);
+                        setSettingsDraft(next);
+                      });
+                    }}>Delete</button>
+                  </div>
+                ),
+              ],
             ]}
           />
-          <button
-            type="button"
-            className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold"
-            onClick={() => {
-              if (!settings) return;
-              const next = window.prompt("Update JazzCash number", String(settings.jazzcashNumber ?? ""));
-              if (next === null) return;
-              void runSafeAction(async () => {
-                await api("/api/admin/billing-settings", {
-                  method: "PUT",
-                  body: JSON.stringify({
-                    jazzcashNumber: next.trim() || settings.jazzcashNumber,
-                    jazzcashTitle: settings.jazzcashTitle,
-                    easypaisaNumber: settings.easypaisaNumber,
-                    easypaisaTitle: settings.easypaisaTitle,
-                    bankName: settings.bankName ?? "",
-                    bankTitle: settings.bankTitle ?? "",
-                    bankAccountNumber: settings.bankAccountNumber ?? "",
-                    bankIban: settings.bankIban ?? "",
-                    standardPrice: settings.standardPrice,
-                    businessPrice: settings.businessPrice,
-                    exemptFileNames: JSON.stringify(settings.exemptFileNames ?? []),
-                  }),
-                });
-              });
-            }}
-          >
-            Edit Safe Settings
-          </button>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-xs font-semibold text-slate-600">
+              Standard Price
+              <input className="mt-1 w-full rounded border border-slate-200 px-2 py-1 text-xs" type="number" min={1} value={Number(settings.standardPrice ?? 1)} onChange={(event) => setSettingsDraft((prev) => ({ ...(prev ?? settings), standardPrice: Number(event.target.value || 1) }))} />
+            </label>
+            <label className="text-xs font-semibold text-slate-600">
+              Business Price
+              <input className="mt-1 w-full rounded border border-slate-200 px-2 py-1 text-xs" type="number" min={1} value={Number(settings.businessPrice ?? 1)} onChange={(event) => setSettingsDraft((prev) => ({ ...(prev ?? settings), businessPrice: Number(event.target.value || 1) }))} />
+            </label>
+          </div>
         </div>
       );
     }
@@ -1249,7 +1616,7 @@ export default function AdminCommandCenter() {
                 aria-current={active === item.key ? "page" : undefined}
                 className={`rounded-xl px-3 py-2 text-left text-sm font-semibold transition ${
                   active === item.key
-                    ? "border border-emerald-200 bg-emerald-100 text-emerald-900 shadow-sm"
+                    ? "border border-emerald-300 border-l-4 bg-emerald-200 text-emerald-950 shadow-sm"
                     : "text-slate-600 hover:bg-slate-50"
                 }`}
               >
@@ -1284,13 +1651,13 @@ export default function AdminCommandCenter() {
             <input
               type="date"
               value={activeFilters.from}
-              onChange={(event) => updateActiveFilters({ from: event.target.value, page: 1 })}
+              onChange={(event) => updateActiveFilters({ from: event.target.value, page: 1, quickDate: "custom" })}
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
             />
             <input
               type="date"
               value={activeFilters.to}
-              onChange={(event) => updateActiveFilters({ to: event.target.value, page: 1 })}
+              onChange={(event) => updateActiveFilters({ to: event.target.value, page: 1, quickDate: "custom" })}
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
             />
             <select
@@ -1313,11 +1680,20 @@ export default function AdminCommandCenter() {
           </div>
           )}
           {legacyEmbeddedSectionForNav(active) ? null : (
-          <div className="mb-4 flex flex-wrap gap-2">
-            <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" onClick={() => updateActiveFilters({ ...quickRange("today"), page: 1 })}>Today</button>
-            <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" onClick={() => updateActiveFilters({ ...quickRange("week"), page: 1 })}>Last 7 Days</button>
-            <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" onClick={() => updateActiveFilters({ ...quickRange("month"), page: 1 })}>This Month</button>
-            <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" onClick={() => updateActiveFilters({ ...quickRange("all"), page: 1 })}>All</button>
+          <div className="mb-4 space-y-2">
+            {sectionUsesDateFilters(active) ? (
+              <div>
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Date Filter</p>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" className={`rounded-lg border px-3 py-2 text-xs font-semibold ${activeFilters.quickDate === "today" ? "border-emerald-300 bg-emerald-100 text-emerald-900" : "border-slate-200"}`} onClick={() => applyQuickDate("today")}>Today</button>
+                  <button type="button" className={`rounded-lg border px-3 py-2 text-xs font-semibold ${activeFilters.quickDate === "week" ? "border-emerald-300 bg-emerald-100 text-emerald-900" : "border-slate-200"}`} onClick={() => applyQuickDate("week")}>Last 7 Days</button>
+                  <button type="button" className={`rounded-lg border px-3 py-2 text-xs font-semibold ${activeFilters.quickDate === "month" ? "border-emerald-300 bg-emerald-100 text-emerald-900" : "border-slate-200"}`} onClick={() => applyQuickDate("month")}>This Month</button>
+                  <button type="button" className={`rounded-lg border px-3 py-2 text-xs font-semibold ${activeFilters.quickDate === "all" ? "border-emerald-300 bg-emerald-100 text-emerald-900" : "border-slate-200"}`} onClick={() => applyQuickDate("all")}>All</button>
+                </div>
+                <p className="mt-1 text-[11px] text-slate-500">{quickDateHelpText(activeFilters.quickDate)}</p>
+              </div>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
             <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" onClick={() => void loadSection(active, true)}>Refresh</button>
             <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" onClick={() => resetFilters(active)}>Clear Filters</button>
             <select
@@ -1331,12 +1707,46 @@ export default function AdminCommandCenter() {
             </select>
             <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" onClick={() => updateActiveFilters({ page: Math.max(1, activeFilters.page - 1) })}>Prev</button>
             <button type="button" className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold" onClick={() => updateActiveFilters({ page: activeFilters.page + 1 })}>Next</button>
+            </div>
           </div>
           )}
           {error ? <p className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
           {renderSectionBody()}
         </main>
       </div>
+
+      {complaintDetail ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-900">Complaint Detail View</h3>
+              <button type="button" className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold" onClick={() => setComplaintDetail(null)}>Close</button>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 text-xs text-slate-700">
+              <div><span className="font-semibold">Tracking ID:</span> {String(complaintDetail.trackingId ?? "-")}</div>
+              <div><span className="font-semibold">Complaint ID:</span> {String(complaintDetail.complaintId ?? "-")}</div>
+              <div><span className="font-semibold">Due Date:</span> {String(complaintDetail.dueDate ?? "-")}</div>
+              <div><span className="font-semibold">Complaint Status:</span> {String(complaintDetail.complaintStatus ?? "-")}</div>
+              <div><span className="font-semibold">Addressee:</span> {String(complaintDetail.addressee ?? "-")}</div>
+              <div><span className="font-semibold">City/Office:</span> {String(complaintDetail.cityOrOffice ?? "-")}</div>
+              <div><span className="font-semibold">Latest Tracking State:</span> {String(complaintDetail.latestTrackingState ?? "-")}</div>
+              <div><span className="font-semibold">Queue Status:</span> {String(complaintDetail.queueStatus ?? "-")}</div>
+            </div>
+            <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2">
+              <p className="text-xs font-semibold text-slate-700">Audit / Sync History (available lines)</p>
+              {(complaintDetail.historyLines ?? []).length ? (
+                <ul className="mt-1 space-y-1 text-xs text-slate-600">
+                  {(complaintDetail.historyLines ?? []).map((line: string, idx: number) => (
+                    <li key={idx}>{line}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1 text-xs text-slate-500">No complaint history lines found for this record.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </PageShell>
   );
 }

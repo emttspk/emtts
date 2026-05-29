@@ -38,3 +38,38 @@ No edits were made to protected finalized rendering and core business logic modu
 
 ## Follow-up Restore Audit
 - Legacy restore audit and function inventory: `docs/operations/admin-legacy-restore-audit-2026-05-29.md`
+
+## Follow-up Scoped Restore (2026-05-29)
+
+### Objective
+- Close remaining command-center UI gaps from latest operator screenshots without broad redesign.
+
+### Executed Fixes
+- Settings tab payment options restored to actionable controls (`Add Payment Option`, `Edit`, `Delete`, `Save`, `Cancel`).
+- Users tab:
+	- compact row density,
+	- visible pagination metadata (page/total/totalPages/pageSize),
+	- bulk actions preserved.
+- Date quick filters:
+	- labeled as `Date Filter`,
+	- active state highlighted,
+	- helper text added,
+	- hidden for non-date-filter tabs.
+- Usage tab pagination metadata and server totals integrated.
+- Jobs tab:
+	- visible pagination metadata,
+	- delete restricted to terminal states,
+	- create-job action intentionally disabled with guidance to label generation page.
+- Complaints tab `View` action added with details modal using available complaint/queue/shipment context.
+- Payments/invoices manual delete actions added with confirmation and backend safety checks.
+- Sortable header controls with direction indicators wired to sort query params on supported tabs.
+- Active sidebar tab highlight strengthened.
+- Existing `Billing.tsx` typecheck blocker fixed (missing `apiUrl` import).
+
+### API Changes in Same Scope
+- `GET /api/admin/users`: status/date filters + `totalPages`.
+- `GET /api/admin/usage`: total/totalPages + sorting support.
+- `GET /api/admin/jobs`: `totalPages`.
+- `GET /api/admin/invoices`: total/totalPages.
+- `GET /api/admin/manual-payments`: query-aware listing (search/date/status/pagination/sort).
+- `DELETE /api/admin/manual-payments/:id`: safe delete for pending/rejected/manual-test records.

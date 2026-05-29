@@ -3,6 +3,7 @@ import { Check, Sparkles, X } from "lucide-react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import Card from "../components/Card";
 import ManualPaymentModal from "../components/ManualPaymentModal";
+import { apiUrl } from "../lib/api";
 import {
   changePackage,
   createJazzcashMobileWalletPayment,
