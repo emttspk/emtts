@@ -5,6 +5,7 @@ import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import { COMPLAINT_UNIT_COST, getComplaintAllowance, getLatestUnitSnapshot } from "../usage/unitConsumption.js";
 import { buildHostedCheckoutUrl, getLatestPendingPayment } from "../services/epGatewayBilling.service.js";
 import { getPlanExtrasByIds } from "./plans.js";
+import { getRequestSignalHashes, hashAccountSignal } from "../auth/security.js";
 
 export const meRouter = Router();
 
@@ -164,20 +165,123 @@ const profileUpdateSchema = z.object({
   originCity: z.string().trim().max(80).nullable().optional(),
 });
 
+function normalizeNullable(value: string | null | undefined) {
+  const trimmed = String(value ?? "").trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function immutableProfileMessage() {
+  return "Contact number/CNIC cannot be changed after verification. Contact support/admin for correction.";
+}
+
+function nameContactPattern(companyName: string | null | undefined, contactNumber: string | null | undefined) {
+  const company = String(companyName ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+  const contact = String(contactNumber ?? "").replace(/\D/g, "");
+  if (!company || !contact) return null;
+  return `${company}|${contact}`;
+}
+
+async function persistAccountRiskSignals(input: {
+  userId: string;
+  source: string;
+  planTier: "FREE" | "PAID" | "UNKNOWN";
+  reqIpHash?: string | null;
+  reqDeviceHash?: string | null;
+  contactNumber?: string | null;
+  cnic?: string | null;
+  companyName?: string | null;
+}) {
+  const rows: Array<{ userId: string; signalType: string; signalHash: string; source: string; planTier: string }> = [];
+  if (input.reqIpHash) rows.push({ userId: input.userId, signalType: "IP_HASH", signalHash: input.reqIpHash, source: input.source, planTier: input.planTier });
+  if (input.reqDeviceHash) rows.push({ userId: input.userId, signalType: "DEVICE_HASH", signalHash: input.reqDeviceHash, source: input.source, planTier: input.planTier });
+
+  const normalizedContact = normalizeNullable(input.contactNumber);
+  const normalizedCnic = normalizeNullable(input.cnic);
+  const pattern = nameContactPattern(input.companyName, normalizedContact);
+
+  if (normalizedContact) rows.push({ userId: input.userId, signalType: "CONTACT_HASH", signalHash: hashAccountSignal(normalizedContact), source: input.source, planTier: input.planTier });
+  if (normalizedCnic) rows.push({ userId: input.userId, signalType: "CNIC_HASH", signalHash: hashAccountSignal(normalizedCnic), source: input.source, planTier: input.planTier });
+  if (pattern) rows.push({ userId: input.userId, signalType: "NAME_CONTACT_HASH", signalHash: hashAccountSignal(pattern), source: input.source, planTier: input.planTier });
+
+  if (!rows.length) return;
+  try {
+    await prisma.accountRiskSignal.createMany({ data: rows });
+  } catch (error) {
+    console.warn("Failed to persist profile risk signals", error instanceof Error ? error.message : error);
+  }
+}
+
 meRouter.patch("/", requireAuth, async (req: AuthedRequest, res) => {
   const userId = req.user!.id;
   const body = profileUpdateSchema.parse(req.body);
-  const normalizedBody = {
-    companyName: body.companyName && body.companyName.length > 0 ? body.companyName : null,
-    address: body.address && body.address.length > 0 ? body.address : null,
-    contactNumber: body.contactNumber && body.contactNumber.length > 0 ? body.contactNumber : null,
-    cnic: body.cnic && body.cnic.length > 0 ? body.cnic : null,
-    originCity: body.originCity && body.originCity.length > 0 ? body.originCity : null,
-  };
-  const user = await prisma.user.update({
+  const existing = await prisma.user.findUnique({
     where: { id: userId },
-    data: normalizedBody,
-    select: { id: true, email: true, role: true, createdAt: true, companyName: true, address: true, contactNumber: true, cnic: true, originCity: true },
+    select: { id: true, contactNumber: true, cnic: true, companyName: true },
   });
-  return res.json({ user });
+  if (!existing) return res.status(404).json({ error: "User not found" });
+
+  const nextContact = normalizeNullable(body.contactNumber);
+  const nextCnic = normalizeNullable(body.cnic);
+  const currentContact = normalizeNullable(existing.contactNumber);
+  const currentCnic = normalizeNullable(existing.cnic);
+
+  if ((currentContact && currentContact !== nextContact) || (currentCnic && currentCnic !== nextCnic)) {
+    return res.status(409).json({ error: immutableProfileMessage() });
+  }
+
+  const activeSubscription = await prisma.subscription.findFirst({
+    where: { userId, status: "ACTIVE" },
+    include: { plan: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const planTier: "FREE" | "PAID" | "UNKNOWN" = activeSubscription
+    ? Number(activeSubscription.plan.priceCents ?? 0) > 0
+      ? "PAID"
+      : "FREE"
+    : "UNKNOWN";
+
+  const { ipHash, deviceHash } = getRequestSignalHashes(req);
+  const normalizedBody = {
+    companyName: normalizeNullable(body.companyName),
+    address: normalizeNullable(body.address),
+    contactNumber: nextContact,
+    cnic: nextCnic,
+    originCity: normalizeNullable(body.originCity),
+  };
+  try {
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: normalizedBody,
+      select: { id: true, email: true, role: true, createdAt: true, companyName: true, address: true, contactNumber: true, cnic: true, originCity: true },
+    });
+
+    await persistAccountRiskSignals({
+      userId,
+      source: "PROFILE_UPDATE",
+      planTier,
+      reqIpHash: ipHash,
+      reqDeviceHash: deviceHash,
+      companyName: normalizedBody.companyName,
+      contactNumber: normalizedBody.contactNumber,
+      cnic: normalizedBody.cnic,
+    });
+
+    return res.json({ user });
+  } catch (err) {
+    const message = err instanceof Error ? err.message.toLowerCase() : "";
+    if (message.includes("unique constraint") && (message.includes("contactnumber") || message.includes("cnic"))) {
+      await persistAccountRiskSignals({
+        userId,
+        source: "PROFILE_DUPLICATE_ATTEMPT",
+        planTier,
+        reqIpHash: ipHash,
+        reqDeviceHash: deviceHash,
+        companyName: normalizedBody.companyName,
+        contactNumber: normalizedBody.contactNumber,
+        cnic: normalizedBody.cnic,
+      });
+      return res.status(409).json({ error: message.includes("cnic") ? "CNIC already registered" : "Mobile number already registered" });
+    }
+    return res.status(500).json({ error: "Failed to update profile" });
+  }
 });

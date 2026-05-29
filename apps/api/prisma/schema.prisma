@@ -34,6 +34,7 @@ model User {
   payments      Payment[]
   invoices      Invoice[]
   manualPayments ManualPaymentRequest[]
+  accountRiskSignals AccountRiskSignal[]
 }
 
 model Plan {
@@ -412,4 +413,23 @@ model BillingSettings {
   businessPrice    Int
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+model AccountRiskSignal {
+  id           String   @id @default(uuid())
+  userId       String?
+  signalType   String
+  signalHash   String
+  source       String
+  planTier     String?
+  metadataJson Json?
+  createdAt    DateTime @default(now())
+  lastSeenAt   DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([signalType, signalHash])
+  @@index([planTier])
+  @@index([createdAt])
 }

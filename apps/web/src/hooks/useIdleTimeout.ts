@@ -52,7 +52,18 @@ export function useIdleTimeout(enabled: boolean = true) {
   const logout = useCallback(() => {
     clearAllAppCache();
     clearSession();
-    navigate("/", { replace: true });
+    const host = typeof window !== "undefined" ? window.location.hostname : "";
+    const isLocal = /^(localhost|127\.0\.0\.1)$/i.test(host);
+    const isProductionHost = /^(www\.)?epost\.pk$/i.test(host);
+    if (isProductionHost) {
+      window.location.replace("https://www.epost.pk/login");
+      return;
+    }
+    if (isLocal) {
+      navigate("/login", { replace: true });
+      return;
+    }
+    navigate("/login", { replace: true });
   }, [navigate]);
 
   const resetTimer = useCallback(() => {

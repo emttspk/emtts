@@ -9,6 +9,19 @@ Bulk shipping label + money order form generation with background jobs and PDF e
 - PDF: Puppeteer
 - Queue: Redis + BullMQ
 
+## Account Control And Security Notes
+- Idle timeout auto-logout is 15 minutes and redirects users to login (production host routes to `https://www.epost.pk/login`; local/dev routes to `/login`).
+- Login UI uses method-specific loading states:
+  - Password login shows `Signing in...` only for password flow.
+  - Google login shows `Please wait...` only when Google flow is active.
+- Sender profile immutability policy:
+  - `contactNumber` and `cnic` are treated as locked after first verified save.
+  - Normal users cannot change these values after lock.
+  - Admin can correct them through admin user controls.
+- Duplicate free-account safeguard telemetry:
+  - Hashed IP/device/contact/CNIC/name-contact signals are persisted for risk monitoring.
+  - Admin users view receives duplicate-risk level/reasons without exposing raw IP values.
+
 ## Quick start (dev)
 
 ### Automated Bootstrap (Recommended)

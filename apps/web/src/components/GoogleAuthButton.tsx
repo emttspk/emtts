@@ -3,6 +3,7 @@ type GoogleAuthButtonProps = {
   onClick: () => void;
   disabled?: boolean;
   loading?: boolean;
+  loadingLabel?: string;
   className?: string;
 };
 
@@ -17,18 +18,19 @@ function GoogleIcon() {
   );
 }
 
-export default function GoogleAuthButton({ label, onClick, disabled = false, loading = false, className = "" }: GoogleAuthButtonProps) {
+export default function GoogleAuthButton({ label, onClick, disabled = false, loading = false, loadingLabel = "Please wait...", className = "" }: GoogleAuthButtonProps) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled || loading}
+      aria-busy={loading}
       className={`google-auth-btn ${className}`.trim()}
     >
       <span className="google-auth-btn__icon" aria-hidden="true">
         <GoogleIcon />
       </span>
-      <span className="google-auth-btn__label">{loading ? "Please wait..." : label}</span>
+      <span className="google-auth-btn__label">{loading ? loadingLabel : label}</span>
       <span className="google-auth-btn__spacer" aria-hidden="true" />
     </button>
   );

@@ -18,6 +18,8 @@ import {
   getDeviceInfo,
   getLockout,
   getLoginHistory,
+  getRequestSignalHashes,
+  hashAccountSignal,
   issueRefreshToken,
   recordFailedAttempt,
   recordLoginHistory,
@@ -76,6 +78,69 @@ function uniqueConstraintMessage(err: unknown): string | null {
   if (message.includes("contactnumber") || message.includes("contact_number")) return "Mobile number already registered";
   if (message.includes("cnic")) return "CNIC already registered";
   return "Duplicate value detected";
+}
+
+function immutableProfileMessage() {
+  return "Contact number/CNIC cannot be changed after verification. Contact support/admin for correction.";
+}
+
+function nameContactPattern(companyName: string | null | undefined, contactNumber: string | null | undefined) {
+  const company = String(companyName ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+  const contact = String(contactNumber ?? "").replace(/\D/g, "");
+  if (!company || !contact) return null;
+  return `${company}|${contact}`;
+}
+
+async function persistAccountRiskSignals(input: {
+  userId: string | null;
+  source: string;
+  planTier: "FREE" | "PAID" | "UNKNOWN";
+  reqIpHash?: string | null;
+  reqDeviceHash?: string | null;
+  contactNumber?: string | null;
+  cnic?: string | null;
+  companyName?: string | null;
+  metadata?: Record<string, unknown>;
+}) {
+  const rows: Array<{
+    userId: string | null;
+    signalType: string;
+    signalHash: string;
+    source: string;
+    planTier: string;
+    metadataJson?: any;
+  }> = [];
+
+  if (input.reqIpHash) {
+    rows.push({ userId: input.userId, signalType: "IP_HASH", signalHash: input.reqIpHash, source: input.source, planTier: input.planTier, metadataJson: input.metadata ?? undefined });
+  }
+  if (input.reqDeviceHash) {
+    rows.push({ userId: input.userId, signalType: "DEVICE_HASH", signalHash: input.reqDeviceHash, source: input.source, planTier: input.planTier, metadataJson: input.metadata ?? undefined });
+  }
+
+  const normalizedContact = normalizeNullable(input.contactNumber);
+  const normalizedCnic = normalizeNullable(input.cnic);
+  const pattern = nameContactPattern(input.companyName, normalizedContact);
+
+  if (normalizedContact) {
+    rows.push({ userId: input.userId, signalType: "CONTACT_HASH", signalHash: hashAccountSignal(normalizedContact), source: input.source, planTier: input.planTier, metadataJson: input.metadata ?? undefined });
+  }
+  if (normalizedCnic) {
+    rows.push({ userId: input.userId, signalType: "CNIC_HASH", signalHash: hashAccountSignal(normalizedCnic), source: input.source, planTier: input.planTier, metadataJson: input.metadata ?? undefined });
+  }
+  if (pattern) {
+    rows.push({ userId: input.userId, signalType: "NAME_CONTACT_HASH", signalHash: hashAccountSignal(pattern), source: input.source, planTier: input.planTier, metadataJson: input.metadata ?? undefined });
+  }
+
+  if (!rows.length) return;
+
+  try {
+    await prisma.accountRiskSignal.createMany({
+      data: rows,
+    });
+  } catch (error) {
+    console.warn("Failed to persist account risk signals", error instanceof Error ? error.message : error);
+  }
 }
 
 async function ensureStarterSubscription(userId: string) {
@@ -138,6 +203,7 @@ authRouter.post("/register", async (req, res) => {
 
   const ip = getClientIp(req);
   const device = getDeviceInfo(req);
+  const { ipHash, deviceHash } = getRequestSignalHashes(req);
   try {
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) return res.status(409).json({ error: "Email already registered" });
@@ -166,6 +232,17 @@ authRouter.post("/register", async (req, res) => {
   } catch (err) {
     const duplicateMessage = uniqueConstraintMessage(err);
     if (duplicateMessage) {
+      await persistAccountRiskSignals({
+        userId: null,
+        source: "REGISTER_DUPLICATE_ATTEMPT",
+        planTier: "FREE",
+        reqIpHash: ipHash,
+        reqDeviceHash: deviceHash,
+        companyName: profileInput.companyName,
+        contactNumber: profileInput.contactNumber,
+        cnic: profileInput.cnic,
+        metadata: { email },
+      });
       return res.status(409).json({ error: duplicateMessage });
     }
     console.error("Failed to create user:", err);
@@ -178,6 +255,18 @@ authRouter.post("/register", async (req, res) => {
   } catch (err) {
     console.log("Failed to create subscription (database may not be ready):", err instanceof Error ? err.message : err);
   }
+
+  await persistAccountRiskSignals({
+    userId: user.id,
+    source: "REGISTER",
+    planTier: "FREE",
+    reqIpHash: ipHash,
+    reqDeviceHash: deviceHash,
+    companyName: profileInput.companyName,
+    contactNumber: profileInput.contactNumber,
+    cnic: profileInput.cnic,
+    metadata: { onboardingComplete },
+  });
 
   recordLoginHistory(user.id, { email, method: "password", ip, device, success: true });
   auditAuthEvent("auth.register.success", req, { email, userId: user.id });
@@ -513,17 +602,59 @@ authRouter.post("/complete-profile", requireAuth, async (req, res) => {
     .parse(req.body);
 
   try {
+    const userId = String((req as any).user.id);
+    const existing = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, contactNumber: true, cnic: true, companyName: true },
+    });
+    if (!existing) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const nextContact = normalizeNullable(body.contactNumber);
+    const nextCnic = normalizeNullable(body.cnic);
+    const currentContact = normalizeNullable(existing.contactNumber);
+    const currentCnic = normalizeNullable(existing.cnic);
+
+    if ((currentContact && currentContact !== nextContact) || (currentCnic && currentCnic !== nextCnic)) {
+      return res.status(409).json({ error: immutableProfileMessage() });
+    }
+
+    const activeSubscription = await prisma.subscription.findFirst({
+      where: { userId: existing.id, status: "ACTIVE" },
+      include: { plan: true },
+      orderBy: { createdAt: "desc" },
+    });
+    const planTier: "FREE" | "PAID" | "UNKNOWN" = activeSubscription
+      ? Number(activeSubscription.plan.priceCents ?? 0) > 0
+        ? "PAID"
+        : "FREE"
+      : "UNKNOWN";
+
+    const { ipHash, deviceHash } = getRequestSignalHashes(req);
+
     const user = await prisma.user.update({
-      where: { id: (req as any).user.id },
+      where: { id: userId },
       data: {
         companyName: body.companyName,
         address: body.address,
         originCity: body.originCity,
-        contactNumber: body.contactNumber,
-        cnic: normalizeNullable(body.cnic),
+        contactNumber: nextContact,
+        cnic: nextCnic,
         onboardingComplete: true,
       },
       select: { id: true, email: true, role: true, createdAt: true },
+    });
+
+    await persistAccountRiskSignals({
+      userId,
+      source: "COMPLETE_PROFILE",
+      planTier,
+      reqIpHash: ipHash,
+      reqDeviceHash: deviceHash,
+      companyName: body.companyName,
+      contactNumber: nextContact,
+      cnic: nextCnic,
     });
 
     return res.json({
@@ -533,6 +664,17 @@ authRouter.post("/complete-profile", requireAuth, async (req, res) => {
   } catch (err) {
     const duplicateMessage = uniqueConstraintMessage(err);
     if (duplicateMessage) {
+      const { ipHash, deviceHash } = getRequestSignalHashes(req);
+      await persistAccountRiskSignals({
+        userId: String((req as any).user?.id ?? "") || null,
+        source: "COMPLETE_PROFILE_DUPLICATE_ATTEMPT",
+        planTier: "UNKNOWN",
+        reqIpHash: ipHash,
+        reqDeviceHash: deviceHash,
+        companyName: body.companyName,
+        contactNumber: body.contactNumber,
+        cnic: body.cnic,
+      });
       return res.status(409).json({ error: duplicateMessage });
     }
     return res.status(500).json({ error: "Failed to complete profile" });

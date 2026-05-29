@@ -1,5 +1,61 @@
 # AI Implementation Index
 
+## 2026-05-29 - Auth Session Controls and Duplicate Free-Account Safeguards
+
+### Task Name
+- Implement approved auth/session redirect fix, login loading-state split, sender contact/CNIC lock, hashed duplicate-risk signals, and admin duplicate-risk warnings.
+
+### Files Changed
+- `apps/web/src/hooks/useIdleTimeout.ts`
+- `apps/web/src/pages/Login.tsx`
+- `apps/web/src/components/GoogleAuthButton.tsx`
+- `apps/web/src/pages/Settings.tsx`
+- `apps/web/src/pages/RegisterProfile.tsx`
+- `apps/web/src/pages/admin/AdminCommandCenter.tsx`
+- `apps/api/src/auth/security.ts`
+- `apps/api/src/routes/auth.ts`
+- `apps/api/src/routes/me.ts`
+- `apps/api/src/routes/admin.ts`
+- `apps/api/prisma/schema.prisma`
+- `apps/api/prisma/migrations/20260529113000_add_account_risk_signal/migration.sql`
+- `AI_IMPLEMENTATION_INDEX.md`
+- `CHANGELOG.md`
+- `README.md`
+- `docs/operations/account-duplicate-risk-controls-2026-05-29.md`
+
+### Status Matrix
+- Auto logout redirect status: COMPLETED (`/login` redirect for local/dev, production host redirected to `https://www.epost.pk/login`).
+- Login loading status: COMPLETED (separate `passwordLoginLoading` and `googleLoginLoading`; only active method shows loading text).
+- Contact/CNIC lock status: COMPLETED (frontend disabled state + backend immutability enforcement in `/api/me` and `/api/auth/complete-profile`).
+- Duplicate risk detection status: COMPLETED (hashed IP/device/contact/cnic/name-contact signals stored in `AccountRiskSignal`; duplicate attempts flagged).
+- Admin warning status: COMPLETED (`/api/admin/users` now returns `duplicateRisk` with level/reasons/review hint; users tab displays risk badge and reasons).
+- Prisma migration status: CREATED (manual migration SQL file added due local drift reset prompt; see ops doc for apply command).
+
+### Protected Files Not Touched
+- `apps/api/src/labels.ts`
+- `multipage-label.html`
+- barcode engine files
+- MOS/UMO calculation logic
+- moneyOrderBreakdown logic
+- finalized PDF templates
+- finalized complaint engine internals
+- finalized tracking parser core
+- tracking upload parser core
+
+### Verification
+- `npm run prisma:generate --workspace=@labelgen/api`: PASS
+- `npm run prisma:migrate --workspace=@labelgen/api -- --name account-risk-signals-may29`: CANCELLED (local drift reset prompt declined intentionally)
+- `npm run build`: PASS
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS
+
+### Git
+- Commit hash: (pending)
+
+### Completion
+- Completion percentage: 100%
+- Remaining percentage: 0%
+
 ## 2026-05-29 - Admin Command Center Jobs Pagination, Delete, Payment Tab Restore
 
 ### Task Name

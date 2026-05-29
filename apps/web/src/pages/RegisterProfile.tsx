@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { setSession } from "../lib/auth";
@@ -34,6 +34,32 @@ export default function RegisterProfile() {
   const [cnicErr, setCnicErr] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [contactLocked, setContactLocked] = useState(false);
+  const [cnicLocked, setCnicLocked] = useState(false);
+  const immutableMessage = "Contact number/CNIC cannot be changed after verification. Contact support/admin for correction.";
+
+  useEffect(() => {
+    let active = true;
+    void api<{ user?: { companyName?: string | null; address?: string | null; originCity?: string | null; contactNumber?: string | null; cnic?: string | null } }>("/api/me")
+      .then((data) => {
+        if (!active) return;
+        const current = data?.user;
+        if (!current) return;
+        setCompanyName(String(current.companyName ?? ""));
+        setAddress(String(current.address ?? ""));
+        setOriginCity(String(current.originCity ?? ""));
+        setContactNumber(String(current.contactNumber ?? ""));
+        setCnic(String(current.cnic ?? ""));
+        setContactLocked(Boolean(String(current.contactNumber ?? "").trim()));
+        setCnicLocked(Boolean(String(current.cnic ?? "").trim()));
+      })
+      .catch(() => {
+        // Keep form usable even if prefill fails.
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <AuthShell mode="register" title="Complete profile" subtitle="Finish sender profile to continue.">
@@ -112,6 +138,7 @@ export default function RegisterProfile() {
               placeholder="03012345678"
               maxLength={11}
               required
+              disabled={contactLocked}
             />
             {contactErr ? <p className="mt-1 text-xs font-medium text-red-600">{contactErr}</p> : <p className="mt-1 text-xs text-slate-400">Format: 03XXXXXXXXX</p>}
           </div>
@@ -130,9 +157,12 @@ export default function RegisterProfile() {
               type="text"
               placeholder="35202-1234567-1"
               maxLength={15}
+              disabled={cnicLocked}
             />
             {cnicErr ? <p className="mt-1 text-xs font-medium text-red-600">{cnicErr}</p> : <p className="mt-1 text-xs text-slate-400">Format: 35202-1234567-1 or 13 digits</p>}
           </div>
+
+          {(contactLocked || cnicLocked) ? <p className="text-xs font-medium text-amber-700">{immutableMessage}</p> : null}
         </div>
 
         <button disabled={loading} className="btn-primary w-full rounded-xl">

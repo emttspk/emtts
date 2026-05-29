@@ -112,6 +112,13 @@ function normalizeSortOrder(value: unknown): "asc" | "desc" {
   return String(value ?? "").toLowerCase() === "asc" ? "asc" : "desc";
 }
 
+function highestRiskLevel(levels: Array<"none" | "low" | "medium" | "high">): "none" | "low" | "medium" | "high" {
+  if (levels.includes("high")) return "high";
+  if (levels.includes("medium")) return "medium";
+  if (levels.includes("low")) return "low";
+  return "none";
+}
+
 function isResolvedComplaintState(state: string) {
   return ["RESOLVED", "CLOSED"].includes(state);
 }
@@ -1142,6 +1149,50 @@ adminRouter.get("/users", async (req, res) => {
     }),
   ]);
 
+  const userIds = users.map((user) => user.id);
+  const [userSignals, sharedFreeSignals] = userIds.length
+    ? await Promise.all([
+        prisma.accountRiskSignal.findMany({
+          where: {
+            userId: { in: userIds },
+            signalType: { in: ["IP_HASH", "DEVICE_HASH", "NAME_CONTACT_HASH", "CONTACT_HASH", "CNIC_HASH"] },
+          },
+          select: {
+            userId: true,
+            signalType: true,
+            signalHash: true,
+            source: true,
+            createdAt: true,
+            lastSeenAt: true,
+          },
+          orderBy: { createdAt: "desc" },
+          take: 5000,
+        }),
+        prisma.accountRiskSignal.groupBy({
+          by: ["signalType", "signalHash"],
+          where: {
+            planTier: "FREE",
+            signalType: { in: ["IP_HASH", "DEVICE_HASH", "NAME_CONTACT_HASH"] },
+          },
+          _count: { signalHash: true },
+        }),
+      ])
+    : [[], []];
+
+  const freeSignalCounts = new Map<string, number>();
+  for (const row of sharedFreeSignals) {
+    freeSignalCounts.set(`${row.signalType}:${row.signalHash}`, row._count.signalHash);
+  }
+
+  const userSignalsByUser = new Map<string, typeof userSignals>();
+  for (const signal of userSignals) {
+    const key = String(signal.userId ?? "");
+    if (!key) continue;
+    const bucket = userSignalsByUser.get(key) ?? [];
+    bucket.push(signal);
+    userSignalsByUser.set(key, bucket);
+  }
+
   res.json({
     month,
     page,
@@ -1172,6 +1223,7 @@ adminRouter.get("/users", async (req, res) => {
         companyName: user.companyName,
         address: user.address,
         contactNumber: user.contactNumber,
+        cnic: user.cnic,
         originCity: user.originCity,
         extraLabelCredits: user.extraLabelCredits,
         extraTrackingCredits: user.extraTrackingCredits,
@@ -1200,6 +1252,45 @@ adminRouter.get("/users", async (req, res) => {
           used_units: consumedUnits,
           remaining_units: remainingUnits,
         },
+        duplicateRisk: (() => {
+          const signals = userSignalsByUser.get(user.id) ?? [];
+          const reasons: string[] = [];
+          const levels: Array<"none" | "low" | "medium" | "high"> = ["none"];
+
+          for (const signal of signals) {
+            const count = freeSignalCounts.get(`${signal.signalType}:${signal.signalHash}`) ?? 0;
+            if (signal.signalType === "IP_HASH" && count > 1) {
+              reasons.push(`Shared IP signal across ${count} free accounts`);
+              levels.push("medium");
+            }
+            if (signal.signalType === "DEVICE_HASH" && count > 1) {
+              reasons.push(`Shared device fingerprint across ${count} free accounts`);
+              levels.push("medium");
+            }
+            if (signal.signalType === "NAME_CONTACT_HASH" && count > 1) {
+              reasons.push(`Repeated sender name/contact pattern across ${count} free accounts`);
+              levels.push("low");
+            }
+            if ((signal.signalType === "CONTACT_HASH" || signal.signalType === "CNIC_HASH") && String(signal.source).includes("DUPLICATE")) {
+              reasons.push(signal.signalType === "CONTACT_HASH" ? "Duplicate contact number attempt detected" : "Duplicate CNIC attempt detected");
+              levels.push("high");
+            }
+          }
+
+          const uniqReasons = [...new Set(reasons)].slice(0, 4);
+          const lastSeenAt = signals
+            .map((signal) => new Date(signal.lastSeenAt ?? signal.createdAt).getTime())
+            .filter((value) => Number.isFinite(value))
+            .sort((a, b) => b - a)[0];
+          const level = highestRiskLevel(levels);
+
+          return {
+            level,
+            reasons: uniqReasons,
+            reviewHint: level === "none" ? "No duplicate-risk indicator" : "Review identity/contact signals before approving free-account changes.",
+            lastSeenAt: lastSeenAt ? new Date(lastSeenAt).toISOString() : null,
+          };
+        })(),
       };
     }),
   });
@@ -1330,15 +1421,33 @@ adminRouter.patch("/users/:userId", async (req, res) => {
     companyName: z.string().max(120).nullable().optional(),
     address: z.string().max(300).nullable().optional(),
     contactNumber: z.string().max(30).nullable().optional(),
+    cnic: z.string().max(15).nullable().optional(),
     originCity: z.string().max(80).nullable().optional(),
     extraLabelCredits: z.number().int().min(0).optional(),
     extraTrackingCredits: z.number().int().min(0).optional(),
   }).parse(req.body);
+
+  const existing = await prisma.user.findUnique({
+    where: { id: req.params.userId },
+    select: { id: true, contactNumber: true, cnic: true },
+  });
+  if (!existing) return res.status(404).json({ error: "User not found" });
+
   const user = await prisma.user.update({
     where: { id: req.params.userId },
     data: body,
-    select: { id: true, email: true, role: true, suspended: true, companyName: true, address: true, contactNumber: true, originCity: true, extraLabelCredits: true, extraTrackingCredits: true },
+    select: { id: true, email: true, role: true, suspended: true, companyName: true, address: true, contactNumber: true, cnic: true, originCity: true, extraLabelCredits: true, extraTrackingCredits: true },
   });
+
+  if (existing.contactNumber !== user.contactNumber || existing.cnic !== user.cnic) {
+    await logComplaintAudit({
+      actorEmail: String((req as any).user?.email ?? "system").trim() || "system",
+      action: "complaint_updated",
+      trackingId: user.id,
+      details: "admin_sender_contact_cnic_correction",
+    });
+  }
+
   res.json({ user });
 });
 

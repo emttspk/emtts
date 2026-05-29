@@ -14,7 +14,8 @@ export default function Login() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [passwordLoginLoading, setPasswordLoginLoading] = useState(false);
+  const [googleLoginLoading, setGoogleLoginLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
@@ -34,7 +35,7 @@ export default function Login() {
       return;
     }
 
-    setLoading(true);
+    setGoogleLoginLoading(true);
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
@@ -45,7 +46,7 @@ export default function Login() {
       const message = error instanceof Error ? error.message : "Google login failed";
       setErr(message);
     } finally {
-      setLoading(false);
+      setGoogleLoginLoading(false);
     }
   }
 
@@ -70,7 +71,7 @@ export default function Login() {
         onSubmit={async (e) => {
           e.preventDefault();
           setErr(null);
-          setLoading(true);
+          setPasswordLoginLoading(true);
           try {
             const isEmail = identifier.includes("@");
 
@@ -111,7 +112,7 @@ export default function Login() {
             console.error(`[LOGIN] Error: ${errorMsg}`);
             setErr(errorMsg);
           } finally {
-            setLoading(false);
+            setPasswordLoginLoading(false);
           }
         }}
       >
@@ -168,8 +169,8 @@ export default function Login() {
           </Link>
         </div>
 
-        <button disabled={loading} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#0f1f3a,#0ea576)] px-5 text-[15px] font-semibold text-white shadow-[0_16px_34px_rgba(10,31,68,0.24)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(10,31,68,0.3)] disabled:cursor-not-allowed disabled:opacity-70">
-          <span>{loading ? "Signing in..." : "Sign in"}</span>
+        <button disabled={passwordLoginLoading || googleLoginLoading} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#0f1f3a,#0ea576)] px-5 text-[15px] font-semibold text-white shadow-[0_16px_34px_rgba(10,31,68,0.24)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_44px_rgba(10,31,68,0.3)] disabled:cursor-not-allowed disabled:opacity-70">
+          <span>{passwordLoginLoading ? "Signing in..." : "Sign in"}</span>
           <span className="flex h-6.5 w-6.5 items-center justify-center rounded-full bg-white/20">
             <ArrowRight className="h-4.5 w-4.5" />
           </span>
@@ -181,7 +182,13 @@ export default function Login() {
           <div className="h-px flex-1 bg-gradient-to-l from-transparent via-slate-200 to-slate-200" />
         </div>
 
-        <GoogleAuthButton className="mt-1" label="Sign in with Google" disabled={loading} loading={loading} onClick={handleGoogleLogin} />
+        <GoogleAuthButton
+          className="mt-1"
+          label="Sign in with Google"
+          disabled={passwordLoginLoading || googleLoginLoading}
+          loading={googleLoginLoading}
+          onClick={handleGoogleLogin}
+        />
 
         <div className="pt-0.5 text-center text-sm text-slate-500">
           Don&apos;t have an account?{" "}

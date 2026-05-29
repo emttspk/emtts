@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-05-29 - Auth Session Controls and Duplicate Free-Account Safeguards
+
+### Scope
+- Fixed idle auto-logout redirect to login (`https://www.epost.pk/login` on production host, `/login` on local/dev).
+- Split login loading states so password and Google flows show method-specific loading text only.
+- Locked sender `contactNumber` and `cnic` after first verified save for normal users (frontend + backend enforcement).
+- Added admin correction support for `cnic` and contact updates via admin user patch route.
+- Added persistent hashed duplicate-risk signals (`AccountRiskSignal`) for IP/device/contact/CNIC/name-contact patterns.
+- Added duplicate-risk summary to admin users API and users-tab risk badges/reasons in Admin Command Center.
+
+### Privacy/Security
+- IP/device detection now uses forwarded header fallbacks and stores only hashed signals for duplicate-risk monitoring.
+- Raw IP is not exposed in admin UI payloads.
+
+### Prisma
+- Added migration SQL: `apps/api/prisma/migrations/20260529113000_add_account_risk_signal/migration.sql`.
+- Local `prisma migrate dev` was not applied because existing local DB drift required destructive reset.
+
 ## 2026-05-29 - Admin Command Center Jobs Pagination, Delete, Payment Tab Restore
 
 ### Scope

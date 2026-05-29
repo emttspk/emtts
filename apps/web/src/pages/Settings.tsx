@@ -22,6 +22,9 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const contactLocked = Boolean(String(me?.user.contactNumber ?? "").trim());
+  const cnicLocked = Boolean(String((me?.user as { cnic?: string | null } | null)?.cnic ?? "").trim());
+  const immutableMessage = "Contact number/CNIC cannot be changed after verification. Contact support/admin for correction.";
   const activePlanName = me?.subscription?.plan?.name ?? me?.activePackage?.planName ?? "BUSINESS";
   const packageMeta = resolvePackageMeta(activePlanName);
   const remainingUnits = me?.balances?.unitsRemaining ?? me?.activePackage?.unitsRemaining ?? 0;
@@ -219,11 +222,12 @@ export default function Settings() {
               <input
                 id="contactNumber"
                 type="text"
-                className="field-input mt-2"
+                className="field-input mt-2 disabled:cursor-not-allowed disabled:bg-slate-100"
                 value={contactNumber}
                 onChange={(e) => setContactNumber(e.target.value)}
                 maxLength={30}
                 placeholder="e.g. 0300-1234567"
+                disabled={contactLocked}
               />
             </div>
           </div>
@@ -233,13 +237,16 @@ export default function Settings() {
             <input
               id="cnic"
               type="text"
-              className="field-input mt-2"
+              className="field-input mt-2 disabled:cursor-not-allowed disabled:bg-slate-100"
               value={cnic}
               onChange={(e) => setCnic(e.target.value)}
               maxLength={15}
               placeholder="35202-1234567-1 or 3520212345671"
+              disabled={cnicLocked}
             />
           </div>
+
+          {(contactLocked || cnicLocked) ? <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{immutableMessage}</div> : null}
 
           {error ? <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div> : null}
           {saved ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">Profile saved successfully.</div> : null}

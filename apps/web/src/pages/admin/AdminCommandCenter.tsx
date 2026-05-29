@@ -713,6 +713,7 @@ export default function AdminCommandCenter() {
               <SortHeader key="company" label="Company" sortKey="companyName" activeSortBy={activeFilters.sortBy} activeSortOrder={activeFilters.sortOrder} onToggle={applySort} />,
               <SortHeader key="email" label="Email" sortKey="email" activeSortBy={activeFilters.sortBy} activeSortOrder={activeFilters.sortOrder} onToggle={applySort} />,
               <SortHeader key="status" label="Status" sortKey="suspended" activeSortBy={activeFilters.sortBy} activeSortOrder={activeFilters.sortOrder} onToggle={applySort} />,
+              "Risk",
               <SortHeader key="joined" label="Joined" sortKey="createdAt" activeSortBy={activeFilters.sortBy} activeSortOrder={activeFilters.sortOrder} onToggle={applySort} />,
               "Edit",
               "Safe Action",
@@ -737,6 +738,19 @@ export default function AdminCommandCenter() {
               row.companyName ?? "-",
               row.email,
               row.suspended ? "SUSPENDED" : "ACTIVE",
+              (() => {
+                const risk = row.duplicateRisk as AnyObject | undefined;
+                const level = String(risk?.level ?? "none").toLowerCase();
+                const reasons = Array.isArray(risk?.reasons) ? risk.reasons : [];
+                if (level === "none") return <span className="text-[11px] font-semibold text-emerald-700">OK</span>;
+                const tone = level === "high" ? "border-rose-200 bg-rose-50 text-rose-700" : level === "medium" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-sky-200 bg-sky-50 text-sky-700";
+                return (
+                  <div className="space-y-1">
+                    <span className={`inline-flex rounded-md border px-2 py-0.5 text-[11px] font-semibold uppercase ${tone}`}>{level}</span>
+                    {reasons.length ? <p className="max-w-[240px] truncate text-[11px] text-slate-600" title={String(reasons.join(" | "))}>{String(reasons.join(" | "))}</p> : null}
+                  </div>
+                );
+              })(),
               String(row.createdAt ?? "-").slice(0, 10),
               <button
                 type="button"

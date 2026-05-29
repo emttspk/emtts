@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { Request } from "express";
 import type { AppRole } from "./jwt.js";
 
@@ -55,13 +55,35 @@ function pruneExpiredRefreshTokens() {
 }
 
 export function getClientIp(req: Request) {
-  const forwarded = req.header("x-forwarded-for") || "";
-  const first = forwarded.split(",")[0]?.trim();
-  return first || req.ip || req.socket.remoteAddress || "unknown";
+  const forwarded = String(req.header("x-forwarded-for") ?? "");
+  const firstForwarded = forwarded.split(",")[0]?.trim();
+  const realIp = String(req.header("x-real-ip") ?? "").trim();
+  const directIp = String(req.ip ?? req.socket.remoteAddress ?? "").trim();
+  const raw = firstForwarded || realIp || directIp || "unknown";
+  return raw.replace(/^::ffff:/i, "").trim() || "unknown";
 }
 
 export function getDeviceInfo(req: Request) {
   return String(req.header("user-agent") || "unknown").slice(0, 200);
+}
+
+function normalizeSignalValue(value: string) {
+  return value.trim().toLowerCase();
+}
+
+export function hashAccountSignal(value: string) {
+  const normalized = normalizeSignalValue(value || "unknown");
+  const salt = String(process.env.ACCOUNT_RISK_SIGNAL_SALT ?? "labelgen-account-risk-v1").trim();
+  return createHash("sha256").update(`${salt}:${normalized}`).digest("hex");
+}
+
+export function getRequestSignalHashes(req: Request) {
+  const ip = getClientIp(req);
+  const device = getDeviceInfo(req);
+  return {
+    ipHash: hashAccountSignal(ip),
+    deviceHash: hashAccountSignal(device),
+  };
 }
 
 export function auditAuthEvent(event: string, req: Request, details: Record<string, unknown> = {}) {
