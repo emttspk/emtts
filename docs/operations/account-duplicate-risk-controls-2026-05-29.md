@@ -29,12 +29,33 @@ Signals are stored hashed only. Raw IP is not returned to admin UI payloads.
 ## Admin Warning Surface
 Endpoint: `GET /api/admin/users`
 - Returns `duplicateRisk` per user:
-  - `level`: `none` | `low` | `medium` | `high`
+  - `level`: `none` | `low` | `medium` | `high` | `review`
   - `reasons`: short reason list
   - `reviewHint`
   - `lastSeenAt`
+  - `reviewStatus` / `reviewedAt` / `reviewedBy` (if reviewed by admin)
 
 Admin UI: Users tab in Admin Command Center shows a risk badge and concise reasons.
+
+## Admin User Control Restore
+The Users tab now supports full operational controls again:
+- View customer detail modal (`GET /api/admin/users/:userId`)
+- Edit/unlock flow for company/contact/CNIC with required admin note + confirmation
+- Add credits/units flow with required confirmation and reason note
+- Suspend/reactivate, delete (guarded by linked-record safety)
+- Duplicate-risk `Allow / Mark Reviewed` action
+
+### Duplicate-risk review action
+Endpoint: `POST /api/admin/users/:userId/duplicate-risk/review`
+- Body:
+  - `action`: `ALLOW` or `REVIEW`
+  - `note`: required admin note
+- Effect:
+  - Persists admin review signal in `AccountRiskSignal` (`signalType = RISK_REVIEW`)
+  - Updates Users risk surface with review status metadata
+
+### Admin correction logging
+- CNIC/contact corrections and duplicate-risk review actions are logged through existing admin audit helper (`logComplaintAudit`) with actor + note context.
 
 ## Migration Notes
 Local command attempted:

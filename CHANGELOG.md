@@ -18,21 +18,27 @@
 - Added migration SQL: `apps/api/prisma/migrations/20260529113000_add_account_risk_signal/migration.sql`.
 - Local `prisma migrate dev` was not applied because existing local DB drift required destructive reset.
 
+## 2026-05-29 - Admin Users Tab Control Restore and Duplicate-Risk Review Actions
+
+### Scope
+- Restored full Admin Command Center Users-tab controls without redesigning other tabs.
+- Reintroduced View Customer detail workflow with full account details and risk context.
+- Added complete user actions in Users table: View, Edit/Unlock, Add Credit, Suspend/Reactivate, Delete, Allow/Review.
+- Restored edit/correction workflow for `companyName`, `contactNumber`, `cnic`, `status`, `role`, and optional package update.
+- Added correction safety requirements: admin correction note + explicit confirmation.
+- Added credit modal flow with reason/note + confirmation.
+- Added duplicate-risk review endpoint and persisted admin review/allow events.
+
+### API Additions/Changes
+- Added `GET /api/admin/users/:userId` for full admin-safe customer detail.
+- Added `POST /api/admin/users/:userId/duplicate-risk/review` for allow/review actions with admin note.
+- Extended `PATCH /api/admin/users/:userId` to support status/role/package updates and safe correction note confirmation.
+- Extended `POST /api/admin/users/:userId/credits` to require confirmation and support reason logging.
+- Enhanced `GET /api/admin/users` payload with `status`, `onboardingComplete`, `profileLocks`, and enriched duplicate-risk review metadata.
+
 ## 2026-05-29 - Admin Command Center Jobs Pagination, Delete, Payment Tab Restore
 
-### Scope
-- Fixed jobs pagination prev/next buttons with inline metadata in Jobs tab body.
-- Verified jobs delete route (backend `DELETE /api/admin/jobs/:jobId`, frontend correct path, terminal-status guard).
-- Renamed sidebar tab "Settings" → "Payment" (NavKey `"settings"` → `"payment"`).
-- Restored full payment section with card-per-option UI: JazzCash, EasyPaisa, Bank Transfer.
-- Added QR image upload (FormData + multer) and QR preview for each payment option.
-- Removed Standard Price block from Payment tab (pricing belongs in Plans & Pricing only).
 - `saveBillingDraft` now uses `FormData` instead of JSON for billing settings updates.
-
-## 2026-05-29 - Admin Command Center Remaining UI Restore (Scoped)
-
-### Scope
-- Restored remaining actionable admin UI gaps only, without touching protected rendering/tracking/complaint core business logic.
 
 ### UI Fixes
 - Restored payment settings controls from prompt-only state to actionable option controls:

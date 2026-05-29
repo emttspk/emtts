@@ -1,5 +1,50 @@
 # AI Implementation Index
 
+## 2026-05-29 - Admin Users Tab Full Control Restore and Duplicate-Risk Review
+
+### Task Name
+- Repair Admin Command Center Users tab to restore full customer controls after duplicate-risk safeguard rollout.
+
+### Files Changed
+- `apps/web/src/pages/admin/AdminCommandCenter.tsx`
+- `apps/api/src/routes/admin.ts`
+- `AI_IMPLEMENTATION_INDEX.md`
+- `CHANGELOG.md`
+- `docs/operations/account-duplicate-risk-controls-2026-05-29.md`
+
+### Status Matrix
+- Users view modal restored: COMPLETED
+- Full user details restored: COMPLETED
+- Add credit/units restored: COMPLETED
+- Suspend/reactivate/delete controls: COMPLETED
+- CNIC/contact admin correction with note+confirmation: COMPLETED
+- Duplicate-risk badge/reasons/review hint: COMPLETED
+- Allow/review action status: COMPLETED (`POST /api/admin/users/:userId/duplicate-risk/review`)
+- Normal user lock bypass blocked: VERIFIED (frontend lock + backend immutable checks in auth/me routes remain active)
+
+### Protected Files Not Touched
+- `apps/api/src/labels.ts`
+- `multipage-label.html`
+- barcode engine files
+- MOS/UMO calculation logic
+- moneyOrderBreakdown logic
+- finalized PDF templates
+- finalized complaint engine internals
+- finalized tracking parser core
+- tracking upload parser core
+
+### Verification
+- `npm run build`: PASS
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS
+
+### Git
+- Commit hash: (pending)
+
+### Completion
+- Completion percentage: 100%
+- Remaining percentage: 0%
+
 ## 2026-05-29 - Auth Session Controls and Duplicate Free-Account Safeguards
 
 ### Task Name

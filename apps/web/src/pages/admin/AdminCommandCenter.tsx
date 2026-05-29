@@ -300,6 +300,10 @@ export default function AdminCommandCenter() {
   const [saving, setSaving] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [currentAdminId, setCurrentAdminId] = useState<string>("");
+  const [viewUserId, setViewUserId] = useState<string | null>(null);
+  const [viewUserDetail, setViewUserDetail] = useState<AnyObject | null>(null);
+  const [editUserModal, setEditUserModal] = useState<AnyObject | null>(null);
+  const [creditModal, setCreditModal] = useState<AnyObject | null>(null);
   const [complaintDetail, setComplaintDetail] = useState<AnyObject | null>(null);
   const [settingsDraft, setSettingsDraft] = useState<AnyObject | null>(null);
   const [editingPaymentOption, setEditingPaymentOption] = useState<"jazzcash" | "easypaisa" | "bank" | null>(null);
@@ -319,6 +323,21 @@ export default function AdminCommandCenter() {
   });
 
   const activeFilters = filters[active];
+
+  function riskTone(levelRaw: unknown) {
+    const level = String(levelRaw ?? "none").toLowerCase();
+    if (level === "high") return "border-rose-200 bg-rose-50 text-rose-700";
+    if (level === "medium") return "border-amber-200 bg-amber-50 text-amber-700";
+    if (level === "low") return "border-sky-200 bg-sky-50 text-sky-700";
+    if (level === "review") return "border-violet-200 bg-violet-50 text-violet-700";
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  }
+
+  function riskLabel(levelRaw: unknown) {
+    const level = String(levelRaw ?? "none").toLowerCase();
+    if (level === "none") return "NONE";
+    return level.toUpperCase();
+  }
 
   function updateActiveFilters(patch: Partial<FilterState>) {
     setFilters((prev) => ({
@@ -368,12 +387,14 @@ export default function AdminCommandCenter() {
         await loadDashboard();
       }
       if (target === "users" && (force || !users)) {
-        const [dashboardUsers, listUsers] = await Promise.all([
+        const [dashboardUsers, listUsers, plansData] = await Promise.all([
           api<AnyObject>("/api/admin/dashboard/users"),
           api<AnyObject>(`/api/admin/users${q}`),
+          api<AnyObject>("/api/admin/plans").catch(() => ({ plans: users?.plans ?? [] })),
         ]);
         setUsers({
           ...dashboardUsers,
+          plans: plansData?.plans ?? users?.plans ?? [],
           list: listUsers.users ?? [],
           listPage: listUsers.page ?? 1,
           listPageSize: listUsers.pageSize ?? targetFilters.pageSize,
@@ -641,6 +662,7 @@ export default function AdminCommandCenter() {
       const pageSize = Number(users?.listPageSize ?? activeFilters.pageSize);
       const currentPage = Number(users?.listPage ?? activeFilters.page);
       const totalPages = Math.max(1, Math.ceil(total / Math.max(1, pageSize)));
+      const plans: AnyObject[] = users?.plans ?? [];
       const allSelectableIds = pageRows
         .filter((row) => String(row.id ?? "") !== currentAdminId)
         .map((row) => String(row.id ?? ""))
@@ -712,11 +734,14 @@ export default function AdminCommandCenter() {
               "Select",
               <SortHeader key="company" label="Company" sortKey="companyName" activeSortBy={activeFilters.sortBy} activeSortOrder={activeFilters.sortOrder} onToggle={applySort} />,
               <SortHeader key="email" label="Email" sortKey="email" activeSortBy={activeFilters.sortBy} activeSortOrder={activeFilters.sortOrder} onToggle={applySort} />,
+              "Contact",
+              "CNIC",
               <SortHeader key="status" label="Status" sortKey="suspended" activeSortBy={activeFilters.sortBy} activeSortOrder={activeFilters.sortOrder} onToggle={applySort} />,
+              "Plan",
+              "Credits/Units",
               "Risk",
               <SortHeader key="joined" label="Joined" sortKey="createdAt" activeSortBy={activeFilters.sortBy} activeSortOrder={activeFilters.sortOrder} onToggle={applySort} />,
-              "Edit",
-              "Safe Action",
+              "Actions",
             ]}
             rows={pageRows.map((row: AnyObject) => [
               String(row.id ?? "") === currentAdminId ? (
@@ -737,51 +762,309 @@ export default function AdminCommandCenter() {
               ),
               row.companyName ?? "-",
               row.email,
+              row.contactNumber ?? "-",
+              row.cnic ?? "-",
               row.suspended ? "SUSPENDED" : "ACTIVE",
+              row.subscription?.plan?.name ?? "No plan",
+              <div className="space-y-0.5 text-[11px]">
+                <div>Extra: L{Number(row.extraLabelCredits ?? 0)} / T{Number(row.extraTrackingCredits ?? 0)}</div>
+                <div>Remaining: {Number(row.balances?.labelsRemaining ?? 0)}</div>
+              </div>,
               (() => {
                 const risk = row.duplicateRisk as AnyObject | undefined;
                 const level = String(risk?.level ?? "none").toLowerCase();
                 const reasons = Array.isArray(risk?.reasons) ? risk.reasons : [];
-                if (level === "none") return <span className="text-[11px] font-semibold text-emerald-700">OK</span>;
-                const tone = level === "high" ? "border-rose-200 bg-rose-50 text-rose-700" : level === "medium" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-sky-200 bg-sky-50 text-sky-700";
                 return (
                   <div className="space-y-1">
-                    <span className={`inline-flex rounded-md border px-2 py-0.5 text-[11px] font-semibold uppercase ${tone}`}>{level}</span>
+                    <span className={`inline-flex rounded-md border px-2 py-0.5 text-[11px] font-semibold uppercase ${riskTone(level)}`}>{riskLabel(level)}</span>
                     {reasons.length ? <p className="max-w-[240px] truncate text-[11px] text-slate-600" title={String(reasons.join(" | "))}>{String(reasons.join(" | "))}</p> : null}
+                    {risk?.reviewHint ? <p className="max-w-[240px] truncate text-[11px] text-slate-500" title={String(risk.reviewHint)}>{String(risk.reviewHint)}</p> : null}
                   </div>
                 );
               })(),
               String(row.createdAt ?? "-").slice(0, 10),
-              <button
-                type="button"
-                className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
-                onClick={() => {
-                  const next = window.prompt("Update company name", String(row.companyName ?? ""));
-                  if (next === null) return;
-                  void runSafeAction(async () => {
-                    await api(`/api/admin/users/${encodeURIComponent(row.id)}`, {
-                      method: "PATCH",
-                      body: JSON.stringify({ companyName: next.trim() || null }),
+              <div className="flex flex-wrap gap-1">
+                <button
+                  type="button"
+                  className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+                  onClick={() => {
+                    const userId = String(row.id ?? "").trim();
+                    if (!userId) return;
+                    setViewUserId(userId);
+                    setViewUserDetail(null);
+                    setLoading(true);
+                    setError(null);
+                    void api<AnyObject>(`/api/admin/users/${encodeURIComponent(userId)}`)
+                      .then((payload) => setViewUserDetail(payload.user ?? null))
+                      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load user detail"))
+                      .finally(() => setLoading(false));
+                  }}
+                >
+                  View
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+                  onClick={() => {
+                    setEditUserModal({
+                      userId: row.id,
+                      email: row.email,
+                      companyName: row.companyName ?? "",
+                      contactNumber: row.contactNumber ?? "",
+                      cnic: row.cnic ?? "",
+                      status: row.suspended ? "SUSPENDED" : "ACTIVE",
+                      role: row.role ?? "USER",
+                      planId: row.subscription?.plan?.id ?? "",
+                      correctionNote: "",
+                      confirmCorrection: false,
                     });
-                  });
-                }}
-              >
-                Edit
-              </button>,
-              <button
-                type="button"
-                className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
-                onClick={() => {
-                  if (String(row.id ?? "") === currentAdminId && !row.suspended) return;
-                  void runSafeAction(async () => {
-                    await api(`/api/admin/users/${encodeURIComponent(row.id)}/${row.suspended ? "unsuspend" : "suspend"}`, { method: "POST" });
-                  });
-                }}
-              >
-                {row.suspended ? "Reactivate" : "Suspend"}
-              </button>,
+                  }}
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+                  onClick={() => {
+                    setCreditModal({ userId: row.id, email: row.email, companyName: row.companyName ?? "", amount: "", reason: "", confirm: false });
+                  }}
+                >
+                  Add Credit
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+                  onClick={() => {
+                    if (String(row.id ?? "") === currentAdminId && !row.suspended) return;
+                    void runSafeAction(async () => {
+                      await api(`/api/admin/users/${encodeURIComponent(row.id)}/${row.suspended ? "unsuspend" : "suspend"}`, { method: "POST" });
+                    });
+                  }}
+                >
+                  {row.suspended ? "Reactivate" : "Suspend"}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-700"
+                  onClick={() => {
+                    if (!window.confirm(`Delete ${row.email}? This is irreversible and may fail for linked records.`)) return;
+                    void runSafeAction(async () => {
+                      await api(`/api/admin/users/${encodeURIComponent(row.id)}`, { method: "DELETE" });
+                    });
+                  }}
+                >
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-violet-200 px-2 py-1 text-xs font-semibold text-violet-700"
+                  onClick={() => {
+                    const action = window.confirm("Select OK for Allow, Cancel for Mark Reviewed.") ? "ALLOW" : "REVIEW";
+                    const note = window.prompt("Admin note (required)", "")?.trim() ?? "";
+                    if (!note) return;
+                    void runSafeAction(async () => {
+                      await api(`/api/admin/users/${encodeURIComponent(row.id)}/duplicate-risk/review`, {
+                        method: "POST",
+                        body: JSON.stringify({ action, note }),
+                      });
+                    });
+                  }}
+                >
+                  Allow/Review
+                </button>
+              </div>,
             ])}
           />
+
+          {viewUserId ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+              <div className="max-h-[90vh] w-full max-w-4xl overflow-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-base font-bold text-slate-900">View Customer</h3>
+                  <button type="button" className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold" onClick={() => { setViewUserId(null); setViewUserDetail(null); }}>Close</button>
+                </div>
+                {!viewUserDetail ? (
+                  <p className="text-sm text-slate-500">Loading details...</p>
+                ) : (
+                  <div className="space-y-3 text-xs text-slate-700">
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <div><span className="font-semibold">User ID:</span> {String(viewUserDetail.id ?? "-")}</div>
+                      <div><span className="font-semibold">Email:</span> {String(viewUserDetail.email ?? "-")}</div>
+                      <div><span className="font-semibold">Company:</span> {String(viewUserDetail.companyName ?? "-")}</div>
+                      <div><span className="font-semibold">Contact:</span> {String(viewUserDetail.contactNumber ?? "-")}</div>
+                      <div><span className="font-semibold">CNIC:</span> {String(viewUserDetail.cnic ?? "-")}</div>
+                      <div><span className="font-semibold">Plan:</span> {String(viewUserDetail.subscription?.plan?.name ?? "No plan")}</div>
+                      <div><span className="font-semibold">Subscription Status:</span> {String(viewUserDetail.subscription?.status ?? "-")}</div>
+                      <div><span className="font-semibold">Credits:</span> L{Number(viewUserDetail.extraLabelCredits ?? 0)} / T{Number(viewUserDetail.extraTrackingCredits ?? 0)}</div>
+                      <div><span className="font-semibold">Account Status:</span> {String(viewUserDetail.status ?? "-")}</div>
+                      <div><span className="font-semibold">Role:</span> {String(viewUserDetail.role ?? "-")}</div>
+                      <div><span className="font-semibold">Created:</span> {String(viewUserDetail.createdAt ?? "-").slice(0, 19).replace("T", " ")}</div>
+                      <div><span className="font-semibold">Updated:</span> {String(viewUserDetail.updatedAt ?? "-")}</div>
+                      <div><span className="font-semibold">Onboarding Complete:</span> {String(Boolean(viewUserDetail.onboardingComplete))}</div>
+                      <div><span className="font-semibold">Remaining Units:</span> {Number(viewUserDetail.balances?.labelsRemaining ?? 0)}</div>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <p className="font-semibold text-slate-800">Duplicate Risk</p>
+                      <p className="mt-1">
+                        <span className={`inline-flex rounded-md border px-2 py-0.5 text-[11px] font-semibold ${riskTone(viewUserDetail.duplicateRisk?.level)}`}>{riskLabel(viewUserDetail.duplicateRisk?.level)}</span>
+                      </p>
+                      {(viewUserDetail.duplicateRisk?.reasons ?? []).length ? (
+                        <ul className="mt-2 space-y-1">
+                          {(viewUserDetail.duplicateRisk?.reasons ?? []).map((reason: string, idx: number) => (
+                            <li key={idx}>- {reason}</li>
+                          ))}
+                        </ul>
+                      ) : <p className="mt-2">No risk reasons.</p>}
+                      <p className="mt-2"><span className="font-semibold">Review hint:</span> {String(viewUserDetail.duplicateRisk?.reviewHint ?? "-")}</p>
+                      <p><span className="font-semibold">Last seen:</span> {String(viewUserDetail.duplicateRisk?.lastSeenAt ?? "-")}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <p className="font-semibold text-slate-800">Recent Risk Signals</p>
+                      {(viewUserDetail.recentRiskSignals ?? []).length ? (
+                        <ul className="mt-1 space-y-1">
+                          {(viewUserDetail.recentRiskSignals ?? []).map((signal: AnyObject, idx: number) => (
+                            <li key={idx}>{String(signal.signalType)} | {String(signal.source)} | {String(signal.createdAt).slice(0, 19).replace("T", " ")}</li>
+                          ))}
+                        </ul>
+                      ) : <p className="mt-1">No recent signals.</p>}
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <p className="font-semibold text-slate-800">Notes / Audit (available)</p>
+                      {(viewUserDetail.adminNotes ?? []).length ? (
+                        <ul className="mt-1 space-y-1">
+                          {(viewUserDetail.adminNotes ?? []).map((note: AnyObject, idx: number) => (
+                            <li key={idx}>{String(note.source)} | {String(note.actorEmail ?? "-")} | {String(note.note ?? "-")} | {String(note.createdAt).slice(0, 19).replace("T", " ")}</li>
+                          ))}
+                        </ul>
+                      ) : <p className="mt-1">No admin notes available.</p>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : null}
+
+          {editUserModal ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+              <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-base font-bold text-slate-900">Edit / Unlock Customer</h3>
+                  <button type="button" className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold" onClick={() => setEditUserModal(null)}>Cancel</button>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className="text-xs font-semibold text-slate-600">Company Name
+                    <input className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5 text-xs" value={String(editUserModal.companyName ?? "")} onChange={(e) => setEditUserModal((prev: AnyObject) => ({ ...prev, companyName: e.target.value }))} />
+                  </label>
+                  <label className="text-xs font-semibold text-slate-600">Contact Number
+                    <input className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5 text-xs" value={String(editUserModal.contactNumber ?? "")} onChange={(e) => setEditUserModal((prev: AnyObject) => ({ ...prev, contactNumber: e.target.value }))} />
+                  </label>
+                  <label className="text-xs font-semibold text-slate-600">CNIC
+                    <input className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5 text-xs" value={String(editUserModal.cnic ?? "")} onChange={(e) => setEditUserModal((prev: AnyObject) => ({ ...prev, cnic: e.target.value }))} />
+                  </label>
+                  <label className="text-xs font-semibold text-slate-600">Status
+                    <select className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5 text-xs" value={String(editUserModal.status ?? "ACTIVE")} onChange={(e) => setEditUserModal((prev: AnyObject) => ({ ...prev, status: e.target.value }))}>
+                      <option value="ACTIVE">ACTIVE</option>
+                      <option value="SUSPENDED">SUSPENDED</option>
+                    </select>
+                  </label>
+                  <label className="text-xs font-semibold text-slate-600">Role
+                    <select className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5 text-xs" value={String(editUserModal.role ?? "USER")} onChange={(e) => setEditUserModal((prev: AnyObject) => ({ ...prev, role: e.target.value }))}>
+                      <option value="USER">USER</option>
+                      <option value="ADMIN">ADMIN</option>
+                    </select>
+                  </label>
+                  <label className="text-xs font-semibold text-slate-600">Plan/Package
+                    <select className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5 text-xs" value={String(editUserModal.planId ?? "")} onChange={(e) => setEditUserModal((prev: AnyObject) => ({ ...prev, planId: e.target.value }))}>
+                      <option value="">No change</option>
+                      {plans.map((plan: AnyObject) => <option key={String(plan.id)} value={String(plan.id)}>{String(plan.name)}</option>)}
+                    </select>
+                  </label>
+                </div>
+                <label className="mt-3 block text-xs font-semibold text-slate-600">Correction Note
+                  <textarea className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5 text-xs" rows={3} value={String(editUserModal.correctionNote ?? "")} onChange={(e) => setEditUserModal((prev: AnyObject) => ({ ...prev, correctionNote: e.target.value }))} placeholder="Reason for CNIC/contact correction" />
+                </label>
+                <label className="mt-2 flex items-center gap-2 text-xs text-slate-700">
+                  <input type="checkbox" checked={Boolean(editUserModal.confirmCorrection)} onChange={(e) => setEditUserModal((prev: AnyObject) => ({ ...prev, confirmCorrection: e.target.checked }))} />
+                  I confirm this correction is verified and approved.
+                </label>
+                <div className="mt-3 flex justify-end gap-2">
+                  <button type="button" className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold" onClick={() => setEditUserModal(null)}>Cancel</button>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-900"
+                    onClick={() => {
+                      void runSafeAction(async () => {
+                        await api(`/api/admin/users/${encodeURIComponent(String(editUserModal.userId))}`, {
+                          method: "PATCH",
+                          body: JSON.stringify({
+                            companyName: String(editUserModal.companyName ?? "").trim() || null,
+                            contactNumber: String(editUserModal.contactNumber ?? "").trim() || null,
+                            cnic: String(editUserModal.cnic ?? "").trim() || null,
+                            status: editUserModal.status,
+                            role: editUserModal.role,
+                            planId: String(editUserModal.planId ?? "").trim() || undefined,
+                            correctionNote: String(editUserModal.correctionNote ?? "").trim(),
+                            confirmCorrection: Boolean(editUserModal.confirmCorrection),
+                          }),
+                        });
+                        setEditUserModal(null);
+                      });
+                    }}
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {creditModal ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+              <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-base font-bold text-slate-900">Add Credit / Units</h3>
+                  <button type="button" className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold" onClick={() => setCreditModal(null)}>Cancel</button>
+                </div>
+                <p className="text-xs text-slate-600">{String(creditModal.companyName || creditModal.email)}</p>
+                <p className="mb-2 text-xs text-slate-500">{String(creditModal.email)}</p>
+                <label className="block text-xs font-semibold text-slate-600">Units amount
+                  <input className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5 text-xs" type="number" min={0} value={String(creditModal.amount ?? "")} onChange={(e) => setCreditModal((prev: AnyObject) => ({ ...prev, amount: e.target.value }))} />
+                </label>
+                <label className="mt-2 block text-xs font-semibold text-slate-600">Reason / Note
+                  <textarea className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5 text-xs" rows={3} value={String(creditModal.reason ?? "")} onChange={(e) => setCreditModal((prev: AnyObject) => ({ ...prev, reason: e.target.value }))} />
+                </label>
+                <label className="mt-2 flex items-center gap-2 text-xs text-slate-700">
+                  <input type="checkbox" checked={Boolean(creditModal.confirm)} onChange={(e) => setCreditModal((prev: AnyObject) => ({ ...prev, confirm: e.target.checked }))} />
+                  I confirm this credit adjustment is authorized.
+                </label>
+                <div className="mt-3 flex justify-end gap-2">
+                  <button type="button" className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold" onClick={() => setCreditModal(null)}>Cancel</button>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-900"
+                    onClick={() => {
+                      void runSafeAction(async () => {
+                        const amount = Math.max(0, Math.trunc(Number(creditModal.amount ?? 0)));
+                        await api(`/api/admin/users/${encodeURIComponent(String(creditModal.userId))}/credits`, {
+                          method: "POST",
+                          body: JSON.stringify({
+                            labelCredits: amount,
+                            trackingCredits: amount,
+                            reason: String(creditModal.reason ?? "").trim(),
+                            confirm: Boolean(creditModal.confirm),
+                          }),
+                        });
+                        setCreditModal(null);
+                      });
+                    }}
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600">
             <span>Page {currentPage} of {totalPages} | Total records: {total} | Page size: {pageSize}</span>
             <span>Showing {pageRows.length} record(s)</span>
