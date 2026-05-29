@@ -1,5 +1,45 @@
 # AI Implementation Index
 
+## 2026-05-29 - Support Retention, Storage Summary, and Admin Attachment View
+
+### Task Name
+- Add support ticket preserve/retention controls, support storage visibility, attachment view actions, and compact support admin layout safeguards.
+
+### Files Changed
+- `apps/api/prisma/schema.prisma`
+- `apps/api/prisma/migrations/20260529210000_add_support_ticket_retention_fields/migration.sql`
+- `apps/api/src/routes/adminSupport.ts`
+- `apps/api/src/services/supportTickets.ts`
+- `apps/api/src/services/supportTicketRetention.ts`
+- `apps/api/scripts/support-ticket-cleanup.ts`
+- `apps/api/package.json`
+- `apps/api/.env.example`
+- `apps/api/src/routes/supportRoute.test.ts`
+- `apps/web/src/lib/support.ts`
+- `apps/web/src/components/SupportAttachmentUploader.tsx`
+- `apps/web/src/pages/SupportTicketDetailPage.tsx`
+- `apps/web/src/pages/admin/AdminCommandCenter.tsx`
+- `apps/web/src/components/Footer.jsx`
+- `docs/architecture/support-tickets.md`
+- `docs/operations/support-tickets-runbook.md`
+- `README.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Status Matrix
+- Support attachment limits (5 files, 10 MB each): COMPLETED
+- Preserve ticket + retention scheduling controls: COMPLETED
+- Default support retention 90 days: COMPLETED
+- Support cleanup command placeholder (safe, manual): COMPLETED
+- Support storage summary metrics in admin support tab: COMPLETED
+- Admin and customer attachment View action: COMPLETED
+- Public footer support email exposure removed: COMPLETED
+- Footer headings/alignment polish and consistent card sizing: COMPLETED
+- Support admin tab overflow/truncation hardening: COMPLETED
+
+### Completion
+- Completion percentage: 99.7%
+- Remaining percentage: 0.3% (production monitoring, SLA tuning, and customer feedback polish)
+
 ## 2026-05-29 - Support Tickets Completion Pass (Attachments, Notifications, Closed State)
 
 ### Task Name

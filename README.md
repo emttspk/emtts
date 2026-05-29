@@ -216,16 +216,32 @@ npm run prisma:migrate --workspace=@labelgen/api
 - `GET /api/admin/support/tickets/:id`
 - `PATCH /api/admin/support/tickets/:id/status`
 - `PATCH /api/admin/support/tickets/:id/priority`
+- `PATCH /api/admin/support/tickets/:id/preserve`
 - `POST /api/admin/support/tickets/:id/messages`
 - `GET /api/admin/support/notifications`
 - `POST /api/admin/support/notifications/read`
 
 ### Support Behavior
 - Create-ticket modal supports pre-submit attachments and uploads them through the existing secure support attachment endpoint after ticket creation.
+- Attachment upload limits: max 5 files per upload and max 10 MB per file.
 - Attachment storage remains R2-only; no local permanent attachment storage is used.
 - Customer and admin UI include a persisted support-notification bell with unread count and mark-all-read.
 - Closed tickets block customer replies and uploads; the customer must create a new ticket for further issues.
+- Admin can mark tickets as preserved to keep them out of cleanup eligibility.
+- Closed non-preserved tickets are eligible for cleanup after the configured retention window.
 - Public Support menu and footer route logged-in users to `/support` and logged-out users to login first.
+
+### Support Retention Configuration
+- `SUPPORT_TICKET_RETENTION_DAYS=90` (default)
+- Shorter values are intended for development/testing only.
+- Manual cleanup command:
+
+```bash
+npm run support:cleanup --workspace=@labelgen/api
+```
+
+### Support Summary Metrics
+- Admin Support summary includes total tickets, open tickets, closed tickets, attachment count, and total support R2 storage in MB.
 
 ### Storage And Access Rules
 - Support attachments are stored in Cloudflare R2 (`support-tickets` scope).

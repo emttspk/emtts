@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { SUPPORT_ATTACHMENT_ACCEPT, validateSupportAttachmentFiles } from "../lib/support";
+import { SUPPORT_ATTACHMENT_ACCEPT, SUPPORT_ATTACHMENT_MAX_FILES, validateSupportAttachmentFiles } from "../lib/support";
 
 type Props = {
   onUpload?: (files: File[], message?: string) => Promise<void>;
@@ -56,7 +56,7 @@ export default function SupportAttachmentUploader({ onUpload, disabled, selectio
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4">
       <p className="text-sm font-semibold text-slate-800">Attachments</p>
-      <p className="mt-1 text-xs text-slate-500">Max 5 files, 10 MB each. Allowed: PDF, images, CSV, XLS/XLSX, DOC/DOCX, TXT.</p>
+      <p className="mt-1 text-xs text-slate-500">Max 5 files, 10 MB each. Allowed: PDF, images, Word, Excel, CSV, TXT.</p>
 
       <input
         ref={fileRef}
@@ -66,7 +66,7 @@ export default function SupportAttachmentUploader({ onUpload, disabled, selectio
         className="mt-3 block w-full text-sm"
         disabled={disabled || submitting}
         onChange={(event) => {
-          const selected = Array.from(event.target.files ?? []).slice(0, 5);
+          const selected = Array.from(event.target.files ?? []).slice(0, SUPPORT_ATTACHMENT_MAX_FILES);
           const validationError = validateSupportAttachmentFiles(selected);
           if (validationError) {
             setError(validationError);

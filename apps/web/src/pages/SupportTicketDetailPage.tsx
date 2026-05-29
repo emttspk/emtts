@@ -7,6 +7,7 @@ import {
   getMySupportTicket,
   replyToMySupportTicket,
   uploadSupportAttachments,
+  viewSupportAttachmentInNewTab,
   type SupportTicket,
 } from "../lib/support";
 
@@ -71,13 +72,22 @@ export default function SupportTicketDetailPage() {
                       {message.attachments.map((attachment) => (
                         <div key={attachment.id} className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2 text-sm">
                           <span className="truncate text-slate-700">{attachment.originalName}</span>
-                          <button
-                            type="button"
-                            className="text-brand hover:underline"
-                            onClick={() => void downloadSupportAttachment(ticket.id, attachment.id, attachment.originalName)}
-                          >
-                            Download
-                          </button>
+                          <div className="ml-3 flex items-center gap-3">
+                            <button
+                              type="button"
+                              className="text-brand hover:underline"
+                              onClick={() => void viewSupportAttachmentInNewTab(ticket.id, attachment.id)}
+                            >
+                              View
+                            </button>
+                            <button
+                              type="button"
+                              className="text-brand hover:underline"
+                              onClick={() => void downloadSupportAttachment(ticket.id, attachment.id, attachment.originalName)}
+                            >
+                              Download
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>

@@ -40,6 +40,7 @@ Admin:
 - Detail: `GET /api/admin/support/tickets/:id`
 - Status update: `PATCH /api/admin/support/tickets/:id/status`
 - Priority update: `PATCH /api/admin/support/tickets/:id/priority`
+- Preserve toggle: `PATCH /api/admin/support/tickets/:id/preserve`
 - Reply: `POST /api/admin/support/tickets/:id/messages`
 - Notifications: `GET /api/admin/support/notifications`
 - Mark read: `POST /api/admin/support/notifications/read`
@@ -47,6 +48,7 @@ Admin:
 ## Create Ticket Attachments
 - Customer create-ticket modal supports selecting up to 5 files before submit.
 - Allowed types: PDF, JPG, JPEG, PNG, WEBP, CSV, XLS, XLSX, DOC, DOCX, TXT.
+- File limits: max 5 files per upload, max 10 MB per file.
 - Unsupported extensions are rejected in the UI before upload.
 - Ticket is created first, then attachments are uploaded through the existing secure support attachment API.
 - If attachment upload fails, ticket creation remains successful and the UI shows a warning.
@@ -56,8 +58,36 @@ Admin:
 - Use filters for search/status/date.
 - Open ticket detail to inspect thread.
 - Use status/priority controls for workflow progression.
+- Use preserve toggle to keep tickets out of cleanup eligibility.
 - Send admin replies from detail panel.
 - Use topbar bell to review unread support notifications.
+- Support detail attachments include View and Download actions via protected signed URLs.
+
+## Retention Policy
+- Environment variable: `SUPPORT_TICKET_RETENTION_DAYS` (default `90`).
+- Recommended production default: `90`.
+- Shorter values are allowed for development/testing scenarios only.
+- Closing behavior:
+  - If preserve is disabled, `deleteAfter` is scheduled using retention days.
+  - If preserve is enabled, `deleteAfter` remains null.
+- Preserve toggling on closed tickets updates eligibility immediately.
+- R2 objects are not deleted at close time.
+
+## Cleanup Command (Manual Safe Path)
+- Command: `npm run support:cleanup --workspace=@labelgen/api`
+- Eligible records only: closed tickets where preserve is false and deleteAfter is due.
+- Cleanup order:
+  - delete support attachment objects from R2
+  - delete ticket record in DB (cascade removes messages, attachments, audit logs, notifications)
+- No automatic scheduler hookup is enabled by default in this phase.
+
+## Support Storage Summary Card
+- Admin Support summary now includes:
+  - total support tickets
+  - open tickets
+  - closed tickets
+  - total support attachment count
+  - total support R2 storage used in MB
 
 ## Closed Ticket Rule
 - Customers cannot reply to or upload attachments on tickets with status `CLOSED`.
@@ -74,6 +104,7 @@ Admin:
 - Public Support menu routes logged-in users to `/support`.
 - Logged-out users are routed to login before ticket creation.
 - Footer support/company card exposes support-ticket entry links without changing the home-page layout structure.
+- Public footer no longer displays support email and now guides users through support-ticket links.
 
 ## Audit Expectations
 Each mutation should create support audit rows:

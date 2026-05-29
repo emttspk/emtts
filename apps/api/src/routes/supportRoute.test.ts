@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { prisma } from "../lib/prisma.js";
 import { supportRouter } from "./support.js";
 import { adminSupportRouter } from "./adminSupport.js";
-import { isAllowedAttachment } from "../services/supportTickets.js";
+import {
+  SUPPORT_ATTACHMENT_MAX_BYTES,
+  SUPPORT_ATTACHMENT_MAX_FILES,
+  getSupportDeleteAfter,
+  isAllowedAttachment,
+} from "../services/supportTickets.js";
 
 type Role = "USER" | "ADMIN";
 
@@ -19,6 +24,8 @@ type TicketRow = {
   lastReplyAt: Date | null;
   resolvedAt: Date | null;
   closedAt: Date | null;
+  isPreserved?: boolean;
+  deleteAfter?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -59,6 +66,8 @@ type State = {
   messages: MessageRow[];
   audits: AuditRow[];
   notifications: NotificationRow[];
+  attachmentCount: number;
+  attachmentBytes: number;
 };
 
 type TestCase = {
@@ -74,7 +83,9 @@ const listSupportNotificationsHandler = getRouteHandler(supportRouter, "get", "/
 const markSupportNotificationsReadHandler = getRouteHandler(supportRouter, "post", "/notifications/read");
 
 const adminListTicketsHandler = getRouteHandler(adminSupportRouter, "get", "/tickets");
+const adminSummaryHandler = getRouteHandler(adminSupportRouter, "get", "/summary");
 const adminUpdateStatusHandler = getRouteHandler(adminSupportRouter, "patch", "/tickets/:id/status");
+const adminUpdatePreserveHandler = getRouteHandler(adminSupportRouter, "patch", "/tickets/:id/preserve");
 const adminUpdatePriorityHandler = getRouteHandler(adminSupportRouter, "patch", "/tickets/:id/priority");
 const adminReplyHandler = getRouteHandler(adminSupportRouter, "post", "/tickets/:id/messages");
 
@@ -94,6 +105,8 @@ function makeState(): State {
     messages: [],
     audits: [],
     notifications: [],
+    attachmentCount: 0,
+    attachmentBytes: 0,
   };
 }
 
@@ -132,6 +145,8 @@ function matchWhere(ticket: TicketRow, where: any) {
   if (where.id && ticket.id !== where.id) return false;
   if (where.userId && ticket.userId !== where.userId) return false;
   if (where.status && ticket.status !== where.status) return false;
+  if (where.isPreserved !== undefined && Boolean(ticket.isPreserved) !== Boolean(where.isPreserved)) return false;
+  if (where.deleteAfter?.lte && (!ticket.deleteAfter || ticket.deleteAfter.getTime() > where.deleteAfter.lte.getTime())) return false;
   if (where.priority && ticket.priority !== where.priority) return false;
   if (where.category && ticket.category !== where.category) return false;
   return true;
@@ -267,6 +282,8 @@ async function withSupportMocks(state: State, run: () => Promise<void>) {
   p.supportTicketAttachment = {
     findFirst: async () => null,
     create: async () => ({ id: nextId(state, "att") }),
+    count: async () => state.attachmentCount,
+    aggregate: async () => ({ _sum: { sizeBytes: state.attachmentBytes } }),
   };
 
   p.supportTicketAuditLog = {
@@ -601,6 +618,13 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "attachment max file count and size constants are enforced",
+    async run() {
+      assert.equal(SUPPORT_ATTACHMENT_MAX_FILES, 5);
+      assert.equal(SUPPORT_ATTACHMENT_MAX_BYTES, 10 * 1024 * 1024);
+    },
+  },
+  {
     name: "audit log created for status priority and admin reply",
     async run() {
       const state = makeState();
@@ -644,6 +668,109 @@ const tests: TestCase[] = [
       assert.equal(actions.includes("admin_reply"), true);
       assert.equal(state.notifications.some((row) => row.type === "CUSTOMER_STATUS_CHANGED"), true);
       assert.equal(state.notifications.some((row) => row.type === "CUSTOMER_ADMIN_REPLY"), true);
+    },
+  },
+  {
+    name: "admin summary includes support storage metrics",
+    async run() {
+      const state = makeState();
+      state.attachmentCount = 4;
+      state.attachmentBytes = 6 * 1024 * 1024;
+      state.tickets.push(
+        {
+          id: "ticket-open",
+          ticketNumber: "SUP-OPEN",
+          userId: "user-a",
+          subject: "Open ticket",
+          category: "ACCOUNT",
+          priority: "LOW",
+          status: "OPEN",
+          initialMessage: "x",
+          firstResponseDueAt: null,
+          lastReplyAt: null,
+          resolvedAt: null,
+          closedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: "ticket-closed",
+          ticketNumber: "SUP-CLOSED",
+          userId: "user-b",
+          subject: "Closed ticket",
+          category: "TECHNICAL",
+          priority: "MEDIUM",
+          status: "CLOSED",
+          initialMessage: "y",
+          firstResponseDueAt: null,
+          lastReplyAt: null,
+          resolvedAt: null,
+          closedAt: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      );
+
+      await withSupportMocks(state, async () => {
+        const req = makeReq("admin-1", "ADMIN");
+        const { res, state: response } = makeRes();
+        await adminSummaryHandler(req as any, res as any);
+        assert.equal(response.statusCode, 200);
+        assert.equal(response.body.totalSupportTickets, 2);
+        assert.equal(response.body.closedTickets, 1);
+        assert.equal(response.body.totalSupportAttachments, 4);
+        assert.equal(response.body.totalSupportStorageMb, 6);
+      });
+    },
+  },
+  {
+    name: "admin can toggle preserve on closed ticket and schedule deleteAfter when unpreserved",
+    async run() {
+      const state = makeState();
+      state.tickets.push({
+        id: "ticket-retention",
+        ticketNumber: "SUP-RET",
+        userId: "user-a",
+        subject: "Retention",
+        category: "TECHNICAL",
+        priority: "MEDIUM",
+        status: "CLOSED",
+        initialMessage: "x",
+        firstResponseDueAt: null,
+        lastReplyAt: null,
+        resolvedAt: null,
+        closedAt: new Date(),
+        isPreserved: false,
+        deleteAfter: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await withSupportMocks(state, async () => {
+        const preserveReq = makeReq("admin-1", "ADMIN", { isPreserved: true }, {}, { id: "ticket-retention" });
+        const preserveRes = makeRes();
+        await adminUpdatePreserveHandler(preserveReq as any, preserveRes.res as any);
+        assert.equal(preserveRes.state.statusCode, 200);
+        assert.equal(state.tickets[0].isPreserved, true);
+        assert.equal(state.tickets[0].deleteAfter, null);
+
+        const unpreserveReq = makeReq("admin-1", "ADMIN", { isPreserved: false }, {}, { id: "ticket-retention" });
+        const unpreserveRes = makeRes();
+        await adminUpdatePreserveHandler(unpreserveReq as any, unpreserveRes.res as any);
+        assert.equal(unpreserveRes.state.statusCode, 200);
+        assert.equal(state.tickets[0].isPreserved, false);
+        assert.equal(Boolean(state.tickets[0].deleteAfter), true);
+
+        const closeReq = makeReq("admin-1", "ADMIN", { status: "CLOSED" }, {}, { id: "ticket-retention" });
+        const closeRes = makeRes();
+        await adminUpdateStatusHandler(closeReq as any, closeRes.res as any);
+        assert.equal(closeRes.state.statusCode, 200);
+
+        const expected = getSupportDeleteAfter(new Date());
+        const scheduled = state.tickets[0].deleteAfter as Date | null | undefined;
+        assert.equal(scheduled instanceof Date, true);
+        assert.equal(Math.abs((scheduled instanceof Date ? scheduled.getTime() : 0) - expected.getTime()) < 10 * 1000, true);
+      });
     },
   },
   {

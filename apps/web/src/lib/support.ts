@@ -6,6 +6,8 @@ export type SupportPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 export type SupportCategory = "BILLING" | "SHIPMENT" | "TECHNICAL" | "ACCOUNT" | "OTHER";
 
 export const SUPPORT_ATTACHMENT_ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,.csv,.xls,.xlsx,.doc,.docx,.txt";
+export const SUPPORT_ATTACHMENT_MAX_FILES = 5;
+export const SUPPORT_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED_SUPPORT_ATTACHMENT_EXTENSIONS = new Set(["pdf", "jpg", "jpeg", "png", "webp", "csv", "xls", "xlsx", "doc", "docx", "txt"]);
 
 export type SupportAttachment = {
@@ -36,6 +38,8 @@ export type SupportTicket = {
   category: SupportCategory | string;
   priority: SupportPriority | string;
   status: SupportStatus | string;
+  isPreserved?: boolean;
+  deleteAfter?: string | null;
   firstResponseDueAt?: string | null;
   lastReplyAt?: string | null;
   createdAt: string;
@@ -63,11 +67,14 @@ export type SupportNotification = {
 };
 
 export function validateSupportAttachmentFiles(files: File[]) {
-  if (files.length > 5) {
-    return "No more than 5 attachments are allowed.";
+  if (files.length > SUPPORT_ATTACHMENT_MAX_FILES) {
+    return `No more than ${SUPPORT_ATTACHMENT_MAX_FILES} attachments are allowed.`;
   }
 
   for (const file of files) {
+    if (file.size > SUPPORT_ATTACHMENT_MAX_BYTES) {
+      return `${file.name} exceeds the 10 MB file size limit.`;
+    }
     const ext = String(file.name.split(".").pop() ?? "").trim().toLowerCase();
     if (!ext || !ALLOWED_SUPPORT_ATTACHMENT_EXTENSIONS.has(ext)) {
       return `Unsupported file type for ${file.name}. Allowed: PDF, JPG, JPEG, PNG, WEBP, CSV, XLS, XLSX, DOC, DOCX, TXT.`;
@@ -140,6 +147,11 @@ export async function getSupportAttachmentLink(ticketId: string, attachmentId: s
   );
 }
 
+export async function viewSupportAttachmentInNewTab(ticketId: string, attachmentId: string) {
+  const signed = await getSupportAttachmentLink(ticketId, attachmentId);
+  window.open(signed.url, "_blank", "noopener,noreferrer");
+}
+
 export async function downloadSupportAttachment(ticketId: string, attachmentId: string, fallbackName?: string) {
   const token = getToken();
   const signed = await getSupportAttachmentLink(ticketId, attachmentId);
@@ -194,7 +206,16 @@ export async function getAdminSupportTicket(ticketId: string) {
 }
 
 export async function listAdminSupportSummary() {
-  return api<{ openTickets: number; pendingTickets: number; resolvedTickets: number; overdueTickets: number }>("/api/admin/support/summary");
+  return api<{
+    openTickets: number;
+    pendingTickets: number;
+    resolvedTickets: number;
+    overdueTickets: number;
+    totalSupportTickets: number;
+    closedTickets: number;
+    totalSupportAttachments: number;
+    totalSupportStorageMb: number;
+  }>("/api/admin/support/summary");
 }
 
 export async function updateAdminSupportStatus(ticketId: string, status: SupportStatus) {
@@ -208,6 +229,13 @@ export async function updateAdminSupportPriority(ticketId: string, priority: Sup
   return api<{ ticket: SupportTicket }>(`/api/admin/support/tickets/${encodeURIComponent(ticketId)}/priority`, {
     method: "PATCH",
     body: JSON.stringify({ priority }),
+  });
+}
+
+export async function updateAdminSupportPreserve(ticketId: string, isPreserved: boolean) {
+  return api<{ ticket: SupportTicket }>(`/api/admin/support/tickets/${encodeURIComponent(ticketId)}/preserve`, {
+    method: "PATCH",
+    body: JSON.stringify({ isPreserved }),
   });
 }
 

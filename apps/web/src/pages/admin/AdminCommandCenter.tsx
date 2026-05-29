@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, apiUrl } from "../../lib/api";
 import {
+  downloadSupportAttachment,
   getAdminSupportTicket,
   listAdminSupportSummary,
   listAdminSupportTickets,
   replyAdminSupportTicket,
+  updateAdminSupportPreserve,
   updateAdminSupportPriority,
   updateAdminSupportStatus,
+  viewSupportAttachmentInNewTab,
   type SupportTicket,
 } from "../../lib/support";
 import { BodyText, PageShell, PageTitle, TableWrap } from "../../components/ui/PageSystem";
@@ -341,6 +344,10 @@ export default function AdminCommandCenter() {
       pendingTickets: number;
       resolvedTickets: number;
       overdueTickets: number;
+      totalSupportTickets: number;
+      closedTickets: number;
+      totalSupportAttachments: number;
+      totalSupportStorageMb: number;
     } | null;
     selectedTicket: SupportTicket | null;
     replyText: string;
@@ -1530,48 +1537,75 @@ export default function AdminCommandCenter() {
       const totalPages = Math.max(1, Math.ceil((supportData.total ?? rows.length) / Math.max(1, supportData.pageSize || activeFilters.pageSize)));
 
       return (
-        <div className="space-y-4">
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="space-y-4 min-w-0">
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
             <MetricCard label="Open Tickets" value={supportData.summary?.openTickets ?? 0} />
             <MetricCard label="Pending Tickets" value={supportData.summary?.pendingTickets ?? 0} tone={(supportData.summary?.pendingTickets ?? 0) > 0 ? "warn" : "good"} />
             <MetricCard label="Resolved Tickets" value={supportData.summary?.resolvedTickets ?? 0} tone="good" />
             <MetricCard label="Overdue Tickets" value={supportData.summary?.overdueTickets ?? 0} tone={(supportData.summary?.overdueTickets ?? 0) > 0 ? "warn" : "good"} />
+            <MetricCard label="Total Tickets" value={supportData.summary?.totalSupportTickets ?? 0} />
+            <MetricCard label="Closed Tickets" value={supportData.summary?.closedTickets ?? 0} />
+            <MetricCard label="Attachments" value={supportData.summary?.totalSupportAttachments ?? 0} />
+            <MetricCard label="R2 Storage (MB)" value={supportData.summary?.totalSupportStorageMb ?? 0} />
           </section>
 
-          <DataTable
-            compact
-            headers={[
-              "Ticket",
-              "Subject",
-              "User",
-              "Category",
-              "Priority",
-              "Status",
-              "Updated",
-              "Open",
-            ]}
-            rows={rows.map((row) => [
-              row.ticketNumber,
-              row.subject,
-              (row as AnyObject).user?.email ?? row.userId,
-              row.category,
-              row.priority,
-              row.status,
-              String(row.updatedAt ?? "-").slice(0, 19).replace("T", " "),
-              <button
-                type="button"
-                className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
-                onClick={() => {
-                  void runSafeAction(async () => {
-                    const detail = await getAdminSupportTicket(String(row.id));
-                    setSupportData((prev) => ({ ...prev, selectedTicket: detail.ticket }));
-                  });
-                }}
-              >
-                Detail
-              </button>,
-            ])}
-          />
+          <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <div className="overflow-x-auto">
+              <table className="min-w-full table-fixed">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                    <th className="px-3 py-2">Ticket</th>
+                    <th className="px-3 py-2">Subject</th>
+                    <th className="px-3 py-2">User</th>
+                    <th className="px-3 py-2">Category</th>
+                    <th className="px-3 py-2">Priority</th>
+                    <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2">Updated</th>
+                    <th className="px-3 py-2">Open</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-3 py-4 text-sm text-slate-500">No support tickets found.</td>
+                    </tr>
+                  ) : (
+                    rows.map((row) => (
+                      <tr key={row.id} className="border-b border-slate-100 text-sm text-slate-700">
+                        <td className="px-3 py-2 align-top">
+                          <div className="max-w-[170px] truncate" title={row.ticketNumber}>{row.ticketNumber}</div>
+                        </td>
+                        <td className="px-3 py-2 align-top">
+                          <div className="max-w-[260px] truncate" title={row.subject}>{row.subject}</div>
+                        </td>
+                        <td className="px-3 py-2 align-top">
+                          <div className="max-w-[220px] truncate" title={String((row as AnyObject).user?.email ?? row.userId)}>{(row as AnyObject).user?.email ?? row.userId}</div>
+                        </td>
+                        <td className="px-3 py-2 align-top">{row.category}</td>
+                        <td className="px-3 py-2 align-top">{row.priority}</td>
+                        <td className="px-3 py-2 align-top">{row.status}</td>
+                        <td className="px-3 py-2 align-top whitespace-nowrap">{String(row.updatedAt ?? "-").slice(0, 19).replace("T", " ")}</td>
+                        <td className="px-3 py-2 align-top">
+                          <button
+                            type="button"
+                            className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+                            onClick={() => {
+                              void runSafeAction(async () => {
+                                const detail = await getAdminSupportTicket(String(row.id));
+                                setSupportData((prev) => ({ ...prev, selectedTicket: detail.ticket }));
+                              });
+                            }}
+                          >
+                            Detail
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
 
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600">
             <span>Page {supportData.page} of {totalPages} | Total records: {supportData.total} | Page size: {supportData.pageSize}</span>
@@ -1596,13 +1630,15 @@ export default function AdminCommandCenter() {
           </div>
 
           {selected ? (
-            <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">{selected.ticketNumber} · {selected.subject}</h3>
-                  <p className="mt-1 text-xs text-slate-600">User: {(selected as AnyObject).user?.email ?? selected.userId} · Category: {selected.category}</p>
+            <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 min-w-0 overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
+                <div className="min-w-0">
+                  <h3 className="truncate text-base font-bold text-slate-900" title={`${selected.ticketNumber} · ${selected.subject}`}>{selected.ticketNumber} · {selected.subject}</h3>
+                  <p className="mt-1 truncate text-xs text-slate-600" title={`User: ${(selected as AnyObject).user?.email ?? selected.userId} · Category: ${selected.category}`}>
+                    User: {(selected as AnyObject).user?.email ?? selected.userId} · Category: {selected.category}
+                  </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
                   <select
                     className="rounded-lg border border-slate-200 px-2 py-1 text-xs"
                     value={selected.status}
@@ -1636,23 +1672,65 @@ export default function AdminCommandCenter() {
                       <option key={item} value={item}>{item}</option>
                     ))}
                   </select>
+                  <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(selected.isPreserved)}
+                      onChange={(event) => {
+                        const nextPreserve = event.target.checked;
+                        void runSafeAction(async () => {
+                          await updateAdminSupportPreserve(selected.id, nextPreserve);
+                          const detail = await getAdminSupportTicket(selected.id);
+                          const summary = await listAdminSupportSummary();
+                          setSupportData((prev) => ({ ...prev, selectedTicket: detail.ticket, summary }));
+                        });
+                      }}
+                    />
+                    Preserve ticket
+                  </label>
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <p className="text-xs text-slate-500">
+                {selected.isPreserved
+                  ? "This ticket is preserved and excluded from automatic cleanup."
+                  : (selected.status === "CLOSED"
+                    ? `This closed ticket is eligible for cleanup after ${selected.deleteAfter ? new Date(selected.deleteAfter).toLocaleString() : "retention window"}.`
+                    : "This ticket will become eligible for cleanup only when it is closed and not preserved.")}
+              </p>
+
+              <div className="space-y-2 min-w-0">
                 {selected.messages?.map((message) => (
-                  <article key={message.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-                    <div className="flex items-center justify-between gap-2">
+                  <article key={message.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm min-w-0">
+                    <div className="flex items-center justify-between gap-2 min-w-0">
                       <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{message.authorRole}</span>
                       <span className="text-xs text-slate-500">{new Date(message.createdAt).toLocaleString()}</span>
                     </div>
                     <p className="mt-2 whitespace-pre-wrap text-slate-800">{message.message}</p>
                     {message.attachments && message.attachments.length > 0 ? (
-                      <div className="mt-2 space-y-1">
+                      <div className="mt-2 space-y-1 min-w-0">
                         {message.attachments.map((attachment) => (
-                          <div key={attachment.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs">
-                            <span className="truncate">{attachment.originalName}</span>
-                            <span className="text-slate-500">{Math.round((attachment.sizeBytes ?? 0) / 1024)} KB</span>
+                          <div key={attachment.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs min-w-0">
+                            <div className="min-w-0">
+                              <p className="truncate" title={attachment.originalName}>{attachment.originalName}</p>
+                              <p className="text-slate-500">{Math.round((attachment.sizeBytes ?? 0) / 1024)} KB</p>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <button
+                                type="button"
+                                className="text-brand hover:underline"
+                                onClick={() => void viewSupportAttachmentInNewTab(selected.id, attachment.id)}
+                              >
+                                View
+                              </button>
+                              <button
+                                type="button"
+                                className="text-brand hover:underline"
+                                onClick={() => void downloadSupportAttachment(selected.id, attachment.id, attachment.originalName)}
+                              >
+                                Download
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>

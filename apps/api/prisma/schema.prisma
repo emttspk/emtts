@@ -452,6 +452,8 @@ model SupportTicket {
   lastReplyAt        DateTime?
   resolvedAt         DateTime?
   closedAt           DateTime?
+  isPreserved        Boolean  @default(false)
+  deleteAfter        DateTime?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -467,6 +469,8 @@ model SupportTicket {
   @@index([category])
   @@index([updatedAt])
   @@index([firstResponseDueAt])
+  @@index([isPreserved])
+  @@index([deleteAfter])
 }
 
 model SupportTicketMessage {

@@ -2,7 +2,7 @@ export default function Footer() {
   const isLoggedIn = typeof window !== "undefined" && Boolean(window.localStorage.getItem("labelgen_token"));
   const columns = [
     {
-      title: "Product",
+      title: "PRODUCTS",
       links: [
         { label: "All Services", href: "/#services" },
         { label: "How It Works", href: "/#how-it-works" },
@@ -10,7 +10,7 @@ export default function Footer() {
       ],
     },
     {
-      title: "Tools",
+      title: "SHIPPING TOOLS",
       links: [
         { label: "Track Shipment", href: "/tracking" },
         { label: "Book Parcel", href: "/upload" },
@@ -18,7 +18,7 @@ export default function Footer() {
       ],
     },
     {
-      title: "Account",
+      title: "YOUR ACCOUNT",
       links: [
         { label: "Login", href: "/login" },
         { label: "Create Account", href: "/register" },
@@ -26,26 +26,25 @@ export default function Footer() {
       ],
     },
     {
-      title: "Support",
+      title: "HELP & SUPPORT",
       links: [
         { label: "Forgot Password", href: "/forgot-password" },
         { label: "Recover Username", href: "/forgot-username" },
-        { label: isLoggedIn ? "My Support Tickets" : "Login to create support ticket", href: isLoggedIn ? "/support" : "/login?next=%2Fsupport" },
+        { label: isLoggedIn ? "My Tickets" : "Login to create support ticket", href: isLoggedIn ? "/support" : "/login?next=%2Fsupport" },
+        { label: isLoggedIn ? "Create Ticket" : "Support Tickets", href: isLoggedIn ? "/support" : "/login?next=%2Fsupport" },
       ],
     },
     {
-      title: "Company",
+      title: "COMPANY INFO",
       links: isLoggedIn
         ? [
-            { label: "support@epost.pk", href: "mailto:support@epost.pk" },
             { label: "Support Tickets", href: "/support" },
-            { label: "Create Ticket", href: "/support" },
             { label: "My Tickets", href: "/support" },
+            { label: "Create Ticket", href: "/support" },
             { label: "Mon-Sat 9:00am-6:00pm", href: "/#support" },
             { label: "Privacy Policy & Terms", href: "/#support" },
           ]
         : [
-            { label: "support@epost.pk", href: "mailto:support@epost.pk" },
             { label: "Support Tickets", href: "/login?next=%2Fsupport" },
             { label: "Login to create support ticket", href: "/login?next=%2Fsupport" },
             { label: "Mon-Sat 9:00am-6:00pm", href: "/#support" },
@@ -76,10 +75,10 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5 lg:items-stretch">
           {columns.map((group) => (
-            <div key={group.title} className="rounded-2xl border border-white/85 bg-white/80 p-4 shadow-[0_12px_28px_rgba(10,31,68,0.08)]">
-              <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">{group.title}</h3>
+            <div key={group.title} className="flex h-full flex-col rounded-2xl border border-white/85 bg-white/80 p-4 shadow-[0_12px_28px_rgba(10,31,68,0.08)]">
+              <h3 className="min-h-[2.25rem] text-xs font-bold uppercase tracking-[0.16em] text-slate-700">{group.title}</h3>
               <ul className="mt-3 space-y-2.5 text-sm text-slate-600">
                 {group.links.map((item) => (
                   <li key={item.label}>

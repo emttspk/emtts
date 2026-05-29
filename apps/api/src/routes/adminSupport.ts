@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth, requireAdmin, type AuthedRequest } from "../middleware/auth.js";
 import {
+  getSupportDeleteAfter,
   SUPPORT_TICKET_CATEGORIES,
   SUPPORT_TICKET_PRIORITIES,
   SUPPORT_TICKET_STATUSES,
@@ -43,6 +44,10 @@ const priorityPatchSchema = z.object({
 
 const messageSchema = z.object({
   message: z.string().min(1).max(5000),
+});
+
+const preservePatchSchema = z.object({
+  isPreserved: z.boolean(),
 });
 
 const notificationReadSchema = z.object({
@@ -155,7 +160,16 @@ adminSupportRouter.get("/tickets", async (req: AuthedRequest, res) => {
 adminSupportRouter.get("/summary", async (_req, res) => {
   try {
     const now = new Date();
-    const [openTickets, pendingTickets, resolvedTickets, overdueRows] = await Promise.all([
+    const [
+      openTickets,
+      pendingTickets,
+      resolvedTickets,
+      overdueRows,
+      totalSupportTickets,
+      closedTickets,
+      totalSupportAttachments,
+      attachmentAggregate,
+    ] = await Promise.all([
       prisma.supportTicket.count({
         where: { status: "OPEN" },
       }),
@@ -174,15 +188,24 @@ adminSupportRouter.get("/summary", async (_req, res) => {
           firstResponseDueAt: true,
         },
       }),
+      prisma.supportTicket.count(),
+      prisma.supportTicket.count({ where: { status: "CLOSED" } }),
+      prisma.supportTicketAttachment.count(),
+      prisma.supportTicketAttachment.aggregate({ _sum: { sizeBytes: true } }),
     ]);
 
     const overdueTickets = overdueRows.filter((row) => isOverdueTicket(row.status, row.firstResponseDueAt, now)).length;
+    const totalStorageBytes = Number(attachmentAggregate._sum.sizeBytes ?? 0);
 
     return res.json({
       openTickets,
       pendingTickets,
       resolvedTickets,
       overdueTickets,
+      totalSupportTickets,
+      closedTickets,
+      totalSupportAttachments,
+      totalSupportStorageMb: Math.round((totalStorageBytes / (1024 * 1024)) * 100) / 100,
     });
   } catch {
     return res.status(500).json({ error: "Failed to load support summary" });
@@ -252,6 +275,7 @@ adminSupportRouter.patch("/tickets/:id/status", async (req: AuthedRequest, res) 
       select: {
         id: true,
         status: true,
+        isPreserved: true,
         ticketNumber: true,
         subject: true,
         userId: true,
@@ -262,12 +286,22 @@ adminSupportRouter.patch("/tickets/:id/status", async (req: AuthedRequest, res) 
       return res.status(404).json({ error: "Support ticket not found" });
     }
 
+    const now = new Date();
+
     const updated = await prisma.supportTicket.update({
       where: { id: ticketId },
       data: {
         status,
-        ...(status === "RESOLVED" ? { resolvedAt: new Date() } : {}),
-        ...(status === "CLOSED" ? { closedAt: new Date() } : {}),
+        ...(status === "RESOLVED" ? { resolvedAt: now } : {}),
+        ...(status === "CLOSED"
+          ? {
+              closedAt: now,
+              deleteAfter: ticket.isPreserved ? null : getSupportDeleteAfter(now),
+            }
+          : {
+              deleteAfter: null,
+              ...(ticket.status === "CLOSED" ? { closedAt: null } : {}),
+            }),
       },
     });
 
@@ -294,6 +328,52 @@ adminSupportRouter.patch("/tickets/:id/status", async (req: AuthedRequest, res) 
       return res.status(400).json({ error: "Validation failed", details: error.errors });
     }
     return res.status(500).json({ error: "Failed to update ticket status" });
+  }
+});
+
+adminSupportRouter.patch("/tickets/:id/preserve", async (req: AuthedRequest, res) => {
+  try {
+    const actorUserId = String(req.user?.id ?? "").trim();
+    const ticketId = String(req.params.id ?? "").trim();
+    const body = preservePatchSchema.parse(req.body);
+
+    const ticket = await prisma.supportTicket.findUnique({
+      where: { id: ticketId },
+      select: { id: true, status: true, isPreserved: true },
+    });
+
+    if (!ticket) {
+      return res.status(404).json({ error: "Support ticket not found" });
+    }
+
+    const isClosed = String(ticket.status).toUpperCase() === "CLOSED";
+    const updated = await prisma.supportTicket.update({
+      where: { id: ticketId },
+      data: {
+        isPreserved: body.isPreserved,
+        deleteAfter: body.isPreserved ? null : (isClosed ? getSupportDeleteAfter(new Date()) : null),
+      },
+    });
+
+    await writeAuditLog({
+      ticketId,
+      actorUserId,
+      actorRole: req.user?.role ?? "ADMIN",
+      action: "preserve_toggled",
+      fromValue: String(ticket.isPreserved),
+      toValue: String(body.isPreserved),
+      metadataJson: {
+        status: ticket.status,
+        deleteAfter: updated.deleteAfter?.toISOString() ?? null,
+      },
+    });
+
+    return res.json({ ticket: updated });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: "Validation failed", details: error.errors });
+    }
+    return res.status(500).json({ error: "Failed to update preserve state" });
   }
 });
 

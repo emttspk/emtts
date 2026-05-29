@@ -19,6 +19,7 @@
     "start": "node dist/index.js",
     "smoke:railway": "node scripts/railway-smoke-test.mjs",
     "debug:auto": "tsx --env-file=.env scripts/autoDebug.ts",
+    "support:cleanup": "tsx --env-file=.env scripts/support-ticket-cleanup.ts",
     "prisma:generate": "npx prisma generate --schema=prisma/schema.prisma",
     "prisma:migrate": "npx prisma migrate dev --schema=prisma/schema.prisma",
     "prisma:studio": "npx prisma studio --schema=prisma/schema.prisma"

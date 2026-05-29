@@ -15,6 +15,7 @@ export const SUPPORT_TICKET_CATEGORIES = ["BILLING", "SHIPMENT", "TECHNICAL", "A
 
 export const SUPPORT_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
 export const SUPPORT_ATTACHMENT_MAX_FILES = 5;
+const DEFAULT_SUPPORT_TICKET_RETENTION_DAYS = 90;
 
 const BLOCKED_EXTENSIONS = new Set([
   ".exe",
@@ -144,4 +145,17 @@ export function isOverdueTicket(status: string, firstResponseDueAt: Date | null,
   const normalizedStatus = String(status ?? "").trim().toUpperCase();
   if (["RESOLVED", "CLOSED", "WAITING_CUSTOMER"].includes(normalizedStatus)) return false;
   return firstResponseDueAt.getTime() < now.getTime();
+}
+
+export function getSupportTicketRetentionDays() {
+  const raw = Number.parseInt(String(process.env.SUPPORT_TICKET_RETENTION_DAYS ?? DEFAULT_SUPPORT_TICKET_RETENTION_DAYS), 10);
+  if (!Number.isFinite(raw) || raw < 1) return DEFAULT_SUPPORT_TICKET_RETENTION_DAYS;
+  return Math.min(raw, 3650);
+}
+
+export function getSupportDeleteAfter(baseDate = new Date()) {
+  const days = getSupportTicketRetentionDays();
+  const value = new Date(baseDate.getTime());
+  value.setDate(value.getDate() + days);
+  return value;
 }
