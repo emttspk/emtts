@@ -39,6 +39,7 @@ model User {
   supportTicketMessages SupportTicketMessage[]
   supportTicketAttachments SupportTicketAttachment[]
   supportTicketAuditLogs SupportTicketAuditLog[]
+  supportNotifications SupportTicketNotification[]
 }
 
 model Plan {
@@ -458,6 +459,7 @@ model SupportTicket {
   messages    SupportTicketMessage[]
   attachments SupportTicketAttachment[]
   auditLogs   SupportTicketAuditLog[]
+  notifications SupportTicketNotification[]
 
   @@index([userId])
   @@index([status])
@@ -525,5 +527,24 @@ model SupportTicketAuditLog {
   @@index([ticketId])
   @@index([actorUserId])
   @@index([action])
+  @@index([createdAt])
+}
+
+model SupportTicketNotification {
+  id        String   @id @default(uuid())
+  userId    String?
+  ticketId  String
+  type      String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user   User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+  @@index([ticketId])
+  @@index([type])
   @@index([createdAt])
 }

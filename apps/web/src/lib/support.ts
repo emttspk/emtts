@@ -5,6 +5,9 @@ export type SupportStatus = "OPEN" | "PENDING" | "IN_PROGRESS" | "WAITING_CUSTOM
 export type SupportPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
 export type SupportCategory = "BILLING" | "SHIPMENT" | "TECHNICAL" | "ACCOUNT" | "OTHER";
 
+export const SUPPORT_ATTACHMENT_ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,.csv,.xls,.xlsx,.doc,.docx,.txt";
+const ALLOWED_SUPPORT_ATTACHMENT_EXTENSIONS = new Set(["pdf", "jpg", "jpeg", "png", "webp", "csv", "xls", "xlsx", "doc", "docx", "txt"]);
+
 export type SupportAttachment = {
   id: string;
   messageId: string;
@@ -40,6 +43,39 @@ export type SupportTicket = {
   messages?: SupportMessage[];
   _count?: { messages: number; attachments: number };
 };
+
+export type SupportNotification = {
+  id: string;
+  userId?: string | null;
+  ticketId: string;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+  ticket?: {
+    id: string;
+    ticketNumber: string;
+    subject: string;
+    status: string;
+    priority: string;
+  };
+};
+
+export function validateSupportAttachmentFiles(files: File[]) {
+  if (files.length > 5) {
+    return "No more than 5 attachments are allowed.";
+  }
+
+  for (const file of files) {
+    const ext = String(file.name.split(".").pop() ?? "").trim().toLowerCase();
+    if (!ext || !ALLOWED_SUPPORT_ATTACHMENT_EXTENSIONS.has(ext)) {
+      return `Unsupported file type for ${file.name}. Allowed: PDF, JPG, JPEG, PNG, WEBP, CSV, XLS, XLSX, DOC, DOCX, TXT.`;
+    }
+  }
+
+  return null;
+}
 
 export async function createSupportTicket(payload: {
   subject: string;
@@ -179,5 +215,27 @@ export async function replyAdminSupportTicket(ticketId: string, message: string)
   return api<{ message: SupportMessage }>(`/api/admin/support/tickets/${encodeURIComponent(ticketId)}/messages`, {
     method: "POST",
     body: JSON.stringify({ message }),
+  });
+}
+
+export async function listSupportNotifications() {
+  return api<{ notifications: SupportNotification[]; unreadCount: number }>("/api/support/notifications");
+}
+
+export async function markSupportNotificationsRead(input: { notificationIds?: string[]; markAll?: boolean }) {
+  return api<{ updatedCount: number }>("/api/support/notifications/read", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function listAdminSupportNotifications() {
+  return api<{ notifications: SupportNotification[]; unreadCount: number }>("/api/admin/support/notifications");
+}
+
+export async function markAdminSupportNotificationsRead(input: { notificationIds?: string[]; markAll?: boolean }) {
+  return api<{ updatedCount: number }>("/api/admin/support/notifications/read", {
+    method: "POST",
+    body: JSON.stringify(input),
   });
 }

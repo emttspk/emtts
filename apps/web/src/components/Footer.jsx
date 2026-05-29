@@ -1,47 +1,59 @@
-const columns = [
-  {
-    title: "Product",
-    links: [
-      { label: "All Services", href: "/#services" },
-      { label: "How It Works", href: "/#how-it-works" },
-      { label: "Billing Packages", href: "/#billing-packages" },
-    ],
-  },
-  {
-    title: "Tools",
-    links: [
-      { label: "Track Shipment", href: "/tracking" },
-      { label: "Book Parcel", href: "/upload" },
-      { label: "Complaint Monitor", href: "/complaints" },
-    ],
-  },
-  {
-    title: "Account",
-    links: [
-      { label: "Login", href: "/login" },
-      { label: "Create Account", href: "/register" },
-      { label: "Email OTP Login", href: "/email-otp-login" },
-    ],
-  },
-  {
-    title: "Support",
-    links: [
-      { label: "Forgot Password", href: "/forgot-password" },
-      { label: "Recover Username", href: "/forgot-username" },
-          { label: "Help", href: "/#support" },
-    ],
-  },
-  {
-    title: "Company",
-    links: [
-      { label: "support@epost.pk", href: "mailto:support@epost.pk" },
-      { label: "Mon-Sat 9:00am-6:00pm", href: "/#support" },
-      { label: "Privacy Policy & Terms", href: "/#support" },
-    ],
-  },
-];
-
 export default function Footer() {
+  const isLoggedIn = typeof window !== "undefined" && Boolean(window.localStorage.getItem("labelgen_token"));
+  const columns = [
+    {
+      title: "Product",
+      links: [
+        { label: "All Services", href: "/#services" },
+        { label: "How It Works", href: "/#how-it-works" },
+        { label: "Billing Packages", href: "/#billing-packages" },
+      ],
+    },
+    {
+      title: "Tools",
+      links: [
+        { label: "Track Shipment", href: "/tracking" },
+        { label: "Book Parcel", href: "/upload" },
+        { label: "Complaint Monitor", href: "/complaints" },
+      ],
+    },
+    {
+      title: "Account",
+      links: [
+        { label: "Login", href: "/login" },
+        { label: "Create Account", href: "/register" },
+        { label: "Email OTP Login", href: "/email-otp-login" },
+      ],
+    },
+    {
+      title: "Support",
+      links: [
+        { label: "Forgot Password", href: "/forgot-password" },
+        { label: "Recover Username", href: "/forgot-username" },
+        { label: isLoggedIn ? "My Support Tickets" : "Login to create support ticket", href: isLoggedIn ? "/support" : "/login?next=%2Fsupport" },
+      ],
+    },
+    {
+      title: "Company",
+      links: isLoggedIn
+        ? [
+            { label: "support@epost.pk", href: "mailto:support@epost.pk" },
+            { label: "Support Tickets", href: "/support" },
+            { label: "Create Ticket", href: "/support" },
+            { label: "My Tickets", href: "/support" },
+            { label: "Mon-Sat 9:00am-6:00pm", href: "/#support" },
+            { label: "Privacy Policy & Terms", href: "/#support" },
+          ]
+        : [
+            { label: "support@epost.pk", href: "mailto:support@epost.pk" },
+            { label: "Support Tickets", href: "/login?next=%2Fsupport" },
+            { label: "Login to create support ticket", href: "/login?next=%2Fsupport" },
+            { label: "Mon-Sat 9:00am-6:00pm", href: "/#support" },
+            { label: "Privacy Policy & Terms", href: "/#support" },
+          ],
+    },
+  ];
+
   return (
     <footer id="support" className="border-t border-[#dce8f5] bg-[linear-gradient(180deg,#f7fbff,#f0f8ff_45%,#effaf5)] text-slate-900">
       <div className="mx-auto w-full max-w-[1240px] px-4 pb-8 pt-10 sm:px-6 lg:px-8">

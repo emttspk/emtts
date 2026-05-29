@@ -11,6 +11,11 @@ import {
   toSupportPriority,
   toSupportStatus,
 } from "../services/supportTickets.js";
+import {
+  createSupportNotification,
+  listAdminSupportNotifications,
+  markAdminSupportNotificationsRead,
+} from "../services/supportNotifications.js";
 
 export const adminSupportRouter = Router();
 
@@ -38,6 +43,11 @@ const priorityPatchSchema = z.object({
 
 const messageSchema = z.object({
   message: z.string().min(1).max(5000),
+});
+
+const notificationReadSchema = z.object({
+  notificationIds: z.array(z.string().min(1)).max(200).optional(),
+  markAll: z.boolean().optional(),
 });
 
 async function writeAuditLog(input: {
@@ -242,6 +252,9 @@ adminSupportRouter.patch("/tickets/:id/status", async (req: AuthedRequest, res) 
       select: {
         id: true,
         status: true,
+        ticketNumber: true,
+        subject: true,
+        userId: true,
       },
     });
 
@@ -265,6 +278,14 @@ adminSupportRouter.patch("/tickets/:id/status", async (req: AuthedRequest, res) 
       action: "status_changed",
       fromValue: ticket.status,
       toValue: status,
+    });
+
+    await createSupportNotification({
+      userId: ticket.userId,
+      ticketId,
+      type: "CUSTOMER_STATUS_CHANGED",
+      title: status === "CLOSED" ? `Ticket ${ticket.ticketNumber} closed` : status === "RESOLVED" ? `Ticket ${ticket.ticketNumber} resolved` : `Ticket ${ticket.ticketNumber} updated`,
+      message: `${ticket.subject} is now ${status}.`,
     });
 
     return res.json({ ticket: updated });
@@ -329,7 +350,7 @@ adminSupportRouter.post("/tickets/:id/messages", async (req: AuthedRequest, res)
 
     const ticket = await prisma.supportTicket.findUnique({
       where: { id: ticketId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, userId: true, ticketNumber: true, subject: true },
     });
 
     if (!ticket) {
@@ -362,11 +383,48 @@ adminSupportRouter.post("/tickets/:id/messages", async (req: AuthedRequest, res)
       metadataJson: { messageId: message.id },
     });
 
+    await createSupportNotification({
+      userId: ticket.userId,
+      ticketId,
+      type: "CUSTOMER_ADMIN_REPLY",
+      title: `New admin reply on ${ticket.ticketNumber}`,
+      message: body.message.trim().slice(0, 160),
+    });
+
     return res.status(201).json({ message });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: "Validation failed", details: error.errors });
     }
     return res.status(500).json({ error: "Failed to post admin reply" });
+  }
+});
+
+adminSupportRouter.get("/notifications", async (req: AuthedRequest, res) => {
+  try {
+    const actorUserId = String(req.user?.id ?? "").trim();
+    if (!actorUserId) return res.status(401).json({ error: "Unauthorized" });
+    const result = await listAdminSupportNotifications(actorUserId);
+    return res.json(result);
+  } catch {
+    return res.status(500).json({ error: "Failed to load admin support notifications" });
+  }
+});
+
+adminSupportRouter.post("/notifications/read", async (req: AuthedRequest, res) => {
+  try {
+    const actorUserId = String(req.user?.id ?? "").trim();
+    if (!actorUserId) return res.status(401).json({ error: "Unauthorized" });
+    const body = notificationReadSchema.parse(req.body ?? {});
+    if (!body.markAll && (!body.notificationIds || body.notificationIds.length === 0)) {
+      return res.status(400).json({ error: "notificationIds or markAll is required" });
+    }
+    const updatedCount = await markAdminSupportNotificationsRead(actorUserId, body.notificationIds, body.markAll);
+    return res.json({ updatedCount });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: "Validation failed", details: error.errors });
+    }
+    return res.status(500).json({ error: "Failed to update admin support notifications" });
   }
 });

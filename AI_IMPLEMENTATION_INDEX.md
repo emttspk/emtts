@@ -1,5 +1,61 @@
 # AI Implementation Index
 
+## 2026-05-29 - Support Tickets Completion Pass (Attachments, Notifications, Closed State)
+
+### Task Name
+- Complete support ticket UX/business behavior with create-ticket attachments, persisted notifications, closed-ticket conversation lock, and public support entry alignment.
+
+### Files Changed
+- `apps/api/prisma/schema.prisma`
+- `apps/api/prisma/migrations/20260529173000_add_support_notifications/migration.sql`
+- `apps/api/src/routes/support.ts`
+- `apps/api/src/routes/adminSupport.ts`
+- `apps/api/src/services/supportNotifications.ts`
+- `apps/api/src/routes/supportRoute.test.ts`
+- `apps/web/src/lib/support.ts`
+- `apps/web/src/components/SupportAttachmentUploader.tsx`
+- `apps/web/src/components/CreateSupportTicketModal.tsx`
+- `apps/web/src/components/SupportNotificationsBell.tsx`
+- `apps/web/src/components/Topbar.tsx`
+- `apps/web/src/components/Navbar.jsx`
+- `apps/web/src/components/Footer.jsx`
+- `apps/web/src/pages/SupportTicketsPage.tsx`
+- `apps/web/src/pages/SupportTicketDetailPage.tsx`
+- `apps/web/src/pages/admin/AdminCommandCenter.tsx`
+- `docs/architecture/support-tickets.md`
+- `docs/operations/support-tickets-runbook.md`
+- `README.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Status Matrix
+- Create-ticket attachments: COMPLETED
+- Attachment upload after ticket creation via existing R2 API: COMPLETED
+- Customer/admin support notifications: COMPLETED
+- Persisted notification unread/read state: COMPLETED
+- Closed ticket customer reply lock: COMPLETED
+- Public support menu/footer alignment: COMPLETED
+- Focused notification/closed-state tests: COMPLETED
+
+### Migration Notes
+- Additive `SupportTicketNotification` model introduced.
+- Manual additive migration file added and intended for non-destructive deploy path.
+- If `migrate dev` reports local drift again, use `migrate deploy`; do not reset local DB.
+
+### Protected Files Not Touched
+- `apps/api/src/labels.ts`
+- `multipage-label.html`
+- barcode engine files
+- MOS/UMO calculation logic
+- moneyOrderBreakdown logic
+- finalized PDF templates
+- finalized complaint engine internals
+- finalized tracking parser core
+- tracking upload parser core
+
+### Completion
+- Completion percentage: 99.5%
+- Remaining percentage: 0.5% (production monitoring, SLA tuning, customer feedback polish)
+
 ## 2026-05-29 - Support Tickets with R2 Attachments (Finalize)
 
 ### Task Name

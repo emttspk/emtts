@@ -17,6 +17,11 @@ import {
   toSupportCategory,
   toSupportPriority,
 } from "../services/supportTickets.js";
+import {
+  createSupportNotification,
+  listSupportNotifications,
+  markSupportNotificationsRead,
+} from "../services/supportNotifications.js";
 
 export const supportRouter = Router();
 
@@ -43,6 +48,11 @@ const ticketListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
   status: z.string().optional(),
+});
+
+const notificationReadSchema = z.object({
+  notificationIds: z.array(z.string().min(1)).max(200).optional(),
+  markAll: z.boolean().optional(),
 });
 
 async function writeAuditLog(input: {
@@ -73,6 +83,8 @@ async function getOwnedTicket(ticketId: string, userId: string) {
     select: {
       id: true,
       userId: true,
+      ticketNumber: true,
+      subject: true,
       status: true,
       priority: true,
     },
@@ -125,6 +137,14 @@ supportRouter.post("/tickets", requireAuth, async (req: AuthedRequest, res) => {
       actorRole: req.user?.role ?? "USER",
       action: "ticket_created",
       metadataJson: { ticketNumber: ticket.ticketNumber },
+    });
+
+    await createSupportNotification({
+      userId: null,
+      ticketId: ticket.id,
+      type: priority === "HIGH" || priority === "URGENT" ? "ADMIN_HIGH_PRIORITY_OPEN_TICKET" : "ADMIN_NEW_TICKET",
+      title: `${priority === "HIGH" || priority === "URGENT" ? "High priority" : "New"} support ticket ${ticket.ticketNumber}`,
+      message: `${ticket.subject} (${priority})`,
     });
 
     return res.status(201).json({ ticket });
@@ -237,6 +257,9 @@ supportRouter.post("/tickets/:id/messages", requireAuth, async (req: AuthedReque
     if (!ticket) {
       return res.status(404).json({ error: "Support ticket not found" });
     }
+    if (String(ticket.status).toUpperCase() === "CLOSED") {
+      return res.status(409).json({ error: "This ticket is closed. Please create a new support ticket for any further issue." });
+    }
 
     const now = new Date();
     const message = await prisma.supportTicketMessage.create({
@@ -265,6 +288,14 @@ supportRouter.post("/tickets/:id/messages", requireAuth, async (req: AuthedReque
       metadataJson: { messageId: message.id },
     });
 
+    await createSupportNotification({
+      userId: null,
+      ticketId,
+      type: "ADMIN_CUSTOMER_REPLY",
+      title: `Customer replied to ${ticket.ticketNumber}`,
+      message: body.message.trim().slice(0, 160),
+    });
+
     return res.status(201).json({ message });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -288,6 +319,9 @@ supportRouter.post("/tickets/:id/attachments", requireAuth, (req: AuthedRequest,
       const ticket = await getOwnedTicket(ticketId, userId);
       if (!ticket) {
         return res.status(404).json({ error: "Support ticket not found" });
+      }
+      if (String(ticket.status).toUpperCase() === "CLOSED") {
+        return res.status(409).json({ error: "This ticket is closed. Please create a new support ticket for any further issue." });
       }
 
       const files = (req.files as Express.Multer.File[] | undefined) ?? [];
@@ -417,5 +451,34 @@ supportRouter.get("/tickets/:ticketId/attachments/:attachmentId/download", requi
     return res.json({ url: signedUrl, expiresInSeconds: 3600 });
   } catch {
     return res.status(500).json({ error: "Failed to generate attachment download link" });
+  }
+});
+
+supportRouter.get("/notifications", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const userId = String(req.user?.id ?? "").trim();
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    const result = await listSupportNotifications(userId);
+    return res.json(result);
+  } catch {
+    return res.status(500).json({ error: "Failed to load support notifications" });
+  }
+});
+
+supportRouter.post("/notifications/read", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const userId = String(req.user?.id ?? "").trim();
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    const body = notificationReadSchema.parse(req.body ?? {});
+    if (!body.markAll && (!body.notificationIds || body.notificationIds.length === 0)) {
+      return res.status(400).json({ error: "notificationIds or markAll is required" });
+    }
+    const updatedCount = await markSupportNotificationsRead(userId, body.notificationIds, body.markAll);
+    return res.json({ updatedCount });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: "Validation failed", details: error.errors });
+    }
+    return res.status(500).json({ error: "Failed to update support notifications" });
   }
 });

@@ -305,7 +305,12 @@ function SortHeader(props: {
 }
 
 export default function AdminCommandCenter() {
-  const [active, setActive] = useState<NavKey>("dashboard");
+  const [active, setActive] = useState<NavKey>(() => {
+    if (typeof window === "undefined") return "dashboard";
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    return NAV_ITEMS.some((item) => item.key === tab) ? (tab as NavKey) : "dashboard";
+  });
+  const pendingSupportTicketIdRef = useRef<string | null>(typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("ticketId") : null);
   const [summary, setSummary] = useState<AnyObject | null>(null);
   const [health, setHealth] = useState<AnyObject | null>(null);
   const [users, setUsers] = useState<AnyObject | null>(null);
@@ -533,6 +538,25 @@ export default function AdminCommandCenter() {
     if (active !== "users") {
       setSelectedUserIds([]);
     }
+  }, [active]);
+
+  useEffect(() => {
+    if (active !== "support") return;
+    const ticketId = pendingSupportTicketIdRef.current;
+    if (!ticketId) return;
+    void getAdminSupportTicket(ticketId)
+      .then((detail) => {
+        setSupportData((prev) => ({ ...prev, selectedTicket: detail.ticket }));
+      })
+      .finally(() => {
+        pendingSupportTicketIdRef.current = null;
+        if (typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search);
+          params.delete("ticketId");
+          const next = params.toString();
+          window.history.replaceState({}, "", next ? `${window.location.pathname}?${next}` : window.location.pathname);
+        }
+      });
   }, [active]);
 
   useEffect(() => {

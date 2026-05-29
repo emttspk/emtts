@@ -207,6 +207,8 @@ npm run prisma:migrate --workspace=@labelgen/api
 - `POST /api/support/tickets/:id/messages`
 - `POST /api/support/tickets/:id/attachments`
 - `GET /api/support/tickets/:ticketId/attachments/:attachmentId/download`
+- `GET /api/support/notifications`
+- `POST /api/support/notifications/read`
 
 ### Admin Endpoints
 - `GET /api/admin/support/tickets`
@@ -215,6 +217,15 @@ npm run prisma:migrate --workspace=@labelgen/api
 - `PATCH /api/admin/support/tickets/:id/status`
 - `PATCH /api/admin/support/tickets/:id/priority`
 - `POST /api/admin/support/tickets/:id/messages`
+- `GET /api/admin/support/notifications`
+- `POST /api/admin/support/notifications/read`
+
+### Support Behavior
+- Create-ticket modal supports pre-submit attachments and uploads them through the existing secure support attachment endpoint after ticket creation.
+- Attachment storage remains R2-only; no local permanent attachment storage is used.
+- Customer and admin UI include a persisted support-notification bell with unread count and mark-all-read.
+- Closed tickets block customer replies and uploads; the customer must create a new ticket for further issues.
+- Public Support menu and footer route logged-in users to `/support` and logged-out users to login first.
 
 ### Storage And Access Rules
 - Support attachments are stored in Cloudflare R2 (`support-tickets` scope).

@@ -9,12 +9,14 @@ Prisma models:
 - `SupportTicketMessage`
 - `SupportTicketAttachment`
 - `SupportTicketAuditLog`
+- `SupportTicketNotification`
 
 Model behavior:
 - `SupportTicket` stores ownership (`userId`), lifecycle (`status`, `priority`, `category`), subject, and SLA timestamps.
 - `SupportTicketMessage` stores thread messages with `authorRole` (`USER`/`ADMIN`).
 - `SupportTicketAttachment` stores metadata and object key only.
 - `SupportTicketAuditLog` stores sensitive workflow mutations (`status_changed`, `priority_changed`, `admin_reply`, etc.).
+- `SupportTicketNotification` stores persisted customer/admin support notifications with unread state.
 
 ## API Surface
 Customer routes:
@@ -24,6 +26,8 @@ Customer routes:
 - `POST /api/support/tickets/:id/messages`
 - `POST /api/support/tickets/:id/attachments`
 - `GET /api/support/tickets/:ticketId/attachments/:attachmentId/download`
+- `GET /api/support/notifications`
+- `POST /api/support/notifications/read`
 
 Admin routes:
 - `GET /api/admin/support/tickets`
@@ -32,6 +36,8 @@ Admin routes:
 - `PATCH /api/admin/support/tickets/:id/status`
 - `PATCH /api/admin/support/tickets/:id/priority`
 - `POST /api/admin/support/tickets/:id/messages`
+- `GET /api/admin/support/notifications`
+- `POST /api/admin/support/notifications/read`
 
 ## Authorization and Ownership
 - Customer routes are guarded by `requireAuth` and enforce ticket ownership.
@@ -43,16 +49,30 @@ Admin routes:
 - Storage is R2-only for permanent support attachments.
 - No local permanent support-attachment storage is used.
 - Database stores `objectKey` and metadata; binary payload is not stored in PostgreSQL.
+- Create-ticket flow can upload attachments immediately after ticket creation by reusing the same support attachment API.
+- If ticket creation succeeds but upload fails, ticket creation remains successful and the UI warns the user.
 
 ## Download Behavior
 - Download API returns signed URL payload (`url`, expiry).
 - Signed URLs are generated server-side from R2 provider.
 - URL issuance remains auth-protected before link generation.
 
+## Notification Behavior
+- Customer notifications are created for admin replies and admin status changes, including resolved/closed updates.
+- Admin notifications are created for new customer tickets, customer replies, and high/urgent open tickets.
+- Notifications are persisted in PostgreSQL, not browser-only local state.
+- Bell UI displays unread count and supports single-read and mark-all-read flows.
+
 ## Admin UI Integration
 - Support tab is integrated into `AdminCommandCenter`.
 - Admin can list, inspect detail threads, update status, update priority, and post replies.
 - Summary cards expose open/pending/resolved/overdue counts.
+- Admin notification clicks can deep-link into the Support tab and open the related ticket.
+
+## Customer UI Integration
+- Create ticket modal supports attachments before submit.
+- Closed tickets hide customer reply/upload actions and instruct the user to open a new ticket.
+- Public support navigation routes logged-in users to `/support` and logged-out users to login first.
 
 ## Audit Behavior
 Audit entries are written for key actions:

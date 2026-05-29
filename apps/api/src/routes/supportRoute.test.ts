@@ -42,11 +42,23 @@ type AuditRow = {
   metadataJson?: Record<string, unknown>;
 };
 
+type NotificationRow = {
+  id: string;
+  userId?: string | null;
+  ticketId: string;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: Date;
+};
+
 type State = {
   idSeq: number;
   tickets: TicketRow[];
   messages: MessageRow[];
   audits: AuditRow[];
+  notifications: NotificationRow[];
 };
 
 type TestCase = {
@@ -57,6 +69,9 @@ type TestCase = {
 const createTicketHandler = getRouteHandler(supportRouter, "post", "/tickets");
 const listOwnTicketsHandler = getRouteHandler(supportRouter, "get", "/tickets");
 const getOwnTicketHandler = getRouteHandler(supportRouter, "get", "/tickets/:id");
+const replyOwnTicketHandler = getRouteHandler(supportRouter, "post", "/tickets/:id/messages");
+const listSupportNotificationsHandler = getRouteHandler(supportRouter, "get", "/notifications");
+const markSupportNotificationsReadHandler = getRouteHandler(supportRouter, "post", "/notifications/read");
 
 const adminListTicketsHandler = getRouteHandler(adminSupportRouter, "get", "/tickets");
 const adminUpdateStatusHandler = getRouteHandler(adminSupportRouter, "patch", "/tickets/:id/status");
@@ -78,6 +93,7 @@ function makeState(): State {
     tickets: [],
     messages: [],
     audits: [],
+    notifications: [],
   };
 }
 
@@ -121,6 +137,18 @@ function matchWhere(ticket: TicketRow, where: any) {
   return true;
 }
 
+function matchNotificationWhere(notification: NotificationRow, where: any): boolean {
+  if (!where) return true;
+  if (Array.isArray(where.OR) && where.OR.length > 0) {
+    return where.OR.some((entry: any) => matchNotificationWhere(notification, entry))
+      && matchNotificationWhere(notification, { ...where, OR: undefined });
+  }
+  if (where.userId !== undefined && notification.userId !== where.userId) return false;
+  if (where.isRead !== undefined && notification.isRead !== where.isRead) return false;
+  if (where.id?.in && !where.id.in.includes(notification.id)) return false;
+  return true;
+}
+
 async function withSupportMocks(state: State, run: () => Promise<void>) {
   const p = prisma as any;
   const original = {
@@ -128,6 +156,7 @@ async function withSupportMocks(state: State, run: () => Promise<void>) {
     supportTicketMessage: p.supportTicketMessage,
     supportTicketAttachment: p.supportTicketAttachment,
     supportTicketAuditLog: p.supportTicketAuditLog,
+    supportTicketNotification: p.supportTicketNotification,
   };
 
   p.supportTicket = {
@@ -255,6 +284,52 @@ async function withSupportMocks(state: State, run: () => Promise<void>) {
     },
   };
 
+  p.supportTicketNotification = {
+    create: async ({ data }: any) => {
+      const row: NotificationRow = {
+        id: nextId(state, "notification"),
+        userId: data.userId ?? null,
+        ticketId: String(data.ticketId),
+        type: String(data.type),
+        title: String(data.title),
+        message: String(data.message),
+        isRead: Boolean(data.isRead ?? false),
+        createdAt: new Date(),
+      };
+      state.notifications.push(row);
+      return row;
+    },
+    findMany: async ({ where }: any = {}) => {
+      return state.notifications
+        .filter((notification) => matchNotificationWhere(notification, where))
+        .map((notification) => {
+          const ticket = state.tickets.find((row) => row.id === notification.ticketId);
+          return {
+            ...notification,
+            ticket: ticket
+              ? {
+                  id: ticket.id,
+                  ticketNumber: ticket.ticketNumber,
+                  subject: ticket.subject,
+                  status: ticket.status,
+                  priority: ticket.priority,
+                }
+              : null,
+          };
+        });
+    },
+    count: async ({ where }: any = {}) => state.notifications.filter((notification) => matchNotificationWhere(notification, where)).length,
+    updateMany: async ({ where, data }: any = {}) => {
+      let count = 0;
+      for (const notification of state.notifications) {
+        if (!matchNotificationWhere(notification, where)) continue;
+        Object.assign(notification, data);
+        count += 1;
+      }
+      return { count };
+    },
+  };
+
   try {
     await run();
   } finally {
@@ -262,6 +337,7 @@ async function withSupportMocks(state: State, run: () => Promise<void>) {
     p.supportTicketMessage = original.supportTicketMessage;
     p.supportTicketAttachment = original.supportTicketAttachment;
     p.supportTicketAuditLog = original.supportTicketAuditLog;
+    p.supportTicketNotification = original.supportTicketNotification;
   }
 }
 
@@ -286,6 +362,7 @@ const tests: TestCase[] = [
       assert.equal(state.tickets.length, 1);
       assert.equal(state.tickets[0].userId, "user-a");
       assert.equal(state.audits.some((row) => row.action === "ticket_created"), true);
+      assert.equal(state.notifications.some((row) => row.type === "ADMIN_NEW_TICKET" || row.type === "ADMIN_HIGH_PRIORITY_OPEN_TICKET"), true);
     },
   },
   {
@@ -372,6 +449,37 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "customer cannot reply to CLOSED ticket",
+    async run() {
+      const state = makeState();
+      state.tickets.push({
+        id: "ticket-closed",
+        ticketNumber: "SUP-CLOSED",
+        userId: "user-a",
+        subject: "Closed ticket",
+        category: "TECHNICAL",
+        priority: "LOW",
+        status: "CLOSED",
+        initialMessage: "x",
+        firstResponseDueAt: null,
+        lastReplyAt: null,
+        resolvedAt: null,
+        closedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const req = makeReq("user-a", "USER", { message: "Can I still reply?" }, {}, { id: "ticket-closed" });
+      const { res, state: response } = makeRes();
+
+      await withSupportMocks(state, async () => {
+        await replyOwnTicketHandler(req as any, res as any);
+      });
+
+      assert.equal(response.statusCode, 409);
+    },
+  },
+  {
     name: "admin can list tickets",
     async run() {
       const state = makeState();
@@ -450,6 +558,7 @@ const tests: TestCase[] = [
       assert.equal(response.statusCode, 200);
       assert.equal(state.tickets[0].status, "RESOLVED");
       assert.equal(state.audits.some((row) => row.action === "status_changed"), true);
+      assert.equal(state.notifications.some((row) => row.type === "CUSTOMER_STATUS_CHANGED" && row.userId === "user-a"), true);
     },
   },
   {
@@ -533,6 +642,42 @@ const tests: TestCase[] = [
       assert.equal(actions.includes("status_changed"), true);
       assert.equal(actions.includes("priority_changed"), true);
       assert.equal(actions.includes("admin_reply"), true);
+      assert.equal(state.notifications.some((row) => row.type === "CUSTOMER_STATUS_CHANGED"), true);
+      assert.equal(state.notifications.some((row) => row.type === "CUSTOMER_ADMIN_REPLY"), true);
+    },
+  },
+  {
+    name: "mark notification read endpoint updates unread count",
+    async run() {
+      const state = makeState();
+      state.notifications.push({
+        id: "notification-1",
+        userId: "user-a",
+        ticketId: "ticket-own",
+        type: "CUSTOMER_ADMIN_REPLY",
+        title: "New admin reply",
+        message: "Please check the latest update.",
+        isRead: false,
+        createdAt: new Date(),
+      });
+
+      await withSupportMocks(state, async () => {
+        const listReq = makeReq("user-a", "USER");
+        const listRes = makeRes();
+        await listSupportNotificationsHandler(listReq as any, listRes.res as any);
+        assert.equal(listRes.state.statusCode, 200);
+        assert.equal(listRes.state.body.unreadCount, 1);
+
+        const markReq = makeReq("user-a", "USER", { notificationIds: ["notification-1"] });
+        const markRes = makeRes();
+        await markSupportNotificationsReadHandler(markReq as any, markRes.res as any);
+        assert.equal(markRes.state.statusCode, 200);
+
+        const listAfterReq = makeReq("user-a", "USER");
+        const listAfterRes = makeRes();
+        await listSupportNotificationsHandler(listAfterReq as any, listAfterRes.res as any);
+        assert.equal(listAfterRes.state.body.unreadCount, 0);
+      });
     },
   },
 ];

@@ -1,17 +1,17 @@
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 
-const navLinks = [
-  { href: "/#services", label: "Services" },
-  { href: "/#how-it-works", label: "How It Works" },
-  { href: "/tracking", label: "Track" },
-  { href: "/#billing-packages", label: "Packages" },
-  { href: "/#support", label: "Support" },
-];
-
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+  const isLoggedIn = typeof window !== "undefined" && Boolean(window.localStorage.getItem("labelgen_token"));
+  const navLinks = [
+    { href: "/#services", label: "Services" },
+    { href: "/#how-it-works", label: "How It Works" },
+    { href: "/tracking", label: "Track" },
+    { href: "/#billing-packages", label: "Packages" },
+    { href: isLoggedIn ? "/support" : "/login?next=%2Fsupport", label: "Support" },
+  ];
   const ctaClass = "inline-flex h-10 items-center justify-center rounded-full px-5 text-sm font-semibold tracking-[0.01em]";
 
   return (

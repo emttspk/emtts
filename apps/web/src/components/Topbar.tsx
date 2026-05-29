@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
-import { Bell, ChevronDown, LogOut, Menu, Plus, Search, Settings } from "lucide-react";
+import { ChevronDown, LogOut, Menu, Plus, Search, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { clearSession } from "../lib/auth";
 import { cn } from "../lib/cn";
 import ActionButton from "./ui/ActionButton";
 import SearchInput from "./ui/SearchInput";
+import SupportNotificationsBell from "./SupportNotificationsBell";
 
 function initials(email?: string) {
   if (!email) return "U";
@@ -57,9 +58,7 @@ export default function Topbar(props: {
             New label
           </ActionButton>
 
-          <button className="btn-secondary ui-touch-target p-2.5" title="Notifications">
-            <Bell className="h-5 w-5" />
-          </button>
+          <SupportNotificationsBell />
 
           <button className="btn-secondary ui-touch-target hidden p-2.5 md:inline-flex" title="Settings" onClick={() => navigate("/settings")}>
             <Settings className="h-5 w-5" />

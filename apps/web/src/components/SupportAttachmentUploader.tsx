@@ -1,25 +1,48 @@
 import { useRef, useState } from "react";
+import { SUPPORT_ATTACHMENT_ACCEPT, validateSupportAttachmentFiles } from "../lib/support";
 
 type Props = {
-  onUpload: (files: File[], message?: string) => Promise<void>;
+  onUpload?: (files: File[], message?: string) => Promise<void>;
   disabled?: boolean;
+  selectionOnly?: boolean;
+  files?: File[];
+  onFilesChange?: (files: File[]) => void;
+  message?: string;
+  onMessageChange?: (message: string) => void;
 };
 
-const ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,.csv,.xls,.xlsx,.doc,.docx,.txt";
-
-export default function SupportAttachmentUploader({ onUpload, disabled }: Props) {
-  const [files, setFiles] = useState<File[]>([]);
-  const [message, setMessage] = useState("");
+export default function SupportAttachmentUploader({ onUpload, disabled, selectionOnly, files: controlledFiles, onFilesChange, message: controlledMessage, onMessageChange }: Props) {
+  const [internalFiles, setInternalFiles] = useState<File[]>([]);
+  const [internalMessage, setInternalMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const files = controlledFiles ?? internalFiles;
+  const note = controlledMessage ?? internalMessage;
+
+  function setFiles(nextFiles: File[]) {
+    if (onFilesChange) {
+      onFilesChange(nextFiles);
+      return;
+    }
+    setInternalFiles(nextFiles);
+  }
+
+  function setMessage(nextMessage: string) {
+    if (onMessageChange) {
+      onMessageChange(nextMessage);
+      return;
+    }
+    setInternalMessage(nextMessage);
+  }
+
   async function submit() {
-    if (files.length === 0) return;
+    if (files.length === 0 || !onUpload) return;
     setSubmitting(true);
     setError(null);
     try {
-      await onUpload(files, message.trim() || undefined);
+      await onUpload(files, note.trim() || undefined);
       setFiles([]);
       setMessage("");
       if (fileRef.current) fileRef.current.value = "";
@@ -38,12 +61,19 @@ export default function SupportAttachmentUploader({ onUpload, disabled }: Props)
       <input
         ref={fileRef}
         type="file"
-        accept={ACCEPT}
+        accept={SUPPORT_ATTACHMENT_ACCEPT}
         multiple
         className="mt-3 block w-full text-sm"
         disabled={disabled || submitting}
         onChange={(event) => {
           const selected = Array.from(event.target.files ?? []).slice(0, 5);
+          const validationError = validateSupportAttachmentFiles(selected);
+          if (validationError) {
+            setError(validationError);
+            setFiles([]);
+            return;
+          }
+          setError(null);
           setFiles(selected);
         }}
       />
@@ -51,7 +81,7 @@ export default function SupportAttachmentUploader({ onUpload, disabled }: Props)
       <textarea
         className="field-input mt-3 min-h-[90px]"
         placeholder="Optional note for these attachments"
-        value={message}
+        value={note}
         disabled={disabled || submitting}
         onChange={(event) => setMessage(event.target.value)}
       />
@@ -66,16 +96,18 @@ export default function SupportAttachmentUploader({ onUpload, disabled }: Props)
 
       {error ? <p className="mt-3 text-sm text-rose-600">{error}</p> : null}
 
-      <div className="mt-3 flex justify-end">
-        <button
-          type="button"
-          className="btn-primary disabled:opacity-50"
-          disabled={disabled || submitting || files.length === 0}
-          onClick={() => void submit()}
-        >
-          {submitting ? "Uploading..." : "Upload Attachments"}
-        </button>
-      </div>
+      {!selectionOnly ? (
+        <div className="mt-3 flex justify-end">
+          <button
+            type="button"
+            className="btn-primary disabled:opacity-50"
+            disabled={disabled || submitting || files.length === 0}
+            onClick={() => void submit()}
+          >
+            {submitting ? "Uploading..." : "Upload Attachments"}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

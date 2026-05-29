@@ -1,4 +1,5 @@
 import { useState } from "react";
+import SupportAttachmentUploader from "./SupportAttachmentUploader";
 import type { SupportCategory, SupportPriority } from "../lib/support";
 
 type Props = {
@@ -9,7 +10,10 @@ type Props = {
     category: SupportCategory;
     priority: SupportPriority;
     message: string;
-  }) => Promise<void>;
+  }, options: {
+    files: File[];
+    attachmentMessage?: string;
+  }) => Promise<{ warning?: string } | void>;
 };
 
 const CATEGORIES: SupportCategory[] = ["BILLING", "SHIPMENT", "TECHNICAL", "ACCOUNT", "OTHER"];
@@ -20,8 +24,21 @@ export default function CreateSupportTicketModal({ open, onClose, onCreate }: Pr
   const [category, setCategory] = useState<SupportCategory>("TECHNICAL");
   const [priority, setPriority] = useState<SupportPriority>("MEDIUM");
   const [message, setMessage] = useState("");
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  const [attachmentMessage, setAttachmentMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function resetAndClose() {
+    setSubject("");
+    setCategory("TECHNICAL");
+    setPriority("MEDIUM");
+    setMessage("");
+    setAttachmentFiles([]);
+    setAttachmentMessage("");
+    setError(null);
+    onClose();
+  }
 
   if (!open) return null;
 
@@ -30,7 +47,7 @@ export default function CreateSupportTicketModal({ open, onClose, onCreate }: Pr
       <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">Create Support Ticket</h2>
-          <button type="button" className="text-sm text-slate-500 hover:text-slate-800" onClick={onClose}>Close</button>
+          <button type="button" className="text-sm text-slate-500 hover:text-slate-800" onClick={resetAndClose}>Close</button>
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -57,12 +74,24 @@ export default function CreateSupportTicketModal({ open, onClose, onCreate }: Pr
             <label className="text-sm font-medium text-slate-700">Message</label>
             <textarea className="field-input mt-1 min-h-[140px]" value={message} onChange={(e) => setMessage(e.target.value)} />
           </div>
+
+          <div className="sm:col-span-2">
+            <SupportAttachmentUploader
+              selectionOnly
+              disabled={saving}
+              files={attachmentFiles}
+              onFilesChange={setAttachmentFiles}
+              message={attachmentMessage}
+              onMessageChange={setAttachmentMessage}
+            />
+          </div>
         </div>
 
         {error ? <p className="mt-3 text-sm text-rose-600">{error}</p> : null}
+        {saving && attachmentFiles.length > 0 ? <p className="mt-3 text-sm text-slate-500">Creating the ticket and uploading attachments to secure support storage...</p> : null}
 
         <div className="mt-5 flex justify-end gap-2">
-          <button type="button" className="btn-secondary" onClick={onClose} disabled={saving}>Cancel</button>
+          <button type="button" className="btn-secondary" onClick={resetAndClose} disabled={saving}>Cancel</button>
           <button
             type="button"
             className="btn-primary disabled:opacity-50"
@@ -76,11 +105,11 @@ export default function CreateSupportTicketModal({ open, onClose, onCreate }: Pr
                   category,
                   priority,
                   message: message.trim(),
+                }, {
+                  files: attachmentFiles,
+                  attachmentMessage: attachmentMessage.trim() || undefined,
                 });
-                setSubject("");
-                setMessage("");
-                setCategory("TECHNICAL");
-                setPriority("MEDIUM");
+                resetAndClose();
               } catch (e) {
                 setError(e instanceof Error ? e.message : "Failed to create ticket");
               } finally {
@@ -88,7 +117,7 @@ export default function CreateSupportTicketModal({ open, onClose, onCreate }: Pr
               }
             }}
           >
-            {saving ? "Creating..." : "Create Ticket"}
+            {saving ? (attachmentFiles.length > 0 ? "Creating & Uploading..." : "Creating...") : "Create Ticket"}
           </button>
         </div>
       </div>

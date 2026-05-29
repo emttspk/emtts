@@ -18,6 +18,7 @@ export default function SupportTicketDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
+  const isClosed = String(ticket?.status ?? "").toUpperCase() === "CLOSED";
 
   async function load() {
     if (!ticketId) return;
@@ -85,47 +86,55 @@ export default function SupportTicketDetailPage() {
               ))}
             </div>
 
-            <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
-              <label className="text-sm font-medium text-slate-700">Reply</label>
-              <textarea
-                className="field-input mt-1 min-h-[120px]"
-                value={reply}
-                disabled={sending}
-                onChange={(event) => setReply(event.target.value)}
-              />
-              <div className="mt-3 flex justify-end">
-                <button
-                  type="button"
-                  className="btn-primary disabled:opacity-50"
-                  disabled={sending || reply.trim().length < 1}
-                  onClick={async () => {
-                    setSending(true);
-                    setError(null);
-                    try {
-                      await replyToMySupportTicket(ticket.id, reply.trim());
-                      setReply("");
-                      await load();
-                    } catch (e) {
-                      setError(e instanceof Error ? e.message : "Failed to post reply");
-                    } finally {
-                      setSending(false);
-                    }
-                  }}
-                >
-                  {sending ? "Sending..." : "Send Reply"}
-                </button>
+            {isClosed ? (
+              <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                This ticket is closed. Please create a new support ticket for any further issue.
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
+                  <label className="text-sm font-medium text-slate-700">Reply</label>
+                  <textarea
+                    className="field-input mt-1 min-h-[120px]"
+                    value={reply}
+                    disabled={sending}
+                    onChange={(event) => setReply(event.target.value)}
+                  />
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      type="button"
+                      className="btn-primary disabled:opacity-50"
+                      disabled={sending || reply.trim().length < 1}
+                      onClick={async () => {
+                        setSending(true);
+                        setError(null);
+                        try {
+                          await replyToMySupportTicket(ticket.id, reply.trim());
+                          setReply("");
+                          await load();
+                        } catch (e) {
+                          setError(e instanceof Error ? e.message : "Failed to post reply");
+                        } finally {
+                          setSending(false);
+                        }
+                      }}
+                    >
+                      {sending ? "Sending..." : "Send Reply"}
+                    </button>
+                  </div>
+                </div>
 
-            <div className="mt-5">
-              <SupportAttachmentUploader
-                disabled={sending}
-                onUpload={async (files, message) => {
-                  await uploadSupportAttachments(ticket.id, files, message);
-                  await load();
-                }}
-              />
-            </div>
+                <div className="mt-5">
+                  <SupportAttachmentUploader
+                    disabled={sending}
+                    onUpload={async (files, message) => {
+                      await uploadSupportAttachments(ticket.id, files, message);
+                      await load();
+                    }}
+                  />
+                </div>
+              </>
+            )}
           </>
         ) : null}
       </Card>
