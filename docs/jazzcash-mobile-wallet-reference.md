@@ -62,6 +62,13 @@ Post-fix authenticated matrix against deployed API:
 
 All three requests now pass hash validation (no provider `110`). Current failure mode is provider business response `199` (`Sorry! Your transaction was not successful. Please try again later.`), indicating a sandbox profile/wallet-state issue rather than hash construction.
 
+## Status Inquiry Behavior (2026-05-29)
+
+- Status inquiry endpoints are implemented for sandbox/live `PaymentInquiry/Inquire`.
+- Fresh `PENDING` transactions under 10 minutes return a recommendation message instead of an early provider call.
+- Failed `199` transactions remain eligible for immediate inquiry.
+- Inquiry results exposed by the API are normalized for support reporting as `completed`, `failed`, `pending`, `not_found`, or `error`.
+
 ## Provider 199 Investigation Summary (2026-05-29)
 
 ### External References Checked

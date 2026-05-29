@@ -90,6 +90,12 @@ As requested in onboarding email guidance from Muhammad Jawad Khan, the followin
   - Rapid third create request hit `invoiceNumber` unique constraint.
 - Both issues were patched in follow-up commit `a4cc0ac` and redeployed; final confirmation run is pending latest Railway Api deployment success.
 
+## Final Support Note
+
+- The app now respects the support guidance to wait 10 minutes before inquiring pending or missing transactions.
+- Failed `199` outcomes are still allowed to proceed to inquiry immediately for diagnostic purposes.
+- Inquiry responses returned to the app are normalized as `completed`, `failed`, `pending`, `not_found`, or `error`.
+
 ## Security Notice
 
 - Password and integrity salt are intentionally omitted from this packet.

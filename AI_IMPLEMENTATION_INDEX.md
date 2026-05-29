@@ -604,6 +604,12 @@ Mandatory onboarding items from Muhammad Jawad Khan were implemented in code:
 	 - Request hash generation and callback/IPN hash verification retained.
 	 - Status inquiry request/response hash verification added.
 
+Operational inquiry rule now enforced:
+
+- Fresh `PENDING` JazzCash transactions under 10 minutes return the support-team recommendation instead of calling the provider early.
+- Failed `199` transactions are still eligible for immediate inquiry.
+- Inquiry results are normalized for support reporting as `completed`, `failed`, `pending`, `not_found`, or `error`.
+
 Local verification status after implementation:
 
 - `node scripts/jazzcash-mobile-wallet-check.mjs` -> PASS
@@ -626,6 +632,12 @@ Local verification status after implementation:
 	- Invoice number generation changed to full `txnRefNo` to avoid truncation collisions.
 - Pending action:
 	- Await Railway rollout of `a4cc0ac`, then rerun full authenticated matrix (`03123456789/80/81`) with status inquiry for each returned `txnRefNo`.
+
+## Live Inquiry Handling Update (2026-05-29)
+
+- The deployed JazzCash route now follows the support guidance for `PENDING` transactions while allowing immediate inquiry for failed `199` results.
+- Fresh pending inquiries return a safe recommendation message rather than calling JazzCash too early.
+- The route response payload uses the normalized support vocabulary for result reporting.
 
 ## Payment Flow
 

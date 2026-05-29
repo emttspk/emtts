@@ -35,6 +35,40 @@ const statusInquirySchema = z.object({
   txnRefNo: z.string().trim().min(1),
 });
 
+const JAZZCASH_INQUIRY_RECOMMENDED_AFTER_MS = 10 * 60 * 1000;
+
+function isAdminUser(user: { role?: string | null } | undefined) {
+  return String(user?.role ?? "").toUpperCase() === "ADMIN";
+}
+
+function normalizeJazzcashInquiryStatus(status: string) {
+  if (status === "SUCCEEDED") return "completed" as const;
+  if (status === "PENDING") return "pending" as const;
+  if (status === "FAILED") return "failed" as const;
+  return "error" as const;
+}
+
+function shapeJazzcashInquiryResponse(result: Awaited<ReturnType<typeof queryJazzcashTransactionStatus>>) {
+  return {
+    reference: result.reference,
+    status: normalizeJazzcashInquiryStatus(result.status),
+    providerStatus: result.status,
+    responseCode: result.responseCode,
+    paymentResponseCode: result.paymentResponseCode,
+    responseMessage: result.responseMessage,
+    paymentResponseMessage: result.paymentResponseMessage,
+    providerTxnId: result.providerTxnId,
+    hashVerified: result.hashVerified,
+  };
+}
+
+async function getJazzcashInquiryPayment(txnRefNo: string, userId: string) {
+  return prisma.payment.findFirst({
+    where: { userId, provider: "JAZZCASH", OR: [{ reference: txnRefNo }, { txnRefNo }] },
+    select: { id: true, createdAt: true, reference: true, txnRefNo: true, status: true },
+  });
+}
+
 paymentsRouter.post("/jazzcash/mobile-wallet/create", requireAuth, async (req: AuthedRequest, res) => {
   try {
     await ensurePlanManagementColumns();
@@ -272,17 +306,24 @@ paymentsRouter.get("/jazzcash/status/:txnRefNo", requireAuth, async (req: Authed
 paymentsRouter.post("/jazzcash/status-inquiry", requireAuth, async (req: AuthedRequest, res) => {
   try {
     const body = statusInquirySchema.parse(req.body);
+    const payment = await getJazzcashInquiryPayment(body.txnRefNo, req.user!.id);
+    if (!payment) {
+      return res.status(404).json({ error: "Payment not found", status: "not_found" });
+    }
+
+    const ageMs = Date.now() - payment.createdAt.getTime();
+    if (payment && payment.status === "PENDING" && !isAdminUser(req.user) && ageMs < JAZZCASH_INQUIRY_RECOMMENDED_AFTER_MS) {
+      return res.status(200).json({
+        reference: payment.txnRefNo ?? payment.reference,
+        status: "pending",
+        message: "Status inquiry is recommended after 10 minutes of transaction initiation.",
+        recommendedAfterMinutes: 10,
+        inquirySkipped: true,
+      });
+    }
+
     const result = await queryJazzcashTransactionStatus({ txnRefNo: body.txnRefNo, userId: req.user!.id });
-    return res.status(200).json({
-      reference: result.reference,
-      status: result.status,
-      responseCode: result.responseCode,
-      paymentResponseCode: result.paymentResponseCode,
-      responseMessage: result.responseMessage,
-      paymentResponseMessage: result.paymentResponseMessage,
-      providerTxnId: result.providerTxnId,
-      hashVerified: result.hashVerified,
-    });
+    return res.status(200).json(shapeJazzcashInquiryResponse(result));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: "Validation failed", details: error.errors });
@@ -301,23 +342,30 @@ paymentsRouter.post("/jazzcash/status-inquiry/:txnRefNo", requireAuth, async (re
     if (!txnRefNo) {
       return res.status(400).json({ error: "Transaction reference is required" });
     }
+    const payment = await getJazzcashInquiryPayment(txnRefNo, req.user!.id);
+    if (!payment) {
+      return res.status(404).json({ error: "Payment not found", status: "not_found" });
+    }
+
+    const ageMs = Date.now() - payment.createdAt.getTime();
+    if (payment && payment.status === "PENDING" && !isAdminUser(req.user) && ageMs < JAZZCASH_INQUIRY_RECOMMENDED_AFTER_MS) {
+      return res.status(200).json({
+        reference: payment.txnRefNo ?? payment.reference,
+        status: "pending",
+        message: "Status inquiry is recommended after 10 minutes of transaction initiation.",
+        recommendedAfterMinutes: 10,
+        inquirySkipped: true,
+      });
+    }
+
     const result = await queryJazzcashTransactionStatus({ txnRefNo, userId: req.user!.id });
-    return res.status(200).json({
-      reference: result.reference,
-      status: result.status,
-      responseCode: result.responseCode,
-      paymentResponseCode: result.paymentResponseCode,
-      responseMessage: result.responseMessage,
-      paymentResponseMessage: result.paymentResponseMessage,
-      providerTxnId: result.providerTxnId,
-      hashVerified: result.hashVerified,
-    });
+    return res.status(200).json(shapeJazzcashInquiryResponse(result));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Status inquiry failed";
     if (message.toLowerCase().includes("not found")) {
-      return res.status(404).json({ error: message });
+      return res.status(404).json({ error: message, status: "not_found" });
     }
-    return res.status(400).json({ error: message });
+    return res.status(400).json({ error: message, status: "error" });
   }
 });
 
