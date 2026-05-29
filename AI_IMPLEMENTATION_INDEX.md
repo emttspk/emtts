@@ -1,5 +1,46 @@
 # AI Implementation Index
 
+## 2026-05-29 - Admin Command Center Jobs Pagination, Delete, Payment Tab Restore
+
+### Task Name
+- Fix jobs pagination and delete, rename Settings→Payment, restore full payment section with QR image support, remove Standard Price from Payment tab.
+
+### Files Changed
+- `apps/web/src/pages/admin/AdminCommandCenter.tsx`
+- `AI_IMPLEMENTATION_INDEX.md`
+- `CHANGELOG.md`
+
+### Status Matrix
+- Jobs pagination verified/fixed: COMPLETED — Jobs section now shows Prev/Next buttons with disabled states, page/total/pageSize metadata inline. Backend returns `total`, `totalPages`, `page`, `pageSize`. Filter effect triggers re-fetch with force=true on all filter/page changes.
+- Jobs delete verified/fixed: VERIFIED OK — Backend route `DELETE /api/admin/jobs/:jobId` registered at line 2255 in admin.ts, uses `deleteJobById` from jobs.ts, returns 409 for active jobs. Frontend calls correct path `/api/admin/jobs/${id}` with DELETE, guards on terminal status, confirms before delete, refreshes after.
+- Settings renamed to Payment: COMPLETED — NavKey `"settings"` → `"payment"`, NAV_ITEMS label `"Settings"` → `"Payment"`, all references updated.
+- Payment section restored: COMPLETED — Full PaymentCard components for JazzCash, EasyPaisa, Bank Transfer with inline Edit/Save/Cancel/Delete per card. View mode shows all fields + QR preview.
+- QR image/URL support: COMPLETED — File input + preview using `URL.createObjectURL` for new file or `apiUrl(qrUrl)` for existing. `saveBillingDraft` now uses `FormData` and appends `jazzcashQr`/`easypaisaQr`/`bankQr` file fields. Backend `billingQrUpload` multer middleware already supported this.
+- Standard Price removed from Payment tab: COMPLETED — Standard Price and Business Price inputs removed from payment section. Pricing stays in Plans & Pricing tab only.
+- Protected files not touched: CONFIRMED
+
+### Protected Files Not Touched
+- `apps/api/src/labels.ts`
+- `multipage-label.html`
+- barcode engine files
+- MOS/UMO calculation logic
+- moneyOrderBreakdown logic
+- finalized PDF templates
+- finalized complaint engine internals
+- finalized tracking parser core
+
+### Verification
+- `npm run build`: PASS
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS
+
+### Git
+- Commit hash: (pending)
+
+### Completion
+- Completion percentage: 100%
+- Remaining percentage: 0%
+
 ## 2026-05-29 - Admin Command Center Remaining UI Restore and Manual Actions
 
 ### Task Name

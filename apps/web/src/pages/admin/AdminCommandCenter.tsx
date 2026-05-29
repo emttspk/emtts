@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { api } from "../../lib/api";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { api, apiUrl } from "../../lib/api";
 import { BodyText, PageShell, PageTitle, TableWrap } from "../../components/ui/PageSystem";
 import { MetricCard, StatusPill } from "../../components/admin/AdminWidgets";
 import AdminLegacy from "../Admin";
@@ -19,7 +19,7 @@ type NavKey =
   | "storage"
   | "audit"
   | "health"
-  | "settings"
+  | "payment"
   | "allow-files";
 
 type AnyObject = Record<string, any>;
@@ -64,7 +64,7 @@ const NAV_ITEMS: Array<{ key: NavKey; label: string }> = [
   { key: "storage", label: "Storage" },
   { key: "audit", label: "Audit" },
   { key: "health", label: "Health" },
-  { key: "settings", label: "Settings" },
+  { key: "payment", label: "Payment" },
   { key: "allow-files", label: "Allow/Test File Names" },
 ];
 
@@ -158,7 +158,7 @@ function quickRange(key: "today" | "week" | "month" | "all") {
 }
 
 function sectionUsesRowFilters(section: NavKey) {
-  return !["dashboard", "health", "settings", "allow-files", "revenue"].includes(section);
+  return !["dashboard", "health", "payment", "allow-files", "revenue"].includes(section);
 }
 
 function sectionUsesDateFilters(section: NavKey) {
@@ -303,6 +303,12 @@ export default function AdminCommandCenter() {
   const [complaintDetail, setComplaintDetail] = useState<AnyObject | null>(null);
   const [settingsDraft, setSettingsDraft] = useState<AnyObject | null>(null);
   const [editingPaymentOption, setEditingPaymentOption] = useState<"jazzcash" | "easypaisa" | "bank" | null>(null);
+  const [jazzcashQrFile, setJazzcashQrFile] = useState<File | null>(null);
+  const [easypaisaQrFile, setEasypaisaQrFile] = useState<File | null>(null);
+  const [bankQrFile, setBankQrFile] = useState<File | null>(null);
+  const jazzcashQrInputRef = useRef<HTMLInputElement>(null);
+  const easypaisaQrInputRef = useRef<HTMLInputElement>(null);
+  const bankQrInputRef = useRef<HTMLInputElement>(null);
 
   const [filters, setFilters] = useState<Record<NavKey, FilterState>>(() => {
     const map = {} as Record<NavKey, FilterState>;
@@ -424,7 +430,7 @@ export default function AdminCommandCenter() {
         const data = await api<AnyObject>("/api/admin/dashboard/health");
         setHealth(data);
       }
-      if ((target === "settings" || target === "allow-files") && (force || !health?.settings)) {
+      if ((target === "payment" || target === "allow-files") && (force || !health?.settings)) {
         const data = await api<AnyObject>("/api/admin/billing-settings");
         setHealth((prev) => ({ ...(prev ?? {}), settings: data.settings ?? null }));
         setSettingsDraft(data.settings ?? null);
@@ -506,23 +512,22 @@ export default function AdminCommandCenter() {
     });
   }
 
-  async function saveBillingDraft(nextDraft: AnyObject) {
-    await api("/api/admin/billing-settings", {
-      method: "PUT",
-      body: JSON.stringify({
-        jazzcashNumber: String(nextDraft?.jazzcashNumber ?? "").trim(),
-        jazzcashTitle: String(nextDraft?.jazzcashTitle ?? "").trim(),
-        easypaisaNumber: String(nextDraft?.easypaisaNumber ?? "").trim(),
-        easypaisaTitle: String(nextDraft?.easypaisaTitle ?? "").trim(),
-        bankName: String(nextDraft?.bankName ?? "").trim(),
-        bankTitle: String(nextDraft?.bankTitle ?? "").trim(),
-        bankAccountNumber: String(nextDraft?.bankAccountNumber ?? "").trim(),
-        bankIban: String(nextDraft?.bankIban ?? "").trim(),
-        standardPrice: Number(nextDraft?.standardPrice ?? 1),
-        businessPrice: Number(nextDraft?.businessPrice ?? 1),
-        exemptFileNames: JSON.stringify(Array.isArray(nextDraft?.exemptFileNames) ? nextDraft.exemptFileNames : []),
-      }),
-    });
+  async function saveBillingDraft(nextDraft: AnyObject, qrFiles?: { jazzcash?: File | null; easypaisa?: File | null; bank?: File | null }) {
+    const form = new FormData();
+    form.append("jazzcashNumber", String(nextDraft?.jazzcashNumber ?? "").trim());
+    form.append("jazzcashTitle", String(nextDraft?.jazzcashTitle ?? "").trim());
+    form.append("easypaisaNumber", String(nextDraft?.easypaisaNumber ?? "").trim());
+    form.append("easypaisaTitle", String(nextDraft?.easypaisaTitle ?? "").trim());
+    form.append("bankName", String(nextDraft?.bankName ?? "").trim());
+    form.append("bankTitle", String(nextDraft?.bankTitle ?? "").trim());
+    form.append("bankAccountNumber", String(nextDraft?.bankAccountNumber ?? "").trim());
+    form.append("bankIban", String(nextDraft?.bankIban ?? "").trim());
+    form.append("businessPrice", String(Number(nextDraft?.businessPrice ?? 1)));
+    form.append("exemptFileNames", JSON.stringify(Array.isArray(nextDraft?.exemptFileNames) ? nextDraft.exemptFileNames : []));
+    if (qrFiles?.jazzcash) form.append("jazzcashQr", qrFiles.jazzcash);
+    if (qrFiles?.easypaisa) form.append("easypaisaQr", qrFiles.easypaisa);
+    if (qrFiles?.bank) form.append("bankQr", qrFiles.bank);
+    await api("/api/admin/billing-settings", { method: "PUT", body: form });
   }
 
   const summaryCards = useMemo(() => {
@@ -980,8 +985,11 @@ export default function AdminCommandCenter() {
             ])}
           />
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600">
-            <span>Page {currentPage} of {totalPages} | Total records: {total} | Page size: {pageSize}</span>
-            <span>Showing {pageRows.length} record(s)</span>
+            <span>Page {currentPage} of {totalPages} | Total: {total} | Page size: {pageSize} | Showing {pageRows.length}</span>
+            <div className="flex gap-2">
+              <button type="button" className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-semibold disabled:opacity-50" disabled={currentPage <= 1} onClick={() => updateActiveFilters({ page: Math.max(1, activeFilters.page - 1) })}>Prev</button>
+              <button type="button" className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-semibold disabled:opacity-50" disabled={currentPage >= totalPages} onClick={() => updateActiveFilters({ page: activeFilters.page + 1 })}>Next</button>
+            </div>
           </div>
         </div>
       );
@@ -1372,172 +1380,138 @@ export default function AdminCommandCenter() {
       );
     }
 
-    if (active === "settings") {
+    if (active === "payment") {
       const persisted = health?.settings as AnyObject | null;
       const settings = (settingsDraft ?? persisted) as AnyObject | null;
-      if (!settings) return <p className="text-sm text-slate-500">Settings are unavailable.</p>;
+      if (!settings) return <p className="text-sm text-slate-500">Payment settings are unavailable.</p>;
 
-      const optionLabelMap: Record<string, string> = {
-        jazzcash: "JazzCash",
-        easypaisa: "EasyPaisa",
-        bank: "Bank",
-      };
-
-      const optionEnabled = {
-        jazzcash: Boolean(String(settings.jazzcashNumber ?? "").trim() || String(settings.jazzcashTitle ?? "").trim()),
-        easypaisa: Boolean(String(settings.easypaisaNumber ?? "").trim() || String(settings.easypaisaTitle ?? "").trim()),
-        bank: Boolean(String(settings.bankName ?? "").trim() || String(settings.bankAccountNumber ?? "").trim() || String(settings.bankIban ?? "").trim()),
-      };
-
-      const missingOptions = (Object.keys(optionEnabled) as Array<"jazzcash" | "easypaisa" | "bank">).filter((key) => !optionEnabled[key]);
+      function PaymentCard({ optKey, title, fields, qrUrl, qrFile, qrInputRef, setQrFile }: {
+        optKey: "jazzcash" | "easypaisa" | "bank";
+        title: string;
+        fields: Array<{ label: string; field: string; placeholder: string }>;
+        qrUrl?: string | null;
+        qrFile: File | null;
+        qrInputRef: React.RefObject<HTMLInputElement>;
+        setQrFile: (f: File | null) => void;
+      }) {
+        const isEditing = editingPaymentOption === optKey;
+        const previewSrc = qrFile ? URL.createObjectURL(qrFile) : qrUrl ? apiUrl(qrUrl) : null;
+        return (
+          <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-bold text-slate-800">{title}</h4>
+              {!isEditing ? (
+                <div className="flex gap-2">
+                  <button type="button" className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold" onClick={() => { setEditingPaymentOption(optKey); }}>Edit</button>
+                  <button type="button" className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700" onClick={() => {
+                    if (!window.confirm(`Delete ${title} payment option?`)) return;
+                    const patch: AnyObject = {};
+                    if (optKey === "jazzcash") { patch.jazzcashTitle = ""; patch.jazzcashNumber = ""; }
+                    if (optKey === "easypaisa") { patch.easypaisaTitle = ""; patch.easypaisaNumber = ""; }
+                    if (optKey === "bank") { patch.bankName = ""; patch.bankTitle = ""; patch.bankAccountNumber = ""; patch.bankIban = ""; }
+                    const next = { ...(settings ?? {}), ...patch };
+                    void runSafeAction(async () => { await saveBillingDraft(next); setSettingsDraft(next); });
+                  }}>Delete</button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <button type="button" className="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-800" onClick={() => {
+                    void runSafeAction(async () => {
+                      const qrFiles = optKey === "jazzcash" ? { jazzcash: qrFile } : optKey === "easypaisa" ? { easypaisa: qrFile } : { bank: qrFile };
+                      await saveBillingDraft(settings ?? {}, qrFiles);
+                      setQrFile(null);
+                      setEditingPaymentOption(null);
+                    });
+                  }}>Save</button>
+                  <button type="button" className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold" onClick={() => { setSettingsDraft(persisted); setQrFile(null); setEditingPaymentOption(null); }}>Cancel</button>
+                </div>
+              )}
+            </div>
+            {isEditing ? (
+              <div className="grid gap-2">
+                {fields.map(({ label, field, placeholder }) => (
+                  <label key={field} className="text-xs font-semibold text-slate-600">
+                    {label}
+                    <input
+                      className="mt-1 w-full rounded border border-slate-200 px-2 py-1.5 text-xs"
+                      value={String((settings as AnyObject)[field] ?? "")}
+                      onChange={(e) => setSettingsDraft((prev) => ({ ...(prev ?? settings), [field]: e.target.value }))}
+                      placeholder={placeholder}
+                    />
+                  </label>
+                ))}
+                <label className="text-xs font-semibold text-slate-600">
+                  QR Image (optional)
+                  <input
+                    ref={qrInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="mt-1 block w-full text-xs"
+                    onChange={(e) => setQrFile(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+                {previewSrc ? (
+                  <img src={previewSrc} alt="QR preview" className="mt-1 h-24 w-24 rounded border border-slate-200 object-contain" />
+                ) : null}
+              </div>
+            ) : (
+              <div className="space-y-1 text-xs text-slate-600">
+                {fields.map(({ label, field }) => (
+                  <div key={field}><span className="font-semibold">{label}:</span> {String((settings as AnyObject)[field] ?? "-") || "-"}</div>
+                ))}
+                {previewSrc ? (
+                  <div className="mt-2">
+                    <p className="mb-1 text-xs font-semibold text-slate-500">QR Image</p>
+                    <img src={previewSrc} alt="QR code" className="h-24 w-24 rounded border border-slate-200 object-contain" />
+                  </div>
+                ) : <p className="mt-1 text-slate-400">No QR image uploaded.</p>}
+              </div>
+            )}
+          </div>
+        );
+      }
 
       return (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={missingOptions.length === 0}
-              onClick={() => {
-                if (!missingOptions.length) return;
-                const picked = window.prompt(`Add Payment Option (${missingOptions.map((key) => optionLabelMap[key]).join(", ")})`, optionLabelMap[missingOptions[0]]);
-                if (!picked) return;
-                const normalized = picked.trim().toLowerCase();
-                const selected = (Object.keys(optionLabelMap) as Array<"jazzcash" | "easypaisa" | "bank">)
-                  .find((key) => optionLabelMap[key].toLowerCase() === normalized || key === normalized);
-                if (!selected || !missingOptions.includes(selected)) return;
-                setEditingPaymentOption(selected);
-              }}
-            >
-              Add Payment Option
-            </button>
-            <span className="text-xs text-slate-500">Configure JazzCash, EasyPaisa, and Bank with Save/Cancel controls.</span>
-          </div>
-
-          <DataTable
-            compact
-            headers={["Payment Option", "Configuration", "Actions"]}
-            rows={[
-              [
-                "JazzCash",
-                editingPaymentOption === "jazzcash" ? (
-                  <div className="grid gap-1">
-                    <input className="rounded border border-slate-200 px-2 py-1" value={String(settings.jazzcashTitle ?? "")} onChange={(event) => setSettingsDraft((prev) => ({ ...(prev ?? settings), jazzcashTitle: event.target.value }))} placeholder="Account title" />
-                    <input className="rounded border border-slate-200 px-2 py-1" value={String(settings.jazzcashNumber ?? "")} onChange={(event) => setSettingsDraft((prev) => ({ ...(prev ?? settings), jazzcashNumber: event.target.value }))} placeholder="Account/mobile number" />
-                  </div>
-                ) : `${String(settings.jazzcashTitle ?? "-")} | ${String(settings.jazzcashNumber ?? "-")}`,
-                editingPaymentOption === "jazzcash" ? (
-                  <div className="flex gap-1">
-                    <button type="button" className="rounded border border-emerald-300 px-2 py-1 font-semibold text-emerald-800" onClick={() => {
-                      void runSafeAction(async () => {
-                        await saveBillingDraft(settings);
-                        setEditingPaymentOption(null);
-                      });
-                    }}>Save</button>
-                    <button type="button" className="rounded border border-slate-300 px-2 py-1 font-semibold text-slate-700" onClick={() => {
-                      setSettingsDraft(persisted);
-                      setEditingPaymentOption(null);
-                    }}>Cancel</button>
-                  </div>
-                ) : (
-                  <div className="flex gap-1">
-                    <button type="button" className="rounded border border-slate-300 px-2 py-1 font-semibold text-slate-700" onClick={() => setEditingPaymentOption("jazzcash")}>Edit</button>
-                    <button type="button" className="rounded border border-rose-300 px-2 py-1 font-semibold text-rose-800" onClick={() => {
-                      if (!window.confirm("Delete JazzCash payment option?")) return;
-                      const next = { ...(settings ?? {}), jazzcashTitle: "", jazzcashNumber: "" };
-                      void runSafeAction(async () => {
-                        await saveBillingDraft(next);
-                        setSettingsDraft(next);
-                      });
-                    }}>Delete</button>
-                  </div>
-                ),
-              ],
-              [
-                "EasyPaisa",
-                editingPaymentOption === "easypaisa" ? (
-                  <div className="grid gap-1">
-                    <input className="rounded border border-slate-200 px-2 py-1" value={String(settings.easypaisaTitle ?? "")} onChange={(event) => setSettingsDraft((prev) => ({ ...(prev ?? settings), easypaisaTitle: event.target.value }))} placeholder="Account title" />
-                    <input className="rounded border border-slate-200 px-2 py-1" value={String(settings.easypaisaNumber ?? "")} onChange={(event) => setSettingsDraft((prev) => ({ ...(prev ?? settings), easypaisaNumber: event.target.value }))} placeholder="Account/mobile number" />
-                  </div>
-                ) : `${String(settings.easypaisaTitle ?? "-")} | ${String(settings.easypaisaNumber ?? "-")}`,
-                editingPaymentOption === "easypaisa" ? (
-                  <div className="flex gap-1">
-                    <button type="button" className="rounded border border-emerald-300 px-2 py-1 font-semibold text-emerald-800" onClick={() => {
-                      void runSafeAction(async () => {
-                        await saveBillingDraft(settings);
-                        setEditingPaymentOption(null);
-                      });
-                    }}>Save</button>
-                    <button type="button" className="rounded border border-slate-300 px-2 py-1 font-semibold text-slate-700" onClick={() => {
-                      setSettingsDraft(persisted);
-                      setEditingPaymentOption(null);
-                    }}>Cancel</button>
-                  </div>
-                ) : (
-                  <div className="flex gap-1">
-                    <button type="button" className="rounded border border-slate-300 px-2 py-1 font-semibold text-slate-700" onClick={() => setEditingPaymentOption("easypaisa")}>Edit</button>
-                    <button type="button" className="rounded border border-rose-300 px-2 py-1 font-semibold text-rose-800" onClick={() => {
-                      if (!window.confirm("Delete EasyPaisa payment option?")) return;
-                      const next = { ...(settings ?? {}), easypaisaTitle: "", easypaisaNumber: "" };
-                      void runSafeAction(async () => {
-                        await saveBillingDraft(next);
-                        setSettingsDraft(next);
-                      });
-                    }}>Delete</button>
-                  </div>
-                ),
-              ],
-              [
-                "Bank",
-                editingPaymentOption === "bank" ? (
-                  <div className="grid gap-1">
-                    <input className="rounded border border-slate-200 px-2 py-1" value={String(settings.bankName ?? "")} onChange={(event) => setSettingsDraft((prev) => ({ ...(prev ?? settings), bankName: event.target.value }))} placeholder="Bank name" />
-                    <input className="rounded border border-slate-200 px-2 py-1" value={String(settings.bankTitle ?? "")} onChange={(event) => setSettingsDraft((prev) => ({ ...(prev ?? settings), bankTitle: event.target.value }))} placeholder="Account title" />
-                    <input className="rounded border border-slate-200 px-2 py-1" value={String(settings.bankAccountNumber ?? "")} onChange={(event) => setSettingsDraft((prev) => ({ ...(prev ?? settings), bankAccountNumber: event.target.value }))} placeholder="Account number" />
-                    <input className="rounded border border-slate-200 px-2 py-1" value={String(settings.bankIban ?? "")} onChange={(event) => setSettingsDraft((prev) => ({ ...(prev ?? settings), bankIban: event.target.value }))} placeholder="IBAN" />
-                  </div>
-                ) : `${String(settings.bankName ?? "-")} | ${String(settings.bankTitle ?? "-")} | ${String(settings.bankAccountNumber ?? settings.bankIban ?? "-")}`,
-                editingPaymentOption === "bank" ? (
-                  <div className="flex gap-1">
-                    <button type="button" className="rounded border border-emerald-300 px-2 py-1 font-semibold text-emerald-800" onClick={() => {
-                      void runSafeAction(async () => {
-                        await saveBillingDraft(settings);
-                        setEditingPaymentOption(null);
-                      });
-                    }}>Save</button>
-                    <button type="button" className="rounded border border-slate-300 px-2 py-1 font-semibold text-slate-700" onClick={() => {
-                      setSettingsDraft(persisted);
-                      setEditingPaymentOption(null);
-                    }}>Cancel</button>
-                  </div>
-                ) : (
-                  <div className="flex gap-1">
-                    <button type="button" className="rounded border border-slate-300 px-2 py-1 font-semibold text-slate-700" onClick={() => setEditingPaymentOption("bank")}>Edit</button>
-                    <button type="button" className="rounded border border-rose-300 px-2 py-1 font-semibold text-rose-800" onClick={() => {
-                      if (!window.confirm("Delete Bank payment option?")) return;
-                      const next = { ...(settings ?? {}), bankName: "", bankTitle: "", bankAccountNumber: "", bankIban: "" };
-                      void runSafeAction(async () => {
-                        await saveBillingDraft(next);
-                        setSettingsDraft(next);
-                      });
-                    }}>Delete</button>
-                  </div>
-                ),
-              ],
+          <p className="text-xs text-slate-500">Manage payment options shown to users during checkout. Edit, upload QR, or delete each option below.</p>
+          <PaymentCard
+            optKey="jazzcash"
+            title="JazzCash"
+            fields={[
+              { label: "Account Title", field: "jazzcashTitle", placeholder: "e.g. Muhammad Ali" },
+              { label: "Mobile / Account Number", field: "jazzcashNumber", placeholder: "e.g. 03001234567" },
             ]}
+            qrUrl={settings.jazzcashQrUrl}
+            qrFile={jazzcashQrFile}
+            qrInputRef={jazzcashQrInputRef}
+            setQrFile={setJazzcashQrFile}
           />
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-xs font-semibold text-slate-600">
-              Standard Price
-              <input className="mt-1 w-full rounded border border-slate-200 px-2 py-1 text-xs" type="number" min={1} value={Number(settings.standardPrice ?? 1)} onChange={(event) => setSettingsDraft((prev) => ({ ...(prev ?? settings), standardPrice: Number(event.target.value || 1) }))} />
-            </label>
-            <label className="text-xs font-semibold text-slate-600">
-              Business Price
-              <input className="mt-1 w-full rounded border border-slate-200 px-2 py-1 text-xs" type="number" min={1} value={Number(settings.businessPrice ?? 1)} onChange={(event) => setSettingsDraft((prev) => ({ ...(prev ?? settings), businessPrice: Number(event.target.value || 1) }))} />
-            </label>
-          </div>
+          <PaymentCard
+            optKey="easypaisa"
+            title="EasyPaisa"
+            fields={[
+              { label: "Account Title", field: "easypaisaTitle", placeholder: "e.g. Muhammad Ali" },
+              { label: "Mobile / Account Number", field: "easypaisaNumber", placeholder: "e.g. 03001234567" },
+            ]}
+            qrUrl={settings.easypaisaQrUrl}
+            qrFile={easypaisaQrFile}
+            qrInputRef={easypaisaQrInputRef}
+            setQrFile={setEasypaisaQrFile}
+          />
+          <PaymentCard
+            optKey="bank"
+            title="Bank Transfer"
+            fields={[
+              { label: "Bank Name", field: "bankName", placeholder: "e.g. HBL" },
+              { label: "Account Title", field: "bankTitle", placeholder: "e.g. Muhammad Ali" },
+              { label: "Account Number", field: "bankAccountNumber", placeholder: "e.g. 01234567890123" },
+              { label: "IBAN", field: "bankIban", placeholder: "e.g. PK36SCBL0000001123456702" },
+            ]}
+            qrUrl={settings.bankQrUrl}
+            qrFile={bankQrFile}
+            qrInputRef={bankQrInputRef}
+            setQrFile={setBankQrFile}
+          />
         </div>
       );
     }
@@ -1563,22 +1537,7 @@ export default function AdminCommandCenter() {
                 .map((item) => item.trim())
                 .filter(Boolean);
               void runSafeAction(async () => {
-                await api("/api/admin/billing-settings", {
-                  method: "PUT",
-                  body: JSON.stringify({
-                    jazzcashNumber: settings.jazzcashNumber,
-                    jazzcashTitle: settings.jazzcashTitle,
-                    easypaisaNumber: settings.easypaisaNumber,
-                    easypaisaTitle: settings.easypaisaTitle,
-                    bankName: settings.bankName ?? "",
-                    bankTitle: settings.bankTitle ?? "",
-                    bankAccountNumber: settings.bankAccountNumber ?? "",
-                    bankIban: settings.bankIban ?? "",
-                    standardPrice: settings.standardPrice,
-                    businessPrice: settings.businessPrice,
-                    exemptFileNames: JSON.stringify(nextList),
-                  }),
-                });
+                await saveBillingDraft({ ...settings, exemptFileNames: nextList });
               });
             }}
           >

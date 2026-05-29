@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-05-29 - Admin Command Center Jobs Pagination, Delete, Payment Tab Restore
+
+### Scope
+- Fixed jobs pagination prev/next buttons with inline metadata in Jobs tab body.
+- Verified jobs delete route (backend `DELETE /api/admin/jobs/:jobId`, frontend correct path, terminal-status guard).
+- Renamed sidebar tab "Settings" → "Payment" (NavKey `"settings"` → `"payment"`).
+- Restored full payment section with card-per-option UI: JazzCash, EasyPaisa, Bank Transfer.
+- Added QR image upload (FormData + multer) and QR preview for each payment option.
+- Removed Standard Price block from Payment tab (pricing belongs in Plans & Pricing only).
+- `saveBillingDraft` now uses `FormData` instead of JSON for billing settings updates.
+
 ## 2026-05-29 - Admin Command Center Remaining UI Restore (Scoped)
 
 ### Scope
