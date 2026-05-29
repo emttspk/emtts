@@ -32,6 +32,7 @@ import { getUploadExemptFileNames, saveUploadExemptFileNames } from "../services
 import { ensurePlanManagementColumns, getPlanExtrasByIds } from "./plans.js";
 import { buildPdfAttachmentHeader, PRINT_MARKETING_LINE } from "../lib/printBranding.js";
 import { redis as redisClient, redisEnabled } from "../lib/redis.js";
+import { deleteJobById } from "./jobs.js";
 
 export const adminRouter = Router();
 
@@ -218,7 +219,12 @@ async function getUnitsTotals() {
 async function getHealthSnapshot() {
   type HealthStatus = "ok" | "warning" | "error" | "unknown" | "disabled" | "offline";
   type ServiceHealth = { status: HealthStatus; message: string };
-  type QueueHealth = ServiceHealth & { counts: { waiting: number; active: number; completed: number; failed: number; delayed: number } };
+  type QueueHealth = ServiceHealth & {
+    counts: { waiting: number; active: number; completed: number; failed: number; delayed: number };
+    lastFailedReason?: string | null;
+    lastFailedAt?: string | null;
+    lastFailedJobId?: string | null;
+  };
 
   const health: {
     api: ServiceHealth;
@@ -278,6 +284,17 @@ async function getHealthSnapshot() {
           delayed: Number(counts.delayed ?? 0),
         },
       };
+
+      if (failed > 0) {
+        const recentFailedJob = await prisma.labelJob.findFirst({
+          where: { status: "FAILED" },
+          orderBy: { updatedAt: "desc" },
+          select: { id: true, error: true, updatedAt: true },
+        });
+        queueStatus.lastFailedReason = recentFailedJob?.error ?? null;
+        queueStatus.lastFailedAt = recentFailedJob?.updatedAt?.toISOString() ?? null;
+        queueStatus.lastFailedJobId = recentFailedJob?.id ?? null;
+      }
     } catch (error) {
       queueStatus = {
         ...queueStatus,
@@ -293,6 +310,13 @@ async function getHealthSnapshot() {
     redis: redisStatus,
     worker: workerStatus,
     queue: queueStatus,
+    runtime: {
+      rss: process.memoryUsage().rss,
+      heapUsed: process.memoryUsage().heapUsed,
+      heapTotal: process.memoryUsage().heapTotal,
+      external: process.memoryUsage().external,
+      uptimeSec: Math.round(process.uptime()),
+    },
     checkedAt: new Date().toISOString(),
   };
 }
@@ -417,7 +441,7 @@ adminRouter.get("/dashboard/jobs", async (req, res) => {
   const limit = toPositiveInt(req.query.limit, 20, 100);
   const status = typeof req.query.status === "string" ? req.query.status.trim().toUpperCase() : "FAILED";
 
-  const [counts, failedReasons, total, jobs] = await Promise.all([
+  const [counts, failedReasons, latestFailedJob, total, jobs] = await Promise.all([
     labelQueue.getJobCounts("waiting", "active", "completed", "failed", "delayed"),
     prisma.labelJob.groupBy({
       by: ["error"],
@@ -425,6 +449,11 @@ adminRouter.get("/dashboard/jobs", async (req, res) => {
       _count: { _all: true },
       orderBy: { _count: { error: "desc" } },
       take: 10,
+    }),
+    prisma.labelJob.findFirst({
+      where: { status: "FAILED" },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true, error: true, updatedAt: true },
     }),
     prisma.labelJob.count({ where: { status } }),
     prisma.labelJob.findMany({
@@ -456,6 +485,9 @@ adminRouter.get("/dashboard/jobs", async (req, res) => {
       completed: Number(counts.completed ?? 0),
       failed: Number(counts.failed ?? 0),
       delayed: Number(counts.delayed ?? 0),
+      latestFailedJobId: latestFailedJob?.id ?? null,
+      latestFailedReason: latestFailedJob?.error ?? null,
+      latestFailedAt: latestFailedJob?.updatedAt?.toISOString() ?? null,
     },
     failedReasons: failedReasons.map((row) => ({
       reason: row.error ?? "Unknown failure",
@@ -730,11 +762,53 @@ adminRouter.get("/storage", async (req, res) => {
     trackingResult: await prisma.trackingJob.count({ where: { resultPath: { not: null }, resultSyncedAt: null } }),
   };
 
+  const toArtifactStatus = (storedPath: string | null | undefined, syncedAt: Date | null | undefined) => {
+    if (!storedPath) {
+      return {
+        path: null,
+        localExists: false,
+        syncedAt: null,
+        provider: "missing",
+      };
+    }
+
+    const absolute = resolveStoredPath(storedPath);
+    const localExists = fs.existsSync(absolute);
+    const syncStamp = syncedAt ? syncedAt.toISOString() : null;
+
+    return {
+      path: storedPath,
+      localExists,
+      syncedAt: syncStamp,
+      provider: syncStamp ? (localExists ? "local+r2" : "r2") : (localExists ? "local" : "unknown"),
+    };
+  };
+
+  const detailedLabelFiles = recentLabelFiles.map((job) => ({
+    id: job.id,
+    updatedAt: job.updatedAt,
+    artifacts: {
+      labelsPdf: toArtifactStatus(job.labelsPdfPath, job.labelsPdfSyncedAt),
+      moneyOrderPdf: toArtifactStatus(job.moneyOrderPdfPath, job.moneyOrderPdfSyncedAt),
+      trackingMaster: toArtifactStatus(job.trackingMasterPath, job.trackingMasterSyncedAt),
+    },
+  }));
+
+  const detailedTrackingFiles = recentTrackingFiles.map((job) => ({
+    id: job.id,
+    updatedAt: job.updatedAt,
+    artifacts: {
+      trackingResult: toArtifactStatus(job.resultPath, job.resultSyncedAt),
+    },
+  }));
+
   return res.json({
     provider: process.env.STORAGE_PROVIDER ?? "local",
     dualWriteEnabled: String(process.env.ENABLE_DUAL_WRITE ?? "false").toLowerCase() === "true",
     dualReadEnabled: String(process.env.ENABLE_DUAL_READ ?? "false").toLowerCase() === "true",
     r2UploadsEnabled: String(process.env.ENABLE_R2_UPLOADS ?? "false").toLowerCase() === "true",
+    localStorageConfigured: true,
+    r2Configured: Boolean(process.env.R2_BUCKET && process.env.R2_ACCESS_KEY_ID && process.env.R2_SECRET_ACCESS_KEY),
     totals: {
       labels: labelTotals,
       moneyOrders: moneyOrderTotals,
@@ -743,8 +817,8 @@ adminRouter.get("/storage", async (req, res) => {
     },
     unsynced,
     recentGeneratedFiles: {
-      labelJobs: recentLabelFiles,
-      trackingJobs: recentTrackingFiles,
+      labelJobs: detailedLabelFiles,
+      trackingJobs: detailedTrackingFiles,
       page,
       limit,
     },
@@ -1020,25 +1094,53 @@ adminRouter.get("/complaint-audit", async (_req, res) => {
   res.json({ success: true, logs });
 });
 
-adminRouter.get("/users", async (_req, res) => {
+adminRouter.get("/users", async (req, res) => {
   const month = monthKeyUTC();
-  const users = await prisma.user.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      subscriptions: {
-        where: { status: "ACTIVE" },
-        include: { plan: true },
-        orderBy: { createdAt: "desc" },
-        take: 1,
+  const page = toPositiveInt(req.query.page, 1, 5000);
+  const pageSize = toPositiveInt(req.query.pageSize ?? req.query.limit, 50, 200);
+  const search = String(req.query.search ?? "").trim();
+  const sortBy = String(req.query.sortBy ?? "createdAt").trim();
+  const sortOrder = normalizeSortOrder(req.query.sortOrder);
+  const sortKey = ["createdAt", "email", "companyName", "role", "suspended"].includes(sortBy) ? sortBy : "createdAt";
+
+  const where: any = search
+    ? {
+        OR: [
+          { email: { contains: search, mode: "insensitive" } },
+          { companyName: { contains: search, mode: "insensitive" } },
+          { contactNumber: { contains: search, mode: "insensitive" } },
+          { originCity: { contains: search, mode: "insensitive" } },
+        ],
+      }
+    : {};
+
+  const [total, users] = await Promise.all([
+    prisma.user.count({ where }),
+    prisma.user.findMany({
+      where,
+      orderBy: { [sortKey]: sortOrder } as any,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      include: {
+        subscriptions: {
+          where: { status: "ACTIVE" },
+          include: { plan: true },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+        usage: {
+          where: { month },
+          take: 1,
+        },
       },
-      usage: {
-        where: { month },
-        take: 1,
-      },
-    },
-  });
+    }),
+  ]);
+
   res.json({
     month,
+    page,
+    pageSize,
+    total,
     users: users.map((user) => {
       const subscription = user.subscriptions[0] ?? null;
       const usage = user.usage[0] ?? {
@@ -1297,6 +1399,57 @@ adminRouter.post("/users/:userId/units", async (req, res) => {
   });
 
   res.json({ user });
+});
+
+adminRouter.post("/users/bulk", async (req, res) => {
+  const body = z.object({
+    action: z.enum(["suspend", "delete"]),
+    userIds: z.array(z.string().min(1)).min(1).max(500),
+  }).parse(req.body ?? {});
+
+  const actor = (req as any).user;
+  const actorEmail = String(actor?.email ?? "system").trim() || "system";
+  const uniqueIds = [...new Set(body.userIds.map((id) => String(id).trim()).filter(Boolean))];
+  const results: Array<{ userId: string; success: boolean; message?: string }> = [];
+
+  for (const userId of uniqueIds) {
+    if (userId === String(actor?.id ?? "")) {
+      results.push({ userId, success: false, message: "Cannot modify your own account" });
+      continue;
+    }
+
+    try {
+      if (body.action === "suspend") {
+        const updated = await prisma.user.updateMany({ where: { id: userId }, data: { suspended: true } });
+        if (!updated.count) {
+          results.push({ userId, success: false, message: "User not found" });
+          continue;
+        }
+      } else {
+        await prisma.user.delete({ where: { id: userId } });
+      }
+
+      results.push({ userId, success: true });
+    } catch (error) {
+      results.push({ userId, success: false, message: error instanceof Error ? error.message : "Action failed" });
+    }
+  }
+
+  await logComplaintAudit({
+    actorEmail,
+    action: "complaint_updated",
+    details: `admin_bulk_user_action:${body.action};requested:${uniqueIds.length};success:${results.filter((item) => item.success).length}`,
+  });
+
+  const successCount = results.filter((item) => item.success).length;
+  return res.json({
+    success: successCount > 0,
+    action: body.action,
+    requested: uniqueIds.length,
+    successCount,
+    failedCount: results.length - successCount,
+    results,
+  });
 });
 
 adminRouter.delete("/users/:userId", async (req, res) => {
@@ -2071,6 +2224,31 @@ adminRouter.post("/jobs/:jobId/cancel", async (req, res) => {
     data: { status: "FAILED", error: "Cancelled by admin" },
   });
   res.json({ job: updated });
+});
+
+adminRouter.delete("/jobs/:jobId", async (req, res) => {
+  const jobId = String(req.params.jobId ?? "").trim();
+  if (!jobId) return res.status(400).json({ error: "Job id is required" });
+
+  const existing = await prisma.labelJob.findUnique({ where: { id: jobId }, select: { id: true, userId: true } });
+  if (!existing) return res.status(404).json({ error: "Job not found" });
+
+  try {
+    await deleteJobById(existing.userId, existing.id);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to delete job";
+    const status = /Active job cannot be deleted/i.test(message) ? 409 : 400;
+    return res.status(status).json({ error: message });
+  }
+
+  await logComplaintAudit({
+    actorEmail: String((req as any).user?.email ?? "system").trim() || "system",
+    action: "complaint_updated",
+    trackingId: existing.id,
+    details: "admin_delete_label_job",
+  });
+
+  return res.json({ success: true, deletedJobId: existing.id });
 });
 
 adminRouter.patch("/jobs/:jobId/tracking", async (req, res) => {

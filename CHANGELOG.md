@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-05-29 - Scoped Admin Controls, Queue Diagnostics, and Tracking Stability Fixes
+
+### Scope
+Implemented approved scoped fixes only across Bulk Tracking stability, auth redirect normalization, admin health/queue diagnostics, users bulk actions, safe admin job delete, storage visibility, and settings split.
+
+### Frontend
+- Fixed Bulk Tracking poll reducer crash risk by guarding nullable previous result state in `BulkTracking`.
+- Normalized selected tracking snapshot compare to handle both `complaintStatus` and `complaint_status` keys.
+- Replaced hardcoded production auth callback/reset URLs with origin-safe values in forgot-password and email OTP login pages.
+- Extended admin command center:
+  - native users tab (bulk select, bulk suspend, guarded hard delete),
+  - visible sort controls (`sortBy`, `sortOrder`),
+  - queue failure detail surfacing and safe retry actions,
+  - admin job delete action,
+  - expanded storage provider/local/R2/unsynced visibility,
+  - split settings vs allow/test file names tabs,
+  - stronger active-tab highlight and `aria-current` support.
+
+### Backend
+- Added runtime memory fields to admin health snapshot (`rss`, `heapUsed`, `heapTotal`, `external`, `uptimeSec`).
+- Added latest failed queue metadata in health/jobs feeds (`lastFailedReason`, `lastFailedAt`, `lastFailedJobId`).
+- Enhanced `GET /api/admin/users` with query support (`search`, `page`, `pageSize`, `sortBy`, `sortOrder`) and totals.
+- Added `POST /api/admin/users/bulk` for bulk suspend/delete with self-account protection and per-user result reporting.
+- Added `DELETE /api/admin/jobs/:jobId` and reused existing safe job delete logic from jobs route.
+- Expanded `GET /api/admin/storage` with per-artifact local/R2/provider sync state details.
+
+### Safety
+- No changes to protected rendering/barcode/MOS/complaint core internals.
+- No redesign outside reported issue scope.
+
 ## 2026-05-29 - Admin Legacy Function Restore in Command Center
 
 ### Scope

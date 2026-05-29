@@ -179,7 +179,7 @@ async function deleteJobArtifacts(job: {
   ]);
 }
 
-async function deleteJobById(userId: string, jobId: string) {
+export async function deleteJobById(userId: string, jobId: string) {
   await ensureJobDeletionSchedulesTable();
 
   const job = await prisma.labelJob.findFirst({

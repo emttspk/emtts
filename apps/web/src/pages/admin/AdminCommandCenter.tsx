@@ -19,7 +19,8 @@ type NavKey =
   | "storage"
   | "audit"
   | "health"
-  | "settings";
+  | "settings"
+  | "allow-files";
 
 type AnyObject = Record<string, any>;
 
@@ -43,7 +44,7 @@ const DEFAULT_FILTER: FilterState = {
   to: "",
   page: 1,
   pageSize: 20,
-  sortBy: "updatedAt",
+  sortBy: "createdAt",
   sortOrder: "desc",
 };
 
@@ -62,6 +63,7 @@ const NAV_ITEMS: Array<{ key: NavKey; label: string }> = [
   { key: "audit", label: "Audit" },
   { key: "health", label: "Health" },
   { key: "settings", label: "Settings" },
+  { key: "allow-files", label: "Allow/Test File Names" },
 ];
 
 const money = new Intl.NumberFormat("en-PK", {
@@ -150,18 +152,55 @@ function quickRange(key: "today" | "week" | "month" | "all") {
 }
 
 function sectionUsesRowFilters(section: NavKey) {
-  return !["dashboard", "health"].includes(section);
+  return !["dashboard", "health", "settings", "allow-files"].includes(section);
 }
 
 function legacyEmbeddedSectionForNav(section: NavKey): "plans" | "customers" | "usage" | "shipments" | "payments" | "invoices" | "billing" | null {
-  if (section === "users") return "customers";
   if (section === "plans") return "plans";
   if (section === "usage") return "usage";
   if (section === "shipments") return "shipments";
   if (section === "payments") return "payments";
   if (section === "invoices") return "invoices";
-  if (section === "settings") return "billing";
   return null;
+}
+
+function sortOptionsForSection(section: NavKey): Array<{ value: string; label: string }> {
+  if (section === "users") {
+    return [
+      { value: "createdAt", label: "Joined" },
+      { value: "email", label: "Email" },
+      { value: "companyName", label: "Company" },
+      { value: "role", label: "Role" },
+      { value: "suspended", label: "Suspended" },
+    ];
+  }
+  if (section === "jobs") {
+    return [
+      { value: "updatedAt", label: "Updated" },
+      { value: "createdAt", label: "Created" },
+      { value: "status", label: "Status" },
+      { value: "recordCount", label: "Records" },
+    ];
+  }
+  if (section === "shipments") {
+    return [
+      { value: "updatedAt", label: "Updated" },
+      { value: "createdAt", label: "Created" },
+      { value: "status", label: "Status" },
+      { value: "trackingNumber", label: "Tracking" },
+    ];
+  }
+  if (section === "audit") {
+    return [
+      { value: "createdAt", label: "Created" },
+      { value: "source", label: "Source" },
+      { value: "action", label: "Action" },
+    ];
+  }
+  return [
+    { value: "createdAt", label: "Created" },
+    { value: "updatedAt", label: "Updated" },
+  ];
 }
 
 function buildQuery(filters: FilterState) {
@@ -190,6 +229,8 @@ export default function AdminCommandCenter() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [currentAdminId, setCurrentAdminId] = useState<string>("");
 
   const [filters, setFilters] = useState<Record<NavKey, FilterState>>(() => {
     const map = {} as Record<NavKey, FilterState>;
@@ -230,7 +271,10 @@ export default function AdminCommandCenter() {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    loadDashboard()
+    Promise.all([
+      loadDashboard(),
+      api<AnyObject>("/api/me").then((me) => setCurrentAdminId(String(me?.id ?? ""))).catch(() => setCurrentAdminId("")),
+    ])
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load dashboard"))
       .finally(() => setLoading(false));
   }, []);
@@ -250,7 +294,13 @@ export default function AdminCommandCenter() {
           api<AnyObject>("/api/admin/dashboard/users"),
           api<AnyObject>(`/api/admin/users${q}`),
         ]);
-        setUsers({ ...dashboardUsers, list: listUsers.users ?? [] });
+        setUsers({
+          ...dashboardUsers,
+          list: listUsers.users ?? [],
+          listPage: listUsers.page ?? 1,
+          listPageSize: listUsers.pageSize ?? targetFilters.pageSize,
+          listTotal: listUsers.total ?? (listUsers.users ?? []).length,
+        });
       }
       if (target === "plans" && (force || !users?.plans)) {
         const data = await api<AnyObject>("/api/admin/plans");
@@ -265,8 +315,11 @@ export default function AdminCommandCenter() {
         setUsage(data);
       }
       if (target === "jobs" && (force || !jobs)) {
-        const data = await api<AnyObject>(`/api/admin/jobs${q}`);
-        setJobs(data);
+        const [data, queueData] = await Promise.all([
+          api<AnyObject>(`/api/admin/jobs${q}`),
+          api<AnyObject>("/api/admin/dashboard/jobs?status=FAILED&limit=20"),
+        ]);
+        setJobs({ ...data, queueOverview: queueData.queue ?? null, queueFailedReasons: queueData.failedReasons ?? [] });
       }
       if (target === "shipments" && (force || !jobs?.shipments)) {
         const data = await api<AnyObject>(`/api/admin/shipments${q}`);
@@ -299,7 +352,7 @@ export default function AdminCommandCenter() {
         const data = await api<AnyObject>("/api/admin/dashboard/health");
         setHealth(data);
       }
-      if (target === "settings" && (force || !health?.settings)) {
+      if ((target === "settings" || target === "allow-files") && (force || !health?.settings)) {
         const data = await api<AnyObject>("/api/admin/billing-settings");
         setHealth((prev) => ({ ...(prev ?? {}), settings: data.settings ?? null }));
       }
@@ -312,6 +365,9 @@ export default function AdminCommandCenter() {
 
   useEffect(() => {
     void loadSection(active);
+    if (active !== "users") {
+      setSelectedUserIds([]);
+    }
   }, [active]);
 
   useEffect(() => {
@@ -337,15 +393,22 @@ export default function AdminCommandCenter() {
 
   const summaryCards = useMemo(() => {
     if (!summary) return [];
+    const queueFailed = summary.jobs?.jobsFailed ?? 0;
+    const queueReason = String(health?.queue?.lastFailedReason ?? "").trim();
+    const queueFailedAt = String(health?.queue?.lastFailedAt ?? "").trim();
+    const queueHint = queueFailed > 0
+      ? `${queueReason ? queueReason.slice(0, 42) : "failure detected"}${queueFailedAt ? ` @ ${queueFailedAt.slice(0, 16).replace("T", " ")}` : ""}`
+      : `${summary.jobs?.jobsWaiting ?? 0} waiting`;
+
     return [
       { label: "Users", value: summary.users?.totalUsers ?? 0, hint: `${summary.users?.activeUsers ?? 0} active` },
       { label: "Labels Today", value: summary.labels?.labelsGeneratedToday ?? 0, hint: `${summary.labels?.labelsGeneratedThisMonth ?? 0} this month` },
       { label: "Revenue (Month)", value: centsToPkr(summary.revenue?.monthCents), hint: `${centsToPkr(summary.revenue?.todayCents)} today` },
       { label: "Units (Month)", value: summary.usage?.unitsConsumedThisMonth ?? 0, hint: `${summary.usage?.unitsConsumedToday ?? 0} today` },
-      { label: "Queue Failed", value: summary.jobs?.jobsFailed ?? 0, hint: `${summary.jobs?.jobsWaiting ?? 0} waiting`, tone: (summary.jobs?.jobsFailed ?? 0) > 0 ? "warn" : "good" },
+      { label: "Queue Failed", value: queueFailed, hint: queueHint, tone: queueFailed > 0 ? "warn" : "good" },
       { label: "Complaints", value: summary.complaints?.complaintFiledCount ?? 0, hint: `${summary.complaints?.complaintPendingCount ?? 0} pending` },
     ];
-  }, [summary]);
+  }, [summary, health?.queue?.lastFailedReason, health?.queue?.lastFailedAt]);
 
   function renderDashboard() {
     return (
@@ -380,7 +443,29 @@ export default function AdminCommandCenter() {
               <MetricCard label="Jobs Processing" value={summary?.jobs?.jobsProcessing ?? 0} />
               <MetricCard label="Money Orders" value={summary?.moneyOrders?.moneyOrderGeneratedCount ?? 0} />
               <MetricCard label="Bulk Tracking" value={summary?.bulkTracking?.jobsCompleted ?? 0} hint={`${summary?.bulkTracking?.jobsProcessing ?? 0} in progress`} />
+              <MetricCard label="Heap Used (MB)" value={Math.round(((health?.runtime?.heapUsed ?? 0) / (1024 * 1024)) * 10) / 10} />
+              <MetricCard label="RSS (MB)" value={Math.round(((health?.runtime?.rss ?? 0) / (1024 * 1024)) * 10) / 10} hint={`uptime ${Math.round((health?.runtime?.uptimeSec ?? 0) / 60)}m`} />
             </div>
+            {(health?.queue?.lastFailedJobId ?? "") ? (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <p className="font-semibold">Latest queue failure</p>
+                <p className="mt-1">{String(health?.queue?.lastFailedReason ?? "Unknown").slice(0, 180)}</p>
+                <button
+                  type="button"
+                  className="mt-2 rounded-lg border border-amber-300 px-2 py-1 font-semibold text-amber-900"
+                  onClick={() => {
+                    const failedJobId = String(health?.queue?.lastFailedJobId ?? "").trim();
+                    if (!failedJobId) return;
+                    void runSafeAction(async () => {
+                      await api(`/api/admin/jobs/${encodeURIComponent(failedJobId)}/retry`, { method: "POST" });
+                      await loadDashboard();
+                    });
+                  }}
+                >
+                  Retry latest failed job
+                </button>
+              </div>
+            ) : null}
           </article>
         </section>
         {TEMPLATE_DESIGNER_ENABLED ? (
@@ -418,8 +503,14 @@ export default function AdminCommandCenter() {
         const dateOk = !activeFilters.from && !activeFilters.to ? true : isWithinDate(row.createdAt, activeFilters.from, activeFilters.to);
         return includesSearch(text, activeFilters.search) && statusOk && dateOk;
       });
-      const start = (activeFilters.page - 1) * activeFilters.pageSize;
-      const pageRows = filtered.slice(start, start + activeFilters.pageSize);
+      const pageRows = filtered;
+      const allSelectableIds = pageRows
+        .filter((row) => String(row.id ?? "") !== currentAdminId)
+        .map((row) => String(row.id ?? ""))
+        .filter(Boolean);
+      const selectedCount = selectedUserIds.length;
+      const selectedSet = new Set(selectedUserIds);
+
       return (
         <div className="space-y-4">
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -428,9 +519,75 @@ export default function AdminCommandCenter() {
             <MetricCard label="Free" value={users?.summary?.freeUsers ?? 0} />
             <MetricCard label="Suspended" value={users?.summary?.suspendedUsers ?? 0} tone={(users?.summary?.suspendedUsers ?? 0) > 0 ? "warn" : "good"} />
           </section>
+
+          <section className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+            <button
+              type="button"
+              className="rounded-lg border border-slate-300 bg-white px-2 py-1 font-semibold"
+              onClick={() => {
+                setSelectedUserIds((prev) => (prev.length === allSelectableIds.length ? [] : allSelectableIds));
+              }}
+            >
+              {selectedCount === allSelectableIds.length && allSelectableIds.length > 0 ? "Clear selection" : "Select page"}
+            </button>
+            <span className="text-slate-600">Selected: {selectedCount}</span>
+            <button
+              type="button"
+              className="rounded-lg border border-amber-300 bg-amber-100 px-2 py-1 font-semibold text-amber-900 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={selectedCount === 0}
+              onClick={() => {
+                if (selectedCount === 0) return;
+                if (!window.confirm(`Suspend ${selectedCount} selected users?`)) return;
+                void runSafeAction(async () => {
+                  await api("/api/admin/users/bulk", {
+                    method: "POST",
+                    body: JSON.stringify({ action: "suspend", userIds: selectedUserIds }),
+                  });
+                  setSelectedUserIds([]);
+                });
+              }}
+            >
+              Bulk Suspend
+            </button>
+            <button
+              type="button"
+              className="rounded-lg border border-rose-300 bg-rose-100 px-2 py-1 font-semibold text-rose-900 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={selectedCount === 0}
+              onClick={() => {
+                if (selectedCount === 0) return;
+                if (!window.confirm(`Hard delete ${selectedCount} selected users? This is irreversible and may fail for linked accounts.`)) return;
+                void runSafeAction(async () => {
+                  await api("/api/admin/users/bulk", {
+                    method: "POST",
+                    body: JSON.stringify({ action: "delete", userIds: selectedUserIds }),
+                  });
+                  setSelectedUserIds([]);
+                });
+              }}
+            >
+              Hard Delete (Guarded)
+            </button>
+          </section>
+
           <DataTable
-            headers={["Company", "Email", "Status", "Joined", "Edit", "Safe Action"]}
+            headers={["Select", "Company", "Email", "Status", "Joined", "Edit", "Safe Action"]}
             rows={pageRows.map((row: AnyObject) => [
+              String(row.id ?? "") === currentAdminId ? (
+                <span className="text-[11px] font-semibold text-slate-500">self</span>
+              ) : (
+                <input
+                  type="checkbox"
+                  checked={selectedSet.has(String(row.id ?? ""))}
+                  onChange={(event) => {
+                    const userId = String(row.id ?? "");
+                    if (!userId) return;
+                    setSelectedUserIds((prev) => {
+                      if (event.target.checked) return [...new Set([...prev, userId])];
+                      return prev.filter((id) => id !== userId);
+                    });
+                  }}
+                />
+              ),
               row.companyName ?? "-",
               row.email,
               row.suspended ? "SUSPENDED" : "ACTIVE",
@@ -455,6 +612,7 @@ export default function AdminCommandCenter() {
                 type="button"
                 className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
                 onClick={() => {
+                  if (String(row.id ?? "") === currentAdminId && !row.suspended) return;
                   void runSafeAction(async () => {
                     await api(`/api/admin/users/${encodeURIComponent(row.id)}/${row.suspended ? "unsuspend" : "suspend"}`, { method: "POST" });
                   });
@@ -464,7 +622,7 @@ export default function AdminCommandCenter() {
               </button>,
             ])}
           />
-          <p className="text-xs text-slate-500">Showing {pageRows.length} of {filtered.length} users</p>
+          <p className="text-xs text-slate-500">Showing {pageRows.length} of {users?.listTotal ?? filtered.length} users</p>
         </div>
       );
     }
@@ -580,8 +738,15 @@ export default function AdminCommandCenter() {
       const pageRows = filtered.slice(start, start + activeFilters.pageSize);
       return (
         <div className="space-y-4">
+          {(jobs?.queueOverview?.failed ?? 0) > 0 ? (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              <p className="font-semibold">Queue has failed jobs: {jobs?.queueOverview?.failed ?? 0}</p>
+              <p className="mt-1">Latest: {String(jobs?.queueOverview?.latestFailedReason ?? "Unknown failure").slice(0, 180)}</p>
+              <p className="mt-1">At: {String(jobs?.queueOverview?.latestFailedAt ?? "-").slice(0, 19).replace("T", " ")}</p>
+            </div>
+          ) : null}
           <DataTable
-            headers={["Job", "Status", "User", "Updated", "Edit", "Safe Action"]}
+            headers={["Job", "Status", "User", "Updated", "Edit", "Safe Actions"]}
             rows={pageRows.map((row: AnyObject) => [
               row.id,
               row.status,
@@ -603,17 +768,44 @@ export default function AdminCommandCenter() {
               >
                 Edit
               </button>,
-              <button
-                type="button"
-                className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
-                onClick={() => {
-                  void runSafeAction(async () => {
-                    await api(`/api/admin/jobs/${encodeURIComponent(row.id)}/cancel`, { method: "POST" });
-                  });
-                }}
-              >
-                Cancel
-              </button>,
+              <div className="flex items-center gap-1">
+                {String(row.status ?? "").toUpperCase() === "FAILED" ? (
+                  <button
+                    type="button"
+                    className="rounded-lg border border-emerald-200 px-2 py-1 text-xs font-semibold text-emerald-700"
+                    onClick={() => {
+                      void runSafeAction(async () => {
+                        await api(`/api/admin/jobs/${encodeURIComponent(row.id)}/retry`, { method: "POST" });
+                      });
+                    }}
+                  >
+                    Retry
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+                  onClick={() => {
+                    void runSafeAction(async () => {
+                      await api(`/api/admin/jobs/${encodeURIComponent(row.id)}/cancel`, { method: "POST" });
+                    });
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-700"
+                  onClick={() => {
+                    if (!window.confirm(`Delete job ${row.id}?`)) return;
+                    void runSafeAction(async () => {
+                      await api(`/api/admin/jobs/${encodeURIComponent(row.id)}`, { method: "DELETE" });
+                    });
+                  }}
+                >
+                  Delete
+                </button>
+              </div>,
             ])}
           />
         </div>
@@ -840,12 +1032,13 @@ export default function AdminCommandCenter() {
     if (active === "storage") {
       const rows: AnyObject[] = storage?.recentGeneratedFiles?.labelJobs ?? [];
       const filtered = rows.filter((row) => {
-        const text = `${row.id ?? ""} ${row.labelsPdfPath ?? ""} ${row.moneyOrderPdfPath ?? ""}`;
+        const text = `${row.id ?? ""} ${row.artifacts?.labelsPdf?.path ?? ""} ${row.artifacts?.moneyOrderPdf?.path ?? ""}`;
         const dateOk = !activeFilters.from && !activeFilters.to ? true : isWithinDate(row.updatedAt, activeFilters.from, activeFilters.to);
         return includesSearch(text, activeFilters.search) && dateOk;
       });
       const start = (activeFilters.page - 1) * activeFilters.pageSize;
       const pageRows = filtered.slice(start, start + activeFilters.pageSize);
+      const trackingRows: AnyObject[] = storage?.recentGeneratedFiles?.trackingJobs ?? [];
       return (
         <div className="space-y-4">
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -854,14 +1047,35 @@ export default function AdminCommandCenter() {
             <MetricCard label="Tracking Master" value={storage?.totals?.trackingMaster ?? 0} />
             <MetricCard label="Tracking Result" value={storage?.totals?.trackingResult ?? 0} />
           </section>
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard label="Provider" value={String(storage?.provider ?? "-").toUpperCase()} />
+            <MetricCard label="Dual Write" value={storage?.dualWriteEnabled ? "ON" : "OFF"} />
+            <MetricCard label="R2 Configured" value={storage?.r2Configured ? "YES" : "NO"} tone={storage?.r2Configured ? "good" : "warn"} />
+            <MetricCard label="Local Storage" value={storage?.localStorageConfigured ? "YES" : "NO"} tone={storage?.localStorageConfigured ? "good" : "warn"} />
+          </section>
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard label="Unsynced Labels" value={storage?.unsynced?.labels ?? 0} tone={(storage?.unsynced?.labels ?? 0) > 0 ? "warn" : "good"} />
+            <MetricCard label="Unsynced MOs" value={storage?.unsynced?.moneyOrders ?? 0} tone={(storage?.unsynced?.moneyOrders ?? 0) > 0 ? "warn" : "good"} />
+            <MetricCard label="Unsynced Masters" value={storage?.unsynced?.trackingMaster ?? 0} tone={(storage?.unsynced?.trackingMaster ?? 0) > 0 ? "warn" : "good"} />
+            <MetricCard label="Unsynced Results" value={storage?.unsynced?.trackingResult ?? 0} tone={(storage?.unsynced?.trackingResult ?? 0) > 0 ? "warn" : "good"} />
+          </section>
           <DataTable
-            headers={["Job", "Label PDF", "Money Order PDF", "Updated", "Safe Action"]}
+            headers={["Job", "Label PDF", "Money Order PDF", "Tracking Master", "Updated"]}
             rows={pageRows.map((row: AnyObject) => [
               row.id,
-              row.labelsPdfPath ? "Available" : "-",
-              row.moneyOrderPdfPath ? "Available" : "-",
+              `${row.artifacts?.labelsPdf?.provider ?? "-"}${row.artifacts?.labelsPdf?.localExists ? " (local)" : ""}`,
+              `${row.artifacts?.moneyOrderPdf?.provider ?? "-"}${row.artifacts?.moneyOrderPdf?.localExists ? " (local)" : ""}`,
+              `${row.artifacts?.trackingMaster?.provider ?? "-"}${row.artifacts?.trackingMaster?.localExists ? " (local)" : ""}`,
               String(row.updatedAt ?? "-").slice(0, 19).replace("T", " "),
-              "View metadata",
+            ])}
+          />
+          <DataTable
+            headers={["Tracking Job", "Result Path", "Provider", "Updated"]}
+            rows={trackingRows.map((row: AnyObject) => [
+              row.id,
+              row.artifacts?.trackingResult?.path ?? "-",
+              `${row.artifacts?.trackingResult?.provider ?? "-"}${row.artifacts?.trackingResult?.localExists ? " (local)" : ""}`,
+              String(row.updatedAt ?? "-").slice(0, 19).replace("T", " "),
             ])}
           />
         </div>
@@ -886,7 +1100,8 @@ export default function AdminCommandCenter() {
     }
     if (active === "health") {
       return (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {[
             ["API", health?.api?.status, health?.api?.message],
             ["Database", health?.db?.status, health?.db?.message],
@@ -902,6 +1117,13 @@ export default function AdminCommandCenter() {
               <p className="mt-2 text-xs text-slate-600">{entry[2] ?? "-"}</p>
             </article>
           ))}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <MetricCard label="Heap Used (MB)" value={Math.round(((health?.runtime?.heapUsed ?? 0) / (1024 * 1024)) * 10) / 10} />
+            <MetricCard label="Heap Total (MB)" value={Math.round(((health?.runtime?.heapTotal ?? 0) / (1024 * 1024)) * 10) / 10} />
+            <MetricCard label="RSS (MB)" value={Math.round(((health?.runtime?.rss ?? 0) / (1024 * 1024)) * 10) / 10} />
+            <MetricCard label="External (MB)" value={Math.round(((health?.runtime?.external ?? 0) / (1024 * 1024)) * 10) / 10} hint={`uptime ${Math.round((health?.runtime?.uptimeSec ?? 0) / 60)}m`} />
+          </div>
         </div>
       );
     }
@@ -916,6 +1138,8 @@ export default function AdminCommandCenter() {
               ["JazzCash Number", settings?.jazzcashNumber ?? "-", "Prompt", "Save"],
               ["EasyPaisa Number", settings?.easypaisaNumber ?? "-", "Prompt", "Save"],
               ["Bank Name", settings?.bankName ?? "-", "Prompt", "Save"],
+              ["Standard Price", settings?.standardPrice ?? "-", "Prompt", "Save"],
+              ["Business Price", settings?.businessPrice ?? "-", "Prompt", "Save"],
             ]}
           />
           <button
@@ -951,6 +1175,52 @@ export default function AdminCommandCenter() {
       );
     }
 
+    if (active === "allow-files") {
+      const settings = health?.settings as AnyObject | null;
+      const exempt = Array.isArray(settings?.exemptFileNames) ? settings.exemptFileNames : [];
+      return (
+        <div className="space-y-4">
+          <DataTable
+            headers={["Allowed/Test File Name"]}
+            rows={(exempt.length ? exempt : ["No entries configured"]).map((name: string) => [name])}
+          />
+          <button
+            type="button"
+            className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold"
+            onClick={() => {
+              if (!settings) return;
+              const next = window.prompt("Comma-separated file names", exempt.join(", "));
+              if (next === null) return;
+              const nextList = next
+                .split(",")
+                .map((item) => item.trim())
+                .filter(Boolean);
+              void runSafeAction(async () => {
+                await api("/api/admin/billing-settings", {
+                  method: "PUT",
+                  body: JSON.stringify({
+                    jazzcashNumber: settings.jazzcashNumber,
+                    jazzcashTitle: settings.jazzcashTitle,
+                    easypaisaNumber: settings.easypaisaNumber,
+                    easypaisaTitle: settings.easypaisaTitle,
+                    bankName: settings.bankName ?? "",
+                    bankTitle: settings.bankTitle ?? "",
+                    bankAccountNumber: settings.bankAccountNumber ?? "",
+                    bankIban: settings.bankIban ?? "",
+                    standardPrice: settings.standardPrice,
+                    businessPrice: settings.businessPrice,
+                    exemptFileNames: JSON.stringify(nextList),
+                  }),
+                });
+              });
+            }}
+          >
+            Update Allow/Test File Names
+          </button>
+        </div>
+      );
+    }
+
     return (
       <article className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
         <h3 className="text-lg font-bold">{NAV_ITEMS.find((item) => item.key === active)?.label}</h3>
@@ -976,9 +1246,10 @@ export default function AdminCommandCenter() {
                 key={item.key}
                 type="button"
                 onClick={() => setActive(item.key)}
+                aria-current={active === item.key ? "page" : undefined}
                 className={`rounded-xl px-3 py-2 text-left text-sm font-semibold transition ${
                   active === item.key
-                    ? "bg-[color:var(--mint-soft)] text-[color:var(--text-strong)]"
+                    ? "border border-emerald-200 bg-emerald-100 text-emerald-900 shadow-sm"
                     : "text-slate-600 hover:bg-slate-50"
                 }`}
               >
@@ -1022,6 +1293,23 @@ export default function AdminCommandCenter() {
               onChange={(event) => updateActiveFilters({ to: event.target.value, page: 1 })}
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
             />
+            <select
+              value={activeFilters.sortBy}
+              onChange={(event) => updateActiveFilters({ sortBy: event.target.value, page: 1 })}
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            >
+              {sortOptionsForSection(active).map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            <select
+              value={activeFilters.sortOrder}
+              onChange={(event) => updateActiveFilters({ sortOrder: event.target.value as SortOrder, page: 1 })}
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            >
+              <option value="desc">Desc</option>
+              <option value="asc">Asc</option>
+            </select>
           </div>
           )}
           {legacyEmbeddedSectionForNav(active) ? null : (

@@ -9,7 +9,7 @@ import { api } from "../lib/api";
 import { setSession } from "../lib/auth";
 
 const EMAIL_KEY = "labelgen_email_otp";
-const EMAIL_OTP_URL = "https://www.epost.pk/email-otp-login";
+const EMAIL_OTP_URL = `${window.location.origin}/email-otp-login`;
 
 export default function EmailOtpLogin() {
   const nav = useNavigate();

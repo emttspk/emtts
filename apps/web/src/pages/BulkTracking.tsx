@@ -2233,6 +2233,7 @@ export default function BulkTracking() {
     if (!Array.isArray(polling.result)) return;
     const liveResults = polling.result as TrackResult[];
     setResults((prev) => {
+      if (!Array.isArray(prev)) return liveResults;
       if (prev.length !== liveResults.length) return liveResults;
       const unchanged = prev.every((item, index) => {
         const next = liveResults[index];
@@ -2557,11 +2558,13 @@ export default function BulkTracking() {
       if (String(prev.shipment.trackingNumber ?? "").trim() !== trackingNumber) {
         return prev;
       }
+      const nextComplaintStatus = String((latest.shipment as any).complaintStatus ?? (latest.shipment as any).complaint_status ?? "");
+      const prevComplaintStatus = String((prev.shipment as any).complaintStatus ?? (prev.shipment as any).complaint_status ?? "");
       const sameSnapshot =
         String(latest.shipment.id ?? "") === String(prev.shipment.id ?? "")
         && String(latest.shipment.updatedAt ?? "") === String(prev.shipment.updatedAt ?? "")
         && String(latest.shipment.status ?? "") === String(prev.shipment.status ?? "")
-        && String(latest.shipment.complaint_status ?? "") === String(prev.shipment.complaint_status ?? "");
+        && nextComplaintStatus === prevComplaintStatus;
       return sameSnapshot ? prev : latest;
     });
   }, [selectedTracking?.shipment.trackingNumber, shipmentByTracking]);

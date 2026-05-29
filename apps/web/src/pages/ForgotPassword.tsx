@@ -6,7 +6,7 @@ import AuthShell from "../components/AuthShell";
 import AuthInputField from "../components/auth/AuthInputField";
 import { auth, firebaseReady } from "../firebase";
 
-const PASSWORD_RESET_REDIRECT = "https://www.epost.pk/login";
+const PASSWORD_RESET_REDIRECT = `${window.location.origin}/login`;
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");

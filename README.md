@@ -252,7 +252,8 @@ BulkTracking.tsx  →  POST /api/tracking/complaint  →  Python /submit-complai
 - Main admin route: `/admin`
 - Legacy admin route: `/admin/legacy`
 - `/admin` is guarded by admin auth (`RequireAdmin`); non-admin users are redirected away.
-- Legacy stable operations are restored inside command-center tabs (users/plans/usage/shipments/payments/invoices/settings) using embedded legacy operations panel.
+- Legacy stable operations remain embedded for plans/usage/shipments/payments/invoices.
+- Users, Settings, and Allow/Test File Names are now managed directly in command center tabs.
 
 New additive command-center API endpoints:
 - `GET /api/admin/dashboard/summary`
@@ -270,11 +271,13 @@ Safe admin mutation and compatibility endpoints:
 - `PATCH /api/admin/payments/:paymentId/status`
 - `PATCH /api/admin/jobs/:jobId/status`
 - `POST /api/admin/jobs/:jobId/retry`
+- `DELETE /api/admin/jobs/:jobId`
 - `POST /api/admin/complaints/:trackingId/sync`
 - `PATCH /api/admin/invoices/:invoiceId`
 - `DELETE /api/admin/invoices/:invoiceId`
 - `POST /api/admin/users/:userId/units`
 - `POST /api/admin/users/:userId/reactivate`
+- `POST /api/admin/users/bulk`
 - `POST /api/admin/payments/:id/approve`
 - `POST /api/admin/payments/:id/reject`
 
