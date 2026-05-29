@@ -57,7 +57,7 @@ export function buildAuthenticatedApiUrl(path: string) {
   return url.toString();
 }
 
-function getFilenameFromContentDisposition(header: string | null, fallback?: string) {
+export function getFilenameFromContentDisposition(header: string | null, fallback?: string) {
   const encoded = header?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
   if (encoded) {
     try {

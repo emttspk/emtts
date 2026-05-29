@@ -11,6 +11,7 @@ import {
   UploadCloud,
   Shield,
   Wallet,
+  MessageCircle,
   X,
 } from "lucide-react";
 import { clearSession, getRole } from "../lib/auth";
@@ -22,6 +23,7 @@ const nav = [
   { to: "/generate-labels", label: "Generate Labels", icon: UploadCloud, matchPrefixes: ["/generate-labels", "/admin/generate-labels"] },
   { to: "/generate-money-orders", label: "Generate Money Order", icon: Wallet, matchPrefixes: ["/generate-money-orders", "/admin/generate-money-orders"] },
   { to: "/tracking-workspace", label: "Tracking", icon: Radar, matchPrefixes: ["/tracking", "/tracking-workspace"] },
+  { to: "/support", label: "Support", icon: MessageCircle, matchPrefixes: ["/support"] },
   { to: "/jobs?filter=completed", label: "Download Labels", icon: Download, matchPrefixes: ["/download-labels", "/downloads", "/jobs"] },
   { to: "/select-package", label: "Package", icon: Package, matchPrefixes: ["/packages", "/select-package", "/update-package"] },
   { to: "/settings", label: "Settings", icon: Settings, matchPrefixes: ["/settings", "/profile"] },

@@ -9,6 +9,7 @@ export const APP_NAV_ITEMS: NavItem[] = [
   { to: "/generate-labels", label: "Generate Labels", matchPrefixes: ["/generate-labels", "/admin/generate-labels"] },
   { to: "/generate-money-orders", label: "Generate Money Order", matchPrefixes: ["/generate-money-orders", "/admin/generate-money-orders"] },
   { to: "/tracking-workspace", label: "Tracking", matchPrefixes: ["/tracking", "/tracking-workspace"] },
+  { to: "/support", label: "Support", matchPrefixes: ["/support"] },
   { to: "/jobs?filter=completed", label: "Download Labels", matchPrefixes: ["/download-labels", "/downloads", "/jobs"] },
   { to: "/select-package", label: "Package", matchPrefixes: ["/packages", "/select-package", "/update-package"] },
   { to: "/settings", label: "Settings", matchPrefixes: ["/settings", "/profile"] },

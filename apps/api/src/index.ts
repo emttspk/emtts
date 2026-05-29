@@ -18,6 +18,8 @@ import { paymentsRouter } from "./routes/payments.js";
 import { plansRouter, ensureDefaultPlans } from "./routes/plans.js";
 import { manualPaymentsRouter } from "./routes/manualPayments.js";
 import { billingSettingsRouter } from "./routes/billingSettings.js";
+import { supportRouter } from "./routes/support.js";
+import { adminSupportRouter } from "./routes/adminSupport.js";
 import { ensureStorageDirs } from "./storage/paths.js";
 import { startCleanupCron } from "./cron/cleanup.js";
 import { requireAuth } from "./middleware/auth.js";
@@ -778,7 +780,9 @@ router.get("/label", (_req, res) => {
 });
 router.use("/shipments", ensureApiDatabaseConnection, shipmentsRouter);
 router.use("/admin/templates", ensureApiDatabaseConnection, adminTemplatesRouter);
+router.use("/admin/support", ensureApiDatabaseConnection, adminSupportRouter);
 router.use("/admin", ensureApiDatabaseConnection, adminRouter);
+router.use("/support", ensureApiDatabaseConnection, supportRouter);
 router.use("/subscriptions", ensureApiDatabaseConnection, subscriptionsRouter);
 router.use("/payments", ensureApiDatabaseConnection, paymentsRouter);
 router.use("/manual-payments", ensureApiDatabaseConnection, manualPaymentsRouter);

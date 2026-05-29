@@ -198,6 +198,40 @@ npm run prisma:migrate --workspace=@labelgen/api
   - Not external URLs; they cause P3005 errors and migration mismatches.
 - Startup logs will display which database host is being connected to for verification.
 
+## Support Tickets
+
+### Customer Endpoints
+- `POST /api/support/tickets`
+- `GET /api/support/tickets`
+- `GET /api/support/tickets/:id`
+- `POST /api/support/tickets/:id/messages`
+- `POST /api/support/tickets/:id/attachments`
+- `GET /api/support/tickets/:ticketId/attachments/:attachmentId/download`
+
+### Admin Endpoints
+- `GET /api/admin/support/tickets`
+- `GET /api/admin/support/summary`
+- `GET /api/admin/support/tickets/:id`
+- `PATCH /api/admin/support/tickets/:id/status`
+- `PATCH /api/admin/support/tickets/:id/priority`
+- `POST /api/admin/support/tickets/:id/messages`
+
+### Storage And Access Rules
+- Support attachments are stored in Cloudflare R2 (`support-tickets` scope).
+- Support attachments use no local permanent disk storage.
+- Attachment downloads are protected and issued as signed URLs after authorization.
+- Admin operations are available in Admin Command Center under the Support tab.
+- Support workflow mutations are written to support audit log records.
+
+### Support Tests
+```bash
+npm run test:support --workspace=@labelgen/api
+```
+
+### Migration Note (Local Drift)
+- If local `prisma migrate dev` requests a reset, do not reset local data.
+- Use non-destructive baseline + deploy workflow for migration history reconciliation.
+
 ## Complaint Flow (Pakistan Post ep.gov.pk)
 Pakistan Post complaints are filed against PENDING shipments via automated ASP.NET form submission.
 
@@ -246,6 +280,8 @@ BulkTracking.tsx  →  POST /api/tracking/complaint  →  Python /submit-complai
  - [docs/architecture/storage-rollout-architecture.md](docs/architecture/storage-rollout-architecture.md) — Final storage/rollout architecture (API/worker, dual-write/read, streaming fallback)
  - [docs/rollout/storage-rollout-runbook.md](docs/rollout/storage-rollout-runbook.md) — Staging/canary rollout, startup readiness states, rollback, outage, degraded mode, memory and cleanup runbook
  - [docs/architecture/complaints.md](docs/architecture/complaints.md) — Full complaint lifecycle and duplicate handling
+ - [docs/architecture/support-tickets.md](docs/architecture/support-tickets.md) — Support ticket models, endpoints, attachment security, and admin workflow
+ - [docs/operations/support-tickets-runbook.md](docs/operations/support-tickets-runbook.md) — Support operations, validation commands, and non-destructive migration guidance
  - [docs/architecture/system-map.md](docs/architecture/system-map.md) — Module dependency map
 - [docs/architecture/package-usage.md](docs/architecture/package-usage.md) — Complaint quota tracking
 - [docs/operations/help-complaint-recovery.md](docs/operations/help-complaint-recovery.md) — Recovery procedures

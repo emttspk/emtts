@@ -33,6 +33,8 @@ const TemplateDesigner = lazy(() => import("./pages/TemplateDesigner"));
 const GenerateLabels = lazy(() => import("./pages/GenerateLabels"));
 const GenerateMoneyOrder = lazy(() => import("./pages/admin/GenerateMoneyOrder"));
 const JazzCashResult = lazy(() => import("./pages/JazzCashResult"));
+const SupportTicketsPage = lazy(() => import("./pages/SupportTicketsPage"));
+const SupportTicketDetailPage = lazy(() => import("./pages/SupportTicketDetailPage"));
 
 function Loading() {
   return (
@@ -103,6 +105,8 @@ export default function App() {
           <Route path="/update-package" element={<UpdatePackage />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/profile" element={<Settings />} />
+          <Route path="/support" element={<SupportTicketsPage />} />
+          <Route path="/support/:ticketId" element={<SupportTicketDetailPage />} />
           <Route
             path="/admin"
             element={

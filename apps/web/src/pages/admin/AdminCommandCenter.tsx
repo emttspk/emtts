@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, apiUrl } from "../../lib/api";
+import {
+  getAdminSupportTicket,
+  listAdminSupportSummary,
+  listAdminSupportTickets,
+  replyAdminSupportTicket,
+  updateAdminSupportPriority,
+  updateAdminSupportStatus,
+  type SupportTicket,
+} from "../../lib/support";
 import { BodyText, PageShell, PageTitle, TableWrap } from "../../components/ui/PageSystem";
 import { MetricCard, StatusPill } from "../../components/admin/AdminWidgets";
 import AdminLegacy from "../Admin";
@@ -14,6 +23,7 @@ type NavKey =
   | "jobs"
   | "shipments"
   | "complaints"
+  | "support"
   | "payments"
   | "invoices"
   | "storage"
@@ -59,6 +69,7 @@ const NAV_ITEMS: Array<{ key: NavKey; label: string }> = [
   { key: "jobs", label: "Jobs" },
   { key: "shipments", label: "Shipments" },
   { key: "complaints", label: "Complaints" },
+  { key: "support", label: "Support" },
   { key: "payments", label: "Payments" },
   { key: "invoices", label: "Invoices" },
   { key: "storage", label: "Storage" },
@@ -162,7 +173,7 @@ function sectionUsesRowFilters(section: NavKey) {
 }
 
 function sectionUsesDateFilters(section: NavKey) {
-  return ["users", "usage", "jobs", "shipments", "complaints", "payments", "invoices", "storage", "audit"].includes(section);
+  return ["users", "usage", "jobs", "shipments", "complaints", "support", "payments", "invoices", "storage", "audit"].includes(section);
 }
 
 function legacyEmbeddedSectionForNav(section: NavKey): "plans" | "customers" | "usage" | "shipments" | "payments" | "invoices" | "billing" | null {
@@ -215,6 +226,14 @@ function sortOptionsForSection(section: NavKey): Array<{ value: string; label: s
       { value: "createdAt", label: "Created" },
       { value: "source", label: "Source" },
       { value: "action", label: "Action" },
+    ];
+  }
+  if (section === "support") {
+    return [
+      { value: "updatedAt", label: "Updated" },
+      { value: "createdAt", label: "Created" },
+      { value: "status", label: "Status" },
+      { value: "priority", label: "Priority" },
     ];
   }
   if (section === "payments") {
@@ -307,6 +326,28 @@ export default function AdminCommandCenter() {
   const [complaintDetail, setComplaintDetail] = useState<AnyObject | null>(null);
   const [settingsDraft, setSettingsDraft] = useState<AnyObject | null>(null);
   const [editingPaymentOption, setEditingPaymentOption] = useState<"jazzcash" | "easypaisa" | "bank" | null>(null);
+  const [supportData, setSupportData] = useState<{
+    tickets: SupportTicket[];
+    total: number;
+    page: number;
+    pageSize: number;
+    summary: {
+      openTickets: number;
+      pendingTickets: number;
+      resolvedTickets: number;
+      overdueTickets: number;
+    } | null;
+    selectedTicket: SupportTicket | null;
+    replyText: string;
+  }>({
+    tickets: [],
+    total: 0,
+    page: 1,
+    pageSize: 20,
+    summary: null,
+    selectedTicket: null,
+    replyText: "",
+  });
   const [jazzcashQrFile, setJazzcashQrFile] = useState<File | null>(null);
   const [easypaisaQrFile, setEasypaisaQrFile] = useState<File | null>(null);
   const [bankQrFile, setBankQrFile] = useState<File | null>(null);
@@ -430,6 +471,30 @@ export default function AdminCommandCenter() {
           api<AnyObject>("/api/admin/complaints/queue"),
         ]);
         setJobs((prev) => ({ ...(prev ?? {}), complaints: complaintsData.complaints ?? [], complaintAlerts: complaintsData.alerts ?? [], complaintQueue: queueData.queue ?? [] }));
+      }
+      if (target === "support" && (force || supportData.tickets.length === 0)) {
+        const [ticketsData, summaryData] = await Promise.all([
+          listAdminSupportTickets({
+            page: targetFilters.page,
+            pageSize: targetFilters.pageSize,
+            status: targetFilters.status || undefined,
+            search: targetFilters.search || undefined,
+            from: targetFilters.from || undefined,
+            to: targetFilters.to || undefined,
+          }),
+          listAdminSupportSummary(),
+        ]);
+        setSupportData((prev) => ({
+          ...prev,
+          tickets: ticketsData.tickets,
+          total: ticketsData.total,
+          page: ticketsData.page,
+          pageSize: ticketsData.pageSize,
+          summary: summaryData,
+          selectedTicket: prev.selectedTicket && ticketsData.tickets.some((ticket) => ticket.id === prev.selectedTicket?.id)
+            ? prev.selectedTicket
+            : null,
+        }));
       }
       if (target === "payments" && (force || !revenue?.payments)) {
         const data = await api<AnyObject>(`/api/admin/manual-payments${q}`);
@@ -1434,6 +1499,175 @@ export default function AdminCommandCenter() {
         </div>
       );
     }
+
+    if (active === "support") {
+      const rows: SupportTicket[] = supportData.tickets ?? [];
+      const selected = supportData.selectedTicket;
+      const totalPages = Math.max(1, Math.ceil((supportData.total ?? rows.length) / Math.max(1, supportData.pageSize || activeFilters.pageSize)));
+
+      return (
+        <div className="space-y-4">
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard label="Open Tickets" value={supportData.summary?.openTickets ?? 0} />
+            <MetricCard label="Pending Tickets" value={supportData.summary?.pendingTickets ?? 0} tone={(supportData.summary?.pendingTickets ?? 0) > 0 ? "warn" : "good"} />
+            <MetricCard label="Resolved Tickets" value={supportData.summary?.resolvedTickets ?? 0} tone="good" />
+            <MetricCard label="Overdue Tickets" value={supportData.summary?.overdueTickets ?? 0} tone={(supportData.summary?.overdueTickets ?? 0) > 0 ? "warn" : "good"} />
+          </section>
+
+          <DataTable
+            compact
+            headers={[
+              "Ticket",
+              "Subject",
+              "User",
+              "Category",
+              "Priority",
+              "Status",
+              "Updated",
+              "Open",
+            ]}
+            rows={rows.map((row) => [
+              row.ticketNumber,
+              row.subject,
+              (row as AnyObject).user?.email ?? row.userId,
+              row.category,
+              row.priority,
+              row.status,
+              String(row.updatedAt ?? "-").slice(0, 19).replace("T", " "),
+              <button
+                type="button"
+                className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold"
+                onClick={() => {
+                  void runSafeAction(async () => {
+                    const detail = await getAdminSupportTicket(String(row.id));
+                    setSupportData((prev) => ({ ...prev, selectedTicket: detail.ticket }));
+                  });
+                }}
+              >
+                Detail
+              </button>,
+            ])}
+          />
+
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600">
+            <span>Page {supportData.page} of {totalPages} | Total records: {supportData.total} | Page size: {supportData.pageSize}</span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-semibold disabled:opacity-50"
+                disabled={activeFilters.page <= 1}
+                onClick={() => updateActiveFilters({ page: Math.max(1, activeFilters.page - 1) })}
+              >
+                Prev
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-semibold disabled:opacity-50"
+                disabled={activeFilters.page >= totalPages}
+                onClick={() => updateActiveFilters({ page: activeFilters.page + 1 })}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+
+          {selected ? (
+            <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">{selected.ticketNumber} · {selected.subject}</h3>
+                  <p className="mt-1 text-xs text-slate-600">User: {(selected as AnyObject).user?.email ?? selected.userId} · Category: {selected.category}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    className="rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                    value={selected.status}
+                    onChange={(event) => {
+                      const nextStatus = event.target.value;
+                      void runSafeAction(async () => {
+                        await updateAdminSupportStatus(selected.id, nextStatus as any);
+                        const detail = await getAdminSupportTicket(selected.id);
+                        const summary = await listAdminSupportSummary();
+                        setSupportData((prev) => ({ ...prev, selectedTicket: detail.ticket, summary }));
+                      });
+                    }}
+                  >
+                    {["OPEN", "PENDING", "IN_PROGRESS", "WAITING_CUSTOMER", "RESOLVED", "CLOSED"].map((item) => (
+                      <option key={item} value={item}>{item}</option>
+                    ))}
+                  </select>
+                  <select
+                    className="rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                    value={selected.priority}
+                    onChange={(event) => {
+                      const nextPriority = event.target.value;
+                      void runSafeAction(async () => {
+                        await updateAdminSupportPriority(selected.id, nextPriority as any);
+                        const detail = await getAdminSupportTicket(selected.id);
+                        setSupportData((prev) => ({ ...prev, selectedTicket: detail.ticket }));
+                      });
+                    }}
+                  >
+                    {["LOW", "MEDIUM", "HIGH", "URGENT"].map((item) => (
+                      <option key={item} value={item}>{item}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {selected.messages?.map((message) => (
+                  <article key={message.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{message.authorRole}</span>
+                      <span className="text-xs text-slate-500">{new Date(message.createdAt).toLocaleString()}</span>
+                    </div>
+                    <p className="mt-2 whitespace-pre-wrap text-slate-800">{message.message}</p>
+                    {message.attachments && message.attachments.length > 0 ? (
+                      <div className="mt-2 space-y-1">
+                        {message.attachments.map((attachment) => (
+                          <div key={attachment.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs">
+                            <span className="truncate">{attachment.originalName}</span>
+                            <span className="text-slate-500">{Math.round((attachment.sizeBytes ?? 0) / 1024)} KB</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+
+              <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+                <label className="text-xs font-semibold text-slate-600">Reply as admin</label>
+                <textarea
+                  className="w-full rounded border border-slate-200 px-2 py-1.5 text-sm"
+                  rows={4}
+                  value={supportData.replyText}
+                  onChange={(event) => setSupportData((prev) => ({ ...prev, replyText: event.target.value }))}
+                />
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    className="rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-900 disabled:opacity-50"
+                    disabled={!supportData.replyText.trim()}
+                    onClick={() => {
+                      void runSafeAction(async () => {
+                        await replyAdminSupportTicket(selected.id, supportData.replyText.trim());
+                        const detail = await getAdminSupportTicket(selected.id);
+                        setSupportData((prev) => ({ ...prev, selectedTicket: detail.ticket, replyText: "" }));
+                      });
+                    }}
+                  >
+                    Send Reply
+                  </button>
+                </div>
+              </div>
+            </section>
+          ) : null}
+        </div>
+      );
+    }
+
     if (active === "payments") {
       const rows: AnyObject[] = revenue?.payments ?? [];
       const pageRows = rows;
