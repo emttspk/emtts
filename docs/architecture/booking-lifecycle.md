@@ -1,34 +1,35 @@
 # Aggregator Booking Lifecycle
 
-## Lifecycle States
-- QUOTE_CREATED
-- QUOTE_CONFIRMED
-- PAYMENT_PENDING
-- PAYMENT_RECEIVED
+## Phase 2 Active Lifecycle States
+- QUOTE_READY
+- BOOKING_DRAFT
+- BOOKING_SUBMITTED
+- ADMIN_REVIEW_PENDING
+- CORRECTION_REQUIRED
+- ADMIN_APPROVED
+- ADMIN_REJECTED
+- PAYMENT_PENDING_PLACEHOLDER
 - DROP_PENDING
-- PICKUP_REQUESTED
-- PICKUP_EMAIL_SENT
-- PICKUP_TRACKING_PENDING
-- PICKUP_IN_TRANSIT
-- RECEIVED_AT_HUB
-- UNDER_VERIFICATION
-- VERIFICATION_EXCEPTION
-- READY_FOR_POST_BOOKING
-- POST_BOOKED
-- LABELS_GENERATED
-- MO_FORMS_GENERATED
-- DISPATCHED
-- DELIVERED
+- PICKUP_PENDING_FUTURE
 - CANCELLED
-- REFUND_PENDING
-- CLOSED
 
-## Phase 1/1.5 Active States
-- QUOTE_CREATED
+## Phase 2 Transition Rules
+- QUOTE_READY -> BOOKING_DRAFT
+- BOOKING_DRAFT -> BOOKING_SUBMITTED
+- BOOKING_SUBMITTED -> ADMIN_REVIEW_PENDING
+- ADMIN_REVIEW_PENDING -> ADMIN_APPROVED
+- ADMIN_REVIEW_PENDING -> ADMIN_REJECTED
+- ADMIN_REVIEW_PENDING -> CORRECTION_REQUIRED
+- CORRECTION_REQUIRED -> BOOKING_SUBMITTED
+- ADMIN_APPROVED -> PAYMENT_PENDING_PLACEHOLDER
+- PAYMENT_PENDING_PLACEHOLDER -> DROP_PENDING
+- PAYMENT_PENDING_PLACEHOLDER -> PICKUP_PENDING_FUTURE
+- Non-terminal states may move to CANCELLED only through actor policy.
 
-Phase 1/1.5 does not execute booking, payment, pickup, post-booking, or dispatch states.
-
-Phase 1.5 quote output includes component-wise official estimates and missing component diagnostics.
+## Phase Boundaries
+- Phase 2 is draft/review/timeline only.
+- Phase 2 does not execute live payment, courier email, label generation, MO generation, or Pakistan Post booking.
 
 ## Controlled Handoff
-LABELS_GENERATED and MO_FORMS_GENERATED are controlled boundaries and can only use existing protected generation modules in later approved phases.
+- Phase 3 boundary: pickup email and secure pickup tracking update link.
+- Phase 4 boundary: hub receiving, article-wise booking, and controlled handoff to existing protected label/MO generation modules.

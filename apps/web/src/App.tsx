@@ -36,6 +36,9 @@ const JazzCashResult = lazy(() => import("./pages/JazzCashResult"));
 const SupportTicketsPage = lazy(() => import("./pages/SupportTicketsPage"));
 const SupportTicketDetailPage = lazy(() => import("./pages/SupportTicketDetailPage"));
 const BookingQuote = lazy(() => import("./pages/BookingQuote"));
+const AggregatorBookings = lazy(() => import("./pages/AggregatorBookings"));
+const AggregatorBookingDetail = lazy(() => import("./pages/AggregatorBookingDetail"));
+const AdminAggregatorBookings = lazy(() => import("./pages/admin/AdminAggregatorBookings"));
 
 function Loading() {
   return (
@@ -96,6 +99,8 @@ export default function App() {
             element={<Upload />}
           />
           <Route path="/booking-quote" element={<BookingQuote />} />
+          <Route path="/aggregator-bookings" element={<AggregatorBookings />} />
+          <Route path="/aggregator-bookings/:bookingId" element={<AggregatorBookingDetail />} />
           <Route path="/jobs" element={<Jobs />} />
           <Route path="/download-labels" element={<Navigate to="/jobs?filter=completed" replace />} />
           <Route path="/downloads" element={<Navigate to="/jobs?filter=completed" replace />} />
@@ -131,6 +136,14 @@ export default function App() {
             element={
               <RequireAdmin>
                 <AdminComplaintMonitor />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/admin/aggregator-bookings"
+            element={
+              <RequireAdmin>
+                <AdminAggregatorBookings />
               </RequireAdmin>
             }
           />

@@ -40,6 +40,8 @@ model User {
   supportTicketAttachments SupportTicketAttachment[]
   supportTicketAuditLogs SupportTicketAuditLog[]
   supportNotifications SupportTicketNotification[]
+  aggregatorQuotes AggregatorQuote[]
+  aggregatorBookings AggregatorBooking[]
 }
 
 model Plan {
@@ -551,4 +553,162 @@ model SupportTicketNotification {
   @@index([ticketId])
   @@index([type])
   @@index([createdAt])
+}
+
+model AggregatorQuote {
+  id                    String   @id @default(uuid())
+  userId                String
+  quoteVersion          String
+  quoteInputJson        Json
+  quoteResultJson       Json
+  rateCardVersionSetJson Json
+  expiresAt             DateTime?
+  createdAt             DateTime @default(now())
+
+  user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookings AggregatorBooking[]
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
+model AggregatorBooking {
+  id                         String   @id @default(uuid())
+  bookingNo                  String   @unique
+  userId                     String
+  aggregatorQuoteId          String
+  quoteSnapshotJson          Json
+  status                     String
+  intakeMethod               String
+  hubCity                    String
+  senderName                 String
+  senderPhone                String
+  senderAddress              String
+  senderCity                 String
+  specialInstructions        String?
+  totalArticles              Int
+  totalActualWeightGrams     Int
+  totalChargeableWeightGrams Int
+  totalBasePostage           Int
+  totalRegistrationFee       Int
+  totalValuePayableFee       Int
+  totalInsuranceFee          Int
+  totalOfficialPostalCharge  Int
+  paymentStatus              String
+  adminReviewStatus          String
+  adminNotes                 String?
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+  submittedAt                DateTime?
+  reviewedAt                 DateTime?
+  reviewedByUserId           String?
+
+  user               User                           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quote              AggregatorQuote                @relation(fields: [aggregatorQuoteId], references: [id], onDelete: Restrict)
+  items              AggregatorBookingItem[]
+  statusEvents       AggregatorBookingStatusEvent[]
+  auditLogs          AggregatorBookingAuditLog[]
+  documents          AggregatorBookingDocument[]
+  paymentPlaceholder AggregatorPaymentPlaceholder?
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([adminReviewStatus, createdAt])
+  @@index([intakeMethod])
+  @@index([hubCity])
+}
+
+model AggregatorBookingItem {
+  id                         String   @id @default(uuid())
+  bookingId                  String
+  rowNo                      Int
+  receiverName               String?
+  receiverPhone              String?
+  receiverAddress            String?
+  receiverCity               String?
+  serviceCode                String
+  articleCategory            String
+  weightGrams                Int?
+  chargeableWeightGrams      Int?
+  basePostage                Int
+  registrationFee            Int
+  valuePayableFee            Int
+  insuranceFee               Int
+  totalOfficialPostalCharge  Int
+  missingComponentsJson      Json
+  warningsJson               Json
+  errorsJson                 Json
+  futurePakistanPostTrackingNo String?
+
+  booking AggregatorBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, rowNo])
+}
+
+model AggregatorBookingStatusEvent {
+  id          String   @id @default(uuid())
+  bookingId   String
+  fromStatus  String?
+  toStatus    String
+  actorType   String
+  actorUserId String
+  reasonCode  String?
+  note        String?
+  createdAt   DateTime @default(now())
+
+  booking AggregatorBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, createdAt])
+  @@index([toStatus, createdAt])
+}
+
+model AggregatorBookingAuditLog {
+  id          String   @id @default(uuid())
+  bookingId   String
+  action      String
+  actorType   String
+  actorUserId String
+  targetField String?
+  oldValueJson Json?
+  newValueJson Json?
+  ipHash      String?
+  userAgentHash String?
+  createdAt   DateTime @default(now())
+
+  booking AggregatorBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, createdAt])
+  @@index([action, createdAt])
+}
+
+model AggregatorBookingDocument {
+  id               String   @id @default(uuid())
+  bookingId        String
+  docType          String
+  storageKey       String
+  originalFileName String
+  mimeType         String
+  uploadedByUserId String
+  createdAt        DateTime @default(now())
+
+  booking AggregatorBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, createdAt])
+}
+
+model AggregatorPaymentPlaceholder {
+  id                   String   @id @default(uuid())
+  bookingId            String   @unique
+  paymentStatus        String
+  placeholderMethod    String?
+  placeholderReference String?
+  placeholderAmount    Int?
+  placeholderCurrency  String?
+  dueAt                DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  booking AggregatorBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([paymentStatus, createdAt])
 }

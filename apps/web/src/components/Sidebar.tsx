@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Bell,
+  ClipboardList,
   Calculator,
   Download,
   LayoutDashboard,
@@ -22,6 +23,7 @@ import { APP_NAV_ITEMS, isRouteActive } from "../lib/navigation";
 const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, matchPrefixes: ["/dashboard"] },
   { to: "/booking-quote", label: "Booking Quote", icon: Calculator, matchPrefixes: ["/booking-quote"] },
+  { to: "/aggregator-bookings", label: "Aggregator Bookings", icon: ClipboardList, matchPrefixes: ["/aggregator-bookings"] },
   { to: "/generate-labels", label: "Generate Labels", icon: UploadCloud, matchPrefixes: ["/generate-labels", "/admin/generate-labels"] },
   { to: "/generate-money-orders", label: "Generate Money Order", icon: Wallet, matchPrefixes: ["/generate-money-orders", "/admin/generate-money-orders"] },
   { to: "/tracking-workspace", label: "Tracking", icon: Radar, matchPrefixes: ["/tracking", "/tracking-workspace"] },
@@ -115,7 +117,7 @@ export default function Sidebar(props: {
             {nav.map((n) => (
               <NavItem key={n.to} {...n} />
             ))}
-            {role === "ADMIN" ? <NavItem to="/admin" label="Admin" icon={Shield} matchPrefixes={APP_NAV_ITEMS.find((item) => item.label === "Admin")?.matchPrefixes ?? ["/admin"]} /> : null}
+            {role === "ADMIN" ? <NavItem to="/admin/aggregator-bookings" label="Admin Queue" icon={Shield} matchPrefixes={["/admin", "/admin/aggregator-bookings"]} /> : null}
           </div>
         </nav>
 

@@ -1,7 +1,12 @@
-# Hub Receiving and Post Booking SOP (Future Phase)
+# Hub Receiving and Post Booking SOP (Future Phase 4)
 
 ## Status
-Planned for future phase. Not active in Phase 1.
+Planned for future phase. Not active in Phase 2.
+
+## Phase 2 Boundary
+- Phase 2 only supports draft/review/timeline and payment placeholder status.
+- Phase 2 does not perform hub receiving, post booking, label generation, or money order generation.
+- Phase 3 may add pickup email and secure pickup tracking update link only.
 
 ## Hub Receiving Steps
 1. Mark bundle received at Lahore/Sahiwal hub.

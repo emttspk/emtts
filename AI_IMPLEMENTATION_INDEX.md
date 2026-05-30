@@ -1,5 +1,67 @@
 # AI Implementation Index
 
+## 2026-05-30 - Aggregator Booking Phase 2 (Draft, Review, Timeline)
+
+### Task Name
+- Implement Aggregator Booking Phase 2 with database-backed booking draft lifecycle, customer dashboard, admin review queue, and status timeline audit events in a separate money-based lane.
+
+### Files Changed
+- `apps/api/prisma/schema.prisma`
+- `apps/api/prisma/migrations/20260530193000_phase2_aggregator_booking/migration.sql`
+- `apps/api/src/services/aggregatorBookingStatusService.ts`
+- `apps/api/src/services/aggregatorBookingService.ts`
+- `apps/api/src/utils/aggregatorBookingValidation.ts`
+- `apps/api/src/routes/aggregatorBookings.ts`
+- `apps/api/src/routes/adminAggregatorBookings.ts`
+- `apps/api/src/index.ts`
+- `apps/web/src/lib/aggregatorBookings.ts`
+- `apps/web/src/components/booking/AggregatorBookingStatusBadge.tsx`
+- `apps/web/src/components/booking/AggregatorBookingTimeline.tsx`
+- `apps/web/src/components/booking/AggregatorBookingDraftForm.tsx`
+- `apps/web/src/components/booking/AggregatorBookingSummaryCard.tsx`
+- `apps/web/src/pages/AggregatorBookings.tsx`
+- `apps/web/src/pages/AggregatorBookingDetail.tsx`
+- `apps/web/src/pages/admin/AdminAggregatorBookings.tsx`
+- `apps/web/src/pages/BookingQuote.tsx`
+- `apps/web/src/components/Sidebar.tsx`
+- `apps/web/src/lib/navigation.ts`
+- `apps/web/src/App.tsx`
+- `docs/architecture/aggregator-booking-business-plan.md`
+- `docs/architecture/booking-lifecycle.md`
+- `docs/operations/aggregator-booking-rollout-checklist.md`
+- `docs/operations/hub-receiving-and-post-booking-sop.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Scope Status
+- DB-backed booking draft lifecycle: COMPLETED
+- Quote-to-booking draft conversion: COMPLETED
+- Customer booking list/detail/timeline pages: COMPLETED
+- Admin aggregator queue/detail/actions: COMPLETED
+- Status transition guard with actor policy: COMPLETED
+- Booking status event + audit log per mutation: COMPLETED
+- Payment placeholder status only: COMPLETED
+- Live payment gateway: NOT IMPLEMENTED (deferred)
+- Courier email flow: NOT IMPLEMENTED (deferred)
+- Label/MO generation handoff: NOT IMPLEMENTED (deferred)
+- Pakistan Post final booking flow: NOT IMPLEMENTED (deferred)
+
+### Protected Scope Verification
+- `apps/api/src/routes/jobs.ts`: NOT TOUCHED
+- `apps/web/src/pages/Upload.tsx`: NOT TOUCHED
+- `apps/api/src/parse/orders.ts`: NOT TOUCHED
+- money order commission and MOS/UMO logic: NOT TOUCHED
+- tracking logic: NOT TOUCHED
+- complaint logic: NOT TOUCHED
+- billing/unit consumption logic: NOT TOUCHED
+- auth core logic: NOT TOUCHED
+- storage/worker behavior: NOT TOUCHED
+- PDF generation templates: NOT TOUCHED
+
+### Notes
+- Aggregator Booking Phase 2 remains money-based and separate from units.
+- No SaaS units are consumed in quote, draft, submit, review, correction, cancellation, or payment placeholder transitions.
+- Local `prisma migrate dev` apply was blocked by existing database drift and destructive reset prompt; migration SQL was generated and committed without destructive reset.
+
 ## 2026-05-30 - Aggregator Booking Quote Phase 1.5 (Rate Card Engine)
 
 ### Task Name

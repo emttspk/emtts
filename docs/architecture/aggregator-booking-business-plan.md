@@ -25,10 +25,31 @@ This document defines a separate Aggregator Booking business lane for ePost.pk t
 - Missing value payable and insurance schedules are reported and not guessed.
 - Aggregator quote lane remains separate from existing unit SaaS lane.
 
+## Phase 2 (Implemented Scope)
+- Customer can convert quote into booking draft.
+- Booking stores sender details, intake method, hub city, and special instructions.
+- Intake methods:
+	- Drop at Lahore collection point
+	- Drop at Sahiwal collection point
+	- Pickup requested from customer address (future Leopards workflow)
+- Booking is stored as money-based order records, separate from unit-based jobs.
+- Customer has separate Aggregator Booking dashboard for list/detail/timeline.
+- Admin has separate Aggregator Booking queue for approve/reject/request correction/mark pending.
+- Status transition guard and actor policy are enforced.
+- Status events and audit logs are written on every mutation.
+- Payment is placeholder status only.
+
+## Phase 2 Explicit Exclusions
+- No live payment gateway integration.
+- No courier pickup email automation.
+- No label generation execution.
+- No money order generation execution.
+- No Pakistan Post final booking execution.
+- No SaaS unit deduction.
+
 ## Future Phases
-- Phase 2: booking draft and admin review.
 - Phase 3: pickup email and secure pickup status updates.
-- Phase 4: hub verification and article-wise Pakistan Post booking workflow.
+- Phase 4: hub verification, article-wise Pakistan Post booking workflow, and controlled handoff to label/MO generation.
 - Phase 5: payment, invoicing, refund/adjustment, and advanced exception handling.
 
 ## Protected Systems (Not Changed)
