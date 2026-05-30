@@ -117,7 +117,8 @@ export default function Sidebar(props: {
             {nav.map((n) => (
               <NavItem key={n.to} {...n} />
             ))}
-            {role === "ADMIN" ? <NavItem to="/admin/aggregator-bookings" label="Admin Queue" icon={Shield} matchPrefixes={["/admin", "/admin/aggregator-bookings"]} /> : null}
+            {role === "ADMIN" ? <NavItem to="/admin" label="Admin Panel" icon={Shield} matchPrefixes={["/admin"]} /> : null}
+            {role === "ADMIN" ? <NavItem to="/admin/aggregator-bookings" label="Aggregator Queue" icon={ClipboardList} matchPrefixes={["/admin/aggregator-bookings"]} /> : null}
           </div>
         </nav>
 

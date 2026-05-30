@@ -1,5 +1,49 @@
 # AI Implementation Index
 
+## 2026-05-30 - Regression Fix: Restore Master Admin Panel Navigation
+
+### Task Name
+- Restore Master Admin panel sidebar link that was replaced by Aggregator Admin Queue link in commit c3364ba.
+
+### Regression Commit
+- c3364ba (Add aggregator booking draft and admin review lifecycle)
+- Changed: `apps/web/src/components/Sidebar.tsx`
+- Regression: admin nav item `to` changed from `/admin` to `/admin/aggregator-bookings` and label changed from `"Admin"` to `"Admin Queue"`, hiding the Master Admin Command Center.
+
+### Files Changed
+- `apps/web/src/components/Sidebar.tsx`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Fix Applied
+- Restored `NavItem to="/admin" label="Admin Panel" icon={Shield}` as primary admin sidebar link.
+- Added separate `NavItem to="/admin/aggregator-bookings" label="Aggregator Queue" icon={ClipboardList}` for the aggregator admin queue.
+- Both items are shown only to ADMIN role.
+- App.tsx routing was already correct with both `/admin` (AdminCommandCenter) and `/admin/aggregator-bookings` (AdminAggregatorBookings) routes.
+- navigation.ts already had `{ to: "/admin", label: "Admin" }` entry — no change required.
+
+### Scope Status
+- Master Admin panel sidebar link: RESTORED
+- Aggregator Queue sidebar link: KEPT as separate item
+- AdminCommandCenter.tsx: NOT MODIFIED (intact with all controls)
+- AdminAggregatorBookings.tsx: NOT MODIFIED
+- App.tsx routing: NOT MODIFIED (was already correct)
+- navigation.ts: NOT MODIFIED (was already correct)
+
+### Protected Scope Verification
+- `apps/api/src/routes/jobs.ts`: NOT TOUCHED
+- `apps/web/src/pages/Upload.tsx`: NOT TOUCHED
+- `apps/api/src/parse/orders.ts`: NOT TOUCHED
+- `apps/api/src/cron/cleanup.ts`: NOT TOUCHED
+- `apps/api/src/worker.ts`: NOT TOUCHED
+- PDF templates, money order logic, MOS/UMO logic: NOT TOUCHED
+- tracking/complaint/billing/auth core: NOT TOUCHED
+- storage behavior: NOT TOUCHED
+
+### Verification
+- `npm run build`: PASS
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS
+
 ## 2026-05-30 - R2 Permanent Storage Rollout Phase A (Aggregator Metadata Only)
 
 ### Task Name
