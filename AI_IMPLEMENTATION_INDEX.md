@@ -1,5 +1,34 @@
 # AI Implementation Index
 
+## 2026-05-30 - Missing ComplaintQueue Migration Recovery
+
+### Task Name
+- Add the smallest additive Prisma migration to restore the missing `ComplaintQueue` table in Api-staging.
+
+### Files Changed
+- `apps/api/prisma/migrations/20260530154500_add_complaint_queue_table/migration.sql`
+- `docs/rollout/storage-rollout-runbook.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Behavior Added
+- Created the missing `ComplaintQueue` table to match the Prisma schema exactly.
+- Added the required indexes and `User` foreign key.
+- Kept the migration additive only; no destructive database operations.
+
+### Staging Failure Root Cause
+- Api-staging failed because the Prisma schema already contained `ComplaintQueue`, but no existing migration created the table.
+- Runtime logs showed `prisma.complaintQueue.findMany()` failing with `The table public.ComplaintQueue does not exist in the current database.`
+
+### Protected Scope Confirmation
+- Production: NOT TOUCHED
+- R2 logic: NOT CHANGED
+- Upload logic: NOT CHANGED
+- LabelJob logic: NOT CHANGED
+- Cleanup/read-preference flags: NOT CHANGED
+
+### Next Recommended Step
+- Redeploy Api-staging, run `prisma migrate deploy`, and verify health plus localhost CORS preflight.
+
 ## 2026-05-30 - Staging CORS Allowlist for Local Frontend Verification
 
 ### Task Name

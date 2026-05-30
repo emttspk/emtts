@@ -41,6 +41,15 @@ When testing the local frontend against staging Api-staging, set an explicit all
 - Keep `ENABLE_UPLOAD_LOCAL_CLEANUP_AFTER_R2=false` and `ENABLE_R2_PREFERRED_READS=false` until Phase B passes.
 - Phase B verification still requires login, upload, `LabelJob` creation, `R2_SYNCED` SQL evidence, and R2 object confirmation.
 
+## ComplaintQueue Recovery Note
+
+If Api-staging fails with `prisma.complaintQueue.findMany()` and `public.ComplaintQueue` is missing, add only the smallest additive Prisma migration that creates `ComplaintQueue` to match [apps/api/prisma/schema.prisma](../../apps/api/prisma/schema.prisma).
+
+- Do not modify production.
+- Do not use destructive database commands.
+- Do not change upload, R2, or LabelJob logic.
+- Keep the migration additive only.
+
 ## Infrastructure Bootstrap Checklist
 
 Before S0, confirm the environment is operational enough to distinguish rollout defects from missing infrastructure:
