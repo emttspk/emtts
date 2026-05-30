@@ -5,7 +5,7 @@ import fsSync from "node:fs";
 import multer from "multer";
 import path from "node:path";
 import fs from "node:fs/promises";
-import { getStorageProvider, getDualProviders } from "../storage/provider.js";
+import { getStorageProvider, getDualProviders, uploadSourceFileToR2 } from "../storage/provider.js";
 import type { StorageProvider } from "../storage/StorageProvider.js";
 import { randomUUID } from "node:crypto";
 import { prisma } from "../lib/prisma.js";
@@ -28,7 +28,7 @@ import { activeR2StreamsGauge, refreshRuntimeMetrics, r2StreamDuration, r2Stream
 import { logTelemetry } from "../telemetry.js";
 import { r2Config as rolloutR2Config } from "../config.js";
 import { getUploadFilenameDebug, normalizeUploadFilename } from "../utils/uploadFilename.js";
-import { getNormalizedObjectKey, resolveObjectKeyCandidates } from "../storage/key-normalization.js";
+import { getNormalizedObjectKey, resolveObjectKeyCandidates, getUploadSourceObjectKey } from "../storage/key-normalization.js";
 
 export const jobsRouter = Router();
 
@@ -934,6 +934,39 @@ export async function handleLabelUpload(req: ExpressRequest, res: ExpressRespons
       // and fileBuffer (fallback, used when worker runs in an isolated container/runtime).
       // Worker prefers filePath; falls back to fileBuffer on ENOENT (cross-container isolation).
       const fileBuffer = await fs.readFile(uploadPath);
+
+      // Phase B: Upload source file to R2 for durable backup.
+      // Gated by ENABLE_UPLOAD_R2_BACKUP=true. Non-blocking: failure does not stop job creation.
+      // Local uploadPath is untouched. Read preference is not changed in Phase B.
+      if (process.env.ENABLE_UPLOAD_R2_BACKUP === "true") {
+        const uploadExt = path.extname(uploadedFile.originalname).toLowerCase() || ".csv";
+        const r2UploadKey = getUploadSourceObjectKey(job.id, uploadExt);
+        logTelemetry({ event: "upload_r2_backup_start", jobId: job.id, objectKey: r2UploadKey });
+        const r2BackupResult = await uploadSourceFileToR2(fileBuffer, r2UploadKey);
+        if (r2BackupResult) {
+          await prisma.labelJob.update({
+            where: { id: job.id },
+            data: {
+              uploadObjectKey: r2BackupResult.objectKey,
+              uploadBucket: r2BackupResult.bucket,
+              uploadSyncedAt: r2BackupResult.syncedAt,
+              uploadSyncStatus: "R2_SYNCED",
+              uploadSizeBytes: fileBuffer.byteLength,
+              uploadOriginalExt: uploadExt,
+            },
+          }).catch((dbErr: unknown) => {
+            console.warn(`[upload-r2-backup] DB meta update failed for job ${job.id}:`, dbErr instanceof Error ? dbErr.message : dbErr);
+          });
+        } else {
+          await prisma.labelJob.update({
+            where: { id: job.id },
+            data: { uploadSyncStatus: "FAILED" },
+          }).catch((dbErr: unknown) => {
+            console.warn(`[upload-r2-backup] DB status FAILED update failed for job ${job.id}:`, dbErr instanceof Error ? dbErr.message : dbErr);
+          });
+        }
+      }
+
       await withTimeout(ensureRedisConnection(), 3000, "Redis connection timed out");
       await withTimeout(queue.add(
         "job",

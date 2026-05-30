@@ -176,3 +176,16 @@ export function resolveObjectKeyCandidates(params: {
     },
   ];
 }
+
+/**
+ * Phase B: Returns the R2 object key for an uploaded source CSV/XLSX file.
+ * Format: uploads/{env}/{jobId}/source{ext}
+ * Example: uploads/production/a1b2c3-uuid/source.csv
+ *
+ * ext must include the leading dot: ".csv" or ".xlsx"
+ */
+export function getUploadSourceObjectKey(jobId: string, ext: string, env?: string): string {
+  const resolvedEnv = env ?? getEnvironmentName();
+  const safeExt = ext.startsWith(".") ? ext : `.${ext}`;
+  return `uploads/${resolvedEnv}/${jobId}/source${safeExt}`;
+}

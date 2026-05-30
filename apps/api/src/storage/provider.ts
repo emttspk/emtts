@@ -506,3 +506,52 @@ export async function markArtifactSyncedToR2(
   }
 }
 
+/**
+ * Phase B: Upload a source CSV/XLSX file buffer directly to R2.
+ * Used for upload-source durability — independent of the generated-artifact dual-write path.
+ * - Uses the existing R2 provider via getDualProviders().r2
+ * - Applies a 10-second timeout to avoid blocking job creation
+ * - Emits safe log lines for start / success / failure
+ * - Returns { objectKey, bucket, syncedAt } on success
+ * - Returns null on any failure
+ * - Never throws to caller
+ */
+export async function uploadSourceFileToR2(
+  buffer: Buffer,
+  objectKey: string,
+): Promise<{ objectKey: string; bucket: string; syncedAt: Date } | null> {
+  const UPLOAD_SOURCE_TIMEOUT_MS = 10_000;
+  const bucket = process.env.R2_BUCKET || "";
+  console.log(`[upload-r2-backup] start key=${objectKey} size=${buffer.byteLength}`);
+  try {
+    const { r2 } = getDualProviders();
+    const r2Any = r2 as any;
+    if (typeof r2Any.writeArtifactWithKey === "function") {
+      await withTimeout(r2Any.writeArtifactWithKey(objectKey, buffer), UPLOAD_SOURCE_TIMEOUT_MS);
+    } else {
+      await withTimeout(r2.writeArtifact("upload", objectKey, buffer), UPLOAD_SOURCE_TIMEOUT_MS);
+    }
+    const syncedAt = new Date();
+    console.log(`[upload-r2-backup] success key=${objectKey} bucket=${bucket}`);
+    logTelemetry({
+      event: "upload_r2_backup_success",
+      objectKey,
+      bucket,
+      sizeBytes: buffer.byteLength,
+      syncedAt: syncedAt.toISOString(),
+    });
+    return { objectKey, bucket, syncedAt };
+  } catch (err) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.warn(`[upload-r2-backup] failed key=${objectKey} error=${errMsg}`);
+    logTelemetry({
+      event: "upload_r2_backup_failed",
+      objectKey,
+      bucket,
+      sizeBytes: buffer.byteLength,
+      error: errMsg,
+    });
+    return null;
+  }
+}
+

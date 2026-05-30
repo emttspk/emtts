@@ -46,6 +46,24 @@ This document is the source of truth for the label/money-order storage rollout a
   - local cleanup lifecycle: `localTempPath`, `localCleanupStatus`, `localCleanupAttempts`, `localCleanupLastError`, `localCleanupNextRetryAt`
 - Phase A is metadata-only and does not change write/read orchestration, generation flow, cleanup cron behavior, or worker behavior.
 
+### Upload Source File R2 Backup (Phase B)
+
+- `LabelJob` gains six additive optional fields:
+  - `uploadObjectKey` — R2 object key for the source CSV/XLSX file
+  - `uploadBucket` — R2 bucket name recorded at upload time
+  - `uploadSyncedAt` — timestamp when R2 backup succeeded
+  - `uploadSyncStatus` — `NOT_ATTEMPTED` | `PENDING` | `R2_SYNCED` | `FAILED`
+  - `uploadSizeBytes` — byte size of the uploaded source file
+  - `uploadOriginalExt` — file extension (`.csv` or `.xlsx`) for key reconstruction
+- R2 key format: `uploads/{env}/{jobId}/source{ext}` (e.g. `uploads/production/uuid/source.csv`)
+- Source file is uploaded to R2 immediately after the multer disk write and before the BullMQ enqueue, using the same buffer already read for the worker dual-mode payload.
+- Feature flag: `ENABLE_UPLOAD_R2_BACKUP=true` to enable. Off by default (zero behavior change when unset).
+- R2 upload failure is non-blocking: local `uploadPath` continues to be the authoritative source; job proceeds normally with `uploadSyncStatus=FAILED`.
+- Phase B does NOT delete local upload files. Phase C will handle local cleanup after confirmed R2 sync.
+- Phase B does NOT change read preference. Phase D will add R2-preferred reads for source files.
+- `uploadPath` local field is backward-compatible and unchanged.
+- `worker.ts`, `cleanup.ts`, `orders.ts`, PDF templates, MO/MOS/UMO logic, tracking/complaint/billing/auth: NOT TOUCHED.
+
 ## Feature Flags (Exact)
 
 - `STORAGE_PROVIDER`
@@ -53,6 +71,7 @@ This document is the source of truth for the label/money-order storage rollout a
 - `ENABLE_DUAL_READ`
 - `ENABLE_R2_UPLOADS`
 - `ENABLE_R2_DOWNLOADS`
+- `ENABLE_UPLOAD_R2_BACKUP` — Phase B: back up uploaded CSV/XLSX source files to R2 (non-blocking, default off)
 
 ### Intended Local-First Rollout Usage
 

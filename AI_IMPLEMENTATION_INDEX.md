@@ -1,5 +1,67 @@
 # AI Implementation Index
 
+## 2026-05-30 - R2 Permanent Storage Rollout Phase B (Upload Source File Durability)
+
+### Task Name
+- Phase B: Make initial CSV/XLSX upload source files durable in Cloudflare R2 immediately after multer disk write.
+
+### Files Changed
+- `apps/api/prisma/schema.prisma` — added 6 additive optional fields to `LabelJob` + `@@index([uploadSyncStatus, uploadSyncedAt])`
+- `apps/api/prisma/migrations/20260530235900_phaseB_label_job_upload_r2_fields/migration.sql` — new additive ALTER TABLE migration (no reset)
+- `apps/api/src/storage/key-normalization.ts` — added `getUploadSourceObjectKey(jobId, ext, env?)` export
+- `apps/api/src/storage/provider.ts` — added `uploadSourceFileToR2(buffer, key)` export (non-blocking, 10s timeout, never throws)
+- `apps/api/src/routes/jobs.ts` — added one gated insertion block after `fs.readFile(uploadPath)` and before `queue.add()`, gated by `ENABLE_UPLOAD_R2_BACKUP=true`
+- `docs/architecture/storage-rollout-architecture.md` — added Phase B section and `ENABLE_UPLOAD_R2_BACKUP` flag
+- `docs/rollout/storage-rollout-runbook.md` — added Phase B runbook section and flag entry
+- `AI_IMPLEMENTATION_INDEX.md` — this entry
+
+### Feature Flag
+- `ENABLE_UPLOAD_R2_BACKUP=true` to activate Phase B R2 backup of source uploads. Default off.
+
+### R2 Key Format
+- `uploads/{env}/{jobId}/source{ext}` — e.g. `uploads/production/uuid/source.csv`
+
+### Insertion Point (jobs.ts)
+- AFTER: `const fileBuffer = await fs.readFile(uploadPath);`
+- BEFORE: `await withTimeout(ensureRedisConnection(), 3000, ...)`
+- Block reads `process.env.ENABLE_UPLOAD_R2_BACKUP` at runtime (no module-level flag evaluation)
+
+### Protected Scope Confirmation
+- `apps/web/src/pages/Upload.tsx`: NOT TOUCHED
+- `apps/api/src/parse/orders.ts`: NOT TOUCHED
+- `apps/api/src/worker.ts`: NOT TOUCHED
+- `apps/api/src/cron/cleanup.ts`: NOT TOUCHED
+- PDF templates: NOT TOUCHED
+- Money order / MOS / UMO logic: NOT TOUCHED
+- Tracking engine / complaint engine: NOT TOUCHED
+- Billing / unit consumption: NOT TOUCHED
+- Auth core: NOT TOUCHED
+- `apps/api/src/storage/R2StorageProvider.ts`: NOT TOUCHED
+- `apps/api/src/storage/LocalStorageProvider.ts`: NOT TOUCHED
+- `uploadPath` local behavior: UNCHANGED
+- Local upload file deletion: NOT ENABLED in Phase B
+- R2 read preference: NOT CHANGED in Phase B
+- Queue payload (filePath, fileBuffer): NOT CHANGED
+- `parseOrdersFromFile`: NOT CHANGED
+- `deleteJobArtifacts`: NOT CHANGED
+
+### Invariants
+- Phase B makes initial CSV/XLSX uploads durable in R2.
+- Local `uploadPath` remains backward-compatible.
+- R2 upload failure is non-blocking (job proceeds with `uploadSyncStatus=FAILED`).
+- Local file deletion is NOT enabled in Phase B. Phase C will handle local cleanup only after confirmed R2 sync.
+- R2 read preference is NOT changed in Phase B. Phase D will handle R2-preferred reads later.
+
+### Migration Notes
+- Migration SQL uses `ADD COLUMN IF NOT EXISTS` — safe to apply on existing DB.
+- Local `prisma migrate dev` blocked by drift — handwritten SQL committed; no reset applied.
+- `prisma generate` run successfully after schema change.
+
+### Next Recommended Step
+- Phase C plan: local upload file cleanup after confirmed R2 sync using a separate `ENABLE_UPLOAD_LOCAL_CLEANUP_AFTER_R2` flag and a cleanup cron or post-job hook.
+
+---
+
 ## 2026-05-30 - Regression Fix: Restore Master Admin Panel Navigation
 
 ### Task Name

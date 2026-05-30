@@ -56,6 +56,7 @@ Before S0, confirm the environment is operational enough to distinguish rollout 
 - `ENABLE_DUAL_READ`
 - `ENABLE_R2_UPLOADS`
 - `ENABLE_R2_DOWNLOADS`
+- `ENABLE_UPLOAD_R2_BACKUP` — Phase B: enables R2 durable backup of uploaded CSV/XLSX source files (default: off)
 
 ## Default Safe Baseline
 
@@ -69,6 +70,42 @@ Before S0, confirm the environment is operational enough to distinguish rollout 
 - Do not switch read preference to remote-first.
 - Do not alter worker execution flow for label/MO generation.
 - Treat Phase A as schema/API metadata capture only.
+
+## Phase B: Upload Source File R2 Backup
+
+### Purpose
+Phase B makes initial CSV/XLSX uploads durable in Cloudflare R2 immediately after the multer disk write and before the BullMQ enqueue. This decouples source file durability from the generated-artifact dual-write pipeline.
+
+### Feature Flag
+`ENABLE_UPLOAD_R2_BACKUP=true` to activate. Off by default — zero behavior change when unset.
+
+### Invariants
+- Local `uploadPath` remains backward-compatible and authoritative.
+- Local file deletion is NOT enabled in Phase B. Phase C will handle local cleanup only after confirmed R2 sync.
+- R2 read preference is NOT changed in Phase B. Workers continue to read from local disk. Phase D will add R2-preferred reads.
+- R2 upload failure does not stop job creation. Job proceeds with `uploadSyncStatus=FAILED`.
+
+### R2 Key Format
+`uploads/{env}/{jobId}/source{ext}` — e.g. `uploads/production/uuid/source.csv`
+
+### Phase B Rollout Procedure
+
+1. Deploy with `ENABLE_UPLOAD_R2_BACKUP=false` (default). Confirm baseline behavior unchanged.
+2. Set `ENABLE_UPLOAD_R2_BACKUP=true` in staging. Upload a CSV. Confirm:
+   - `uploadSyncStatus = R2_SYNCED` on the LabelJob row.
+   - R2 object visible in bucket under `uploads/{env}/{jobId}/source.csv`.
+   - Job completes normally with label PDF generated.
+3. Simulate R2 credential failure (wrong key). Confirm:
+   - `uploadSyncStatus = FAILED` logged in DB.
+   - Telemetry event `upload_r2_backup_failed` emitted.
+   - Job still completes successfully from local file.
+4. Enable in production after staging validation passes.
+
+### Phase B Boundary Rules
+- Do NOT set `DELETE_LOCAL_AFTER_R2_SYNC` for upload source files in Phase B.
+- Do NOT change `uploadPath` handling in `deleteJobArtifacts`.
+- Do NOT change worker `filePath` / `fileBuffer` queue payload.
+- Phase B touches ONLY: `schema.prisma`, migration SQL, `key-normalization.ts`, `provider.ts`, `jobs.ts` (one gated block).
 
 ## Rollout Sequence
 

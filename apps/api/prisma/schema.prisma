@@ -192,6 +192,13 @@ model LabelJob {
   moneyOrderPdfSyncedAt DateTime?  // R2 sync timestamp for money order PDF (null = not synced yet)
   trackingMasterPath String?
   trackingMasterSyncedAt DateTime?  // R2 sync timestamp for tracking master XLSX (null = not synced yet)
+  // Phase B: Upload source file R2 durability fields (additive only)
+  uploadObjectKey   String?   // R2 object key for source CSV/XLSX file
+  uploadBucket      String?   // R2 bucket name at time of upload
+  uploadSyncedAt    DateTime? // When R2 backup of source file succeeded
+  uploadSyncStatus  String?   // NOT_ATTEMPTED | PENDING | R2_SYNCED | FAILED
+  uploadSizeBytes   Int?      // Byte size of uploaded source file
+  uploadOriginalExt String?   // File extension of source file (.csv or .xlsx)
   deleteAfterAt      DateTime?
   retentionTierSnapshot String?
   createdAt         DateTime  @default(now())
@@ -205,6 +212,7 @@ model LabelJob {
   @@index([moneyOrderPdfSyncedAt])
   @@index([trackingMasterSyncedAt])
   @@index([deleteAfterAt])
+  @@index([uploadSyncStatus, uploadSyncedAt])
 }
 
 model Shipment {
