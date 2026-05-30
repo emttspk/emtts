@@ -1,5 +1,37 @@
 # AI Implementation Index
 
+## 2026-05-30 - Staging /api/me Payment Schema Drift Recovery
+
+### Task Name
+- Add the smallest additive Prisma migration to align staging `Payment` table columns with Prisma schema and stop `/api/me` crash.
+
+### Files Changed
+- `apps/api/prisma/migrations/20260531010000_add_payment_missing_columns/migration.sql`
+- `docs/rollout/storage-rollout-runbook.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Staging Failure Root Cause
+- `/api/me` calls `getLatestPendingPayment()` which reads Prisma `Payment` fields not present in staging DB.
+- Staging DB drift caused Prisma `P2022` due to missing columns: `txnRefNo`, `providerTxnId`, `responseCode`, `responseMessage`, `rawRequest`, `rawResponse`, `hashVerified`.
+
+### Recovery Applied
+- Added additive-only migration for the seven missing `Payment` columns.
+- Added `Payment_txnRefNo_idx` with `IF NOT EXISTS`.
+- No edits to existing migrations.
+
+### Protected Scope Confirmation
+- Production: NOT TOUCHED
+- R2 logic: NOT CHANGED
+- Upload logic: NOT CHANGED
+- LabelJob logic: NOT CHANGED
+- Cleanup/read-preference flags: NOT CHANGED
+
+### Remaining Blocker
+- R2 Phase B remains blocked until upload creates `LabelJob` rows with `uploadSyncStatus = R2_SYNCED` and corresponding R2 object evidence.
+
+### Next Recommended Step
+- Redeploy Api-staging, run `prisma migrate deploy`, then verify `/api/me` no longer emits `P2022`.
+
 ## 2026-05-30 - Missing ComplaintQueue Migration Recovery
 
 ### Task Name

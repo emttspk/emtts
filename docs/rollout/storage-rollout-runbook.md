@@ -50,6 +50,27 @@ If Api-staging fails with `prisma.complaintQueue.findMany()` and `public.Complai
 - Do not change upload, R2, or LabelJob logic.
 - Keep the migration additive only.
 
+## Payment Schema Drift Recovery Note
+
+If Api-staging fails on `/api/me` with Prisma `P2022` for `Payment` columns, apply only the smallest additive migration that adds missing columns defined in [apps/api/prisma/schema.prisma](../../apps/api/prisma/schema.prisma).
+
+- Additive only: do not drop/rename/truncate/delete tables or columns.
+- Do not use `prisma migrate dev` or `prisma migrate reset` on staging/production.
+- Do not modify production during this recovery.
+- Do not change R2, upload, or LabelJob logic.
+
+Current known missing-column recovery set:
+- `txnRefNo` (`TEXT`)
+- `providerTxnId` (`TEXT`)
+- `responseCode` (`TEXT`)
+- `responseMessage` (`TEXT`)
+- `rawRequest` (`JSONB`)
+- `rawResponse` (`JSONB`)
+- `hashVerified` (`BOOLEAN NOT NULL DEFAULT false`)
+- index `Payment_txnRefNo_idx` on `txnRefNo`
+
+Phase B remains blocked until upload creates `LabelJob` entries with `uploadSyncStatus = R2_SYNCED` and matching R2 object evidence.
+
 ## Infrastructure Bootstrap Checklist
 
 Before S0, confirm the environment is operational enough to distinguish rollout defects from missing infrastructure:
