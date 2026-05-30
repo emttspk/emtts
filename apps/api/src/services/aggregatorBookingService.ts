@@ -163,6 +163,21 @@ export async function convertQuoteToDraft(input: {
     intakeMethod: string;
     hubCity: string;
   };
+  selectedOption: "DROP_AT_COLLECTION_POINT" | "PICKUP_TO_HUB_PLANNING" | "DIRECT_COURIER_OR_SELF_DROP_ADVISORY";
+  recommendationSnapshot: {
+    eligibility: "recommended" | "review_required" | "not_recommended";
+    blockers: string[];
+    advisoryNotes: string[];
+    valuePayableGuard: boolean;
+    requestPreviewAllowed: boolean;
+  };
+  requestFlags: {
+    requestOnly: true;
+    noPayment: true;
+    noLiveBooking: true;
+    noPickupExecution: true;
+    customerNoticeAccepted: true;
+  };
   sourceFile?: {
     sourceFileKey?: string;
     sourceObjectKey?: string;
@@ -178,7 +193,34 @@ export async function convertQuoteToDraft(input: {
   const userId = String(input.userId).trim();
   if (!userId) throw new Error("Unauthorized");
 
+  if (!input.requestFlags.customerNoticeAccepted) {
+    throw new Error("Customer notice acceptance is required");
+  }
+  if (input.recommendationSnapshot.blockers.includes("OVER_PHASE_LIMIT")) {
+    throw new Error("Draft request cannot be created while OVER_PHASE_LIMIT blocker is present");
+  }
+  if (!input.recommendationSnapshot.requestPreviewAllowed) {
+    throw new Error("Draft request is not allowed for this recommendation result");
+  }
+
   const recomputed = buildBookingQuoteSummary(input.rows);
+  const requestPayload = {
+    requestOnly: input.requestFlags.requestOnly,
+    noPayment: input.requestFlags.noPayment,
+    noLiveBooking: input.requestFlags.noLiveBooking,
+    noPickupExecution: input.requestFlags.noPickupExecution,
+    selectedOption: input.selectedOption,
+    senderDetails: input.sender,
+    quoteSnapshot: {
+      totalArticles: recomputed.totalArticles,
+      totalActualWeightGrams: recomputed.totalActualWeightGrams,
+      totalChargeableWeightGrams: recomputed.totalChargeableWeightGrams,
+      totalPostageAmount: recomputed.totalPostageAmount,
+    },
+    recommendationSnapshot: input.recommendationSnapshot,
+    items: recomputed.perArticlePostageBreakdown,
+    customerNoticeAccepted: input.requestFlags.customerNoticeAccepted,
+  };
   const bookingNo = await createBookingNo();
   const actor: Actor = { actorType: "CUSTOMER", actorUserId: userId };
 
@@ -188,7 +230,10 @@ export async function convertQuoteToDraft(input: {
       data: {
         userId,
         quoteVersion: String(input.quoteVersion || "v1.5").trim(),
-        quoteInputJson: input.rows as unknown as JsonValue,
+        quoteInputJson: {
+          rows: input.rows,
+          requestPayload,
+        } as unknown as JsonValue,
         quoteResultJson: recomputed as unknown as JsonValue,
         rateCardVersionSetJson: input.rateCardVersionSet as unknown as JsonValue,
         sourceFileKey: sourceKey,
@@ -211,7 +256,10 @@ export async function convertQuoteToDraft(input: {
         bookingNo,
         userId,
         aggregatorQuoteId: quote.id,
-        quoteSnapshotJson: recomputed as unknown as JsonValue,
+        quoteSnapshotJson: {
+          ...recomputed,
+          requestPayload,
+        } as unknown as JsonValue,
         status: "BOOKING_DRAFT",
         intakeMethod: input.sender.intakeMethod,
         hubCity: input.sender.hubCity,
@@ -232,16 +280,6 @@ export async function convertQuoteToDraft(input: {
         adminReviewStatus: "NOT_REVIEWED",
         items: {
           create: summarizeRows(recomputed),
-        },
-        paymentPlaceholder: {
-          create: {
-            paymentStatus: "NOT_INITIATED",
-            placeholderMethod: null,
-            placeholderReference: null,
-            placeholderAmount: toSafeInt(recomputed.totalOfficialPostalCharge),
-            placeholderCurrency: "PKR",
-            dueAt: null,
-          },
         },
       },
       include: {
@@ -271,6 +309,18 @@ export async function convertQuoteToDraft(input: {
         targetField: "status",
         oldValueJson: "QUOTE_READY" as unknown as JsonValue,
         newValueJson: "BOOKING_DRAFT" as unknown as JsonValue,
+      },
+    });
+
+    await tx.aggregatorBookingAuditLog.create({
+      data: {
+        bookingId: booking.id,
+        action: "BOOKING_DRAFT_REQUEST_ONLY_METADATA",
+        actorType: actor.actorType,
+        actorUserId: actor.actorUserId,
+        targetField: "requestPayload",
+        oldValueJson: undefined,
+        newValueJson: requestPayload as unknown as JsonValue,
       },
     });
 
@@ -363,16 +413,6 @@ export async function createDraftFromQuote(input: {
       adminReviewStatus: "NOT_REVIEWED",
       items: {
         create: summarizeRows(summary),
-      },
-      paymentPlaceholder: {
-        create: {
-          paymentStatus: "NOT_INITIATED",
-          placeholderMethod: null,
-          placeholderReference: null,
-          placeholderAmount: toSafeInt(summary.totalOfficialPostalCharge),
-          placeholderCurrency: "PKR",
-          dueAt: null,
-        },
       },
     },
   });

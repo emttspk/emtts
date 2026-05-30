@@ -1,5 +1,41 @@
 # AI Implementation Index
 
+## 2026-05-31 - Aggregator Booking Phase 2B Persisted Draft Request Activation
+
+### Task Name
+- Enable persisted quote-to-draft request creation using existing aggregator persistence path with strict request-only guardrails.
+
+### Files Changed
+- `apps/web/src/pages/BookingQuote.tsx`
+- `apps/web/src/components/booking/BookingDraftReview.tsx`
+- `apps/web/src/lib/aggregatorBookings.ts`
+- `apps/api/src/routes/aggregatorBookings.ts`
+- `apps/api/src/services/aggregatorBookingService.ts`
+- `apps/api/src/utils/aggregatorBookingValidation.ts`
+- `docs/architecture/booking-business-plan.md`
+- `docs/operations/booking-rollout-checklist.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Behavior Added
+- Enabled customer-triggered persisted draft request creation from Booking Quote preview.
+- Added mandatory customer notice acceptance before draft creation.
+- Added request-only payload fields validation:
+	- `requestOnly`, `noPayment`, `noLiveBooking`, `noPickupExecution`, `customerNoticeAccepted`
+	- `selectedOption`
+	- `recommendationSnapshot`
+- Added blocker enforcement: reject draft create when `OVER_PHASE_LIMIT` is present.
+- Added sender details capture in draft review UI and passed through persisted conversion payload.
+- Added safe success path to existing booking detail route.
+
+### Safety / Scope Confirmation
+- No migration files added.
+- No new tables added.
+- No payment execution was introduced in create flow.
+- No pickup or dispatch execution was introduced in create flow.
+- No live courier API or Pakistan Post booking API call was introduced.
+- Create flow remains draft request behavior and persists at `BOOKING_DRAFT`.
+- Protected scope modules remained untouched.
+
 ## 2026-05-31 - Aggregator Booking Phase 2A Recommendation Preview (No-DB)
 
 ### Task Name

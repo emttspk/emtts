@@ -12,9 +12,9 @@ It defines:
 - break-resume instructions.
 
 ## Current Phase Marker
-Phase 2A: Recommendation + request preview only
-Status: Implemented (preview-only)
-Next task: Phase 2A build/lint/typecheck verification and manual quote UI preview smoke test
+Phase 2B: Persisted draft request activation
+Status: Implemented with request-only guardrails
+Next task: Phase 2B end-to-end manual smoke (quote preview -> draft create -> queue visibility)
 
 ## Phase Intent
 The Aggregator Booking initiative is intentionally incremental.
@@ -114,6 +114,13 @@ Still not allowed:
 - payment execution,
 - fulfillment provider booking,
 - label/MO generation side effects.
+
+Phase 2B implementation guardrails:
+- persisted create requires explicit customer notice acceptance,
+- persisted create stores request-only flags and recommendation snapshot,
+- persisted create remains `BOOKING_DRAFT`,
+- no auto-operational action at create time (no pickup/dispatch/live booking),
+- no payment initiation at create time.
 
 ### Phase 3 Boundary (Operational Continuity)
 Allowed only after explicit approval:
@@ -220,8 +227,9 @@ If work stops mid-session, next session must follow these steps exactly:
 
 ## Continuation Checklist for Next Session
 - Confirm Phase marker still accurate.
-- Execute manual UI smoke test for Phase 2A recommendation preview behavior.
-- Verify no quote path creates persisted draft/payment/fulfillment side effects.
+- Execute manual UI/API smoke for Phase 2B persisted draft request behavior.
+- Verify created records remain draft request only until explicit submit/review actions.
+- Verify no payment/pickup/dispatch/live booking side effects in create flow.
 - Update implementation index with smoke test outcome.
 
 ## Cross-Reference

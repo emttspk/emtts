@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { PageShell, PageTitle, BodyText } from "../components/ui/PageSystem";
 import Card from "../components/Card";
 import { api, uploadFile } from "../lib/api";
@@ -11,6 +12,11 @@ import BookingOptionSelector, {
   deriveBookingRecommendation,
   type BookingRecommendationOption,
 } from "../components/booking/BookingOptionSelector";
+import {
+  convertQuoteToBookingDraft,
+  type BookingSenderPayload,
+} from "../lib/aggregatorBookings";
+import type { BookingDraftSenderDetails } from "../components/booking/BookingDraftReview";
 
 type QuoteSummary = {
   totalArticles: number;
@@ -52,6 +58,7 @@ type QuoteSummary = {
 };
 
 export default function BookingQuote() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [summary, setSummary] = useState<QuoteSummary | null>(null);
   const [loading, setLoading] = useState(false);
@@ -59,6 +66,19 @@ export default function BookingQuote() {
   const [jsonInput, setJsonInput] = useState("[]");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedOption, setSelectedOption] = useState<BookingRecommendationOption>("DIRECT_COURIER_OR_SELF_DROP_ADVISORY");
+  const [creatingDraft, setCreatingDraft] = useState(false);
+  const [createDraftError, setCreateDraftError] = useState<string | null>(null);
+  const [createdDraftLink, setCreatedDraftLink] = useState<string | null>(null);
+  const [customerNoticeAccepted, setCustomerNoticeAccepted] = useState(false);
+  const [senderDetails, setSenderDetails] = useState<BookingDraftSenderDetails>({
+    senderName: "",
+    senderPhone: "",
+    senderAddress: "",
+    senderCity: "",
+    intakeMethod: "DROP_LAHORE",
+    hubCity: "",
+    specialInstructions: "",
+  });
 
   const rowCount = useMemo(() => rows.length, [rows]);
 
@@ -104,6 +124,24 @@ export default function BookingQuote() {
     if (!recommendation) return;
     setSelectedOption(recommendation.recommendedOption);
   }, [recommendation]);
+
+  useEffect(() => {
+    if (!summary) return;
+    setSenderDetails((previous) => ({
+      ...previous,
+      senderCity: previous.senderCity || senderCityForRules,
+      hubCity: previous.hubCity || senderCityForRules || "Lahore",
+      intakeMethod:
+        selectedOption === "DROP_AT_COLLECTION_POINT"
+          ? (senderCityForRules.toLowerCase() === "sahiwal" ? "DROP_SAHIWAL" : "DROP_LAHORE")
+          : "PICKUP_REQUESTED_FUTURE",
+    }));
+  }, [summary, senderCityForRules, selectedOption]);
+
+  useEffect(() => {
+    setCreateDraftError(null);
+    setCreatedDraftLink(null);
+  }, [summary, selectedOption, customerNoticeAccepted]);
 
   function applyJsonRows() {
     try {
@@ -160,6 +198,80 @@ export default function BookingQuote() {
       setError(requestError instanceof Error ? requestError.message : "Failed to calculate quote");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function createDraftRequest() {
+    if (!summary || !recommendation) return;
+    const quoteSummary = summary;
+    const rowsForDraft = rows.length > 0
+      ? rows
+      : quoteSummary.perArticlePostageBreakdown.map((entry) => ({
+        serviceCode: entry.serviceCode,
+        weightGrams: entry.result.weightGrams,
+        senderCity: entry.senderCity,
+        receiverCity: entry.receiverCity,
+        articleCategory: entry.result.articleCategory,
+      }));
+    if (!customerNoticeAccepted) {
+      setCreateDraftError("Accept the request-only notice before creating draft request.");
+      return;
+    }
+    if (!recommendation.requestPreviewAllowed || recommendation.blockers.includes("OVER_PHASE_LIMIT")) {
+      setCreateDraftError("Draft request is blocked by current recommendation constraints.");
+      return;
+    }
+
+    const senderPayload: BookingSenderPayload = {
+      senderName: senderDetails.senderName.trim(),
+      senderPhone: senderDetails.senderPhone.trim(),
+      senderAddress: senderDetails.senderAddress.trim(),
+      senderCity: senderDetails.senderCity.trim(),
+      specialInstructions: senderDetails.specialInstructions?.trim() || "",
+      intakeMethod: senderDetails.intakeMethod,
+      hubCity: senderDetails.hubCity.trim(),
+    };
+
+    try {
+      setCreatingDraft(true);
+      setCreateDraftError(null);
+      setCreatedDraftLink(null);
+
+      const result = await convertQuoteToBookingDraft({
+        rows: rowsForDraft,
+        quoteSummary: {
+          ...quoteSummary,
+          totalBasePostage: quoteSummary.totalPostageAmount,
+          totalRegistrationFee: 0,
+          totalValuePayableFee: 0,
+          totalInsuranceFee: 0,
+          totalOfficialPostalCharge: quoteSummary.totalPostageAmount,
+        },
+        sender: senderPayload,
+        selectedOption,
+        recommendationSnapshot: {
+          eligibility: recommendation.eligibility,
+          blockers: recommendation.blockers,
+          advisoryNotes: recommendation.advisoryNotes,
+          valuePayableGuard: recommendation.valuePayableGuard,
+          requestPreviewAllowed: recommendation.requestPreviewAllowed,
+        },
+        requestFlags: {
+          requestOnly: true,
+          noPayment: true,
+          noLiveBooking: true,
+          noPickupExecution: true,
+          customerNoticeAccepted: true,
+        },
+      });
+
+      const link = `/aggregator-bookings/${result.booking.id}`;
+      setCreatedDraftLink(link);
+      navigate(link);
+    } catch (requestError) {
+      setCreateDraftError(requestError instanceof Error ? requestError.message : "Failed to create draft request");
+    } finally {
+      setCreatingDraft(false);
     }
   }
 
@@ -244,6 +356,14 @@ export default function BookingQuote() {
               <BookingDraftReview
                 requestPreview={requestPreview}
                 previewAllowed={Boolean(recommendation?.requestPreviewAllowed)}
+                senderDetails={senderDetails}
+                customerNoticeAccepted={customerNoticeAccepted}
+                creatingDraft={creatingDraft}
+                createError={createDraftError}
+                createSuccessLink={createdDraftLink}
+                onChangeSender={(patch) => setSenderDetails((previous) => ({ ...previous, ...patch }))}
+                onToggleNoticeAccepted={setCustomerNoticeAccepted}
+                onCreateDraft={createDraftRequest}
               />
             ) : null}
             <BookingRecommendationCard summary={summary} />

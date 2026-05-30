@@ -35,38 +35,64 @@ const quoteSummarySchema = z.object({
   totalArticles: z.number().int().min(0),
   totalActualWeightGrams: z.number().min(0),
   totalChargeableWeightGrams: z.number().min(0),
+  totalPostageAmount: z.number().min(0),
   totalBasePostage: z.number().min(0),
   totalRegistrationFee: z.number().min(0),
   totalValuePayableFee: z.number().min(0),
   totalInsuranceFee: z.number().min(0),
   totalOfficialPostalCharge: z.number().min(0),
-  byCategory: z.record(
+  byCategory: z.array(
     z.object({
-      articles: z.number().int().min(0),
+      key: z.string(),
+      totalArticles: z.number().int().min(0),
       totalActualWeightGrams: z.number().min(0),
       totalChargeableWeightGrams: z.number().min(0),
-      totalBasePostage: z.number().min(0),
-      totalRegistrationFee: z.number().min(0),
-      totalValuePayableFee: z.number().min(0),
-      totalInsuranceFee: z.number().min(0),
-      totalOfficialPostalCharge: z.number().min(0),
+      totalPostageAmount: z.number().min(0),
     }),
   ),
-  byProduct: z.record(
+  byProduct: z.array(
     z.object({
-      articles: z.number().int().min(0),
+      key: z.string(),
+      totalArticles: z.number().int().min(0),
       totalActualWeightGrams: z.number().min(0),
       totalChargeableWeightGrams: z.number().min(0),
-      totalBasePostage: z.number().min(0),
-      totalRegistrationFee: z.number().min(0),
-      totalValuePayableFee: z.number().min(0),
-      totalInsuranceFee: z.number().min(0),
-      totalOfficialPostalCharge: z.number().min(0),
+      totalPostageAmount: z.number().min(0),
     }),
   ),
   perArticlePostageBreakdown: z.array(quoteResultRowSchema),
   warningRows: z.array(z.object({ rowNumber: z.number().int().positive(), warnings: z.array(z.string()) })),
   errorRows: z.array(z.object({ rowNumber: z.number().int().positive(), errors: z.array(z.string()) })),
+}).superRefine((summary, ctx) => {
+  if (summary.totalChargeableWeightGrams < summary.totalActualWeightGrams) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["totalChargeableWeightGrams"],
+      message: "totalChargeableWeightGrams must be greater than or equal to totalActualWeightGrams.",
+    });
+  }
+  if (summary.totalPostageAmount > summary.totalOfficialPostalCharge) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["totalPostageAmount"],
+      message: "totalPostageAmount cannot exceed totalOfficialPostalCharge.",
+    });
+  }
+});
+
+const recommendationSnapshotSchema = z.object({
+  eligibility: z.enum(["recommended", "review_required", "not_recommended"]),
+  blockers: z.array(z.string()),
+  advisoryNotes: z.array(z.string()),
+  valuePayableGuard: z.boolean(),
+  requestPreviewAllowed: z.boolean(),
+});
+
+const requestFlagsSchema = z.object({
+  requestOnly: z.literal(true),
+  noPayment: z.literal(true),
+  noLiveBooking: z.literal(true),
+  noPickupExecution: z.literal(true),
+  customerNoticeAccepted: z.literal(true),
 });
 
 const senderDetailsSchema = z.object({
@@ -120,6 +146,17 @@ export const convertQuoteToDraftSchema = z.object({
   expiresAt: z.string().datetime().optional(),
   sender: senderDetailsSchema,
   sourceFile: quoteSourceFileMetadataSchema.optional(),
+  selectedOption: z.enum(["DROP_AT_COLLECTION_POINT", "PICKUP_TO_HUB_PLANNING", "DIRECT_COURIER_OR_SELF_DROP_ADVISORY"]),
+  recommendationSnapshot: recommendationSnapshotSchema,
+  requestFlags: requestFlagsSchema,
+}).superRefine((payload, ctx) => {
+  if (payload.recommendationSnapshot.blockers.includes("OVER_PHASE_LIMIT")) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["recommendationSnapshot", "blockers"],
+      message: "Draft request cannot be created while OVER_PHASE_LIMIT blocker is present.",
+    });
+  }
 });
 
 export const createBookingDraftSchema = z.object({

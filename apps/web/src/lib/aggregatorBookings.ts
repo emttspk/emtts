@@ -102,10 +102,31 @@ export type BookingSenderPayload = {
   hubCity: string;
 };
 
+export type BookingRecommendationSnapshot = {
+  eligibility: "recommended" | "review_required" | "not_recommended";
+  blockers: string[];
+  advisoryNotes: string[];
+  valuePayableGuard: boolean;
+  requestPreviewAllowed: boolean;
+};
+
+export type BookingRequestFlags = {
+  requestOnly: true;
+  noPayment: true;
+  noLiveBooking: true;
+  noPickupExecution: true;
+  customerNoticeAccepted: true;
+};
+
+export type BookingOptionSelection = "DROP_AT_COLLECTION_POINT" | "PICKUP_TO_HUB_PLANNING" | "DIRECT_COURIER_OR_SELF_DROP_ADVISORY";
+
 export async function convertQuoteToBookingDraft(input: {
   rows: Array<Record<string, unknown>>;
   quoteSummary: Record<string, unknown>;
   sender: BookingSenderPayload;
+  selectedOption: BookingOptionSelection;
+  recommendationSnapshot: BookingRecommendationSnapshot;
+  requestFlags: BookingRequestFlags;
   quoteVersion?: string;
   rateCardVersionSet?: Record<string, string>;
 }) {
@@ -116,6 +137,9 @@ export async function convertQuoteToBookingDraft(input: {
       rows: input.rows,
       quoteSummary: input.quoteSummary,
       sender: input.sender,
+      selectedOption: input.selectedOption,
+      recommendationSnapshot: input.recommendationSnapshot,
+      requestFlags: input.requestFlags,
       rateCardVersionSet: input.rateCardVersionSet ?? {},
     }),
   });

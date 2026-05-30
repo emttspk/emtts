@@ -1,10 +1,10 @@
-# Booking Rollout Checklist (Phase 2A Recommendation Preview)
+# Booking Rollout Checklist (Phase 2B Persisted Draft Request)
 
 ## Pre-Deploy
 - Confirm protected modules are untouched: upload/generation, worker, billing, admin, tracking.
 - Confirm no DB migration is included for this rollout.
 - Confirm quote endpoint returns quote-only response mode.
-- Confirm no request-preview path writes to database.
+- Confirm persisted draft path writes only request-only draft records.
 - Confirm no payment/live-booking/pickup execution is introduced.
 
 ## Verification Commands
@@ -20,13 +20,15 @@
 - Verify unsupported slab rows show explicit error diagnostics.
 - Verify recommendation cards render after quote summary.
 - Verify request preview renders with request-only, no-payment, no-live-booking, and no-pickup notices.
-- Verify submit-to-admin action remains disabled and explicitly marked Phase 2B.
+- Verify customer must accept request-only notice before draft creation is enabled.
+- Verify draft creation from quote preview succeeds and returns a booking in `BOOKING_DRAFT`.
+- Verify success path links to existing booking detail page.
 
 ## Safety Checks
-- Ensure quote flow does not create booking records.
+- Ensure Phase 2B create flow creates only booking draft request records.
 - Ensure quote flow does not trigger payments.
 - Ensure quote flow does not touch label or money-order generation paths.
-- Ensure persisted aggregator draft conversion endpoint is not used in Phase 2A UI flow.
+- Ensure no pickup/dispatch/live courier/live Pakistan Post booking action is triggered.
 
 ## Rollback Plan
 - Revert Phase 1 quote module commit if critical regression appears.
@@ -62,3 +64,10 @@ For phase boundaries, protected scope, and continuity handoff protocol, see `doc
 - Added Booking Quote request-preview UI components with no DB write.
 - Added request-only notices and disabled Phase 2B submit action.
 - Kept quote input/upload and per-article postage behavior unchanged.
+
+## Phase 2B Implementation Status (2026-05-31)
+- Enabled persisted quote-to-draft request creation from Booking Quote preview.
+- Added mandatory customer notice acceptance gate before draft creation.
+- Added request-only payload validation and blocker enforcement (`OVER_PHASE_LIMIT` rejection).
+- Persisted request metadata snapshot through existing aggregator persistence path without migration.
+- Kept create status as `BOOKING_DRAFT` and avoided payment/pickup/dispatch/live booking side effects.

@@ -41,11 +41,19 @@ aggregatorBookingsRouter.post("/quotes/convert-to-draft", async (req: AuthedRequ
       rateCardVersionSet: payload.rateCardVersionSet,
       expiresAt: payload.expiresAt,
       sender: payload.sender,
+      selectedOption: payload.selectedOption,
+      recommendationSnapshot: payload.recommendationSnapshot,
+      requestFlags: payload.requestFlags,
       sourceFile: payload.sourceFile,
       context: { req },
     });
 
-    return res.status(201).json({ success: true, quote: result.quote, booking: result.booking });
+    return res.status(201).json({
+      success: true,
+      message: "Draft request created. This is not booking confirmation and requires admin review before operational action.",
+      quote: result.quote,
+      booking: result.booking,
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ success: false, error: "Invalid conversion payload", details: error.errors });
