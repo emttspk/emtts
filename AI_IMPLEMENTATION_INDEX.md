@@ -1,5 +1,41 @@
 # AI Implementation Index
 
+## 2026-05-30 - ePost Aggregator Booking Quote Phase 1 (Quote-Only)
+
+### Task Name
+- Implement strict Phase 1 aggregator booking quote flow for per-article Pakistan Post postage estimates only.
+
+### Files Changed
+- `apps/api/src/utils/postageRates.ts`
+- `apps/api/src/utils/postageRates.test.ts`
+- `apps/api/src/services/bookingQuoteService.ts`
+- `apps/api/src/routes/bookingQuotes.ts`
+- `apps/web/src/pages/BookingQuote.tsx`
+- `apps/web/src/components/booking/PostageSummaryCard.tsx`
+- `apps/web/src/components/booking/PostageBreakdownTable.tsx`
+- `apps/web/src/components/booking/BookingRecommendationCard.tsx`
+- `docs/architecture/postage-rates.md`
+- `docs/architecture/booking-business-plan.md`
+- `docs/operations/booking-rollout-checklist.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Behavior Added
+- Added Phase 1 quote-only postage calculator using service code, weight, and city normalization for UMS routing.
+- Added CSV/XLSX file upload parsing and JSON row calculation path for quote API.
+- Added quote summary totals (`totalPostageAmount`) with per-row warnings/errors.
+- Updated booking quote UI to remove quote-to-draft conversion and keep quote-only behavior.
+
+### Protected Scope Confirmation
+- Upload/generation pipeline: NOT CHANGED
+- Worker processing: NOT CHANGED
+- Billing/payment workflow: NOT CHANGED
+- Admin flows: NOT CHANGED
+- Tracking flows: NOT CHANGED
+
+### Notes
+- Text-book 50g to 250g tariff gap remains intentionally unsupported and returns row error.
+- VPL/VPP/COD include informational warning that they remain Pakistan Post final-delivery products.
+
 ## 2026-05-30 - Staging /api/me Payment Schema Drift Recovery
 
 ### Task Name

@@ -10,15 +10,8 @@ type BreakdownRow = {
     postalProduct: string;
     weightGrams: number | null;
     chargeableWeightGrams: number | null;
-    basePostageAmount: number | null;
-    registrationFeeAmount: number | null;
-    valuePayableFeeAmount: number | null;
-    insuranceFeeAmount: number | null;
-    totalOfficialPostalCharge: number | null;
-    appliedComponents: string[];
-    missingComponents: string[];
-    matchedRateCards: string[];
-    matchedSlabs: string[];
+    postageAmount: number | null;
+    matchedSlab: string | null;
     warnings: string[];
     errors: string[];
   };
@@ -35,16 +28,11 @@ export default function PostageBreakdownTable({ rows }: { rows: BreakdownRow[] }
               <th className="px-3 py-2 font-semibold">Row</th>
               <th className="px-3 py-2 font-semibold">Service</th>
               <th className="px-3 py-2 font-semibold">Category</th>
+              <th className="px-3 py-2 font-semibold">Product</th>
               <th className="px-3 py-2 font-semibold">Actual (g)</th>
               <th className="px-3 py-2 font-semibold">Chargeable (g)</th>
-              <th className="px-3 py-2 font-semibold">Base</th>
-              <th className="px-3 py-2 font-semibold">Reg</th>
-              <th className="px-3 py-2 font-semibold">VP</th>
-              <th className="px-3 py-2 font-semibold">Ins</th>
-              <th className="px-3 py-2 font-semibold">Official Total</th>
-              <th className="px-3 py-2 font-semibold">Components</th>
-              <th className="px-3 py-2 font-semibold">Missing</th>
-              <th className="px-3 py-2 font-semibold">Matched Slabs</th>
+              <th className="px-3 py-2 font-semibold">Postage</th>
+              <th className="px-3 py-2 font-semibold">Matched Slab</th>
               <th className="px-3 py-2 font-semibold">Warnings</th>
               <th className="px-3 py-2 font-semibold">Errors</th>
             </tr>
@@ -55,16 +43,11 @@ export default function PostageBreakdownTable({ rows }: { rows: BreakdownRow[] }
                 <td className="px-3 py-2 font-medium">{row.rowNumber}</td>
                 <td className="px-3 py-2">{row.serviceCode || "-"}</td>
                 <td className="px-3 py-2">{row.result.articleCategory || "-"}</td>
+                <td className="px-3 py-2">{row.result.postalProduct || "-"}</td>
                 <td className="px-3 py-2">{row.result.weightGrams ?? "-"}</td>
                 <td className="px-3 py-2">{row.result.chargeableWeightGrams ?? "-"}</td>
-                <td className="px-3 py-2">{row.result.basePostageAmount === null ? "-" : `Rs. ${row.result.basePostageAmount}`}</td>
-                <td className="px-3 py-2">{row.result.registrationFeeAmount === null ? "-" : `Rs. ${row.result.registrationFeeAmount}`}</td>
-                <td className="px-3 py-2">{row.result.valuePayableFeeAmount === null ? "-" : `Rs. ${row.result.valuePayableFeeAmount}`}</td>
-                <td className="px-3 py-2">{row.result.insuranceFeeAmount === null ? "-" : `Rs. ${row.result.insuranceFeeAmount}`}</td>
-                <td className="px-3 py-2">{row.result.totalOfficialPostalCharge === null ? "-" : `Rs. ${row.result.totalOfficialPostalCharge}`}</td>
-                <td className="px-3 py-2">{row.result.appliedComponents.length > 0 ? row.result.appliedComponents.join(", ") : "-"}</td>
-                <td className="px-3 py-2">{row.result.missingComponents.length > 0 ? row.result.missingComponents.join(", ") : "-"}</td>
-                <td className="px-3 py-2">{row.result.matchedSlabs.length > 0 ? row.result.matchedSlabs.join(" | ") : "-"}</td>
+                <td className="px-3 py-2">{row.result.postageAmount === null ? "-" : `Rs. ${row.result.postageAmount}`}</td>
+                <td className="px-3 py-2">{row.result.matchedSlab || "-"}</td>
                 <td className="px-3 py-2">{row.result.warnings.length}</td>
                 <td className="px-3 py-2">{row.result.errors.length}</td>
               </tr>

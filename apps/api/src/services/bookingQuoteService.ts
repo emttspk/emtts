@@ -1,6 +1,14 @@
-import { calculatePostage, type PostageCalculatorInput, type PostageCalculatorResult } from "../utils/postageRates.js";
+import * as XLSX from "xlsx";
+import { calculatePostage, type PostageCalculatorResult } from "../utils/postageRates.js";
 
-export type QuoteRow = Record<string, unknown>;
+export type QuoteRow = {
+  serviceCode?: string;
+  weightGrams?: number | null;
+  senderCity?: string;
+  receiverCity?: string;
+  articleCategory?: string;
+  isTextbook?: boolean;
+};
 
 export type QuoteBreakdownRow = {
   rowNumber: number;
@@ -11,9 +19,23 @@ export type QuoteBreakdownRow = {
 };
 
 export type QuoteSummaryBucket = {
-  articles: number;
+  key: string;
+  totalArticles: number;
   totalActualWeightGrams: number;
   totalChargeableWeightGrams: number;
+  totalPostageAmount: number;
+};
+
+export type QuoteSummary = {
+  totalArticles: number;
+  totalActualWeightGrams: number;
+  totalChargeableWeightGrams: number;
+  totalPostageAmount: number;
+  byCategory: QuoteSummaryBucket[];
+  byProduct: QuoteSummaryBucket[];
+  perArticlePostageBreakdown: QuoteBreakdownRow[];
+  warningRows: Array<{ rowNumber: number; warnings: string[] }>;
+  errorRows: Array<{ rowNumber: number; errors: string[] }>;
   totalBasePostage: number;
   totalRegistrationFee: number;
   totalValuePayableFee: number;
@@ -21,21 +43,20 @@ export type QuoteSummaryBucket = {
   totalOfficialPostalCharge: number;
 };
 
-export type QuoteSummary = {
+type RowRecord = Record<string, unknown>;
+
+type GroupAccumulator = {
+  key: string;
   totalArticles: number;
   totalActualWeightGrams: number;
   totalChargeableWeightGrams: number;
-  totalBasePostage: number;
-  totalRegistrationFee: number;
-  totalValuePayableFee: number;
-  totalInsuranceFee: number;
-  totalOfficialPostalCharge: number;
-  byCategory: Record<string, QuoteSummaryBucket>;
-  byProduct: Record<string, QuoteSummaryBucket>;
-  perArticlePostageBreakdown: QuoteBreakdownRow[];
-  warningRows: Array<{ rowNumber: number; warnings: string[] }>;
-  errorRows: Array<{ rowNumber: number; errors: string[] }>;
+  totalPostageAmount: number;
 };
+
+function toText(value: unknown): string | undefined {
+  const normalized = String(value ?? "").trim();
+  return normalized.length > 0 ? normalized : undefined;
+}
 
 function toNumber(value: unknown): number | null {
   if (value === null || value === undefined || String(value).trim() === "") return null;
@@ -51,97 +72,125 @@ function toBoolean(value: unknown): boolean {
   return normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "y";
 }
 
-function accumulate(bucket: Record<string, QuoteSummaryBucket>, key: string, row: QuoteBreakdownRow) {
-  const normalizedKey = key || "UNKNOWN";
-  const existing = bucket[normalizedKey] ?? {
-    articles: 0,
-    totalActualWeightGrams: 0,
-    totalChargeableWeightGrams: 0,
-    totalBasePostage: 0,
-    totalRegistrationFee: 0,
-    totalValuePayableFee: 0,
-    totalInsuranceFee: 0,
-    totalOfficialPostalCharge: 0,
-  };
-  existing.articles += 1;
-  existing.totalActualWeightGrams += row.result.weightGrams ?? 0;
-  existing.totalChargeableWeightGrams += row.result.chargeableWeightGrams ?? 0;
-  existing.totalBasePostage += row.result.basePostageAmount ?? 0;
-  existing.totalRegistrationFee += row.result.registrationFeeAmount ?? 0;
-  existing.totalValuePayableFee += row.result.valuePayableFeeAmount ?? 0;
-  existing.totalInsuranceFee += row.result.insuranceFeeAmount ?? 0;
-  existing.totalOfficialPostalCharge += row.result.totalOfficialPostalCharge ?? 0;
-  bucket[normalizedKey] = existing;
+function resolveField(row: RowRecord, candidates: string[]): unknown {
+  const keyed = new Map<string, unknown>();
+  for (const [key, value] of Object.entries(row)) {
+    keyed.set(key.trim().toLowerCase(), value);
+  }
+  for (const candidate of candidates) {
+    const match = keyed.get(candidate.toLowerCase());
+    if (match !== undefined) return match;
+  }
+  return undefined;
 }
 
-function toCalculatorInput(row: QuoteRow): PostageCalculatorInput {
-  const serviceCode = String(row.serviceCode ?? row.shipmenttype ?? row.shipmentType ?? "").trim().toUpperCase();
-  const senderCity = String(row.senderCity ?? row.bookingcity ?? row.originCity ?? "").trim();
-  const receiverCity = String(row.receiverCity ?? row.consigneecity ?? row.destinationCity ?? "").trim();
-  const categoryRaw = String(row.articleCategory ?? "").trim().toUpperCase();
-  const category = categoryRaw || undefined;
-  const isTextbook = toBoolean(row.isTextbook ?? row.textbook ?? row.is_textbook);
-
+function normalizeRow(input: QuoteRow | RowRecord): QuoteRow {
+  const row = input as RowRecord;
   return {
-    serviceCode,
-    weightGrams: toNumber(row.weightGrams ?? row.Weight ?? row.weight),
-    senderCity,
-    receiverCity,
-    articleCategory: category as PostageCalculatorInput["articleCategory"],
-    isTextbook,
-    isRegistered: toBoolean(row.isRegistered ?? row.registered ?? row.is_registered),
-    isValuePayable: toBoolean(row.isValuePayable ?? row.valuePayable ?? row.is_value_payable),
-    isInsured: toBoolean(row.isInsured ?? row.insured ?? row.is_insured),
-    declaredValue: toNumber(row.declaredValue ?? row.declared_value),
+    serviceCode: toText(resolveField(row, ["serviceCode", "service_code", "service", "shipmentType", "shipment_type", "type"])),
+    weightGrams: toNumber(resolveField(row, ["weightGrams", "weight_grams", "weight", "weight(g)", "actualWeight"])),
+    senderCity: toText(resolveField(row, ["senderCity", "sender_city", "originCity", "origin_city", "bookingCity"])),
+    receiverCity: toText(resolveField(row, ["receiverCity", "receiver_city", "destinationCity", "destination_city", "consigneeCity"])),
+    articleCategory: toText(resolveField(row, ["articleCategory", "article_category", "category"])),
+    isTextbook: toBoolean(resolveField(row, ["isTextbook", "is_textbook", "textbook"])),
   };
+}
+
+function pushGroup(map: Map<string, GroupAccumulator>, key: string, row: QuoteBreakdownRow) {
+  const amount = row.result.postageAmount ?? 0;
+  const actualWeight = row.result.weightGrams ?? 0;
+  const chargeableWeight = row.result.chargeableWeightGrams ?? 0;
+  const current = map.get(key) ?? {
+    key,
+    totalArticles: 0,
+    totalActualWeightGrams: 0,
+    totalChargeableWeightGrams: 0,
+    totalPostageAmount: 0,
+  };
+  current.totalArticles += 1;
+  current.totalActualWeightGrams += actualWeight;
+  current.totalChargeableWeightGrams += chargeableWeight;
+  current.totalPostageAmount += amount;
+  map.set(key, current);
+}
+
+export function parseQuoteRowsFromBuffer(buffer: Buffer): QuoteRow[] {
+  const workbook = XLSX.read(buffer, { type: "buffer", cellDates: false });
+  const firstSheetName = workbook.SheetNames[0];
+  if (!firstSheetName) return [];
+
+  const sheet = workbook.Sheets[firstSheetName];
+  const rows = XLSX.utils.sheet_to_json<RowRecord>(sheet, {
+    defval: "",
+    raw: false,
+    blankrows: false,
+  });
+
+  return rows.map((row) => normalizeRow(row));
 }
 
 export function buildBookingQuoteSummary(rows: QuoteRow[]): QuoteSummary {
-  const perArticlePostageBreakdown: QuoteBreakdownRow[] = [];
+  const safeRows = Array.isArray(rows) ? rows : [];
+  const byCategory = new Map<string, GroupAccumulator>();
+  const byProduct = new Map<string, GroupAccumulator>();
   const warningRows: Array<{ rowNumber: number; warnings: string[] }> = [];
   const errorRows: Array<{ rowNumber: number; errors: string[] }> = [];
-  const byCategory: Record<string, QuoteSummaryBucket> = {};
-  const byProduct: Record<string, QuoteSummaryBucket> = {};
+  const perArticlePostageBreakdown: QuoteBreakdownRow[] = [];
 
-  for (let index = 0; index < rows.length; index += 1) {
-    const row = rows[index] ?? {};
-    const rowNumber = index + 1;
-    const input = toCalculatorInput(row);
-    const result = calculatePostage(input);
-    const breakdownRow: QuoteBreakdownRow = {
-      rowNumber,
-      serviceCode: input.serviceCode,
-      senderCity: input.senderCity ?? "",
-      receiverCity: input.receiverCity ?? "",
+  let totalActualWeightGrams = 0;
+  let totalChargeableWeightGrams = 0;
+  let totalPostageAmount = 0;
+
+  safeRows.forEach((row, index) => {
+    const normalized = normalizeRow(row);
+    const result = calculatePostage({
+      serviceCode: normalized.serviceCode ?? "",
+      weightGrams: normalized.weightGrams ?? null,
+      senderCity: normalized.senderCity,
+      receiverCity: normalized.receiverCity,
+      articleCategory: normalized.articleCategory,
+      isTextbook: normalized.isTextbook,
+    });
+
+    const item: QuoteBreakdownRow = {
+      rowNumber: index + 1,
+      serviceCode: String(normalized.serviceCode ?? "").trim().toUpperCase(),
+      senderCity: normalized.senderCity ?? "",
+      receiverCity: normalized.receiverCity ?? "",
       result,
     };
 
-    perArticlePostageBreakdown.push(breakdownRow);
+    perArticlePostageBreakdown.push(item);
+
+    totalActualWeightGrams += result.weightGrams ?? 0;
+    totalChargeableWeightGrams += result.chargeableWeightGrams ?? 0;
+    totalPostageAmount += result.postageAmount ?? 0;
+
+    pushGroup(byCategory, result.articleCategory || "UNKNOWN", item);
+    pushGroup(byProduct, result.postalProduct || "UNKNOWN", item);
 
     if (result.warnings.length > 0) {
-      warningRows.push({ rowNumber, warnings: result.warnings });
+      warningRows.push({ rowNumber: item.rowNumber, warnings: result.warnings });
     }
     if (result.errors.length > 0) {
-      errorRows.push({ rowNumber, errors: result.errors });
+      errorRows.push({ rowNumber: item.rowNumber, errors: result.errors });
     }
-
-    accumulate(byCategory, result.articleCategory, breakdownRow);
-    accumulate(byProduct, result.postalProduct, breakdownRow);
-  }
+  });
 
   return {
-    totalArticles: perArticlePostageBreakdown.length,
-    totalActualWeightGrams: perArticlePostageBreakdown.reduce((sum, row) => sum + (row.result.weightGrams ?? 0), 0),
-    totalChargeableWeightGrams: perArticlePostageBreakdown.reduce((sum, row) => sum + (row.result.chargeableWeightGrams ?? 0), 0),
-    totalBasePostage: perArticlePostageBreakdown.reduce((sum, row) => sum + (row.result.basePostageAmount ?? 0), 0),
-    totalRegistrationFee: perArticlePostageBreakdown.reduce((sum, row) => sum + (row.result.registrationFeeAmount ?? 0), 0),
-    totalValuePayableFee: perArticlePostageBreakdown.reduce((sum, row) => sum + (row.result.valuePayableFeeAmount ?? 0), 0),
-    totalInsuranceFee: perArticlePostageBreakdown.reduce((sum, row) => sum + (row.result.insuranceFeeAmount ?? 0), 0),
-    totalOfficialPostalCharge: perArticlePostageBreakdown.reduce((sum, row) => sum + (row.result.totalOfficialPostalCharge ?? 0), 0),
-    byCategory,
-    byProduct,
+    totalArticles: safeRows.length,
+    totalActualWeightGrams,
+    totalChargeableWeightGrams,
+    totalPostageAmount,
+    byCategory: Array.from(byCategory.values()),
+    byProduct: Array.from(byProduct.values()),
     perArticlePostageBreakdown,
     warningRows,
     errorRows,
+    totalBasePostage: totalPostageAmount,
+    totalRegistrationFee: 0,
+    totalValuePayableFee: 0,
+    totalInsuranceFee: 0,
+    totalOfficialPostalCharge: totalPostageAmount,
   };
 }
