@@ -227,6 +227,8 @@ function parseOriginList(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
+const explicitCorsOrigins = new Set(parseOriginList(env.CORS_ALLOWED_ORIGINS));
+
 const allowedCorsOrigins = new Set(
   [
     env.WEB_ORIGIN,
@@ -240,9 +242,10 @@ const allowedCorsOrigins = new Set(
           "http://127.0.0.1:3000",
         ]
       : []),
+    ...explicitCorsOrigins,
   ]
     .map(normalizeOrigin)
-    .filter((origin) => !isProduction || !isLocalOrigin(origin))
+    .filter((origin) => !isProduction || !isLocalOrigin(origin) || explicitCorsOrigins.has(origin))
     .filter(Boolean),
 );
 

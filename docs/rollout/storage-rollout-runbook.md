@@ -32,6 +32,15 @@ Additionally for Aggregator Booking Phase A metadata readiness:
   - `R2_SECRET_ACCESS_KEY` or `R2_SECRET_KEY`
 - `R2_BUCKET` and `R2_ENDPOINT` configured.
 
+## Staging Frontend Verification
+
+When testing the local frontend against staging Api-staging, set an explicit allowlist via `CORS_ALLOWED_ORIGINS` and keep the scope limited to local verification only.
+
+- Use `CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173` in staging only when you need the local frontend to call Api-staging.
+- This is for staging/local verification only.
+- Keep `ENABLE_UPLOAD_LOCAL_CLEANUP_AFTER_R2=false` and `ENABLE_R2_PREFERRED_READS=false` until Phase B passes.
+- Phase B verification still requires login, upload, `LabelJob` creation, `R2_SYNCED` SQL evidence, and R2 object confirmation.
+
 ## Infrastructure Bootstrap Checklist
 
 Before S0, confirm the environment is operational enough to distinguish rollout defects from missing infrastructure:
@@ -103,6 +112,14 @@ Phase B makes initial CSV/XLSX uploads durable in Cloudflare R2 immediately afte
    - Telemetry event `upload_r2_backup_failed` emitted.
    - Job still completes successfully from local file.
 4. Enable in production after staging validation passes.
+
+### Staging Local Frontend Note
+
+If the operator uses a local frontend for staging verification, the browser origin must be explicitly allowlisted with `CORS_ALLOWED_ORIGINS` so the login flow can reach `/api/auth/firebase-login`.
+
+- Do not use a wildcard CORS policy.
+- Do not broaden production origins beyond the explicit list.
+- Do not enable cleanup or R2-preferred reads before Phase B is verified.
 
 ### Phase B Boundary Rules
 - Do NOT set `DELETE_LOCAL_AFTER_R2_SYNC` for upload source files in Phase B.

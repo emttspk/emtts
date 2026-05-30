@@ -1,5 +1,36 @@
 # AI Implementation Index
 
+## 2026-05-30 - Staging CORS Allowlist for Local Frontend Verification
+
+### Task Name
+- Add explicit env-driven CORS allowlist support so a local staging frontend can reach Api-staging without weakening production defaults.
+
+### Files Changed
+- `apps/api/src/config.ts`
+- `apps/api/src/index.ts`
+- `docs/rollout/storage-rollout-runbook.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Behavior Added
+- Added `CORS_ALLOWED_ORIGINS` env support for comma-separated origins.
+- Merged explicit origins into the existing CORS allowlist.
+- Preserved production restrictions for all non-explicit origins.
+- Kept wildcard CORS disabled.
+
+### Staging Verification Scope
+- Use `CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173` only for local staging verification.
+- This is intended to unblock `/api/auth/firebase-login` from a local browser origin.
+
+### Protected Scope Confirmation
+- Upload logic: NOT CHANGED
+- LabelJob logic: NOT CHANGED
+- R2 logic: NOT CHANGED
+- Firebase login logic: NOT CHANGED
+- Cleanup/read-preference flags: NOT CHANGED
+
+### Next Recommended Step
+- Redeploy Api-staging, set the staging CORS allowlist variable, and rerun login/upload/R2 verification.
+
 ## 2026-05-30 - R2 Permanent Storage Rollout Phase D (Controlled Preferred Reads)
 
 ### Task Name

@@ -238,6 +238,7 @@ const envSchema = z.object({
   EASYPAISA_MERCHANT_ACCOUNT: z.string().default("03xxxxxxxxx"),
   EASYPAISA_MERCHANT_NAME: z.string().default("ePost Pakistan"),
   EASYPAISA_QR_URL: z.string().optional(),
+  CORS_ALLOWED_ORIGINS: z.string().optional(),
   FIREBASE_PROJECT_ID: z.string().optional(),
   FIREBASE_CLIENT_EMAIL: z.string().optional(),
   FIREBASE_PRIVATE_KEY: z.string().optional(),
