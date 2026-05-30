@@ -79,6 +79,39 @@ const senderDetailsSchema = z.object({
   hubCity: z.string().trim().min(2).max(120),
 });
 
+const quoteSourceFileMetadataSchema = z
+  .object({
+    sourceFileKey: z.string().trim().min(1).max(1024).optional(),
+    sourceObjectKey: z.string().trim().min(1).max(1024).optional(),
+    sourceBucket: z.string().trim().min(1).max(255),
+    sourceSizeBytes: z.number().int().min(0).max(1024 * 1024 * 1024).optional(),
+    sourceContentType: z.string().trim().min(1).max(255).optional(),
+    sourceChecksum: z.string().trim().min(1).max(255).optional(),
+    sourceOriginalFilename: z.string().trim().min(1).max(255).optional(),
+    sourceUploadedAt: z.string().datetime().optional(),
+  })
+  .strict()
+  .refine((value) => Boolean(value.sourceFileKey || value.sourceObjectKey), {
+    message: "sourceFileKey or sourceObjectKey is required",
+    path: ["sourceFileKey"],
+  });
+
+export const BOOKING_DOCUMENT_UPLOAD_STATUSES = ["PENDING", "R2_SYNCED", "FAILED"] as const;
+export const BOOKING_DOCUMENT_LOCAL_CLEANUP_STATUSES = ["NOT_REQUIRED", "PENDING", "DELETED", "FAILED"] as const;
+
+export const createBookingDocumentMetadataSchema = z.object({
+  docType: z.string().trim().min(2).max(80),
+  bucket: z.string().trim().min(1).max(255),
+  objectKey: z.string().trim().min(1).max(1024),
+  sizeBytes: z.number().int().min(0).max(2 * 1024 * 1024 * 1024).optional(),
+  contentType: z.string().trim().min(1).max(255).optional(),
+  checksum: z.string().trim().min(1).max(255).optional(),
+  originalFileName: z.string().trim().min(1).max(255),
+  uploadStatus: z.enum(BOOKING_DOCUMENT_UPLOAD_STATUSES).default("R2_SYNCED"),
+  localTempPath: z.string().trim().min(1).max(1024).optional(),
+  localCleanupStatus: z.enum(BOOKING_DOCUMENT_LOCAL_CLEANUP_STATUSES).optional(),
+});
+
 export const convertQuoteToDraftSchema = z.object({
   quoteVersion: z.string().trim().min(1).max(40).default("v1.5"),
   rows: z.array(quoteRowSchema).min(1),
@@ -86,6 +119,7 @@ export const convertQuoteToDraftSchema = z.object({
   rateCardVersionSet: z.record(z.string()).default({}),
   expiresAt: z.string().datetime().optional(),
   sender: senderDetailsSchema,
+  sourceFile: quoteSourceFileMetadataSchema.optional(),
 });
 
 export const createBookingDraftSchema = z.object({

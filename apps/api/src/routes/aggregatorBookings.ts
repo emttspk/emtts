@@ -12,7 +12,12 @@ import {
   updateBookingDraft,
 } from "../services/aggregatorBookingService.js";
 import {
+  createAggregatorBookingDocumentMetadata,
+  listAggregatorBookingDocumentsForUser,
+} from "../services/aggregatorDocumentService.js";
+import {
   cancelBookingSchema,
+  createBookingDocumentMetadataSchema,
   convertQuoteToDraftSchema,
   createBookingDraftSchema,
   listBookingQuerySchema,
@@ -36,6 +41,7 @@ aggregatorBookingsRouter.post("/quotes/convert-to-draft", async (req: AuthedRequ
       rateCardVersionSet: payload.rateCardVersionSet,
       expiresAt: payload.expiresAt,
       sender: payload.sender,
+      sourceFile: payload.sourceFile,
       context: { req },
     });
 
@@ -99,6 +105,51 @@ aggregatorBookingsRouter.get("/:id", async (req: AuthedRequest, res) => {
     return res.json({ success: true, booking });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load booking";
+    const status = message === "Booking not found" ? 404 : message === "Forbidden" ? 403 : 500;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+aggregatorBookingsRouter.get("/:id/documents", async (req: AuthedRequest, res) => {
+  try {
+    const userId = String(req.user?.id ?? "").trim();
+    const bookingId = String(req.params.id ?? "").trim();
+    const documents = await listAggregatorBookingDocumentsForUser({ bookingId, userId });
+    return res.json({ success: true, documents });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to list booking documents";
+    const status = message === "Booking not found" ? 404 : message === "Forbidden" ? 403 : 500;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+aggregatorBookingsRouter.post("/:id/documents", async (req: AuthedRequest, res) => {
+  try {
+    const userId = String(req.user?.id ?? "").trim();
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = createBookingDocumentMetadataSchema.parse(req.body);
+    const document = await createAggregatorBookingDocumentMetadata({
+      bookingId,
+      userId,
+      actorUserId: userId,
+      docType: payload.docType,
+      bucket: payload.bucket,
+      objectKey: payload.objectKey,
+      sizeBytes: payload.sizeBytes,
+      contentType: payload.contentType,
+      checksum: payload.checksum,
+      originalFileName: payload.originalFileName,
+      uploadStatus: payload.uploadStatus,
+      localTempPath: payload.localTempPath,
+      localCleanupStatus: payload.localCleanupStatus,
+      req,
+    });
+    return res.status(201).json({ success: true, document });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid document metadata payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to attach booking document metadata";
     const status = message === "Booking not found" ? 404 : message === "Forbidden" ? 403 : 500;
     return res.status(status).json({ success: false, error: message });
   }

@@ -8,6 +8,10 @@ Planned for future phase. Not active in Phase 2.
 - Phase 2 does not perform hub receiving, post booking, label generation, or money order generation.
 - Phase 3 may add pickup email and secure pickup tracking update link only.
 
+## Phase A Metadata Boundary
+- Phase A adds only storage metadata readiness fields and APIs for aggregator quote/document records.
+- Phase A does not activate hub receiving, Pakistan Post booking execution, label generation handoff, or MO generation handoff.
+
 ## Hub Receiving Steps
 1. Mark bundle received at Lahore/Sahiwal hub.
 2. Verify article count and bundle weight.

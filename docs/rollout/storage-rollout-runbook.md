@@ -16,6 +16,12 @@ This runbook covers:
 - cleanup validation
 - stream concurrency monitoring
 
+Additionally for Aggregator Booking Phase A metadata readiness:
+
+- additive DB metadata rollout for quote source objects and booking documents
+- metadata-only API attach/list checks for aggregator booking documents
+- explicit no-change boundary for generation path, cleanup cron behavior, and fallback read preference
+
 ## Preconditions
 
 - Build passes for API and worker.
@@ -55,6 +61,14 @@ Before S0, confirm the environment is operational enough to distinguish rollout 
 
 - Keep all rollout flags disabled by default.
 - Keep `STORAGE_PROVIDER=local` for local-first authoritative behavior.
+
+## Aggregator Phase A Boundary Rules
+
+- Do not modify `apps/api/src/routes/jobs.ts` generation/upload path.
+- Do not change cleanup deletion decisions in `apps/api/src/cron/cleanup.ts`.
+- Do not switch read preference to remote-first.
+- Do not alter worker execution flow for label/MO generation.
+- Treat Phase A as schema/API metadata capture only.
 
 ## Rollout Sequence
 

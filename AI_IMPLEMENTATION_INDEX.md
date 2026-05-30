@@ -1,5 +1,52 @@
 # AI Implementation Index
 
+## 2026-05-30 - R2 Permanent Storage Rollout Phase A (Aggregator Metadata Only)
+
+### Task Name
+- Implement Phase A additive metadata foundation for Aggregator Quote source files and Aggregator Booking documents for R2 permanent storage readiness.
+
+### Files Changed
+- `apps/api/prisma/schema.prisma`
+- `apps/api/prisma/migrations/20260530224500_phaseA_aggregator_r2_metadata/migration.sql`
+- `apps/api/src/utils/aggregatorBookingValidation.ts`
+- `apps/api/src/services/aggregatorBookingService.ts`
+- `apps/api/src/services/aggregatorDocumentService.ts`
+- `apps/api/src/routes/aggregatorBookings.ts`
+- `docs/architecture/storage-rollout-architecture.md`
+- `docs/rollout/storage-rollout-runbook.md`
+- `docs/architecture/aggregator-booking-business-plan.md`
+- `docs/operations/aggregator-booking-rollout-checklist.md`
+- `docs/operations/hub-receiving-and-post-booking-sop.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Scope Status
+- AggregatorQuote source file metadata fields: COMPLETED
+- AggregatorBookingDocument R2/local-cleanup metadata fields: COMPLETED
+- Booking conversion payload/schema supports optional source metadata: COMPLETED
+- Customer document metadata attach/list APIs (metadata-only): COMPLETED
+- Audit logging for source/document metadata attach: COMPLETED
+- Existing generation/upload path changes (`jobs.ts`): NOT IMPLEMENTED (protected)
+- Cleanup cron deletion behavior changes: NOT IMPLEMENTED (protected)
+- Read preference changes (R2-only or primary switch): NOT IMPLEMENTED (deferred)
+- Worker pipeline behavior changes: NOT IMPLEMENTED (deferred)
+
+### Protected Scope Verification
+- `apps/api/src/routes/jobs.ts`: NOT TOUCHED
+- `apps/api/src/cron/cleanup.ts`: NOT TOUCHED
+- `apps/api/src/worker.ts`: NOT TOUCHED
+- existing upload/parse generation path: NOT TOUCHED
+- money order commission and MOS/UMO logic: NOT TOUCHED
+- tracking logic: NOT TOUCHED
+- complaint logic: NOT TOUCHED
+- billing/unit consumption logic: NOT TOUCHED
+
+### Verification Notes
+- `npm run build`: PASS
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS
+- `npm --workspace=@labelgen/api exec prisma validate`: PASS
+- `npm --workspace=@labelgen/api exec prisma migrate dev --name phaseA_aggregator_r2_metadata --create-only`: BLOCKED by existing DB drift and reset prompt; no destructive reset performed.
+
 ## 2026-05-30 - Aggregator Booking Phase 2 (Draft, Review, Timeline)
 
 ### Task Name

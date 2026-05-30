@@ -562,6 +562,14 @@ model AggregatorQuote {
   quoteInputJson        Json
   quoteResultJson       Json
   rateCardVersionSetJson Json
+  sourceFileKey         String?
+  sourceObjectKey       String?
+  sourceBucket          String?
+  sourceSizeBytes       Int?
+  sourceContentType     String?
+  sourceChecksum        String?
+  sourceOriginalFilename String?
+  sourceUploadedAt      DateTime?
   expiresAt             DateTime?
   createdAt             DateTime @default(now())
 
@@ -686,6 +694,17 @@ model AggregatorBookingDocument {
   bookingId        String
   docType          String
   storageKey       String
+  bucket           String?
+  objectKey        String?
+  sizeBytes        Int?
+  contentType      String?
+  checksum         String?
+  uploadStatus     String   @default("PENDING")
+  localTempPath    String?
+  localCleanupStatus String @default("NOT_REQUIRED")
+  localCleanupAttempts Int  @default(0)
+  localCleanupLastError String?
+  localCleanupNextRetryAt DateTime?
   originalFileName String
   mimeType         String
   uploadedByUserId String
@@ -694,6 +713,8 @@ model AggregatorBookingDocument {
   booking AggregatorBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@index([bookingId, createdAt])
+  @@index([uploadStatus, createdAt])
+  @@index([localCleanupStatus, localCleanupNextRetryAt])
 }
 
 model AggregatorPaymentPlaceholder {

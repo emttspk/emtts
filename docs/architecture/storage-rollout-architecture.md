@@ -35,6 +35,17 @@ This document is the source of truth for the label/money-order storage rollout a
 - `R2StorageProvider`: optional remote mirror/fallback provider.
 - `provider.ts` abstracts provider selection and dual-write orchestration.
 
+### Aggregator Metadata Layer (Phase A)
+
+- `AggregatorQuote` stores optional source object metadata for upstream intake files:
+  - `sourceFileKey` and compatibility alias `sourceObjectKey`
+  - `sourceBucket`, `sourceSizeBytes`, `sourceContentType`, `sourceChecksum`, `sourceOriginalFilename`, `sourceUploadedAt`
+- `AggregatorBookingDocument` stores additive object and local-cleanup metadata:
+  - object fields: `bucket`, `objectKey`, `sizeBytes`, `contentType`, `checksum`
+  - upload lifecycle: `uploadStatus` (`PENDING`, `R2_SYNCED`, `FAILED`)
+  - local cleanup lifecycle: `localTempPath`, `localCleanupStatus`, `localCleanupAttempts`, `localCleanupLastError`, `localCleanupNextRetryAt`
+- Phase A is metadata-only and does not change write/read orchestration, generation flow, cleanup cron behavior, or worker behavior.
+
 ## Feature Flags (Exact)
 
 - `STORAGE_PROVIDER`

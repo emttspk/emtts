@@ -47,6 +47,13 @@ This document defines a separate Aggregator Booking business lane for ePost.pk t
 - No Pakistan Post final booking execution.
 - No SaaS unit deduction.
 
+## Phase A (R2 Metadata Foundation - Implemented)
+- Additive-only metadata support for source files on `AggregatorQuote`.
+- Additive-only metadata support for object/upload/local-cleanup lifecycle on `AggregatorBookingDocument`.
+- Customer APIs can attach/list booking document metadata records.
+- Source file metadata can be persisted during quote-to-draft conversion.
+- No changes to generation execution path, cleanup cron deletion behavior, worker flow, or read preference order.
+
 ## Future Phases
 - Phase 3: pickup email and secure pickup status updates.
 - Phase 4: hub verification, article-wise Pakistan Post booking workflow, and controlled handoff to label/MO generation.

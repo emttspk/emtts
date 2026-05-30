@@ -27,6 +27,16 @@
 - No Pakistan Post booking execution paths are triggered.
 - No unit consumption is triggered by any Phase 2 action.
 
+## Phase A (R2 Metadata Foundation) Checklist
+- Prisma schema and migration include additive source metadata fields on `AggregatorQuote`.
+- Prisma schema and migration include additive object/upload/local-cleanup metadata fields on `AggregatorBookingDocument`.
+- Quote conversion payload accepts optional source metadata and stores it.
+- Booking document metadata attach/list routes are available for authenticated booking owners.
+- Metadata attach actions are audit logged.
+- `jobs.ts` behavior remains unchanged.
+- `cleanup.ts` deletion decision behavior remains unchanged.
+- Worker generation flow remains unchanged.
+
 ## Regression Safeguards
 - Verify existing upload route contract remains unchanged.
 - Verify existing MO/tracking/complaint/billing behavior is unchanged.

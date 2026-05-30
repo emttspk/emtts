@@ -163,6 +163,16 @@ export async function convertQuoteToDraft(input: {
     intakeMethod: string;
     hubCity: string;
   };
+  sourceFile?: {
+    sourceFileKey?: string;
+    sourceObjectKey?: string;
+    sourceBucket: string;
+    sourceSizeBytes?: number;
+    sourceContentType?: string;
+    sourceChecksum?: string;
+    sourceOriginalFilename?: string;
+    sourceUploadedAt?: string;
+  };
   context?: RequestContext;
 }) {
   const userId = String(input.userId).trim();
@@ -173,6 +183,7 @@ export async function convertQuoteToDraft(input: {
   const actor: Actor = { actorType: "CUSTOMER", actorUserId: userId };
 
   const created = await prisma.$transaction(async (tx) => {
+    const sourceKey = normalizeOptionalString(input.sourceFile?.sourceFileKey ?? input.sourceFile?.sourceObjectKey);
     const quote = await tx.aggregatorQuote.create({
       data: {
         userId,
@@ -180,6 +191,17 @@ export async function convertQuoteToDraft(input: {
         quoteInputJson: input.rows as unknown as JsonValue,
         quoteResultJson: recomputed as unknown as JsonValue,
         rateCardVersionSetJson: input.rateCardVersionSet as unknown as JsonValue,
+        sourceFileKey: sourceKey,
+        sourceObjectKey: sourceKey,
+        sourceBucket: normalizeOptionalString(input.sourceFile?.sourceBucket),
+        sourceSizeBytes:
+          input.sourceFile?.sourceSizeBytes !== undefined
+            ? toSafeInt(input.sourceFile.sourceSizeBytes)
+            : null,
+        sourceContentType: normalizeOptionalString(input.sourceFile?.sourceContentType),
+        sourceChecksum: normalizeOptionalString(input.sourceFile?.sourceChecksum),
+        sourceOriginalFilename: normalizeOptionalString(input.sourceFile?.sourceOriginalFilename),
+        sourceUploadedAt: input.sourceFile?.sourceUploadedAt ? new Date(input.sourceFile.sourceUploadedAt) : null,
         expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
       },
     });
@@ -251,6 +273,29 @@ export async function convertQuoteToDraft(input: {
         newValueJson: "BOOKING_DRAFT" as unknown as JsonValue,
       },
     });
+
+    if (input.sourceFile) {
+      await tx.aggregatorBookingAuditLog.create({
+        data: {
+          bookingId: booking.id,
+          action: "QUOTE_SOURCE_FILE_METADATA_ATTACHED",
+          actorType: actor.actorType,
+          actorUserId: actor.actorUserId,
+          targetField: "sourceFile",
+          oldValueJson: undefined,
+          newValueJson: {
+            sourceFileKey: quote.sourceFileKey,
+            sourceObjectKey: quote.sourceObjectKey,
+            sourceBucket: quote.sourceBucket,
+            sourceSizeBytes: quote.sourceSizeBytes,
+            sourceContentType: quote.sourceContentType,
+            sourceChecksum: quote.sourceChecksum,
+            sourceOriginalFilename: quote.sourceOriginalFilename,
+            sourceUploadedAt: quote.sourceUploadedAt?.toISOString() ?? null,
+          } as unknown as JsonValue,
+        },
+      });
+    }
 
     return { quote, booking };
   });
@@ -433,6 +478,7 @@ export async function getBookingForUser(input: { bookingId: string; userId: stri
     where: { id: input.bookingId, userId: input.userId },
     include: {
       items: { orderBy: { rowNo: "asc" } },
+      documents: { orderBy: { createdAt: "desc" } },
       paymentPlaceholder: true,
     },
   });
@@ -466,6 +512,7 @@ export async function getBookingForAdmin(bookingId: string) {
         },
       },
       items: { orderBy: { rowNo: "asc" } },
+      documents: { orderBy: { createdAt: "desc" } },
       statusEvents: { orderBy: { createdAt: "asc" } },
       paymentPlaceholder: true,
     },
