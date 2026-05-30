@@ -1,5 +1,21 @@
 # AI Implementation Index
 
+## 2026-05-30 - Aggregator Booking Quote Phase 1 Smoke Verification
+
+### Task Name
+- Run safe smoke verification for Aggregator Booking Quote Phase 1 (quote-only scope).
+
+### Files Changed
+- `docs/operations/booking-rollout-checklist.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Verification Summary
+- Build, lint, and typecheck passed.
+- Direct postage test passed (`7/7`).
+- API quote contract and sample row calculations validated at service level.
+- Frontend route guard behavior validated (`/booking-quote` requires auth and redirects to `/login`).
+- Protected scope remained untouched.
+
 ## 2026-05-30 - Aggregator Booking Continuity Plan Strengthened
 
 ### Task Name

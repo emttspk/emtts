@@ -29,3 +29,24 @@
 
 ## Cross-Reference
 For phase boundaries, protected scope, and continuity handoff protocol, see `docs/architecture/booking-business-plan.md`.
+
+## Latest Smoke Result (2026-05-30)
+- Preflight identity: PASS (`main`, correct remote, clean working tree before smoke run).
+- Route wiring:
+	- Web route `/booking-quote`: PASS
+	- API route `/api/booking-quotes/quote`: PASS
+- Build: PASS
+- Lint: PASS
+- Typecheck: PASS
+- Direct postage test (`npm exec --workspace=@labelgen/api tsx src/utils/postageRates.test.ts`): PASS (7/7)
+- API quote contract smoke: PASS (service-level verification via `buildBookingQuoteSummary` with sample rows)
+	- Confirmed keys: `totalArticles`, `totalActualWeightGrams`, `totalChargeableWeightGrams`, `totalPostageAmount`, `byCategory`, `byProduct`, `perArticlePostageBreakdown`, `warningRows`, `errorRows`
+	- Sample postage checks: RGL 20g=30, UMS local 250g=90, UMS city-to-city 501g=305, PAR 1000g=150
+	- Invalid row (missing weight) remained diagnostics-only in `errorRows`
+- Frontend smoke:
+	- Local web runtime started successfully.
+	- Navigating to `/booking-quote` redirected to `/login` under auth guard as expected.
+	- Booking Quote component text remains quote-only and non-booking.
+- Safety assertions:
+	- No payment/pickup/discount/live-booking action introduced in Phase 1 quote flow.
+	- Existing Upload and generation flow remained unchanged.
