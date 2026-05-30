@@ -64,6 +64,35 @@ This document is the source of truth for the label/money-order storage rollout a
 - `uploadPath` local field is backward-compatible and unchanged.
 - `worker.ts`, `cleanup.ts`, `orders.ts`, PDF templates, MO/MOS/UMO logic, tracking/complaint/billing/auth: NOT TOUCHED.
 
+### Local Upload Cleanup After Confirmed Sync (Phase C)
+
+- Phase C adds metadata-driven cleanup for local upload source files only.
+- Cleanup deletes local upload files only when all criteria are true:
+  - `uploadSyncStatus = R2_SYNCED`
+  - `uploadObjectKey` exists
+  - `uploadPath` exists
+  - `uploadSyncedAt` is older than grace period
+  - cleanup has not already completed
+  - retry schedule is due and max attempts not reached
+- New cleanup metadata on `LabelJob`:
+  - `uploadLocalCleanupStatus`
+  - `uploadLocalCleanupAttempts`
+  - `uploadLocalCleanupLastError`
+  - `uploadLocalCleanupNextRetryAt`
+  - `uploadLocalDeletedAt`
+- Path safety is mandatory before deletion:
+  - resolve canonical target
+  - ensure target is inside canonical `uploadsDir()` boundary
+  - reject path traversal
+  - reject symlink and directories
+  - allow deletion only for regular files
+- Feature flag: `ENABLE_UPLOAD_LOCAL_CLEANUP_AFTER_R2=true` enables this cleanup pass.
+- Grace period env: `UPLOAD_LOCAL_CLEANUP_GRACE_MS` (default `3600000`, floor `60000`).
+- Retry env: `UPLOAD_LOCAL_CLEANUP_MAX_ATTEMPTS` (default `5`).
+- Rollback is immediate by setting `ENABLE_UPLOAD_LOCAL_CLEANUP_AFTER_R2=false`.
+- Phase C does NOT change read preference or queue payload behavior.
+- Phase D will handle R2-preferred reads later.
+
 ## Feature Flags (Exact)
 
 - `STORAGE_PROVIDER`
@@ -72,6 +101,7 @@ This document is the source of truth for the label/money-order storage rollout a
 - `ENABLE_R2_UPLOADS`
 - `ENABLE_R2_DOWNLOADS`
 - `ENABLE_UPLOAD_R2_BACKUP` — Phase B: back up uploaded CSV/XLSX source files to R2 (non-blocking, default off)
+- `ENABLE_UPLOAD_LOCAL_CLEANUP_AFTER_R2` — Phase C: delete local upload source files only after confirmed R2 sync (default off)
 
 ### Intended Local-First Rollout Usage
 

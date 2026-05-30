@@ -64,6 +64,101 @@ export function resolveStoredPath(storedPath: string) {
   return candidates[0];
 }
 
+export type UploadCleanupSafetyReason =
+  | "missing_file"
+  | "unsafe_path_outside_uploads_dir"
+  | "symlink_not_allowed"
+  | "directory_not_allowed"
+  | "not_regular_file"
+  | "file_stat_error";
+
+export type UploadCleanupPathSafetyResult =
+  | { ok: true; resolvedPath: string; canonicalUploadsDir: string }
+  | { ok: false; reason: UploadCleanupSafetyReason; resolvedPath: string; canonicalUploadsDir: string; error?: string };
+
+// Phase C guardrail: only allow deletion for regular files physically located under uploadsDir().
+export async function resolveSafeUploadCleanupTarget(uploadPath: string): Promise<UploadCleanupPathSafetyResult> {
+  const resolvedPath = resolveStoredPath(uploadPath);
+  const uploadsBase = path.resolve(uploadsDir());
+  const canonicalUploadsDir = await fs.realpath(uploadsBase).catch(() => uploadsBase);
+
+  const parentDir = path.dirname(resolvedPath);
+  const baseName = path.basename(resolvedPath);
+  const canonicalParentDir = await fs.realpath(parentDir).catch(() => null);
+
+  if (!canonicalParentDir) {
+    return {
+      ok: false,
+      reason: "missing_file",
+      resolvedPath,
+      canonicalUploadsDir,
+    };
+  }
+
+  const canonicalTarget = path.join(canonicalParentDir, baseName);
+  const relativeToUploads = path.relative(canonicalUploadsDir, canonicalTarget);
+  if (relativeToUploads.startsWith("..") || path.isAbsolute(relativeToUploads)) {
+    return {
+      ok: false,
+      reason: "unsafe_path_outside_uploads_dir",
+      resolvedPath: canonicalTarget,
+      canonicalUploadsDir,
+    };
+  }
+
+  try {
+    const stats = await fs.lstat(canonicalTarget);
+    if (stats.isSymbolicLink()) {
+      return {
+        ok: false,
+        reason: "symlink_not_allowed",
+        resolvedPath: canonicalTarget,
+        canonicalUploadsDir,
+      };
+    }
+    if (stats.isDirectory()) {
+      return {
+        ok: false,
+        reason: "directory_not_allowed",
+        resolvedPath: canonicalTarget,
+        canonicalUploadsDir,
+      };
+    }
+    if (!stats.isFile()) {
+      return {
+        ok: false,
+        reason: "not_regular_file",
+        resolvedPath: canonicalTarget,
+        canonicalUploadsDir,
+      };
+    }
+
+    return {
+      ok: true,
+      resolvedPath: canonicalTarget,
+      canonicalUploadsDir,
+    };
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException)?.code;
+    if (code === "ENOENT" || code === "ENOTDIR") {
+      return {
+        ok: false,
+        reason: "missing_file",
+        resolvedPath: canonicalTarget,
+        canonicalUploadsDir,
+      };
+    }
+
+    return {
+      ok: false,
+      reason: "file_stat_error",
+      resolvedPath: canonicalTarget,
+      canonicalUploadsDir,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 export async function waitForStoredFile(storedPath: string, attempts = 8, delayMs = 200) {
   const absPath = resolveStoredPath(storedPath);
   for (let attempt = 0; attempt < attempts; attempt += 1) {

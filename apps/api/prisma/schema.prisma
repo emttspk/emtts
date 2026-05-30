@@ -199,6 +199,12 @@ model LabelJob {
   uploadSyncStatus  String?   // NOT_ATTEMPTED | PENDING | R2_SYNCED | FAILED
   uploadSizeBytes   Int?      // Byte size of uploaded source file
   uploadOriginalExt String?   // File extension of source file (.csv or .xlsx)
+  // Phase C: Local upload cleanup lifecycle metadata
+  uploadLocalCleanupStatus      String?   // PENDING | COMPLETED | RETRY_PENDING | FAILED_TERMINAL | SKIPPED_UNSAFE_PATH | SKIPPED_MISSING_FILE
+  uploadLocalCleanupAttempts    Int       @default(0)
+  uploadLocalCleanupLastError   String?
+  uploadLocalCleanupNextRetryAt DateTime?
+  uploadLocalDeletedAt          DateTime?
   deleteAfterAt      DateTime?
   retentionTierSnapshot String?
   createdAt         DateTime  @default(now())
@@ -213,6 +219,8 @@ model LabelJob {
   @@index([trackingMasterSyncedAt])
   @@index([deleteAfterAt])
   @@index([uploadSyncStatus, uploadSyncedAt])
+  @@index([uploadLocalCleanupStatus, uploadLocalCleanupNextRetryAt])
+  @@index([uploadLocalDeletedAt])
 }
 
 model Shipment {

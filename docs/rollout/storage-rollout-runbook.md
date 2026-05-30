@@ -57,6 +57,7 @@ Before S0, confirm the environment is operational enough to distinguish rollout 
 - `ENABLE_R2_UPLOADS`
 - `ENABLE_R2_DOWNLOADS`
 - `ENABLE_UPLOAD_R2_BACKUP` — Phase B: enables R2 durable backup of uploaded CSV/XLSX source files (default: off)
+- `ENABLE_UPLOAD_LOCAL_CLEANUP_AFTER_R2` — Phase C: enables local upload file cleanup only after confirmed R2 sync (default: off)
 
 ## Default Safe Baseline
 
@@ -106,6 +107,55 @@ Phase B makes initial CSV/XLSX uploads durable in Cloudflare R2 immediately afte
 - Do NOT change `uploadPath` handling in `deleteJobArtifacts`.
 - Do NOT change worker `filePath` / `fileBuffer` queue payload.
 - Phase B touches ONLY: `schema.prisma`, migration SQL, `key-normalization.ts`, `provider.ts`, `jobs.ts` (one gated block).
+
+## Phase C: Safe Local Upload Cleanup After Confirmed R2 Sync
+
+### Purpose
+Phase C safely deletes local uploaded CSV/XLSX files only after R2 sync is confirmed and metadata is persisted.
+
+### Feature Flag and Envs
+- `ENABLE_UPLOAD_LOCAL_CLEANUP_AFTER_R2=true`
+- `UPLOAD_LOCAL_CLEANUP_GRACE_MS` (default `3600000`, minimum `60000`)
+- `UPLOAD_LOCAL_CLEANUP_MAX_ATTEMPTS` (default `5`)
+
+### Eligibility Rules
+Delete local upload file only when:
+- `uploadSyncStatus = R2_SYNCED`
+- `uploadObjectKey` exists
+- `uploadPath` exists
+- `uploadSyncedAt` older than grace period
+- local cleanup not already completed
+- retry schedule due and attempts below max
+
+### Path Safety Rules
+- Resolve upload path to canonical absolute path.
+- Resolve uploads root to canonical absolute path.
+- Ensure target remains inside uploads root boundary.
+- Reject path traversal.
+- Reject symlink targets.
+- Reject directories.
+- Delete regular files only.
+
+### Cleanup Statuses
+- `PENDING`
+- `COMPLETED`
+- `RETRY_PENDING`
+- `FAILED_TERMINAL`
+- `SKIPPED_UNSAFE_PATH`
+- `SKIPPED_MISSING_FILE`
+
+### Retry Behavior
+- On delete failure: increment attempts, set `uploadLocalCleanupLastError`, set `RETRY_PENDING`, schedule `uploadLocalCleanupNextRetryAt` with backoff.
+- On max attempts: set `FAILED_TERMINAL` and stop retrying until manual reset.
+
+### Invariants
+- No R2 read preference change in Phase C.
+- No queue payload shaping change in Phase C.
+- No generated PDF/MO/tracking download behavior change in Phase C.
+- Phase D will handle R2-preferred reads later.
+
+### Rollback
+Set `ENABLE_UPLOAD_LOCAL_CLEANUP_AFTER_R2=false` to stop further local cleanup immediately.
 
 ## Rollout Sequence
 

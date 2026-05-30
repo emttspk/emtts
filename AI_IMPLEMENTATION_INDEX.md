@@ -1,5 +1,65 @@
 # AI Implementation Index
 
+## 2026-05-30 - R2 Permanent Storage Rollout Phase C (Safe Local Upload Cleanup)
+
+### Task Name
+- Phase C: delete local upload source files only after confirmed R2 sync and path-safe validation.
+
+### Files Changed
+- `apps/api/prisma/schema.prisma`
+- `apps/api/prisma/migrations/20260531003000_phaseC_upload_local_cleanup_metadata/migration.sql`
+- `apps/api/src/storage/paths.ts`
+- `apps/api/src/cron/cleanup.ts`
+- `docs/architecture/storage-rollout-architecture.md`
+- `docs/rollout/storage-rollout-runbook.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Feature Flags / Envs
+- `ENABLE_UPLOAD_LOCAL_CLEANUP_AFTER_R2=true` enables Phase C cleanup pass.
+- `UPLOAD_LOCAL_CLEANUP_GRACE_MS` default `3600000` (minimum `60000`).
+- `UPLOAD_LOCAL_CLEANUP_MAX_ATTEMPTS` default `5`.
+
+### Cleanup Eligibility
+- `uploadSyncStatus = R2_SYNCED`
+- `uploadObjectKey` exists
+- `uploadPath` exists
+- `uploadSyncedAt` older than grace period
+- local cleanup not completed
+- retry due and attempts under max
+
+### Path Safety Behavior
+- Resolve upload path and uploads root to canonical absolute paths.
+- Ensure target remains inside uploads root boundary.
+- Reject unsafe/traversal paths.
+- Reject symlink and directory targets.
+- Delete regular files only.
+
+### Cleanup Statuses
+- `PENDING`
+- `COMPLETED`
+- `RETRY_PENDING`
+- `FAILED_TERMINAL`
+- `SKIPPED_UNSAFE_PATH`
+- `SKIPPED_MISSING_FILE`
+
+### Protected Scope Confirmation
+- `apps/web/src/pages/Upload.tsx`: NOT TOUCHED
+- `apps/api/src/parse/orders.ts`: NOT TOUCHED
+- `apps/api/src/worker.ts`: NOT TOUCHED
+- `apps/api/src/routes/jobs.ts`: NOT TOUCHED
+- PDF templates: NOT TOUCHED
+- money order / MOS / UMO logic: NOT TOUCHED
+- tracking / complaint / billing / auth core: NOT TOUCHED
+- queue payload behavior: NOT TOUCHED
+- read preference behavior: NOT CHANGED
+
+### Rollback
+- Set `ENABLE_UPLOAD_LOCAL_CLEANUP_AFTER_R2=false` to stop local upload cleanup immediately.
+- Phase C does not alter R2 permanence metadata or read preference.
+
+### Next Recommended Step
+- Phase D plan only: R2-preferred reads with explicit fallback and staged rollout gates.
+
 ## 2026-05-30 - R2 Permanent Storage Rollout Phase B (Upload Source File Durability)
 
 ### Task Name
