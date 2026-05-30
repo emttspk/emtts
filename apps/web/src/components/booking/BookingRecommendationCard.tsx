@@ -23,7 +23,8 @@ export default function BookingRecommendationCard({ summary }: { summary: Summar
       <h3 className="text-base font-semibold text-slate-900">Quote Notes</h3>
       <div className="mt-2 space-y-2 text-xs text-slate-700">
         <p>This result is an estimate only and does not create a booking request.</p>
-        <p>No service charges or pickup charges are included in Phase 1.</p>
+        <p>Official charges are calculated from versioned postal rate cards in the quote engine.</p>
+        <p>No service charges or pickup charges are included in Phase 1.5.</p>
         <p>Existing label generation and unit-based SaaS flow are unaffected.</p>
       </div>
       <div className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
@@ -42,7 +43,7 @@ export default function BookingRecommendationCard({ summary }: { summary: Summar
       </div>
       {(summary.warningRows.length > 0 || summary.errorRows.length > 0) ? (
         <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          Review per-row warnings/errors before moving to future booking phases.
+          Review per-row warnings/errors. Missing value payable or insurance schedules are not guessed and may keep totals provisional.
         </div>
       ) : null}
     </Card>

@@ -15,6 +15,16 @@ This document defines a separate Aggregator Booking business lane for ePost.pk t
 - No payment, no pickup orchestration, no courier API, no booking confirmation automation.
 - No service/handling/pickup/profit/discount charges.
 
+## Phase 1.5 (Implemented Scope)
+- Quote engine upgraded to versioned official postal rate cards.
+- Componentized official charges supported:
+	- Base postage
+	- Registration fee
+	- Value payable fee (structure enabled)
+	- Insurance fee (structure enabled)
+- Missing value payable and insurance schedules are reported and not guessed.
+- Aggregator quote lane remains separate from existing unit SaaS lane.
+
 ## Future Phases
 - Phase 2: booking draft and admin review.
 - Phase 3: pickup email and secure pickup status updates.

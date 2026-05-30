@@ -1,4 +1,11 @@
-export type ArticleCategory = "LETTER" | "PRINTED_PAPER" | "TEXT_BOOK" | "PARCEL" | "UMS";
+import {
+  getActiveRateCards,
+  resolveBasePostage,
+  resolveInsuranceFee,
+  resolveRegistrationFee,
+  resolveValuePayableFee,
+} from "../rateCards/index.js";
+import type { ArticleCategory, PostalProduct, RouteType } from "../rateCards/types.js";
 
 export interface PostageCalculatorInput {
   serviceCode: string;
@@ -7,72 +14,35 @@ export interface PostageCalculatorInput {
   receiverCity?: string;
   articleCategory?: ArticleCategory;
   isTextbook?: boolean;
+  isRegistered?: boolean;
+  isValuePayable?: boolean;
+  isInsured?: boolean;
+  declaredValue?: number | null;
 }
+
+export type FeeComponentCode = "BASE_POSTAGE" | "REGISTRATION_FEE" | "VALUE_PAYABLE_FEE" | "INSURANCE_FEE";
 
 export interface PostageCalculatorResult {
   articleCategory: string;
   postalProduct: string;
   weightGrams: number | null;
   chargeableWeightGrams: number | null;
-  postageAmount: number | null;
-  matchedSlab: string | null;
+  basePostageAmount: number | null;
+  registrationFeeAmount: number | null;
+  valuePayableFeeAmount: number | null;
+  insuranceFeeAmount: number | null;
+  totalOfficialPostalCharge: number | null;
+  appliedComponents: FeeComponentCode[];
+  missingComponents: FeeComponentCode[];
+  matchedRateCards: string[];
+  matchedSlabs: string[];
   warnings: string[];
   errors: string[];
 }
 
-type Slab = {
-  maxWeightGrams: number;
-  amount: number;
-  label: string;
-};
-
-const LETTER_SLABS: Slab[] = [
-  { maxWeightGrams: 20, amount: 30, label: "Not exceeding 20g" },
-  { maxWeightGrams: 50, amount: 60, label: "Exceeding 20g to 50g" },
-  { maxWeightGrams: 100, amount: 75, label: "Exceeding 50g to 100g" },
-  { maxWeightGrams: 250, amount: 120, label: "Exceeding 100g to 250g" },
-  { maxWeightGrams: 500, amount: 150, label: "Exceeding 250g to 500g" },
-  { maxWeightGrams: 1000, amount: 230, label: "Exceeding 500g to 1000g" },
-  { maxWeightGrams: 1500, amount: 300, label: "Exceeding 1000g to 1500g" },
-  { maxWeightGrams: 2000, amount: 380, label: "Exceeding 1500g to 2000g" },
-];
-
-const PRINTED_PAPER_SLABS: Slab[] = [
-  { maxWeightGrams: 50, amount: 20, label: "Not exceeding 50g" },
-  { maxWeightGrams: 250, amount: 40, label: "Exceeding 50g to 250g" },
-  { maxWeightGrams: 1000, amount: 60, label: "Exceeding 250g to 1000g" },
-  { maxWeightGrams: 2000, amount: 100, label: "Exceeding 1000g to 2000g" },
-];
-
-const TEXT_BOOK_SLABS: Slab[] = [
-  { maxWeightGrams: 50, amount: 40, label: "Not exceeding 50g" },
-  { maxWeightGrams: 1000, amount: 80, label: "Exceeding 250g to 1000g" },
-  { maxWeightGrams: 2000, amount: 120, label: "Exceeding 1000g to 2000g" },
-  { maxWeightGrams: 3000, amount: 170, label: "Exceeding 2000g to 3000g" },
-  { maxWeightGrams: 4000, amount: 210, label: "Exceeding 3000g to 4000g" },
-  { maxWeightGrams: 5000, amount: 270, label: "Exceeding 4000g to 5000g" },
-  { maxWeightGrams: 6000, amount: 300, label: "Exceeding 5000g to 6000g" },
-  { maxWeightGrams: 7000, amount: 340, label: "Exceeding 6000g to 7000g" },
-];
-
-const PARCEL_SLABS: Slab[] = [
-  { maxWeightGrams: 1000, amount: 150, label: "Not exceeding 1kg" },
-  { maxWeightGrams: 3000, amount: 270, label: "Exceeding 1kg to 3kg" },
-  { maxWeightGrams: 5000, amount: 380, label: "Exceeding 3kg to 5kg" },
-  { maxWeightGrams: 10000, amount: 570, label: "Exceeding 5kg to 10kg" },
-  { maxWeightGrams: 15000, amount: 750, label: "Exceeding 10kg to 15kg" },
-  { maxWeightGrams: 20000, amount: 940, label: "Exceeding 15kg to 20kg" },
-  { maxWeightGrams: 25000, amount: 1130, label: "Exceeding 20kg to 25kg" },
-  { maxWeightGrams: 30000, amount: 1320, label: "Exceeding 25kg to 30kg" },
-];
-
 function toCityToken(input?: string): string {
   const words = String(input ?? "").toUpperCase().match(/[A-Z]+/g) ?? [];
   return words[0] ?? "";
-}
-
-function findSlab(slabs: Slab[], weightGrams: number): Slab | null {
-  return slabs.find((slab) => weightGrams <= slab.maxWeightGrams) ?? null;
 }
 
 function inferCategory(input: PostageCalculatorInput, warnings: string[], errors: string[]): ArticleCategory | null {
@@ -91,6 +61,9 @@ function inferCategory(input: PostageCalculatorInput, warnings: string[], errors
 
   const serviceCode = String(input.serviceCode ?? "").trim().toUpperCase();
   switch (serviceCode) {
+    case "ORDINARY":
+      warnings.push("Defaulted service ORDINARY to LETTER category.");
+      return "LETTER";
     case "RGL":
     case "VPL":
     case "IRL":
@@ -103,7 +76,7 @@ function inferCategory(input: PostageCalculatorInput, warnings: string[], errors
     case "UMS":
       return "UMS";
     case "COD":
-      warnings.push("COD mapped to UMS quote category for Phase 1 estimate. Verify final Pakistan Post booking product during later workflow.");
+      warnings.push("COD mapped to UMS category for base evaluation. Additional COD component schedules may be unavailable.");
       return "UMS";
     default:
       errors.push(`Unsupported service code: ${serviceCode || "(empty)"}`);
@@ -114,11 +87,18 @@ function inferCategory(input: PostageCalculatorInput, warnings: string[], errors
 function baseResult(input: PostageCalculatorInput): PostageCalculatorResult {
   return {
     articleCategory: String(input.articleCategory ?? "").trim().toUpperCase() || "UNKNOWN",
-    postalProduct: String(input.serviceCode ?? "").trim().toUpperCase() || "UNKNOWN",
+    postalProduct: "ORDINARY",
     weightGrams: input.weightGrams ?? null,
     chargeableWeightGrams: null,
-    postageAmount: null,
-    matchedSlab: null,
+    basePostageAmount: null,
+    registrationFeeAmount: null,
+    valuePayableFeeAmount: null,
+    insuranceFeeAmount: null,
+    totalOfficialPostalCharge: null,
+    appliedComponents: [],
+    missingComponents: [],
+    matchedRateCards: [],
+    matchedSlabs: [],
     warnings: [],
     errors: [],
   };
@@ -140,35 +120,56 @@ function validateWeight(value: number | null | undefined, errors: string[]): num
   return value;
 }
 
-function calculateUmsRate(weightGrams: number, isLocal: boolean): Pick<PostageCalculatorResult, "chargeableWeightGrams" | "postageAmount" | "matchedSlab"> {
-  if (weightGrams <= 250) {
-    return {
-      chargeableWeightGrams: 250,
-      postageAmount: isLocal ? 90 : 150,
-      matchedSlab: isLocal ? "UMS Local up to 250g" : "UMS City to City up to 250g",
-    };
+function inferPostalProduct(input: PostageCalculatorInput, warnings: string[], errors: string[]): PostalProduct | null {
+  const raw = String(input.serviceCode ?? "").trim().toUpperCase();
+  switch (raw) {
+    case "ORDINARY":
+    case "RGL":
+    case "VPL":
+    case "VPP":
+    case "IRL":
+    case "PAR":
+    case "UMS":
+    case "COD":
+      return raw;
+    case "":
+      errors.push("Unsupported service code: (empty)");
+      return null;
+    default:
+      warnings.push(`Unrecognized service code ${raw}; falling back to ORDINARY product mapping.`);
+      return "ORDINARY";
   }
+}
 
-  if (weightGrams <= 500) {
-    return {
-      chargeableWeightGrams: 500,
-      postageAmount: isLocal ? 110 : 230,
-      matchedSlab: isLocal ? "UMS Local up to 500g" : "UMS City to City up to 500g",
-    };
+function shouldRequireRegistration(input: PostageCalculatorInput, product: PostalProduct): boolean {
+  if (input.isRegistered === true) return true;
+  return product === "RGL" || product === "VPL" || product === "VPP" || product === "IRL";
+}
+
+function shouldRequireValuePayable(input: PostageCalculatorInput, product: PostalProduct): boolean {
+  if (input.isValuePayable === true) return true;
+  return product === "VPL" || product === "VPP";
+}
+
+function shouldRequireInsurance(input: PostageCalculatorInput, product: PostalProduct): boolean {
+  if (input.isInsured === true) return true;
+  return product === "IRL";
+}
+
+function addMissingComponent(result: PostageCalculatorResult, component: FeeComponentCode, message: string) {
+  if (!result.missingComponents.includes(component)) {
+    result.missingComponents.push(component);
   }
+  result.warnings.push(message);
+}
 
-  const additionalBlocks = Math.ceil((weightGrams - 500) / 500);
-  const chargeableWeightGrams = 500 + (additionalBlocks * 500);
-  const incremental = isLocal ? 45 : 75;
-  const base = isLocal ? 110 : 230;
-
-  return {
-    chargeableWeightGrams,
-    postageAmount: base + (additionalBlocks * incremental),
-    matchedSlab: isLocal
-      ? `UMS Local base 500g + ${additionalBlocks} additional 500g block(s)`
-      : `UMS City to City base 500g + ${additionalBlocks} additional 500g block(s)`,
-  };
+function calculateTotal(result: PostageCalculatorResult): number | null {
+  if (result.basePostageAmount === null) return null;
+  if (result.missingComponents.length > 0) return null;
+  return (result.basePostageAmount ?? 0)
+    + (result.registrationFeeAmount ?? 0)
+    + (result.valuePayableFeeAmount ?? 0)
+    + (result.insuranceFeeAmount ?? 0);
 }
 
 export function calculatePostage(input: PostageCalculatorInput): PostageCalculatorResult {
@@ -186,75 +187,113 @@ export function calculatePostage(input: PostageCalculatorInput): PostageCalculat
     return result;
   }
 
+  const product = inferPostalProduct(input, result.warnings, result.errors);
+  if (!product) return result;
+
   result.articleCategory = category;
-  const serviceCode = String(input.serviceCode ?? "").trim().toUpperCase();
-  result.postalProduct = serviceCode || category;
+  result.postalProduct = product;
 
-  if (category === "LETTER") {
-    const slab = findSlab(LETTER_SLABS, roundedWeight);
-    if (!slab) {
-      result.errors.push("Unsupported slab for LETTER");
-      return result;
-    }
-    result.chargeableWeightGrams = slab.maxWeightGrams;
-    result.postageAmount = slab.amount;
-    result.matchedSlab = slab.label;
-    return result;
-  }
-
-  if (category === "PRINTED_PAPER") {
-    const slab = findSlab(PRINTED_PAPER_SLABS, roundedWeight);
-    if (!slab) {
-      result.errors.push("Unsupported slab for PRINTED_PAPER");
-      return result;
-    }
-    result.chargeableWeightGrams = slab.maxWeightGrams;
-    result.postageAmount = slab.amount;
-    result.matchedSlab = slab.label;
-    return result;
-  }
-
-  if (category === "TEXT_BOOK") {
-    if (roundedWeight > 50 && roundedWeight <= 250) {
-      result.errors.push("Unsupported slab for TEXT_BOOK between 50g and 250g");
-      return result;
-    }
-    const slab = findSlab(TEXT_BOOK_SLABS, roundedWeight);
-    if (!slab) {
-      result.errors.push("Unsupported slab for TEXT_BOOK");
-      return result;
-    }
-    result.chargeableWeightGrams = slab.maxWeightGrams;
-    result.postageAmount = slab.amount;
-    result.matchedSlab = slab.label;
-    return result;
-  }
-
-  if (category === "PARCEL") {
-    const slab = findSlab(PARCEL_SLABS, roundedWeight);
-    if (!slab) {
-      result.errors.push("Unsupported slab for PARCEL");
-      return result;
-    }
-    result.chargeableWeightGrams = slab.maxWeightGrams;
-    result.postageAmount = slab.amount;
-    result.matchedSlab = slab.label;
+  if (category === "TEXT_BOOK" && roundedWeight > 50 && roundedWeight <= 250) {
+    result.errors.push("Unsupported slab for TEXT_BOOK between 50g and 250g");
     return result;
   }
 
   const senderToken = toCityToken(input.senderCity);
   const receiverToken = toCityToken(input.receiverCity);
   const localConfirmed = Boolean(senderToken && receiverToken && senderToken === receiverToken);
-  const isLocal = localConfirmed;
+  const routeType: RouteType = localConfirmed ? "LOCAL" : "CITY_TO_CITY";
 
-  if (!localConfirmed) {
+  if (category === "UMS" && !localConfirmed) {
     result.warnings.push("UMS local route could not be confirmed; City to City tariff applied.");
   }
 
-  const ums = calculateUmsRate(roundedWeight, isLocal);
-  result.chargeableWeightGrams = ums.chargeableWeightGrams;
-  result.postageAmount = ums.postageAmount;
-  result.matchedSlab = ums.matchedSlab;
+  const activeCards = getActiveRateCards();
+  const base = resolveBasePostage({
+    category,
+    postalProduct: product,
+    weightGrams: roundedWeight,
+    routeType,
+    cards: activeCards.basePostageCards,
+  });
+
+  if (!base) {
+    addMissingComponent(result, "BASE_POSTAGE", `Missing BASE_POSTAGE schedule for ${product}/${category} at ${roundedWeight}g.`);
+  } else {
+    result.basePostageAmount = base.amount;
+    result.chargeableWeightGrams = base.chargeableWeightGrams;
+    result.appliedComponents.push("BASE_POSTAGE");
+    result.matchedRateCards.push(base.matchedRateCardCode);
+    result.matchedSlabs.push(base.matchedLabel);
+  }
+
+  const requireRegistration = shouldRequireRegistration(input, product);
+  if (requireRegistration) {
+    const reg = resolveRegistrationFee({
+      category,
+      postalProduct: product,
+      cards: activeCards.registrationFeeCards,
+    });
+    if (!reg) {
+      addMissingComponent(result, "REGISTRATION_FEE", `Missing REGISTRATION_FEE schedule for ${product}/${category}.`);
+    } else {
+      result.registrationFeeAmount = reg.amount;
+      result.appliedComponents.push("REGISTRATION_FEE");
+      result.matchedRateCards.push(reg.matchedRateCardCode);
+      result.matchedSlabs.push(reg.matchedRule.label);
+    }
+  } else {
+    result.registrationFeeAmount = 0;
+  }
+
+  const requireValuePayable = shouldRequireValuePayable(input, product);
+  if (requireValuePayable) {
+    const vp = resolveValuePayableFee({
+      category,
+      postalProduct: product,
+      cards: activeCards.valuePayableFeeCards,
+    });
+    if (!vp) {
+      addMissingComponent(result, "VALUE_PAYABLE_FEE", `Missing VALUE_PAYABLE_FEE schedule for ${product}/${category}.`);
+    } else {
+      result.valuePayableFeeAmount = vp.amount;
+      result.appliedComponents.push("VALUE_PAYABLE_FEE");
+      result.matchedRateCards.push(vp.matchedRateCardCode);
+      result.matchedSlabs.push(vp.matchedRule.label);
+    }
+  } else {
+    result.valuePayableFeeAmount = 0;
+  }
+
+  const requireInsurance = shouldRequireInsurance(input, product);
+  if (requireInsurance) {
+    const insurance = resolveInsuranceFee({
+      category,
+      postalProduct: product,
+      cards: activeCards.insuranceFeeCards,
+    });
+    if (!insurance) {
+      addMissingComponent(result, "INSURANCE_FEE", `Missing INSURANCE_FEE schedule for ${product}/${category}.`);
+    } else {
+      result.insuranceFeeAmount = insurance.amount;
+      result.appliedComponents.push("INSURANCE_FEE");
+      result.matchedRateCards.push(insurance.matchedRateCardCode);
+      result.matchedSlabs.push(insurance.matchedRule.label);
+    }
+  } else {
+    result.insuranceFeeAmount = 0;
+  }
+
+  if (product === "COD") {
+    result.warnings.push("COD mapping is partially defined. Value payable and insurance schedules are not guessed when missing.");
+  }
+
+  result.totalOfficialPostalCharge = calculateTotal(result);
+  if (result.totalOfficialPostalCharge === null && result.missingComponents.length > 0) {
+    result.errors.push("Total official postal charge cannot be fully finalized because one or more required components are missing.");
+  }
+
+  result.matchedRateCards = Array.from(new Set(result.matchedRateCards));
+  result.appliedComponents = Array.from(new Set(result.appliedComponents));
 
   return result;
 }

@@ -11,9 +11,31 @@ type QuoteSummary = {
   totalArticles: number;
   totalActualWeightGrams: number;
   totalChargeableWeightGrams: number;
-  totalPostageAmount: number;
-  byCategory: Record<string, { articles: number; totalActualWeightGrams: number; totalChargeableWeightGrams: number; totalPostageAmount: number }>;
-  byProduct: Record<string, { articles: number; totalActualWeightGrams: number; totalChargeableWeightGrams: number; totalPostageAmount: number }>;
+  totalBasePostage: number;
+  totalRegistrationFee: number;
+  totalValuePayableFee: number;
+  totalInsuranceFee: number;
+  totalOfficialPostalCharge: number;
+  byCategory: Record<string, {
+    articles: number;
+    totalActualWeightGrams: number;
+    totalChargeableWeightGrams: number;
+    totalBasePostage: number;
+    totalRegistrationFee: number;
+    totalValuePayableFee: number;
+    totalInsuranceFee: number;
+    totalOfficialPostalCharge: number;
+  }>;
+  byProduct: Record<string, {
+    articles: number;
+    totalActualWeightGrams: number;
+    totalChargeableWeightGrams: number;
+    totalBasePostage: number;
+    totalRegistrationFee: number;
+    totalValuePayableFee: number;
+    totalInsuranceFee: number;
+    totalOfficialPostalCharge: number;
+  }>;
   perArticlePostageBreakdown: Array<{
     rowNumber: number;
     serviceCode: string;
@@ -24,8 +46,15 @@ type QuoteSummary = {
       postalProduct: string;
       weightGrams: number | null;
       chargeableWeightGrams: number | null;
-      postageAmount: number | null;
-      matchedSlab: string | null;
+      basePostageAmount: number | null;
+      registrationFeeAmount: number | null;
+      valuePayableFeeAmount: number | null;
+      insuranceFeeAmount: number | null;
+      totalOfficialPostalCharge: number | null;
+      appliedComponents: string[];
+      missingComponents: string[];
+      matchedRateCards: string[];
+      matchedSlabs: string[];
       warnings: string[];
       errors: string[];
     };
@@ -108,7 +137,7 @@ export default function BookingQuote() {
         <div>
           <PageTitle>Aggregator Booking Quote</PageTitle>
           <BodyText className="mt-1">
-            Phase 1 quote-only tool. This does not create a booking, does not generate labels, and does not consume SaaS units.
+            Phase 1.5 quote-only tool. This does not create a booking, does not generate labels, and does not consume SaaS units.
           </BodyText>
         </div>
 

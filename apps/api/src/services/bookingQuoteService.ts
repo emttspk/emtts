@@ -14,14 +14,22 @@ export type QuoteSummaryBucket = {
   articles: number;
   totalActualWeightGrams: number;
   totalChargeableWeightGrams: number;
-  totalPostageAmount: number;
+  totalBasePostage: number;
+  totalRegistrationFee: number;
+  totalValuePayableFee: number;
+  totalInsuranceFee: number;
+  totalOfficialPostalCharge: number;
 };
 
 export type QuoteSummary = {
   totalArticles: number;
   totalActualWeightGrams: number;
   totalChargeableWeightGrams: number;
-  totalPostageAmount: number;
+  totalBasePostage: number;
+  totalRegistrationFee: number;
+  totalValuePayableFee: number;
+  totalInsuranceFee: number;
+  totalOfficialPostalCharge: number;
   byCategory: Record<string, QuoteSummaryBucket>;
   byProduct: Record<string, QuoteSummaryBucket>;
   perArticlePostageBreakdown: QuoteBreakdownRow[];
@@ -49,12 +57,20 @@ function accumulate(bucket: Record<string, QuoteSummaryBucket>, key: string, row
     articles: 0,
     totalActualWeightGrams: 0,
     totalChargeableWeightGrams: 0,
-    totalPostageAmount: 0,
+    totalBasePostage: 0,
+    totalRegistrationFee: 0,
+    totalValuePayableFee: 0,
+    totalInsuranceFee: 0,
+    totalOfficialPostalCharge: 0,
   };
   existing.articles += 1;
   existing.totalActualWeightGrams += row.result.weightGrams ?? 0;
   existing.totalChargeableWeightGrams += row.result.chargeableWeightGrams ?? 0;
-  existing.totalPostageAmount += row.result.postageAmount ?? 0;
+  existing.totalBasePostage += row.result.basePostageAmount ?? 0;
+  existing.totalRegistrationFee += row.result.registrationFeeAmount ?? 0;
+  existing.totalValuePayableFee += row.result.valuePayableFeeAmount ?? 0;
+  existing.totalInsuranceFee += row.result.insuranceFeeAmount ?? 0;
+  existing.totalOfficialPostalCharge += row.result.totalOfficialPostalCharge ?? 0;
   bucket[normalizedKey] = existing;
 }
 
@@ -73,6 +89,10 @@ function toCalculatorInput(row: QuoteRow): PostageCalculatorInput {
     receiverCity,
     articleCategory: category as PostageCalculatorInput["articleCategory"],
     isTextbook,
+    isRegistered: toBoolean(row.isRegistered ?? row.registered ?? row.is_registered),
+    isValuePayable: toBoolean(row.isValuePayable ?? row.valuePayable ?? row.is_value_payable),
+    isInsured: toBoolean(row.isInsured ?? row.insured ?? row.is_insured),
+    declaredValue: toNumber(row.declaredValue ?? row.declared_value),
   };
 }
 
@@ -113,7 +133,11 @@ export function buildBookingQuoteSummary(rows: QuoteRow[]): QuoteSummary {
     totalArticles: perArticlePostageBreakdown.length,
     totalActualWeightGrams: perArticlePostageBreakdown.reduce((sum, row) => sum + (row.result.weightGrams ?? 0), 0),
     totalChargeableWeightGrams: perArticlePostageBreakdown.reduce((sum, row) => sum + (row.result.chargeableWeightGrams ?? 0), 0),
-    totalPostageAmount: perArticlePostageBreakdown.reduce((sum, row) => sum + (row.result.postageAmount ?? 0), 0),
+    totalBasePostage: perArticlePostageBreakdown.reduce((sum, row) => sum + (row.result.basePostageAmount ?? 0), 0),
+    totalRegistrationFee: perArticlePostageBreakdown.reduce((sum, row) => sum + (row.result.registrationFeeAmount ?? 0), 0),
+    totalValuePayableFee: perArticlePostageBreakdown.reduce((sum, row) => sum + (row.result.valuePayableFeeAmount ?? 0), 0),
+    totalInsuranceFee: perArticlePostageBreakdown.reduce((sum, row) => sum + (row.result.insuranceFeeAmount ?? 0), 0),
+    totalOfficialPostalCharge: perArticlePostageBreakdown.reduce((sum, row) => sum + (row.result.totalOfficialPostalCharge ?? 0), 0),
     byCategory,
     byProduct,
     perArticlePostageBreakdown,

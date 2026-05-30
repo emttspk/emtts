@@ -20,7 +20,7 @@ bookingQuotesRouter.post("/quote", requireAuth, async (req, res) => {
       message: "Aggregator booking quote calculated. This is not a confirmed booking.",
       quoteSummary,
       notices: [
-        "Phase 1 quote only: no payment, pickup charges, service charges, or booking confirmation included.",
+        "Phase 1.5 quote only: versioned official rate cards are used; no payment, pickup charges, service charges, or booking confirmation included.",
         "Existing SaaS unit-based upload/generation flow is unchanged.",
       ],
     });

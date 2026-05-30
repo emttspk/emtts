@@ -1,5 +1,53 @@
 # AI Implementation Index
 
+## 2026-05-30 - Aggregator Booking Quote Phase 1.5 (Rate Card Engine)
+
+### Task Name
+- Upgrade separate Aggregator Booking Quote calculator from hardcoded tariffs to versioned official postal rate cards with component-wise charge breakdown.
+
+### Files Changed
+- `apps/api/src/rateCards/types.ts`
+- `apps/api/src/rateCards/index.ts`
+- `apps/api/src/rateCards/cards/base-postage.v1.ts`
+- `apps/api/src/rateCards/cards/registration-fee.v1.ts`
+- `apps/api/src/rateCards/cards/value-payable-fee.v1.ts`
+- `apps/api/src/rateCards/cards/insurance-fee.v1.ts`
+- `apps/api/src/utils/postageRates.ts`
+- `apps/api/src/utils/postageRates.test.ts`
+- `apps/api/src/services/bookingQuoteService.ts`
+- `apps/api/src/routes/bookingQuotes.ts`
+- `apps/web/src/pages/BookingQuote.tsx`
+- `apps/web/src/components/booking/PostageSummaryCard.tsx`
+- `apps/web/src/components/booking/PostageBreakdownTable.tsx`
+- `apps/web/src/components/booking/BookingRecommendationCard.tsx`
+- `docs/architecture/postage-rates.md`
+- `docs/architecture/aggregator-booking-business-plan.md`
+- `docs/architecture/booking-lifecycle.md`
+- `docs/operations/aggregator-booking-rollout-checklist.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Scope Status
+- Versioned repo rate cards in separate quote lane: COMPLETED
+- Component-wise official charge output: COMPLETED
+- Base postage parity retained: COMPLETED
+- Registration fee integration (known values): COMPLETED
+- Value payable and insurance component structure: COMPLETED
+- Missing VP/insurance schedules guessed: NOT ALLOWED (enforced)
+
+### Protected Scope Verification
+- `apps/api/src/routes/jobs.ts`: NOT TOUCHED
+- `apps/web/src/pages/Upload.tsx`: NOT TOUCHED
+- `apps/api/src/parse/orders.ts`: NOT TOUCHED
+- money order commission and MOS/UMO logic: NOT TOUCHED
+- tracking logic: NOT TOUCHED
+- complaint logic: NOT TOUCHED
+- billing/unit consumption logic: NOT TOUCHED
+- storage/worker behavior: NOT TOUCHED
+
+### Notes
+- Aggregator Booking remains separate from existing unit-based SaaS generation flow.
+- Phase 1.5 remains quote-only and does not add payment, courier API, or live booking execution.
+
 ## 2026-05-30 - Aggregator Booking Quote Phase 1 (Separate Lane)
 
 ### Task Name

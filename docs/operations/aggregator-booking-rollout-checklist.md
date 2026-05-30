@@ -9,6 +9,12 @@
 - No unit consumption is triggered by quote actions.
 - No payment, pickup orchestration, or booking confirmation is triggered.
 
+## Phase 1.5 Checklist
+- Quote engine reads versioned official rate cards from repo configuration.
+- Component-wise totals are returned: base, registration, value payable, insurance, official total.
+- Missing value payable/insurance schedules are reported clearly and never guessed.
+- Existing protected SaaS unit/generation flows remain unchanged.
+
 ## Regression Safeguards
 - Verify existing upload route contract remains unchanged.
 - Verify existing MO/tracking/complaint/billing behavior is unchanged.

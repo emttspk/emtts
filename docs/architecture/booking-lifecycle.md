@@ -23,10 +23,12 @@
 - REFUND_PENDING
 - CLOSED
 
-## Phase 1 Active States
+## Phase 1/1.5 Active States
 - QUOTE_CREATED
 
-Phase 1 does not execute booking, payment, pickup, post-booking, or dispatch states.
+Phase 1/1.5 does not execute booking, payment, pickup, post-booking, or dispatch states.
+
+Phase 1.5 quote output includes component-wise official estimates and missing component diagnostics.
 
 ## Controlled Handoff
 LABELS_GENERATED and MO_FORMS_GENERATED are controlled boundaries and can only use existing protected generation modules in later approved phases.

@@ -1,14 +1,24 @@
-# Pakistan Post Postage Rates (Phase 1 Quote Engine)
+# Pakistan Post Official Postal Charges (Phase 1.5 Rate Card Engine)
 
 ## Scope
-Phase 1 quote-only tariff engine for Pakistan Post aggregator booking estimates.
+Phase 1.5 quote-only official charge engine for Pakistan Post aggregator booking estimates.
+
+## Rate Card Model
+- Versioned and editable in repository for Phase 1.5.
+- Separate component cards:
+	- BASE_POSTAGE
+	- REGISTRATION_FEE
+	- VALUE_PAYABLE_FEE
+	- INSURANCE_FEE
+- Future admin-editable DB cards require separate approval.
 
 ## Calculation Principles
-- Postage is per individual article.
-- Total postage is sum of per-article results.
+- Base/postal fee components are calculated per individual article.
+- Total official postal charge is sum of available component values.
 - Bundle weight is not used for postage slabs.
 - Missing/invalid weight returns row errors.
 - Unsupported category/slab returns row errors.
+- Missing value payable or insurance schedules are never guessed.
 
 ## Categories
 - LETTER
