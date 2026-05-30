@@ -1,5 +1,20 @@
 # AI Implementation Index
 
+## 2026-05-30 - Aggregator Booking Continuity Plan Strengthened
+
+### Task Name
+- Expand and harden aggregator booking continuity documentation for safe mid-session recovery.
+
+### Files Changed
+- `docs/architecture/booking-business-plan.md`
+- `docs/architecture/postage-rates.md`
+- `docs/operations/booking-rollout-checklist.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Notes
+- Added full continuity protocol, protected scope, phase boundaries, validation/testing rules, and Git push safety checklist.
+- Marked current state as `Phase 1: Booking Quote only`, `Status: Implemented`, `Next task: manual UI/API smoke test`.
+
 ## 2026-05-30 - ePost Aggregator Booking Quote Phase 1 (Quote-Only)
 
 ### Task Name

@@ -34,3 +34,6 @@ Phase 1 implements a quote-only calculator for Pakistan Post postage estimates a
 - No payment initiation
 - No service charges or pickup charges
 - No label or money-order generation side effects
+
+## Cross-Reference
+For continuity boundaries, protected scope, and break-resume protocol, see `docs/architecture/booking-business-plan.md`.

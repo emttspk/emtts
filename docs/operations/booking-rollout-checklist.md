@@ -26,3 +26,6 @@
 - Revert Phase 1 quote module commit if critical regression appears.
 - Re-run verification commands.
 - Confirm legacy upload/generation behavior remains unchanged.
+
+## Cross-Reference
+For phase boundaries, protected scope, and continuity handoff protocol, see `docs/architecture/booking-business-plan.md`.
