@@ -1,5 +1,37 @@
 # AI Implementation Index
 
+## 2026-05-31 - Aggregator Booking Phase 2A Recommendation Preview (No-DB)
+
+### Task Name
+- Implement Phase 2A recommendation engine and quote-to-request preview UI without persistence.
+
+### Files Changed
+- `apps/api/src/services/bookingRecommendationService.ts`
+- `apps/api/src/services/bookingRecommendationService.test.ts`
+- `apps/web/src/components/booking/BookingOptionSelector.tsx`
+- `apps/web/src/components/booking/BookingDraftReview.tsx`
+- `apps/web/src/components/booking/BookingDraftNotice.tsx`
+- `apps/web/src/pages/BookingQuote.tsx`
+- `docs/architecture/booking-business-plan.md`
+- `docs/operations/booking-rollout-checklist.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Behavior Added
+- Added a pure deterministic recommendation rules engine for Phase 2A planning output.
+- Added recommendation cards and request-preview UI into Booking Quote flow.
+- Added explicit request-only customer notices:
+	- not booking confirmation,
+	- no payment,
+	- no pickup/dispatch execution.
+- Added disabled `Submit To Admin (Phase 2B - Disabled)` action to prevent persistence in Phase 2A.
+
+### Safety / Scope Confirmation
+- No DB writes added in Phase 2A flow.
+- No persisted draft conversion endpoint call added.
+- No payment, live booking, live courier API, or pickup execution added.
+- Upload/generation, worker, PDF templates, money order/MOS/UMO, tracking, complaints, billing, auth/admin core, storage/R2, cleanup flags, and production deploy logic remained untouched.
+- No Railway, Cloudflare/R2, or production interaction was performed for this implementation.
+
 ## 2026-05-31 - Production Prisma Migration Repair Verification (Api + Worker)
 
 ### Task Name

@@ -12,9 +12,9 @@ It defines:
 - break-resume instructions.
 
 ## Current Phase Marker
-Phase 1: Booking Quote only
-Status: Implemented
-Next task: manual UI/API smoke test
+Phase 2A: Recommendation + request preview only
+Status: Implemented (preview-only)
+Next task: Phase 2A build/lint/typecheck verification and manual quote UI preview smoke test
 
 ## Phase Intent
 The Aggregator Booking initiative is intentionally incremental.
@@ -88,9 +88,25 @@ Not allowed:
 - money-order generation,
 - operational intake state transitions.
 
-### Phase 2 Boundary (Quote -> Booking Draft)
+### Phase 2 Boundary
+
+#### Phase 2A Boundary (Recommendation + Request Preview Only)
+Allowed:
+- deterministic recommendation output from quote snapshot,
+- customer option selection preview,
+- request-preview object generation in UI state only,
+- explicit customer safety notices.
+
+Strictly not allowed:
+- DB writes or persisted draft creation,
+- payment execution,
+- fulfillment provider booking,
+- pickup execution,
+- label/MO generation side effects.
+
+#### Phase 2B Boundary (Future, Approval Required)
 Allowed only after explicit approval:
-- controlled conversion of a valid quote snapshot into a booking draft state,
+- controlled conversion of a valid quote snapshot into a persisted booking draft state,
 - sender/intake metadata capture,
 - audit-safe state transition record.
 
@@ -204,8 +220,8 @@ If work stops mid-session, next session must follow these steps exactly:
 
 ## Continuation Checklist for Next Session
 - Confirm Phase marker still accurate.
-- Execute manual UI/API smoke test for Phase 1 quote-only behavior.
-- Verify no quote path creates draft/payment/fulfillment side effects.
+- Execute manual UI smoke test for Phase 2A recommendation preview behavior.
+- Verify no quote path creates persisted draft/payment/fulfillment side effects.
 - Update implementation index with smoke test outcome.
 
 ## Cross-Reference

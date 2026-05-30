@@ -1,9 +1,11 @@
-# Booking Rollout Checklist (Phase 1 Quote-Only)
+# Booking Rollout Checklist (Phase 2A Recommendation Preview)
 
 ## Pre-Deploy
 - Confirm protected modules are untouched: upload/generation, worker, billing, admin, tracking.
 - Confirm no DB migration is included for this rollout.
 - Confirm quote endpoint returns quote-only response mode.
+- Confirm no request-preview path writes to database.
+- Confirm no payment/live-booking/pickup execution is introduced.
 
 ## Verification Commands
 - Run `npm run build`
@@ -16,11 +18,15 @@
 - Upload XLSX with valid rows and confirm same output shape.
 - Submit JSON rows and confirm output matches file-mode behavior.
 - Verify unsupported slab rows show explicit error diagnostics.
+- Verify recommendation cards render after quote summary.
+- Verify request preview renders with request-only, no-payment, no-live-booking, and no-pickup notices.
+- Verify submit-to-admin action remains disabled and explicitly marked Phase 2B.
 
 ## Safety Checks
 - Ensure quote flow does not create booking records.
 - Ensure quote flow does not trigger payments.
 - Ensure quote flow does not touch label or money-order generation paths.
+- Ensure persisted aggregator draft conversion endpoint is not used in Phase 2A UI flow.
 
 ## Rollback Plan
 - Revert Phase 1 quote module commit if critical regression appears.
@@ -50,3 +56,9 @@ For phase boundaries, protected scope, and continuity handoff protocol, see `doc
 - Safety assertions:
 	- No payment/pickup/discount/live-booking action introduced in Phase 1 quote flow.
 	- Existing Upload and generation flow remained unchanged.
+
+## Phase 2A Implementation Status (2026-05-31)
+- Added deterministic recommendation engine service for rules evaluation.
+- Added Booking Quote request-preview UI components with no DB write.
+- Added request-only notices and disabled Phase 2B submit action.
+- Kept quote input/upload and per-article postage behavior unchanged.

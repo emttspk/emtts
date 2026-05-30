@@ -1,10 +1,16 @@
-import { useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { PageShell, PageTitle, BodyText } from "../components/ui/PageSystem";
 import Card from "../components/Card";
 import { api, uploadFile } from "../lib/api";
 import PostageSummaryCard from "../components/booking/PostageSummaryCard";
 import PostageBreakdownTable from "../components/booking/PostageBreakdownTable";
 import BookingRecommendationCard from "../components/booking/BookingRecommendationCard";
+import BookingDraftNotice from "../components/booking/BookingDraftNotice";
+import BookingDraftReview from "../components/booking/BookingDraftReview";
+import BookingOptionSelector, {
+  deriveBookingRecommendation,
+  type BookingRecommendationOption,
+} from "../components/booking/BookingOptionSelector";
 
 type QuoteSummary = {
   totalArticles: number;
@@ -52,8 +58,52 @@ export default function BookingQuote() {
   const [error, setError] = useState<string | null>(null);
   const [jsonInput, setJsonInput] = useState("[]");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedOption, setSelectedOption] = useState<BookingRecommendationOption>("DIRECT_COURIER_OR_SELF_DROP_ADVISORY");
 
   const rowCount = useMemo(() => rows.length, [rows]);
+
+  const senderCityForRules = useMemo(() => {
+    if (!summary) return "";
+    const firstWithCity = summary.perArticlePostageBreakdown.find((item) => String(item.senderCity ?? "").trim().length > 0);
+    return String(firstWithCity?.senderCity ?? "").trim();
+  }, [summary]);
+
+  const recommendation = useMemo(() => {
+    if (!summary) return null;
+
+    return deriveBookingRecommendation({
+      senderCity: senderCityForRules,
+      totalArticles: summary.totalArticles,
+      totalActualWeightGrams: summary.totalActualWeightGrams,
+      totalChargeableWeightGrams: summary.totalChargeableWeightGrams,
+      serviceCodes: summary.perArticlePostageBreakdown.map((row) => row.serviceCode),
+      perArticleWeightsGrams: summary.perArticlePostageBreakdown.map((row) => row.result.weightGrams),
+    });
+  }, [summary, senderCityForRules]);
+
+  const requestPreview = useMemo(() => {
+    if (!summary) return null;
+
+    return {
+      requestOnly: true as const,
+      noPayment: true as const,
+      noLiveBooking: true as const,
+      noPickupExecution: true as const,
+      selectedOption,
+      quoteSnapshot: {
+        totalArticles: summary.totalArticles,
+        totalActualWeightGrams: summary.totalActualWeightGrams,
+        totalChargeableWeightGrams: summary.totalChargeableWeightGrams,
+        totalPostageAmount: summary.totalPostageAmount,
+      },
+      customerNotice: "This is only a booking request preview. It is not booking confirmation.",
+    };
+  }, [selectedOption, summary]);
+
+  useEffect(() => {
+    if (!recommendation) return;
+    setSelectedOption(recommendation.recommendedOption);
+  }, [recommendation]);
 
   function applyJsonRows() {
     try {
@@ -182,6 +232,20 @@ export default function BookingQuote() {
         {summary ? (
           <>
             <PostageSummaryCard summary={summary} />
+            <BookingDraftNotice />
+            {recommendation ? (
+              <BookingOptionSelector
+                recommendation={recommendation}
+                selectedOption={selectedOption}
+                onSelectOption={setSelectedOption}
+              />
+            ) : null}
+            {requestPreview ? (
+              <BookingDraftReview
+                requestPreview={requestPreview}
+                previewAllowed={Boolean(recommendation?.requestPreviewAllowed)}
+              />
+            ) : null}
             <BookingRecommendationCard summary={summary} />
             <PostageBreakdownTable rows={summary.perArticlePostageBreakdown} />
           </>
