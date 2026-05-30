@@ -58,6 +58,8 @@ Before S0, confirm the environment is operational enough to distinguish rollout 
 - `ENABLE_R2_DOWNLOADS`
 - `ENABLE_UPLOAD_R2_BACKUP` — Phase B: enables R2 durable backup of uploaded CSV/XLSX source files (default: off)
 - `ENABLE_UPLOAD_LOCAL_CLEANUP_AFTER_R2` — Phase C: enables local upload file cleanup only after confirmed R2 sync (default: off)
+- `ENABLE_R2_PREFERRED_READS` — Phase D: enables controlled R2-preferred read behavior with mandatory local fallback (default: off)
+- `FORCE_LOCAL_READS` — Phase D emergency override to force local-first reads (default: off)
 
 ## Default Safe Baseline
 
@@ -156,6 +158,47 @@ Delete local upload file only when:
 
 ### Rollback
 Set `ENABLE_UPLOAD_LOCAL_CLEANUP_AFTER_R2=false` to stop further local cleanup immediately.
+
+## Phase D: Controlled R2-Preferred Reads With Mandatory Local Fallback
+
+### Purpose
+Enable R2-preferred reads only when explicitly flagged on, while preserving local fallback for compatibility and rollback safety.
+
+### Invariants
+- R2-only read is NOT enabled.
+- Local fallback is mandatory.
+- Existing route contracts (status codes, messages, attachment names/content types) remain unchanged.
+- No queue payload change, no generation-logic change, and no cleanup deletion behavior change in Phase D.
+
+### Flag Behavior
+1. If `FORCE_LOCAL_READS=true`, skip R2-preferred logic and use local-first behavior.
+2. Else if `ENABLE_R2_PREFERRED_READS=true` and durable metadata is present, attempt R2 first.
+3. On R2 miss/failure/timeout, fallback to local.
+4. If both fail, preserve existing route error behavior.
+
+### Observability
+Emit route-level read outcome telemetry:
+- `r2_read_success`
+- `r2_read_failed_fallback_local`
+- `local_fallback_success`
+- `local_fallback_failed`
+- `local_read_success`
+
+Each event should include route, artifact type, job id where available, preferred mode flag, and force-local flag.
+
+### Rollout Sequence
+1. Local/dev baseline: `ENABLE_R2_PREFERRED_READS=false` and `FORCE_LOCAL_READS=false`.
+2. Staging: enable `ENABLE_R2_PREFERRED_READS=true` with `FORCE_LOCAL_READS=false`.
+3. Monitor 404/502 rates, stream failures, and latency.
+4. Production canary: limited window with close telemetry watch.
+5. Broader rollout only after canary stability.
+
+### Emergency Rollback
+Use either:
+- `ENABLE_R2_PREFERRED_READS=false` (primary rollback), or
+- `FORCE_LOCAL_READS=true` (immediate hard override).
+
+Phase D does not alter cleanup deletion and does not add R2-only read mode.
 
 ## Rollout Sequence
 

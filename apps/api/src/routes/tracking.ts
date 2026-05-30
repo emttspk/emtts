@@ -10,7 +10,7 @@ import { parse as parseCsv } from "csv-parse/sync";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import type { AuthedRequest } from "../middleware/auth.js";
-import { ensureStorageDirs, outputsDir, uploadsDir } from "../storage/paths.js";
+import { ensureStorageDirs, outputsDir, resolveStoredFileForControlledRead, uploadsDir } from "../storage/paths.js";
 import { trackingQueue } from "../queue/queue.js";
 import { ensureRedisConnection, getRedisConnection } from "../queue/redis.js";
 import { redisEnabled } from "../lib/redis.js";
@@ -1502,40 +1502,84 @@ trackingRouter.get("/:jobId", requireAuth, async (req, res) => {
 
   let result: unknown | null = null;
   if (job.resultPath) {
-    const absPath = path.resolve(process.cwd(), job.resultPath);
-    const allowedRoot = outputsDir();
-    const relToRoot = path.relative(allowedRoot, absPath);
-    if (!relToRoot.startsWith("..") && !path.isAbsolute(relToRoot)) {
+    const readResolution = await resolveStoredFileForControlledRead(job.resultPath, {
+      attempts: 1,
+      delayMs: 0,
+      jobId: job.id,
+      artifactType: "trackingResult",
+      forceR2FallbackOnLocalMiss: true,
+      preferR2WhenAvailable: true,
+      hasDurableR2Metadata: Boolean(job.resultSyncedAt),
+    });
+
+    logTelemetry({
+      event: readResolution.outcome,
+      route: "tracking.job_result",
+      artifactType: "trackingResult",
+      jobId: job.id,
+      preferredMode: readResolution.preferredMode,
+      forceLocal: readResolution.forceLocal,
+    });
+
+    if (readResolution.fileResult?.provider === "r2") {
       try {
-        const raw = await fs.readFile(absPath, "utf8");
-        result = JSON.parse(raw);
-      } catch (localErr) {
-        // Local read failed; try R2 fallback if synced
-        if (job.resultSyncedAt) {
-          try {
-            const { getNormalizedObjectKey } = await import("../storage/key-normalization.js");
-            const { getDualProviders } = await import("../storage/provider.js");
-            const r2Key = getNormalizedObjectKey(job.id, "trackingResult").replace(/^json\//, "");
-            const r2Provider = getDualProviders().r2;
-            const r2Data = await r2Provider.readArtifact("json", r2Key, {
-              jobId: job.id,
-              artifactType: "trackingResult",
-            });
-            result = JSON.parse(r2Data.toString("utf8"));
-            logTelemetry({
-              event: "tracking_result_stream_success",
-              jobId: job.id,
-              source: "r2_fallback",
-            });
-          } catch (r2Err) {
-            console.warn(`[TrackingRouter] R2 fallback failed for ${job.id}:`, r2Err);
-            logTelemetry({
-              event: "tracking_result_stream_failure",
-              jobId: job.id,
-              source: "r2_fallback",
-              error: r2Err instanceof Error ? r2Err.message : String(r2Err),
-            });
-            result = null;
+        const { getDualProviders } = await import("../storage/provider.js");
+        const r2Provider = getDualProviders().r2;
+        const r2Data = await r2Provider.readArtifact("json", readResolution.fileResult.path, {
+          jobId: job.id,
+          artifactType: "trackingResult",
+        });
+        result = JSON.parse(r2Data.toString("utf8"));
+        logTelemetry({
+          event: "tracking_result_stream_success",
+          jobId: job.id,
+          source: "r2_preferred_or_fallback",
+        });
+      } catch (r2Err) {
+        console.warn(`[TrackingRouter] R2 read failed for ${job.id}:`, r2Err);
+        logTelemetry({
+          event: "tracking_result_stream_failure",
+          jobId: job.id,
+          source: "r2_preferred_or_fallback",
+          error: r2Err instanceof Error ? r2Err.message : String(r2Err),
+        });
+      }
+    } else if (readResolution.fileResult?.provider === "local") {
+      const absPath = path.resolve(readResolution.fileResult.path);
+      const allowedRoot = outputsDir();
+      const relToRoot = path.relative(allowedRoot, absPath);
+      if (!relToRoot.startsWith("..") && !path.isAbsolute(relToRoot)) {
+        try {
+          const raw = await fs.readFile(absPath, "utf8");
+          result = JSON.parse(raw);
+        } catch (localErr) {
+          // Preserve compatibility: if local JSON is unreadable and R2 metadata exists, try R2 fallback.
+          if (job.resultSyncedAt) {
+            try {
+              const { getNormalizedObjectKey } = await import("../storage/key-normalization.js");
+              const { getDualProviders } = await import("../storage/provider.js");
+              const r2Key = getNormalizedObjectKey(job.id, "trackingResult").replace(/^json\//, "");
+              const r2Provider = getDualProviders().r2;
+              const r2Data = await r2Provider.readArtifact("json", r2Key, {
+                jobId: job.id,
+                artifactType: "trackingResult",
+              });
+              result = JSON.parse(r2Data.toString("utf8"));
+              logTelemetry({
+                event: "tracking_result_stream_success",
+                jobId: job.id,
+                source: "r2_fallback_after_local_parse_failure",
+              });
+            } catch (r2Err) {
+              console.warn(`[TrackingRouter] R2 fallback failed for ${job.id}:`, r2Err);
+              logTelemetry({
+                event: "tracking_result_stream_failure",
+                jobId: job.id,
+                source: "r2_fallback_after_local_parse_failure",
+                error: r2Err instanceof Error ? r2Err.message : String(r2Err),
+              });
+              result = null;
+            }
           }
         }
       }

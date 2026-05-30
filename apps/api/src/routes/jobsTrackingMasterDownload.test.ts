@@ -28,6 +28,7 @@ const trackingMasterHandler = trackingMasterRouteLayer.route.stack[1].handle as 
 type DownloadMockState = {
   findFirstImpl: (args: any) => Promise<any>;
   labelJobUpdates: any[];
+  r2ArtifactExistsCalls: number;
   r2ArtifactExists: (type: string, key: string, options?: unknown) => Promise<boolean>;
   r2ReadArtifact: (type: string, key: string, options?: unknown) => Promise<Buffer>;
 };
@@ -36,6 +37,7 @@ function makeDownloadState(overrides?: Partial<DownloadMockState>): DownloadMock
   return {
     findFirstImpl: async () => null,
     labelJobUpdates: [],
+    r2ArtifactExistsCalls: 0,
     r2ArtifactExists: async () => false,
     r2ReadArtifact: async () => Buffer.from(""),
     ...(overrides ?? {}),
@@ -64,7 +66,10 @@ async function withDownloadMocks(state: DownloadMockState, run: () => Promise<vo
     },
   };
 
-  r2.artifactExists = async (type: string, key: string, options?: unknown) => state.r2ArtifactExists(type, key, options);
+  r2.artifactExists = async (type: string, key: string, options?: unknown) => {
+    state.r2ArtifactExistsCalls += 1;
+    return state.r2ArtifactExists(type, key, options);
+  };
   r2.readArtifact = async (type: string, key: string, options?: unknown) => state.r2ReadArtifact(type, key, options);
 
   try {
@@ -73,6 +78,41 @@ async function withDownloadMocks(state: DownloadMockState, run: () => Promise<vo
     p.labelJob = originalPrisma.labelJob;
     r2.artifactExists = originalR2.artifactExists;
     r2.readArtifact = originalR2.readArtifact;
+  }
+}
+
+async function withReadFlags(
+  flags: { ENABLE_R2_PREFERRED_READS?: string; FORCE_LOCAL_READS?: string },
+  run: () => Promise<void>,
+) {
+  const prevPreferred = process.env.ENABLE_R2_PREFERRED_READS;
+  const prevForceLocal = process.env.FORCE_LOCAL_READS;
+
+  if (flags.ENABLE_R2_PREFERRED_READS === undefined) {
+    delete process.env.ENABLE_R2_PREFERRED_READS;
+  } else {
+    process.env.ENABLE_R2_PREFERRED_READS = flags.ENABLE_R2_PREFERRED_READS;
+  }
+
+  if (flags.FORCE_LOCAL_READS === undefined) {
+    delete process.env.FORCE_LOCAL_READS;
+  } else {
+    process.env.FORCE_LOCAL_READS = flags.FORCE_LOCAL_READS;
+  }
+
+  try {
+    await run();
+  } finally {
+    if (prevPreferred === undefined) {
+      delete process.env.ENABLE_R2_PREFERRED_READS;
+    } else {
+      process.env.ENABLE_R2_PREFERRED_READS = prevPreferred;
+    }
+    if (prevForceLocal === undefined) {
+      delete process.env.FORCE_LOCAL_READS;
+    } else {
+      process.env.FORCE_LOCAL_READS = prevForceLocal;
+    }
   }
 }
 
@@ -180,6 +220,111 @@ const tests: TestCase[] = [
         assert.ok(String(response.headers["content-disposition"] ?? "").includes(`Tracking-Master-${jobId}.xlsx`));
         assert.equal(response.downloadedPath, path.resolve(localPath));
         assert.equal(String(response.downloadedName ?? ""), `Tracking-Master-${jobId}.xlsx`);
+      } finally {
+        await fs.rm(localPath, { force: true });
+      }
+    },
+  },
+  {
+    name: "FORCE_LOCAL_READS bypasses preferred-R2 probe when local file exists",
+    async run() {
+      await ensureStorageDirs();
+      const jobId = "job-force-local";
+      const localPath = path.join(outputsDir(), `${jobId}-tracking-master.xlsx`);
+      await fs.writeFile(localPath, Buffer.from("local-force-bytes"));
+      const storedPath = toStoredPath(localPath);
+
+      const state = makeDownloadState({
+        findFirstImpl: async () => ({
+          id: jobId,
+          userId: "user-1",
+          status: "COMPLETED",
+          trackingMasterPath: storedPath,
+          trackingMasterSyncedAt: new Date().toISOString(),
+        }),
+        r2ArtifactExists: async () => true,
+      });
+
+      const { res, state: response } = makeRes();
+
+      try {
+        await withReadFlags({ ENABLE_R2_PREFERRED_READS: "true", FORCE_LOCAL_READS: "true" }, async () => {
+          await withDownloadMocks(state, async () => {
+            await trackingMasterHandler(makeAuthedReq(jobId), res);
+          });
+        });
+
+        assert.equal(response.statusCode, 200);
+        assert.equal(response.downloadedPath, path.resolve(localPath));
+        assert.equal(state.r2ArtifactExistsCalls, 0);
+      } finally {
+        await fs.rm(localPath, { force: true });
+      }
+    },
+  },
+  {
+    name: "preferred-R2 mode returns R2 data when synced metadata exists",
+    async run() {
+      const jobId = "job-r2-preferred";
+      const state = makeDownloadState({
+        findFirstImpl: async () => ({
+          id: jobId,
+          userId: "user-1",
+          status: "COMPLETED",
+          trackingMasterPath: "generated/non-existent.xlsx",
+          trackingMasterSyncedAt: new Date().toISOString(),
+        }),
+        r2ArtifactExists: async () => true,
+        r2ReadArtifact: async () => Buffer.from("preferred-r2-bytes"),
+      });
+
+      const { res, state: response } = makeRes();
+
+      await withReadFlags({ ENABLE_R2_PREFERRED_READS: "true", FORCE_LOCAL_READS: "false" }, async () => {
+        await withDownloadMocks(state, async () => {
+          await trackingMasterHandler(makeAuthedReq(jobId), res);
+        });
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.equal(response.downloadedPath, null);
+      assert.ok(Buffer.isBuffer(response.body));
+      assert.equal(response.body.toString("utf8"), "preferred-r2-bytes");
+      assert.ok(state.r2ArtifactExistsCalls >= 1);
+    },
+  },
+  {
+    name: "preferred-R2 miss falls back to local file",
+    async run() {
+      await ensureStorageDirs();
+      const jobId = "job-r2-preferred-fallback";
+      const localPath = path.join(outputsDir(), `${jobId}-tracking-master.xlsx`);
+      await fs.writeFile(localPath, Buffer.from("local-after-r2-miss"));
+      const storedPath = toStoredPath(localPath);
+
+      const state = makeDownloadState({
+        findFirstImpl: async () => ({
+          id: jobId,
+          userId: "user-1",
+          status: "COMPLETED",
+          trackingMasterPath: storedPath,
+          trackingMasterSyncedAt: new Date().toISOString(),
+        }),
+        r2ArtifactExists: async () => false,
+      });
+
+      const { res, state: response } = makeRes();
+
+      try {
+        await withReadFlags({ ENABLE_R2_PREFERRED_READS: "true", FORCE_LOCAL_READS: "false" }, async () => {
+          await withDownloadMocks(state, async () => {
+            await trackingMasterHandler(makeAuthedReq(jobId), res);
+          });
+        });
+
+        assert.equal(response.statusCode, 200);
+        assert.equal(response.downloadedPath, path.resolve(localPath));
+        assert.ok(state.r2ArtifactExistsCalls >= 1);
       } finally {
         await fs.rm(localPath, { force: true });
       }

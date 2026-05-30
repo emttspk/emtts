@@ -20,7 +20,16 @@ export const featureFlags = {
   ENABLE_DUAL_WRITE: process.env.ENABLE_DUAL_WRITE === "true",
   ENABLE_DUAL_READ: process.env.ENABLE_DUAL_READ === "true",
   ENABLE_R2_UPLOADS: process.env.ENABLE_R2_UPLOADS === "true",
+  ENABLE_R2_PREFERRED_READS: process.env.ENABLE_R2_PREFERRED_READS === "true",
+  FORCE_LOCAL_READS: process.env.FORCE_LOCAL_READS === "true",
 };
+
+export function getReadPreferenceFlags() {
+  return {
+    ENABLE_R2_PREFERRED_READS: process.env.ENABLE_R2_PREFERRED_READS === "true",
+    FORCE_LOCAL_READS: process.env.FORCE_LOCAL_READS === "true",
+  };
+}
 
 // Stage S1 Staging Configuration: Master control flag and canary controls
 export const stagingConfig = {

@@ -93,6 +93,25 @@ This document is the source of truth for the label/money-order storage rollout a
 - Phase C does NOT change read preference or queue payload behavior.
 - Phase D will handle R2-preferred reads later.
 
+### Controlled R2-Preferred Reads With Local Fallback (Phase D)
+
+- Phase D enables R2-preferred reads only when explicitly enabled by feature flag.
+- R2-only read is NOT enabled.
+- Local fallback remains mandatory across supported download/read routes.
+- Flag behavior:
+  - `FORCE_LOCAL_READS=true` always bypasses R2-preferred mode and keeps local-first behavior.
+  - `ENABLE_R2_PREFERRED_READS=true` activates R2-preferred mode only where durable metadata exists.
+  - If R2 read fails/times out/misses, route must fallback to local.
+  - If both fail, route preserves existing error/status behavior.
+- Phase D does not modify generation logic, queue payload, cleanup deletion behavior, or business-domain formulas.
+- Route coverage targets:
+  - jobs labels PDF
+  - jobs money order PDF
+  - jobs tracking master XLSX
+  - tracking result JSON
+- Tracking batch master file remains local-first until reliable R2 metadata mapping is available.
+- Aggregator booking document routes remain metadata-only in Phase D (no new download endpoint).
+
 ## Feature Flags (Exact)
 
 - `STORAGE_PROVIDER`
@@ -102,6 +121,8 @@ This document is the source of truth for the label/money-order storage rollout a
 - `ENABLE_R2_DOWNLOADS`
 - `ENABLE_UPLOAD_R2_BACKUP` — Phase B: back up uploaded CSV/XLSX source files to R2 (non-blocking, default off)
 - `ENABLE_UPLOAD_LOCAL_CLEANUP_AFTER_R2` — Phase C: delete local upload source files only after confirmed R2 sync (default off)
+- `ENABLE_R2_PREFERRED_READS` — Phase D: enable controlled R2-preferred reads with mandatory local fallback (default off)
+- `FORCE_LOCAL_READS` — Phase D emergency rollback override to force local-first reads (default off)
 
 ### Intended Local-First Rollout Usage
 

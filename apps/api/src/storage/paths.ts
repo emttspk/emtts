@@ -2,7 +2,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import fsSync from "node:fs";
 import { fileURLToPath } from "node:url";
-import { env } from "../config.js";
+import { env, getReadPreferenceFlags } from "../config.js";
 import { UPLOAD_DIR } from "../utils/paths.js";
 import { getDualProviders, storageFeatureFlags } from "./provider.js";
 import type { R2ReadCompatibilityOptions } from "./R2StorageProvider.js";
@@ -11,6 +11,27 @@ import { getNormalizedObjectKey } from "./key-normalization.js";
 type StoredFileFallbackOptions = R2ReadCompatibilityOptions & {
   // Opt-in override for read paths that must fallback to R2 even when dual-read flag is off.
   forceR2FallbackOnLocalMiss?: boolean;
+};
+
+export type ControlledReadOutcome =
+  | "r2_read_success"
+  | "r2_read_failed_fallback_local"
+  | "local_fallback_success"
+  | "local_fallback_failed"
+  | "local_read_success";
+
+type ControlledReadOptions = StoredFileFallbackOptions & {
+  attempts?: number;
+  delayMs?: number;
+  preferR2WhenAvailable?: boolean;
+  hasDurableR2Metadata?: boolean;
+};
+
+export type ControlledReadResult = {
+  fileResult: { path: string; provider: "local" | "r2" } | null;
+  outcome: ControlledReadOutcome;
+  preferredMode: boolean;
+  forceLocal: boolean;
 };
 
 export function appRoot() {
@@ -312,6 +333,79 @@ export async function waitForStoredFileWithFallback(
     }
   }
   return null;
+}
+
+export async function resolveStoredFileForControlledRead(
+  storedPath: string,
+  options?: ControlledReadOptions,
+): Promise<ControlledReadResult> {
+  const attempts = options?.attempts ?? 8;
+  const delayMs = options?.delayMs ?? 200;
+  const readFlags = getReadPreferenceFlags();
+  const forceLocal = readFlags.FORCE_LOCAL_READS;
+  const preferredMode =
+    !forceLocal &&
+    readFlags.ENABLE_R2_PREFERRED_READS &&
+    options?.preferR2WhenAvailable === true &&
+    options?.hasDurableR2Metadata === true;
+
+  if (preferredMode) {
+    const r2Probe = await checkR2ExistsQuick(storedPath, 2000, {
+      ...options,
+      forceR2FallbackOnLocalMiss: true,
+    });
+    if (r2Probe.exists && r2Probe.key) {
+      return {
+        fileResult: { path: r2Probe.key, provider: "r2" },
+        outcome: "r2_read_success",
+        preferredMode,
+        forceLocal,
+      };
+    }
+
+    const localPath = await waitForStoredFile(storedPath, attempts, delayMs);
+    if (localPath) {
+      return {
+        fileResult: { path: localPath, provider: "local" },
+        outcome: "r2_read_failed_fallback_local",
+        preferredMode,
+        forceLocal,
+      };
+    }
+
+    return {
+      fileResult: null,
+      outcome: "local_fallback_failed",
+      preferredMode,
+      forceLocal,
+    };
+  }
+
+  const existingBehaviorResult = await waitForStoredFileWithFallback(storedPath, attempts, delayMs, options);
+  if (!existingBehaviorResult) {
+    return {
+      fileResult: null,
+      outcome: "local_fallback_failed",
+      preferredMode,
+      forceLocal,
+    };
+  }
+
+  if (existingBehaviorResult.provider === "local") {
+    return {
+      fileResult: existingBehaviorResult,
+      outcome: "local_read_success",
+      preferredMode,
+      forceLocal,
+    };
+  }
+
+  return {
+    fileResult: existingBehaviorResult,
+    outcome: "local_fallback_success",
+    preferredMode,
+    forceLocal,
+  };
 }
 
 export async function ensureStorageDirs() {

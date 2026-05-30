@@ -1,5 +1,67 @@
 # AI Implementation Index
 
+## 2026-05-30 - R2 Permanent Storage Rollout Phase D (Controlled Preferred Reads)
+
+### Task Name
+- Phase D: controlled R2-preferred reads with mandatory local fallback and emergency local-force override.
+
+### Files Changed
+- `apps/api/src/config.ts`
+- `apps/api/src/storage/paths.ts`
+- `apps/api/src/routes/jobs.ts`
+- `apps/api/src/routes/tracking.ts`
+- `apps/api/src/routes/jobsTrackingMasterDownload.test.ts`
+- `docs/architecture/storage-rollout-architecture.md`
+- `docs/rollout/storage-rollout-runbook.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Feature Flags Added
+- `ENABLE_R2_PREFERRED_READS` (default false)
+- `FORCE_LOCAL_READS` (default false)
+
+### Read Orchestration
+- Added controlled read helper that supports:
+	- R2-preferred attempt when enabled and durable metadata exists
+	- mandatory local fallback on R2 miss/failure
+	- force-local override path
+	- standardized outcome labels:
+		- `r2_read_success`
+		- `r2_read_failed_fallback_local`
+		- `local_fallback_success`
+		- `local_fallback_failed`
+		- `local_read_success`
+
+### Route Coverage
+- Updated jobs download handlers:
+	- labels PDF
+	- money order PDF
+	- tracking master XLSX
+- Updated tracking result JSON read path in tracking route.
+- Tracking batch master-file endpoint remains local-first due to missing reliable R2 metadata mapping.
+- Aggregator booking documents remain metadata-only in Phase D.
+
+### Local Fallback Confirmation
+- Local fallback remains mandatory in all updated routes.
+- R2-only read mode was not introduced.
+- Existing response contracts and error behavior were preserved.
+
+### Protected Scope Confirmation
+- `apps/web/src/pages/Upload.tsx`: NOT TOUCHED
+- `apps/api/src/parse/orders.ts`: NOT TOUCHED
+- `apps/api/src/worker.ts`: NOT TOUCHED
+- queue payload shaping: NOT TOUCHED
+- PDF templates: NOT TOUCHED
+- money order / MOS / UMO business logic: NOT TOUCHED
+- tracking/complaint/billing/auth business logic: NOT TOUCHED
+- cleanup deletion logic: NOT TOUCHED
+
+### Rollback
+- Disable `ENABLE_R2_PREFERRED_READS`, or
+- set `FORCE_LOCAL_READS=true` for immediate local-first override.
+
+### Next Recommended Step
+- Post-Phase-D canary monitoring review and threshold signoff before broader production rollout.
+
 ## 2026-05-30 - R2 Permanent Storage Rollout Phase C (Safe Local Upload Cleanup)
 
 ### Task Name

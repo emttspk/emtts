@@ -11,7 +11,7 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import type { AuthedRequest } from "../middleware/auth.js";
-import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, resolveStoredPath, toStoredPath, uploadsDir, waitForStoredFile, waitForStoredFileWithFallback } from "../storage/paths.js";
+import { ensureStorageDirs, moneyOrdersOutputPath, outputsDir, resolveStoredPath, resolveStoredFileForControlledRead, toStoredPath, uploadsDir, waitForStoredFile } from "../storage/paths.js";
 import { parseOrdersFromFile } from "../parse/orders.js";
 import { ensureRedisConnection } from "../queue/redis.js";
 import { consumeUnits, getLatestUnitSnapshot, refundUnits } from "../usage/unitConsumption.js";
@@ -1101,10 +1101,24 @@ jobsRouter.get("/:jobId/download/labels", requireAuth, async (req, res) => {
   }
 
   // Try existing local behavior first; when local is unavailable, allow safe R2 fallback.
-  const fileResult = await waitForStoredFileWithFallback(relPath, 8, 500, {
+  const readResolution = await resolveStoredFileForControlledRead(relPath, {
+    attempts: 8,
+    delayMs: 500,
     jobId,
     artifactType: "labelsPdf",
     forceR2FallbackOnLocalMiss: true,
+    preferR2WhenAvailable: true,
+    hasDurableR2Metadata: Boolean(owned.labelsPdfSyncedAt),
+  });
+  const fileResult = readResolution.fileResult;
+
+  logTelemetry({
+    event: readResolution.outcome,
+    route: "jobs.download.labels",
+    artifactType: "labelsPdf",
+    jobId,
+    preferredMode: readResolution.preferredMode,
+    forceLocal: readResolution.forceLocal,
   });
 
   if (fileResult?.provider !== "local") {
@@ -1353,10 +1367,23 @@ async function handleMoneyOrdersDownload(req: ExpressRequest, res: ExpressRespon
 
   if (!relPath) {
     const legacyProbePath = toStoredPath(moneyOrdersOutputPath(jobId));
-    fileResult = await waitForStoredFileWithFallback(legacyProbePath, 1, 0, {
+    const legacyResolution = await resolveStoredFileForControlledRead(legacyProbePath, {
+      attempts: 1,
+      delayMs: 0,
       jobId,
       artifactType: "moneyOrderPdf",
       forceR2FallbackOnLocalMiss: true,
+      preferR2WhenAvailable: true,
+      hasDurableR2Metadata: Boolean(owned.moneyOrderPdfSyncedAt),
+    });
+    fileResult = legacyResolution.fileResult;
+    logTelemetry({
+      event: legacyResolution.outcome,
+      route: "jobs.download.money_order",
+      artifactType: "moneyOrderPdf",
+      jobId,
+      preferredMode: legacyResolution.preferredMode,
+      forceLocal: legacyResolution.forceLocal,
     });
 
     if (!fileResult) {
@@ -1370,10 +1397,23 @@ async function handleMoneyOrdersDownload(req: ExpressRequest, res: ExpressRespon
   }
 
   if (!fileResult) {
-    fileResult = await waitForStoredFileWithFallback(relPath, 8, 500, {
+    const readResolution = await resolveStoredFileForControlledRead(relPath, {
+      attempts: 8,
+      delayMs: 500,
       jobId,
       artifactType: "moneyOrderPdf",
       forceR2FallbackOnLocalMiss: true,
+      preferR2WhenAvailable: true,
+      hasDurableR2Metadata: Boolean(owned.moneyOrderPdfSyncedAt),
+    });
+    fileResult = readResolution.fileResult;
+    logTelemetry({
+      event: readResolution.outcome,
+      route: "jobs.download.money_order",
+      artifactType: "moneyOrderPdf",
+      jobId,
+      preferredMode: readResolution.preferredMode,
+      forceLocal: readResolution.forceLocal,
     });
   }
 
@@ -1591,10 +1631,23 @@ async function handleTrackingMasterDownload(req: ExpressRequest, res: ExpressRes
       jobId,
       probePath: legacyProbePath,
     });
-    fileResult = await waitForStoredFileWithFallback(legacyProbePath, 8, 250, {
+    const legacyResolution = await resolveStoredFileForControlledRead(legacyProbePath, {
+      attempts: 8,
+      delayMs: 250,
       jobId,
       artifactType: "trackingMasterXlsx",
       forceR2FallbackOnLocalMiss: true,
+      preferR2WhenAvailable: true,
+      hasDurableR2Metadata: Boolean(owned.trackingMasterSyncedAt),
+    });
+    fileResult = legacyResolution.fileResult;
+    logTelemetry({
+      event: legacyResolution.outcome,
+      route: "jobs.download.tracking_master",
+      artifactType: "trackingMasterXlsx",
+      jobId,
+      preferredMode: legacyResolution.preferredMode,
+      forceLocal: legacyResolution.forceLocal,
     });
     if (!fileResult) {
       logTelemetry({
@@ -1609,10 +1662,23 @@ async function handleTrackingMasterDownload(req: ExpressRequest, res: ExpressRes
     resolvedFrom = "LOCAL";
   } else {
     // Resolver has already done local polling. Keep this second-stage local check minimal.
-    fileResult = await waitForStoredFileWithFallback(relPath, 8, 250, {
+    const readResolution = await resolveStoredFileForControlledRead(relPath, {
+      attempts: 8,
+      delayMs: 250,
       jobId,
       artifactType: "trackingMasterXlsx",
       forceR2FallbackOnLocalMiss: true,
+      preferR2WhenAvailable: true,
+      hasDurableR2Metadata: Boolean(owned.trackingMasterSyncedAt),
+    });
+    fileResult = readResolution.fileResult;
+    logTelemetry({
+      event: readResolution.outcome,
+      route: "jobs.download.tracking_master",
+      artifactType: "trackingMasterXlsx",
+      jobId,
+      preferredMode: readResolution.preferredMode,
+      forceLocal: readResolution.forceLocal,
     });
   }
 
