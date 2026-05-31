@@ -36,6 +36,15 @@ function getPhase3C2Label(currentState?: string | null) {
   return currentState;
 }
 
+function getPhase3C3Label(currentState?: string | null) {
+  if (!currentState || currentState === "NOT_STARTED") return null;
+  if (currentState === "DRIVER_HANDOFF_RECORDED") return "Driver handoff recorded";
+  if (currentState === "HUB_SORTING_DISPATCHED") return "Dispatched to sorting facility";
+  if (currentState === "INTER_FACILITY_TRANSFER_RECORDED") return "Inter-facility transfer recorded";
+  if (currentState === "READY_FOR_FINAL_POSTAL_PROCESSING") return "Ready for final postal processing";
+  return currentState;
+}
+
 export default function AggregatorBookings() {
   const [bookings, setBookings] = useState<AggregatorBooking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,6 +114,9 @@ export default function AggregatorBookings() {
                       <div className="mt-1 text-[11px] text-slate-500">{getCustomerStatusLabel(booking.status)}</div>
                       <div className="mt-1 text-[11px] text-sky-700">{getPhase3C2Label(booking.phase3c2Operational?.currentState)}</div>
                       <div className="text-[11px] text-slate-500">This is warehouse receiving status only. Final article processing is separate.</div>
+                      {getPhase3C3Label(booking.phase3c3Operational?.currentState) ? (
+                        <div className="mt-1 text-[11px] text-sky-600">{getPhase3C3Label(booking.phase3c3Operational?.currentState)}</div>
+                      ) : null}
                     </td>
                     <td className="px-3 py-2 text-slate-700">{booking.senderName}</td>
                     <td className="px-3 py-2 text-slate-700">{booking.intakeMethod}</td>

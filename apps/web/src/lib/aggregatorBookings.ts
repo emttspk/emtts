@@ -143,6 +143,67 @@ export type AggregatorBooking = {
     updatedAt: string | null;
     customerNotice: string;
   } | null;
+  phase3c3Operational?: Phase3C3OperationalState | null;
+};
+
+export type Phase3C3OperationalState = {
+  currentState:
+    | "NOT_STARTED"
+    | "DRIVER_HANDOFF_RECORDED"
+    | "HUB_SORTING_DISPATCHED"
+    | "INTER_FACILITY_TRANSFER_RECORDED"
+    | "READY_FOR_FINAL_POSTAL_PROCESSING";
+  driverHandoff: {
+    bookingNo: string;
+    handoffType: string;
+    fromParty: string;
+    toParty: string;
+    handoffAt: string;
+    receivedBy: string;
+    bundleCondition: string;
+    articleCount: number;
+    note: string;
+    manualOnly: true;
+    noLiveCarrierApi: true;
+    noFinalDispatch: true;
+  } | null;
+  sortingDispatch: {
+    bookingNo: string;
+    fromWarehouse: string;
+    toSortingFacility: string;
+    dispatchedAt: string;
+    dispatchedBy: string;
+    expectedArticleCount: number;
+    bundleWeightGrams: number | null;
+    transportMode: string;
+    note: string;
+    manualOnly: true;
+    noPakistanPostBookingApi: true;
+    noFinalBookingConfirmation: true;
+  } | null;
+  latestTransfer: {
+    bookingNo: string;
+    fromFacility: string;
+    toFacility: string;
+    transferAt: string;
+    articleCount: number;
+    transferReference: string | null;
+    note: string;
+    manualOnly: true;
+    noFinalDispatch: true;
+  } | null;
+  readyForPostal: {
+    bookingNo: string;
+    readyAt: string;
+    markedBy: string;
+    expectedArticleCount: number;
+    note: string;
+    manualOnly: true;
+    noPakistanPostBookingApi: true;
+    finalBookingNotCreated: true;
+  } | null;
+  updatedAt: string | null;
+  customerNotice: string;
 };
 
 export type AggregatorBulkPackLabelPreview = {
@@ -200,6 +261,16 @@ const manualHubReceivingFlags = {
   noPickupExecution: true,
   noDispatchExecution: true,
   noFinalBookingConfirmation: true,
+} as const;
+
+const manualHandoffFlags = {
+  manualOnly: true as const,
+  noLiveCarrierApi: true as const,
+  noFinalDispatch: true as const,
+  noPakistanPostBookingApi: true as const,
+  noPickupExecution: true as const,
+  noDispatchExecution: true as const,
+  noFinalBookingConfirmation: true as const,
 } as const;
 
 export type AggregatorBookingTimelineEvent = {
@@ -482,6 +553,84 @@ export async function adminResolveAggregatorHubException(
         ...payload,
         manualFlags: manualHubReceivingFlags,
       }),
+    },
+  );
+}
+
+export async function adminRecordAggregatorDriverHandoff(
+  bookingId: string,
+  payload: {
+    handoffType: string;
+    fromParty: string;
+    toParty: string;
+    receivedBy: string;
+    bundleCondition: string;
+    articleCount: number;
+    note: string;
+  },
+) {
+  return api<{ success: boolean; bookingId: string; phase3c3Operational: Phase3C3OperationalState }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/handoff/record-driver-handoff`,
+    {
+      method: "POST",
+      body: JSON.stringify({ ...payload, manualFlags: manualHandoffFlags }),
+    },
+  );
+}
+
+export async function adminRecordAggregatorSortingDispatch(
+  bookingId: string,
+  payload: {
+    fromWarehouse: string;
+    toSortingFacility: string;
+    dispatchedBy: string;
+    expectedArticleCount: number;
+    bundleWeightGrams?: number | null;
+    transportMode: string;
+    note: string;
+  },
+) {
+  return api<{ success: boolean; bookingId: string; phase3c3Operational: Phase3C3OperationalState }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/handoff/record-sorting-dispatch`,
+    {
+      method: "POST",
+      body: JSON.stringify({ ...payload, manualFlags: manualHandoffFlags }),
+    },
+  );
+}
+
+export async function adminRecordAggregatorInterFacilityTransfer(
+  bookingId: string,
+  payload: {
+    fromFacility: string;
+    toFacility: string;
+    transferBy: string;
+    transferReference?: string | null;
+    articleCount: number;
+    note: string;
+  },
+) {
+  return api<{ success: boolean; bookingId: string; phase3c3Operational: Phase3C3OperationalState }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/handoff/record-transfer`,
+    {
+      method: "POST",
+      body: JSON.stringify({ ...payload, manualFlags: manualHandoffFlags }),
+    },
+  );
+}
+
+export async function adminMarkAggregatorReadyForPostal(
+  bookingId: string,
+  payload: {
+    expectedArticleCount: number;
+    note: string;
+  },
+) {
+  return api<{ success: boolean; bookingId: string; phase3c3Operational: Phase3C3OperationalState }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/handoff/mark-ready-for-postal`,
+    {
+      method: "POST",
+      body: JSON.stringify({ ...payload, manualFlags: manualHandoffFlags }),
     },
   );
 }

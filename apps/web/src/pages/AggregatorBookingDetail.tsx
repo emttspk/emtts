@@ -48,6 +48,15 @@ function getPhase3C2Label(currentState?: string | null) {
   return currentState;
 }
 
+function getPhase3C3Label(currentState?: string | null) {
+  if (!currentState || currentState === "NOT_STARTED") return "Operational movement not yet started";
+  if (currentState === "DRIVER_HANDOFF_RECORDED") return "Driver handoff recorded";
+  if (currentState === "HUB_SORTING_DISPATCHED") return "Dispatched to sorting facility";
+  if (currentState === "INTER_FACILITY_TRANSFER_RECORDED") return "Inter-facility transfer recorded";
+  if (currentState === "READY_FOR_FINAL_POSTAL_PROCESSING") return "Ready for final postal processing";
+  return currentState;
+}
+
 export default function AggregatorBookingDetail() {
   const params = useParams<{ bookingId: string }>();
   const bookingId = String(params.bookingId ?? "").trim();
@@ -218,6 +227,41 @@ export default function AggregatorBookingDetail() {
 
         <Card className="border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="text-base font-semibold text-slate-900">Sender and Intake Details</h3>
+                    {booking.phase3c2Operational?.resolution ? (
+                      <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+                        <div className="font-semibold">Exception Resolved</div>
+                        <div>{booking.phase3c2Operational.resolution.resolutionType}</div>
+                        <div>{booking.phase3c2Operational.resolution.resolutionNote}</div>
+                      </div>
+                    ) : null}
+                  </Card>
+
+                  <Card className="border-slate-200 bg-white p-5 shadow-sm">
+                    <h3 className="text-base font-semibold text-slate-900">Operational Movement Status</h3>
+                    <p className="mt-1 text-xs text-slate-600">
+                      {booking.phase3c3Operational?.customerNotice ?? "This is operational movement status only. Final Pakistan Post article processing is a separate future step."}
+                    </p>
+                    <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                      <div>Current: {getPhase3C3Label(booking.phase3c3Operational?.currentState)}</div>
+                      {booking.phase3c3Operational?.sortingDispatch ? (
+                        <div>Dispatched to: {booking.phase3c3Operational.sortingDispatch.toSortingFacility}</div>
+                      ) : null}
+                      {booking.phase3c3Operational?.latestTransfer ? (
+                        <>
+                          <div>Latest Transfer: {booking.phase3c3Operational.latestTransfer.fromFacility} {"->"} {booking.phase3c3Operational.latestTransfer.toFacility}</div>
+                          <div>Transfer Articles: {booking.phase3c3Operational.latestTransfer.articleCount}</div>
+                        </>
+                      ) : null}
+                      {booking.phase3c3Operational?.readyForPostal ? (
+                        <div className="mt-1 font-semibold text-emerald-800">
+                          Ready for postal processing recorded. Final Pakistan Post article processing is a separate future step.
+                        </div>
+                      ) : null}
+                    </div>
+                  </Card>
+
+                  <Card className="border-slate-200 bg-white p-5 shadow-sm">
+                    <h3 className="text-base font-semibold text-slate-900">Sender and Intake Details</h3>
           <p className="mt-1 text-xs text-slate-500">Draft is editable only in BOOKING_DRAFT or CORRECTION_REQUIRED status.</p>
           <div className="mt-3">
             <AggregatorBookingDraftForm

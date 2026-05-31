@@ -15,6 +15,10 @@ It defines:
 Phase 3C-2: Hub receiving verification and mismatch handling
 Status: Implemented (manual verification only)
 Next task: Phase 3C-3 monitored operational rollout and readiness criteria
+## Current Phase Marker
+Phase 3C-3: Operational handoff and dispatch recording
+Status: Implemented (manual operational logging only)
+Next task: Phase 3C-4 live Pakistan Post article booking (separate future approval required)
 
 ## Phase Intent
 The Aggregator Booking initiative is intentionally incremental.
@@ -177,6 +181,24 @@ Phase 3C-2 blocked scope:
 - final booking confirmation,
 - payment collection,
 - service/handling/profit/discount logic,
+
+Phase 3C-3 implemented scope:
+- admin record driver-to-hub handoff (optional),
+- admin record hub-to-sorting-facility dispatch,
+- admin record inter-facility transfer (optional),
+- admin mark ready for final postal processing,
+- Phase 3C-2 gate enforcement (MANIFEST_VERIFIED or EXCEPTION_RESOLVED required),
+- customer read-only non-final operational movement status with approved notice wording,
+- additive audit-log JSON persistence with derived operational state.
+
+Phase 3C-3 blocked scope:
+- live Leopards API,
+- live Pakistan Post booking API,
+- pickup execution,
+- dispatch execution,
+- final booking confirmation,
+- payment collection,
+- schema/migration changes.
 - schema/migration changes.
 
 ## Calculator Contract

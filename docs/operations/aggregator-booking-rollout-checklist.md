@@ -60,6 +60,20 @@
 - Customer booking detail/list render non-final warehouse receiving state wording.
 - Responses expose derived `phase3c2Operational` metadata without schema changes.
 - No external carrier/Pakistan Post booking API is called.
+
+## Phase 3C-3 (Operational Handoff and Dispatch) Checklist
+- Phase 3C-2 must be MANIFEST_VERIFIED or EXCEPTION_RESOLVED before any Phase 3C-3 action.
+- Admin can record driver handoff (optional, fromParty/toParty/note required).
+- Admin can record hub-to-sorting-facility dispatch (fromWarehouse/toSortingFacility/note required; hub receiving must exist).
+- Admin can record inter-facility transfer (optional; sorting dispatch must exist first).
+- Admin can mark ready for final postal processing (sorting dispatch must exist first; note min 10 chars).
+- Customer booking detail shows Operational Movement Status card with non-final wording.
+- Customer booking list shows Phase 3C-3 label when state != NOT_STARTED.
+- Responses expose derived `phase3c3Operational` metadata without schema changes.
+- All handoff payloads must include manualHandoffOnly/noFinalDispatch/noLiveCarrierApi/noPakistanPostBookingApi/noPickupExecution/noDispatchExecution/noFinalBookingConfirmation = true.
+- No external carrier/Pakistan Post booking API is called.
+- No pickup/dispatch/final booking action is created.
+- `jobs.ts`, `Upload.tsx`, and `worker.ts` behavior remains unchanged.
 - No pickup/dispatch/final booking action is created.
 - `jobs.ts`, `Upload.tsx`, and `worker.ts` behavior remains unchanged.
 

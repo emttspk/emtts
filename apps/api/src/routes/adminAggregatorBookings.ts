@@ -18,6 +18,12 @@ import {
   listBookingsForAdmin,
 } from "../services/aggregatorBookingService.js";
 import {
+  adminMarkReadyForFinalPostal,
+  adminRecordDriverHandoff,
+  adminRecordHubSortingDispatch,
+  adminRecordInterFacilityTransfer,
+} from "../services/aggregatorBookingService.js";
+import {
   adminApproveActionSchema,
   adminBulkPackLabelPreviewSchema,
   adminBulkPackPlanningSelectionSchema,
@@ -31,6 +37,12 @@ import {
   adminHubRecordMismatchSchema,
   adminHubResolveExceptionSchema,
   adminHubVerifyManifestSchema,
+} from "../utils/aggregatorBookingValidation.js";
+import {
+  adminDriverHandoffSchema,
+  adminHubSortingDispatchSchema,
+  adminInterFacilityTransferSchema,
+  adminReadyForPostalSchema,
 } from "../utils/aggregatorBookingValidation.js";
 
 export const adminAggregatorBookingsRouter = Router();
@@ -348,6 +360,116 @@ adminAggregatorBookingsRouter.post("/:id/hub-receiving/resolve-exception", async
       return res.status(400).json({ success: false, error: "Invalid resolution payload", details: error.errors });
     }
     const message = error instanceof Error ? error.message : "Failed to resolve exception";
+
+    adminAggregatorBookingsRouter.post("/:id/handoff/record-driver-handoff", async (req: AuthedRequest, res) => {
+      try {
+        const bookingId = req.params.id;
+        const body = adminDriverHandoffSchema.parse(req.body);
+        const adminUserId = req.user?.id ?? "unknown";
+        const result = await adminRecordDriverHandoff({
+          bookingId,
+          adminUserId,
+          handoffType: body.handoffType,
+          fromParty: body.fromParty,
+          toParty: body.toParty,
+          receivedBy: body.receivedBy,
+          bundleCondition: body.bundleCondition,
+          articleCount: body.articleCount,
+          note: body.note,
+          manualFlags: body.manualFlags,
+          context: { req },
+        });
+        return res.json({ success: true, ...result });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return res.status(400).json({ success: false, error: "Invalid driver handoff payload", details: error.errors });
+        }
+        const message = error instanceof Error ? error.message : "Failed to record driver handoff";
+        const status = message === "Booking not found" ? 404 : 400;
+        return res.status(status).json({ success: false, error: message });
+      }
+    });
+
+    adminAggregatorBookingsRouter.post("/:id/handoff/record-sorting-dispatch", async (req: AuthedRequest, res) => {
+      try {
+        const bookingId = req.params.id;
+        const body = adminHubSortingDispatchSchema.parse(req.body);
+        const adminUserId = req.user?.id ?? "unknown";
+        const result = await adminRecordHubSortingDispatch({
+          bookingId,
+          adminUserId,
+          fromWarehouse: body.fromWarehouse,
+          toSortingFacility: body.toSortingFacility,
+          dispatchedBy: body.dispatchedBy,
+          expectedArticleCount: body.expectedArticleCount,
+          bundleWeightGrams: body.bundleWeightGrams ?? null,
+          transportMode: body.transportMode,
+          note: body.note,
+          manualFlags: body.manualFlags,
+          context: { req },
+        });
+        return res.json({ success: true, ...result });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return res.status(400).json({ success: false, error: "Invalid sorting dispatch payload", details: error.errors });
+        }
+        const message = error instanceof Error ? error.message : "Failed to record sorting dispatch";
+        const status = message === "Booking not found" ? 404 : 400;
+        return res.status(status).json({ success: false, error: message });
+      }
+    });
+
+    adminAggregatorBookingsRouter.post("/:id/handoff/record-transfer", async (req: AuthedRequest, res) => {
+      try {
+        const bookingId = req.params.id;
+        const body = adminInterFacilityTransferSchema.parse(req.body);
+        const adminUserId = req.user?.id ?? "unknown";
+        const result = await adminRecordInterFacilityTransfer({
+          bookingId,
+          adminUserId,
+          fromFacility: body.fromFacility,
+          toFacility: body.toFacility,
+          transferBy: body.transferBy,
+          transferReference: body.transferReference ?? null,
+          articleCount: body.articleCount,
+          note: body.note,
+          manualFlags: body.manualFlags,
+          context: { req },
+        });
+        return res.json({ success: true, ...result });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return res.status(400).json({ success: false, error: "Invalid transfer payload", details: error.errors });
+        }
+        const message = error instanceof Error ? error.message : "Failed to record inter-facility transfer";
+        const status = message === "Booking not found" ? 404 : 400;
+        return res.status(status).json({ success: false, error: message });
+      }
+    });
+
+    adminAggregatorBookingsRouter.post("/:id/handoff/mark-ready-for-postal", async (req: AuthedRequest, res) => {
+      try {
+        const bookingId = req.params.id;
+        const body = adminReadyForPostalSchema.parse(req.body);
+        const adminUserId = req.user?.id ?? "unknown";
+        const result = await adminMarkReadyForFinalPostal({
+          bookingId,
+          adminUserId,
+          expectedArticleCount: body.expectedArticleCount,
+          note: body.note,
+          manualFlags: body.manualFlags,
+          context: { req },
+        });
+        return res.json({ success: true, ...result });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return res.status(400).json({ success: false, error: "Invalid ready-for-postal payload", details: error.errors });
+        }
+        const message = error instanceof Error ? error.message : "Failed to mark ready for final postal processing";
+        const status = message === "Booking not found" ? 404 : 400;
+        return res.status(status).json({ success: false, error: message });
+      }
+    });
     const status = message === "Booking not found" ? 404 : 400;
     return res.status(status).json({ success: false, error: message });
   }

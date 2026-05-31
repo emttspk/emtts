@@ -311,3 +311,51 @@ export const adminHubResolveExceptionSchema = z.object({
   resolutionNote: z.string().trim().min(5).max(2000),
   manualFlags: manualOnlyHubReceivingFlagsSchema,
 }).strict();
+
+const manualOnlyHandoffFlagsSchema = z.object({
+  manualHandoffOnly: z.literal(true),
+  noFinalDispatch: z.literal(true),
+  noLiveCarrierApi: z.literal(true),
+  noPakistanPostBookingApi: z.literal(true),
+  noPickupExecution: z.literal(true),
+  noDispatchExecution: z.literal(true),
+  noFinalBookingConfirmation: z.literal(true),
+});
+
+export const adminDriverHandoffSchema = z.object({
+  handoffType: z.string().trim().min(2).max(80),
+  fromParty: z.string().trim().min(2).max(120),
+  toParty: z.string().trim().min(2).max(120),
+  receivedBy: z.string().trim().min(2).max(120),
+  bundleCondition: z.string().trim().min(5).max(500),
+  articleCount: z.coerce.number().int().min(0),
+  note: z.string().trim().min(5).max(2000),
+  manualFlags: manualOnlyHandoffFlagsSchema,
+}).strict();
+
+export const adminHubSortingDispatchSchema = z.object({
+  fromWarehouse: z.string().trim().min(2).max(120),
+  toSortingFacility: z.string().trim().min(2).max(120),
+  dispatchedBy: z.string().trim().min(2).max(120),
+  expectedArticleCount: z.coerce.number().int().min(0),
+  bundleWeightGrams: z.coerce.number().int().positive().optional(),
+  transportMode: z.string().trim().min(2).max(80),
+  note: z.string().trim().min(5).max(2000),
+  manualFlags: manualOnlyHandoffFlagsSchema,
+}).strict();
+
+export const adminInterFacilityTransferSchema = z.object({
+  fromFacility: z.string().trim().min(2).max(120),
+  toFacility: z.string().trim().min(2).max(120),
+  transferBy: z.string().trim().min(2).max(120),
+  transferReference: z.string().trim().min(2).max(120).optional(),
+  articleCount: z.coerce.number().int().min(0),
+  note: z.string().trim().min(5).max(2000),
+  manualFlags: manualOnlyHandoffFlagsSchema,
+}).strict();
+
+export const adminReadyForPostalSchema = z.object({
+  expectedArticleCount: z.coerce.number().int().min(0),
+  note: z.string().trim().min(10).max(2000),
+  manualFlags: manualOnlyHandoffFlagsSchema,
+}).strict();

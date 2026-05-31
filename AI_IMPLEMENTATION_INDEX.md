@@ -1,6 +1,48 @@
 # AI Implementation Index
 
 ## 2026-05-31 - Aggregator Booking Phase 3C-2 Hub Receiving Verification
+## 2026-05-31 - Aggregator Booking Phase 3C-3 Operational Handoff and Dispatch Recording
+
+### Task Name
+- Implement Phase 3C-3 manual operational handoff recording: driver-to-hub handoff, hub-to-sorting dispatch, inter-facility transfer, and ready-for-final-postal-processing marking.
+
+### Files Changed
+- `apps/api/src/services/aggregatorBookingService.ts`
+- `apps/api/src/routes/adminAggregatorBookings.ts`
+- `apps/api/src/utils/aggregatorBookingValidation.ts`
+- `apps/web/src/lib/aggregatorBookings.ts`
+- `apps/web/src/pages/admin/AdminAggregatorBookings.tsx`
+- `apps/web/src/pages/AggregatorBookingDetail.tsx`
+- `apps/web/src/pages/AggregatorBookings.tsx`
+- `apps/api/scripts/phase3c3-schema-smoke.mjs` (new)
+- `docs/architecture/aggregator-booking-business-plan.md`
+- `docs/architecture/booking-business-plan.md`
+- `docs/operations/aggregator-booking-rollout-checklist.md`
+- `docs/operations/booking-rollout-checklist.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Behavior Added
+- Added admin-only actions:
+	- record driver handoff (optional),
+	- record hub-to-sorting-facility dispatch,
+	- record inter-facility transfer (optional),
+	- mark ready for final postal processing.
+- Entry gate: Phase 3C-2 must be MANIFEST_VERIFIED or EXCEPTION_RESOLVED.
+- State machine: NOT_STARTED → DRIVER_HANDOFF_RECORDED → HUB_SORTING_DISPATCHED → INTER_FACILITY_TRANSFER_RECORDED → READY_FOR_FINAL_POSTAL_PROCESSING.
+- All state derived from additive `AggregatorBookingAuditLog` rows — no schema/migration change.
+- Customer notice: "This is operational movement status only. Final Pakistan Post article processing is a separate future step."
+- Admin banner: "Handoff recording is manual operational logging only. It is not final dispatch or Pakistan Post booking confirmation."
+- New smoke script: `apps/api/scripts/phase3c3-schema-smoke.mjs` (15 assertions, prints SMOKE_SCHEMA_ALL_DONE).
+
+### Explicit Exclusions
+- No live Leopards API, no Pakistan Post booking API.
+- No final dispatch or pickup execution.
+- No payment collection, no schema change, no migration.
+- No protected scope modification.
+
+---
+
+## 2026-05-31 - Aggregator Booking Phase 3C-2 Hub Receiving Verification
 
 ### Task Name
 - Implement Phase 3C-2 manual hub receiving verification, mismatch handling, and exception resolution.

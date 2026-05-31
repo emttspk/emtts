@@ -111,6 +111,88 @@ type Phase3C2OperationalState = {
   customerNotice: string;
 };
 
+type HandoffOperationalGuardrailFlags = {
+  manualHandoffOnly: true;
+  noFinalDispatch: true;
+  noLiveCarrierApi: true;
+  noPakistanPostBookingApi: true;
+  noPickupExecution: true;
+  noDispatchExecution: true;
+  noFinalBookingConfirmation: true;
+};
+
+type DriverHandoffSnapshot = {
+  bookingNo: string;
+  handoffType: string;
+  fromParty: string;
+  toParty: string;
+  handoffAt: string;
+  receivedBy: string;
+  bundleCondition: string;
+  articleCount: number;
+  note: string;
+  manualOnly: true;
+  noLiveCarrierApi: true;
+  noFinalDispatch: true;
+};
+
+type HubSortingDispatchSnapshot = {
+  bookingNo: string;
+  fromWarehouse: string;
+  toSortingFacility: string;
+  dispatchedAt: string;
+  dispatchedBy: string;
+  expectedArticleCount: number;
+  bundleWeightGrams: number | null;
+  transportMode: string;
+  note: string;
+  manualOnly: true;
+  noPakistanPostBookingApi: true;
+  noFinalBookingConfirmation: true;
+};
+
+type InterFacilityTransferSnapshot = {
+  bookingNo: string;
+  fromFacility: string;
+  toFacility: string;
+  transferAt: string;
+  transferBy: string;
+  transferReference: string | null;
+  articleCount: number;
+  note: string;
+  manualOnly: true;
+  noLiveCarrierApi: true;
+  noFinalDispatch: true;
+};
+
+type ReadyForPostalSnapshot = {
+  bookingNo: string;
+  readyAt: string;
+  markedBy: string;
+  expectedArticleCount: number;
+  note: string;
+  manualOnly: true;
+  noPakistanPostBookingApi: true;
+  finalBookingNotCreated: true;
+};
+
+type Phase3C3CurrentState =
+  | "NOT_STARTED"
+  | "DRIVER_HANDOFF_RECORDED"
+  | "HUB_SORTING_DISPATCHED"
+  | "INTER_FACILITY_TRANSFER_RECORDED"
+  | "READY_FOR_FINAL_POSTAL_PROCESSING";
+
+type Phase3C3OperationalState = {
+  currentState: Phase3C3CurrentState;
+  driverHandoff: DriverHandoffSnapshot | null;
+  sortingDispatch: HubSortingDispatchSnapshot | null;
+  latestTransfer: InterFacilityTransferSnapshot | null;
+  readyForPostal: ReadyForPostalSnapshot | null;
+  updatedAt: string | null;
+  customerNotice: string;
+};
+
 const PHASE_3C2_CUSTOMER_NOTICE = "This is warehouse receiving status only. Final article processing is separate.";
 const HUB_RECEIVING_AUDIT_ACTIONS = [
   "HUB_RECEIVING_MARKED",
@@ -118,6 +200,16 @@ const HUB_RECEIVING_AUDIT_ACTIONS = [
   "HUB_MANIFEST_MISMATCH_RECORDED",
   "HUB_EXCEPTION_NOTE_ADDED",
   "HUB_EXCEPTION_RESOLVED",
+] as const;
+
+const PHASE_3C3_CUSTOMER_NOTICE =
+  "This is operational movement status only. Final Pakistan Post article processing is a separate future step.";
+
+const HUB_HANDOFF_AUDIT_ACTIONS = [
+  "DRIVER_HANDOFF_RECORDED",
+  "HUB_SORTING_DISPATCH_RECORDED",
+  "INTER_FACILITY_TRANSFER_RECORDED",
+  "READY_FOR_FINAL_POSTAL_PROCESSING",
 ] as const;
 
 function nowIsoCompact(date = new Date()) {
@@ -492,16 +584,200 @@ async function derivePhase3C2OperationalState(bookingId: string): Promise<Phase3
   };
 }
 
+function assertHandoffGuardrails(flags: HandoffOperationalGuardrailFlags) {
+  if (!flags.manualHandoffOnly) throw new Error("Handoff recording must remain manual-only");
+  if (!flags.noFinalDispatch) throw new Error("Final dispatch confirmation is not allowed in Phase 3C-3");
+  if (!flags.noLiveCarrierApi) throw new Error("Live carrier API usage is not allowed");
+  if (!flags.noPakistanPostBookingApi) throw new Error("Pakistan Post booking API usage is not allowed");
+  if (!flags.noPickupExecution) throw new Error("Pickup execution is not allowed in Phase 3C-3");
+  if (!flags.noDispatchExecution) throw new Error("Dispatch execution is not allowed in Phase 3C-3");
+  if (!flags.noFinalBookingConfirmation) throw new Error("Final booking confirmation is not allowed in Phase 3C-3");
+}
+
+function parseDriverHandoffSnapshot(value: unknown): DriverHandoffSnapshot | null {
+  const obj = toPlainObject(value);
+  if (!obj) return null;
+  const handoffType = String(obj.handoffType ?? "").trim();
+  const fromParty = String(obj.fromParty ?? "").trim();
+  const toParty = String(obj.toParty ?? "").trim();
+  if (!handoffType || !fromParty || !toParty) return null;
+  return {
+    bookingNo: String(obj.bookingNo ?? "").trim(),
+    handoffType,
+    fromParty,
+    toParty,
+    handoffAt: String(obj.handoffAt ?? "").trim(),
+    receivedBy: String(obj.receivedBy ?? "").trim(),
+    bundleCondition: String(obj.bundleCondition ?? "").trim(),
+    articleCount: toSafeInt(Number(obj.articleCount ?? 0)),
+    note: String(obj.note ?? "").trim(),
+    manualOnly: true,
+    noLiveCarrierApi: true,
+    noFinalDispatch: true,
+  };
+}
+
+function parseHubSortingDispatchSnapshot(value: unknown): HubSortingDispatchSnapshot | null {
+  const obj = toPlainObject(value);
+  if (!obj) return null;
+  const fromWarehouse = String(obj.fromWarehouse ?? "").trim();
+  const toSortingFacility = String(obj.toSortingFacility ?? "").trim();
+  if (!fromWarehouse || !toSortingFacility) return null;
+  return {
+    bookingNo: String(obj.bookingNo ?? "").trim(),
+    fromWarehouse,
+    toSortingFacility,
+    dispatchedAt: String(obj.dispatchedAt ?? "").trim(),
+    dispatchedBy: String(obj.dispatchedBy ?? "").trim(),
+    expectedArticleCount: toSafeInt(Number(obj.expectedArticleCount ?? 0)),
+    bundleWeightGrams: obj.bundleWeightGrams == null ? null : toSafeInt(Number(obj.bundleWeightGrams)),
+    transportMode: String(obj.transportMode ?? "").trim(),
+    note: String(obj.note ?? "").trim(),
+    manualOnly: true,
+    noPakistanPostBookingApi: true,
+    noFinalBookingConfirmation: true,
+  };
+}
+
+function parseInterFacilityTransferSnapshot(value: unknown): InterFacilityTransferSnapshot | null {
+  const obj = toPlainObject(value);
+  if (!obj) return null;
+  const fromFacility = String(obj.fromFacility ?? "").trim();
+  const toFacility = String(obj.toFacility ?? "").trim();
+  if (!fromFacility || !toFacility) return null;
+  return {
+    bookingNo: String(obj.bookingNo ?? "").trim(),
+    fromFacility,
+    toFacility,
+    transferAt: String(obj.transferAt ?? "").trim(),
+    transferBy: String(obj.transferBy ?? "").trim(),
+    transferReference: normalizeOptionalString(obj.transferReference as string | null | undefined),
+    articleCount: toSafeInt(Number(obj.articleCount ?? 0)),
+    note: String(obj.note ?? "").trim(),
+    manualOnly: true,
+    noLiveCarrierApi: true,
+    noFinalDispatch: true,
+  };
+}
+
+function parseReadyForPostalSnapshot(value: unknown): ReadyForPostalSnapshot | null {
+  const obj = toPlainObject(value);
+  if (!obj) return null;
+  const note = String(obj.note ?? "").trim();
+  if (!note) return null;
+  return {
+    bookingNo: String(obj.bookingNo ?? "").trim(),
+    readyAt: String(obj.readyAt ?? "").trim(),
+    markedBy: String(obj.markedBy ?? "").trim(),
+    expectedArticleCount: toSafeInt(Number(obj.expectedArticleCount ?? 0)),
+    note,
+    manualOnly: true,
+    noPakistanPostBookingApi: true,
+    finalBookingNotCreated: true,
+  };
+}
+
+async function derivePhase3C3OperationalState(bookingId: string): Promise<Phase3C3OperationalState> {
+  const logs = await prisma.aggregatorBookingAuditLog.findMany({
+    where: {
+      bookingId,
+      action: { in: [...HUB_HANDOFF_AUDIT_ACTIONS] },
+    },
+    orderBy: { createdAt: "asc" },
+    select: { action: true, newValueJson: true, createdAt: true },
+  });
+
+  let driverHandoff: DriverHandoffSnapshot | null = null;
+  let sortingDispatch: HubSortingDispatchSnapshot | null = null;
+  let latestTransfer: InterFacilityTransferSnapshot | null = null;
+  let readyForPostal: ReadyForPostalSnapshot | null = null;
+  let updatedAt: string | null = null;
+
+  for (const entry of logs) {
+    const stamp = entry.createdAt.toISOString();
+    if (entry.action === "DRIVER_HANDOFF_RECORDED") {
+      const parsed = parseDriverHandoffSnapshot(entry.newValueJson);
+      if (parsed) { driverHandoff = parsed; updatedAt = stamp; }
+      continue;
+    }
+    if (entry.action === "HUB_SORTING_DISPATCH_RECORDED") {
+      const parsed = parseHubSortingDispatchSnapshot(entry.newValueJson);
+      if (parsed) { sortingDispatch = parsed; updatedAt = stamp; }
+      continue;
+    }
+    if (entry.action === "INTER_FACILITY_TRANSFER_RECORDED") {
+      const parsed = parseInterFacilityTransferSnapshot(entry.newValueJson);
+      if (parsed) { latestTransfer = parsed; updatedAt = stamp; }
+      continue;
+    }
+    if (entry.action === "READY_FOR_FINAL_POSTAL_PROCESSING") {
+      const parsed = parseReadyForPostalSnapshot(entry.newValueJson);
+      if (parsed) { readyForPostal = parsed; updatedAt = stamp; }
+    }
+  }
+
+  let currentState: Phase3C3CurrentState = "NOT_STARTED";
+  if (driverHandoff) currentState = "DRIVER_HANDOFF_RECORDED";
+  if (sortingDispatch) currentState = "HUB_SORTING_DISPATCHED";
+  if (latestTransfer) currentState = "INTER_FACILITY_TRANSFER_RECORDED";
+  if (readyForPostal) currentState = "READY_FOR_FINAL_POSTAL_PROCESSING";
+
+  return {
+    currentState,
+    driverHandoff,
+    sortingDispatch,
+    latestTransfer,
+    readyForPostal,
+    updatedAt,
+    customerNotice: PHASE_3C3_CUSTOMER_NOTICE,
+  };
+}
+
+async function loadHandoffContext(bookingId: string) {
+  const booking = await prisma.aggregatorBooking.findUnique({
+    where: { id: bookingId },
+    select: {
+      id: true,
+      bookingNo: true,
+      status: true,
+      paymentStatus: true,
+      totalArticles: true,
+      totalActualWeightGrams: true,
+      totalChargeableWeightGrams: true,
+    },
+  });
+  if (!booking) throw new Error("Booking not found");
+
+  const eligible = isManualPlanningEligible(booking);
+  if (!eligible.ok) throw new Error(eligible.reason);
+
+  const planning = await findLatestPlanningSelection(booking.id);
+  if (!planning) throw new Error("Warehouse and intake carrier selection is required before handoff actions");
+
+  const phase3c2 = await derivePhase3C2OperationalState(booking.id);
+  if (phase3c2.currentState !== "MANIFEST_VERIFIED" && phase3c2.currentState !== "EXCEPTION_RESOLVED") {
+    throw new Error(
+      "Phase 3C-2 manifest verification or exception resolution must be complete before recording handoff events",
+    );
+  }
+
+  const phase3c3 = await derivePhase3C3OperationalState(booking.id);
+
+  return { booking, planning, phase3c2, phase3c3 };
+}
+
 async function appendPlanningMetadata<T extends { id: string }>(booking: T) {
-  const [planning, phase3c2Operational] = await Promise.all([
+  const [planning, phase3c2Operational, phase3c3Operational] = await Promise.all([
     findLatestPlanningSelection(booking.id),
     derivePhase3C2OperationalState(booking.id),
+    derivePhase3C3OperationalState(booking.id),
   ]);
 
   return {
     ...booking,
     bulkPackPlanning: planning ?? null,
     phase3c2Operational,
+    phase3c3Operational,
   };
 }
 
@@ -1416,6 +1692,200 @@ export async function adminResolveHubException(input: {
     bookingId: context.booking.id,
     resolution: snapshot,
     phase3c2Operational: await derivePhase3C2OperationalState(context.booking.id),
+  };
+}
+
+export async function adminRecordDriverHandoff(input: {
+  bookingId: string;
+  adminUserId: string;
+  handoffType: string;
+  fromParty: string;
+  toParty: string;
+  receivedBy: string;
+  bundleCondition: string;
+  articleCount: number;
+  note: string;
+  manualFlags: HandoffOperationalGuardrailFlags;
+  context?: RequestContext;
+}) {
+  assertHandoffGuardrails(input.manualFlags);
+  const context = await loadHandoffContext(input.bookingId);
+
+  const snapshot: DriverHandoffSnapshot = {
+    bookingNo: context.booking.bookingNo,
+    handoffType: String(input.handoffType ?? "").trim(),
+    fromParty: String(input.fromParty ?? "").trim(),
+    toParty: String(input.toParty ?? "").trim(),
+    handoffAt: new Date().toISOString(),
+    receivedBy: input.adminUserId,
+    bundleCondition: String(input.bundleCondition ?? "").trim(),
+    articleCount: toSafeInt(input.articleCount),
+    note: String(input.note ?? "").trim(),
+    manualOnly: true,
+    noLiveCarrierApi: true,
+    noFinalDispatch: true,
+  };
+
+  await writeAuditLog({
+    bookingId: context.booking.id,
+    action: "DRIVER_HANDOFF_RECORDED",
+    actor: { actorType: "ADMIN", actorUserId: input.adminUserId },
+    targetField: "driver_handoff",
+    oldValueJson: undefined,
+    newValueJson: snapshot as unknown as JsonValue,
+    context: input.context,
+  });
+
+  return {
+    bookingId: context.booking.id,
+    driverHandoff: snapshot,
+    phase3c3Operational: await derivePhase3C3OperationalState(context.booking.id),
+  };
+}
+
+export async function adminRecordHubSortingDispatch(input: {
+  bookingId: string;
+  adminUserId: string;
+  fromWarehouse: string;
+  toSortingFacility: string;
+  dispatchedBy: string;
+  expectedArticleCount: number;
+  bundleWeightGrams?: number | null;
+  transportMode: string;
+  note: string;
+  manualFlags: HandoffOperationalGuardrailFlags;
+  context?: RequestContext;
+}) {
+  assertHandoffGuardrails(input.manualFlags);
+  const context = await loadHandoffContext(input.bookingId);
+
+  if (!context.phase3c2.hubReceiving) {
+    throw new Error("Hub receiving must be marked before recording sorting dispatch");
+  }
+
+  const snapshot: HubSortingDispatchSnapshot = {
+    bookingNo: context.booking.bookingNo,
+    fromWarehouse: String(input.fromWarehouse ?? "").trim(),
+    toSortingFacility: String(input.toSortingFacility ?? "").trim(),
+    dispatchedAt: new Date().toISOString(),
+    dispatchedBy: input.adminUserId,
+    expectedArticleCount: toSafeInt(input.expectedArticleCount),
+    bundleWeightGrams:
+      input.bundleWeightGrams == null ? null : toSafeInt(input.bundleWeightGrams),
+    transportMode: String(input.transportMode ?? "").trim(),
+    note: String(input.note ?? "").trim(),
+    manualOnly: true,
+    noPakistanPostBookingApi: true,
+    noFinalBookingConfirmation: true,
+  };
+
+  await writeAuditLog({
+    bookingId: context.booking.id,
+    action: "HUB_SORTING_DISPATCH_RECORDED",
+    actor: { actorType: "ADMIN", actorUserId: input.adminUserId },
+    targetField: "hub_sorting_dispatch",
+    oldValueJson: undefined,
+    newValueJson: snapshot as unknown as JsonValue,
+    context: input.context,
+  });
+
+  return {
+    bookingId: context.booking.id,
+    sortingDispatch: snapshot,
+    phase3c3Operational: await derivePhase3C3OperationalState(context.booking.id),
+  };
+}
+
+export async function adminRecordInterFacilityTransfer(input: {
+  bookingId: string;
+  adminUserId: string;
+  fromFacility: string;
+  toFacility: string;
+  transferBy: string;
+  transferReference?: string | null;
+  articleCount: number;
+  note: string;
+  manualFlags: HandoffOperationalGuardrailFlags;
+  context?: RequestContext;
+}) {
+  assertHandoffGuardrails(input.manualFlags);
+  const context = await loadHandoffContext(input.bookingId);
+
+  if (!context.phase3c3.sortingDispatch) {
+    throw new Error("Hub sorting dispatch must be recorded before recording inter-facility transfer");
+  }
+
+  const snapshot: InterFacilityTransferSnapshot = {
+    bookingNo: context.booking.bookingNo,
+    fromFacility: String(input.fromFacility ?? "").trim(),
+    toFacility: String(input.toFacility ?? "").trim(),
+    transferAt: new Date().toISOString(),
+    transferBy: input.adminUserId,
+    transferReference: normalizeOptionalString(input.transferReference),
+    articleCount: toSafeInt(input.articleCount),
+    note: String(input.note ?? "").trim(),
+    manualOnly: true,
+    noLiveCarrierApi: true,
+    noFinalDispatch: true,
+  };
+
+  await writeAuditLog({
+    bookingId: context.booking.id,
+    action: "INTER_FACILITY_TRANSFER_RECORDED",
+    actor: { actorType: "ADMIN", actorUserId: input.adminUserId },
+    targetField: "inter_facility_transfer",
+    oldValueJson: undefined,
+    newValueJson: snapshot as unknown as JsonValue,
+    context: input.context,
+  });
+
+  return {
+    bookingId: context.booking.id,
+    transfer: snapshot,
+    phase3c3Operational: await derivePhase3C3OperationalState(context.booking.id),
+  };
+}
+
+export async function adminMarkReadyForFinalPostal(input: {
+  bookingId: string;
+  adminUserId: string;
+  expectedArticleCount: number;
+  note: string;
+  manualFlags: HandoffOperationalGuardrailFlags;
+  context?: RequestContext;
+}) {
+  assertHandoffGuardrails(input.manualFlags);
+  const context = await loadHandoffContext(input.bookingId);
+
+  if (!context.phase3c3.sortingDispatch) {
+    throw new Error("Hub sorting dispatch must be recorded before marking ready for final postal processing");
+  }
+
+  const snapshot: ReadyForPostalSnapshot = {
+    bookingNo: context.booking.bookingNo,
+    readyAt: new Date().toISOString(),
+    markedBy: input.adminUserId,
+    expectedArticleCount: toSafeInt(input.expectedArticleCount),
+    note: String(input.note ?? "").trim(),
+    manualOnly: true,
+    noPakistanPostBookingApi: true,
+    finalBookingNotCreated: true,
+  };
+
+  await writeAuditLog({
+    bookingId: context.booking.id,
+    action: "READY_FOR_FINAL_POSTAL_PROCESSING",
+    actor: { actorType: "ADMIN", actorUserId: input.adminUserId },
+    targetField: "ready_for_postal_processing",
+    oldValueJson: undefined,
+    newValueJson: snapshot as unknown as JsonValue,
+    context: input.context,
+  });
+
+  return {
+    bookingId: context.booking.id,
+    readyForPostal: snapshot,
+    phase3c3Operational: await derivePhase3C3OperationalState(context.booking.id),
   };
 }
 

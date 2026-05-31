@@ -112,6 +112,10 @@ For phase boundaries, protected scope, and continuity handoff protocol, see `doc
 - Phase 3B: rollout controls, approval matrix hardening, and rollback trigger automation.
 - Phase 3C-3: monitored operational rollout and readiness criteria.
 - Keep rollout limited to non-protected booking paths and manual-only semantics until separately approved.
+## Remaining Phase 3 Work
+- Phase 3B: rollout controls, approval matrix hardening, and rollback trigger automation.
+- Phase 3C-4: live Pakistan Post article booking (separate future approval required).
+- Keep rollout limited to non-protected booking paths and manual-only semantics until separately approved.
 
 ## Phase 3C-1 Smoke Result (2026-05-31)
 - Warehouse and intake carrier selection endpoint: PASS (restricted enums only).
@@ -134,5 +138,20 @@ For phase boundaries, protected scope, and continuity handoff protocol, see `doc
 - Customer wording remains non-final and warehouse-only: PASS.
 - Live carrier/Pakistan Post booking APIs: NOT CALLED.
 - Pickup/dispatch/final booking actions: NOT CREATED.
+
+## Phase 3C-3 Smoke Result (2026-05-31)
+- Driver handoff schema validation: PASS.
+- Hub sorting dispatch schema validation: PASS.
+- Inter-facility transfer schema validation: PASS.
+- Ready-for-postal schema validation (note min 10 chars): PASS.
+- Guard flag rejections (noFinalDispatch, manualHandoffOnly, noPakistanPostBookingApi): PASS.
+- Derived `phase3c3Operational` on booking list/detail: PASS.
+- Customer wording remains non-final and operational-only: PASS.
+- Phase 3C-2 entry gate enforced in service: PASS.
+- Sorting dispatch prerequisite for transfer/ready-for-postal: PASS.
+- Live carrier/Pakistan Post booking APIs: NOT CALLED.
+- Pickup/dispatch/final booking actions: NOT CREATED.
+- Schema/migration changes: NONE.
+- Protected modules (`jobs.ts`, `Upload.tsx`, `worker.ts`) remained unchanged.
 - Schema/migration changes: NONE.
 - Protected modules (`jobs.ts`, `Upload.tsx`, `worker.ts`) remained unchanged.

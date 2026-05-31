@@ -25,6 +25,12 @@ import {
   listAdminAggregatorBookings,
   type AggregatorBooking,
 } from "../../lib/aggregatorBookings";
+import {
+  adminMarkAggregatorReadyForPostal,
+  adminRecordAggregatorDriverHandoff,
+  adminRecordAggregatorInterFacilityTransfer,
+  adminRecordAggregatorSortingDispatch,
+} from "../../lib/aggregatorBookings";
 
 const MANUAL_GUARDRAILS = [
   "No payment is collected in this phase.",
@@ -58,6 +64,28 @@ export default function AdminAggregatorBookings() {
   const [exceptionNote, setExceptionNote] = useState("");
   const [resolutionType, setResolutionType] = useState("");
   const [resolutionNote, setResolutionNote] = useState("");
+  const [handoffType, setHandoffType] = useState("DRIVER_TO_HUB");
+  const [handoffFromParty, setHandoffFromParty] = useState("");
+  const [handoffToParty, setHandoffToParty] = useState("");
+  const [handoffReceivedBy, setHandoffReceivedBy] = useState("");
+  const [handoffBundleCondition, setHandoffBundleCondition] = useState("Good condition, bundle intact.");
+  const [handoffArticleCount, setHandoffArticleCount] = useState("0");
+  const [handoffNote, setHandoffNote] = useState("");
+  const [sortingFromWarehouse, setSortingFromWarehouse] = useState("");
+  const [sortingToFacility, setSortingToFacility] = useState("");
+  const [sortingDispatchedBy, setSortingDispatchedBy] = useState("");
+  const [sortingTransportMode, setSortingTransportMode] = useState("Road");
+  const [sortingNote, setSortingNote] = useState("");
+  const [sortingBundleWeightGrams, setSortingBundleWeightGrams] = useState("");
+  const [sortingExpectedArticleCount, setSortingExpectedArticleCount] = useState("0");
+  const [transferFromFacility, setTransferFromFacility] = useState("");
+  const [transferToFacility, setTransferToFacility] = useState("");
+  const [transferBy, setTransferBy] = useState("");
+  const [transferReference, setTransferReference] = useState("");
+  const [transferArticleCount, setTransferArticleCount] = useState("0");
+  const [transferNote, setTransferNote] = useState("");
+  const [readyArticleCount, setReadyArticleCount] = useState("0");
+  const [readyNote, setReadyNote] = useState("");
 
   async function load() {
     const list = await listAdminAggregatorBookings({ page: 1, pageSize: 50, status: statusFilter || undefined });
@@ -197,6 +225,110 @@ export default function AdminAggregatorBookings() {
     selected?.status === "PICKUP_PENDING_FUTURE";
 
   const phase3c2 = selected?.phase3c2Operational;
+
+    const phase3c3 = selected?.phase3c3Operational;
+
+    async function recordDriverHandoff() {
+      if (!selected) return;
+      if (!handoffFromParty.trim() || !handoffToParty.trim() || !handoffNote.trim()) {
+        setError("From party, to party, and note are required for driver handoff.");
+        return;
+      }
+      setBusy(true);
+      setError(null);
+      try {
+        await adminRecordAggregatorDriverHandoff(selected.id, {
+          handoffType: handoffType.trim(),
+          fromParty: handoffFromParty.trim(),
+          toParty: handoffToParty.trim(),
+          receivedBy: handoffReceivedBy.trim() || "Admin",
+          bundleCondition: handoffBundleCondition.trim(),
+          articleCount: Number(handoffArticleCount || 0),
+          note: handoffNote.trim(),
+        });
+        const detail = await getAdminAggregatorBooking(selected.id);
+        setSelected(detail.booking);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to record driver handoff");
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function recordSortingDispatch() {
+      if (!selected) return;
+      if (!sortingFromWarehouse.trim() || !sortingToFacility.trim() || !sortingNote.trim()) {
+        setError("From warehouse, to facility, and note are required for sorting dispatch.");
+        return;
+      }
+      setBusy(true);
+      setError(null);
+      try {
+        await adminRecordAggregatorSortingDispatch(selected.id, {
+          fromWarehouse: sortingFromWarehouse.trim(),
+          toSortingFacility: sortingToFacility.trim(),
+          dispatchedBy: sortingDispatchedBy.trim() || "Admin",
+          expectedArticleCount: Number(sortingExpectedArticleCount || 0),
+          bundleWeightGrams: sortingBundleWeightGrams.trim() ? Number(sortingBundleWeightGrams) : null,
+          transportMode: sortingTransportMode.trim(),
+          note: sortingNote.trim(),
+        });
+        const detail = await getAdminAggregatorBooking(selected.id);
+        setSelected(detail.booking);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to record sorting dispatch");
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function recordInterFacilityTransfer() {
+      if (!selected) return;
+      if (!transferFromFacility.trim() || !transferToFacility.trim() || !transferNote.trim()) {
+        setError("From facility, to facility, and note are required for inter-facility transfer.");
+        return;
+      }
+      setBusy(true);
+      setError(null);
+      try {
+        await adminRecordAggregatorInterFacilityTransfer(selected.id, {
+          fromFacility: transferFromFacility.trim(),
+          toFacility: transferToFacility.trim(),
+          transferBy: transferBy.trim() || "Admin",
+          transferReference: transferReference.trim() || null,
+          articleCount: Number(transferArticleCount || 0),
+          note: transferNote.trim(),
+        });
+        const detail = await getAdminAggregatorBooking(selected.id);
+        setSelected(detail.booking);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to record inter-facility transfer");
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function markReadyForPostal() {
+      if (!selected) return;
+      if (!readyNote.trim() || readyNote.trim().length < 10) {
+        setError("Ready-for-postal note must be at least 10 characters.");
+        return;
+      }
+      setBusy(true);
+      setError(null);
+      try {
+        await adminMarkAggregatorReadyForPostal(selected.id, {
+          expectedArticleCount: Number(readyArticleCount || 0),
+          note: readyNote.trim(),
+        });
+        const detail = await getAdminAggregatorBooking(selected.id);
+        setSelected(detail.booking);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to mark ready for final postal processing");
+      } finally {
+        setBusy(false);
+      }
+    }
 
   async function markHubReceived() {
     if (!selected) return;
@@ -780,6 +912,181 @@ export default function AdminAggregatorBookings() {
                 </div>
               ) : null}
             </Card>
+
+              <Card className="border-amber-200 bg-white p-5 shadow-sm">
+                <h3 className="text-base font-semibold text-slate-900">Operational Handoff &amp; Dispatch (Phase 3C-3)</h3>
+                <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  Handoff recording is manual operational logging only. It is not final dispatch or Pakistan Post booking confirmation.
+                </div>
+                {(phase3c2?.currentState !== "MANIFEST_VERIFIED" && phase3c2?.currentState !== "EXCEPTION_RESOLVED") ? (
+                  <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                    Phase 3C-2 manifest verification or exception resolution must be complete before recording handoff events.
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-3 text-xs text-slate-700">
+                      <span className="font-semibold">Current Handoff State:</span> {phase3c3?.currentState ?? "NOT_STARTED"}
+                    </div>
+
+                    {/* Driver Handoff */}
+                    <div className="mt-4 border-t border-slate-100 pt-3">
+                      <div className="text-xs font-semibold text-slate-700">Step 1: Record Driver Handoff (Optional)</div>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[11px] text-slate-500">Handoff Type</label>
+                          <input className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" value={handoffType} onChange={(e) => setHandoffType(e.target.value)} placeholder="DRIVER_TO_HUB" />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-slate-500">From Party</label>
+                          <input className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" value={handoffFromParty} onChange={(e) => setHandoffFromParty(e.target.value)} placeholder="Driver name or ID" />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-slate-500">To Party</label>
+                          <input className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" value={handoffToParty} onChange={(e) => setHandoffToParty(e.target.value)} placeholder="Hub or warehouse name" />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-slate-500">Received By</label>
+                          <input className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" value={handoffReceivedBy} onChange={(e) => setHandoffReceivedBy(e.target.value)} placeholder="Receiving staff name" />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-slate-500">Article Count</label>
+                          <input type="number" className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" value={handoffArticleCount} onChange={(e) => setHandoffArticleCount(e.target.value)} />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-slate-500">Bundle Condition</label>
+                          <input className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" value={handoffBundleCondition} onChange={(e) => setHandoffBundleCondition(e.target.value)} />
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <label className="text-[11px] text-slate-500">Note</label>
+                        <textarea className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" rows={2} value={handoffNote} onChange={(e) => setHandoffNote(e.target.value)} placeholder="Handoff operational note..." />
+                      </div>
+                      <button type="button" disabled={busy} onClick={recordDriverHandoff} className="mt-2 rounded-md bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-60">
+                        Record Driver Handoff
+                      </button>
+                      {phase3c3?.driverHandoff ? (
+                        <div className="mt-2 rounded-xl border border-sky-200 bg-sky-50 p-2 text-xs text-sky-900">
+                          <div className="font-semibold">Handoff Recorded</div>
+                          <div>From: {phase3c3.driverHandoff.fromParty} → To: {phase3c3.driverHandoff.toParty}</div>
+                          <div>Articles: {phase3c3.driverHandoff.articleCount}</div>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {/* Hub Sorting Dispatch */}
+                    <div className="mt-4 border-t border-slate-100 pt-3">
+                      <div className="text-xs font-semibold text-slate-700">Step 2: Record Hub-to-Sorting Dispatch (Required)</div>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[11px] text-slate-500">From Warehouse</label>
+                          <input className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" value={sortingFromWarehouse} onChange={(e) => setSortingFromWarehouse(e.target.value)} placeholder="EPOST_LAHORE_WAREHOUSE" />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-slate-500">To Sorting Facility</label>
+                          <input className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" value={sortingToFacility} onChange={(e) => setSortingToFacility(e.target.value)} placeholder="Facility name" />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-slate-500">Dispatched By</label>
+                          <input className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" value={sortingDispatchedBy} onChange={(e) => setSortingDispatchedBy(e.target.value)} placeholder="Staff name" />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-slate-500">Transport Mode</label>
+                          <input className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" value={sortingTransportMode} onChange={(e) => setSortingTransportMode(e.target.value)} placeholder="Road" />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-slate-500">Expected Articles</label>
+                          <input type="number" className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" value={sortingExpectedArticleCount} onChange={(e) => setSortingExpectedArticleCount(e.target.value)} />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-slate-500">Bundle Weight (grams, optional)</label>
+                          <input type="number" className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" value={sortingBundleWeightGrams} onChange={(e) => setSortingBundleWeightGrams(e.target.value)} placeholder="Optional" />
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <label className="text-[11px] text-slate-500">Note</label>
+                        <textarea className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" rows={2} value={sortingNote} onChange={(e) => setSortingNote(e.target.value)} placeholder="Sorting dispatch note..." />
+                      </div>
+                      <button type="button" disabled={busy} onClick={recordSortingDispatch} className="mt-2 rounded-md bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-60">
+                        Record Sorting Dispatch
+                      </button>
+                      {phase3c3?.sortingDispatch ? (
+                        <div className="mt-2 rounded-xl border border-sky-200 bg-sky-50 p-2 text-xs text-sky-900">
+                          <div className="font-semibold">Sorting Dispatch Recorded</div>
+                          <div>{phase3c3.sortingDispatch.fromWarehouse} → {phase3c3.sortingDispatch.toSortingFacility}</div>
+                          <div>Articles: {phase3c3.sortingDispatch.expectedArticleCount}</div>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {/* Inter-Facility Transfer */}
+                    <div className="mt-4 border-t border-slate-100 pt-3">
+                      <div className="text-xs font-semibold text-slate-700">Step 3: Record Inter-Facility Transfer (Optional)</div>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[11px] text-slate-500">From Facility</label>
+                          <input className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" value={transferFromFacility} onChange={(e) => setTransferFromFacility(e.target.value)} placeholder="Facility name" />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-slate-500">To Facility</label>
+                          <input className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" value={transferToFacility} onChange={(e) => setTransferToFacility(e.target.value)} placeholder="Facility name" />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-slate-500">Transfer By</label>
+                          <input className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" value={transferBy} onChange={(e) => setTransferBy(e.target.value)} placeholder="Staff name" />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-slate-500">Transfer Reference (optional)</label>
+                          <input className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" value={transferReference} onChange={(e) => setTransferReference(e.target.value)} placeholder="Optional reference" />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-slate-500">Article Count</label>
+                          <input type="number" className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" value={transferArticleCount} onChange={(e) => setTransferArticleCount(e.target.value)} />
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <label className="text-[11px] text-slate-500">Note</label>
+                        <textarea className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" rows={2} value={transferNote} onChange={(e) => setTransferNote(e.target.value)} placeholder="Transfer note..." />
+                      </div>
+                      <button type="button" disabled={busy} onClick={recordInterFacilityTransfer} className="mt-2 rounded-md bg-sky-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-500 disabled:opacity-60">
+                        Record Inter-Facility Transfer
+                      </button>
+                      {phase3c3?.latestTransfer ? (
+                        <div className="mt-2 rounded-xl border border-sky-200 bg-sky-50 p-2 text-xs text-sky-900">
+                          <div className="font-semibold">Latest Transfer Recorded</div>
+                          <div>{phase3c3.latestTransfer.fromFacility} → {phase3c3.latestTransfer.toFacility}</div>
+                          <div>Articles: {phase3c3.latestTransfer.articleCount}</div>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {/* Ready for Final Postal Processing */}
+                    <div className="mt-4 border-t border-slate-100 pt-3">
+                      <div className="text-xs font-semibold text-slate-700">Step 4: Mark Ready for Final Postal Processing</div>
+                      <div className="mt-1 text-[11px] text-amber-700">This is operational movement status only. Final Pakistan Post article processing is a separate future step.</div>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[11px] text-slate-500">Expected Article Count</label>
+                          <input type="number" className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" value={readyArticleCount} onChange={(e) => setReadyArticleCount(e.target.value)} />
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <label className="text-[11px] text-slate-500">Note</label>
+                        <textarea className="block w-full rounded border border-slate-200 px-2 py-1 text-xs" rows={2} value={readyNote} onChange={(e) => setReadyNote(e.target.value)} placeholder="Ready-for-postal processing note (min 10 chars)..." />
+                      </div>
+                      <button type="button" disabled={busy} onClick={markReadyForPostal} className="mt-2 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-60">
+                        Mark Ready for Final Postal Processing
+                      </button>
+                      {phase3c3?.readyForPostal ? (
+                        <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-900">
+                          <div className="font-semibold">Ready for Postal Processing Marked</div>
+                          <div>Expected Articles: {phase3c3.readyForPostal.expectedArticleCount}</div>
+                          <div>Note: {phase3c3.readyForPostal.note}</div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </>
+                )}
+              </Card>
 
             <Card className="border-slate-200 bg-white p-5 shadow-sm">
               <h3 className="text-base font-semibold text-slate-900">Status Timeline</h3>

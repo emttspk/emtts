@@ -98,6 +98,26 @@ This document defines a separate Aggregator Booking business lane for ePost.pk t
 - No pickup execution.
 - No dispatch execution.
 - No payment collection.
+
+## Phase 3C-3 (Implemented Scope)
+- Admin can record driver-to-hub handoff (optional, any time after Phase 3C-2 gate).
+- Admin can record hub-to-sorting-facility dispatch (required prerequisite for transfer and ready-for-postal).
+- Admin can record inter-facility transfer (optional, requires sorting dispatch first).
+- Admin can mark ready-for-final-postal-processing (requires sorting dispatch first).
+- Customer can view non-final operational movement status with notice wording.
+- Phase 3C-3 state is derived from additive audit-log JSON metadata using actions: DRIVER_HANDOFF_RECORDED, HUB_SORTING_DISPATCH_RECORDED, INTER_FACILITY_TRANSFER_RECORDED, READY_FOR_FINAL_POSTAL_PROCESSING.
+- Entry gate: Phase 3C-2 currentState must be MANIFEST_VERIFIED or EXCEPTION_RESOLVED.
+- Customer notice: "This is operational movement status only. Final Pakistan Post article processing is a separate future step."
+- Admin banner: "Handoff recording is manual operational logging only. It is not final dispatch or Pakistan Post booking confirmation."
+
+## Phase 3C-3 Explicit Exclusions
+- No final dispatch confirmation.
+- No live Pakistan Post booking API call.
+- No live Leopards courier API call.
+- No pickup execution.
+- No dispatch execution.
+- No payment collection.
+- No schema/migration change.
 - No service/handling/profit/discount logic.
 - No schema/migration change.
 
