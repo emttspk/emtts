@@ -31,6 +31,95 @@ type RequestContext = {
   req?: Request;
 };
 
+type HubReceivingGuardrailFlags = {
+  manualReceivingOnly: true;
+  noFinalDispatch: true;
+  noLiveCarrierApi: true;
+  noPakistanPostBookingApi: true;
+  noPickupExecution: true;
+  noDispatchExecution: true;
+  noFinalBookingConfirmation: true;
+};
+
+type HubReceivingSnapshot = {
+  bookingNo: string;
+  warehouse: AggregatorWarehouseOption;
+  receivedAt: string;
+  receivedBy: string;
+  receivedArticleCount: number;
+  expectedArticleCount: number;
+  receivedBundleWeightGrams: number | null;
+  conditionNote: string;
+  manualReceivingOnly: true;
+  noFinalDispatch: true;
+};
+
+type HubManifestVerifiedSnapshot = {
+  bookingNo: string;
+  expectedArticleCount: number;
+  receivedArticleCount: number;
+  matched: true;
+  verifiedAt: string;
+  verifiedBy: string;
+  manualOnly: true;
+  noFinalDispatch: true;
+};
+
+type HubMismatchSnapshot = {
+  mismatchDetected: true;
+  expectedArticleCount: number;
+  receivedArticleCount: number;
+  mismatchReason: string;
+  adminNote: string;
+  holdForManualResolution: true;
+  recordedAt: string;
+  recordedBy: string;
+  manualOnly: true;
+};
+
+type HubExceptionNoteSnapshot = {
+  note: string;
+  addedAt: string;
+  addedBy: string;
+  manualOnly: true;
+};
+
+type HubResolutionSnapshot = {
+  resolvedBy: string;
+  resolvedAt: string;
+  resolutionType: string;
+  resolutionNote: string;
+  manualOnly: true;
+};
+
+type Phase3C2CurrentState =
+  | "NOT_STARTED"
+  | "HUB_RECEIVED"
+  | "MANIFEST_VERIFIED"
+  | "MISMATCH_RECORDED"
+  | "EXCEPTION_RESOLVED";
+
+type Phase3C2OperationalState = {
+  currentState: Phase3C2CurrentState;
+  hubReceiving: HubReceivingSnapshot | null;
+  manifestVerification: HubManifestVerifiedSnapshot | null;
+  mismatch: HubMismatchSnapshot | null;
+  latestExceptionNote: HubExceptionNoteSnapshot | null;
+  resolution: HubResolutionSnapshot | null;
+  holdForManualResolution: boolean;
+  updatedAt: string | null;
+  customerNotice: string;
+};
+
+const PHASE_3C2_CUSTOMER_NOTICE = "This is warehouse receiving status only. Final article processing is separate.";
+const HUB_RECEIVING_AUDIT_ACTIONS = [
+  "HUB_RECEIVING_MARKED",
+  "HUB_MANIFEST_VERIFIED",
+  "HUB_MANIFEST_MISMATCH_RECORDED",
+  "HUB_EXCEPTION_NOTE_ADDED",
+  "HUB_EXCEPTION_RESOLVED",
+] as const;
+
 function nowIsoCompact(date = new Date()) {
   const y = String(date.getUTCFullYear());
   const m = String(date.getUTCMonth() + 1).padStart(2, "0");
@@ -164,6 +253,16 @@ function toPlainObject(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
+function assertHubReceivingGuardrails(flags: HubReceivingGuardrailFlags) {
+  if (!flags.manualReceivingOnly) throw new Error("Hub receiving must remain manual-only");
+  if (!flags.noFinalDispatch) throw new Error("Final dispatch confirmation is not allowed in Phase 3C-2");
+  if (!flags.noLiveCarrierApi) throw new Error("Live carrier API usage is not allowed");
+  if (!flags.noPakistanPostBookingApi) throw new Error("Pakistan Post booking API usage is not allowed");
+  if (!flags.noPickupExecution) throw new Error("Pickup execution is not allowed in Phase 3C-2");
+  if (!flags.noDispatchExecution) throw new Error("Dispatch execution is not allowed in Phase 3C-2");
+  if (!flags.noFinalBookingConfirmation) throw new Error("Final booking confirmation is not allowed in Phase 3C-2");
+}
+
 function parsePlanningSelection(logValue: unknown) {
   const obj = toPlainObject(logValue);
   if (!obj) return null;
@@ -206,18 +305,203 @@ async function findLatestPlanningSelection(bookingId: string) {
   };
 }
 
-async function appendPlanningMetadata<T extends { id: string }>(booking: T) {
-  const planning = await findLatestPlanningSelection(booking.id);
-  if (!planning) {
-    return {
-      ...booking,
-      bulkPackPlanning: null,
-    };
+function parseHubReceivingSnapshot(value: unknown): HubReceivingSnapshot | null {
+  const obj = toPlainObject(value);
+  if (!obj) return null;
+
+  const warehouse = String(obj.warehouse ?? "").trim().toUpperCase();
+  if (!(AGGREGATOR_WAREHOUSE_OPTIONS as readonly string[]).includes(warehouse)) return null;
+
+  const conditionNote = String(obj.conditionNote ?? "").trim();
+  if (!conditionNote) return null;
+
+  return {
+    bookingNo: String(obj.bookingNo ?? "").trim(),
+    warehouse: warehouse as AggregatorWarehouseOption,
+    receivedAt: String(obj.receivedAt ?? "").trim(),
+    receivedBy: String(obj.receivedBy ?? "").trim(),
+    receivedArticleCount: toSafeInt(Number(obj.receivedArticleCount ?? 0)),
+    expectedArticleCount: toSafeInt(Number(obj.expectedArticleCount ?? 0)),
+    receivedBundleWeightGrams: obj.receivedBundleWeightGrams == null ? null : toSafeInt(Number(obj.receivedBundleWeightGrams)),
+    conditionNote,
+    manualReceivingOnly: true,
+    noFinalDispatch: true,
+  };
+}
+
+function parseManifestVerifiedSnapshot(value: unknown): HubManifestVerifiedSnapshot | null {
+  const obj = toPlainObject(value);
+  if (!obj) return null;
+  if (obj.matched !== true) return null;
+
+  return {
+    bookingNo: String(obj.bookingNo ?? "").trim(),
+    expectedArticleCount: toSafeInt(Number(obj.expectedArticleCount ?? 0)),
+    receivedArticleCount: toSafeInt(Number(obj.receivedArticleCount ?? 0)),
+    matched: true,
+    verifiedAt: String(obj.verifiedAt ?? "").trim(),
+    verifiedBy: String(obj.verifiedBy ?? "").trim(),
+    manualOnly: true,
+    noFinalDispatch: true,
+  };
+}
+
+function parseMismatchSnapshot(value: unknown): HubMismatchSnapshot | null {
+  const obj = toPlainObject(value);
+  if (!obj) return null;
+  if (obj.mismatchDetected !== true) return null;
+
+  const mismatchReason = String(obj.mismatchReason ?? "").trim();
+  const adminNote = String(obj.adminNote ?? "").trim();
+  if (!mismatchReason || !adminNote) return null;
+
+  return {
+    mismatchDetected: true,
+    expectedArticleCount: toSafeInt(Number(obj.expectedArticleCount ?? 0)),
+    receivedArticleCount: toSafeInt(Number(obj.receivedArticleCount ?? 0)),
+    mismatchReason,
+    adminNote,
+    holdForManualResolution: true,
+    recordedAt: String(obj.recordedAt ?? "").trim(),
+    recordedBy: String(obj.recordedBy ?? "").trim(),
+    manualOnly: true,
+  };
+}
+
+function parseExceptionNoteSnapshot(value: unknown): HubExceptionNoteSnapshot | null {
+  const obj = toPlainObject(value);
+  if (!obj) return null;
+
+  const note = String(obj.note ?? "").trim();
+  if (!note) return null;
+
+  return {
+    note,
+    addedAt: String(obj.addedAt ?? "").trim(),
+    addedBy: String(obj.addedBy ?? "").trim(),
+    manualOnly: true,
+  };
+}
+
+function parseResolutionSnapshot(value: unknown): HubResolutionSnapshot | null {
+  const obj = toPlainObject(value);
+  if (!obj) return null;
+
+  const resolutionType = String(obj.resolutionType ?? "").trim();
+  const resolutionNote = String(obj.resolutionNote ?? "").trim();
+  if (!resolutionType || !resolutionNote) return null;
+
+  return {
+    resolvedBy: String(obj.resolvedBy ?? "").trim(),
+    resolvedAt: String(obj.resolvedAt ?? "").trim(),
+    resolutionType,
+    resolutionNote,
+    manualOnly: true,
+  };
+}
+
+async function derivePhase3C2OperationalState(bookingId: string): Promise<Phase3C2OperationalState> {
+  const logs = await prisma.aggregatorBookingAuditLog.findMany({
+    where: {
+      bookingId,
+      action: {
+        in: [...HUB_RECEIVING_AUDIT_ACTIONS],
+      },
+    },
+    orderBy: { createdAt: "asc" },
+    select: {
+      action: true,
+      newValueJson: true,
+      createdAt: true,
+    },
+  });
+
+  let hubReceiving: HubReceivingSnapshot | null = null;
+  let manifestVerification: HubManifestVerifiedSnapshot | null = null;
+  let mismatch: HubMismatchSnapshot | null = null;
+  let latestExceptionNote: HubExceptionNoteSnapshot | null = null;
+  let resolution: HubResolutionSnapshot | null = null;
+  let updatedAt: string | null = null;
+
+  for (const entry of logs) {
+    const stamp = entry.createdAt.toISOString();
+    if (entry.action === "HUB_RECEIVING_MARKED") {
+      const parsed = parseHubReceivingSnapshot(entry.newValueJson);
+      if (parsed) {
+        hubReceiving = parsed;
+        updatedAt = stamp;
+      }
+      continue;
+    }
+
+    if (entry.action === "HUB_MANIFEST_VERIFIED") {
+      const parsed = parseManifestVerifiedSnapshot(entry.newValueJson);
+      if (parsed) {
+        manifestVerification = parsed;
+        mismatch = null;
+        updatedAt = stamp;
+      }
+      continue;
+    }
+
+    if (entry.action === "HUB_MANIFEST_MISMATCH_RECORDED") {
+      const parsed = parseMismatchSnapshot(entry.newValueJson);
+      if (parsed) {
+        mismatch = parsed;
+        manifestVerification = null;
+        resolution = null;
+        updatedAt = stamp;
+      }
+      continue;
+    }
+
+    if (entry.action === "HUB_EXCEPTION_NOTE_ADDED") {
+      const parsed = parseExceptionNoteSnapshot(entry.newValueJson);
+      if (parsed) {
+        latestExceptionNote = parsed;
+        updatedAt = stamp;
+      }
+      continue;
+    }
+
+    if (entry.action === "HUB_EXCEPTION_RESOLVED") {
+      const parsed = parseResolutionSnapshot(entry.newValueJson);
+      if (parsed) {
+        resolution = parsed;
+        updatedAt = stamp;
+      }
+    }
   }
+
+  let currentState: Phase3C2CurrentState = "NOT_STARTED";
+  if (hubReceiving) currentState = "HUB_RECEIVED";
+  if (manifestVerification) currentState = "MANIFEST_VERIFIED";
+  if (mismatch) currentState = "MISMATCH_RECORDED";
+  if (resolution) currentState = "EXCEPTION_RESOLVED";
+
+  return {
+    currentState,
+    hubReceiving,
+    manifestVerification,
+    mismatch,
+    latestExceptionNote,
+    resolution,
+    holdForManualResolution: Boolean(mismatch && !resolution),
+    updatedAt,
+    customerNotice: PHASE_3C2_CUSTOMER_NOTICE,
+  };
+}
+
+async function appendPlanningMetadata<T extends { id: string }>(booking: T) {
+  const [planning, phase3c2Operational] = await Promise.all([
+    findLatestPlanningSelection(booking.id),
+    derivePhase3C2OperationalState(booking.id),
+  ]);
 
   return {
     ...booking,
-    bulkPackPlanning: planning,
+    bulkPackPlanning: planning ?? null,
+    phase3c2Operational,
   };
 }
 
@@ -540,7 +824,7 @@ export async function listBookingsForUser(input: {
     ...(input.status ? { status: String(input.status).trim().toUpperCase() } : {}),
   };
 
-  const [items, total] = await Promise.all([
+  const [rawItems, total] = await Promise.all([
     prisma.aggregatorBooking.findMany({
       where,
       orderBy: { updatedAt: "desc" },
@@ -552,6 +836,8 @@ export async function listBookingsForUser(input: {
     }),
     prisma.aggregatorBooking.count({ where }),
   ]);
+
+  const items = await Promise.all(rawItems.map((item) => appendPlanningMetadata(item)));
 
   return { items, total, page: input.page, pageSize: input.pageSize };
 }
@@ -580,7 +866,7 @@ export async function listBookingsForAdmin(input: {
     ];
   }
 
-  const [items, total] = await Promise.all([
+  const [rawItems, total] = await Promise.all([
     prisma.aggregatorBooking.findMany({
       where,
       include: {
@@ -599,6 +885,8 @@ export async function listBookingsForAdmin(input: {
     }),
     prisma.aggregatorBooking.count({ where }),
   ]);
+
+  const items = await Promise.all(rawItems.map((item) => appendPlanningMetadata(item)));
 
   return { items, total, page: input.page, pageSize: input.pageSize };
 }
@@ -863,6 +1151,271 @@ export async function adminPreviewManifest(input: {
   return {
     bookingId: booking.id,
     manifestPreview,
+  };
+}
+
+async function loadHubReceivingContext(bookingId: string) {
+  const booking = await prisma.aggregatorBooking.findUnique({
+    where: { id: bookingId },
+    select: {
+      id: true,
+      bookingNo: true,
+      status: true,
+      paymentStatus: true,
+      totalArticles: true,
+      totalActualWeightGrams: true,
+      totalChargeableWeightGrams: true,
+    },
+  });
+
+  if (!booking) throw new Error("Booking not found");
+
+  const eligible = isManualPlanningEligible(booking);
+  if (!eligible.ok) {
+    throw new Error(eligible.reason);
+  }
+
+  const planning = await findLatestPlanningSelection(booking.id);
+  if (!planning) {
+    throw new Error("Warehouse and intake carrier selection is required before hub receiving actions");
+  }
+
+  const phase3c2 = await derivePhase3C2OperationalState(booking.id);
+
+  return {
+    booking,
+    planning,
+    phase3c2,
+  };
+}
+
+export async function adminMarkHubReceived(input: {
+  bookingId: string;
+  adminUserId: string;
+  receivedArticleCount: number;
+  receivedBundleWeightGrams?: number | null;
+  conditionNote: string;
+  manualFlags: HubReceivingGuardrailFlags;
+  context?: RequestContext;
+}) {
+  assertHubReceivingGuardrails(input.manualFlags);
+
+  const context = await loadHubReceivingContext(input.bookingId);
+  const receivedArticleCount = toSafeInt(input.receivedArticleCount);
+  const expectedArticleCount = toSafeInt(context.booking.totalArticles);
+  const receivedBundleWeightGrams =
+    input.receivedBundleWeightGrams === null || input.receivedBundleWeightGrams === undefined
+      ? null
+      : toSafeInt(input.receivedBundleWeightGrams);
+
+  const snapshot: HubReceivingSnapshot = {
+    bookingNo: context.booking.bookingNo,
+    warehouse: context.planning.selectedWarehouse,
+    receivedAt: new Date().toISOString(),
+    receivedBy: input.adminUserId,
+    receivedArticleCount,
+    expectedArticleCount,
+    receivedBundleWeightGrams,
+    conditionNote: String(input.conditionNote ?? "").trim(),
+    manualReceivingOnly: true,
+    noFinalDispatch: true,
+  };
+
+  await writeAuditLog({
+    bookingId: context.booking.id,
+    action: "HUB_RECEIVING_MARKED",
+    actor: { actorType: "ADMIN", actorUserId: input.adminUserId },
+    targetField: "hub_receiving",
+    oldValueJson: undefined,
+    newValueJson: snapshot as unknown as JsonValue,
+    context: input.context,
+  });
+
+  return {
+    bookingId: context.booking.id,
+    hubReceiving: snapshot,
+    phase3c2Operational: await derivePhase3C2OperationalState(context.booking.id),
+  };
+}
+
+export async function adminVerifyHubManifest(input: {
+  bookingId: string;
+  adminUserId: string;
+  receivedArticleCount: number;
+  manualFlags: HubReceivingGuardrailFlags;
+  context?: RequestContext;
+}) {
+  assertHubReceivingGuardrails(input.manualFlags);
+
+  const context = await loadHubReceivingContext(input.bookingId);
+  if (!context.phase3c2.hubReceiving) {
+    throw new Error("Hub receiving must be marked before manifest verification");
+  }
+
+  if (context.phase3c2.holdForManualResolution) {
+    throw new Error("Resolve mismatch before verifying manifest as matched");
+  }
+
+  const expectedArticleCount = toSafeInt(context.booking.totalArticles);
+  const receivedArticleCount = toSafeInt(input.receivedArticleCount);
+  if (receivedArticleCount !== expectedArticleCount) {
+    throw new Error("Manifest verification requires receivedArticleCount to equal expectedArticleCount");
+  }
+
+  const snapshot: HubManifestVerifiedSnapshot = {
+    bookingNo: context.booking.bookingNo,
+    expectedArticleCount,
+    receivedArticleCount,
+    matched: true,
+    verifiedAt: new Date().toISOString(),
+    verifiedBy: input.adminUserId,
+    manualOnly: true,
+    noFinalDispatch: true,
+  };
+
+  await writeAuditLog({
+    bookingId: context.booking.id,
+    action: "HUB_MANIFEST_VERIFIED",
+    actor: { actorType: "ADMIN", actorUserId: input.adminUserId },
+    targetField: "hub_manifest_verification",
+    oldValueJson: undefined,
+    newValueJson: snapshot as unknown as JsonValue,
+    context: input.context,
+  });
+
+  return {
+    bookingId: context.booking.id,
+    manifestVerification: snapshot,
+    phase3c2Operational: await derivePhase3C2OperationalState(context.booking.id),
+  };
+}
+
+export async function adminRecordHubMismatch(input: {
+  bookingId: string;
+  adminUserId: string;
+  receivedArticleCount: number;
+  mismatchReason: string;
+  adminNote: string;
+  manualFlags: HubReceivingGuardrailFlags;
+  context?: RequestContext;
+}) {
+  assertHubReceivingGuardrails(input.manualFlags);
+
+  const context = await loadHubReceivingContext(input.bookingId);
+  if (!context.phase3c2.hubReceiving) {
+    throw new Error("Hub receiving must be marked before mismatch recording");
+  }
+
+  const expectedArticleCount = toSafeInt(context.booking.totalArticles);
+  const receivedArticleCount = toSafeInt(input.receivedArticleCount);
+  if (receivedArticleCount === expectedArticleCount) {
+    throw new Error("Counts are matched. Use manifest verification instead of mismatch recording");
+  }
+
+  const snapshot: HubMismatchSnapshot = {
+    mismatchDetected: true,
+    expectedArticleCount,
+    receivedArticleCount,
+    mismatchReason: String(input.mismatchReason ?? "").trim(),
+    adminNote: String(input.adminNote ?? "").trim(),
+    holdForManualResolution: true,
+    recordedAt: new Date().toISOString(),
+    recordedBy: input.adminUserId,
+    manualOnly: true,
+  };
+
+  await writeAuditLog({
+    bookingId: context.booking.id,
+    action: "HUB_MANIFEST_MISMATCH_RECORDED",
+    actor: { actorType: "ADMIN", actorUserId: input.adminUserId },
+    targetField: "hub_manifest_mismatch",
+    oldValueJson: undefined,
+    newValueJson: snapshot as unknown as JsonValue,
+    context: input.context,
+  });
+
+  return {
+    bookingId: context.booking.id,
+    mismatch: snapshot,
+    phase3c2Operational: await derivePhase3C2OperationalState(context.booking.id),
+  };
+}
+
+export async function adminAddHubExceptionNote(input: {
+  bookingId: string;
+  adminUserId: string;
+  exceptionNote: string;
+  manualFlags: HubReceivingGuardrailFlags;
+  context?: RequestContext;
+}) {
+  assertHubReceivingGuardrails(input.manualFlags);
+
+  const context = await loadHubReceivingContext(input.bookingId);
+  if (!context.phase3c2.mismatch) {
+    throw new Error("Mismatch must be recorded before adding exception note");
+  }
+
+  const snapshot: HubExceptionNoteSnapshot = {
+    note: String(input.exceptionNote ?? "").trim(),
+    addedAt: new Date().toISOString(),
+    addedBy: input.adminUserId,
+    manualOnly: true,
+  };
+
+  await writeAuditLog({
+    bookingId: context.booking.id,
+    action: "HUB_EXCEPTION_NOTE_ADDED",
+    actor: { actorType: "ADMIN", actorUserId: input.adminUserId },
+    targetField: "hub_exception_note",
+    oldValueJson: undefined,
+    newValueJson: snapshot as unknown as JsonValue,
+    context: input.context,
+  });
+
+  return {
+    bookingId: context.booking.id,
+    exceptionNote: snapshot,
+    phase3c2Operational: await derivePhase3C2OperationalState(context.booking.id),
+  };
+}
+
+export async function adminResolveHubException(input: {
+  bookingId: string;
+  adminUserId: string;
+  resolutionType: string;
+  resolutionNote: string;
+  manualFlags: HubReceivingGuardrailFlags;
+  context?: RequestContext;
+}) {
+  assertHubReceivingGuardrails(input.manualFlags);
+
+  const context = await loadHubReceivingContext(input.bookingId);
+  if (!context.phase3c2.mismatch) {
+    throw new Error("Mismatch must be recorded before manual resolution");
+  }
+
+  const snapshot: HubResolutionSnapshot = {
+    resolvedBy: input.adminUserId,
+    resolvedAt: new Date().toISOString(),
+    resolutionType: String(input.resolutionType ?? "").trim(),
+    resolutionNote: String(input.resolutionNote ?? "").trim(),
+    manualOnly: true,
+  };
+
+  await writeAuditLog({
+    bookingId: context.booking.id,
+    action: "HUB_EXCEPTION_RESOLVED",
+    actor: { actorType: "ADMIN", actorUserId: input.adminUserId },
+    targetField: "hub_exception_resolution",
+    oldValueJson: undefined,
+    newValueJson: snapshot as unknown as JsonValue,
+    context: input.context,
+  });
+
+  return {
+    bookingId: context.booking.id,
+    resolution: snapshot,
+    phase3c2Operational: await derivePhase3C2OperationalState(context.booking.id),
   };
 }
 

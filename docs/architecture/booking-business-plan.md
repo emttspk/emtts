@@ -12,9 +12,9 @@ It defines:
 - break-resume instructions.
 
 ## Current Phase Marker
-Phase 3C-1: Warehouse/carrier planning and preview hardening
-Status: Implemented (manual planning only)
-Next task: Phase 3C-2 hub receiving verification and mismatch handling
+Phase 3C-2: Hub receiving verification and mismatch handling
+Status: Implemented (manual verification only)
+Next task: Phase 3C-3 monitored operational rollout and readiness criteria
 
 ## Phase Intent
 The Aggregator Booking initiative is intentionally incremental.
@@ -158,6 +158,25 @@ Phase 3C-1 blocked scope:
 - pickup execution,
 - dispatch execution,
 - final booking confirmation,
+- schema/migration changes.
+
+Phase 3C-2 implemented scope:
+- admin manual hub receiving confirmation,
+- expected vs received manifest verification,
+- mismatch recording with reason and admin note,
+- manual exception note trail,
+- manual exception resolution,
+- customer read-only non-final receiving/exception visibility,
+- additive audit-log JSON persistence with derived operational state.
+
+Phase 3C-2 blocked scope:
+- live Leopards API,
+- live Pakistan Post booking API,
+- pickup execution,
+- dispatch execution,
+- final booking confirmation,
+- payment collection,
+- service/handling/profit/discount logic,
 - schema/migration changes.
 
 ## Calculator Contract

@@ -2,13 +2,18 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireAdmin, requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import {
+  adminAddHubExceptionNote,
   adminPreviewBulkPackLabel,
   adminPreviewManifest,
   adminApproveBooking,
+  adminMarkHubReceived,
   adminSaveBulkPackPlanningSelection,
   adminMarkPending,
+  adminRecordHubMismatch,
   adminRejectBooking,
+  adminResolveHubException,
   adminRequestCorrection,
+  adminVerifyHubManifest,
   getBookingForAdmin,
   listBookingsForAdmin,
 } from "../services/aggregatorBookingService.js";
@@ -21,6 +26,11 @@ import {
   adminListBookingQuerySchema,
   adminMarkPendingActionSchema,
   adminRejectActionSchema,
+  adminHubExceptionNoteSchema,
+  adminHubMarkReceivedSchema,
+  adminHubRecordMismatchSchema,
+  adminHubResolveExceptionSchema,
+  adminHubVerifyManifestSchema,
 } from "../utils/aggregatorBookingValidation.js";
 
 export const adminAggregatorBookingsRouter = Router();
@@ -218,6 +228,126 @@ adminAggregatorBookingsRouter.post("/:id/bulk-pack-plan/manifest-preview", async
       return res.status(400).json({ success: false, error: "Invalid manifest preview payload", details: error.errors });
     }
     const message = error instanceof Error ? error.message : "Failed to build manifest preview";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+adminAggregatorBookingsRouter.post("/:id/hub-receiving/mark-received", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminHubMarkReceivedSchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const result = await adminMarkHubReceived({
+      bookingId,
+      adminUserId,
+      receivedArticleCount: payload.receivedArticleCount,
+      receivedBundleWeightGrams: payload.receivedBundleWeightGrams,
+      conditionNote: payload.conditionNote,
+      manualFlags: payload.manualFlags,
+      context: { req },
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid hub receiving payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to mark hub receiving";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+adminAggregatorBookingsRouter.post("/:id/hub-receiving/verify-manifest", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminHubVerifyManifestSchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const result = await adminVerifyHubManifest({
+      bookingId,
+      adminUserId,
+      receivedArticleCount: payload.receivedArticleCount,
+      manualFlags: payload.manualFlags,
+      context: { req },
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid manifest verification payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to verify manifest";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+adminAggregatorBookingsRouter.post("/:id/hub-receiving/record-mismatch", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminHubRecordMismatchSchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const result = await adminRecordHubMismatch({
+      bookingId,
+      adminUserId,
+      receivedArticleCount: payload.receivedArticleCount,
+      mismatchReason: payload.mismatchReason,
+      adminNote: payload.adminNote,
+      manualFlags: payload.manualFlags,
+      context: { req },
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid mismatch payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to record manifest mismatch";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+adminAggregatorBookingsRouter.post("/:id/hub-receiving/add-exception-note", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminHubExceptionNoteSchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const result = await adminAddHubExceptionNote({
+      bookingId,
+      adminUserId,
+      exceptionNote: payload.exceptionNote,
+      manualFlags: payload.manualFlags,
+      context: { req },
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid exception-note payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to add exception note";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+adminAggregatorBookingsRouter.post("/:id/hub-receiving/resolve-exception", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminHubResolveExceptionSchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const result = await adminResolveHubException({
+      bookingId,
+      adminUserId,
+      resolutionType: payload.resolutionType,
+      resolutionNote: payload.resolutionNote,
+      manualFlags: payload.manualFlags,
+      context: { req },
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid resolution payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to resolve exception";
     const status = message === "Booking not found" ? 404 : 400;
     return res.status(status).json({ success: false, error: message });
   }

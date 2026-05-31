@@ -1,5 +1,47 @@
 # AI Implementation Index
 
+## 2026-05-31 - Aggregator Booking Phase 3C-2 Hub Receiving Verification
+
+### Task Name
+- Implement Phase 3C-2 manual hub receiving verification, mismatch handling, and exception resolution.
+
+### Files Changed
+- `apps/api/src/services/aggregatorBookingService.ts`
+- `apps/api/src/routes/adminAggregatorBookings.ts`
+- `apps/api/src/utils/aggregatorBookingValidation.ts`
+- `apps/web/src/lib/aggregatorBookings.ts`
+- `apps/web/src/pages/admin/AdminAggregatorBookings.tsx`
+- `apps/web/src/pages/AggregatorBookingDetail.tsx`
+- `apps/web/src/pages/AggregatorBookings.tsx`
+- `docs/architecture/aggregator-booking-business-plan.md`
+- `docs/architecture/booking-business-plan.md`
+- `docs/operations/aggregator-booking-rollout-checklist.md`
+- `docs/operations/booking-rollout-checklist.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Behavior Added
+- Added admin-only actions:
+	- mark bulk pack received,
+	- verify manifest matched,
+	- record mismatch,
+	- add exception note,
+	- resolve mismatch manually.
+- Added strict payload validation for received counts, mismatch inputs, and resolution inputs.
+- Added guardrail flags enforcing manual-only and non-final behavior.
+- Added derived `phase3c2Operational` object on customer/admin booking list and detail responses.
+- Added customer wording that warehouse receiving status is separate from final article processing.
+
+### Safety / Scope Confirmation
+- No Prisma schema changes.
+- No migration files created or modified.
+- No live Leopards API or Pakistan Post booking API integration added.
+- No pickup, dispatch, payment collection, or final booking confirmation logic added.
+- No Railway, Cloudflare/R2, or production action performed.
+- Protected scope files (`Upload.tsx`, `jobs.ts`, `worker.ts`, templates) were not modified.
+
+### Next Item
+- Phase 3C-3 monitored operational rollout and readiness criteria.
+
 ## 2026-05-31 - Aggregator Booking Phase 3A Admin Review Hardening
 
 ### Task Name

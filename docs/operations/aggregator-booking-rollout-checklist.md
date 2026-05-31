@@ -50,6 +50,19 @@
 - No unit consumption is triggered.
 - `jobs.ts`, `Upload.tsx`, and `worker.ts` behavior remains unchanged.
 
+## Phase 3C-2 (Hub Receiving Verification) Checklist
+- Admin can mark hub receiving with received count and condition note.
+- Admin can verify manifest only when received count equals expected count.
+- Admin can record mismatch only when received count differs from expected count.
+- Admin mismatch payload requires mismatch reason and admin note.
+- Admin can add exception note for mismatch trail.
+- Admin can resolve mismatch with required resolution type and note.
+- Customer booking detail/list render non-final warehouse receiving state wording.
+- Responses expose derived `phase3c2Operational` metadata without schema changes.
+- No external carrier/Pakistan Post booking API is called.
+- No pickup/dispatch/final booking action is created.
+- `jobs.ts`, `Upload.tsx`, and `worker.ts` behavior remains unchanged.
+
 ## Regression Safeguards
 - Verify existing upload route contract remains unchanged.
 - Verify existing MO/tracking/complaint/billing behavior is unchanged.

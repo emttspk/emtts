@@ -110,7 +110,6 @@ For phase boundaries, protected scope, and continuity handoff protocol, see `doc
 
 ## Remaining Phase 3 Work
 - Phase 3B: rollout controls, approval matrix hardening, and rollback trigger automation.
-- Phase 3C-2: hub receiving verification and mismatch handling.
 - Phase 3C-3: monitored operational rollout and readiness criteria.
 - Keep rollout limited to non-protected booking paths and manual-only semantics until separately approved.
 
@@ -122,5 +121,18 @@ For phase boundaries, protected scope, and continuity handoff protocol, see `doc
 - Manifest preview expected article count: PASS.
 - Live carrier/Pakistan Post booking APIs: NOT CALLED.
 - Pickup/dispatch/final booking execution: NOT CREATED.
+- Schema/migration changes: NONE.
+- Protected modules (`jobs.ts`, `Upload.tsx`, `worker.ts`) remained unchanged.
+
+## Phase 3C-2 Smoke Result (2026-05-31)
+- Hub receiving endpoint validation: PASS.
+- Manifest verification gate (received == expected): PASS.
+- Mismatch gate (received != expected): PASS.
+- Mismatch payload requirements (reason + note): PASS.
+- Resolution payload requirements (resolutionType + resolutionNote): PASS.
+- Derived `phase3c2Operational` on booking list/detail: PASS.
+- Customer wording remains non-final and warehouse-only: PASS.
+- Live carrier/Pakistan Post booking APIs: NOT CALLED.
+- Pickup/dispatch/final booking actions: NOT CREATED.
 - Schema/migration changes: NONE.
 - Protected modules (`jobs.ts`, `Upload.tsx`, `worker.ts`) remained unchanged.

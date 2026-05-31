@@ -27,6 +27,15 @@ function getCustomerStatusLabel(status: string) {
   }
 }
 
+function getPhase3C2Label(currentState?: string | null) {
+  if (!currentState || currentState === "NOT_STARTED") return "Warehouse receiving pending";
+  if (currentState === "HUB_RECEIVED") return "Warehouse received";
+  if (currentState === "MANIFEST_VERIFIED") return "Manifest verified";
+  if (currentState === "MISMATCH_RECORDED") return "Mismatch under manual resolution";
+  if (currentState === "EXCEPTION_RESOLVED") return "Mismatch resolved manually";
+  return currentState;
+}
+
 export default function AggregatorBookings() {
   const [bookings, setBookings] = useState<AggregatorBooking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,6 +103,8 @@ export default function AggregatorBookings() {
                     <td className="px-3 py-2">
                       <AggregatorBookingStatusBadge status={booking.status} />
                       <div className="mt-1 text-[11px] text-slate-500">{getCustomerStatusLabel(booking.status)}</div>
+                      <div className="mt-1 text-[11px] text-sky-700">{getPhase3C2Label(booking.phase3c2Operational?.currentState)}</div>
+                      <div className="text-[11px] text-slate-500">This is warehouse receiving status only. Final article processing is separate.</div>
                     </td>
                     <td className="px-3 py-2 text-slate-700">{booking.senderName}</td>
                     <td className="px-3 py-2 text-slate-700">{booking.intakeMethod}</td>

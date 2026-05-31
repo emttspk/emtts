@@ -256,6 +256,16 @@ const manualOnlyPlanningFlagsSchema = z.object({
   noFinalBookingConfirmation: z.literal(true),
 });
 
+const manualOnlyHubReceivingFlagsSchema = z.object({
+  manualReceivingOnly: z.literal(true),
+  noFinalDispatch: z.literal(true),
+  noLiveCarrierApi: z.literal(true),
+  noPakistanPostBookingApi: z.literal(true),
+  noPickupExecution: z.literal(true),
+  noDispatchExecution: z.literal(true),
+  noFinalBookingConfirmation: z.literal(true),
+});
+
 export const adminBulkPackPlanningSelectionSchema = z.object({
   selectedWarehouse: z.enum(AGGREGATOR_WAREHOUSE_OPTIONS),
   intakeCarrier: z.enum(AGGREGATOR_INTAKE_CARRIER_OPTIONS),
@@ -271,3 +281,33 @@ export const adminBulkPackLabelPreviewSchema = z.object({
 export const adminManifestPreviewSchema = z.object({
   planningFlags: manualOnlyPlanningFlagsSchema,
 });
+
+export const adminHubMarkReceivedSchema = z.object({
+  receivedArticleCount: z.coerce.number().int().min(0),
+  receivedBundleWeightGrams: z.coerce.number().int().positive().optional(),
+  conditionNote: z.string().trim().min(10).max(2000),
+  manualFlags: manualOnlyHubReceivingFlagsSchema,
+}).strict();
+
+export const adminHubVerifyManifestSchema = z.object({
+  receivedArticleCount: z.coerce.number().int().min(0),
+  manualFlags: manualOnlyHubReceivingFlagsSchema,
+}).strict();
+
+export const adminHubRecordMismatchSchema = z.object({
+  receivedArticleCount: z.coerce.number().int().min(0),
+  mismatchReason: z.string().trim().min(2).max(120),
+  adminNote: z.string().trim().min(5).max(2000),
+  manualFlags: manualOnlyHubReceivingFlagsSchema,
+}).strict();
+
+export const adminHubExceptionNoteSchema = z.object({
+  exceptionNote: z.string().trim().min(3).max(2000),
+  manualFlags: manualOnlyHubReceivingFlagsSchema,
+}).strict();
+
+export const adminHubResolveExceptionSchema = z.object({
+  resolutionType: z.string().trim().min(2).max(120),
+  resolutionNote: z.string().trim().min(5).max(2000),
+  manualFlags: manualOnlyHubReceivingFlagsSchema,
+}).strict();

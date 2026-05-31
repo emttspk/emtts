@@ -91,6 +91,58 @@ export type AggregatorBooking = {
     warehouseAddress: string;
     updatedAt: string;
   } | null;
+  phase3c2Operational?: {
+    currentState: "NOT_STARTED" | "HUB_RECEIVED" | "MANIFEST_VERIFIED" | "MISMATCH_RECORDED" | "EXCEPTION_RESOLVED";
+    hubReceiving: {
+      bookingNo: string;
+      warehouse: AggregatorWarehouseOption;
+      receivedAt: string;
+      receivedBy: string;
+      receivedArticleCount: number;
+      expectedArticleCount: number;
+      receivedBundleWeightGrams: number | null;
+      conditionNote: string;
+      manualReceivingOnly: true;
+      noFinalDispatch: true;
+    } | null;
+    manifestVerification: {
+      bookingNo: string;
+      expectedArticleCount: number;
+      receivedArticleCount: number;
+      matched: true;
+      verifiedAt: string;
+      verifiedBy: string;
+      manualOnly: true;
+      noFinalDispatch: true;
+    } | null;
+    mismatch: {
+      mismatchDetected: true;
+      expectedArticleCount: number;
+      receivedArticleCount: number;
+      mismatchReason: string;
+      adminNote: string;
+      holdForManualResolution: true;
+      recordedAt: string;
+      recordedBy: string;
+      manualOnly: true;
+    } | null;
+    latestExceptionNote: {
+      note: string;
+      addedAt: string;
+      addedBy: string;
+      manualOnly: true;
+    } | null;
+    resolution: {
+      resolvedBy: string;
+      resolvedAt: string;
+      resolutionType: string;
+      resolutionNote: string;
+      manualOnly: true;
+    } | null;
+    holdForManualResolution: boolean;
+    updatedAt: string | null;
+    customerNotice: string;
+  } | null;
 };
 
 export type AggregatorBulkPackLabelPreview = {
@@ -133,6 +185,16 @@ export type AggregatorManifestPreview = {
 
 const manualPlanningFlags = {
   manualPlanningOnly: true,
+  noLiveCarrierApi: true,
+  noPakistanPostBookingApi: true,
+  noPickupExecution: true,
+  noDispatchExecution: true,
+  noFinalBookingConfirmation: true,
+} as const;
+
+const manualHubReceivingFlags = {
+  manualReceivingOnly: true,
+  noFinalDispatch: true,
   noLiveCarrierApi: true,
   noPakistanPostBookingApi: true,
   noPickupExecution: true,
@@ -335,6 +397,91 @@ export async function adminPreviewAggregatorManifest(bookingId: string) {
     {
       method: "POST",
       body: JSON.stringify({ planningFlags: manualPlanningFlags }),
+    },
+  );
+}
+
+export async function adminMarkAggregatorHubReceived(
+  bookingId: string,
+  payload: {
+    receivedArticleCount: number;
+    receivedBundleWeightGrams?: number;
+    conditionNote: string;
+  },
+) {
+  return api<{ success: boolean; bookingId: string; phase3c2Operational: AggregatorBooking["phase3c2Operational"] }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/hub-receiving/mark-received`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ...payload,
+        manualFlags: manualHubReceivingFlags,
+      }),
+    },
+  );
+}
+
+export async function adminVerifyAggregatorHubManifest(bookingId: string, payload: { receivedArticleCount: number }) {
+  return api<{ success: boolean; bookingId: string; phase3c2Operational: AggregatorBooking["phase3c2Operational"] }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/hub-receiving/verify-manifest`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ...payload,
+        manualFlags: manualHubReceivingFlags,
+      }),
+    },
+  );
+}
+
+export async function adminRecordAggregatorHubMismatch(
+  bookingId: string,
+  payload: {
+    receivedArticleCount: number;
+    mismatchReason: string;
+    adminNote: string;
+  },
+) {
+  return api<{ success: boolean; bookingId: string; phase3c2Operational: AggregatorBooking["phase3c2Operational"] }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/hub-receiving/record-mismatch`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ...payload,
+        manualFlags: manualHubReceivingFlags,
+      }),
+    },
+  );
+}
+
+export async function adminAddAggregatorHubExceptionNote(bookingId: string, payload: { exceptionNote: string }) {
+  return api<{ success: boolean; bookingId: string; phase3c2Operational: AggregatorBooking["phase3c2Operational"] }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/hub-receiving/add-exception-note`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ...payload,
+        manualFlags: manualHubReceivingFlags,
+      }),
+    },
+  );
+}
+
+export async function adminResolveAggregatorHubException(
+  bookingId: string,
+  payload: {
+    resolutionType: string;
+    resolutionNote: string;
+  },
+) {
+  return api<{ success: boolean; bookingId: string; phase3c2Operational: AggregatorBooking["phase3c2Operational"] }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/hub-receiving/resolve-exception`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ...payload,
+        manualFlags: manualHubReceivingFlags,
+      }),
     },
   );
 }

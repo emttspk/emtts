@@ -56,7 +56,7 @@ This document defines a separate Aggregator Booking business lane for ePost.pk t
 
 ## Future Phases
 - Phase 3: pickup email and secure pickup status updates.
-- Phase 4: hub verification, article-wise Pakistan Post booking workflow, and controlled handoff to label/MO generation.
+- Phase 4: article-wise Pakistan Post booking workflow and controlled handoff to label/MO generation.
 - Phase 5: payment, invoicing, refund/adjustment, and advanced exception handling.
 
 ## Phase 3C-1 (Implemented Scope)
@@ -79,6 +79,25 @@ This document defines a separate Aggregator Booking business lane for ePost.pk t
 - No dispatch execution.
 - No final booking confirmation.
 - No payment gateway implementation.
+- No service/handling/profit/discount logic.
+- No schema/migration change.
+
+## Phase 3C-2 (Implemented Scope)
+- Admin can mark bulk pack received at selected ePost warehouse.
+- Admin can verify manifest expected vs received article count.
+- Admin can record mismatch with reason and note.
+- Admin can add manual exception note trail.
+- Admin can resolve mismatch manually with resolution type and note.
+- Customer can view non-final warehouse receiving/exception status.
+- Phase 3C-2 state is derived from additive audit-log JSON metadata.
+
+## Phase 3C-2 Explicit Exclusions
+- No final dispatch confirmation.
+- No Pakistan Post booking API call.
+- No live courier booking API call.
+- No pickup execution.
+- No dispatch execution.
+- No payment collection.
 - No service/handling/profit/discount logic.
 - No schema/migration change.
 
