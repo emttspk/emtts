@@ -1,5 +1,35 @@
 # AI Implementation Index
 
+## Project Signature Guard and Protected Scope Protocol
+
+### Files Added Or Updated
+- `.ai-project/PROJECT_IDENTITY.json`
+- `.ai-project/DEPLOY_TARGETS.json`
+- `.ai-project/PUSH_GUARD.md`
+- `.ai-project/SAFE_COMMANDS.md`
+- `scripts/verify-project-scope.mjs`
+- `scripts/safe-git-push.mjs`
+- `scripts/safe-railway-check.mjs`
+- `scripts/safe-r2-check.mjs`
+- `.env.project.example`
+- `package.json` (npm guard scripts)
+- `.gitignore` (secret protection rules)
+
+### Guard Checks Before Push Or Deploy
+- Verify expected git remote origin, expected git branch, and required project signature.
+- Block if forbidden secret/protected files are staged or unstaged.
+- Print remote, branch, status, and changed files before any push attempt.
+- Stop immediately on any project signature mismatch.
+
+### Read-Only Guardrails
+- Railway check is read-only and performs context verification only.
+- R2 check is read-only and validates configured target names only.
+- No deploy, no variable mutation, and no object upload/delete are performed by these scripts.
+
+### Secret Handling
+- No secrets are stored in repository guard files.
+- `.gitignore` explicitly protects env and credential patterns from accidental commit.
+
 ## 2026-05-31 - Aggregator Booking Phase 3C-2 Hub Receiving Verification
 ## 2026-05-31 - Aggregator Booking Phase 3C-3 Operational Handoff and Dispatch Recording
 

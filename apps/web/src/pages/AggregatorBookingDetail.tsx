@@ -57,6 +57,15 @@ function getPhase3C3Label(currentState?: string | null) {
   return currentState;
 }
 
+function getPhase3C4Label(currentState?: string | null) {
+  if (!currentState || currentState === "NOT_STARTED") return "Final processing readiness not started";
+  if (currentState === "READINESS_CHECKED") return "Readiness checked for final processing";
+  if (currentState === "PACKET_PREPARED") return "Manual processing packet prepared";
+  if (currentState === "PACKET_EXPORTED") return "Manual processing packet exported";
+  if (currentState === "REVIEW_COMPLETED") return "Final processing review completed";
+  return currentState;
+}
+
 export default function AggregatorBookingDetail() {
   const params = useParams<{ bookingId: string }>();
   const bookingId = String(params.bookingId ?? "").trim();
@@ -151,11 +160,19 @@ export default function AggregatorBookingDetail() {
   }
 
   if (loading) {
-    return <PageShell><Card className="p-5">Loading booking details...</Card></PageShell>;
+    return (
+      <PageShell>
+        <Card className="p-5">Loading booking details...</Card>
+      </PageShell>
+    );
   }
 
   if (!booking) {
-    return <PageShell><Card className="p-5 text-rose-700">Booking not found.</Card></PageShell>;
+    return (
+      <PageShell>
+        <Card className="p-5 text-rose-700">Booking not found.</Card>
+      </PageShell>
+    );
   }
 
   return (
@@ -208,60 +225,48 @@ export default function AggregatorBookingDetail() {
             {booking.phase3c2Operational?.manifestVerification ? <div>Manifest: Matched</div> : null}
             {booking.phase3c2Operational?.mismatch ? <div>Manifest: Mismatched</div> : null}
           </div>
+        </Card>
 
-          {booking.phase3c2Operational?.latestExceptionNote ? (
-            <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-              <div className="font-semibold">Latest Exception Note</div>
-              <div>{booking.phase3c2Operational.latestExceptionNote.note}</div>
-            </div>
-          ) : null}
+        <Card className="border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="text-base font-semibold text-slate-900">Operational Movement Status</h3>
+          <p className="mt-1 text-xs text-slate-600">
+            {booking.phase3c3Operational?.customerNotice ?? "This is operational movement status only. Final Pakistan Post article processing is a separate future step."}
+          </p>
+          <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+            <div>Current: {getPhase3C3Label(booking.phase3c3Operational?.currentState)}</div>
+            {booking.phase3c3Operational?.sortingDispatch ? (
+              <div>Dispatched to: {booking.phase3c3Operational.sortingDispatch.toSortingFacility}</div>
+            ) : null}
+            {booking.phase3c3Operational?.latestTransfer ? (
+              <>
+                <div>Latest Transfer: {booking.phase3c3Operational.latestTransfer.fromFacility} to {booking.phase3c3Operational.latestTransfer.toFacility}</div>
+                <div>Transfer Articles: {booking.phase3c3Operational.latestTransfer.articleCount}</div>
+              </>
+            ) : null}
+          </div>
+        </Card>
 
-          {booking.phase3c2Operational?.resolution ? (
-            <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
-              <div className="font-semibold">Exception Resolved</div>
-              <div>{booking.phase3c2Operational.resolution.resolutionType}</div>
-              <div>{booking.phase3c2Operational.resolution.resolutionNote}</div>
-            </div>
-          ) : null}
+        <Card className="border-emerald-200 bg-white p-5 shadow-sm">
+          <h3 className="text-base font-semibold text-slate-900">Final Postal Processing Readiness</h3>
+          <p className="mt-1 text-xs text-emerald-800">
+            Your articles are ready for final postal processing review. This is not final Pakistan Post booking confirmation.
+          </p>
+          <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+            <div>Current: {getPhase3C4Label(booking.phase3c4FinalProcessing?.currentState)}</div>
+            {booking.phase3c4FinalProcessing?.packet ? (
+              <>
+                <div>Packet No: {booking.phase3c4FinalProcessing.packet.packetNo}</div>
+                <div>Packet Rows: {booking.phase3c4FinalProcessing.packet.articleRows.length}</div>
+              </>
+            ) : null}
+            {booking.phase3c4FinalProcessing?.reviewEvent ? (
+              <div>Review Note: {booking.phase3c4FinalProcessing.reviewEvent.reviewNote}</div>
+            ) : null}
+          </div>
         </Card>
 
         <Card className="border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="text-base font-semibold text-slate-900">Sender and Intake Details</h3>
-                    {booking.phase3c2Operational?.resolution ? (
-                      <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
-                        <div className="font-semibold">Exception Resolved</div>
-                        <div>{booking.phase3c2Operational.resolution.resolutionType}</div>
-                        <div>{booking.phase3c2Operational.resolution.resolutionNote}</div>
-                      </div>
-                    ) : null}
-                  </Card>
-
-                  <Card className="border-slate-200 bg-white p-5 shadow-sm">
-                    <h3 className="text-base font-semibold text-slate-900">Operational Movement Status</h3>
-                    <p className="mt-1 text-xs text-slate-600">
-                      {booking.phase3c3Operational?.customerNotice ?? "This is operational movement status only. Final Pakistan Post article processing is a separate future step."}
-                    </p>
-                    <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                      <div>Current: {getPhase3C3Label(booking.phase3c3Operational?.currentState)}</div>
-                      {booking.phase3c3Operational?.sortingDispatch ? (
-                        <div>Dispatched to: {booking.phase3c3Operational.sortingDispatch.toSortingFacility}</div>
-                      ) : null}
-                      {booking.phase3c3Operational?.latestTransfer ? (
-                        <>
-                          <div>Latest Transfer: {booking.phase3c3Operational.latestTransfer.fromFacility} {"->"} {booking.phase3c3Operational.latestTransfer.toFacility}</div>
-                          <div>Transfer Articles: {booking.phase3c3Operational.latestTransfer.articleCount}</div>
-                        </>
-                      ) : null}
-                      {booking.phase3c3Operational?.readyForPostal ? (
-                        <div className="mt-1 font-semibold text-emerald-800">
-                          Ready for postal processing recorded. Final Pakistan Post article processing is a separate future step.
-                        </div>
-                      ) : null}
-                    </div>
-                  </Card>
-
-                  <Card className="border-slate-200 bg-white p-5 shadow-sm">
-                    <h3 className="text-base font-semibold text-slate-900">Sender and Intake Details</h3>
           <p className="mt-1 text-xs text-slate-500">Draft is editable only in BOOKING_DRAFT or CORRECTION_REQUIRED status.</p>
           <div className="mt-3">
             <AggregatorBookingDraftForm
@@ -294,17 +299,6 @@ export default function AggregatorBookingDetail() {
 
         <Card className="border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="text-base font-semibold text-slate-900">Status Timeline</h3>
-          <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-            <div>Status wording:</div>
-            <div>Draft</div>
-            <div>Submitted for review</div>
-            <div>Under admin review</div>
-            <div>Approved for manual action</div>
-            <div>Correction required</div>
-            <div>Rejected</div>
-            <div>Cancelled</div>
-            <div>Warehouse receiving is operational and non-final.</div>
-          </div>
           <div className="mt-3">
             <AggregatorBookingTimeline events={timeline} />
           </div>

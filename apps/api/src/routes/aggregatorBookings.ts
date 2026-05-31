@@ -246,3 +246,16 @@ aggregatorBookingsRouter.get("/:id/timeline", async (req: AuthedRequest, res) =>
     return res.status(status).json({ success: false, error: message });
   }
 });
+
+aggregatorBookingsRouter.get("/:id/final-processing/status", async (req: AuthedRequest, res) => {
+  try {
+    const userId = String(req.user?.id ?? "").trim();
+    const bookingId = String(req.params.id ?? "").trim();
+    const booking = await getBookingForUser({ bookingId, userId });
+    return res.json({ success: true, status: booking.phase3c4FinalProcessing ?? null });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to load final processing status";
+    const status = message === "Booking not found" ? 404 : message === "Forbidden" ? 403 : 500;
+    return res.status(status).json({ success: false, error: message });
+  }
+});

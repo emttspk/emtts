@@ -193,6 +193,102 @@ type Phase3C3OperationalState = {
   customerNotice: string;
 };
 
+type FinalProcessingGuardrailFlags = {
+  manualOnly: true;
+  noPakistanPostBookingApi: true;
+  noFinalBookingConfirmation: true;
+  noLiveBooking: true;
+  noLabelJobCreation: true;
+  noUnitConsumption: true;
+  noAutoDispatch: true;
+};
+
+type FinalProcessingServiceCode = "RGL" | "VPL" | "VPP" | "IRL" | "PAR" | "UMS" | "COD";
+
+type FinalProcessingReadinessSnapshot = {
+  bookingNo: string;
+  expectedArticleCount: number;
+  verifiedArticleCount: number;
+  servicesIncluded: FinalProcessingServiceCode[];
+  valuePayableIncluded: boolean;
+  codIncluded: boolean;
+  moRequired: boolean;
+  labelReadinessChecked: boolean;
+  moneyOrderReadinessChecked: boolean;
+  exceptions: string[];
+  note: string;
+  checkedAt: string;
+  checkedBy: string;
+  manualOnly: true;
+  noPakistanPostBookingApi: true;
+  noFinalBookingConfirmation: true;
+};
+
+type FinalProcessingPacketRow = {
+  rowNo: number;
+  serviceCode: FinalProcessingServiceCode;
+  articleCategory: string;
+  receiverCity: string | null;
+  chargeableWeightGrams: number | null;
+  totalOfficialPostalCharge: number;
+};
+
+type FinalProcessingPacketSnapshot = {
+  bookingNo: string;
+  packetNo: string;
+  generatedAt: string;
+  generatedBy: string;
+  articleRows: FinalProcessingPacketRow[];
+  serviceSummary: Record<FinalProcessingServiceCode, number>;
+  valuePayableSummary: {
+    included: boolean;
+    serviceCodes: Array<"VPL" | "VPP" | "COD">;
+  };
+  codSummary: {
+    included: boolean;
+    codArticles: number;
+  };
+  readinessWarnings: string[];
+  manualProcessingNotice: string;
+  noLiveBooking: true;
+};
+
+type FinalProcessingExportSnapshot = {
+  bookingNo: string;
+  packetNo: string;
+  exportedAt: string;
+  exportedBy: string;
+  exportFormat: "json" | "csv";
+  note: string;
+  manualOnly: true;
+};
+
+type FinalProcessingReviewSnapshot = {
+  bookingNo: string;
+  packetNo: string;
+  reviewedAt: string;
+  reviewedBy: string;
+  reviewNote: string;
+  manualOnly: true;
+};
+
+type Phase3C4CurrentState =
+  | "NOT_STARTED"
+  | "READINESS_CHECKED"
+  | "PACKET_PREPARED"
+  | "PACKET_EXPORTED"
+  | "REVIEW_COMPLETED";
+
+type Phase3C4FinalProcessingState = {
+  currentState: Phase3C4CurrentState;
+  readiness: FinalProcessingReadinessSnapshot | null;
+  packet: FinalProcessingPacketSnapshot | null;
+  exportEvent: FinalProcessingExportSnapshot | null;
+  reviewEvent: FinalProcessingReviewSnapshot | null;
+  updatedAt: string | null;
+  customerNotice: string;
+};
+
 const PHASE_3C2_CUSTOMER_NOTICE = "This is warehouse receiving status only. Final article processing is separate.";
 const HUB_RECEIVING_AUDIT_ACTIONS = [
   "HUB_RECEIVING_MARKED",
@@ -205,12 +301,24 @@ const HUB_RECEIVING_AUDIT_ACTIONS = [
 const PHASE_3C3_CUSTOMER_NOTICE =
   "This is operational movement status only. Final Pakistan Post article processing is a separate future step.";
 
+const PHASE_3C4_CUSTOMER_NOTICE =
+  "Your articles are ready for final postal processing review. This is not final Pakistan Post booking confirmation.";
+
 const HUB_HANDOFF_AUDIT_ACTIONS = [
   "DRIVER_HANDOFF_RECORDED",
   "HUB_SORTING_DISPATCH_RECORDED",
   "INTER_FACILITY_TRANSFER_RECORDED",
   "READY_FOR_FINAL_POSTAL_PROCESSING",
 ] as const;
+
+const FINAL_PROCESSING_AUDIT_ACTIONS = [
+  "FINAL_PROCESSING_READINESS_CHECKED",
+  "FINAL_PROCESSING_PACKET_PREPARED",
+  "FINAL_PROCESSING_PACKET_EXPORTED",
+  "FINAL_PROCESSING_REVIEW_MARKED",
+] as const;
+
+const FINAL_PROCESSING_SERVICE_CODES: FinalProcessingServiceCode[] = ["RGL", "VPL", "VPP", "IRL", "PAR", "UMS", "COD"];
 
 function nowIsoCompact(date = new Date()) {
   const y = String(date.getUTCFullYear());
@@ -733,6 +841,283 @@ async function derivePhase3C3OperationalState(bookingId: string): Promise<Phase3
   };
 }
 
+function assertFinalProcessingGuardrails(flags: FinalProcessingGuardrailFlags) {
+  if (!flags.manualOnly) throw new Error("Final processing prep must remain manual-only");
+  if (!flags.noPakistanPostBookingApi) throw new Error("Pakistan Post booking API usage is not allowed");
+  if (!flags.noFinalBookingConfirmation) throw new Error("Final booking confirmation is not allowed in Phase 3C-4");
+  if (!flags.noLiveBooking) throw new Error("Live booking is not allowed in Phase 3C-4");
+  if (!flags.noLabelJobCreation) throw new Error("LabelJob creation is not allowed in Phase 3C-4");
+  if (!flags.noUnitConsumption) throw new Error("Unit consumption is not allowed in Phase 3C-4");
+  if (!flags.noAutoDispatch) throw new Error("Auto dispatch is not allowed in Phase 3C-4");
+}
+
+function normalizeFinalProcessingServiceCode(value: string): FinalProcessingServiceCode {
+  const normalized = String(value ?? "").trim().toUpperCase();
+  if (!FINAL_PROCESSING_SERVICE_CODES.includes(normalized as FinalProcessingServiceCode)) {
+    throw new Error(`Unsupported serviceCode for final processing: ${value}`);
+  }
+  return normalized as FinalProcessingServiceCode;
+}
+
+function buildServiceSummary(rows: FinalProcessingPacketRow[]) {
+  const base: Record<FinalProcessingServiceCode, number> = {
+    RGL: 0,
+    VPL: 0,
+    VPP: 0,
+    IRL: 0,
+    PAR: 0,
+    UMS: 0,
+    COD: 0,
+  };
+
+  for (const row of rows) {
+    base[row.serviceCode] += 1;
+  }
+
+  return base;
+}
+
+function buildReadinessWarnings(services: FinalProcessingServiceCode[]) {
+  const warnings: string[] = [];
+  const hasVpl = services.includes("VPL");
+  const hasVpp = services.includes("VPP");
+  const hasCod = services.includes("COD");
+
+  if (hasVpl || hasVpp) {
+    warnings.push("MOS readiness review is required for value payable rows (VPL/VPP) before manual final processing.");
+  }
+  if (hasCod) {
+    warnings.push("UMO readiness review is required for COD rows before manual final processing.");
+  }
+
+  return warnings;
+}
+
+function parseFinalProcessingReadinessSnapshot(value: unknown): FinalProcessingReadinessSnapshot | null {
+  const obj = toPlainObject(value);
+  if (!obj) return null;
+  const bookingNo = String(obj.bookingNo ?? "").trim();
+  if (!bookingNo) return null;
+
+  const servicesInput = Array.isArray(obj.servicesIncluded) ? obj.servicesIncluded : [];
+  let servicesIncluded: FinalProcessingServiceCode[] = [];
+  try {
+    servicesIncluded = servicesInput.map((item) => normalizeFinalProcessingServiceCode(String(item ?? "")));
+  } catch {
+    return null;
+  }
+
+  return {
+    bookingNo,
+    expectedArticleCount: toSafeInt(Number(obj.expectedArticleCount ?? 0)),
+    verifiedArticleCount: toSafeInt(Number(obj.verifiedArticleCount ?? 0)),
+    servicesIncluded,
+    valuePayableIncluded: Boolean(obj.valuePayableIncluded),
+    codIncluded: Boolean(obj.codIncluded),
+    moRequired: Boolean(obj.moRequired),
+    labelReadinessChecked: Boolean(obj.labelReadinessChecked),
+    moneyOrderReadinessChecked: Boolean(obj.moneyOrderReadinessChecked),
+    exceptions: Array.isArray(obj.exceptions) ? obj.exceptions.map((item) => String(item ?? "").trim()).filter(Boolean) : [],
+    note: String(obj.note ?? "").trim(),
+    checkedAt: String(obj.checkedAt ?? "").trim(),
+    checkedBy: String(obj.checkedBy ?? "").trim(),
+    manualOnly: true,
+    noPakistanPostBookingApi: true,
+    noFinalBookingConfirmation: true,
+  };
+}
+
+function parseFinalProcessingPacketSnapshot(value: unknown): FinalProcessingPacketSnapshot | null {
+  const obj = toPlainObject(value);
+  if (!obj) return null;
+  const bookingNo = String(obj.bookingNo ?? "").trim();
+  const packetNo = String(obj.packetNo ?? "").trim();
+  if (!bookingNo || !packetNo) return null;
+
+  const rowsRaw = Array.isArray(obj.articleRows) ? obj.articleRows : [];
+  const articleRows: FinalProcessingPacketRow[] = [];
+  for (const rowRaw of rowsRaw) {
+    const row = toPlainObject(rowRaw);
+    if (!row) continue;
+    try {
+      articleRows.push({
+        rowNo: toSafeInt(Number(row.rowNo ?? 0)),
+        serviceCode: normalizeFinalProcessingServiceCode(String(row.serviceCode ?? "")),
+        articleCategory: String(row.articleCategory ?? "").trim(),
+        receiverCity: normalizeOptionalString(row.receiverCity as string | null | undefined),
+        chargeableWeightGrams: row.chargeableWeightGrams == null ? null : toSafeInt(Number(row.chargeableWeightGrams ?? 0)),
+        totalOfficialPostalCharge: toSafeInt(Number(row.totalOfficialPostalCharge ?? 0)),
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  return {
+    bookingNo,
+    packetNo,
+    generatedAt: String(obj.generatedAt ?? "").trim(),
+    generatedBy: String(obj.generatedBy ?? "").trim(),
+    articleRows,
+    serviceSummary: buildServiceSummary(articleRows),
+    valuePayableSummary: {
+      included: articleRows.some((row) => row.serviceCode === "VPL" || row.serviceCode === "VPP" || row.serviceCode === "COD"),
+      serviceCodes: articleRows
+        .map((row) => row.serviceCode)
+        .filter((service): service is "VPL" | "VPP" | "COD" => service === "VPL" || service === "VPP" || service === "COD"),
+    },
+    codSummary: {
+      included: articleRows.some((row) => row.serviceCode === "COD"),
+      codArticles: articleRows.filter((row) => row.serviceCode === "COD").length,
+    },
+    readinessWarnings: Array.isArray(obj.readinessWarnings)
+      ? obj.readinessWarnings.map((item) => String(item ?? "").trim()).filter(Boolean)
+      : [],
+    manualProcessingNotice: String(obj.manualProcessingNotice ?? "").trim(),
+    noLiveBooking: true,
+  };
+}
+
+function parseFinalProcessingExportSnapshot(value: unknown): FinalProcessingExportSnapshot | null {
+  const obj = toPlainObject(value);
+  if (!obj) return null;
+  const packetNo = String(obj.packetNo ?? "").trim();
+  if (!packetNo) return null;
+
+  const exportFormatRaw = String(obj.exportFormat ?? "json").trim().toLowerCase();
+  const exportFormat: "json" | "csv" = exportFormatRaw === "csv" ? "csv" : "json";
+
+  return {
+    bookingNo: String(obj.bookingNo ?? "").trim(),
+    packetNo,
+    exportedAt: String(obj.exportedAt ?? "").trim(),
+    exportedBy: String(obj.exportedBy ?? "").trim(),
+    exportFormat,
+    note: String(obj.note ?? "").trim(),
+    manualOnly: true,
+  };
+}
+
+function parseFinalProcessingReviewSnapshot(value: unknown): FinalProcessingReviewSnapshot | null {
+  const obj = toPlainObject(value);
+  if (!obj) return null;
+  const packetNo = String(obj.packetNo ?? "").trim();
+  if (!packetNo) return null;
+
+  return {
+    bookingNo: String(obj.bookingNo ?? "").trim(),
+    packetNo,
+    reviewedAt: String(obj.reviewedAt ?? "").trim(),
+    reviewedBy: String(obj.reviewedBy ?? "").trim(),
+    reviewNote: String(obj.reviewNote ?? "").trim(),
+    manualOnly: true,
+  };
+}
+
+async function derivePhase3C4FinalProcessingState(bookingId: string): Promise<Phase3C4FinalProcessingState> {
+  const logs = await prisma.aggregatorBookingAuditLog.findMany({
+    where: {
+      bookingId,
+      action: { in: [...FINAL_PROCESSING_AUDIT_ACTIONS] },
+    },
+    orderBy: { createdAt: "asc" },
+    select: { action: true, newValueJson: true, createdAt: true },
+  });
+
+  let readiness: FinalProcessingReadinessSnapshot | null = null;
+  let packet: FinalProcessingPacketSnapshot | null = null;
+  let exportEvent: FinalProcessingExportSnapshot | null = null;
+  let reviewEvent: FinalProcessingReviewSnapshot | null = null;
+  let updatedAt: string | null = null;
+
+  for (const entry of logs) {
+    const stamp = entry.createdAt.toISOString();
+
+    if (entry.action === "FINAL_PROCESSING_READINESS_CHECKED") {
+      const parsed = parseFinalProcessingReadinessSnapshot(entry.newValueJson);
+      if (parsed) {
+        readiness = parsed;
+        updatedAt = stamp;
+      }
+      continue;
+    }
+
+    if (entry.action === "FINAL_PROCESSING_PACKET_PREPARED") {
+      const parsed = parseFinalProcessingPacketSnapshot(entry.newValueJson);
+      if (parsed) {
+        packet = parsed;
+        updatedAt = stamp;
+      }
+      continue;
+    }
+
+    if (entry.action === "FINAL_PROCESSING_PACKET_EXPORTED") {
+      const parsed = parseFinalProcessingExportSnapshot(entry.newValueJson);
+      if (parsed) {
+        exportEvent = parsed;
+        updatedAt = stamp;
+      }
+      continue;
+    }
+
+    if (entry.action === "FINAL_PROCESSING_REVIEW_MARKED") {
+      const parsed = parseFinalProcessingReviewSnapshot(entry.newValueJson);
+      if (parsed) {
+        reviewEvent = parsed;
+        updatedAt = stamp;
+      }
+    }
+  }
+
+  let currentState: Phase3C4CurrentState = "NOT_STARTED";
+  if (readiness) currentState = "READINESS_CHECKED";
+  if (packet) currentState = "PACKET_PREPARED";
+  if (exportEvent) currentState = "PACKET_EXPORTED";
+  if (reviewEvent) currentState = "REVIEW_COMPLETED";
+
+  return {
+    currentState,
+    readiness,
+    packet,
+    exportEvent,
+    reviewEvent,
+    updatedAt,
+    customerNotice: PHASE_3C4_CUSTOMER_NOTICE,
+  };
+}
+
+async function loadFinalProcessingContext(bookingId: string) {
+  const booking = await prisma.aggregatorBooking.findUnique({
+    where: { id: bookingId },
+    select: {
+      id: true,
+      bookingNo: true,
+      totalArticles: true,
+      items: {
+        orderBy: { rowNo: "asc" },
+        select: {
+          rowNo: true,
+          serviceCode: true,
+          articleCategory: true,
+          receiverCity: true,
+          chargeableWeightGrams: true,
+          totalOfficialPostalCharge: true,
+        },
+      },
+    },
+  });
+  if (!booking) throw new Error("Booking not found");
+
+  const phase3c3 = await derivePhase3C3OperationalState(booking.id);
+  if (phase3c3.currentState !== "READY_FOR_FINAL_POSTAL_PROCESSING") {
+    throw new Error("Phase 3C-3 must be READY_FOR_FINAL_POSTAL_PROCESSING before Phase 3C-4 actions");
+  }
+
+  const phase3c4 = await derivePhase3C4FinalProcessingState(booking.id);
+
+  return { booking, phase3c3, phase3c4 };
+}
+
 async function loadHandoffContext(bookingId: string) {
   const booking = await prisma.aggregatorBooking.findUnique({
     where: { id: bookingId },
@@ -767,10 +1152,11 @@ async function loadHandoffContext(bookingId: string) {
 }
 
 async function appendPlanningMetadata<T extends { id: string }>(booking: T) {
-  const [planning, phase3c2Operational, phase3c3Operational] = await Promise.all([
+  const [planning, phase3c2Operational, phase3c3Operational, phase3c4FinalProcessing] = await Promise.all([
     findLatestPlanningSelection(booking.id),
     derivePhase3C2OperationalState(booking.id),
     derivePhase3C3OperationalState(booking.id),
+    derivePhase3C4FinalProcessingState(booking.id),
   ]);
 
   return {
@@ -778,6 +1164,7 @@ async function appendPlanningMetadata<T extends { id: string }>(booking: T) {
     bulkPackPlanning: planning ?? null,
     phase3c2Operational,
     phase3c3Operational,
+    phase3c4FinalProcessing,
   };
 }
 
@@ -1887,6 +2274,253 @@ export async function adminMarkReadyForFinalPostal(input: {
     readyForPostal: snapshot,
     phase3c3Operational: await derivePhase3C3OperationalState(context.booking.id),
   };
+}
+
+function containsForbiddenFinalBookingWording(value: string | null | undefined) {
+  const text = String(value ?? "").trim();
+  if (!text) return false;
+  return /(final\s+booking\s+confirmation|pakistan\s+post\s+booking\s+confirmed|booking\s+confirmed)/i.test(text);
+}
+
+export async function adminCheckFinalProcessingReadiness(input: {
+  bookingId: string;
+  adminUserId: string;
+  expectedArticleCount: number;
+  verifiedArticleCount: number;
+  servicesIncluded: string[];
+  exceptions: string[];
+  note?: string;
+  manualFlags: FinalProcessingGuardrailFlags;
+  context?: RequestContext;
+}) {
+  assertFinalProcessingGuardrails(input.manualFlags);
+
+  if (containsForbiddenFinalBookingWording(input.note)) {
+    throw new Error("Final booking confirmation wording is not allowed in readiness notes");
+  }
+
+  const context = await loadFinalProcessingContext(input.bookingId);
+  const servicesIncluded = input.servicesIncluded.map((item) => normalizeFinalProcessingServiceCode(item));
+  const valuePayableIncluded = servicesIncluded.some((service) => service === "VPL" || service === "VPP" || service === "COD");
+  const codIncluded = servicesIncluded.includes("COD");
+  const moRequired = valuePayableIncluded;
+
+  const snapshot: FinalProcessingReadinessSnapshot = {
+    bookingNo: context.booking.bookingNo,
+    expectedArticleCount: toSafeInt(input.expectedArticleCount || context.booking.totalArticles),
+    verifiedArticleCount: toSafeInt(input.verifiedArticleCount),
+    servicesIncluded,
+    valuePayableIncluded,
+    codIncluded,
+    moRequired,
+    labelReadinessChecked: true,
+    moneyOrderReadinessChecked: true,
+    exceptions: (input.exceptions ?? []).map((item) => String(item ?? "").trim()).filter(Boolean),
+    note: String(input.note ?? "Manual readiness reviewed for final postal processing packet preparation.").trim(),
+    checkedAt: new Date().toISOString(),
+    checkedBy: input.adminUserId,
+    manualOnly: true,
+    noPakistanPostBookingApi: true,
+    noFinalBookingConfirmation: true,
+  };
+
+  await writeAuditLog({
+    bookingId: context.booking.id,
+    action: "FINAL_PROCESSING_READINESS_CHECKED",
+    actor: { actorType: "ADMIN", actorUserId: input.adminUserId },
+    targetField: "final_processing_readiness",
+    oldValueJson: undefined,
+    newValueJson: snapshot as unknown as JsonValue,
+    context: input.context,
+  });
+
+  return {
+    bookingId: context.booking.id,
+    readiness: snapshot,
+    phase3c4FinalProcessing: await derivePhase3C4FinalProcessingState(context.booking.id),
+  };
+}
+
+export async function adminPrepareFinalProcessingPacket(input: {
+  bookingId: string;
+  adminUserId: string;
+  packetNo?: string;
+  articleRows: Array<{
+    rowNo: number;
+    serviceCode: string;
+    articleCategory: string;
+    receiverCity?: string | null;
+    chargeableWeightGrams?: number | null;
+    totalOfficialPostalCharge?: number;
+  }>;
+  readinessWarnings: string[];
+  note?: string;
+  manualFlags: FinalProcessingGuardrailFlags;
+  context?: RequestContext;
+}) {
+  assertFinalProcessingGuardrails(input.manualFlags);
+
+  if (containsForbiddenFinalBookingWording(input.note)) {
+    throw new Error("Final booking confirmation wording is not allowed in packet notes");
+  }
+
+  const context = await loadFinalProcessingContext(input.bookingId);
+  if (!context.phase3c4.readiness) {
+    throw new Error("Final processing readiness must be checked before packet preparation");
+  }
+
+  const packetNo = normalizeOptionalString(input.packetNo) ?? `FPP-${context.booking.bookingNo}-${nowIsoCompact()}`;
+
+  const rows: FinalProcessingPacketRow[] = input.articleRows.map((row) => ({
+    rowNo: toSafeInt(row.rowNo),
+    serviceCode: normalizeFinalProcessingServiceCode(row.serviceCode),
+    articleCategory: String(row.articleCategory ?? "").trim(),
+    receiverCity: normalizeOptionalString(row.receiverCity),
+    chargeableWeightGrams: row.chargeableWeightGrams == null ? null : toSafeInt(row.chargeableWeightGrams),
+    totalOfficialPostalCharge: toSafeInt(row.totalOfficialPostalCharge ?? 0),
+  }));
+
+  const serviceSummary = buildServiceSummary(rows);
+  const valuePayableServiceCodes = rows
+    .map((row) => row.serviceCode)
+    .filter((service): service is "VPL" | "VPP" | "COD" => service === "VPL" || service === "VPP" || service === "COD");
+
+  const derivedWarnings = buildReadinessWarnings(rows.map((row) => row.serviceCode));
+  const readinessWarnings = [...new Set([...(input.readinessWarnings ?? []).map((item) => String(item ?? "").trim()).filter(Boolean), ...derivedWarnings])];
+
+  const snapshot: FinalProcessingPacketSnapshot = {
+    bookingNo: context.booking.bookingNo,
+    packetNo,
+    generatedAt: new Date().toISOString(),
+    generatedBy: input.adminUserId,
+    articleRows: rows,
+    serviceSummary,
+    valuePayableSummary: {
+      included: valuePayableServiceCodes.length > 0,
+      serviceCodes: [...new Set(valuePayableServiceCodes)],
+    },
+    codSummary: {
+      included: rows.some((row) => row.serviceCode === "COD"),
+      codArticles: rows.filter((row) => row.serviceCode === "COD").length,
+    },
+    readinessWarnings,
+    manualProcessingNotice:
+      "This is manual final postal processing preparation only. It does not create Pakistan Post booking or final dispatch.",
+    noLiveBooking: true,
+  };
+
+  await writeAuditLog({
+    bookingId: context.booking.id,
+    action: "FINAL_PROCESSING_PACKET_PREPARED",
+    actor: { actorType: "ADMIN", actorUserId: input.adminUserId },
+    targetField: "final_processing_packet",
+    oldValueJson: undefined,
+    newValueJson: snapshot as unknown as JsonValue,
+    context: input.context,
+  });
+
+  return {
+    bookingId: context.booking.id,
+    packet: snapshot,
+    phase3c4FinalProcessing: await derivePhase3C4FinalProcessingState(context.booking.id),
+  };
+}
+
+export async function adminMarkFinalProcessingPacketExported(input: {
+  bookingId: string;
+  adminUserId: string;
+  packetNo: string;
+  exportFormat: "json" | "csv";
+  note?: string;
+  manualFlags: FinalProcessingGuardrailFlags;
+  context?: RequestContext;
+}) {
+  assertFinalProcessingGuardrails(input.manualFlags);
+
+  if (containsForbiddenFinalBookingWording(input.note)) {
+    throw new Error("Final booking confirmation wording is not allowed in export notes");
+  }
+
+  const context = await loadFinalProcessingContext(input.bookingId);
+  if (!context.phase3c4.packet) {
+    throw new Error("Packet must be prepared before marking it exported");
+  }
+
+  const snapshot: FinalProcessingExportSnapshot = {
+    bookingNo: context.booking.bookingNo,
+    packetNo: String(input.packetNo ?? "").trim(),
+    exportedAt: new Date().toISOString(),
+    exportedBy: input.adminUserId,
+    exportFormat: input.exportFormat === "csv" ? "csv" : "json",
+    note: String(input.note ?? "Manual packet export marked for operator handling.").trim(),
+    manualOnly: true,
+  };
+
+  await writeAuditLog({
+    bookingId: context.booking.id,
+    action: "FINAL_PROCESSING_PACKET_EXPORTED",
+    actor: { actorType: "ADMIN", actorUserId: input.adminUserId },
+    targetField: "final_processing_packet_export",
+    oldValueJson: undefined,
+    newValueJson: snapshot as unknown as JsonValue,
+    context: input.context,
+  });
+
+  return {
+    bookingId: context.booking.id,
+    exportEvent: snapshot,
+    phase3c4FinalProcessing: await derivePhase3C4FinalProcessingState(context.booking.id),
+  };
+}
+
+export async function adminMarkFinalProcessingReviewed(input: {
+  bookingId: string;
+  adminUserId: string;
+  packetNo: string;
+  reviewNote: string;
+  manualFlags: FinalProcessingGuardrailFlags;
+  context?: RequestContext;
+}) {
+  assertFinalProcessingGuardrails(input.manualFlags);
+
+  if (containsForbiddenFinalBookingWording(input.reviewNote)) {
+    throw new Error("Final booking confirmation wording is not allowed in review note");
+  }
+
+  const context = await loadFinalProcessingContext(input.bookingId);
+  if (!context.phase3c4.packet) {
+    throw new Error("Packet must be prepared before review completion");
+  }
+
+  const snapshot: FinalProcessingReviewSnapshot = {
+    bookingNo: context.booking.bookingNo,
+    packetNo: String(input.packetNo ?? "").trim(),
+    reviewedAt: new Date().toISOString(),
+    reviewedBy: input.adminUserId,
+    reviewNote: String(input.reviewNote ?? "").trim(),
+    manualOnly: true,
+  };
+
+  await writeAuditLog({
+    bookingId: context.booking.id,
+    action: "FINAL_PROCESSING_REVIEW_MARKED",
+    actor: { actorType: "ADMIN", actorUserId: input.adminUserId },
+    targetField: "final_processing_review",
+    oldValueJson: undefined,
+    newValueJson: snapshot as unknown as JsonValue,
+    context: input.context,
+  });
+
+  return {
+    bookingId: context.booking.id,
+    reviewEvent: snapshot,
+    phase3c4FinalProcessing: await derivePhase3C4FinalProcessingState(context.booking.id),
+  };
+}
+
+export async function adminGetFinalProcessingPacket(input: { bookingId: string }) {
+  const context = await loadFinalProcessingContext(input.bookingId);
+  return context.phase3c4.packet;
 }
 
 export async function updateBookingDraft(input: {

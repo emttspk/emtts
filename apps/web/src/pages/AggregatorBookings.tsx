@@ -45,6 +45,15 @@ function getPhase3C3Label(currentState?: string | null) {
   return currentState;
 }
 
+function getPhase3C4Label(currentState?: string | null) {
+  if (!currentState || currentState === "NOT_STARTED") return null;
+  if (currentState === "READINESS_CHECKED") return "Final processing readiness checked";
+  if (currentState === "PACKET_PREPARED") return "Manual processing packet prepared";
+  if (currentState === "PACKET_EXPORTED") return "Manual processing packet exported";
+  if (currentState === "REVIEW_COMPLETED") return "Final processing review completed";
+  return currentState;
+}
+
 export default function AggregatorBookings() {
   const [bookings, setBookings] = useState<AggregatorBooking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,6 +126,10 @@ export default function AggregatorBookings() {
                       {getPhase3C3Label(booking.phase3c3Operational?.currentState) ? (
                         <div className="mt-1 text-[11px] text-sky-600">{getPhase3C3Label(booking.phase3c3Operational?.currentState)}</div>
                       ) : null}
+                      {getPhase3C4Label(booking.phase3c4FinalProcessing?.currentState) ? (
+                        <div className="mt-1 text-[11px] text-emerald-700">{getPhase3C4Label(booking.phase3c4FinalProcessing?.currentState)}</div>
+                      ) : null}
+                      <div className="text-[11px] text-emerald-700">Your articles are ready for final postal processing review. This is not final Pakistan Post booking confirmation.</div>
                     </td>
                     <td className="px-3 py-2 text-slate-700">{booking.senderName}</td>
                     <td className="px-3 py-2 text-slate-700">{booking.intakeMethod}</td>

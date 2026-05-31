@@ -27,6 +27,10 @@ import {
 } from "../../lib/aggregatorBookings";
 import {
   adminMarkAggregatorReadyForPostal,
+  adminMarkAggregatorFinalProcessingPacketExported,
+  adminMarkAggregatorFinalProcessingReviewed,
+  adminCheckAggregatorFinalProcessingReadiness,
+  adminPrepareAggregatorFinalProcessingPacket,
   adminRecordAggregatorDriverHandoff,
   adminRecordAggregatorInterFacilityTransfer,
   adminRecordAggregatorSortingDispatch,
@@ -86,6 +90,14 @@ export default function AdminAggregatorBookings() {
   const [transferNote, setTransferNote] = useState("");
   const [readyArticleCount, setReadyArticleCount] = useState("0");
   const [readyNote, setReadyNote] = useState("");
+  const [fpExpectedArticleCount, setFpExpectedArticleCount] = useState("0");
+  const [fpVerifiedArticleCount, setFpVerifiedArticleCount] = useState("0");
+  const [fpExceptions, setFpExceptions] = useState("");
+  const [fpReadinessNote, setFpReadinessNote] = useState("Manual final processing readiness checked.");
+  const [fpPacketNo, setFpPacketNo] = useState("");
+  const [fpWarnings, setFpWarnings] = useState("");
+  const [fpExportNote, setFpExportNote] = useState("Manual packet export completed for operations handoff.");
+  const [fpReviewNote, setFpReviewNote] = useState("Manual final postal processing review completed.");
 
   async function load() {
     const list = await listAdminAggregatorBookings({ page: 1, pageSize: 50, status: statusFilter || undefined });
@@ -132,6 +144,12 @@ export default function AdminAggregatorBookings() {
       } else {
         setHubReceivedArticleCount(String(detail.booking.totalArticles ?? 0));
         setHubBundleWeightGrams("");
+      }
+      const totalArticles = Number(detail.booking.totalArticles ?? 0);
+      setFpExpectedArticleCount(String(totalArticles));
+      setFpVerifiedArticleCount(String(totalArticles));
+      if (detail.booking.phase3c4FinalProcessing?.packet?.packetNo) {
+        setFpPacketNo(detail.booking.phase3c4FinalProcessing.packet.packetNo);
       }
       setLabelPreview(null);
       setManifestPreview(null);
@@ -225,10 +243,10 @@ export default function AdminAggregatorBookings() {
     selected?.status === "PICKUP_PENDING_FUTURE";
 
   const phase3c2 = selected?.phase3c2Operational;
+  const phase3c3 = selected?.phase3c3Operational;
+  const phase3c4 = selected?.phase3c4FinalProcessing;
 
-    const phase3c3 = selected?.phase3c3Operational;
-
-    async function recordDriverHandoff() {
+  async function recordDriverHandoff() {
       if (!selected) return;
       if (!handoffFromParty.trim() || !handoffToParty.trim() || !handoffNote.trim()) {
         setError("From party, to party, and note are required for driver handoff.");
@@ -253,9 +271,9 @@ export default function AdminAggregatorBookings() {
       } finally {
         setBusy(false);
       }
-    }
+  }
 
-    async function recordSortingDispatch() {
+  async function recordSortingDispatch() {
       if (!selected) return;
       if (!sortingFromWarehouse.trim() || !sortingToFacility.trim() || !sortingNote.trim()) {
         setError("From warehouse, to facility, and note are required for sorting dispatch.");
@@ -280,9 +298,9 @@ export default function AdminAggregatorBookings() {
       } finally {
         setBusy(false);
       }
-    }
+  }
 
-    async function recordInterFacilityTransfer() {
+  async function recordInterFacilityTransfer() {
       if (!selected) return;
       if (!transferFromFacility.trim() || !transferToFacility.trim() || !transferNote.trim()) {
         setError("From facility, to facility, and note are required for inter-facility transfer.");
@@ -306,9 +324,9 @@ export default function AdminAggregatorBookings() {
       } finally {
         setBusy(false);
       }
-    }
+  }
 
-    async function markReadyForPostal() {
+  async function markReadyForPostal() {
       if (!selected) return;
       if (!readyNote.trim() || readyNote.trim().length < 10) {
         setError("Ready-for-postal note must be at least 10 characters.");
@@ -328,7 +346,132 @@ export default function AdminAggregatorBookings() {
       } finally {
         setBusy(false);
       }
+  }
+
+  async function checkFinalProcessingReadiness() {
+    if (!selected) return;
+    if (phase3c3?.currentState !== "READY_FOR_FINAL_POSTAL_PROCESSING") {
+      setError("Phase 3C-3 must be READY_FOR_FINAL_POSTAL_PROCESSING before readiness check.");
+      return;
     }
+
+    const servicesIncluded = [...new Set((selected.items ?? []).map((item) => String(item.serviceCode ?? "").trim().toUpperCase()))]
+      .filter(Boolean) as Array<"RGL" | "VPL" | "VPP" | "IRL" | "PAR" | "UMS" | "COD">;
+
+    setBusy(true);
+    setError(null);
+    try {
+      await adminCheckAggregatorFinalProcessingReadiness(selected.id, {
+        expectedArticleCount: Number(fpExpectedArticleCount || 0),
+        verifiedArticleCount: Number(fpVerifiedArticleCount || 0),
+        servicesIncluded,
+        exceptions: fpExceptions
+          .split(/\r?\n|,/)
+          .map((item) => item.trim())
+          .filter(Boolean),
+        note: fpReadinessNote.trim() || undefined,
+      });
+      const detail = await getAdminAggregatorBooking(selected.id);
+      setSelected(detail.booking);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to check final processing readiness");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function prepareFinalProcessingPacket() {
+    if (!selected) return;
+    const rows = (selected.items ?? []).map((item) => ({
+      rowNo: Number(item.rowNo || 0),
+      serviceCode: String(item.serviceCode ?? "").trim().toUpperCase() as "RGL" | "VPL" | "VPP" | "IRL" | "PAR" | "UMS" | "COD",
+      articleCategory: String(item.articleCategory ?? "").trim() || "UNSPECIFIED",
+      receiverCity: item.receiverCity ?? null,
+      chargeableWeightGrams: item.chargeableWeightGrams ?? null,
+      totalOfficialPostalCharge: Number(item.totalOfficialPostalCharge ?? 0),
+    }));
+
+    if (rows.length === 0) {
+      setError("No article rows available to prepare final processing packet.");
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      await adminPrepareAggregatorFinalProcessingPacket(selected.id, {
+        packetNo: fpPacketNo.trim() || undefined,
+        articleRows: rows,
+        readinessWarnings: fpWarnings
+          .split(/\r?\n|,/)
+          .map((item) => item.trim())
+          .filter(Boolean),
+        note: fpReadinessNote.trim() || undefined,
+      });
+      const detail = await getAdminAggregatorBooking(selected.id);
+      setSelected(detail.booking);
+      if (detail.booking.phase3c4FinalProcessing?.packet?.packetNo) {
+        setFpPacketNo(detail.booking.phase3c4FinalProcessing.packet.packetNo);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to prepare final processing packet");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function markFinalPacketExported() {
+    if (!selected) return;
+    const packetNo = fpPacketNo.trim() || selected.phase3c4FinalProcessing?.packet?.packetNo;
+    if (!packetNo) {
+      setError("Packet number is required before marking export.");
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      await adminMarkAggregatorFinalProcessingPacketExported(selected.id, {
+        packetNo,
+        exportFormat: "json",
+        note: fpExportNote.trim() || undefined,
+      });
+      const detail = await getAdminAggregatorBooking(selected.id);
+      setSelected(detail.booking);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to mark packet export");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function markFinalReviewCompleted() {
+    if (!selected) return;
+    const packetNo = fpPacketNo.trim() || selected.phase3c4FinalProcessing?.packet?.packetNo;
+    if (!packetNo) {
+      setError("Packet number is required before marking review.");
+      return;
+    }
+    if (fpReviewNote.trim().length < 10) {
+      setError("Review note must be at least 10 characters.");
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      await adminMarkAggregatorFinalProcessingReviewed(selected.id, {
+        packetNo,
+        reviewNote: fpReviewNote.trim(),
+      });
+      const detail = await getAdminAggregatorBooking(selected.id);
+      setSelected(detail.booking);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to mark final processing review complete");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function markHubReceived() {
     if (!selected) return;
@@ -1086,6 +1229,92 @@ export default function AdminAggregatorBookings() {
                     </div>
                   </>
                 )}
+              </Card>
+
+              <Card className="border-emerald-200 bg-white p-5 shadow-sm">
+                <h3 className="text-base font-semibold text-slate-900">Final Postal Processing Handoff Readiness (Phase 3C-4)</h3>
+                <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+                  This is manual final postal processing preparation only. It does not create Pakistan Post booking or final dispatch.
+                </div>
+                <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                  <div>Current State: {phase3c4?.currentState ?? "NOT_STARTED"}</div>
+                  <div>{phase3c4?.customerNotice ?? "Your articles are ready for final postal processing review. This is not final Pakistan Post booking confirmation."}</div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <label className="text-xs text-slate-700">
+                    Expected Article Count
+                    <input type="number" className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs" value={fpExpectedArticleCount} onChange={(e) => setFpExpectedArticleCount(e.target.value)} />
+                  </label>
+                  <label className="text-xs text-slate-700">
+                    Verified Article Count
+                    <input type="number" className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs" value={fpVerifiedArticleCount} onChange={(e) => setFpVerifiedArticleCount(e.target.value)} />
+                  </label>
+                </div>
+
+                <label className="mt-2 block text-xs text-slate-700">
+                  Exceptions (comma or new line)
+                  <textarea className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs" rows={2} value={fpExceptions} onChange={(e) => setFpExceptions(e.target.value)} />
+                </label>
+
+                <label className="mt-2 block text-xs text-slate-700">
+                  Readiness Note
+                  <textarea className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs" rows={2} value={fpReadinessNote} onChange={(e) => setFpReadinessNote(e.target.value)} />
+                </label>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button type="button" disabled={busy} onClick={checkFinalProcessingReadiness} className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-60">
+                    Check Readiness
+                  </button>
+                  <button type="button" disabled={busy} onClick={prepareFinalProcessingPacket} className="rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-60">
+                    Prepare Manual Processing Packet
+                  </button>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <label className="text-xs text-slate-700">
+                    Packet No
+                    <input className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs" value={fpPacketNo} onChange={(e) => setFpPacketNo(e.target.value)} placeholder="Optional packet override" />
+                  </label>
+                  <label className="text-xs text-slate-700">
+                    Readiness Warnings (comma or new line)
+                    <textarea className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs" rows={2} value={fpWarnings} onChange={(e) => setFpWarnings(e.target.value)} />
+                  </label>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <label className="text-xs text-slate-700">
+                    Export Note
+                    <textarea className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs" rows={2} value={fpExportNote} onChange={(e) => setFpExportNote(e.target.value)} />
+                  </label>
+                  <label className="text-xs text-slate-700">
+                    Review Note
+                    <textarea className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs" rows={2} value={fpReviewNote} onChange={(e) => setFpReviewNote(e.target.value)} />
+                  </label>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button type="button" disabled={busy} onClick={markFinalPacketExported} className="rounded-md bg-cyan-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-cyan-600 disabled:opacity-60">
+                    Mark Packet Exported
+                  </button>
+                  <button type="button" disabled={busy} onClick={markFinalReviewCompleted} className="rounded-md bg-indigo-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-600 disabled:opacity-60">
+                    Mark Review Completed
+                  </button>
+                </div>
+
+                {phase3c4?.packet ? (
+                  <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
+                    <div className="font-semibold">Prepared Packet</div>
+                    <div>Packet No: {phase3c4.packet.packetNo}</div>
+                    <div>Rows: {phase3c4.packet.articleRows.length}</div>
+                    <div>Service Summary: {Object.entries(phase3c4.packet.serviceSummary).map(([key, value]) => `${key}:${value}`).join(", ")}</div>
+                    <div>Value Payable Included: {phase3c4.packet.valuePayableSummary.included ? "Yes" : "No"}</div>
+                    <div>COD Included: {phase3c4.packet.codSummary.included ? "Yes" : "No"}</div>
+                    {phase3c4.packet.readinessWarnings.length > 0 ? (
+                      <div className="mt-1">Warnings: {phase3c4.packet.readinessWarnings.join(" | ")}</div>
+                    ) : null}
+                  </div>
+                ) : null}
               </Card>
 
             <Card className="border-slate-200 bg-white p-5 shadow-sm">

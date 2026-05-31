@@ -21,6 +21,201 @@ export type AggregatorWarehouseOption = "EPOST_LAHORE_WAREHOUSE" | "EPOST_SAHIWA
 
 export type AggregatorIntakeCarrierOption = "CUSTOMER_SELF_DROP" | "PAKISTAN_POST_BULK_PACK" | "LEOPARDS_BULK_PACK";
 
+export type FinalProcessingServiceCode = "RGL" | "VPL" | "VPP" | "IRL" | "PAR" | "UMS" | "COD";
+
+export type AggregatorBookingTimelineEvent = {
+  id: string;
+  fromStatus: string | null;
+  toStatus: string;
+  actorType: string;
+  actorUserId: string;
+  reasonCode: string | null;
+  note: string | null;
+  createdAt: string;
+};
+
+export type Phase3C2OperationalState = {
+  currentState: "NOT_STARTED" | "HUB_RECEIVED" | "MANIFEST_VERIFIED" | "MISMATCH_RECORDED" | "EXCEPTION_RESOLVED";
+  hubReceiving: {
+    bookingNo: string;
+    warehouse: AggregatorWarehouseOption;
+    receivedAt: string;
+    receivedBy: string;
+    receivedArticleCount: number;
+    expectedArticleCount: number;
+    receivedBundleWeightGrams: number | null;
+    conditionNote: string;
+    manualReceivingOnly: true;
+    noFinalDispatch: true;
+  } | null;
+  manifestVerification: {
+    bookingNo: string;
+    expectedArticleCount: number;
+    receivedArticleCount: number;
+    matched: true;
+    verifiedAt: string;
+    verifiedBy: string;
+    manualOnly: true;
+    noFinalDispatch: true;
+  } | null;
+  mismatch: {
+    mismatchDetected: true;
+    expectedArticleCount: number;
+    receivedArticleCount: number;
+    mismatchReason: string;
+    adminNote: string;
+    holdForManualResolution: true;
+    recordedAt: string;
+    recordedBy: string;
+    manualOnly: true;
+  } | null;
+  latestExceptionNote: {
+    note: string;
+    addedAt: string;
+    addedBy: string;
+    manualOnly: true;
+  } | null;
+  resolution: {
+    resolvedBy: string;
+    resolvedAt: string;
+    resolutionType: string;
+    resolutionNote: string;
+    manualOnly: true;
+  } | null;
+  holdForManualResolution: boolean;
+  updatedAt: string | null;
+  customerNotice: string;
+};
+
+export type Phase3C3OperationalState = {
+  currentState:
+    | "NOT_STARTED"
+    | "DRIVER_HANDOFF_RECORDED"
+    | "HUB_SORTING_DISPATCHED"
+    | "INTER_FACILITY_TRANSFER_RECORDED"
+    | "READY_FOR_FINAL_POSTAL_PROCESSING";
+  driverHandoff: {
+    bookingNo: string;
+    handoffType: string;
+    fromParty: string;
+    toParty: string;
+    handoffAt: string;
+    receivedBy: string;
+    bundleCondition: string;
+    articleCount: number;
+    note: string;
+    manualOnly: true;
+    noLiveCarrierApi: true;
+    noFinalDispatch: true;
+  } | null;
+  sortingDispatch: {
+    bookingNo: string;
+    fromWarehouse: string;
+    toSortingFacility: string;
+    dispatchedAt: string;
+    dispatchedBy: string;
+    expectedArticleCount: number;
+    bundleWeightGrams: number | null;
+    transportMode: string;
+    note: string;
+    manualOnly: true;
+    noPakistanPostBookingApi: true;
+    noFinalBookingConfirmation: true;
+  } | null;
+  latestTransfer: {
+    bookingNo: string;
+    fromFacility: string;
+    toFacility: string;
+    transferAt: string;
+    transferBy: string;
+    transferReference: string | null;
+    articleCount: number;
+    note: string;
+    manualOnly: true;
+    noLiveCarrierApi: true;
+    noFinalDispatch: true;
+  } | null;
+  readyForPostal: {
+    bookingNo: string;
+    readyAt: string;
+    markedBy: string;
+    expectedArticleCount: number;
+    note: string;
+    manualOnly: true;
+    noPakistanPostBookingApi: true;
+    finalBookingNotCreated: true;
+  } | null;
+  updatedAt: string | null;
+  customerNotice: string;
+};
+
+export type Phase3C4FinalProcessingState = {
+  currentState: "NOT_STARTED" | "READINESS_CHECKED" | "PACKET_PREPARED" | "PACKET_EXPORTED" | "REVIEW_COMPLETED";
+  readiness: {
+    bookingNo: string;
+    expectedArticleCount: number;
+    verifiedArticleCount: number;
+    servicesIncluded: FinalProcessingServiceCode[];
+    valuePayableIncluded: boolean;
+    codIncluded: boolean;
+    moRequired: boolean;
+    labelReadinessChecked: boolean;
+    moneyOrderReadinessChecked: boolean;
+    exceptions: string[];
+    note: string;
+    checkedAt: string;
+    checkedBy: string;
+    manualOnly: true;
+    noPakistanPostBookingApi: true;
+    noFinalBookingConfirmation: true;
+  } | null;
+  packet: {
+    bookingNo: string;
+    packetNo: string;
+    generatedAt: string;
+    generatedBy: string;
+    articleRows: Array<{
+      rowNo: number;
+      serviceCode: FinalProcessingServiceCode;
+      articleCategory: string;
+      receiverCity: string | null;
+      chargeableWeightGrams: number | null;
+      totalOfficialPostalCharge: number;
+    }>;
+    serviceSummary: Record<FinalProcessingServiceCode, number>;
+    valuePayableSummary: {
+      included: boolean;
+      serviceCodes: Array<"VPL" | "VPP" | "COD">;
+    };
+    codSummary: {
+      included: boolean;
+      codArticles: number;
+    };
+    readinessWarnings: string[];
+    manualProcessingNotice: string;
+    noLiveBooking: true;
+  } | null;
+  exportEvent: {
+    bookingNo: string;
+    packetNo: string;
+    exportedAt: string;
+    exportedBy: string;
+    exportFormat: "json" | "csv";
+    note: string;
+    manualOnly: true;
+  } | null;
+  reviewEvent: {
+    bookingNo: string;
+    packetNo: string;
+    reviewedAt: string;
+    reviewedBy: string;
+    reviewNote: string;
+    manualOnly: true;
+  } | null;
+  updatedAt: string | null;
+  customerNotice: string;
+};
+
 export type AggregatorBookingItem = {
   id: string;
   rowNo: number;
@@ -91,119 +286,9 @@ export type AggregatorBooking = {
     warehouseAddress: string;
     updatedAt: string;
   } | null;
-  phase3c2Operational?: {
-    currentState: "NOT_STARTED" | "HUB_RECEIVED" | "MANIFEST_VERIFIED" | "MISMATCH_RECORDED" | "EXCEPTION_RESOLVED";
-    hubReceiving: {
-      bookingNo: string;
-      warehouse: AggregatorWarehouseOption;
-      receivedAt: string;
-      receivedBy: string;
-      receivedArticleCount: number;
-      expectedArticleCount: number;
-      receivedBundleWeightGrams: number | null;
-      conditionNote: string;
-      manualReceivingOnly: true;
-      noFinalDispatch: true;
-    } | null;
-    manifestVerification: {
-      bookingNo: string;
-      expectedArticleCount: number;
-      receivedArticleCount: number;
-      matched: true;
-      verifiedAt: string;
-      verifiedBy: string;
-      manualOnly: true;
-      noFinalDispatch: true;
-    } | null;
-    mismatch: {
-      mismatchDetected: true;
-      expectedArticleCount: number;
-      receivedArticleCount: number;
-      mismatchReason: string;
-      adminNote: string;
-      holdForManualResolution: true;
-      recordedAt: string;
-      recordedBy: string;
-      manualOnly: true;
-    } | null;
-    latestExceptionNote: {
-      note: string;
-      addedAt: string;
-      addedBy: string;
-      manualOnly: true;
-    } | null;
-    resolution: {
-      resolvedBy: string;
-      resolvedAt: string;
-      resolutionType: string;
-      resolutionNote: string;
-      manualOnly: true;
-    } | null;
-    holdForManualResolution: boolean;
-    updatedAt: string | null;
-    customerNotice: string;
-  } | null;
+  phase3c2Operational?: Phase3C2OperationalState | null;
   phase3c3Operational?: Phase3C3OperationalState | null;
-};
-
-export type Phase3C3OperationalState = {
-  currentState:
-    | "NOT_STARTED"
-    | "DRIVER_HANDOFF_RECORDED"
-    | "HUB_SORTING_DISPATCHED"
-    | "INTER_FACILITY_TRANSFER_RECORDED"
-    | "READY_FOR_FINAL_POSTAL_PROCESSING";
-  driverHandoff: {
-    bookingNo: string;
-    handoffType: string;
-    fromParty: string;
-    toParty: string;
-    handoffAt: string;
-    receivedBy: string;
-    bundleCondition: string;
-    articleCount: number;
-    note: string;
-    manualOnly: true;
-    noLiveCarrierApi: true;
-    noFinalDispatch: true;
-  } | null;
-  sortingDispatch: {
-    bookingNo: string;
-    fromWarehouse: string;
-    toSortingFacility: string;
-    dispatchedAt: string;
-    dispatchedBy: string;
-    expectedArticleCount: number;
-    bundleWeightGrams: number | null;
-    transportMode: string;
-    note: string;
-    manualOnly: true;
-    noPakistanPostBookingApi: true;
-    noFinalBookingConfirmation: true;
-  } | null;
-  latestTransfer: {
-    bookingNo: string;
-    fromFacility: string;
-    toFacility: string;
-    transferAt: string;
-    articleCount: number;
-    transferReference: string | null;
-    note: string;
-    manualOnly: true;
-    noFinalDispatch: true;
-  } | null;
-  readyForPostal: {
-    bookingNo: string;
-    readyAt: string;
-    markedBy: string;
-    expectedArticleCount: number;
-    note: string;
-    manualOnly: true;
-    noPakistanPostBookingApi: true;
-    finalBookingNotCreated: true;
-  } | null;
-  updatedAt: string | null;
-  customerNotice: string;
+  phase3c4FinalProcessing?: Phase3C4FinalProcessingState | null;
 };
 
 export type AggregatorBulkPackLabelPreview = {
@@ -244,46 +329,6 @@ export type AggregatorManifestPreview = {
   manualVerificationNotice: string;
 };
 
-const manualPlanningFlags = {
-  manualPlanningOnly: true,
-  noLiveCarrierApi: true,
-  noPakistanPostBookingApi: true,
-  noPickupExecution: true,
-  noDispatchExecution: true,
-  noFinalBookingConfirmation: true,
-} as const;
-
-const manualHubReceivingFlags = {
-  manualReceivingOnly: true,
-  noFinalDispatch: true,
-  noLiveCarrierApi: true,
-  noPakistanPostBookingApi: true,
-  noPickupExecution: true,
-  noDispatchExecution: true,
-  noFinalBookingConfirmation: true,
-} as const;
-
-const manualHandoffFlags = {
-  manualOnly: true as const,
-  noLiveCarrierApi: true as const,
-  noFinalDispatch: true as const,
-  noPakistanPostBookingApi: true as const,
-  noPickupExecution: true as const,
-  noDispatchExecution: true as const,
-  noFinalBookingConfirmation: true as const,
-} as const;
-
-export type AggregatorBookingTimelineEvent = {
-  id: string;
-  fromStatus: string | null;
-  toStatus: string;
-  actorType: string;
-  actorUserId: string;
-  reasonCode: string | null;
-  note: string | null;
-  createdAt: string;
-};
-
 export type BookingSenderPayload = {
   senderName: string;
   senderPhone: string;
@@ -311,6 +356,45 @@ export type BookingRequestFlags = {
 };
 
 export type BookingOptionSelection = "DROP_AT_COLLECTION_POINT" | "PICKUP_TO_HUB_PLANNING" | "DIRECT_COURIER_OR_SELF_DROP_ADVISORY";
+
+const manualPlanningFlags = {
+  manualPlanningOnly: true,
+  noLiveCarrierApi: true,
+  noPakistanPostBookingApi: true,
+  noPickupExecution: true,
+  noDispatchExecution: true,
+  noFinalBookingConfirmation: true,
+} as const;
+
+const manualHubReceivingFlags = {
+  manualReceivingOnly: true,
+  noFinalDispatch: true,
+  noLiveCarrierApi: true,
+  noPakistanPostBookingApi: true,
+  noPickupExecution: true,
+  noDispatchExecution: true,
+  noFinalBookingConfirmation: true,
+} as const;
+
+const manualHandoffFlags = {
+  manualHandoffOnly: true,
+  noFinalDispatch: true,
+  noLiveCarrierApi: true,
+  noPakistanPostBookingApi: true,
+  noPickupExecution: true,
+  noDispatchExecution: true,
+  noFinalBookingConfirmation: true,
+} as const;
+
+export const manualFinalProcessingFlags = {
+  manualOnly: true,
+  noPakistanPostBookingApi: true,
+  noFinalBookingConfirmation: true,
+  noLiveBooking: true,
+  noLabelJobCreation: true,
+  noUnitConsumption: true,
+  noAutoDispatch: true,
+} as const;
 
 export async function convertQuoteToBookingDraft(input: {
   rows: Array<Record<string, unknown>>;
@@ -350,10 +434,7 @@ export async function getMyAggregatorBooking(bookingId: string) {
   return api<{ success: boolean; booking: AggregatorBooking }>(`/api/aggregator-bookings/${encodeURIComponent(bookingId)}`);
 }
 
-export async function updateMyAggregatorBookingDraft(
-  bookingId: string,
-  patch: Partial<BookingSenderPayload>,
-) {
+export async function updateMyAggregatorBookingDraft(bookingId: string, patch: Partial<BookingSenderPayload>) {
   return api<{ success: boolean; booking: AggregatorBooking }>(`/api/aggregator-bookings/${encodeURIComponent(bookingId)}/draft`, {
     method: "PATCH",
     body: JSON.stringify(patch),
@@ -401,7 +482,10 @@ export async function getAdminAggregatorBooking(bookingId: string) {
   return api<{ success: boolean; booking: AggregatorBooking }>(`/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}`);
 }
 
-export async function adminApproveAggregatorBooking(bookingId: string, payload?: { reasonCode?: string; note?: string; paymentStatus?: PaymentPlaceholderStatus }) {
+export async function adminApproveAggregatorBooking(
+  bookingId: string,
+  payload?: { reasonCode?: string; note?: string; paymentStatus?: PaymentPlaceholderStatus },
+) {
   return api<{ success: boolean; booking: AggregatorBooking }>(`/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/approve`, {
     method: "POST",
     body: JSON.stringify(payload ?? {}),
@@ -416,10 +500,13 @@ export async function adminRejectAggregatorBooking(bookingId: string, payload?: 
 }
 
 export async function adminRequestCorrectionAggregatorBooking(bookingId: string, payload?: { reasonCode?: string; note?: string }) {
-  return api<{ success: boolean; booking: AggregatorBooking }>(`/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/request-correction`, {
-    method: "POST",
-    body: JSON.stringify(payload ?? {}),
-  });
+  return api<{ success: boolean; booking: AggregatorBooking }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/request-correction`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload ?? {}),
+    },
+  );
 }
 
 export async function adminMarkPendingAggregatorBooking(bookingId: string, payload?: { reasonCode?: string; note?: string }) {
@@ -573,7 +660,10 @@ export async function adminRecordAggregatorDriverHandoff(
     `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/handoff/record-driver-handoff`,
     {
       method: "POST",
-      body: JSON.stringify({ ...payload, manualFlags: manualHandoffFlags }),
+      body: JSON.stringify({
+        ...payload,
+        manualFlags: manualHandoffFlags,
+      }),
     },
   );
 }
@@ -594,7 +684,10 @@ export async function adminRecordAggregatorSortingDispatch(
     `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/handoff/record-sorting-dispatch`,
     {
       method: "POST",
-      body: JSON.stringify({ ...payload, manualFlags: manualHandoffFlags }),
+      body: JSON.stringify({
+        ...payload,
+        manualFlags: manualHandoffFlags,
+      }),
     },
   );
 }
@@ -614,7 +707,10 @@ export async function adminRecordAggregatorInterFacilityTransfer(
     `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/handoff/record-transfer`,
     {
       method: "POST",
-      body: JSON.stringify({ ...payload, manualFlags: manualHandoffFlags }),
+      body: JSON.stringify({
+        ...payload,
+        manualFlags: manualHandoffFlags,
+      }),
     },
   );
 }
@@ -630,7 +726,109 @@ export async function adminMarkAggregatorReadyForPostal(
     `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/handoff/mark-ready-for-postal`,
     {
       method: "POST",
-      body: JSON.stringify({ ...payload, manualFlags: manualHandoffFlags }),
+      body: JSON.stringify({
+        ...payload,
+        manualFlags: manualHandoffFlags,
+      }),
     },
+  );
+}
+
+export async function adminCheckAggregatorFinalProcessingReadiness(
+  bookingId: string,
+  payload: {
+    expectedArticleCount: number;
+    verifiedArticleCount: number;
+    servicesIncluded: FinalProcessingServiceCode[];
+    exceptions?: string[];
+    note?: string;
+  },
+) {
+  return api<{ success: boolean; bookingId: string; phase3c4FinalProcessing: Phase3C4FinalProcessingState }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/final-processing/check-readiness`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ...payload,
+        exceptions: payload.exceptions ?? [],
+        manualFlags: manualFinalProcessingFlags,
+      }),
+    },
+  );
+}
+
+export async function adminPrepareAggregatorFinalProcessingPacket(
+  bookingId: string,
+  payload: {
+    packetNo?: string;
+    articleRows: Array<{
+      rowNo: number;
+      serviceCode: FinalProcessingServiceCode;
+      articleCategory: string;
+      receiverCity?: string | null;
+      chargeableWeightGrams?: number | null;
+      totalOfficialPostalCharge?: number;
+    }>;
+    readinessWarnings?: string[];
+    note?: string;
+  },
+) {
+  return api<{ success: boolean; bookingId: string; phase3c4FinalProcessing: Phase3C4FinalProcessingState }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/final-processing/prepare-packet`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ...payload,
+        readinessWarnings: payload.readinessWarnings ?? [],
+        manualFlags: manualFinalProcessingFlags,
+      }),
+    },
+  );
+}
+
+export async function adminMarkAggregatorFinalProcessingPacketExported(
+  bookingId: string,
+  payload: {
+    packetNo: string;
+    exportFormat?: "json" | "csv";
+    note?: string;
+  },
+) {
+  return api<{ success: boolean; bookingId: string; phase3c4FinalProcessing: Phase3C4FinalProcessingState }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/final-processing/mark-exported`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        packetNo: payload.packetNo,
+        exportFormat: payload.exportFormat ?? "json",
+        note: payload.note,
+        manualFlags: manualFinalProcessingFlags,
+      }),
+    },
+  );
+}
+
+export async function adminMarkAggregatorFinalProcessingReviewed(
+  bookingId: string,
+  payload: {
+    packetNo: string;
+    reviewNote: string;
+  },
+) {
+  return api<{ success: boolean; bookingId: string; phase3c4FinalProcessing: Phase3C4FinalProcessingState }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/final-processing/mark-reviewed`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ...payload,
+        manualFlags: manualFinalProcessingFlags,
+      }),
+    },
+  );
+}
+
+export async function getAdminAggregatorFinalProcessingPacket(bookingId: string) {
+  return api<{ success: boolean; packet: Phase3C4FinalProcessingState["packet"] }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/final-processing/packet`,
   );
 }

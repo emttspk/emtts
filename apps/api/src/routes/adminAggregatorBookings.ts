@@ -3,46 +3,51 @@ import { z } from "zod";
 import { requireAdmin, requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import {
   adminAddHubExceptionNote,
+  adminApproveBooking,
+  adminCheckFinalProcessingReadiness,
+  adminGetFinalProcessingPacket,
+  adminMarkFinalProcessingPacketExported,
+  adminMarkFinalProcessingReviewed,
+  adminMarkHubReceived,
+  adminMarkPending,
+  adminMarkReadyForFinalPostal,
+  adminPrepareFinalProcessingPacket,
   adminPreviewBulkPackLabel,
   adminPreviewManifest,
-  adminApproveBooking,
-  adminMarkHubReceived,
-  adminSaveBulkPackPlanningSelection,
-  adminMarkPending,
+  adminRecordDriverHandoff,
   adminRecordHubMismatch,
+  adminRecordHubSortingDispatch,
+  adminRecordInterFacilityTransfer,
   adminRejectBooking,
-  adminResolveHubException,
   adminRequestCorrection,
+  adminResolveHubException,
+  adminSaveBulkPackPlanningSelection,
   adminVerifyHubManifest,
   getBookingForAdmin,
   listBookingsForAdmin,
 } from "../services/aggregatorBookingService.js";
 import {
-  adminMarkReadyForFinalPostal,
-  adminRecordDriverHandoff,
-  adminRecordHubSortingDispatch,
-  adminRecordInterFacilityTransfer,
-} from "../services/aggregatorBookingService.js";
-import {
   adminApproveActionSchema,
   adminBulkPackLabelPreviewSchema,
   adminBulkPackPlanningSelectionSchema,
-  adminManifestPreviewSchema,
   adminCorrectionActionSchema,
-  adminListBookingQuerySchema,
-  adminMarkPendingActionSchema,
-  adminRejectActionSchema,
+  adminDriverHandoffSchema,
+  adminFinalProcessingPacketExportSchema,
+  adminFinalProcessingPacketSchema,
+  adminFinalProcessingReadinessSchema,
+  adminFinalProcessingReviewSchema,
   adminHubExceptionNoteSchema,
   adminHubMarkReceivedSchema,
   adminHubRecordMismatchSchema,
   adminHubResolveExceptionSchema,
-  adminHubVerifyManifestSchema,
-} from "../utils/aggregatorBookingValidation.js";
-import {
-  adminDriverHandoffSchema,
   adminHubSortingDispatchSchema,
+  adminHubVerifyManifestSchema,
   adminInterFacilityTransferSchema,
+  adminListBookingQuerySchema,
+  adminManifestPreviewSchema,
+  adminMarkPendingActionSchema,
   adminReadyForPostalSchema,
+  adminRejectActionSchema,
 } from "../utils/aggregatorBookingValidation.js";
 
 export const adminAggregatorBookingsRouter = Router();
@@ -360,116 +365,230 @@ adminAggregatorBookingsRouter.post("/:id/hub-receiving/resolve-exception", async
       return res.status(400).json({ success: false, error: "Invalid resolution payload", details: error.errors });
     }
     const message = error instanceof Error ? error.message : "Failed to resolve exception";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
 
-    adminAggregatorBookingsRouter.post("/:id/handoff/record-driver-handoff", async (req: AuthedRequest, res) => {
-      try {
-        const bookingId = req.params.id;
-        const body = adminDriverHandoffSchema.parse(req.body);
-        const adminUserId = req.user?.id ?? "unknown";
-        const result = await adminRecordDriverHandoff({
-          bookingId,
-          adminUserId,
-          handoffType: body.handoffType,
-          fromParty: body.fromParty,
-          toParty: body.toParty,
-          receivedBy: body.receivedBy,
-          bundleCondition: body.bundleCondition,
-          articleCount: body.articleCount,
-          note: body.note,
-          manualFlags: body.manualFlags,
-          context: { req },
-        });
-        return res.json({ success: true, ...result });
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          return res.status(400).json({ success: false, error: "Invalid driver handoff payload", details: error.errors });
-        }
-        const message = error instanceof Error ? error.message : "Failed to record driver handoff";
-        const status = message === "Booking not found" ? 404 : 400;
-        return res.status(status).json({ success: false, error: message });
-      }
+adminAggregatorBookingsRouter.post("/:id/handoff/record-driver-handoff", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminDriverHandoffSchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const result = await adminRecordDriverHandoff({
+      bookingId,
+      adminUserId,
+      handoffType: payload.handoffType,
+      fromParty: payload.fromParty,
+      toParty: payload.toParty,
+      receivedBy: payload.receivedBy,
+      bundleCondition: payload.bundleCondition,
+      articleCount: payload.articleCount,
+      note: payload.note,
+      manualFlags: payload.manualFlags,
+      context: { req },
     });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid driver handoff payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to record driver handoff";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
 
-    adminAggregatorBookingsRouter.post("/:id/handoff/record-sorting-dispatch", async (req: AuthedRequest, res) => {
-      try {
-        const bookingId = req.params.id;
-        const body = adminHubSortingDispatchSchema.parse(req.body);
-        const adminUserId = req.user?.id ?? "unknown";
-        const result = await adminRecordHubSortingDispatch({
-          bookingId,
-          adminUserId,
-          fromWarehouse: body.fromWarehouse,
-          toSortingFacility: body.toSortingFacility,
-          dispatchedBy: body.dispatchedBy,
-          expectedArticleCount: body.expectedArticleCount,
-          bundleWeightGrams: body.bundleWeightGrams ?? null,
-          transportMode: body.transportMode,
-          note: body.note,
-          manualFlags: body.manualFlags,
-          context: { req },
-        });
-        return res.json({ success: true, ...result });
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          return res.status(400).json({ success: false, error: "Invalid sorting dispatch payload", details: error.errors });
-        }
-        const message = error instanceof Error ? error.message : "Failed to record sorting dispatch";
-        const status = message === "Booking not found" ? 404 : 400;
-        return res.status(status).json({ success: false, error: message });
-      }
+adminAggregatorBookingsRouter.post("/:id/handoff/record-sorting-dispatch", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminHubSortingDispatchSchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const result = await adminRecordHubSortingDispatch({
+      bookingId,
+      adminUserId,
+      fromWarehouse: payload.fromWarehouse,
+      toSortingFacility: payload.toSortingFacility,
+      dispatchedBy: payload.dispatchedBy,
+      expectedArticleCount: payload.expectedArticleCount,
+      bundleWeightGrams: payload.bundleWeightGrams ?? null,
+      transportMode: payload.transportMode,
+      note: payload.note,
+      manualFlags: payload.manualFlags,
+      context: { req },
     });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid sorting dispatch payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to record sorting dispatch";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
 
-    adminAggregatorBookingsRouter.post("/:id/handoff/record-transfer", async (req: AuthedRequest, res) => {
-      try {
-        const bookingId = req.params.id;
-        const body = adminInterFacilityTransferSchema.parse(req.body);
-        const adminUserId = req.user?.id ?? "unknown";
-        const result = await adminRecordInterFacilityTransfer({
-          bookingId,
-          adminUserId,
-          fromFacility: body.fromFacility,
-          toFacility: body.toFacility,
-          transferBy: body.transferBy,
-          transferReference: body.transferReference ?? null,
-          articleCount: body.articleCount,
-          note: body.note,
-          manualFlags: body.manualFlags,
-          context: { req },
-        });
-        return res.json({ success: true, ...result });
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          return res.status(400).json({ success: false, error: "Invalid transfer payload", details: error.errors });
-        }
-        const message = error instanceof Error ? error.message : "Failed to record inter-facility transfer";
-        const status = message === "Booking not found" ? 404 : 400;
-        return res.status(status).json({ success: false, error: message });
-      }
+adminAggregatorBookingsRouter.post("/:id/handoff/record-transfer", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminInterFacilityTransferSchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const result = await adminRecordInterFacilityTransfer({
+      bookingId,
+      adminUserId,
+      fromFacility: payload.fromFacility,
+      toFacility: payload.toFacility,
+      transferBy: payload.transferBy,
+      transferReference: payload.transferReference ?? null,
+      articleCount: payload.articleCount,
+      note: payload.note,
+      manualFlags: payload.manualFlags,
+      context: { req },
     });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid transfer payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to record inter-facility transfer";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
 
-    adminAggregatorBookingsRouter.post("/:id/handoff/mark-ready-for-postal", async (req: AuthedRequest, res) => {
-      try {
-        const bookingId = req.params.id;
-        const body = adminReadyForPostalSchema.parse(req.body);
-        const adminUserId = req.user?.id ?? "unknown";
-        const result = await adminMarkReadyForFinalPostal({
-          bookingId,
-          adminUserId,
-          expectedArticleCount: body.expectedArticleCount,
-          note: body.note,
-          manualFlags: body.manualFlags,
-          context: { req },
-        });
-        return res.json({ success: true, ...result });
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          return res.status(400).json({ success: false, error: "Invalid ready-for-postal payload", details: error.errors });
-        }
-        const message = error instanceof Error ? error.message : "Failed to mark ready for final postal processing";
-        const status = message === "Booking not found" ? 404 : 400;
-        return res.status(status).json({ success: false, error: message });
-      }
+adminAggregatorBookingsRouter.post("/:id/handoff/mark-ready-for-postal", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminReadyForPostalSchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const result = await adminMarkReadyForFinalPostal({
+      bookingId,
+      adminUserId,
+      expectedArticleCount: payload.expectedArticleCount,
+      note: payload.note,
+      manualFlags: payload.manualFlags,
+      context: { req },
     });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid ready-for-postal payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to mark ready for final postal processing";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+adminAggregatorBookingsRouter.post("/:id/final-processing/check-readiness", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminFinalProcessingReadinessSchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const result = await adminCheckFinalProcessingReadiness({
+      bookingId,
+      adminUserId,
+      expectedArticleCount: payload.expectedArticleCount,
+      verifiedArticleCount: payload.verifiedArticleCount,
+      servicesIncluded: payload.servicesIncluded,
+      exceptions: payload.exceptions,
+      note: payload.note,
+      manualFlags: payload.manualFlags,
+      context: { req },
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid final-processing readiness payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to check final processing readiness";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+adminAggregatorBookingsRouter.post("/:id/final-processing/prepare-packet", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminFinalProcessingPacketSchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const result = await adminPrepareFinalProcessingPacket({
+      bookingId,
+      adminUserId,
+      packetNo: payload.packetNo,
+      articleRows: payload.articleRows,
+      readinessWarnings: payload.readinessWarnings,
+      note: payload.note,
+      manualFlags: payload.manualFlags,
+      context: { req },
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid final-processing packet payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to prepare final processing packet";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+adminAggregatorBookingsRouter.post("/:id/final-processing/mark-exported", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminFinalProcessingPacketExportSchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const result = await adminMarkFinalProcessingPacketExported({
+      bookingId,
+      adminUserId,
+      packetNo: payload.packetNo,
+      exportFormat: payload.exportFormat,
+      note: payload.note,
+      manualFlags: payload.manualFlags,
+      context: { req },
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid packet export payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to mark final processing packet exported";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+adminAggregatorBookingsRouter.post("/:id/final-processing/mark-reviewed", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminFinalProcessingReviewSchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const result = await adminMarkFinalProcessingReviewed({
+      bookingId,
+      adminUserId,
+      packetNo: payload.packetNo,
+      reviewNote: payload.reviewNote,
+      manualFlags: payload.manualFlags,
+      context: { req },
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid final-processing review payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to mark final processing review complete";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+adminAggregatorBookingsRouter.get("/:id/final-processing/packet", async (req, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const packet = await adminGetFinalProcessingPacket({ bookingId });
+    return res.json({ success: true, packet });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to fetch final processing packet";
     const status = message === "Booking not found" ? 404 : 400;
     return res.status(status).json({ success: false, error: message });
   }
