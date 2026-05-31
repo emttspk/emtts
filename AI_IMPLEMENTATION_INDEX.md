@@ -1,5 +1,35 @@
 # AI Implementation Index
 
+## 2026-05-31 - Aggregator Booking Phase 2B Smoke Verification
+
+### Task Name
+- Run Phase 2B smoke verification for persisted draft request behavior and record the outcome.
+
+### Checks Run
+- Mandatory repo preflight: PASS
+- Schema validation smoke for `convertQuoteToDraftSchema`: PASS
+- Service-level draft create smoke with stubbed persistence: PASS
+- Local DB connectivity probe: PASS
+- Local DB-backed draft create/read smoke: BLOCKED by missing `public.AggregatorBooking` table in current local database
+- Frontend browser smoke: `/booking-quote` redirected to `/login` in local preview, so live booking-quote UI was not reachable without auth
+- Source-level UI smoke: PASS for request-only disclaimers and gated "Create Draft Request" control in [apps/web/src/components/booking/BookingDraftReview.tsx](apps/web/src/components/booking/BookingDraftReview.tsx)
+
+### Validation Results
+- `customerNoticeAccepted === true` required by schema: PASS
+- `customerNoticeAccepted === false` rejected: PASS
+- `OVER_PHASE_LIMIT` rejected by schema/service guard: PASS
+- Valid draft request returned `BOOKING_DRAFT`: PASS
+- Persisted request payload stored request-only flags, selected option, sender details, quote snapshot, recommendation snapshot, and items in service smoke: PASS
+- Response wording remains non-final and explicitly says admin review is required: PASS
+
+### Safety / Scope Confirmation
+- No Railway, Cloudflare/R2, or production touch occurred.
+- Protected scope modules remained untouched.
+- No migration or new table was added.
+
+### Next Item
+- Complete DB-backed local smoke once the local `AggregatorBooking` table is available, or treat the DB-backed portion as pending until that environment is bootstrapped.
+
 ## 2026-05-31 - Aggregator Booking Phase 2B Persisted Draft Request Activation
 
 ### Task Name

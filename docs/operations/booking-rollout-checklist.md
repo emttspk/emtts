@@ -71,3 +71,19 @@ For phase boundaries, protected scope, and continuity handoff protocol, see `doc
 - Added request-only payload validation and blocker enforcement (`OVER_PHASE_LIMIT` rejection).
 - Persisted request metadata snapshot through existing aggregator persistence path without migration.
 - Kept create status as `BOOKING_DRAFT` and avoided payment/pickup/dispatch/live booking side effects.
+
+## Phase 2B Smoke Result (2026-05-31)
+- Preflight identity: PASS (`origin` points to `https://github.com/emttspk/emtts.git`, branch `main`, clean status before smoke work).
+- Build/lint/typecheck: PASS.
+- Schema smoke: PASS (`convertQuoteToDraftSchema` accepted valid request and rejected `customerNoticeAccepted: false`).
+- Service smoke: PASS (stubbed conversion returned `BOOKING_DRAFT`, preserved request-only flags, sender details, quote snapshot, recommendation snapshot, and items).
+- Local DB probe: PASS.
+- Local DB-backed draft create/read smoke: BLOCKED by missing `public.AggregatorBooking` table in the current local database.
+- Frontend browser smoke: local preview opened `/login` for `/booking-quote`, so the protected Booking Quote screen was not reachable without auth.
+- Source-level UI smoke: PASS for request-only disclaimers and the disabled/unavailable create gate until acceptance and sender details are complete.
+- Protected scope confirmation: no Upload flow, worker, PDF templates, billing, tracking, complaints, auth core, admin core auth, storage/R2, cleanup flags, Railway, Cloudflare/R2, or production paths were touched.
+
+## Remaining Phase 3 Work
+- Bootstrap or repair a local DB with the `AggregatorBooking` table if a real DB-backed create/read smoke is still required.
+- Run admin-review hardening, payment placeholder lifecycle hardening, and phased rollout gates only after explicit approval.
+- Keep rollout limited to non-protected booking paths.
