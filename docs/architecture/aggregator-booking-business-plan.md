@@ -59,6 +59,29 @@ This document defines a separate Aggregator Booking business lane for ePost.pk t
 - Phase 4: hub verification, article-wise Pakistan Post booking workflow, and controlled handoff to label/MO generation.
 - Phase 5: payment, invoicing, refund/adjustment, and advanced exception handling.
 
+## Phase 3C-1 (Implemented Scope)
+- Manual planning panel for admin after manual-approved/payment-ready booking state.
+- Admin can select warehouse:
+	- `EPOST_LAHORE_WAREHOUSE`
+	- `EPOST_SAHIWAL_WAREHOUSE`
+- Admin can select intake carrier:
+	- `CUSTOMER_SELF_DROP`
+	- `PAKISTAN_POST_BULK_PACK`
+	- `LEOPARDS_BULK_PACK`
+- Admin can generate preview-only bulk-pack label payload.
+- Admin can generate preview-only manifest payload.
+- Planning selections and preview outputs are audit logged.
+
+## Phase 3C-1 Explicit Exclusions
+- No live Leopards API call.
+- No live Pakistan Post booking API call.
+- No pickup execution.
+- No dispatch execution.
+- No final booking confirmation.
+- No payment gateway implementation.
+- No service/handling/profit/discount logic.
+- No schema/migration change.
+
 ## Protected Systems (Not Changed)
 - Existing upload/generation path.
 - Existing money order and MOS/UMO logic.

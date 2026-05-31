@@ -37,6 +37,19 @@
 - `cleanup.ts` deletion decision behavior remains unchanged.
 - Worker generation flow remains unchanged.
 
+## Phase 3C-1 (Bulk-Pack Planning Preview) Checklist
+- Admin can save selected warehouse and intake carrier in aggregator admin workflow.
+- Allowed warehouses restricted to `EPOST_LAHORE_WAREHOUSE` and `EPOST_SAHIWAL_WAREHOUSE`.
+- Allowed intake carriers restricted to `CUSTOMER_SELF_DROP`, `PAKISTAN_POST_BULK_PACK`, and `LEOPARDS_BULK_PACK`.
+- Bulk-pack label preview is available only for manual-approved/payment-ready bookings.
+- Manifest preview is available only for manual-approved/payment-ready bookings.
+- Preview responses include explicit manual-only warning wording.
+- Preview actions are audit logged; no queue job is created.
+- No external carrier API or Pakistan Post booking API is called.
+- No pickup/dispatch/final booking action is created.
+- No unit consumption is triggered.
+- `jobs.ts`, `Upload.tsx`, and `worker.ts` behavior remains unchanged.
+
 ## Regression Safeguards
 - Verify existing upload route contract remains unchanged.
 - Verify existing MO/tracking/complaint/billing behavior is unchanged.

@@ -9,6 +9,16 @@ import {
   isIntakeMethod,
   type AggregatorBookingStatus,
 } from "./aggregatorBookingStatusService.js";
+import {
+  AGGREGATOR_INTAKE_CARRIER_OPTIONS,
+  AGGREGATOR_WAREHOUSE_OPTIONS,
+  buildBulkPackLabelPreview as buildBulkPackLabelPreviewPayload,
+  buildManifestPreview as buildManifestPreviewPayload,
+  isManualPlanningEligible,
+  resolveWarehouseAddress,
+  type AggregatorIntakeCarrierOption,
+  type AggregatorWarehouseOption,
+} from "./aggregatorBulkPackPlanningService.js";
 
 type JsonValue = Prisma.InputJsonValue;
 
@@ -145,6 +155,86 @@ function ensureOwner(bookingUserId: string, userId: string) {
   if (bookingUserId !== userId) {
     throw new Error("Forbidden");
   }
+}
+
+function toPlainObject(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function parsePlanningSelection(logValue: unknown) {
+  const obj = toPlainObject(logValue);
+  if (!obj) return null;
+
+  const selectedWarehouse = String(obj.selectedWarehouse ?? "").trim().toUpperCase();
+  const intakeCarrier = String(obj.intakeCarrier ?? "").trim().toUpperCase();
+  if (!(AGGREGATOR_WAREHOUSE_OPTIONS as readonly string[]).includes(selectedWarehouse)) return null;
+  if (!(AGGREGATOR_INTAKE_CARRIER_OPTIONS as readonly string[]).includes(intakeCarrier)) return null;
+
+  return {
+    selectedWarehouse: selectedWarehouse as AggregatorWarehouseOption,
+    intakeCarrier: intakeCarrier as AggregatorIntakeCarrierOption,
+    paymentVerifiedReference: String(obj.paymentVerifiedReference ?? "").trim(),
+    instructions: String(obj.instructions ?? "").trim(),
+    warehouseAddress: String(obj.warehouseAddress ?? "").trim(),
+    updatedAt: String(obj.updatedAt ?? "").trim(),
+  };
+}
+
+async function findLatestPlanningSelection(bookingId: string) {
+  const latest = await prisma.aggregatorBookingAuditLog.findFirst({
+    where: {
+      bookingId,
+      action: "BULK_PACK_PLANNING_SELECTION_SAVED",
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      newValueJson: true,
+      createdAt: true,
+    },
+  });
+
+  if (!latest) return null;
+  const parsed = parsePlanningSelection(latest.newValueJson);
+  if (!parsed) return null;
+
+  return {
+    ...parsed,
+    updatedAt: parsed.updatedAt || latest.createdAt.toISOString(),
+  };
+}
+
+async function appendPlanningMetadata<T extends { id: string }>(booking: T) {
+  const planning = await findLatestPlanningSelection(booking.id);
+  if (!planning) {
+    return {
+      ...booking,
+      bulkPackPlanning: null,
+    };
+  }
+
+  return {
+    ...booking,
+    bulkPackPlanning: planning,
+  };
+}
+
+function assertPlanningGuardrails(flags: {
+  manualPlanningOnly: true;
+  noLiveCarrierApi: true;
+  noPakistanPostBookingApi: true;
+  noPickupExecution: true;
+  noDispatchExecution: true;
+  noFinalBookingConfirmation: true;
+}) {
+  if (!flags.manualPlanningOnly) throw new Error("Manual planning only flag is required");
+  if (!flags.noLiveCarrierApi) throw new Error("Live carrier API usage is not allowed");
+  if (!flags.noPakistanPostBookingApi) throw new Error("Pakistan Post booking API usage is not allowed");
+  if (!flags.noPickupExecution) throw new Error("Pickup execution is not allowed in Phase 3C-1");
+  if (!flags.noDispatchExecution) throw new Error("Dispatch execution is not allowed in Phase 3C-1");
+  if (!flags.noFinalBookingConfirmation) throw new Error("Final booking confirmation is not allowed in Phase 3C-1");
 }
 
 export async function convertQuoteToDraft(input: {
@@ -523,7 +613,7 @@ export async function getBookingForUser(input: { bookingId: string; userId: stri
     },
   });
   if (!booking) throw new Error("Booking not found");
-  return booking;
+  return appendPlanningMetadata(booking);
 }
 
 export async function getBookingTimelineForUser(input: { bookingId: string; userId: string }) {
@@ -558,7 +648,222 @@ export async function getBookingForAdmin(bookingId: string) {
     },
   });
   if (!booking) throw new Error("Booking not found");
-  return booking;
+  return appendPlanningMetadata(booking);
+}
+
+export async function adminSaveBulkPackPlanningSelection(input: {
+  bookingId: string;
+  adminUserId: string;
+  selectedWarehouse: AggregatorWarehouseOption;
+  intakeCarrier: AggregatorIntakeCarrierOption;
+  paymentVerifiedReference: string;
+  instructions: string;
+  planningFlags: {
+    manualPlanningOnly: true;
+    noLiveCarrierApi: true;
+    noPakistanPostBookingApi: true;
+    noPickupExecution: true;
+    noDispatchExecution: true;
+    noFinalBookingConfirmation: true;
+  };
+  context?: RequestContext;
+}) {
+  assertPlanningGuardrails(input.planningFlags);
+
+  const booking = await prisma.aggregatorBooking.findUnique({
+    where: { id: input.bookingId },
+    select: {
+      id: true,
+      bookingNo: true,
+      status: true,
+      paymentStatus: true,
+      totalArticles: true,
+      totalActualWeightGrams: true,
+      totalChargeableWeightGrams: true,
+    },
+  });
+
+  if (!booking) throw new Error("Booking not found");
+
+  const eligible = isManualPlanningEligible(booking);
+  if (!eligible.ok) {
+    throw new Error(eligible.reason);
+  }
+
+  const planningSelection = {
+    selectedWarehouse: input.selectedWarehouse,
+    warehouseAddress: resolveWarehouseAddress(input.selectedWarehouse),
+    intakeCarrier: input.intakeCarrier,
+    paymentVerifiedReference: normalizeOptionalString(input.paymentVerifiedReference),
+    instructions: normalizeOptionalString(input.instructions),
+    updatedAt: new Date().toISOString(),
+    manualPlanningOnly: true,
+    noLiveCarrierApi: true,
+    noPakistanPostBookingApi: true,
+    noPickupExecution: true,
+    noDispatchExecution: true,
+    noFinalBookingConfirmation: true,
+  };
+
+  await writeAuditLog({
+    bookingId: booking.id,
+    action: "BULK_PACK_PLANNING_SELECTION_SAVED",
+    actor: { actorType: "ADMIN", actorUserId: input.adminUserId },
+    targetField: "bulk_pack_planning",
+    oldValueJson: undefined,
+    newValueJson: planningSelection as unknown as JsonValue,
+    context: input.context,
+  });
+
+  return {
+    bookingId: booking.id,
+    bookingNo: booking.bookingNo,
+    planningSelection,
+  };
+}
+
+export async function adminPreviewBulkPackLabel(input: {
+  bookingId: string;
+  adminUserId: string;
+  planningFlags: {
+    manualPlanningOnly: true;
+    noLiveCarrierApi: true;
+    noPakistanPostBookingApi: true;
+    noPickupExecution: true;
+    noDispatchExecution: true;
+    noFinalBookingConfirmation: true;
+  };
+  context?: RequestContext;
+}) {
+  assertPlanningGuardrails(input.planningFlags);
+
+  const booking = await prisma.aggregatorBooking.findUnique({
+    where: { id: input.bookingId },
+    select: {
+      id: true,
+      bookingNo: true,
+      senderName: true,
+      senderPhone: true,
+      senderCity: true,
+      totalArticles: true,
+      totalActualWeightGrams: true,
+      totalChargeableWeightGrams: true,
+      status: true,
+      paymentStatus: true,
+    },
+  });
+  if (!booking) throw new Error("Booking not found");
+
+  const eligible = isManualPlanningEligible(booking);
+  if (!eligible.ok) {
+    throw new Error(eligible.reason);
+  }
+
+  const planning = await findLatestPlanningSelection(booking.id);
+  if (!planning) {
+    throw new Error("Warehouse and intake carrier selection is required before bulk-pack label preview");
+  }
+
+  if (!planning.paymentVerifiedReference) {
+    throw new Error("paymentVerifiedReference is required for bulk-pack label preview");
+  }
+
+  const labelPreview = buildBulkPackLabelPreviewPayload({
+    booking,
+    selectedWarehouse: planning.selectedWarehouse,
+    intakeCarrier: planning.intakeCarrier,
+    paymentVerifiedReference: planning.paymentVerifiedReference,
+    instructions: planning.instructions || "Manual planning only. Move bundle to selected warehouse.",
+  });
+
+  await writeAuditLog({
+    bookingId: booking.id,
+    action: "BULK_PACK_LABEL_PREVIEW_GENERATED",
+    actor: { actorType: "ADMIN", actorUserId: input.adminUserId },
+    targetField: "bulk_pack_label_preview",
+    oldValueJson: undefined,
+    newValueJson: labelPreview as unknown as JsonValue,
+    context: input.context,
+  });
+
+  return {
+    bookingId: booking.id,
+    labelPreview,
+  };
+}
+
+export async function adminPreviewManifest(input: {
+  bookingId: string;
+  adminUserId: string;
+  planningFlags: {
+    manualPlanningOnly: true;
+    noLiveCarrierApi: true;
+    noPakistanPostBookingApi: true;
+    noPickupExecution: true;
+    noDispatchExecution: true;
+    noFinalBookingConfirmation: true;
+  };
+  context?: RequestContext;
+}) {
+  assertPlanningGuardrails(input.planningFlags);
+
+  const booking = await prisma.aggregatorBooking.findUnique({
+    where: { id: input.bookingId },
+    select: {
+      id: true,
+      bookingNo: true,
+      totalArticles: true,
+      totalActualWeightGrams: true,
+      totalChargeableWeightGrams: true,
+      status: true,
+      paymentStatus: true,
+      items: {
+        orderBy: { rowNo: "asc" },
+        select: {
+          rowNo: true,
+          serviceCode: true,
+          articleCategory: true,
+          receiverCity: true,
+          weightGrams: true,
+          chargeableWeightGrams: true,
+          totalOfficialPostalCharge: true,
+        },
+      },
+    },
+  });
+  if (!booking) throw new Error("Booking not found");
+
+  const eligible = isManualPlanningEligible(booking);
+  if (!eligible.ok) {
+    throw new Error(eligible.reason);
+  }
+
+  const planning = await findLatestPlanningSelection(booking.id);
+  if (!planning) {
+    throw new Error("Warehouse and intake carrier selection is required before manifest preview");
+  }
+
+  const manifestPreview = buildManifestPreviewPayload({
+    booking,
+    items: booking.items,
+    selectedWarehouse: planning.selectedWarehouse,
+    intakeCarrier: planning.intakeCarrier,
+  });
+
+  await writeAuditLog({
+    bookingId: booking.id,
+    action: "BULK_PACK_MANIFEST_PREVIEW_GENERATED",
+    actor: { actorType: "ADMIN", actorUserId: input.adminUserId },
+    targetField: "bulk_pack_manifest_preview",
+    oldValueJson: undefined,
+    newValueJson: manifestPreview as unknown as JsonValue,
+    context: input.context,
+  });
+
+  return {
+    bookingId: booking.id,
+    manifestPreview,
+  };
 }
 
 export async function updateBookingDraft(input: {

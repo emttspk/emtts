@@ -235,3 +235,39 @@ export const adminCorrectionActionSchema = z.object({
 });
 
 export const adminMarkPendingActionSchema = adminActionSchema;
+
+export const AGGREGATOR_WAREHOUSE_OPTIONS = [
+  "EPOST_LAHORE_WAREHOUSE",
+  "EPOST_SAHIWAL_WAREHOUSE",
+] as const;
+
+export const AGGREGATOR_INTAKE_CARRIER_OPTIONS = [
+  "CUSTOMER_SELF_DROP",
+  "PAKISTAN_POST_BULK_PACK",
+  "LEOPARDS_BULK_PACK",
+] as const;
+
+const manualOnlyPlanningFlagsSchema = z.object({
+  manualPlanningOnly: z.literal(true),
+  noLiveCarrierApi: z.literal(true),
+  noPakistanPostBookingApi: z.literal(true),
+  noPickupExecution: z.literal(true),
+  noDispatchExecution: z.literal(true),
+  noFinalBookingConfirmation: z.literal(true),
+});
+
+export const adminBulkPackPlanningSelectionSchema = z.object({
+  selectedWarehouse: z.enum(AGGREGATOR_WAREHOUSE_OPTIONS),
+  intakeCarrier: z.enum(AGGREGATOR_INTAKE_CARRIER_OPTIONS),
+  paymentVerifiedReference: z.string().trim().min(3).max(160),
+  instructions: z.string().trim().min(10).max(2000),
+  planningFlags: manualOnlyPlanningFlagsSchema,
+});
+
+export const adminBulkPackLabelPreviewSchema = z.object({
+  planningFlags: manualOnlyPlanningFlagsSchema,
+});
+
+export const adminManifestPreviewSchema = z.object({
+  planningFlags: manualOnlyPlanningFlagsSchema,
+});

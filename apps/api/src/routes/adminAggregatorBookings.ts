@@ -2,7 +2,10 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireAdmin, requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import {
+  adminPreviewBulkPackLabel,
+  adminPreviewManifest,
   adminApproveBooking,
+  adminSaveBulkPackPlanningSelection,
   adminMarkPending,
   adminRejectBooking,
   adminRequestCorrection,
@@ -11,6 +14,9 @@ import {
 } from "../services/aggregatorBookingService.js";
 import {
   adminApproveActionSchema,
+  adminBulkPackLabelPreviewSchema,
+  adminBulkPackPlanningSelectionSchema,
+  adminManifestPreviewSchema,
   adminCorrectionActionSchema,
   adminListBookingQuerySchema,
   adminMarkPendingActionSchema,
@@ -142,6 +148,76 @@ adminAggregatorBookingsRouter.post("/:id/mark-pending", async (req: AuthedReques
       return res.status(400).json({ success: false, error: "Invalid pending payload", details: error.errors });
     }
     const message = error instanceof Error ? error.message : "Failed to mark booking pending";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+adminAggregatorBookingsRouter.post("/:id/bulk-pack-plan/select", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminBulkPackPlanningSelectionSchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const result = await adminSaveBulkPackPlanningSelection({
+      bookingId,
+      adminUserId,
+      selectedWarehouse: payload.selectedWarehouse,
+      intakeCarrier: payload.intakeCarrier,
+      paymentVerifiedReference: payload.paymentVerifiedReference,
+      instructions: payload.instructions,
+      planningFlags: payload.planningFlags,
+      context: { req },
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid bulk-pack planning payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to save bulk-pack planning selection";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+adminAggregatorBookingsRouter.post("/:id/bulk-pack-plan/label-preview", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminBulkPackLabelPreviewSchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const result = await adminPreviewBulkPackLabel({
+      bookingId,
+      adminUserId,
+      planningFlags: payload.planningFlags,
+      context: { req },
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid bulk-pack label preview payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to build bulk-pack label preview";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+adminAggregatorBookingsRouter.post("/:id/bulk-pack-plan/manifest-preview", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminManifestPreviewSchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const result = await adminPreviewManifest({
+      bookingId,
+      adminUserId,
+      planningFlags: payload.planningFlags,
+      context: { req },
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid manifest preview payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to build manifest preview";
     const status = message === "Booking not found" ? 404 : 400;
     return res.status(status).json({ success: false, error: message });
   }

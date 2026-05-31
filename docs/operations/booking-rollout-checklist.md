@@ -110,5 +110,17 @@ For phase boundaries, protected scope, and continuity handoff protocol, see `doc
 
 ## Remaining Phase 3 Work
 - Phase 3B: rollout controls, approval matrix hardening, and rollback trigger automation.
-- Phase 3C: monitoring/telemetry operationalization and canary-readiness criteria.
+- Phase 3C-2: hub receiving verification and mismatch handling.
+- Phase 3C-3: monitored operational rollout and readiness criteria.
 - Keep rollout limited to non-protected booking paths and manual-only semantics until separately approved.
+
+## Phase 3C-1 Smoke Result (2026-05-31)
+- Warehouse and intake carrier selection endpoint: PASS (restricted enums only).
+- Missing warehouse validation: PASS (request rejected).
+- Missing carrier validation: PASS (request rejected).
+- Bulk-pack label preview warning text: PASS (manual-only warning included).
+- Manifest preview expected article count: PASS.
+- Live carrier/Pakistan Post booking APIs: NOT CALLED.
+- Pickup/dispatch/final booking execution: NOT CREATED.
+- Schema/migration changes: NONE.
+- Protected modules (`jobs.ts`, `Upload.tsx`, `worker.ts`) remained unchanged.

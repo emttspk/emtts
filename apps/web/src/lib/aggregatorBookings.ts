@@ -17,6 +17,10 @@ export type BookingStatus =
 
 export type PaymentPlaceholderStatus = "NOT_INITIATED" | "PENDING_PLACEHOLDER" | "MARKED_FOR_OFFLINE_COLLECTION";
 
+export type AggregatorWarehouseOption = "EPOST_LAHORE_WAREHOUSE" | "EPOST_SAHIWAL_WAREHOUSE";
+
+export type AggregatorIntakeCarrierOption = "CUSTOMER_SELF_DROP" | "PAKISTAN_POST_BULK_PACK" | "LEOPARDS_BULK_PACK";
+
 export type AggregatorBookingItem = {
   id: string;
   rowNo: number;
@@ -79,7 +83,62 @@ export type AggregatorBooking = {
     contactNumber?: string | null;
   };
   statusEvents?: AggregatorBookingTimelineEvent[];
+  bulkPackPlanning?: {
+    selectedWarehouse: AggregatorWarehouseOption;
+    intakeCarrier: AggregatorIntakeCarrierOption;
+    paymentVerifiedReference: string;
+    instructions: string;
+    warehouseAddress: string;
+    updatedAt: string;
+  } | null;
 };
+
+export type AggregatorBulkPackLabelPreview = {
+  bookingNo: string;
+  bulkPackNo: string;
+  customerName: string;
+  customerPhone: string;
+  senderCity: string;
+  totalArticles: number;
+  totalBundleWeightGrams: number;
+  selectedWarehouse: AggregatorWarehouseOption;
+  warehouseAddress: string;
+  intakeCarrier: AggregatorIntakeCarrierOption;
+  carrierService: string;
+  paymentVerifiedReference: string;
+  instructions: string;
+  barcodeOrQr: string;
+  createdAt: string;
+  manualProcessingNotice: string;
+};
+
+export type AggregatorManifestPreview = {
+  bookingNo: string;
+  expectedArticles: number;
+  totalBundleWeightGrams: number;
+  articleRows: Array<{
+    rowNo: number;
+    serviceCode: string;
+    articleCategory: string;
+    receiverCity: string | null;
+    weightGrams: number;
+    chargeableWeightGrams: number;
+    totalOfficialPostalCharge: number;
+  }>;
+  selectedWarehouse: AggregatorWarehouseOption;
+  intakeCarrier: AggregatorIntakeCarrierOption;
+  generatedAt: string;
+  manualVerificationNotice: string;
+};
+
+const manualPlanningFlags = {
+  manualPlanningOnly: true,
+  noLiveCarrierApi: true,
+  noPakistanPostBookingApi: true,
+  noPickupExecution: true,
+  noDispatchExecution: true,
+  noFinalBookingConfirmation: true,
+} as const;
 
 export type AggregatorBookingTimelineEvent = {
   id: string;
@@ -235,4 +294,47 @@ export async function adminMarkPendingAggregatorBooking(bookingId: string, paylo
     method: "POST",
     body: JSON.stringify(payload ?? {}),
   });
+}
+
+export async function adminSelectAggregatorBulkPackPlan(
+  bookingId: string,
+  payload: {
+    selectedWarehouse: AggregatorWarehouseOption;
+    intakeCarrier: AggregatorIntakeCarrierOption;
+    paymentVerifiedReference: string;
+    instructions: string;
+  },
+) {
+  return api<{
+    success: boolean;
+    bookingId: string;
+    bookingNo: string;
+    planningSelection: AggregatorBooking["bulkPackPlanning"];
+  }>(`/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/bulk-pack-plan/select`, {
+    method: "POST",
+    body: JSON.stringify({
+      ...payload,
+      planningFlags: manualPlanningFlags,
+    }),
+  });
+}
+
+export async function adminPreviewAggregatorBulkPackLabel(bookingId: string) {
+  return api<{ success: boolean; bookingId: string; labelPreview: AggregatorBulkPackLabelPreview }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/bulk-pack-plan/label-preview`,
+    {
+      method: "POST",
+      body: JSON.stringify({ planningFlags: manualPlanningFlags }),
+    },
+  );
+}
+
+export async function adminPreviewAggregatorManifest(bookingId: string) {
+  return api<{ success: boolean; bookingId: string; manifestPreview: AggregatorManifestPreview }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/bulk-pack-plan/manifest-preview`,
+    {
+      method: "POST",
+      body: JSON.stringify({ planningFlags: manualPlanningFlags }),
+    },
+  );
 }

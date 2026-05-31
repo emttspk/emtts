@@ -2211,3 +2211,48 @@ From JazzCash v4.2 docs (ApiReferences.html), the **Hosted Checkout + Mobile Acc
 
 - Confirmed: only JazzCash Mobile Wallet API investigation, diagnostics, and documentation touched.
 - No modifications to label generation, money orders, tracking, complaints, R2, dashboard/auth, manual payment approval, package logic, or unrelated EP Gateway internals.
+
+## 2026-05-31 - Aggregator Booking Phase 3C-1 (Warehouse/Carrier Planning + Preview)
+
+### Task Name
+- Implement Phase 3C-1 manual planning workflow for warehouse selection, intake carrier selection, bulk-pack label preview, and manifest preview.
+
+### Files Changed
+- `apps/api/src/services/aggregatorBulkPackPlanningService.ts`
+- `apps/api/src/services/aggregatorBookingService.ts`
+- `apps/api/src/routes/adminAggregatorBookings.ts`
+- `apps/api/src/utils/aggregatorBookingValidation.ts`
+- `apps/web/src/lib/aggregatorBookings.ts`
+- `apps/web/src/pages/admin/AdminAggregatorBookings.tsx`
+- `apps/web/src/pages/AggregatorBookingDetail.tsx`
+- `docs/architecture/aggregator-booking-business-plan.md`
+- `docs/architecture/booking-business-plan.md`
+- `docs/operations/aggregator-booking-rollout-checklist.md`
+- `docs/operations/booking-rollout-checklist.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Scope Status
+- Warehouse selection for aggregator bulk-pack planning: COMPLETED.
+- Intake carrier selection for aggregator bulk-pack planning: COMPLETED.
+- Bulk-pack label preview payload generation (manual planning only): COMPLETED.
+- Manifest preview payload generation (manual planning only): COMPLETED.
+- Audit log persistence of planning and preview snapshots: COMPLETED.
+- Live Leopards API integration: NOT IMPLEMENTED.
+- Live Pakistan Post booking integration: NOT IMPLEMENTED.
+- Pickup execution automation: NOT IMPLEMENTED.
+- Dispatch execution automation: NOT IMPLEMENTED.
+- Final booking confirmation: NOT IMPLEMENTED.
+- Payment gateway implementation: NOT IMPLEMENTED.
+
+### Protected Scope Verification
+- `apps/api/src/routes/jobs.ts`: NOT TOUCHED.
+- `apps/web/src/pages/Upload.tsx`: NOT TOUCHED.
+- `apps/api/src/worker.ts`: NOT TOUCHED.
+- Existing label generation contracts: NOT TOUCHED.
+- money order/MOS/UMO: NOT TOUCHED.
+- tracking/complaints/billing/units/auth/admin core: NOT TOUCHED.
+- storage/R2/cleanup/production deploy logic: NOT TOUCHED.
+
+### Schema and Migration Status
+- Prisma schema changes: NONE.
+- Migration changes: NONE.

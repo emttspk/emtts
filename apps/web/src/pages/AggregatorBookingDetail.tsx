@@ -160,6 +160,21 @@ export default function AggregatorBookingDetail() {
 
         <AggregatorBookingSummaryCard booking={booking} />
 
+        {booking.bulkPackPlanning ? (
+          <Card className="border-sky-200 bg-sky-50 p-5 shadow-sm">
+            <h3 className="text-base font-semibold text-sky-900">Bundle Movement Instructions</h3>
+            <p className="mt-1 text-xs text-sky-800">
+              Send the complete bundle to the selected ePost warehouse. Final article processing will be done after hub verification.
+            </p>
+            <div className="mt-2 text-xs text-sky-900">
+              <div>Selected Warehouse: {booking.bulkPackPlanning.selectedWarehouse}</div>
+              <div>Warehouse Address: {booking.bulkPackPlanning.warehouseAddress}</div>
+              <div>Intake Carrier: {booking.bulkPackPlanning.intakeCarrier}</div>
+              <div>Planning Instructions: {booking.bulkPackPlanning.instructions}</div>
+            </div>
+          </Card>
+        ) : null}
+
         <Card className="border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="text-base font-semibold text-slate-900">Sender and Intake Details</h3>
           <p className="mt-1 text-xs text-slate-500">Draft is editable only in BOOKING_DRAFT or CORRECTION_REQUIRED status.</p>
