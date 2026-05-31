@@ -83,6 +83,19 @@ For phase boundaries, protected scope, and continuity handoff protocol, see `doc
 - Source-level UI smoke: PASS for request-only disclaimers and the disabled/unavailable create gate until acceptance and sender details are complete.
 - Protected scope confirmation: no Upload flow, worker, PDF templates, billing, tracking, complaints, auth core, admin core auth, storage/R2, cleanup flags, Railway, Cloudflare/R2, or production paths were touched.
 
+## Local DB Drift Repair and DB-Backed Smoke (2026-05-31)
+- Local Prisma migrate status: PASS target remained local PostgreSQL on `localhost:5432`; pending migrations were present before repair.
+- Migration drift cause: `20260530154500_add_complaint_queue_table` existed as a failed/partial `_prisma_migrations` row because `ComplaintQueue` already existed locally.
+- Local resolve action: PASS `npm --workspace=@labelgen/api exec prisma migrate resolve --applied 20260530154500_add_complaint_queue_table`.
+- Local migrate deploy: PASS `npm --workspace=@labelgen/api exec prisma migrate deploy` applied the remaining migrations.
+- Aggregator tables verified locally: PASS (`AggregatorQuote`, `AggregatorBooking`, `AggregatorBookingItem`, `AggregatorBookingStatusEvent`, `AggregatorBookingAuditLog`).
+- DB-backed smoke: PASS using fake sender data and local test user.
+- Created booking status: `BOOKING_DRAFT`.
+- Customer list visibility: PASS.
+- Admin list visibility: PASS.
+- Side effects: no payment, pickup, dispatch, courier API, or Pakistan Post side effect was triggered in the local smoke.
+- Safety confirmation: no Railway, Cloudflare/R2, or production touch occurred; protected scope remained untouched.
+
 ## Remaining Phase 3 Work
 - Bootstrap or repair a local DB with the `AggregatorBooking` table if a real DB-backed create/read smoke is still required.
 - Run admin-review hardening, payment placeholder lifecycle hardening, and phased rollout gates only after explicit approval.

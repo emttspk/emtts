@@ -14,7 +14,7 @@ It defines:
 ## Current Phase Marker
 Phase 2B: Persisted draft request activation
 Status: Implemented with request-only guardrails
-Next task: Local DB-backed draft visibility smoke once the local AggregatorBooking table is available
+Next task: Phase 3 hardening only after explicit approval
 
 ## Phase Intent
 The Aggregator Booking initiative is intentionally incremental.
@@ -186,10 +186,11 @@ Response mode must remain quote-only.
 - Never infer forbidden fee components.
 
 ## Phase 2B Smoke Status
-- Schema/service smoke is complete and passed.
-- Local browser smoke reached `/login` under auth guard, so the Booking Quote screen was not directly reachable without credentials.
-- Local DB connectivity is available, but the local database is missing the `public.AggregatorBooking` table, which blocks a real draft create/read smoke.
-- No Railway, Cloudflare/R2, or production systems were touched during smoke verification.
+- Schema/service smoke passed.
+- Local DB drift was repaired safely with a local-only Prisma resolve and deploy.
+- The local database now contains the required aggregator tables.
+- DB-backed Phase 2B smoke passed with `BOOKING_DRAFT` creation and customer/admin visibility.
+- No Railway, Cloudflare/R2, or production systems were touched during repair or smoke.
 
 ## Testing Rules
 For continuity sessions touching quote logic, validate in this order:
@@ -233,10 +234,8 @@ If work stops mid-session, next session must follow these steps exactly:
 
 ## Continuation Checklist for Next Session
 - Confirm Phase marker still accurate.
-- Re-run DB-backed draft create/read smoke after the local `AggregatorBooking` table is available.
-- Verify created records remain draft request only until explicit submit/review actions.
-- Verify no payment/pickup/dispatch/live booking side effects in create flow.
-- Update implementation index with smoke test outcome.
+- Proceed only to Phase 3 hardening when explicitly approved.
+- Keep all future work away from protected scope modules unless a dedicated task grants approval.
 
 ## Cross-Reference
 - Postage detail rules: `docs/architecture/postage-rates.md`

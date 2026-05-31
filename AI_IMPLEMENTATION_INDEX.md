@@ -1,5 +1,49 @@
 # AI Implementation Index
 
+## 2026-05-31 - Local DB Drift Repair and Aggregator Booking Phase 2B Smoke
+
+### Task Name
+- Repair local Prisma drift safely and rerun the Phase 2B DB-backed smoke in the local development database.
+
+### Local DB Drift Cause
+- Local `prisma migrate deploy` initially failed on `20260530154500_add_complaint_queue_table` with `relation "ComplaintQueue" already exists`.
+- `_prisma_migrations` showed that migration as failed/partial with `finished_at = null` and `applied_steps_count = 0`.
+- The local target was PostgreSQL on `localhost:5432` database `labelgen`.
+
+### Repair Actions
+- Marked `20260530154500_add_complaint_queue_table` as applied locally with `npm --workspace=@labelgen/api exec prisma migrate resolve --applied 20260530154500_add_complaint_queue_table`.
+- Applied remaining local migrations with `npm --workspace=@labelgen/api exec prisma migrate deploy`.
+
+### Object Inspection Result
+- `ComplaintQueue` exists locally and matches the migration shape.
+- Expected columns, indexes, and foreign key were present.
+- Aggregator tables were present after deploy:
+	- `AggregatorQuote`
+	- `AggregatorBooking`
+	- `AggregatorBookingItem`
+	- `AggregatorBookingStatusEvent`
+	- `AggregatorBookingAuditLog`
+
+### DB-Backed Smoke Result
+- Local test user found: PASS.
+- Quote summary built: PASS.
+- `convertQuoteToDraft`: PASS.
+- Created status `BOOKING_DRAFT`: PASS.
+- Request payload flags persisted: PASS (`requestOnly`, `noPayment`, `noLiveBooking`, `noPickupExecution`).
+- Request payload context persisted: PASS (`selectedOption`, `senderDetails`, `quoteSnapshot`, `recommendationSnapshot`, `items`).
+- Customer list visibility: PASS.
+- Admin list visibility: PASS.
+- No payment, pickup, dispatch, courier API, or Pakistan Post side effect was triggered in the local smoke path.
+
+### Safety / Scope Confirmation
+- Local development DB only.
+- No Railway, Cloudflare/R2, or production touch occurred.
+- Protected scope modules remained untouched.
+- No schema edit, new migration, reset, drop, or destructive SQL was used.
+
+### Next Item
+- No immediate code work remains for Phase 2B smoke; proceed only with Phase 3 hardening when explicitly approved.
+
 ## 2026-05-31 - Aggregator Booking Phase 2B Smoke Verification
 
 ### Task Name
