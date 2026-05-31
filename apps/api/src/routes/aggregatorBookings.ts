@@ -5,9 +5,12 @@ import {
   cancelBooking,
   convertQuoteToDraft,
   createDraftFromQuote,
+  getAggregatorPaymentOptions,
   getBookingForUser,
+  loadAggregatorPaymentContext,
   getBookingTimelineForUser,
   listBookingsForUser,
+  submitAggregatorManualPayment,
   submitBooking,
   updateBookingDraft,
 } from "../services/aggregatorBookingService.js";
@@ -16,6 +19,7 @@ import {
   listAggregatorBookingDocumentsForUser,
 } from "../services/aggregatorDocumentService.js";
 import {
+  aggregatorManualPaymentSubmitSchema,
   cancelBookingSchema,
   createBookingDocumentMetadataSchema,
   convertQuoteToDraftSchema,
@@ -256,6 +260,64 @@ aggregatorBookingsRouter.get("/:id/final-processing/status", async (req: AuthedR
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load final processing status";
     const status = message === "Booking not found" ? 404 : message === "Forbidden" ? 403 : 500;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+aggregatorBookingsRouter.get("/:id/payment/options", async (req: AuthedRequest, res) => {
+  try {
+    const userId = String(req.user?.id ?? "").trim();
+    const bookingId = String(req.params.id ?? "").trim();
+    const result = await getAggregatorPaymentOptions({ bookingId, userId, context: { req } });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to load manual payment options";
+    const status = message === "Booking not found" ? 404 : message === "Forbidden" ? 403 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+aggregatorBookingsRouter.post("/:id/payment/manual-submit", async (req: AuthedRequest, res) => {
+  try {
+    const userId = String(req.user?.id ?? "").trim();
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = aggregatorManualPaymentSubmitSchema.parse(req.body ?? {});
+    const result = await submitAggregatorManualPayment({
+      bookingId,
+      userId,
+      method: payload.method,
+      amount: payload.amount,
+      currency: payload.currency,
+      reference: payload.reference,
+      payerName: payload.payerName,
+      proofNote: payload.proofNote,
+      manualFlags: payload.manualFlags,
+      context: { req },
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid manual payment payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to submit manual payment";
+    const status = message === "Booking not found" ? 404 : message === "Forbidden" ? 403 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+aggregatorBookingsRouter.get("/:id/payment/status", async (req: AuthedRequest, res) => {
+  try {
+    const userId = String(req.user?.id ?? "").trim();
+    const bookingId = String(req.params.id ?? "").trim();
+    const { phase3c5Payment } = await loadAggregatorPaymentContext({
+      bookingId,
+      actorUserId: userId,
+      actorType: "CUSTOMER",
+    });
+    return res.json({ success: true, status: phase3c5Payment });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to load manual payment status";
+    const status = message === "Booking not found" ? 404 : message === "Forbidden" ? 403 : 400;
     return res.status(status).json({ success: false, error: message });
   }
 });

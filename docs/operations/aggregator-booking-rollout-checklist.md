@@ -74,6 +74,21 @@
 - No external carrier/Pakistan Post booking API is called.
 - No pickup/dispatch/final booking action is created.
 - `jobs.ts`, `Upload.tsx`, and `worker.ts` behavior remains unchanged.
+
+## Phase 3C-5A (Manual Payment Verification) Checklist
+- Customer can load payment options from `/api/aggregator-bookings/:id/payment/options`.
+- Customer can submit manual payment proof to `/api/aggregator-bookings/:id/payment/manual-submit`.
+- Customer can view derived payment lifecycle via `/api/aggregator-bookings/:id/payment/status`.
+- Admin can verify manual payment via `/api/admin/aggregator-bookings/:id/payment/manual-verify`.
+- Admin can reject manual payment via `/api/admin/aggregator-bookings/:id/payment/manual-reject`.
+- Admin can cancel manual payment via `/api/admin/aggregator-bookings/:id/payment/manual-cancel`.
+- All manual guardrail flags must be literal `true` and unknown payload fields are rejected.
+- Booking detail/list and admin detail show: `Payment verification only. This is not final Pakistan Post booking confirmation.`
+- Derived `phase3c5Payment` metadata is additive (audit-log derived) with no schema change.
+- No live JazzCash/Easypaisa gateway execution.
+- No SaaS invoice/subscription mutation.
+- No pickup/dispatch/final booking execution.
+- No Pakistan Post booking API execution.
 - No pickup/dispatch/final booking action is created.
 - `jobs.ts`, `Upload.tsx`, and `worker.ts` behavior remains unchanged.
 

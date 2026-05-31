@@ -23,6 +23,59 @@ export type AggregatorIntakeCarrierOption = "CUSTOMER_SELF_DROP" | "PAKISTAN_POS
 
 export type FinalProcessingServiceCode = "RGL" | "VPL" | "VPP" | "IRL" | "PAR" | "UMS" | "COD";
 
+export type AggregatorManualPaymentMethod =
+  | "BANK_TRANSFER"
+  | "JAZZCASH_WALLET_TRANSFER"
+  | "EASYPAISA_WALLET_TRANSFER"
+  | "OFFICE_CASH";
+
+export type Phase3C5PaymentState = {
+  currentState:
+    | "PAYMENT_OPTIONS_VISIBLE"
+    | "MANUAL_PAYMENT_SUBMITTED"
+    | "UNDER_ADMIN_VERIFICATION"
+    | "MANUAL_PAYMENT_VERIFIED"
+    | "MANUAL_PAYMENT_REJECTED"
+    | "MANUAL_PAYMENT_CANCELLED";
+  eligibleForManualPayment: boolean;
+  paymentOptionsVisible: boolean;
+  latestSubmission: {
+    method: AggregatorManualPaymentMethod;
+    amount: number;
+    currency: string;
+    reference: string | null;
+    payerName: string;
+    proofNote: string;
+    submittedBy: string;
+    submittedAt: string;
+  } | null;
+  verification: {
+    method: AggregatorManualPaymentMethod;
+    amount: number;
+    currency: string;
+    reference: string | null;
+    payerName: string;
+    proofNote: string;
+    verifiedBy: string;
+    verificationNote: string;
+    verifiedAt: string;
+  } | null;
+  rejection: {
+    rejectedBy: string;
+    rejectionReason: string;
+    rejectionNote: string | null;
+    rejectedAt: string;
+  } | null;
+  cancellation: {
+    cancelledBy: string;
+    cancellationReason: string;
+    cancellationNote: string | null;
+    cancelledAt: string;
+  } | null;
+  updatedAt: string | null;
+  customerNotice: string;
+};
+
 export type AggregatorBookingTimelineEvent = {
   id: string;
   fromStatus: string | null;
@@ -289,6 +342,7 @@ export type AggregatorBooking = {
   phase3c2Operational?: Phase3C2OperationalState | null;
   phase3c3Operational?: Phase3C3OperationalState | null;
   phase3c4FinalProcessing?: Phase3C4FinalProcessingState | null;
+  phase3c5Payment?: Phase3C5PaymentState | null;
 };
 
 export type AggregatorBulkPackLabelPreview = {
@@ -396,6 +450,17 @@ export const manualFinalProcessingFlags = {
   noAutoDispatch: true,
 } as const;
 
+export const manualAggregatorPaymentFlags = {
+  manualOnly: true,
+  noLiveGateway: true,
+  noSubscriptionMutation: true,
+  noInvoiceMutation: true,
+  noPickupExecution: true,
+  noDispatchExecution: true,
+  noPakistanPostBookingApi: true,
+  noFinalBookingConfirmation: true,
+} as const;
+
 export async function convertQuoteToBookingDraft(input: {
   rows: Array<Record<string, unknown>>;
   quoteSummary: Record<string, unknown>;
@@ -459,6 +524,45 @@ export async function getMyAggregatorBookingTimeline(bookingId: string) {
   return api<{ success: boolean; timeline: AggregatorBookingTimelineEvent[] }>(`/api/aggregator-bookings/${encodeURIComponent(bookingId)}/timeline`);
 }
 
+export async function getAggregatorPaymentOptions(bookingId: string) {
+  return api<{
+    success: boolean;
+    bookingId: string;
+    methods: AggregatorManualPaymentMethod[];
+    paymentState: Phase3C5PaymentState;
+    notice: string;
+  }>(`/api/aggregator-bookings/${encodeURIComponent(bookingId)}/payment/options`);
+}
+
+export async function submitAggregatorManualPayment(
+  bookingId: string,
+  payload: {
+    method: AggregatorManualPaymentMethod;
+    amount: number;
+    currency?: string;
+    reference?: string;
+    payerName: string;
+    proofNote: string;
+  },
+) {
+  return api<{ success: boolean; bookingId: string; paymentState: Phase3C5PaymentState }>(
+    `/api/aggregator-bookings/${encodeURIComponent(bookingId)}/payment/manual-submit`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ...payload,
+        manualFlags: manualAggregatorPaymentFlags,
+      }),
+    },
+  );
+}
+
+export async function getAggregatorPaymentStatus(bookingId: string) {
+  return api<{ success: boolean; status: Phase3C5PaymentState }>(
+    `/api/aggregator-bookings/${encodeURIComponent(bookingId)}/payment/status`,
+  );
+}
+
 export async function listAdminAggregatorBookings(params?: {
   page?: number;
   pageSize?: number;
@@ -480,6 +584,63 @@ export async function listAdminAggregatorBookings(params?: {
 
 export async function getAdminAggregatorBooking(bookingId: string) {
   return api<{ success: boolean; booking: AggregatorBooking }>(`/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}`);
+}
+
+export async function adminVerifyAggregatorManualPayment(
+  bookingId: string,
+  payload: {
+    verificationNote: string;
+    verifiedReference?: string;
+  },
+) {
+  return api<{ success: boolean; bookingId: string; paymentState: Phase3C5PaymentState }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/payment/manual-verify`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ...payload,
+        manualFlags: manualAggregatorPaymentFlags,
+      }),
+    },
+  );
+}
+
+export async function adminRejectAggregatorManualPayment(
+  bookingId: string,
+  payload: {
+    rejectionReason: string;
+    rejectionNote?: string;
+  },
+) {
+  return api<{ success: boolean; bookingId: string; paymentState: Phase3C5PaymentState }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/payment/manual-reject`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ...payload,
+        manualFlags: manualAggregatorPaymentFlags,
+      }),
+    },
+  );
+}
+
+export async function adminCancelAggregatorManualPayment(
+  bookingId: string,
+  payload: {
+    cancellationReason: string;
+    cancellationNote?: string;
+  },
+) {
+  return api<{ success: boolean; bookingId: string; paymentState: Phase3C5PaymentState }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/payment/manual-cancel`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ...payload,
+        manualFlags: manualAggregatorPaymentFlags,
+      }),
+    },
+  );
 }
 
 export async function adminApproveAggregatorBooking(

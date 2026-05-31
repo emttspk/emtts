@@ -283,6 +283,80 @@ const FINAL_PROCESSING_SERVICE_CODES = ["RGL", "VPL", "VPP", "IRL", "PAR", "UMS"
 
 const finalBookingWordingRegex = /(final\s+booking\s+confirmation|pakistan\s+post\s+booking\s+confirmed|booking\s+confirmed)/i;
 
+const AGGREGATOR_MANUAL_PAYMENT_METHODS = [
+  "BANK_TRANSFER",
+  "JAZZCASH_WALLET_TRANSFER",
+  "EASYPAISA_WALLET_TRANSFER",
+  "OFFICE_CASH",
+] as const;
+
+const manualAggregatorPaymentFlagsSchema = z
+  .object({
+    manualOnly: z.literal(true),
+    noLiveGateway: z.literal(true),
+    noSubscriptionMutation: z.literal(true),
+    noInvoiceMutation: z.literal(true),
+    noPickupExecution: z.literal(true),
+    noDispatchExecution: z.literal(true),
+    noPakistanPostBookingApi: z.literal(true),
+    noFinalBookingConfirmation: z.literal(true),
+  })
+  .strict();
+
+export const aggregatorManualPaymentSubmitSchema = z
+  .object({
+    method: z.enum(AGGREGATOR_MANUAL_PAYMENT_METHODS),
+    amount: z.coerce.number().positive(),
+    currency: z.string().trim().min(3).max(3).default("PKR"),
+    reference: z.string().trim().max(160).optional().nullable(),
+    payerName: z.string().trim().min(2).max(120),
+    proofNote: z.string().trim().min(5).max(2000),
+    manualFlags: manualAggregatorPaymentFlagsSchema,
+  })
+  .strict()
+  .superRefine((payload, ctx) => {
+    const reference = String(payload.reference ?? "").trim();
+    if (payload.method !== "OFFICE_CASH" && reference.length < 3) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["reference"],
+        message: "reference is required for non-cash manual methods.",
+      });
+    }
+
+    if (payload.method === "OFFICE_CASH" && reference.length > 0 && reference.length < 3) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["reference"],
+        message: "office cash reference must be at least 3 characters when provided.",
+      });
+    }
+  });
+
+export const adminAggregatorManualPaymentVerifySchema = z
+  .object({
+    verificationNote: z.string().trim().min(5).max(2000),
+    verifiedReference: z.string().trim().max(160).optional().nullable(),
+    manualFlags: manualAggregatorPaymentFlagsSchema,
+  })
+  .strict();
+
+export const adminAggregatorManualPaymentRejectSchema = z
+  .object({
+    rejectionReason: z.string().trim().min(3).max(500),
+    rejectionNote: z.string().trim().max(2000).optional(),
+    manualFlags: manualAggregatorPaymentFlagsSchema,
+  })
+  .strict();
+
+export const adminAggregatorManualPaymentCancelSchema = z
+  .object({
+    cancellationReason: z.string().trim().min(3).max(500),
+    cancellationNote: z.string().trim().max(2000).optional(),
+    manualFlags: manualAggregatorPaymentFlagsSchema,
+  })
+  .strict();
+
 export const manualOnlyFinalProcessingFlagsSchema = z
   .object({
     manualOnly: z.literal(true),

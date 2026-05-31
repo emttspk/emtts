@@ -33,6 +33,41 @@
 ## 2026-05-31 - Aggregator Booking Phase 3C-2 Hub Receiving Verification
 ## 2026-05-31 - Aggregator Booking Phase 3C-3 Operational Handoff and Dispatch Recording
 
+## 2026-05-31 - Aggregator Booking Phase 3C-5A Manual Payment Verification
+
+### Task Name
+- Implement manual aggregator payment options and admin verification lifecycle (Phase 3C-5A only).
+
+### Files Changed
+- `apps/api/src/services/aggregatorBookingService.ts`
+- `apps/api/src/routes/aggregatorBookings.ts`
+- `apps/api/src/routes/adminAggregatorBookings.ts`
+- `apps/api/src/utils/aggregatorBookingValidation.ts`
+- `apps/web/src/lib/aggregatorBookings.ts`
+- `apps/web/src/pages/AggregatorBookingDetail.tsx`
+- `apps/web/src/pages/AggregatorBookings.tsx`
+- `apps/web/src/pages/admin/AdminAggregatorBookings.tsx`
+- `apps/api/scripts/phase3c5a-schema-smoke.mjs`
+
+### Behavior Added
+- Customer endpoints:
+	- `GET /api/aggregator-bookings/:id/payment/options`
+	- `POST /api/aggregator-bookings/:id/payment/manual-submit`
+	- `GET /api/aggregator-bookings/:id/payment/status`
+- Admin endpoints:
+	- `POST /api/admin/aggregator-bookings/:id/payment/manual-verify`
+	- `POST /api/admin/aggregator-bookings/:id/payment/manual-reject`
+	- `POST /api/admin/aggregator-bookings/:id/payment/manual-cancel`
+- Derived additive metadata: `phase3c5Payment` from `AggregatorBookingAuditLog`.
+- Customer/admin wording enforced: "Payment verification only. This is not final Pakistan Post booking confirmation."
+
+### Explicit Exclusions
+- No JazzCash live gateway execution in this phase.
+- No SaaS billing/subscription/invoice mutation.
+- No pickup/dispatch execution.
+- No Pakistan Post booking API or final booking confirmation.
+- No Prisma schema or migration changes.
+
 ### Task Name
 - Implement Phase 3C-3 manual operational handoff recording: driver-to-hub handoff, hub-to-sorting dispatch, inter-facility transfer, and ready-for-final-postal-processing marking.
 

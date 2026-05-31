@@ -289,6 +289,115 @@ type Phase3C4FinalProcessingState = {
   customerNotice: string;
 };
 
+const AGGREGATOR_MANUAL_PAYMENT_METHODS = [
+  "BANK_TRANSFER",
+  "JAZZCASH_WALLET_TRANSFER",
+  "EASYPAISA_WALLET_TRANSFER",
+  "OFFICE_CASH",
+] as const;
+
+type AggregatorManualPaymentMethod = (typeof AGGREGATOR_MANUAL_PAYMENT_METHODS)[number];
+
+type Phase3C5CurrentState =
+  | "PAYMENT_OPTIONS_VISIBLE"
+  | "MANUAL_PAYMENT_SUBMITTED"
+  | "UNDER_ADMIN_VERIFICATION"
+  | "MANUAL_PAYMENT_VERIFIED"
+  | "MANUAL_PAYMENT_REJECTED"
+  | "MANUAL_PAYMENT_CANCELLED";
+
+type ManualPaymentGuardrailFlags = {
+  manualOnly: true;
+  noLiveGateway: true;
+  noSubscriptionMutation: true;
+  noInvoiceMutation: true;
+  noPickupExecution: true;
+  noDispatchExecution: true;
+  noPakistanPostBookingApi: true;
+  noFinalBookingConfirmation: true;
+};
+
+type Phase3C5ManualSubmissionSnapshot = {
+  method: AggregatorManualPaymentMethod;
+  amount: number;
+  currency: string;
+  reference: string | null;
+  payerName: string;
+  proofNote: string;
+  submittedBy: string;
+  submittedAt: string;
+  manualOnly: true;
+  noLiveGateway: true;
+  noSubscriptionMutation: true;
+  noInvoiceMutation: true;
+  noPickupExecution: true;
+  noDispatchExecution: true;
+  noPakistanPostBookingApi: true;
+  noFinalBookingConfirmation: true;
+};
+
+type Phase3C5ManualVerificationSnapshot = {
+  method: AggregatorManualPaymentMethod;
+  amount: number;
+  currency: string;
+  reference: string | null;
+  payerName: string;
+  proofNote: string;
+  verifiedBy: string;
+  verificationNote: string;
+  verifiedAt: string;
+  manualOnly: true;
+  noLiveGateway: true;
+  noSubscriptionMutation: true;
+  noInvoiceMutation: true;
+  noPickupExecution: true;
+  noDispatchExecution: true;
+  noPakistanPostBookingApi: true;
+  noFinalBookingConfirmation: true;
+};
+
+type Phase3C5ManualRejectionSnapshot = {
+  rejectedBy: string;
+  rejectionReason: string;
+  rejectionNote: string | null;
+  rejectedAt: string;
+  manualOnly: true;
+  noLiveGateway: true;
+  noSubscriptionMutation: true;
+  noInvoiceMutation: true;
+  noPickupExecution: true;
+  noDispatchExecution: true;
+  noPakistanPostBookingApi: true;
+  noFinalBookingConfirmation: true;
+};
+
+type Phase3C5ManualCancellationSnapshot = {
+  cancelledBy: string;
+  cancellationReason: string;
+  cancellationNote: string | null;
+  cancelledAt: string;
+  manualOnly: true;
+  noLiveGateway: true;
+  noSubscriptionMutation: true;
+  noInvoiceMutation: true;
+  noPickupExecution: true;
+  noDispatchExecution: true;
+  noPakistanPostBookingApi: true;
+  noFinalBookingConfirmation: true;
+};
+
+type Phase3C5PaymentState = {
+  currentState: Phase3C5CurrentState;
+  eligibleForManualPayment: boolean;
+  paymentOptionsVisible: boolean;
+  latestSubmission: Phase3C5ManualSubmissionSnapshot | null;
+  verification: Phase3C5ManualVerificationSnapshot | null;
+  rejection: Phase3C5ManualRejectionSnapshot | null;
+  cancellation: Phase3C5ManualCancellationSnapshot | null;
+  updatedAt: string | null;
+  customerNotice: string;
+};
+
 const PHASE_3C2_CUSTOMER_NOTICE = "This is warehouse receiving status only. Final article processing is separate.";
 const HUB_RECEIVING_AUDIT_ACTIONS = [
   "HUB_RECEIVING_MARKED",
@@ -316,6 +425,17 @@ const FINAL_PROCESSING_AUDIT_ACTIONS = [
   "FINAL_PROCESSING_PACKET_PREPARED",
   "FINAL_PROCESSING_PACKET_EXPORTED",
   "FINAL_PROCESSING_REVIEW_MARKED",
+] as const;
+
+const PHASE_3C5_CUSTOMER_NOTICE =
+  "Payment verification only. This is not final Pakistan Post booking confirmation.";
+
+const PHASE_3C5_AUDIT_ACTIONS = [
+  "AGGREGATOR_PAYMENT_OPTIONS_SHOWN",
+  "AGGREGATOR_MANUAL_PAYMENT_SUBMITTED",
+  "AGGREGATOR_MANUAL_PAYMENT_VERIFIED",
+  "AGGREGATOR_MANUAL_PAYMENT_REJECTED",
+  "AGGREGATOR_MANUAL_PAYMENT_CANCELLED",
 ] as const;
 
 const FINAL_PROCESSING_SERVICE_CODES: FinalProcessingServiceCode[] = ["RGL", "VPL", "VPP", "IRL", "PAR", "UMS", "COD"];
@@ -461,6 +581,239 @@ function assertHubReceivingGuardrails(flags: HubReceivingGuardrailFlags) {
   if (!flags.noPickupExecution) throw new Error("Pickup execution is not allowed in Phase 3C-2");
   if (!flags.noDispatchExecution) throw new Error("Dispatch execution is not allowed in Phase 3C-2");
   if (!flags.noFinalBookingConfirmation) throw new Error("Final booking confirmation is not allowed in Phase 3C-2");
+}
+
+function assertManualPaymentGuardrails(flags: ManualPaymentGuardrailFlags) {
+  if (!flags.manualOnly) throw new Error("Manual payment verification must remain manual-only");
+  if (!flags.noLiveGateway) throw new Error("Live payment gateway is not allowed in Phase 3C-5A");
+  if (!flags.noSubscriptionMutation) throw new Error("Subscription mutation is not allowed in Phase 3C-5A");
+  if (!flags.noInvoiceMutation) throw new Error("Invoice mutation is not allowed in Phase 3C-5A");
+  if (!flags.noPickupExecution) throw new Error("Pickup execution is not allowed in Phase 3C-5A");
+  if (!flags.noDispatchExecution) throw new Error("Dispatch execution is not allowed in Phase 3C-5A");
+  if (!flags.noPakistanPostBookingApi) throw new Error("Pakistan Post booking API is not allowed in Phase 3C-5A");
+  if (!flags.noFinalBookingConfirmation) throw new Error("Final booking confirmation is not allowed in Phase 3C-5A");
+}
+
+function isAggregatorManualPaymentMethod(value: unknown): value is AggregatorManualPaymentMethod {
+  return (AGGREGATOR_MANUAL_PAYMENT_METHODS as readonly string[]).includes(String(value ?? "").trim().toUpperCase());
+}
+
+function parsePhase3C5ManualSubmission(value: unknown): Phase3C5ManualSubmissionSnapshot | null {
+  const obj = toPlainObject(value);
+  if (!obj) return null;
+
+  const method = String(obj.method ?? "").trim().toUpperCase();
+  const amount = Number(obj.amount ?? 0);
+  const currency = String(obj.currency ?? "PKR").trim().toUpperCase() || "PKR";
+  const payerName = String(obj.payerName ?? "").trim();
+  const proofNote = String(obj.proofNote ?? "").trim();
+  const submittedBy = String(obj.submittedBy ?? "").trim();
+  const submittedAt = String(obj.submittedAt ?? "").trim();
+  if (!isAggregatorManualPaymentMethod(method)) return null;
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  if (!payerName || !proofNote || !submittedBy || !submittedAt) return null;
+
+  return {
+    method,
+    amount,
+    currency,
+    reference: normalizeOptionalString(obj.reference as string | null | undefined),
+    payerName,
+    proofNote,
+    submittedBy,
+    submittedAt,
+    manualOnly: true,
+    noLiveGateway: true,
+    noSubscriptionMutation: true,
+    noInvoiceMutation: true,
+    noPickupExecution: true,
+    noDispatchExecution: true,
+    noPakistanPostBookingApi: true,
+    noFinalBookingConfirmation: true,
+  };
+}
+
+function parsePhase3C5ManualVerification(value: unknown): Phase3C5ManualVerificationSnapshot | null {
+  const obj = toPlainObject(value);
+  if (!obj) return null;
+
+  const method = String(obj.method ?? "").trim().toUpperCase();
+  const amount = Number(obj.amount ?? 0);
+  const currency = String(obj.currency ?? "PKR").trim().toUpperCase() || "PKR";
+  const payerName = String(obj.payerName ?? "").trim();
+  const proofNote = String(obj.proofNote ?? "").trim();
+  const verifiedBy = String(obj.verifiedBy ?? "").trim();
+  const verificationNote = String(obj.verificationNote ?? "").trim();
+  const verifiedAt = String(obj.verifiedAt ?? "").trim();
+  if (!isAggregatorManualPaymentMethod(method)) return null;
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  if (!payerName || !proofNote || !verifiedBy || !verificationNote || !verifiedAt) return null;
+
+  return {
+    method,
+    amount,
+    currency,
+    reference: normalizeOptionalString(obj.reference as string | null | undefined),
+    payerName,
+    proofNote,
+    verifiedBy,
+    verificationNote,
+    verifiedAt,
+    manualOnly: true,
+    noLiveGateway: true,
+    noSubscriptionMutation: true,
+    noInvoiceMutation: true,
+    noPickupExecution: true,
+    noDispatchExecution: true,
+    noPakistanPostBookingApi: true,
+    noFinalBookingConfirmation: true,
+  };
+}
+
+function parsePhase3C5ManualRejection(value: unknown): Phase3C5ManualRejectionSnapshot | null {
+  const obj = toPlainObject(value);
+  if (!obj) return null;
+  const rejectedBy = String(obj.rejectedBy ?? "").trim();
+  const rejectionReason = String(obj.rejectionReason ?? "").trim();
+  const rejectedAt = String(obj.rejectedAt ?? "").trim();
+  if (!rejectedBy || !rejectionReason || !rejectedAt) return null;
+
+  return {
+    rejectedBy,
+    rejectionReason,
+    rejectionNote: normalizeOptionalString(obj.rejectionNote as string | null | undefined),
+    rejectedAt,
+    manualOnly: true,
+    noLiveGateway: true,
+    noSubscriptionMutation: true,
+    noInvoiceMutation: true,
+    noPickupExecution: true,
+    noDispatchExecution: true,
+    noPakistanPostBookingApi: true,
+    noFinalBookingConfirmation: true,
+  };
+}
+
+function parsePhase3C5ManualCancellation(value: unknown): Phase3C5ManualCancellationSnapshot | null {
+  const obj = toPlainObject(value);
+  if (!obj) return null;
+  const cancelledBy = String(obj.cancelledBy ?? "").trim();
+  const cancellationReason = String(obj.cancellationReason ?? "").trim();
+  const cancelledAt = String(obj.cancelledAt ?? "").trim();
+  if (!cancelledBy || !cancellationReason || !cancelledAt) return null;
+
+  return {
+    cancelledBy,
+    cancellationReason,
+    cancellationNote: normalizeOptionalString(obj.cancellationNote as string | null | undefined),
+    cancelledAt,
+    manualOnly: true,
+    noLiveGateway: true,
+    noSubscriptionMutation: true,
+    noInvoiceMutation: true,
+    noPickupExecution: true,
+    noDispatchExecution: true,
+    noPakistanPostBookingApi: true,
+    noFinalBookingConfirmation: true,
+  };
+}
+
+export async function derivePhase3C5PaymentState(bookingId: string): Promise<Phase3C5PaymentState> {
+  const [booking, logs] = await Promise.all([
+    prisma.aggregatorBooking.findUnique({
+      where: { id: bookingId },
+      select: {
+        id: true,
+        status: true,
+        paymentStatus: true,
+        paymentPlaceholder: {
+          select: {
+            paymentStatus: true,
+            placeholderMethod: true,
+            placeholderReference: true,
+            placeholderAmount: true,
+            placeholderCurrency: true,
+            updatedAt: true,
+          },
+        },
+      },
+    }),
+    prisma.aggregatorBookingAuditLog.findMany({
+      where: {
+        bookingId,
+        action: { in: [...PHASE_3C5_AUDIT_ACTIONS] },
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        action: true,
+        newValueJson: true,
+        createdAt: true,
+      },
+    }),
+  ]);
+
+  if (!booking) throw new Error("Booking not found");
+
+  const eligibleStatuses = new Set(["PAYMENT_PENDING_PLACEHOLDER", "DROP_PENDING", "PICKUP_PENDING_FUTURE"]);
+  const eligibleForManualPayment = eligibleStatuses.has(String(booking.status ?? "").trim().toUpperCase());
+
+  const submittedLog = logs.find((log) => log.action === "AGGREGATOR_MANUAL_PAYMENT_SUBMITTED");
+  const verifiedLog = logs.find((log) => log.action === "AGGREGATOR_MANUAL_PAYMENT_VERIFIED");
+  const rejectedLog = logs.find((log) => log.action === "AGGREGATOR_MANUAL_PAYMENT_REJECTED");
+  const cancelledLog = logs.find((log) => log.action === "AGGREGATOR_MANUAL_PAYMENT_CANCELLED");
+
+  const latestSubmission = submittedLog ? parsePhase3C5ManualSubmission(submittedLog.newValueJson) : null;
+  const verification = verifiedLog ? parsePhase3C5ManualVerification(verifiedLog.newValueJson) : null;
+  const rejection = rejectedLog ? parsePhase3C5ManualRejection(rejectedLog.newValueJson) : null;
+  const cancellation = cancelledLog ? parsePhase3C5ManualCancellation(cancelledLog.newValueJson) : null;
+
+  let currentState: Phase3C5CurrentState = "PAYMENT_OPTIONS_VISIBLE";
+  if (verification) {
+    currentState = "MANUAL_PAYMENT_VERIFIED";
+  } else if (rejection) {
+    currentState = "MANUAL_PAYMENT_REJECTED";
+  } else if (cancellation) {
+    currentState = "MANUAL_PAYMENT_CANCELLED";
+  } else if (latestSubmission) {
+    currentState = "UNDER_ADMIN_VERIFICATION";
+  }
+
+  const latestTimestamp = logs[0]?.createdAt?.toISOString() ?? booking.paymentPlaceholder?.updatedAt?.toISOString() ?? null;
+
+  return {
+    currentState,
+    eligibleForManualPayment,
+    paymentOptionsVisible: eligibleForManualPayment,
+    latestSubmission,
+    verification,
+    rejection,
+    cancellation,
+    updatedAt: latestTimestamp,
+    customerNotice: PHASE_3C5_CUSTOMER_NOTICE,
+  };
+}
+
+export async function loadAggregatorPaymentContext(input: {
+  bookingId: string;
+  actorUserId: string;
+  actorType: "CUSTOMER" | "ADMIN";
+}) {
+  const booking = await prisma.aggregatorBooking.findUnique({
+    where: { id: input.bookingId },
+    include: { paymentPlaceholder: true },
+  });
+  if (!booking) throw new Error("Booking not found");
+
+  if (input.actorType === "CUSTOMER") {
+    ensureOwner(booking.userId, input.actorUserId);
+  }
+
+  const phase3c5Payment = await derivePhase3C5PaymentState(booking.id);
+  if (!phase3c5Payment.eligibleForManualPayment) {
+    throw new Error("Booking is not eligible for manual payment options yet");
+  }
+
+  return { booking, phase3c5Payment };
 }
 
 function parsePlanningSelection(logValue: unknown) {
@@ -1152,11 +1505,12 @@ async function loadHandoffContext(bookingId: string) {
 }
 
 async function appendPlanningMetadata<T extends { id: string }>(booking: T) {
-  const [planning, phase3c2Operational, phase3c3Operational, phase3c4FinalProcessing] = await Promise.all([
+  const [planning, phase3c2Operational, phase3c3Operational, phase3c4FinalProcessing, phase3c5Payment] = await Promise.all([
     findLatestPlanningSelection(booking.id),
     derivePhase3C2OperationalState(booking.id),
     derivePhase3C3OperationalState(booking.id),
     derivePhase3C4FinalProcessingState(booking.id),
+    derivePhase3C5PaymentState(booking.id),
   ]);
 
   return {
@@ -1165,6 +1519,7 @@ async function appendPlanningMetadata<T extends { id: string }>(booking: T) {
     phase3c2Operational,
     phase3c3Operational,
     phase3c4FinalProcessing,
+    phase3c5Payment,
   };
 }
 
@@ -2924,4 +3279,359 @@ export async function adminMarkPending(input: {
   context?: RequestContext;
 }) {
   return adminTransition({ ...input, toStatus: "ADMIN_REVIEW_PENDING" });
+}
+
+export async function getAggregatorPaymentOptions(input: {
+  bookingId: string;
+  userId: string;
+  context?: RequestContext;
+}) {
+  const actor: Actor = { actorType: "CUSTOMER", actorUserId: input.userId };
+  const { booking, phase3c5Payment } = await loadAggregatorPaymentContext({
+    bookingId: input.bookingId,
+    actorUserId: input.userId,
+    actorType: "CUSTOMER",
+  });
+
+  await writeAuditLog({
+    bookingId: booking.id,
+    action: "AGGREGATOR_PAYMENT_OPTIONS_SHOWN",
+    actor,
+    targetField: "phase3c5_payment",
+    oldValueJson: undefined,
+    newValueJson: {
+      currentState: phase3c5Payment.currentState,
+      options: AGGREGATOR_MANUAL_PAYMENT_METHODS,
+      shownAt: new Date().toISOString(),
+      manualOnly: true,
+      noLiveGateway: true,
+      noSubscriptionMutation: true,
+      noInvoiceMutation: true,
+      noPickupExecution: true,
+      noDispatchExecution: true,
+      noPakistanPostBookingApi: true,
+      noFinalBookingConfirmation: true,
+    } as unknown as JsonValue,
+    context: input.context,
+  });
+
+  return {
+    bookingId: booking.id,
+    methods: [...AGGREGATOR_MANUAL_PAYMENT_METHODS],
+    paymentState: await derivePhase3C5PaymentState(booking.id),
+    notice: PHASE_3C5_CUSTOMER_NOTICE,
+  };
+}
+
+export async function submitAggregatorManualPayment(input: {
+  bookingId: string;
+  userId: string;
+  method: AggregatorManualPaymentMethod;
+  amount: number;
+  currency?: string;
+  reference?: string | null;
+  payerName: string;
+  proofNote: string;
+  manualFlags: ManualPaymentGuardrailFlags;
+  context?: RequestContext;
+}) {
+  assertManualPaymentGuardrails(input.manualFlags);
+
+  const actor: Actor = { actorType: "CUSTOMER", actorUserId: input.userId };
+  const { booking, phase3c5Payment } = await loadAggregatorPaymentContext({
+    bookingId: input.bookingId,
+    actorUserId: input.userId,
+    actorType: "CUSTOMER",
+  });
+
+  if (phase3c5Payment.currentState === "MANUAL_PAYMENT_VERIFIED") {
+    throw new Error("Manual payment has already been verified for this booking");
+  }
+
+  const normalizedReference = normalizeOptionalString(input.reference);
+  const amount = toSafeInt(input.amount);
+  if (amount <= 0) throw new Error("Manual payment amount must be greater than 0");
+
+  const snapshot: Phase3C5ManualSubmissionSnapshot = {
+    method: input.method,
+    amount,
+    currency: String(input.currency ?? "PKR").trim().toUpperCase() || "PKR",
+    reference: normalizedReference,
+    payerName: String(input.payerName ?? "").trim(),
+    proofNote: String(input.proofNote ?? "").trim(),
+    submittedBy: input.userId,
+    submittedAt: new Date().toISOString(),
+    manualOnly: true,
+    noLiveGateway: true,
+    noSubscriptionMutation: true,
+    noInvoiceMutation: true,
+    noPickupExecution: true,
+    noDispatchExecution: true,
+    noPakistanPostBookingApi: true,
+    noFinalBookingConfirmation: true,
+  };
+
+  if (!snapshot.payerName || !snapshot.proofNote) {
+    throw new Error("payerName and proofNote are required for manual payment submission");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.aggregatorPaymentPlaceholder.upsert({
+      where: { bookingId: booking.id },
+      create: {
+        bookingId: booking.id,
+        paymentStatus: "PENDING_PLACEHOLDER",
+        placeholderMethod: snapshot.method,
+        placeholderReference: snapshot.reference,
+        placeholderAmount: snapshot.amount,
+        placeholderCurrency: snapshot.currency,
+      },
+      update: {
+        paymentStatus: "PENDING_PLACEHOLDER",
+        placeholderMethod: snapshot.method,
+        placeholderReference: snapshot.reference,
+        placeholderAmount: snapshot.amount,
+        placeholderCurrency: snapshot.currency,
+      },
+    });
+
+    await tx.aggregatorBookingAuditLog.create({
+      data: {
+        bookingId: booking.id,
+        action: "AGGREGATOR_MANUAL_PAYMENT_SUBMITTED",
+        actorType: actor.actorType,
+        actorUserId: actor.actorUserId,
+        targetField: "phase3c5_payment",
+        oldValueJson: undefined,
+        newValueJson: snapshot as unknown as JsonValue,
+      },
+    });
+  });
+
+  return {
+    bookingId: booking.id,
+    paymentState: await derivePhase3C5PaymentState(booking.id),
+  };
+}
+
+export async function adminVerifyAggregatorManualPayment(input: {
+  bookingId: string;
+  adminUserId: string;
+  verificationNote: string;
+  verifiedReference?: string | null;
+  manualFlags: ManualPaymentGuardrailFlags;
+  context?: RequestContext;
+}) {
+  assertManualPaymentGuardrails(input.manualFlags);
+
+  const actor: Actor = { actorType: "ADMIN", actorUserId: input.adminUserId };
+  const { booking, phase3c5Payment } = await loadAggregatorPaymentContext({
+    bookingId: input.bookingId,
+    actorUserId: input.adminUserId,
+    actorType: "ADMIN",
+  });
+
+  if (!phase3c5Payment.latestSubmission) {
+    throw new Error("Manual payment submission is required before verification");
+  }
+
+  const verificationNote = String(input.verificationNote ?? "").trim();
+  if (!verificationNote) {
+    throw new Error("Verification note is required");
+  }
+
+  const verifiedReference = normalizeOptionalString(input.verifiedReference) ?? phase3c5Payment.latestSubmission.reference;
+  const snapshot: Phase3C5ManualVerificationSnapshot = {
+    method: phase3c5Payment.latestSubmission.method,
+    amount: phase3c5Payment.latestSubmission.amount,
+    currency: phase3c5Payment.latestSubmission.currency,
+    reference: verifiedReference,
+    payerName: phase3c5Payment.latestSubmission.payerName,
+    proofNote: phase3c5Payment.latestSubmission.proofNote,
+    verifiedBy: input.adminUserId,
+    verificationNote,
+    verifiedAt: new Date().toISOString(),
+    manualOnly: true,
+    noLiveGateway: true,
+    noSubscriptionMutation: true,
+    noInvoiceMutation: true,
+    noPickupExecution: true,
+    noDispatchExecution: true,
+    noPakistanPostBookingApi: true,
+    noFinalBookingConfirmation: true,
+  };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.aggregatorPaymentPlaceholder.upsert({
+      where: { bookingId: booking.id },
+      create: {
+        bookingId: booking.id,
+        paymentStatus: "MARKED_FOR_OFFLINE_COLLECTION",
+        placeholderMethod: snapshot.method,
+        placeholderReference: snapshot.reference,
+        placeholderAmount: snapshot.amount,
+        placeholderCurrency: snapshot.currency,
+      },
+      update: {
+        paymentStatus: "MARKED_FOR_OFFLINE_COLLECTION",
+        placeholderMethod: snapshot.method,
+        placeholderReference: snapshot.reference,
+        placeholderAmount: snapshot.amount,
+        placeholderCurrency: snapshot.currency,
+      },
+    });
+
+    await tx.aggregatorBookingAuditLog.create({
+      data: {
+        bookingId: booking.id,
+        action: "AGGREGATOR_MANUAL_PAYMENT_VERIFIED",
+        actorType: actor.actorType,
+        actorUserId: actor.actorUserId,
+        targetField: "phase3c5_payment",
+        oldValueJson: undefined,
+        newValueJson: snapshot as unknown as JsonValue,
+      },
+    });
+  });
+
+  return {
+    bookingId: booking.id,
+    paymentState: await derivePhase3C5PaymentState(booking.id),
+  };
+}
+
+export async function adminRejectAggregatorManualPayment(input: {
+  bookingId: string;
+  adminUserId: string;
+  rejectionReason: string;
+  rejectionNote?: string;
+  manualFlags: ManualPaymentGuardrailFlags;
+  context?: RequestContext;
+}) {
+  assertManualPaymentGuardrails(input.manualFlags);
+
+  const actor: Actor = { actorType: "ADMIN", actorUserId: input.adminUserId };
+  const { booking } = await loadAggregatorPaymentContext({
+    bookingId: input.bookingId,
+    actorUserId: input.adminUserId,
+    actorType: "ADMIN",
+  });
+
+  const rejectionReason = String(input.rejectionReason ?? "").trim();
+  if (!rejectionReason) {
+    throw new Error("Rejection reason is required");
+  }
+
+  const snapshot: Phase3C5ManualRejectionSnapshot = {
+    rejectedBy: input.adminUserId,
+    rejectionReason,
+    rejectionNote: normalizeOptionalString(input.rejectionNote),
+    rejectedAt: new Date().toISOString(),
+    manualOnly: true,
+    noLiveGateway: true,
+    noSubscriptionMutation: true,
+    noInvoiceMutation: true,
+    noPickupExecution: true,
+    noDispatchExecution: true,
+    noPakistanPostBookingApi: true,
+    noFinalBookingConfirmation: true,
+  };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.aggregatorPaymentPlaceholder.upsert({
+      where: { bookingId: booking.id },
+      create: {
+        bookingId: booking.id,
+        paymentStatus: "PENDING_PLACEHOLDER",
+      },
+      update: {
+        paymentStatus: "PENDING_PLACEHOLDER",
+      },
+    });
+
+    await tx.aggregatorBookingAuditLog.create({
+      data: {
+        bookingId: booking.id,
+        action: "AGGREGATOR_MANUAL_PAYMENT_REJECTED",
+        actorType: actor.actorType,
+        actorUserId: actor.actorUserId,
+        targetField: "phase3c5_payment",
+        oldValueJson: undefined,
+        newValueJson: snapshot as unknown as JsonValue,
+      },
+    });
+  });
+
+  return {
+    bookingId: booking.id,
+    paymentState: await derivePhase3C5PaymentState(booking.id),
+  };
+}
+
+export async function adminCancelAggregatorManualPayment(input: {
+  bookingId: string;
+  adminUserId: string;
+  cancellationReason: string;
+  cancellationNote?: string;
+  manualFlags: ManualPaymentGuardrailFlags;
+  context?: RequestContext;
+}) {
+  assertManualPaymentGuardrails(input.manualFlags);
+
+  const actor: Actor = { actorType: "ADMIN", actorUserId: input.adminUserId };
+  const { booking } = await loadAggregatorPaymentContext({
+    bookingId: input.bookingId,
+    actorUserId: input.adminUserId,
+    actorType: "ADMIN",
+  });
+
+  const cancellationReason = String(input.cancellationReason ?? "").trim();
+  if (!cancellationReason) {
+    throw new Error("Cancellation reason is required");
+  }
+
+  const snapshot: Phase3C5ManualCancellationSnapshot = {
+    cancelledBy: input.adminUserId,
+    cancellationReason,
+    cancellationNote: normalizeOptionalString(input.cancellationNote),
+    cancelledAt: new Date().toISOString(),
+    manualOnly: true,
+    noLiveGateway: true,
+    noSubscriptionMutation: true,
+    noInvoiceMutation: true,
+    noPickupExecution: true,
+    noDispatchExecution: true,
+    noPakistanPostBookingApi: true,
+    noFinalBookingConfirmation: true,
+  };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.aggregatorPaymentPlaceholder.upsert({
+      where: { bookingId: booking.id },
+      create: {
+        bookingId: booking.id,
+        paymentStatus: "NOT_INITIATED",
+      },
+      update: {
+        paymentStatus: "NOT_INITIATED",
+      },
+    });
+
+    await tx.aggregatorBookingAuditLog.create({
+      data: {
+        bookingId: booking.id,
+        action: "AGGREGATOR_MANUAL_PAYMENT_CANCELLED",
+        actorType: actor.actorType,
+        actorUserId: actor.actorUserId,
+        targetField: "phase3c5_payment",
+        oldValueJson: undefined,
+        newValueJson: snapshot as unknown as JsonValue,
+      },
+    });
+  });
+
+  return {
+    bookingId: booking.id,
+    paymentState: await derivePhase3C5PaymentState(booking.id),
+  };
 }

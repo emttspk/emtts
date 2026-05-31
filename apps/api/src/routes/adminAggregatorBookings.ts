@@ -4,7 +4,9 @@ import { requireAdmin, requireAuth, type AuthedRequest } from "../middleware/aut
 import {
   adminAddHubExceptionNote,
   adminApproveBooking,
+  adminCancelAggregatorManualPayment,
   adminCheckFinalProcessingReadiness,
+  adminRejectAggregatorManualPayment,
   adminGetFinalProcessingPacket,
   adminMarkFinalProcessingPacketExported,
   adminMarkFinalProcessingReviewed,
@@ -22,11 +24,15 @@ import {
   adminRequestCorrection,
   adminResolveHubException,
   adminSaveBulkPackPlanningSelection,
+  adminVerifyAggregatorManualPayment,
   adminVerifyHubManifest,
   getBookingForAdmin,
   listBookingsForAdmin,
 } from "../services/aggregatorBookingService.js";
 import {
+  adminAggregatorManualPaymentCancelSchema,
+  adminAggregatorManualPaymentRejectSchema,
+  adminAggregatorManualPaymentVerifySchema,
   adminApproveActionSchema,
   adminBulkPackLabelPreviewSchema,
   adminBulkPackPlanningSelectionSchema,
@@ -589,6 +595,78 @@ adminAggregatorBookingsRouter.get("/:id/final-processing/packet", async (req, re
     return res.json({ success: true, packet });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch final processing packet";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+adminAggregatorBookingsRouter.post("/:id/payment/manual-verify", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminAggregatorManualPaymentVerifySchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const result = await adminVerifyAggregatorManualPayment({
+      bookingId,
+      adminUserId,
+      verificationNote: payload.verificationNote,
+      verifiedReference: payload.verifiedReference,
+      manualFlags: payload.manualFlags,
+      context: { req },
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid manual verify payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to verify manual payment";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+adminAggregatorBookingsRouter.post("/:id/payment/manual-reject", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminAggregatorManualPaymentRejectSchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const result = await adminRejectAggregatorManualPayment({
+      bookingId,
+      adminUserId,
+      rejectionReason: payload.rejectionReason,
+      rejectionNote: payload.rejectionNote,
+      manualFlags: payload.manualFlags,
+      context: { req },
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid manual reject payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to reject manual payment";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+adminAggregatorBookingsRouter.post("/:id/payment/manual-cancel", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminAggregatorManualPaymentCancelSchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const result = await adminCancelAggregatorManualPayment({
+      bookingId,
+      adminUserId,
+      cancellationReason: payload.cancellationReason,
+      cancellationNote: payload.cancellationNote,
+      manualFlags: payload.manualFlags,
+      context: { req },
+    });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid manual cancel payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to cancel manual payment";
     const status = message === "Booking not found" ? 404 : 400;
     return res.status(status).json({ success: false, error: message });
   }

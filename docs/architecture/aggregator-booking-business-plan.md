@@ -78,6 +78,23 @@ This document defines a separate Aggregator Booking business lane for ePost.pk t
 - No pickup execution.
 - No dispatch execution.
 - No final booking confirmation.
+
+## Phase 3C-5A (Implemented Scope)
+- Customer can view manual payment options for aggregator booking lifecycle.
+- Customer can submit manual payment proof for admin verification.
+- Admin can verify, reject, or cancel manual payment submissions.
+- Payment state is additive and audit-log derived (`phase3c5Payment`).
+- Required customer/admin wording:
+	- `Payment verification only. This is not final Pakistan Post booking confirmation.`
+
+## Phase 3C-5A Explicit Exclusions
+- No live JazzCash gateway execution.
+- No live Easypaisa gateway execution.
+- No SaaS subscription, billing, or invoice mutation.
+- No pickup or dispatch execution.
+- No Pakistan Post booking API execution.
+- No final booking confirmation.
+- No schema/migration change.
 - No payment gateway implementation.
 - No service/handling/profit/discount logic.
 - No schema/migration change.

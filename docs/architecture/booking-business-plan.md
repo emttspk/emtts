@@ -19,6 +19,10 @@ Next task: Phase 3C-3 monitored operational rollout and readiness criteria
 Phase 3C-3: Operational handoff and dispatch recording
 Status: Implemented (manual operational logging only)
 Next task: Phase 3C-4 live Pakistan Post article booking (separate future approval required)
+## Current Phase Marker
+Phase 3C-5A: Manual aggregator payment verification
+Status: Implemented (manual verification only)
+Next task: Phase 3C-5B live payment gateway integration (explicit separate approval required)
 
 ## Phase Intent
 The Aggregator Booking initiative is intentionally incremental.
@@ -28,6 +32,13 @@ The Aggregator Booking initiative is intentionally incremental.
 - Phase 3: post-draft operational workflow hardening and controlled rollout.
 
 At all times, existing customer upload and generation production paths must remain stable and unchanged.
+
+## Phase 3C-5A Guardrails
+- Manual verification only; no live gateway execution.
+- No subscription, invoice, or billing mutation in SaaS lane.
+- No pickup/dispatch/final booking execution.
+- No Pakistan Post booking API usage.
+- Customer/admin must show: `Payment verification only. This is not final Pakistan Post booking confirmation.`
 
 ## Mandatory Project Boundary Safety
 

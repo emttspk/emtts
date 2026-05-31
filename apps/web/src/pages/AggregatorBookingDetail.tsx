@@ -8,10 +8,13 @@ import AggregatorBookingSummaryCard from "../components/booking/AggregatorBookin
 import AggregatorBookingTimeline from "../components/booking/AggregatorBookingTimeline";
 import {
   cancelMyAggregatorBooking,
+  getAggregatorPaymentOptions,
   getMyAggregatorBooking,
   getMyAggregatorBookingTimeline,
+  submitAggregatorManualPayment,
   submitMyAggregatorBooking,
   updateMyAggregatorBookingDraft,
+  type AggregatorManualPaymentMethod,
   type AggregatorBooking,
   type AggregatorBookingTimelineEvent,
   type BookingSenderPayload,
@@ -66,6 +69,32 @@ function getPhase3C4Label(currentState?: string | null) {
   return currentState;
 }
 
+function getPhase3C5Label(currentState?: string | null) {
+  if (!currentState) return "Manual payment options available";
+  if (currentState === "PAYMENT_OPTIONS_VISIBLE") return "Manual payment options available";
+  if (currentState === "MANUAL_PAYMENT_SUBMITTED") return "Manual payment submitted";
+  if (currentState === "UNDER_ADMIN_VERIFICATION") return "Manual payment under admin verification";
+  if (currentState === "MANUAL_PAYMENT_VERIFIED") return "Manual payment verified by admin";
+  if (currentState === "MANUAL_PAYMENT_REJECTED") return "Manual payment rejected by admin";
+  if (currentState === "MANUAL_PAYMENT_CANCELLED") return "Manual payment cancelled";
+  return currentState;
+}
+
+function getPaymentMethodLabel(method: AggregatorManualPaymentMethod) {
+  switch (method) {
+    case "BANK_TRANSFER":
+      return "Bank Transfer";
+    case "JAZZCASH_WALLET_TRANSFER":
+      return "JazzCash Wallet Transfer";
+    case "EASYPAISA_WALLET_TRANSFER":
+      return "Easypaisa Wallet Transfer";
+    case "OFFICE_CASH":
+      return "Office Cash";
+    default:
+      return method;
+  }
+}
+
 export default function AggregatorBookingDetail() {
   const params = useParams<{ bookingId: string }>();
   const bookingId = String(params.bookingId ?? "").trim();
@@ -74,6 +103,17 @@ export default function AggregatorBookingDetail() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [methods, setMethods] = useState<AggregatorManualPaymentMethod[]>([
+    "BANK_TRANSFER",
+    "JAZZCASH_WALLET_TRANSFER",
+    "EASYPAISA_WALLET_TRANSFER",
+    "OFFICE_CASH",
+  ]);
+  const [method, setMethod] = useState<AggregatorManualPaymentMethod>("BANK_TRANSFER");
+  const [amount, setAmount] = useState<string>("");
+  const [reference, setReference] = useState<string>("");
+  const [payerName, setPayerName] = useState<string>("");
+  const [proofNote, setProofNote] = useState<string>("");
 
   async function load() {
     if (!bookingId) return;
@@ -83,6 +123,18 @@ export default function AggregatorBookingDetail() {
     ]);
     setBooking(bookingRes.booking);
     setTimeline(timelineRes.timeline);
+
+    if (bookingRes.booking.phase3c5Payment?.eligibleForManualPayment) {
+      try {
+        const optionsRes = await getAggregatorPaymentOptions(bookingId);
+        setMethods(optionsRes.methods);
+        if (!optionsRes.methods.includes(method)) {
+          setMethod(optionsRes.methods[0] ?? "BANK_TRANSFER");
+        }
+      } catch {
+        setMethods(["BANK_TRANSFER", "JAZZCASH_WALLET_TRANSFER", "EASYPAISA_WALLET_TRANSFER", "OFFICE_CASH"]);
+      }
+    }
   }
 
   useEffect(() => {
@@ -154,6 +206,27 @@ export default function AggregatorBookingDetail() {
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to cancel booking");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitManualPayment() {
+    if (!booking) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await submitAggregatorManualPayment(booking.id, {
+        method,
+        amount: Number(amount),
+        reference: reference.trim() || undefined,
+        payerName,
+        proofNote,
+      });
+      await load();
+      setProofNote("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to submit manual payment");
     } finally {
       setBusy(false);
     }
@@ -263,6 +336,110 @@ export default function AggregatorBookingDetail() {
               <div>Review Note: {booking.phase3c4FinalProcessing.reviewEvent.reviewNote}</div>
             ) : null}
           </div>
+        </Card>
+
+        <Card className="border-amber-200 bg-amber-50 p-5 shadow-sm">
+          <h3 className="text-base font-semibold text-amber-950">Manual Payment Verification</h3>
+          <p className="mt-1 text-xs text-amber-900">
+            Payment verification only. This is not final Pakistan Post booking confirmation.
+          </p>
+
+          <div className="mt-2 rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs text-amber-950">
+            <div>Current: {getPhase3C5Label(booking.phase3c5Payment?.currentState)}</div>
+            {booking.phase3c5Payment?.latestSubmission ? (
+              <>
+                <div>Submitted Method: {getPaymentMethodLabel(booking.phase3c5Payment.latestSubmission.method)}</div>
+                <div>
+                  Submitted Amount: {booking.phase3c5Payment.latestSubmission.amount} {booking.phase3c5Payment.latestSubmission.currency}
+                </div>
+                <div>Submitted By: {booking.phase3c5Payment.latestSubmission.payerName}</div>
+              </>
+            ) : null}
+            {booking.phase3c5Payment?.verification ? <div>Verification: Completed by admin</div> : null}
+            {booking.phase3c5Payment?.rejection ? <div>Verification: Rejected ({booking.phase3c5Payment.rejection.rejectionReason})</div> : null}
+          </div>
+
+          {booking.phase3c5Payment?.eligibleForManualPayment ? (
+            <form
+              className="mt-3 grid gap-2 text-xs"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void submitManualPayment();
+              }}
+            >
+              <label className="grid gap-1">
+                <span className="font-medium text-slate-800">Manual Payment Method</span>
+                <select
+                  value={method}
+                  onChange={(event) => setMethod(event.target.value as AggregatorManualPaymentMethod)}
+                  className="rounded border border-slate-300 bg-white px-2 py-1.5"
+                  disabled={busy}
+                >
+                  {methods.map((item) => (
+                    <option key={item} value={item}>
+                      {getPaymentMethodLabel(item)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-1">
+                <span className="font-medium text-slate-800">Amount (PKR)</span>
+                <input
+                  type="number"
+                  min={1}
+                  step="1"
+                  value={amount}
+                  onChange={(event) => setAmount(event.target.value)}
+                  className="rounded border border-slate-300 bg-white px-2 py-1.5"
+                  disabled={busy}
+                  required
+                />
+              </label>
+
+              <label className="grid gap-1">
+                <span className="font-medium text-slate-800">Reference (required for transfer methods)</span>
+                <input
+                  type="text"
+                  value={reference}
+                  onChange={(event) => setReference(event.target.value)}
+                  className="rounded border border-slate-300 bg-white px-2 py-1.5"
+                  disabled={busy}
+                />
+              </label>
+
+              <label className="grid gap-1">
+                <span className="font-medium text-slate-800">Payer Name</span>
+                <input
+                  type="text"
+                  value={payerName}
+                  onChange={(event) => setPayerName(event.target.value)}
+                  className="rounded border border-slate-300 bg-white px-2 py-1.5"
+                  disabled={busy}
+                  required
+                />
+              </label>
+
+              <label className="grid gap-1">
+                <span className="font-medium text-slate-800">Proof Note</span>
+                <textarea
+                  value={proofNote}
+                  onChange={(event) => setProofNote(event.target.value)}
+                  className="min-h-20 rounded border border-slate-300 bg-white px-2 py-1.5"
+                  disabled={busy}
+                  required
+                />
+              </label>
+
+              <button
+                type="submit"
+                disabled={busy}
+                className="mt-1 w-fit rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-60"
+              >
+                Submit Manual Payment For Verification
+              </button>
+            </form>
+          ) : null}
         </Card>
 
         <Card className="border-slate-200 bg-white p-5 shadow-sm">

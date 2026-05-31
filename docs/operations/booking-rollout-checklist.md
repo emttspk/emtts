@@ -78,6 +78,15 @@ For phase boundaries, protected scope, and continuity handoff protocol, see `doc
 - Schema smoke: PASS (`convertQuoteToDraftSchema` accepted valid request and rejected `customerNoticeAccepted: false`).
 - Service smoke: PASS (stubbed conversion returned `BOOKING_DRAFT`, preserved request-only flags, sender details, quote snapshot, recommendation snapshot, and items).
 - Local DB probe: PASS.
+
+## Phase 3C-5A Manual Verification Safeguards (2026-05-31)
+- Aggregator manual payment verification is isolated from SaaS billing/unit workflows.
+- No live JazzCash/Easypaisa gateway execution is enabled in this phase.
+- No invoice/subscription mutation is performed for 3C-5A actions.
+- No pickup/dispatch/final booking execution is triggered by 3C-5A actions.
+- No Pakistan Post booking API call is triggered by 3C-5A actions.
+- Mandatory wording is present in customer/admin UI:
+	- `Payment verification only. This is not final Pakistan Post booking confirmation.`
 - Local DB-backed draft create/read smoke: BLOCKED by missing `public.AggregatorBooking` table in the current local database.
 - Frontend browser smoke: local preview opened `/login` for `/booking-quote`, so the protected Booking Quote screen was not reachable without auth.
 - Source-level UI smoke: PASS for request-only disclaimers and the disabled/unavailable create gate until acceptance and sender details are complete.
