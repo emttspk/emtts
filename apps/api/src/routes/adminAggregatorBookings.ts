@@ -9,7 +9,13 @@ import {
   getBookingForAdmin,
   listBookingsForAdmin,
 } from "../services/aggregatorBookingService.js";
-import { adminActionSchema, adminListBookingQuerySchema } from "../utils/aggregatorBookingValidation.js";
+import {
+  adminApproveActionSchema,
+  adminCorrectionActionSchema,
+  adminListBookingQuerySchema,
+  adminMarkPendingActionSchema,
+  adminRejectActionSchema,
+} from "../utils/aggregatorBookingValidation.js";
 
 export const adminAggregatorBookingsRouter = Router();
 
@@ -51,7 +57,7 @@ adminAggregatorBookingsRouter.get("/:id", async (req, res) => {
 adminAggregatorBookingsRouter.post("/:id/approve", async (req: AuthedRequest, res) => {
   try {
     const bookingId = String(req.params.id ?? "").trim();
-    const payload = adminActionSchema.parse(req.body ?? {});
+    const payload = adminApproveActionSchema.parse(req.body ?? {});
     const adminUserId = String(req.user?.id ?? "").trim();
     const booking = await adminApproveBooking({
       bookingId,
@@ -75,7 +81,7 @@ adminAggregatorBookingsRouter.post("/:id/approve", async (req: AuthedRequest, re
 adminAggregatorBookingsRouter.post("/:id/reject", async (req: AuthedRequest, res) => {
   try {
     const bookingId = String(req.params.id ?? "").trim();
-    const payload = adminActionSchema.parse(req.body ?? {});
+    const payload = adminRejectActionSchema.parse(req.body ?? {});
     const adminUserId = String(req.user?.id ?? "").trim();
     const booking = await adminRejectBooking({
       bookingId,
@@ -98,7 +104,7 @@ adminAggregatorBookingsRouter.post("/:id/reject", async (req: AuthedRequest, res
 adminAggregatorBookingsRouter.post("/:id/request-correction", async (req: AuthedRequest, res) => {
   try {
     const bookingId = String(req.params.id ?? "").trim();
-    const payload = adminActionSchema.parse(req.body ?? {});
+    const payload = adminCorrectionActionSchema.parse(req.body ?? {});
     const adminUserId = String(req.user?.id ?? "").trim();
     const booking = await adminRequestCorrection({
       bookingId,
@@ -121,7 +127,7 @@ adminAggregatorBookingsRouter.post("/:id/request-correction", async (req: Authed
 adminAggregatorBookingsRouter.post("/:id/mark-pending", async (req: AuthedRequest, res) => {
   try {
     const bookingId = String(req.params.id ?? "").trim();
-    const payload = adminActionSchema.parse(req.body ?? {});
+    const payload = adminMarkPendingActionSchema.parse(req.body ?? {});
     const adminUserId = String(req.user?.id ?? "").trim();
     const booking = await adminMarkPending({
       bookingId,

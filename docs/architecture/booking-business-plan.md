@@ -12,9 +12,9 @@ It defines:
 - break-resume instructions.
 
 ## Current Phase Marker
-Phase 2B: Persisted draft request activation
-Status: Implemented with request-only guardrails
-Next task: Phase 3 hardening only after explicit approval
+Phase 3A: Admin review hardening
+Status: Implemented (manual-only operational semantics)
+Next task: Phase 3B rollout controls and monitoring hardening only after explicit approval
 
 ## Phase Intent
 The Aggregator Booking initiative is intentionally incremental.
@@ -132,6 +132,18 @@ Allowed only after explicit approval:
 Still constrained:
 - no unapproved production-impacting flow rewrites,
 - no protected-scope module rewiring.
+
+Phase 3A completed scope:
+- admin decision rationale validation hardening,
+- admin manual-only approval semantics,
+- customer status/timeline wording clarity,
+- audit action/rationale clarity.
+
+Phase 3A blocked scope:
+- live payment collection,
+- pickup/dispatch execution,
+- external courier/Pakistan Post API booking,
+- final booking confirmation semantics.
 
 ## Calculator Contract
 

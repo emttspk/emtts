@@ -96,7 +96,19 @@ For phase boundaries, protected scope, and continuity handoff protocol, see `doc
 - Side effects: no payment, pickup, dispatch, courier API, or Pakistan Post side effect was triggered in the local smoke.
 - Safety confirmation: no Railway, Cloudflare/R2, or production touch occurred; protected scope remained untouched.
 
+## Phase 3A Admin Review Hardening (2026-05-31)
+- Admin approve semantics: hardcoded as manual-action approval only (not final booking confirmation).
+- Admin reject validation: reason code required.
+- Admin correction validation: reason code required.
+- Admin approve validation: manual-action confirmation note required.
+- Admin UI guardrails: explicit non-live operational constraints are displayed.
+- Customer wording: status/timeline language clarified for manual-review lifecycle.
+- Audit clarity: admin decision actions and rationale payloads are now explicit in audit logs.
+- Side-effect safety: no live payment collection, no pickup/dispatch execution, no external courier/Pakistan Post API call introduced.
+- Schema safety: no Prisma schema change and no migration change.
+- Platform safety: no Railway, Cloudflare/R2, or production touch.
+
 ## Remaining Phase 3 Work
-- Bootstrap or repair a local DB with the `AggregatorBooking` table if a real DB-backed create/read smoke is still required.
-- Run admin-review hardening, payment placeholder lifecycle hardening, and phased rollout gates only after explicit approval.
-- Keep rollout limited to non-protected booking paths.
+- Phase 3B: rollout controls, approval matrix hardening, and rollback trigger automation.
+- Phase 3C: monitoring/telemetry operationalization and canary-readiness criteria.
+- Keep rollout limited to non-protected booking paths and manual-only semantics until separately approved.

@@ -204,3 +204,34 @@ export const adminActionSchema = z.object({
   paymentStatus: z.enum(PAYMENT_PLACEHOLDER_STATUSES).optional(),
   adminReviewStatus: z.enum(ADMIN_REVIEW_STATUSES).optional(),
 });
+
+export const adminApproveActionSchema = z.object({
+  reasonCode: z.string().trim().min(2).max(80).optional(),
+  note: z.string().trim().min(10).max(2000),
+  paymentStatus: z.enum(PAYMENT_PLACEHOLDER_STATUSES).optional(),
+  adminReviewStatus: z.enum(ADMIN_REVIEW_STATUSES).optional(),
+}).superRefine((payload, ctx) => {
+  if (!/manual/i.test(payload.note)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["note"],
+      message: "Approval note must confirm manual-action handling.",
+    });
+  }
+});
+
+export const adminRejectActionSchema = z.object({
+  reasonCode: z.string().trim().min(2).max(80),
+  note: z.string().trim().max(2000).optional(),
+  paymentStatus: z.enum(PAYMENT_PLACEHOLDER_STATUSES).optional(),
+  adminReviewStatus: z.enum(ADMIN_REVIEW_STATUSES).optional(),
+});
+
+export const adminCorrectionActionSchema = z.object({
+  reasonCode: z.string().trim().min(2).max(80),
+  note: z.string().trim().max(2000).optional(),
+  paymentStatus: z.enum(PAYMENT_PLACEHOLDER_STATUSES).optional(),
+  adminReviewStatus: z.enum(ADMIN_REVIEW_STATUSES).optional(),
+});
+
+export const adminMarkPendingActionSchema = adminActionSchema;

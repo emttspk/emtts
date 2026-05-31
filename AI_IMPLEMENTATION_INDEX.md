@@ -1,5 +1,56 @@
 # AI Implementation Index
 
+## 2026-05-31 - Aggregator Booking Phase 3A Admin Review Hardening
+
+### Task Name
+- Implement Phase 3A admin-review hardening with rationale validation, manual-only wording clarity, and audit timeline clarity.
+
+### Files Changed
+- `apps/api/src/routes/adminAggregatorBookings.ts`
+- `apps/api/src/routes/aggregatorBookings.ts`
+- `apps/api/src/services/aggregatorBookingService.ts`
+- `apps/api/src/utils/aggregatorBookingValidation.ts`
+- `apps/web/src/pages/admin/AdminAggregatorBookings.tsx`
+- `apps/web/src/pages/AggregatorBookingDetail.tsx`
+- `apps/web/src/pages/AggregatorBookings.tsx`
+- `docs/architecture/booking-business-plan.md`
+- `docs/operations/booking-rollout-checklist.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Behavior Added
+- Enforced admin decision rationale rules:
+	- reject requires reason code,
+	- correction requires reason code,
+	- approve requires a manual-action confirmation note.
+- Updated admin queue UI to capture explicit reason/note input and checklist confirmation for manual-only handling.
+- Updated admin approve action label to "Approve for Manual Action".
+- Added explicit admin guardrail copy:
+	- no payment collected,
+	- no pickup created,
+	- no dispatch created,
+	- no external courier/Pakistan Post API call,
+	- manual processing only.
+- Added customer-facing status wording clarity for timeline semantics:
+	- Draft,
+	- Submitted for review,
+	- Under admin review,
+	- Approved for manual action,
+	- Correction required,
+	- Rejected,
+	- Cancelled.
+- Clarified submit response messaging as review-only and non-final.
+- Added clearer admin decision audit actions and rationale audit payload.
+
+### Safety / Scope Confirmation
+- No Prisma schema edits.
+- No migration files created or modified.
+- No live payment collection, pickup execution, dispatch execution, courier API, or Pakistan Post API integration added.
+- No Railway, Cloudflare/R2, or production action performed.
+- Protected scope modules remained untouched.
+
+### Next Item
+- Phase 3B/3C rollout controls and monitoring hardening only after explicit approval.
+
 ## 2026-05-31 - Local DB Drift Repair and Aggregator Booking Phase 2B Smoke
 
 ### Task Name

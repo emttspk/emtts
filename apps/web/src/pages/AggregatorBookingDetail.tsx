@@ -17,6 +17,28 @@ import {
   type BookingSenderPayload,
 } from "../lib/aggregatorBookings";
 
+function getCustomerStatusLabel(status: string) {
+  switch (status) {
+    case "BOOKING_DRAFT":
+      return "Draft";
+    case "BOOKING_SUBMITTED":
+      return "Submitted for review";
+    case "ADMIN_REVIEW_PENDING":
+      return "Under admin review";
+    case "ADMIN_APPROVED":
+    case "PAYMENT_PENDING_PLACEHOLDER":
+      return "Approved for manual action";
+    case "CORRECTION_REQUIRED":
+      return "Correction required";
+    case "ADMIN_REJECTED":
+      return "Rejected";
+    case "CANCELLED":
+      return "Cancelled";
+    default:
+      return status;
+  }
+}
+
 export default function AggregatorBookingDetail() {
   const params = useParams<{ bookingId: string }>();
   const bookingId = String(params.bookingId ?? "").trim();
@@ -124,10 +146,13 @@ export default function AggregatorBookingDetail() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <PageTitle>{booking.bookingNo}</PageTitle>
-            <BodyText className="mt-1">Separate Aggregator Booking lifecycle detail and timeline.</BodyText>
+            <BodyText className="mt-1">Manual-review lifecycle detail and timeline. This is not final booking confirmation.</BodyText>
           </div>
           <div className="flex items-center gap-2">
             <AggregatorBookingStatusBadge status={booking.status} />
+            <span className="rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-700">
+              {getCustomerStatusLabel(booking.status)}
+            </span>
           </div>
         </div>
 
@@ -169,6 +194,16 @@ export default function AggregatorBookingDetail() {
 
         <Card className="border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="text-base font-semibold text-slate-900">Status Timeline</h3>
+          <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+            <div>Status wording:</div>
+            <div>Draft</div>
+            <div>Submitted for review</div>
+            <div>Under admin review</div>
+            <div>Approved for manual action</div>
+            <div>Correction required</div>
+            <div>Rejected</div>
+            <div>Cancelled</div>
+          </div>
           <div className="mt-3">
             <AggregatorBookingTimeline events={timeline} />
           </div>

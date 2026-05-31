@@ -790,6 +790,18 @@ async function adminTransition(input: {
   });
   if (!booking) throw new Error("Booking not found");
 
+  const reasonCode = normalizeOptionalString(input.reasonCode);
+  const note = normalizeOptionalString(input.note);
+
+  if ((input.toStatus === "ADMIN_REJECTED" || input.toStatus === "CORRECTION_REQUIRED") && !reasonCode) {
+    throw new Error("Reason code is required for reject/correction actions");
+  }
+  if (input.toStatus === "ADMIN_APPROVED") {
+    if (!note || !/manual/i.test(note)) {
+      throw new Error("Approval requires a manual-action confirmation note");
+    }
+  }
+
   const from = normalizeStatus(booking.status);
   assertCanTransitionBookingStatus({ from, to: input.toStatus, actor: "ADMIN" });
 
@@ -808,7 +820,7 @@ async function adminTransition(input: {
       data: {
         status: input.toStatus,
         adminReviewStatus: reviewStatus,
-        adminNotes: normalizeOptionalString(input.note),
+        adminNotes: note,
         reviewedAt: new Date(),
         reviewedByUserId: input.adminUserId,
       },
@@ -821,8 +833,8 @@ async function adminTransition(input: {
         toStatus: input.toStatus,
         actorType: "ADMIN",
         actorUserId: input.adminUserId,
-        reasonCode: normalizeOptionalString(input.reasonCode),
-        note: normalizeOptionalString(input.note),
+        reasonCode,
+        note,
       },
     });
 
@@ -845,7 +857,7 @@ async function adminTransition(input: {
           actorType: "SYSTEM",
           actorUserId: input.adminUserId,
           reasonCode: "AUTO_PAYMENT_PLACEHOLDER",
-          note: "Awaiting placeholder payment handling.",
+          note: "Approved for manual action. Placeholder state only; no live payment collection.",
         },
       });
 
@@ -874,11 +886,37 @@ async function adminTransition(input: {
 
   await writeAuditLog({
     bookingId: booking.id,
-    action: `ADMIN_STATUS_${input.toStatus}`,
+    action:
+      input.toStatus === "ADMIN_APPROVED"
+        ? "ADMIN_DECISION_APPROVED_FOR_MANUAL_ACTION"
+        : input.toStatus === "ADMIN_REJECTED"
+          ? "ADMIN_DECISION_REJECTED"
+          : input.toStatus === "CORRECTION_REQUIRED"
+            ? "ADMIN_DECISION_CORRECTION_REQUIRED"
+            : "ADMIN_DECISION_REVIEW_PENDING",
     actor: { actorType: "ADMIN", actorUserId: input.adminUserId },
     targetField: "status",
     oldValueJson: from as unknown as JsonValue,
     newValueJson: updated.status as unknown as JsonValue,
+    context: input.context,
+  });
+
+  await writeAuditLog({
+    bookingId: booking.id,
+    action: "ADMIN_DECISION_RATIONALE",
+    actor: { actorType: "ADMIN", actorUserId: input.adminUserId },
+    targetField: "admin_decision",
+    oldValueJson: undefined,
+    newValueJson: {
+      toStatus: input.toStatus,
+      reasonCode,
+      note,
+      manualProcessingOnly: true,
+      noLivePaymentCollection: true,
+      noPickupExecution: true,
+      noDispatchExecution: true,
+      noExternalCourierOrPakistanPostApiCall: true,
+    } as unknown as JsonValue,
     context: input.context,
   });
 

@@ -196,7 +196,11 @@ aggregatorBookingsRouter.post("/:id/submit", async (req: AuthedRequest, res) => 
       note: payload.note,
       context: { req },
     });
-    return res.json({ success: true, booking });
+    return res.json({
+      success: true,
+      message: "Submitted for admin review. This is not final booking confirmation and remains manual-action only.",
+      booking,
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ success: false, error: "Invalid submit payload", details: error.errors });
