@@ -28,6 +28,14 @@ Phase 3C-5B: Isolated aggregator JazzCash gateway lane
 Status: Implemented (dedicated aggregator ledger and callback routes)
 Next task: operational validation and rollout hardening for gateway reconciliation
 
+## Phase 3C-5B Guardrails
+- Callback idempotency and replay protection are mandatory.
+- `AggregatorPaymentTransaction` stores both `idempotencyKey` and `callbackHash` for duplicate/replay control.
+- Duplicate callbacks must be blocked or acknowledged without reprocessing.
+- Gateway success marks aggregator payment received only.
+- No SaaS invoice/subscription/unit/package billing mutation is allowed.
+- No pickup, dispatch, LabelJob, queue job, courier booking, Pakistan Post booking, or final booking confirmation is allowed.
+
 ## Phase Intent
 The Aggregator Booking initiative is intentionally incremental.
 

@@ -102,14 +102,20 @@ This document defines a separate Aggregator Booking business lane for ePost.pk t
 ## Phase 3C-5B (Implemented Scope)
 - Isolated JazzCash gateway lane for aggregator bookings with callback-based lifecycle updates.
 - Dedicated ledger model/table for gateway transactions (`AggregatorPaymentTransaction`).
+- Callback idempotency and replay protection are enforced using `idempotencyKey` and `callbackHash` stored per transaction.
+- Duplicate callbacks must be blocked or acknowledged without reprocessing.
 - Customer can start gateway payment and check gateway transaction status from aggregator booking detail.
 - Callback relay/result flow is isolated under `/api/aggregator-payments/*`.
 - Admin can list gateway transactions and perform manual reconciliation/failure/refund-note updates.
 - Customer sees separate aggregator gateway result page (`/aggregator-bookings/payment/jazzcash/result`).
+- Gateway success marks aggregator payment received only and is not final booking confirmation.
 
 ## Phase 3C-5B Explicit Exclusions
 - No SaaS package billing/subscription/invoice mutation.
+- No SaaS unit/package credit mutation.
 - No pickup/dispatch/final booking execution.
+- No LabelJob creation and no queue job creation.
+- No courier booking execution.
 - No Pakistan Post booking API execution.
 - No protected scope mutation outside aggregator booking lane.
 

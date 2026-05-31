@@ -94,6 +94,8 @@
 
 ## Phase 3C-5B (Isolated JazzCash Gateway Lane) Checklist
 - Dedicated ledger model/table exists for aggregator gateway transactions (`AggregatorPaymentTransaction`).
+- `idempotencyKey` and `callbackHash` are stored in `AggregatorPaymentTransaction` for callback idempotency and replay protection.
+- Duplicate callbacks are blocked or acknowledged without reprocessing.
 - Customer gateway options endpoint exists: `/api/aggregator-bookings/:id/payment/gateway-options`.
 - Customer gateway start endpoint exists: `/api/aggregator-bookings/:id/payment/jazzcash/start`.
 - Customer gateway status endpoint exists: `/api/aggregator-bookings/:id/payment/jazzcash/status`.
@@ -103,7 +105,10 @@
 - Frontend includes isolated aggregator gateway result route: `/aggregator-bookings/payment/jazzcash/result`.
 - Validation smoke script exists and prints `SMOKE_SCHEMA_ALL_DONE`: `apps/api/scripts/phase3c5b-gateway-smoke.mjs`.
 - No SaaS package billing/subscription/invoice mutation.
+- No SaaS unit/package credit mutation.
 - No pickup/dispatch/final booking execution.
+- No LabelJob creation and no queue job creation.
+- No courier booking execution.
 - No Pakistan Post booking API execution.
 - `jobs.ts`, `Upload.tsx`, and `worker.ts` behavior remains unchanged.
 

@@ -38,10 +38,15 @@
 	- `POST /api/admin/aggregator-bookings/:id/payment/mark-failed`
 	- `POST /api/admin/aggregator-bookings/:id/payment/refund-note`
 - Dedicated additive ledger model/table: `AggregatorPaymentTransaction`.
+- Callback idempotency and replay protection are enforced with stored `idempotencyKey` and `callbackHash`.
+- Duplicate callbacks are acknowledged and blocked from reprocessing in the aggregator gateway lane.
 
 ### Explicit Exclusions
 - No SaaS subscription/invoice mutation.
+- No SaaS unit/package billing mutation.
 - No pickup/dispatch/final booking execution.
+- No LabelJob creation and no queue job creation.
+- No courier booking execution.
 - No Pakistan Post booking API execution.
 - No Railway/Cloudflare R2/protected production touch.
 

@@ -94,11 +94,13 @@ For phase boundaries, protected scope, and continuity handoff protocol, see `doc
 
 ## Phase 3C-5B Isolated Gateway Safeguards (2026-05-31)
 - Aggregator JazzCash gateway lane is implemented with dedicated ledger routing and callback flow.
+- Callback idempotency and replay protection are implemented using `idempotencyKey` and `callbackHash` on `AggregatorPaymentTransaction`.
+- Duplicate callbacks are blocked or acknowledged without reprocessing.
 - Aggregator gateway routes are isolated under `/api/aggregator-payments/*` and do not mutate SaaS package billing.
 - Admin reconciliation endpoints are isolated to aggregator booking IDs and order refs.
 - Frontend gateway result route is isolated under `/aggregator-bookings/payment/jazzcash/result`.
 - Validation smoke script added: `apps/api/scripts/phase3c5b-gateway-smoke.mjs`.
-- Guardrail intent remains: no pickup/dispatch/final booking execution, no Pakistan Post booking API execution, no protected scope mutation.
+- Guardrail intent remains: no SaaS invoice/subscription/unit/package mutation, no pickup/dispatch/final booking execution, no LabelJob creation, no queue job creation, no courier booking execution, no Pakistan Post booking API execution, and no protected scope mutation.
 
 ## Local DB Drift Repair and DB-Backed Smoke (2026-05-31)
 - Local Prisma migrate status: PASS target remained local PostgreSQL on `localhost:5432`; pending migrations were present before repair.
