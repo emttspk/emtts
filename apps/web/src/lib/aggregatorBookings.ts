@@ -29,6 +29,40 @@ export type AggregatorManualPaymentMethod =
   | "EASYPAISA_WALLET_TRANSFER"
   | "OFFICE_CASH";
 
+export type AggregatorGatewayStatus =
+  | "AGGREGATOR_GATEWAY_INITIATED"
+  | "AGGREGATOR_GATEWAY_REDIRECTED"
+  | "AGGREGATOR_GATEWAY_PENDING"
+  | "AGGREGATOR_GATEWAY_SUCCESS"
+  | "AGGREGATOR_GATEWAY_FAILED"
+  | "AGGREGATOR_GATEWAY_CANCELLED"
+  | "AGGREGATOR_GATEWAY_EXPIRED"
+  | "AGGREGATOR_GATEWAY_DUPLICATE_CALLBACK_BLOCKED"
+  | "AGGREGATOR_GATEWAY_MANUAL_RECONCILIATION_REQUIRED";
+
+export type AggregatorGatewayTransaction = {
+  id: string;
+  bookingId: string;
+  userId: string;
+  provider: string;
+  method: string;
+  amount: number;
+  currency: string;
+  orderRef: string;
+  gatewayTxnRef: string | null;
+  status: AggregatorGatewayStatus;
+  requestPayloadJson: unknown;
+  callbackPayloadJson: unknown;
+  statusInquiryJson: unknown;
+  secureHashVerified: boolean;
+  idempotencyKey: string;
+  callbackHash: string | null;
+  failureReason: string | null;
+  reconciliationNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type Phase3C5PaymentState = {
   currentState:
     | "PAYMENT_OPTIONS_VISIBLE"
@@ -563,6 +597,46 @@ export async function getAggregatorPaymentStatus(bookingId: string) {
   );
 }
 
+export async function getAggregatorGatewayPaymentOptions(bookingId: string) {
+  return api<{
+    success: boolean;
+    bookingId: string;
+    bookingNo: string;
+    methods: Array<AggregatorManualPaymentMethod | "JAZZCASH_GATEWAY">;
+    gateway: {
+      provider: "JAZZCASH";
+      available: boolean;
+      missingCredentials: string[];
+    };
+    notice: string;
+  }>(`/api/aggregator-bookings/${encodeURIComponent(bookingId)}/payment/gateway-options`);
+}
+
+export async function startAggregatorJazzcashGatewayPayment(
+  bookingId: string,
+  payload: { amount: number; currency?: string; mobileNumber: string },
+) {
+  return api<{
+    success: boolean;
+    bookingId: string;
+    orderRef: string;
+    status: AggregatorGatewayStatus;
+    relayPath: string;
+    notice: string;
+  }>(`/api/aggregator-bookings/${encodeURIComponent(bookingId)}/payment/jazzcash/start`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getAggregatorJazzcashGatewayStatus(bookingId: string, withInquiry = false) {
+  const suffix = withInquiry ? "?withInquiry=true" : "";
+  return api<{
+    success: boolean;
+    transaction: AggregatorGatewayTransaction | null;
+  }>(`/api/aggregator-bookings/${encodeURIComponent(bookingId)}/payment/jazzcash/status${suffix}`);
+}
+
 export async function listAdminAggregatorBookings(params?: {
   page?: number;
   pageSize?: number;
@@ -984,6 +1058,52 @@ export async function adminMarkAggregatorFinalProcessingReviewed(
         ...payload,
         manualFlags: manualFinalProcessingFlags,
       }),
+    },
+  );
+}
+
+export async function adminListAggregatorGatewayTransactions(bookingId: string) {
+  return api<{
+    success: boolean;
+    transactions: AggregatorGatewayTransaction[];
+  }>(`/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/payment-transactions`);
+}
+
+export async function adminReconcileAggregatorGatewayPayment(
+  bookingId: string,
+  payload: { orderRef: string; status: AggregatorGatewayStatus; reconciliationNote: string },
+) {
+  return api<{ success: boolean; transaction: AggregatorGatewayTransaction }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/payment/reconcile`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function adminMarkAggregatorGatewayPaymentFailed(
+  bookingId: string,
+  payload: { orderRef: string; reason: string },
+) {
+  return api<{ success: boolean; transaction: AggregatorGatewayTransaction }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/payment/mark-failed`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function adminAddAggregatorGatewayRefundNote(
+  bookingId: string,
+  payload: { orderRef: string; note: string },
+) {
+  return api<{ success: boolean; transaction: AggregatorGatewayTransaction }>(
+    `/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/payment/refund-note`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
     },
   );
 }

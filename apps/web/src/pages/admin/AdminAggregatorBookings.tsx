@@ -5,7 +5,11 @@ import AggregatorBookingStatusBadge from "../../components/booking/AggregatorBoo
 import AggregatorBookingTimeline from "../../components/booking/AggregatorBookingTimeline";
 import AggregatorBookingSummaryCard from "../../components/booking/AggregatorBookingSummaryCard";
 import {
+  adminAddAggregatorGatewayRefundNote,
   adminCancelAggregatorManualPayment,
+  adminListAggregatorGatewayTransactions,
+  adminMarkAggregatorGatewayPaymentFailed,
+  adminReconcileAggregatorGatewayPayment,
   adminRejectAggregatorManualPayment,
   adminVerifyAggregatorManualPayment,
   adminAddAggregatorHubExceptionNote,
@@ -27,6 +31,7 @@ import {
   getAdminAggregatorBooking,
   listAdminAggregatorBookings,
   type AggregatorBooking,
+  type AggregatorGatewayTransaction,
 } from "../../lib/aggregatorBookings";
 import {
   adminMarkAggregatorReadyForPostal,
@@ -107,6 +112,12 @@ export default function AdminAggregatorBookings() {
   const [manualRejectNote, setManualRejectNote] = useState("");
   const [manualCancelReason, setManualCancelReason] = useState("");
   const [manualCancelNote, setManualCancelNote] = useState("");
+  const [gatewayTransactions, setGatewayTransactions] = useState<AggregatorGatewayTransaction[]>([]);
+  const [gatewayOrderRef, setGatewayOrderRef] = useState("");
+  const [gatewayReconcileStatus, setGatewayReconcileStatus] = useState("AGGREGATOR_GATEWAY_SUCCESS");
+  const [gatewayReconcileNote, setGatewayReconcileNote] = useState("Manual reconciliation validated by admin.");
+  const [gatewayFailedReason, setGatewayFailedReason] = useState("");
+  const [gatewayRefundNote, setGatewayRefundNote] = useState("");
 
   async function load() {
     const list = await listAdminAggregatorBookings({ page: 1, pageSize: 50, status: statusFilter || undefined });
@@ -162,9 +173,17 @@ export default function AdminAggregatorBookings() {
       }
       setLabelPreview(null);
       setManifestPreview(null);
+      const txns = await adminListAggregatorGatewayTransactions(id);
+      setGatewayTransactions(txns.transactions ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load booking detail");
     }
+  }
+
+  async function refreshGatewayTransactions() {
+    if (!selected) return;
+    const txns = await adminListAggregatorGatewayTransactions(selected.id);
+    setGatewayTransactions(txns.transactions ?? []);
   }
 
   function clearDecisionForm() {
@@ -700,6 +719,70 @@ export default function AdminAggregatorBookings() {
     }
   }
 
+  async function reconcileGatewayPayment() {
+    if (!selected) return;
+    if (!gatewayOrderRef.trim() || !gatewayReconcileNote.trim()) {
+      setError("Order ref and reconciliation note are required.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await adminReconcileAggregatorGatewayPayment(selected.id, {
+        orderRef: gatewayOrderRef.trim(),
+        status: gatewayReconcileStatus as AggregatorGatewayTransaction["status"],
+        reconciliationNote: gatewayReconcileNote.trim(),
+      });
+      await refreshGatewayTransactions();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to reconcile gateway payment");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function markGatewayPaymentFailed() {
+    if (!selected) return;
+    if (!gatewayOrderRef.trim() || !gatewayFailedReason.trim()) {
+      setError("Order ref and failure reason are required.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await adminMarkAggregatorGatewayPaymentFailed(selected.id, {
+        orderRef: gatewayOrderRef.trim(),
+        reason: gatewayFailedReason.trim(),
+      });
+      await refreshGatewayTransactions();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to mark gateway payment failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addGatewayRefundNote() {
+    if (!selected) return;
+    if (!gatewayOrderRef.trim() || !gatewayRefundNote.trim()) {
+      setError("Order ref and refund note are required.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await adminAddAggregatorGatewayRefundNote(selected.id, {
+        orderRef: gatewayOrderRef.trim(),
+        note: gatewayRefundNote.trim(),
+      });
+      await refreshGatewayTransactions();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to add gateway refund note");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function previewBulkPackLabel() {
     if (!selected) return;
     setBusy(true);
@@ -944,6 +1027,147 @@ export default function AdminAggregatorBookings() {
                   </button>
                 </div>
               </div>
+            </Card>
+
+            <Card className="border-sky-200 bg-sky-50 p-5 shadow-sm">
+              <h3 className="text-base font-semibold text-sky-950">JazzCash Gateway Transactions (Phase 3C-5B)</h3>
+              <p className="mt-1 text-xs text-sky-900">
+                Isolated callback-driven payment ledger for aggregator bookings. Separate from SaaS package billing.
+              </p>
+
+              <div className="mt-2 rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs text-sky-950">
+                <div>Total Transactions: {gatewayTransactions.length}</div>
+                {gatewayTransactions[0] ? (
+                  <>
+                    <div>Latest Status: {gatewayTransactions[0].status}</div>
+                    <div>Latest Order Ref: {gatewayTransactions[0].orderRef}</div>
+                  </>
+                ) : (
+                  <div>No gateway transaction recorded yet.</div>
+                )}
+              </div>
+
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <label className="text-xs text-slate-700">
+                  Order Ref
+                  <input
+                    value={gatewayOrderRef}
+                    onChange={(event) => setGatewayOrderRef(event.target.value)}
+                    className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs"
+                    placeholder="AGG-JC-..."
+                  />
+                </label>
+                <label className="text-xs text-slate-700">
+                  Reconcile Status
+                  <select
+                    value={gatewayReconcileStatus}
+                    onChange={(event) => setGatewayReconcileStatus(event.target.value)}
+                    className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs"
+                  >
+                    <option value="AGGREGATOR_GATEWAY_SUCCESS">AGGREGATOR_GATEWAY_SUCCESS</option>
+                    <option value="AGGREGATOR_GATEWAY_PENDING">AGGREGATOR_GATEWAY_PENDING</option>
+                    <option value="AGGREGATOR_GATEWAY_FAILED">AGGREGATOR_GATEWAY_FAILED</option>
+                    <option value="AGGREGATOR_GATEWAY_MANUAL_RECONCILIATION_REQUIRED">AGGREGATOR_GATEWAY_MANUAL_RECONCILIATION_REQUIRED</option>
+                  </select>
+                </label>
+              </div>
+
+              <label className="mt-2 block text-xs text-slate-700">
+                Reconciliation Note
+                <textarea
+                  value={gatewayReconcileNote}
+                  onChange={(event) => setGatewayReconcileNote(event.target.value)}
+                  rows={2}
+                  className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs"
+                />
+              </label>
+
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <label className="text-xs text-slate-700">
+                  Mark Failed Reason
+                  <input
+                    value={gatewayFailedReason}
+                    onChange={(event) => setGatewayFailedReason(event.target.value)}
+                    className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs"
+                    placeholder="Failure reason"
+                  />
+                </label>
+                <label className="text-xs text-slate-700">
+                  Refund Note
+                  <input
+                    value={gatewayRefundNote}
+                    onChange={(event) => setGatewayRefundNote(event.target.value)}
+                    className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs"
+                    placeholder="Refund processing note"
+                  />
+                </label>
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    void refreshGatewayTransactions();
+                  }}
+                  className="rounded-md bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-600 disabled:opacity-60"
+                >
+                  Refresh Transactions
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={reconcileGatewayPayment}
+                  className="rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
+                >
+                  Reconcile Transaction
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={markGatewayPaymentFailed}
+                  className="rounded-md bg-rose-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-600 disabled:opacity-60"
+                >
+                  Mark Gateway Failed
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={addGatewayRefundNote}
+                  className="rounded-md bg-amber-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 disabled:opacity-60"
+                >
+                  Add Refund Note
+                </button>
+              </div>
+
+              {gatewayTransactions.length ? (
+                <div className="mt-3 ui-table-scroll rounded-xl border border-sky-200">
+                  <table className="min-w-full text-xs">
+                    <thead className="bg-sky-100">
+                      <tr>
+                        <th className="px-2 py-1.5 text-left font-semibold text-sky-900">Order Ref</th>
+                        <th className="px-2 py-1.5 text-left font-semibold text-sky-900">Status</th>
+                        <th className="px-2 py-1.5 text-left font-semibold text-sky-900">Amount</th>
+                        <th className="px-2 py-1.5 text-left font-semibold text-sky-900">Gateway Txn Ref</th>
+                        <th className="px-2 py-1.5 text-left font-semibold text-sky-900">Updated</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-sky-100">
+                      {gatewayTransactions.map((txn) => (
+                        <tr key={txn.id}>
+                          <td className="px-2 py-1.5">{txn.orderRef}</td>
+                          <td className="px-2 py-1.5">{txn.status}</td>
+                          <td className="px-2 py-1.5">
+                            {txn.amount} {txn.currency}
+                          </td>
+                          <td className="px-2 py-1.5">{txn.gatewayTxnRef ?? "-"}</td>
+                          <td className="px-2 py-1.5">{new Date(txn.updatedAt).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
             </Card>
 
             <Card className="border-slate-200 bg-white p-5 shadow-sm">

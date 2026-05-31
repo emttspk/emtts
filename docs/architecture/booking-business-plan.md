@@ -23,6 +23,10 @@ Next task: Phase 3C-4 live Pakistan Post article booking (separate future approv
 Phase 3C-5A: Manual aggregator payment verification
 Status: Implemented (manual verification only)
 Next task: Phase 3C-5B live payment gateway integration (explicit separate approval required)
+## Current Phase Marker
+Phase 3C-5B: Isolated aggregator JazzCash gateway lane
+Status: Implemented (dedicated aggregator ledger and callback routes)
+Next task: operational validation and rollout hardening for gateway reconciliation
 
 ## Phase Intent
 The Aggregator Booking initiative is intentionally incremental.

@@ -55,7 +55,7 @@ function getPhase3C4Label(currentState?: string | null) {
 }
 
 function getPhase3C5Label(currentState?: string | null) {
-  if (!currentState || currentState === "PAYMENT_OPTIONS_VISIBLE") return "Manual payment options available";
+  if (!currentState || currentState === "PAYMENT_OPTIONS_VISIBLE") return "Manual + JazzCash gateway options available";
   if (currentState === "MANUAL_PAYMENT_SUBMITTED") return "Manual payment submitted";
   if (currentState === "UNDER_ADMIN_VERIFICATION") return "Manual payment under admin verification";
   if (currentState === "MANUAL_PAYMENT_VERIFIED") return "Manual payment verified";
@@ -143,7 +143,7 @@ export default function AggregatorBookings() {
                         <div className="mt-1 text-[11px] text-amber-700">{getPhase3C5Label(booking.phase3c5Payment.currentState)}</div>
                       ) : null}
                       <div className="text-[11px] text-emerald-700">Your articles are ready for final postal processing review. This is not final Pakistan Post booking confirmation.</div>
-                      <div className="text-[11px] text-amber-700">Payment verification only. This is not final Pakistan Post booking confirmation.</div>
+                      <div className="text-[11px] text-amber-700">Payment verification and isolated gateway processing only. This is not final Pakistan Post booking confirmation.</div>
                     </td>
                     <td className="px-3 py-2 text-slate-700">{booking.senderName}</td>
                     <td className="px-3 py-2 text-slate-700">{booking.intakeMethod}</td>

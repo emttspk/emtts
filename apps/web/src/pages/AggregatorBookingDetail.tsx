@@ -8,14 +8,18 @@ import AggregatorBookingSummaryCard from "../components/booking/AggregatorBookin
 import AggregatorBookingTimeline from "../components/booking/AggregatorBookingTimeline";
 import {
   cancelMyAggregatorBooking,
+  getAggregatorGatewayPaymentOptions,
+  getAggregatorJazzcashGatewayStatus,
   getAggregatorPaymentOptions,
   getMyAggregatorBooking,
   getMyAggregatorBookingTimeline,
+  startAggregatorJazzcashGatewayPayment,
   submitAggregatorManualPayment,
   submitMyAggregatorBooking,
   updateMyAggregatorBookingDraft,
   type AggregatorManualPaymentMethod,
   type AggregatorBooking,
+  type AggregatorGatewayTransaction,
   type AggregatorBookingTimelineEvent,
   type BookingSenderPayload,
 } from "../lib/aggregatorBookings";
@@ -114,6 +118,11 @@ export default function AggregatorBookingDetail() {
   const [reference, setReference] = useState<string>("");
   const [payerName, setPayerName] = useState<string>("");
   const [proofNote, setProofNote] = useState<string>("");
+  const [gatewayAvailable, setGatewayAvailable] = useState(false);
+  const [gatewayMissing, setGatewayMissing] = useState<string[]>([]);
+  const [gatewayMobile, setGatewayMobile] = useState<string>("");
+  const [gatewayStatus, setGatewayStatus] = useState<AggregatorGatewayTransaction | null>(null);
+  const [gatewayOrderRef, setGatewayOrderRef] = useState<string>("");
 
   async function load() {
     if (!bookingId) return;
@@ -134,6 +143,35 @@ export default function AggregatorBookingDetail() {
       } catch {
         setMethods(["BANK_TRANSFER", "JAZZCASH_WALLET_TRANSFER", "EASYPAISA_WALLET_TRANSFER", "OFFICE_CASH"]);
       }
+
+      try {
+        const gatewayOptions = await getAggregatorGatewayPaymentOptions(bookingId);
+        setGatewayAvailable(Boolean(gatewayOptions.gateway?.available));
+        setGatewayMissing(gatewayOptions.gateway?.missingCredentials ?? []);
+        const manualOnly = (gatewayOptions.methods ?? []).filter(
+          (item): item is AggregatorManualPaymentMethod => item !== "JAZZCASH_GATEWAY",
+        );
+        if (manualOnly.length) {
+          setMethods(manualOnly);
+          if (!manualOnly.includes(method)) {
+            setMethod(manualOnly[0]);
+          }
+        }
+      } catch {
+        setGatewayAvailable(false);
+        setGatewayMissing([]);
+      }
+
+      try {
+        const gatewayStatusRes = await getAggregatorJazzcashGatewayStatus(bookingId);
+        setGatewayStatus(gatewayStatusRes.transaction);
+      } catch {
+        setGatewayStatus(null);
+      }
+    } else {
+      setGatewayAvailable(false);
+      setGatewayStatus(null);
+      setGatewayMissing([]);
     }
   }
 
@@ -227,6 +265,38 @@ export default function AggregatorBookingDetail() {
       setProofNote("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to submit manual payment");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function startGatewayPayment() {
+    if (!booking) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await startAggregatorJazzcashGatewayPayment(booking.id, {
+        amount: Number(amount),
+        mobileNumber: gatewayMobile,
+      });
+      setGatewayOrderRef(response.orderRef);
+      window.location.assign(response.relayPath);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to start JazzCash gateway payment");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function refreshGatewayStatus() {
+    if (!booking) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await getAggregatorJazzcashGatewayStatus(booking.id, true);
+      setGatewayStatus(response.transaction);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to check JazzCash gateway status");
     } finally {
       setBusy(false);
     }
@@ -358,6 +428,75 @@ export default function AggregatorBookingDetail() {
             {booking.phase3c5Payment?.verification ? <div>Verification: Completed by admin</div> : null}
             {booking.phase3c5Payment?.rejection ? <div>Verification: Rejected ({booking.phase3c5Payment.rejection.rejectionReason})</div> : null}
           </div>
+
+          <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50 px-3 py-3 text-xs text-sky-950">
+            <div className="font-semibold text-sky-900">JazzCash Gateway (Isolated 3C-5B)</div>
+            <div className="mt-1 text-sky-800">Direct callback-driven payment lane for aggregator bookings, isolated from SaaS package billing.</div>
+            <div className="mt-2">Gateway Available: {gatewayAvailable ? "Yes" : "No"}</div>
+            {gatewayMissing.length ? <div>Missing credentials: {gatewayMissing.join(", ")}</div> : null}
+            {gatewayStatus ? (
+              <>
+                <div>Gateway Status: {gatewayStatus.status}</div>
+                <div>Gateway Order Ref: {gatewayStatus.orderRef}</div>
+              </>
+            ) : gatewayOrderRef ? (
+              <div>Gateway Order Ref: {gatewayOrderRef}</div>
+            ) : null}
+          </div>
+
+          {booking.phase3c5Payment?.eligibleForManualPayment && gatewayAvailable ? (
+            <form
+              className="mt-3 grid gap-2 text-xs"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void startGatewayPayment();
+              }}
+            >
+              <label className="grid gap-1">
+                <span className="font-medium text-slate-800">Gateway Amount (PKR)</span>
+                <input
+                  type="number"
+                  min={1}
+                  step="1"
+                  value={amount}
+                  onChange={(event) => setAmount(event.target.value)}
+                  className="rounded border border-slate-300 bg-white px-2 py-1.5"
+                  disabled={busy}
+                  required
+                />
+              </label>
+              <label className="grid gap-1">
+                <span className="font-medium text-slate-800">JazzCash Mobile Number</span>
+                <input
+                  type="text"
+                  value={gatewayMobile}
+                  onChange={(event) => setGatewayMobile(event.target.value)}
+                  className="rounded border border-slate-300 bg-white px-2 py-1.5"
+                  disabled={busy}
+                  required
+                />
+              </label>
+              <div className="mt-1 flex flex-wrap gap-2">
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="rounded-md bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-600 disabled:opacity-60"
+                >
+                  Pay via JazzCash Gateway
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void refreshGatewayStatus();
+                  }}
+                  disabled={busy}
+                  className="rounded-md bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-600 disabled:opacity-60"
+                >
+                  Check Gateway Status
+                </button>
+              </div>
+            </form>
+          ) : null}
 
           {booking.phase3c5Payment?.eligibleForManualPayment ? (
             <form

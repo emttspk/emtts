@@ -42,6 +42,7 @@ model User {
   supportNotifications SupportTicketNotification[]
   aggregatorQuotes AggregatorQuote[]
   aggregatorBookings AggregatorBooking[]
+  aggregatorPaymentTransactions AggregatorPaymentTransaction[]
 }
 
 model Plan {
@@ -634,6 +635,7 @@ model AggregatorBooking {
   auditLogs          AggregatorBookingAuditLog[]
   documents          AggregatorBookingDocument[]
   paymentPlaceholder AggregatorPaymentPlaceholder?
+  paymentTransactions AggregatorPaymentTransaction[]
 
   @@index([userId, createdAt])
   @@index([status, createdAt])
@@ -748,4 +750,35 @@ model AggregatorPaymentPlaceholder {
   booking AggregatorBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@index([paymentStatus, createdAt])
+}
+
+model AggregatorPaymentTransaction {
+  id                 String   @id @default(uuid())
+  bookingId          String
+  userId             String
+  provider           String
+  method             String
+  amount             Int
+  currency           String   @default("PKR")
+  orderRef           String   @unique
+  gatewayTxnRef      String?
+  status             String
+  requestPayloadJson Json?
+  callbackPayloadJson Json?
+  statusInquiryJson  Json?
+  secureHashVerified Boolean  @default(false)
+  idempotencyKey     String   @unique
+  callbackHash       String?
+  failureReason      String?
+  reconciliationNote String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  booking AggregatorBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, status])
+  @@index([gatewayTxnRef])
+  @@index([callbackHash])
+  @@index([createdAt])
 }

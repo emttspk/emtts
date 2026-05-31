@@ -1,5 +1,50 @@
 # AI Implementation Index
 
+## 2026-05-31 - Aggregator Booking Phase 3C-5B Isolated JazzCash Gateway Lane
+
+### Task Name
+- Implement isolated callback-driven JazzCash gateway lane for aggregator bookings, fully separated from SaaS package billing.
+
+### Files Changed
+- `apps/api/prisma/schema.prisma`
+- `apps/api/prisma/migrations/20260531123000_add_aggregator_payment_transaction/migration.sql`
+- `apps/api/src/services/aggregatorPaymentGatewayService.ts`
+- `apps/api/src/routes/aggregatorBookings.ts`
+- `apps/api/src/routes/aggregatorPayments.ts`
+- `apps/api/src/routes/adminAggregatorBookings.ts`
+- `apps/api/src/index.ts`
+- `apps/api/src/utils/aggregatorBookingValidation.ts`
+- `apps/api/scripts/phase3c5b-gateway-smoke.mjs`
+- `apps/web/src/lib/aggregatorBookings.ts`
+- `apps/web/src/pages/AggregatorBookingDetail.tsx`
+- `apps/web/src/pages/AggregatorBookings.tsx`
+- `apps/web/src/pages/admin/AdminAggregatorBookings.tsx`
+- `apps/web/src/pages/AggregatorJazzCashResult.tsx`
+- `apps/web/src/App.tsx`
+
+### Behavior Added
+- Customer endpoints:
+	- `GET /api/aggregator-bookings/:id/payment/gateway-options`
+	- `POST /api/aggregator-bookings/:id/payment/jazzcash/start`
+	- `GET /api/aggregator-bookings/:id/payment/jazzcash/status`
+- Callback/result endpoints:
+	- `POST /api/aggregator-payments/jazzcash/callback`
+	- `GET /api/aggregator-payments/jazzcash/callback`
+	- `GET /api/aggregator-payments/jazzcash/result`
+	- `GET /api/aggregator-payments/jazzcash/relay`
+- Admin endpoints:
+	- `GET /api/admin/aggregator-bookings/:id/payment-transactions`
+	- `POST /api/admin/aggregator-bookings/:id/payment/reconcile`
+	- `POST /api/admin/aggregator-bookings/:id/payment/mark-failed`
+	- `POST /api/admin/aggregator-bookings/:id/payment/refund-note`
+- Dedicated additive ledger model/table: `AggregatorPaymentTransaction`.
+
+### Explicit Exclusions
+- No SaaS subscription/invoice mutation.
+- No pickup/dispatch/final booking execution.
+- No Pakistan Post booking API execution.
+- No Railway/Cloudflare R2/protected production touch.
+
 ## Project Signature Guard and Protected Scope Protocol
 
 ### Files Added Or Updated

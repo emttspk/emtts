@@ -92,6 +92,14 @@ For phase boundaries, protected scope, and continuity handoff protocol, see `doc
 - Source-level UI smoke: PASS for request-only disclaimers and the disabled/unavailable create gate until acceptance and sender details are complete.
 - Protected scope confirmation: no Upload flow, worker, PDF templates, billing, tracking, complaints, auth core, admin core auth, storage/R2, cleanup flags, Railway, Cloudflare/R2, or production paths were touched.
 
+## Phase 3C-5B Isolated Gateway Safeguards (2026-05-31)
+- Aggregator JazzCash gateway lane is implemented with dedicated ledger routing and callback flow.
+- Aggregator gateway routes are isolated under `/api/aggregator-payments/*` and do not mutate SaaS package billing.
+- Admin reconciliation endpoints are isolated to aggregator booking IDs and order refs.
+- Frontend gateway result route is isolated under `/aggregator-bookings/payment/jazzcash/result`.
+- Validation smoke script added: `apps/api/scripts/phase3c5b-gateway-smoke.mjs`.
+- Guardrail intent remains: no pickup/dispatch/final booking execution, no Pakistan Post booking API execution, no protected scope mutation.
+
 ## Local DB Drift Repair and DB-Backed Smoke (2026-05-31)
 - Local Prisma migrate status: PASS target remained local PostgreSQL on `localhost:5432`; pending migrations were present before repair.
 - Migration drift cause: `20260530154500_add_complaint_queue_table` existed as a failed/partial `_prisma_migrations` row because `ComplaintQueue` already existed locally.

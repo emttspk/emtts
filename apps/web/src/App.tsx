@@ -33,6 +33,7 @@ const TemplateDesigner = lazy(() => import("./pages/TemplateDesigner"));
 const GenerateLabels = lazy(() => import("./pages/GenerateLabels"));
 const GenerateMoneyOrder = lazy(() => import("./pages/admin/GenerateMoneyOrder"));
 const JazzCashResult = lazy(() => import("./pages/JazzCashResult"));
+const AggregatorJazzCashResult = lazy(() => import("./pages/AggregatorJazzCashResult"));
 const SupportTicketsPage = lazy(() => import("./pages/SupportTicketsPage"));
 const SupportTicketDetailPage = lazy(() => import("./pages/SupportTicketDetailPage"));
 const BookingQuote = lazy(() => import("./pages/BookingQuote"));
@@ -78,6 +79,7 @@ export default function App() {
         <Route path="/tracking" element={<TrackingEntry />} />
         <Route path="/tracking/:trackingId" element={<PublicTracking />} />
         <Route path="/payment/jazzcash/result" element={<JazzCashResult />} />
+        <Route path="/aggregator-bookings/payment/jazzcash/result" element={<AggregatorJazzCashResult />} />
 
         <Route
           element={

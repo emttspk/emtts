@@ -30,7 +30,16 @@ import {
   listBookingsForAdmin,
 } from "../services/aggregatorBookingService.js";
 import {
+  adminAddAggregatorRefundNote as adminAddAggregatorRefundNoteV3C5B,
+  adminMarkAggregatorPaymentFailed as adminMarkAggregatorPaymentFailedV3C5B,
+  adminReconcileAggregatorPayment as adminReconcileAggregatorPaymentV3C5B,
+  listAggregatorPaymentTransactionsForAdmin as listAggregatorPaymentTransactionsForAdminV3C5B,
+} from "../services/aggregatorPaymentGatewayService.js";
+import {
   adminAggregatorManualPaymentCancelSchema,
+  adminAggregatorGatewayMarkFailedSchema,
+  adminAggregatorGatewayReconcileSchema,
+  adminAggregatorGatewayRefundNoteSchema,
   adminAggregatorManualPaymentRejectSchema,
   adminAggregatorManualPaymentVerifySchema,
   adminApproveActionSchema,
@@ -78,6 +87,85 @@ adminAggregatorBookingsRouter.get("/", async (req, res) => {
     }
     const message = error instanceof Error ? error.message : "Failed to list admin bookings";
     return res.status(500).json({ success: false, error: message });
+  }
+});
+
+adminAggregatorBookingsRouter.get("/:id/payment-transactions", async (req, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const transactions = await listAggregatorPaymentTransactionsForAdminV3C5B(bookingId);
+    return res.json({ success: true, transactions });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to load payment transactions";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+adminAggregatorBookingsRouter.post("/:id/payment/reconcile", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminAggregatorGatewayReconcileSchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const transaction = await adminReconcileAggregatorPaymentV3C5B({
+      bookingId,
+      orderRef: payload.orderRef,
+      adminUserId,
+      reconciliationNote: payload.reconciliationNote,
+      status: payload.status,
+    });
+    return res.json({ success: true, transaction });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid reconcile payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to reconcile payment transaction";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+adminAggregatorBookingsRouter.post("/:id/payment/mark-failed", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminAggregatorGatewayMarkFailedSchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const transaction = await adminMarkAggregatorPaymentFailedV3C5B({
+      bookingId,
+      orderRef: payload.orderRef,
+      adminUserId,
+      reason: payload.reason,
+    });
+    return res.json({ success: true, transaction });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid mark-failed payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to mark payment transaction failed";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+adminAggregatorBookingsRouter.post("/:id/payment/refund-note", async (req: AuthedRequest, res) => {
+  try {
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = adminAggregatorGatewayRefundNoteSchema.parse(req.body ?? {});
+    const adminUserId = String(req.user?.id ?? "").trim();
+    const transaction = await adminAddAggregatorRefundNoteV3C5B({
+      bookingId,
+      orderRef: payload.orderRef,
+      adminUserId,
+      note: payload.note,
+    });
+    return res.json({ success: true, transaction });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid refund-note payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to add refund note";
+    const status = message === "Booking not found" ? 404 : 400;
+    return res.status(status).json({ success: false, error: message });
   }
 });
 

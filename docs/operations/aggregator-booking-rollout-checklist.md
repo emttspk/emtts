@@ -92,6 +92,21 @@
 - No pickup/dispatch/final booking action is created.
 - `jobs.ts`, `Upload.tsx`, and `worker.ts` behavior remains unchanged.
 
+## Phase 3C-5B (Isolated JazzCash Gateway Lane) Checklist
+- Dedicated ledger model/table exists for aggregator gateway transactions (`AggregatorPaymentTransaction`).
+- Customer gateway options endpoint exists: `/api/aggregator-bookings/:id/payment/gateway-options`.
+- Customer gateway start endpoint exists: `/api/aggregator-bookings/:id/payment/jazzcash/start`.
+- Customer gateway status endpoint exists: `/api/aggregator-bookings/:id/payment/jazzcash/status`.
+- Callback endpoints exist: `/api/aggregator-payments/jazzcash/callback` (GET/POST).
+- Gateway relay/result endpoints exist: `/api/aggregator-payments/jazzcash/relay` and `/api/aggregator-payments/jazzcash/result`.
+- Admin gateway operations exist: list transactions, reconcile, mark-failed, refund-note.
+- Frontend includes isolated aggregator gateway result route: `/aggregator-bookings/payment/jazzcash/result`.
+- Validation smoke script exists and prints `SMOKE_SCHEMA_ALL_DONE`: `apps/api/scripts/phase3c5b-gateway-smoke.mjs`.
+- No SaaS package billing/subscription/invoice mutation.
+- No pickup/dispatch/final booking execution.
+- No Pakistan Post booking API execution.
+- `jobs.ts`, `Upload.tsx`, and `worker.ts` behavior remains unchanged.
+
 ## Regression Safeguards
 - Verify existing upload route contract remains unchanged.
 - Verify existing MO/tracking/complaint/billing behavior is unchanged.

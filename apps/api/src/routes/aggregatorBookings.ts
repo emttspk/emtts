@@ -15,11 +15,18 @@ import {
   updateBookingDraft,
 } from "../services/aggregatorBookingService.js";
 import {
+  getAggregatorGatewayOptions as getAggregatorGatewayOptionsV3C5B,
+  getAggregatorJazzcashStatus as getAggregatorJazzcashStatusV3C5B,
+  startAggregatorJazzcashPayment as startAggregatorJazzcashPaymentV3C5B,
+} from "../services/aggregatorPaymentGatewayService.js";
+import {
   createAggregatorBookingDocumentMetadata,
   listAggregatorBookingDocumentsForUser,
 } from "../services/aggregatorDocumentService.js";
 import {
   aggregatorManualPaymentSubmitSchema,
+  aggregatorGatewayJazzcashStartSchema,
+  aggregatorGatewayStatusQuerySchema,
   cancelBookingSchema,
   createBookingDocumentMetadataSchema,
   convertQuoteToDraftSchema,
@@ -272,6 +279,63 @@ aggregatorBookingsRouter.get("/:id/payment/options", async (req: AuthedRequest, 
     return res.json({ success: true, ...result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load manual payment options";
+    const status = message === "Booking not found" ? 404 : message === "Forbidden" ? 403 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+aggregatorBookingsRouter.get("/:id/payment/gateway-options", async (req: AuthedRequest, res) => {
+  try {
+    const userId = String(req.user?.id ?? "").trim();
+    const bookingId = String(req.params.id ?? "").trim();
+    const result = await getAggregatorGatewayOptionsV3C5B({ bookingId, userId });
+    return res.json({ success: true, ...result });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to load gateway payment options";
+    const status = message === "Booking not found" ? 404 : message === "Forbidden" ? 403 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+aggregatorBookingsRouter.post("/:id/payment/jazzcash/start", async (req: AuthedRequest, res) => {
+  try {
+    const userId = String(req.user?.id ?? "").trim();
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = aggregatorGatewayJazzcashStartSchema.parse(req.body ?? {});
+    const result = await startAggregatorJazzcashPaymentV3C5B({
+      bookingId,
+      userId,
+      amount: payload.amount,
+      currency: payload.currency,
+      mobileNumber: payload.mobileNumber,
+    });
+    return res.status(201).json({ success: true, ...result });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid JazzCash start payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to start JazzCash gateway payment";
+    const status = message === "Booking not found" ? 404 : message === "Forbidden" ? 403 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+aggregatorBookingsRouter.get("/:id/payment/jazzcash/status", async (req: AuthedRequest, res) => {
+  try {
+    const userId = String(req.user?.id ?? "").trim();
+    const bookingId = String(req.params.id ?? "").trim();
+    const query = aggregatorGatewayStatusQuerySchema.parse(req.query ?? {});
+    const transaction = await getAggregatorJazzcashStatusV3C5B({
+      bookingId,
+      userId,
+      withInquiry: query.withInquiry,
+    });
+    return res.json({ success: true, transaction });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid JazzCash status query", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to load JazzCash gateway status";
     const status = message === "Booking not found" ? 404 : message === "Forbidden" ? 403 : 400;
     return res.status(status).json({ success: false, error: message });
   }

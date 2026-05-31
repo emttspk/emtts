@@ -584,3 +584,83 @@ export const adminFinalProcessingReviewSchema = z
       });
     }
   });
+
+const AGGREGATOR_GATEWAY_STATUSES = [
+  "AGGREGATOR_GATEWAY_INITIATED",
+  "AGGREGATOR_GATEWAY_REDIRECTED",
+  "AGGREGATOR_GATEWAY_PENDING",
+  "AGGREGATOR_GATEWAY_SUCCESS",
+  "AGGREGATOR_GATEWAY_FAILED",
+  "AGGREGATOR_GATEWAY_CANCELLED",
+  "AGGREGATOR_GATEWAY_EXPIRED",
+  "AGGREGATOR_GATEWAY_DUPLICATE_CALLBACK_BLOCKED",
+  "AGGREGATOR_GATEWAY_MANUAL_RECONCILIATION_REQUIRED",
+] as const;
+
+export const aggregatorGatewayJazzcashStartSchema = z
+  .object({
+    amount: z.coerce.number().positive(),
+    currency: z.string().trim().length(3).default("PKR"),
+    mobileNumber: z.string().trim().min(11).max(15),
+  })
+  .strict();
+
+export const aggregatorGatewayStatusQuerySchema = z
+  .object({
+    withInquiry: z.coerce.boolean().optional().default(false),
+  })
+  .strict();
+
+export const aggregatorGatewayJazzcashCallbackSchema = z
+  .object({
+    pp_TxnRefNo: z.string().trim().min(1).optional(),
+    pp_Amount: z.union([z.string(), z.number()]).optional(),
+    pp_TxnCurrency: z.string().trim().min(3).max(3).optional(),
+    pp_SecureHash: z.string().trim().min(1).optional(),
+    pp_ResponseCode: z.string().trim().optional(),
+    pp_ResponseMessage: z.string().trim().optional(),
+    pp_PaymentResponseCode: z.string().trim().optional(),
+    pp_PaymentResponseMessage: z.string().trim().optional(),
+    pp_Status: z.string().trim().optional(),
+    pp_RetreivalReferenceNo: z.string().trim().optional(),
+    pp_RetrievalReferenceNo: z.string().trim().optional(),
+    pp_TransactionId: z.string().trim().optional(),
+    pp_TransactionID: z.string().trim().optional(),
+    orderRef: z.string().trim().optional(),
+    reference: z.string().trim().optional(),
+  })
+  .passthrough()
+  .superRefine((payload, ctx) => {
+    const hasReference = Boolean(
+      String(payload.pp_TxnRefNo ?? payload.orderRef ?? payload.reference ?? "").trim(),
+    );
+    if (!hasReference) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["pp_TxnRefNo"],
+        message: "Transaction reference is required",
+      });
+    }
+  });
+
+export const adminAggregatorGatewayReconcileSchema = z
+  .object({
+    orderRef: z.string().trim().min(3).max(120),
+    status: z.enum(AGGREGATOR_GATEWAY_STATUSES),
+    reconciliationNote: z.string().trim().min(5).max(2000),
+  })
+  .strict();
+
+export const adminAggregatorGatewayMarkFailedSchema = z
+  .object({
+    orderRef: z.string().trim().min(3).max(120),
+    reason: z.string().trim().min(3).max(500),
+  })
+  .strict();
+
+export const adminAggregatorGatewayRefundNoteSchema = z
+  .object({
+    orderRef: z.string().trim().min(3).max(120),
+    note: z.string().trim().min(3).max(2000),
+  })
+  .strict();
