@@ -2455,3 +2455,47 @@ From JazzCash v4.2 docs (ApiReferences.html), the **Hosted Checkout + Mobile Acc
 ### Schema and Migration Status
 - Prisma schema changes: NONE.
 - Migration changes: NONE.
+
+## Aggregator Booking Phase 3C-5B Staging Frontend Redirect Resolution (2026-06-01)
+
+### Staging Evidence Summary
+- Manual staging backup: VERIFIED (previous gate).
+- Staging migration state: APPLIED and verified.
+- `AggregatorPaymentTransaction` table: VERIFIED in staging.
+- Staging API runtime route health (`/api` prefix): VERIFIED.
+- Staging Web service: CREATED and DEPLOYED as `Web-staging`.
+- Staging Web public origin: `https://web-staging-staging-0299.up.railway.app`.
+
+### Redirect Root Cause and Fix
+- Root cause: `FRONTEND_URL` and `WEB_ORIGIN` in `Api-staging` were pointing to the API origin, which caused `/api/aggregator-payments/jazzcash/result` to redirect back to API host and return 404 on follow.
+- Fix applied in staging `Api-staging` only:
+	- `FRONTEND_URL` -> staging web origin.
+	- `WEB_ORIGIN` -> staging web origin.
+- No production, Cloudflare/R2, or migration actions were used for this fix.
+
+### Post-Fix Verification
+- API result endpoint:
+	- `GET /api/aggregator-payments/jazzcash/result?...` returns `302`.
+	- `Location` now points to staging web origin (not API domain).
+- Frontend follow URL:
+	- `GET /aggregator-bookings/payment/jazzcash/result?...` on Web-staging returns `200`.
+
+### Smoke and Regression Confirmation
+- Gateway flow: previously passed and retained (`SMOKE_SCHEMA_ALL_DONE`).
+- Duplicate callback handling: PASS.
+- Invalid hash handling: PASS.
+- Amount mismatch handling: PASS.
+- Admin transaction list after fix: `200`.
+- Regression counters unchanged:
+	- Payment: `3 -> 3`
+	- Invoice: `3 -> 3`
+	- Subscription: `31 -> 31`
+	- ManualPaymentRequest: `0 -> 0`
+	- LabelJob: `4 -> 4`
+
+### Safety and Scope Confirmation
+- Railway production: NOT TOUCHED.
+- Production database: NOT TOUCHED.
+- Cloudflare/R2: NOT TOUCHED.
+- Protected scope modules remained unchanged.
+- Production rollout remains blocked until explicit user approval.

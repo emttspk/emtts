@@ -166,3 +166,22 @@ This document defines a separate Aggregator Booking business lane for ePost.pk t
 
 ## Delivery Carrier Rule
 Leopards is for bundle movement to ePost hub only. Final value-payable delivery products remain Pakistan Post products.
+
+## Phase 3C-5B Staging Redirect Validation (2026-06-01)
+- Staging API and Web split is now explicitly validated for aggregator gateway result redirection.
+- Staging Web service `Web-staging` was deployed and verified at:
+	- `https://web-staging-staging-0299.up.railway.app`
+- `Api-staging` redirect-origin variables were corrected in staging only:
+	- `FRONTEND_URL`
+	- `WEB_ORIGIN`
+- Result endpoint behavior after correction:
+	- API `/api/aggregator-payments/jazzcash/result` -> `302` with `Location` on staging web origin.
+	- Followed frontend route `/aggregator-bookings/payment/jazzcash/result` -> `200`.
+- Gateway safeguards remained intact:
+	- duplicate callback block,
+	- invalid-hash reconciliation,
+	- amount-mismatch reconciliation,
+	- admin reconcile/mark-failed/refund-note controls.
+- No SaaS billing/subscription/invoice/unit mutation occurred.
+- No pickup/dispatch/final-booking execution occurred.
+- No production or Cloudflare/R2 touch occurred.

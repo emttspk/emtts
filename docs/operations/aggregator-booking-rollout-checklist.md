@@ -122,3 +122,27 @@
 - Treat quote as estimate only.
 - Draft/submitted bookings are not final postal bookings.
 - Do not apply courier as final value-payable carrier.
+
+## Phase 3C-5B Staging Redirect Completion (2026-06-01)
+- Staging resources verified before change (`Api-staging`, `Python-staging`, `Postgres`, `Redis`).
+- Staging frontend service created/deployed:
+	- Service: `Web-staging`
+	- Public origin: `https://web-staging-staging-0299.up.railway.app`
+- Frontend route verification on staging web:
+	- `/` -> `200`
+	- `/aggregator-bookings/payment/jazzcash/result?...` -> `200`
+- `Api-staging` variables updated (staging only):
+	- `FRONTEND_URL`
+	- `WEB_ORIGIN`
+- Redirect chain verification:
+	- API `/api/aggregator-payments/jazzcash/result?...` -> `302`
+	- `Location` host -> staging web origin (no API-domain redirect)
+	- Follow URL -> `200`
+- Regression recheck:
+	- admin transaction list -> `200`
+	- counters unchanged (`Payment=3`, `Invoice=3`, `Subscription=31`, `ManualPaymentRequest=0`, `LabelJob=4`)
+- Safety confirmation:
+	- no production touch,
+	- no production DB touch,
+	- no Cloudflare/R2 touch,
+	- no pickup/dispatch/final-booking side effect.

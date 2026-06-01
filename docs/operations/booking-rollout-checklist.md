@@ -174,3 +174,27 @@ For phase boundaries, protected scope, and continuity handoff protocol, see `doc
 - Protected modules (`jobs.ts`, `Upload.tsx`, `worker.ts`) remained unchanged.
 - Schema/migration changes: NONE.
 - Protected modules (`jobs.ts`, `Upload.tsx`, `worker.ts`) remained unchanged.
+
+## Phase 3C-5B Staging Frontend Redirect Fix Result (2026-06-01)
+- Staging web service deployed for frontend result routing:
+	- `Web-staging` -> `https://web-staging-staging-0299.up.railway.app`
+- API redirect-origin variables corrected on `Api-staging` only:
+	- `FRONTEND_URL`
+	- `WEB_ORIGIN`
+- Redirect re-test:
+	- `GET /api/aggregator-payments/jazzcash/result?...` -> `302`
+	- `Location` -> staging web origin
+	- Follow response -> `200`
+- Aggregator minimal regression recheck:
+	- admin transaction list -> `200`
+	- Payment `3`, Invoice `3`, Subscription `31`, ManualPaymentRequest `0`, LabelJob `4` (unchanged)
+- Local quality gates after fix:
+	- `npm run lint` -> PASS
+	- `npm run typecheck` -> PASS
+	- `npm run phase-3-verify` -> PASS
+	- `npm run build` -> PASS
+	- `cd apps/api && npx tsx scripts/phase3c5b-gateway-smoke.mjs` -> `SMOKE_SCHEMA_ALL_DONE`
+- Safety boundary confirmation:
+	- Railway production not touched.
+	- Production DB not touched.
+	- Cloudflare/R2 not touched.

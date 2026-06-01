@@ -331,3 +331,19 @@ If work stops mid-session, next session must follow these steps exactly:
 ## Cross-Reference
 - Postage detail rules: `docs/architecture/postage-rates.md`
 - Rollout execution checklist: `docs/operations/booking-rollout-checklist.md`
+
+## Phase 3C-5B Staging Frontend Redirect Closure (2026-06-01)
+- Root cause was configuration-only in staging API redirect origins.
+- `Api-staging` had frontend-origin variables pointing to API domain, causing redirect follow 404.
+- Corrective action was staging-only and additive:
+	- deploy staging frontend service (`Web-staging`),
+	- set `FRONTEND_URL` and `WEB_ORIGIN` on `Api-staging` to staging web origin.
+- Verified outcome:
+	- API result endpoint returns `302`.
+	- Redirect `Location` points to staging web origin.
+	- Followed frontend route returns `200`.
+- Continuity guardrails preserved:
+	- no production touch,
+	- no production DB touch,
+	- no Cloudflare/R2 touch,
+	- no protected-scope logic mutation.
