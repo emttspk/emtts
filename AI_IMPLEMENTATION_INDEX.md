@@ -26,7 +26,7 @@
 - Public smoke verification: `GET https://api.epost.pk/health` PASS, `GET https://api.epost.pk/health/db` PASS.
 - Public web verification: `/`, `/login`, `/upload`, and `/aggregator-bookings/payment/jazzcash/result` all returned HTTP 200.
 - No Railway deploy executed in this verification step.
-- Final classification: `READY_BUT_NOT_DEPLOYED`.
+- Final classification: `READY_FOR_DEPLOY`.
 
 ## 2026-05-31 - Aggregator Booking Phase 3C-5B Isolated JazzCash Gateway Lane
 

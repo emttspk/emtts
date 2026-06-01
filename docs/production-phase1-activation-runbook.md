@@ -18,7 +18,7 @@
 - Local `npm run build` completed successfully.
 - Public smoke verification passed for API health, DB health, web root, login page, upload route shell, and aggregator JazzCash result route shell.
 - No secrets included in this document update.
-- Verification classification: `READY_BUT_NOT_DEPLOYED`.
+- Verification classification: `READY_FOR_DEPLOY`.
 
 ---
 

@@ -23,6 +23,9 @@ outputs/
 
 # Local manual database backups
 backups/
+*.dump
+*.sql
+*.bak
 
 # Temporary / smoke-test outputs
 tmp-*.pdf
