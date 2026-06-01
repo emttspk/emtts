@@ -3064,6 +3064,149 @@ export async function submitBooking(input: {
   return updated.second;
 }
 
+export async function resubmitBookingAfterCorrection(input: {
+  bookingId: string;
+  userId: string;
+  note?: string;
+  correctionAcknowledged: true;
+  context?: RequestContext;
+}) {
+  if (input.correctionAcknowledged !== true) {
+    throw new Error("Correction acknowledgment is required");
+  }
+
+  const booking = await prisma.aggregatorBooking.findUnique({
+    where: { id: input.bookingId },
+    include: {
+      quote: true,
+      items: true,
+    },
+  });
+  if (!booking) throw new Error("Booking not found");
+  ensureOwner(booking.userId, input.userId);
+
+  const from = normalizeStatus(booking.status);
+  if (from !== "CORRECTION_REQUIRED") {
+    throw new Error("Resubmission is only allowed from CORRECTION_REQUIRED status");
+  }
+
+  const actor: Actor = { actorType: "CUSTOMER", actorUserId: input.userId };
+  assertCanTransitionBookingStatus({ from, to: "BOOKING_SUBMITTED", actor: "CUSTOMER" });
+
+  const latestCorrectionEvent = await prisma.aggregatorBookingStatusEvent.findFirst({
+    where: {
+      bookingId: booking.id,
+      toStatus: "CORRECTION_REQUIRED",
+      actorType: "ADMIN",
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      reasonCode: true,
+      note: true,
+      createdAt: true,
+      actorUserId: true,
+    },
+  });
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const quoteSnapshot = booking.quoteSnapshotJson as unknown as QuoteSummary;
+    const isInvalid = (quoteSnapshot.errorRows ?? []).length > 0;
+    if (isInvalid) {
+      throw new Error("Booking cannot be submitted while quote has unresolved errors");
+    }
+
+    await tx.aggregatorBooking.update({
+      where: { id: booking.id },
+      data: {
+        status: "BOOKING_SUBMITTED",
+        adminReviewStatus: "PENDING",
+        submittedAt: new Date(),
+      },
+    });
+
+    await tx.aggregatorBookingStatusEvent.create({
+      data: {
+        bookingId: booking.id,
+        fromStatus: from,
+        toStatus: "BOOKING_SUBMITTED",
+        actorType: actor.actorType,
+        actorUserId: actor.actorUserId,
+        reasonCode: "CUSTOMER_RESUBMIT_AFTER_CORRECTION",
+        note: normalizeOptionalString(input.note),
+      },
+    });
+
+    assertCanTransitionBookingStatus({ from: "BOOKING_SUBMITTED", to: "ADMIN_REVIEW_PENDING", actor: "ADMIN" });
+
+    const second = await tx.aggregatorBooking.update({
+      where: { id: booking.id },
+      data: {
+        status: "ADMIN_REVIEW_PENDING",
+        adminReviewStatus: "PENDING",
+      },
+    });
+
+    await tx.aggregatorBookingStatusEvent.create({
+      data: {
+        bookingId: booking.id,
+        fromStatus: "BOOKING_SUBMITTED",
+        toStatus: "ADMIN_REVIEW_PENDING",
+        actorType: "SYSTEM",
+        actorUserId: actor.actorUserId,
+        reasonCode: "AUTO_QUEUE_ADMIN_REVIEW",
+        note: "Auto moved to admin review pending after customer correction resubmission.",
+      },
+    });
+
+    await tx.aggregatorBookingAuditLog.create({
+      data: {
+        bookingId: booking.id,
+        action: "BOOKING_RESUBMITTED_AFTER_CORRECTION",
+        actorType: actor.actorType,
+        actorUserId: actor.actorUserId,
+        targetField: "status",
+        oldValueJson: from as unknown as JsonValue,
+        newValueJson: "ADMIN_REVIEW_PENDING" as unknown as JsonValue,
+      },
+    });
+
+    return second;
+  });
+
+  await writeAuditLog({
+    bookingId: booking.id,
+    action: "CUSTOMER_ACKNOWLEDGED_ADMIN_CORRECTION_NOTE",
+    actor,
+    targetField: "correction_acknowledgement",
+    oldValueJson: undefined,
+    newValueJson: {
+      correctionAcknowledged: true,
+      acknowledgedAt: new Date().toISOString(),
+      previousCorrectionRequest: latestCorrectionEvent
+        ? {
+            reasonCode: latestCorrectionEvent.reasonCode,
+            note: latestCorrectionEvent.note,
+            requestedAt: latestCorrectionEvent.createdAt.toISOString(),
+            requestedBy: latestCorrectionEvent.actorUserId,
+          }
+        : null,
+    } as unknown as JsonValue,
+    context: input.context,
+  });
+
+  await writeAuditLog({
+    bookingId: booking.id,
+    action: "QUOTE_SNAPSHOT_FROZEN_ON_RESUBMIT",
+    actor,
+    targetField: "quoteSnapshotJson",
+    oldValueJson: booking.quoteSnapshotJson as unknown as JsonValue,
+    newValueJson: booking.quoteSnapshotJson as unknown as JsonValue,
+    context: input.context,
+  });
+
+  return updated;
+}
+
 export async function cancelBooking(input: {
   bookingId: string;
   userId: string;

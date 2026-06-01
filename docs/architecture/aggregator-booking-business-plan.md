@@ -1,5 +1,23 @@
 # Aggregator Booking Business Plan
 
+## Phase 2B-Correction Resubmission (Implemented Scope)
+- Customer correction workflow is enabled only for bookings in `CORRECTION_REQUIRED`.
+- Customer must acknowledge admin correction instruction before resubmission.
+- Resubmission path:
+  - `CORRECTION_REQUIRED -> BOOKING_SUBMITTED -> ADMIN_REVIEW_PENDING`
+- Booking remains in admin-review lane after resubmission (`Pending Admin Review` customer display).
+- Timeline and audit trails preserve correction request context and customer acknowledgment metadata.
+- Customer non-final warning remains mandatory:
+  - `This is not booking confirmation.`
+
+## Phase 2B-Correction Explicit Exclusions
+- No payment collection/gateway execution.
+- No pickup execution.
+- No dispatch execution.
+- No manifest/final booking execution.
+- No label generation execution.
+- No SaaS unit deduction or billing mutation.
+
 ## Purpose
 This document defines a separate Aggregator Booking business lane for ePost.pk that is independent from the existing unit-based SaaS label generation system.
 

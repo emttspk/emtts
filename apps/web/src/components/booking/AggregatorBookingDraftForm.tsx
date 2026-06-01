@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { BookingSenderPayload, IntakeMethod } from "../../lib/aggregatorBookings";
 
 type Props = {
@@ -18,6 +18,10 @@ export default function AggregatorBookingDraftForm({ initial, disabled, submitLa
   const [form, setForm] = useState<BookingSenderPayload>(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setForm(initial);
+  }, [initial]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

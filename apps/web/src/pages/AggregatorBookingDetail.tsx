@@ -10,6 +10,7 @@ import {
   cancelMyAggregatorBooking,
   getMyAggregatorBooking,
   getMyAggregatorBookingTimeline,
+  resubmitMyAggregatorBookingAfterCorrection,
   submitMyAggregatorBooking,
   updateMyAggregatorBookingDraft,
   type AggregatorBooking,
@@ -46,6 +47,7 @@ export default function AggregatorBookingDetail() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ackCorrection, setAckCorrection] = useState(false);
 
   async function load() {
     if (!bookingId) return;
@@ -79,6 +81,7 @@ export default function AggregatorBookingDetail() {
     const status = booking?.status;
     return status === "BOOKING_DRAFT" || status === "CORRECTION_REQUIRED";
   }, [booking?.status]);
+  const correctionRequired = booking?.status === "CORRECTION_REQUIRED";
 
   const senderInitial = useMemo<BookingSenderPayload>(() => ({
     senderName: booking?.senderName ?? "",
@@ -110,6 +113,21 @@ export default function AggregatorBookingDetail() {
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to submit booking");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resubmitAfterCorrection() {
+    if (!booking) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await resubmitMyAggregatorBookingAfterCorrection(booking.id, { correctionAcknowledged: true });
+      setAckCorrection(false);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to resubmit booking");
     } finally {
       setBusy(false);
     }
@@ -174,6 +192,12 @@ export default function AggregatorBookingDetail() {
         <Card className="border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="text-base font-semibold text-slate-900">Sender and Intake Details</h3>
           <p className="mt-1 text-xs text-slate-500">Draft is editable only in BOOKING_DRAFT or CORRECTION_REQUIRED status.</p>
+          {correctionRequired ? (
+            <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              <p className="font-semibold">Correction required before resubmission</p>
+              <p className="mt-1">Please review the admin correction note in the timeline, update this draft, and acknowledge it before resubmitting.</p>
+            </div>
+          ) : null}
           <div className="mt-3">
             <AggregatorBookingDraftForm
               initial={senderInitial}
@@ -186,12 +210,23 @@ export default function AggregatorBookingDetail() {
           <div className="mt-4 flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={submit}
-              disabled={!draftAllowed || busy}
+              onClick={correctionRequired ? resubmitAfterCorrection : submit}
+              disabled={!draftAllowed || busy || (correctionRequired && !ackCorrection)}
               className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-60"
             >
-              Submit for Admin Review
+              {correctionRequired ? "Acknowledge & Resubmit for Admin Review" : "Submit for Admin Review"}
             </button>
+            {correctionRequired ? (
+              <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={ackCorrection}
+                  onChange={(e) => setAckCorrection(e.target.checked)}
+                  disabled={busy}
+                />
+                I acknowledge the admin correction note.
+              </label>
+            ) : null}
             <button
               type="button"
               onClick={cancelBooking}

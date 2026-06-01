@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-06-01 - Aggregator Correction Resubmission Flow (Phase 2B Safe Scope)
+
+### Scope
+- Added customer correction/resubmission flow for aggregator bookings only.
+- Resubmission is allowed only from `CORRECTION_REQUIRED`.
+- Customer acknowledgment of admin correction note is required before resubmission.
+
+### API and Service Changes
+- Added `POST /api/aggregator-bookings/:id/resubmit`.
+- Added `resubmitBookingSchema` with required `correctionAcknowledged: true`.
+- Added `resubmitBookingAfterCorrection` service flow:
+  - `CORRECTION_REQUIRED -> BOOKING_SUBMITTED -> ADMIN_REVIEW_PENDING`
+  - creates status timeline events and audit actions
+  - preserves prior admin correction reason/note context in acknowledgment audit metadata.
+
+### UI Changes
+- Booking detail page now shows correction banner only when status is `CORRECTION_REQUIRED`.
+- Resubmit action in correction state requires checkbox acknowledgment.
+- Status label remains `Pending Admin Review` after resubmission.
+- Non-final warning remains visible: `This is not booking confirmation.`
+
+### Tests
+- Added `apps/api/src/services/aggregatorCorrectionResubmitPhase.test.ts`:
+  - success from `CORRECTION_REQUIRED`
+  - blocked from all other statuses
+  - missing acknowledgment fails
+  - timeline/audit creation assertions
+  - no payment/pickup/dispatch/label/manifest/SaaS-side-effect assertions.
+
+### Safety
+- No migration changes.
+- No Railway, Cloudflare/R2, env, or secret changes.
+
 ## 2026-05-29 - Auth Session Controls and Duplicate Free-Account Safeguards
 
 ### Scope

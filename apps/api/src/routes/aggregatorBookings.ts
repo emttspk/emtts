@@ -12,6 +12,7 @@ import {
   listBookingsForUser,
   submitAggregatorManualPayment,
   submitBooking,
+  resubmitBookingAfterCorrection,
   updateBookingDraft,
 } from "../services/aggregatorBookingService.js";
 import {
@@ -33,6 +34,7 @@ import {
   createBookingDraftSchema,
   listBookingQuerySchema,
   submitBookingSchema,
+  resubmitBookingSchema,
   updateBookingDraftSchema,
 } from "../utils/aggregatorBookingValidation.js";
 
@@ -229,6 +231,33 @@ aggregatorBookingsRouter.post("/:id/submit", async (req: AuthedRequest, res) => 
       return res.status(400).json({ success: false, error: "Invalid submit payload", details: error.errors });
     }
     const message = error instanceof Error ? error.message : "Failed to submit booking";
+    const status = message === "Booking not found" ? 404 : message === "Forbidden" ? 403 : 400;
+    return res.status(status).json({ success: false, error: message });
+  }
+});
+
+aggregatorBookingsRouter.post("/:id/resubmit", async (req: AuthedRequest, res) => {
+  try {
+    const userId = String(req.user?.id ?? "").trim();
+    const bookingId = String(req.params.id ?? "").trim();
+    const payload = resubmitBookingSchema.parse(req.body ?? {});
+    const booking = await resubmitBookingAfterCorrection({
+      bookingId,
+      userId,
+      note: payload.note,
+      correctionAcknowledged: payload.correctionAcknowledged,
+      context: { req },
+    });
+    return res.json({
+      success: true,
+      message: "Resubmitted for admin review. This is not final booking confirmation and remains manual-action only.",
+      booking,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: "Invalid resubmit payload", details: error.errors });
+    }
+    const message = error instanceof Error ? error.message : "Failed to resubmit booking";
     const status = message === "Booking not found" ? 404 : message === "Forbidden" ? 403 : 400;
     return res.status(status).json({ success: false, error: message });
   }

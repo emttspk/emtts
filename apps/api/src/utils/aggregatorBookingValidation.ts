@@ -197,6 +197,11 @@ export const submitBookingSchema = z.object({
   note: z.string().trim().max(2000).optional(),
 });
 
+export const resubmitBookingSchema = z.object({
+  note: z.string().trim().max(2000).optional(),
+  correctionAcknowledged: z.literal(true),
+});
+
 export const cancelBookingSchema = z.object({
   reasonCode: z.string().trim().min(2).max(80),
   note: z.string().trim().max(2000).optional(),

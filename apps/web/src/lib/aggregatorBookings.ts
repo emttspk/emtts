@@ -547,6 +547,19 @@ export async function submitMyAggregatorBooking(bookingId: string, note?: string
   });
 }
 
+export async function resubmitMyAggregatorBookingAfterCorrection(
+  bookingId: string,
+  payload?: { note?: string; correctionAcknowledged: true },
+) {
+  return api<{ success: boolean; booking: AggregatorBooking }>(
+    `/api/aggregator-bookings/${encodeURIComponent(bookingId)}/resubmit`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload ?? { correctionAcknowledged: true }),
+    },
+  );
+}
+
 export async function cancelMyAggregatorBooking(bookingId: string, reasonCode: string, note?: string) {
   return api<{ success: boolean; booking: AggregatorBooking }>(`/api/aggregator-bookings/${encodeURIComponent(bookingId)}/cancel`, {
     method: "POST",

@@ -1,5 +1,17 @@
 # Aggregator Booking Rollout Checklist
 
+## Phase 2B-Correction (Customer Resubmission) Checklist
+- Customer correction edit/resubmit is enabled only when booking status is `CORRECTION_REQUIRED`.
+- Customer must acknowledge admin correction note before resubmission (`correctionAcknowledged: true`).
+- Resubmission transition is strictly:
+  - `CORRECTION_REQUIRED -> BOOKING_SUBMITTED -> ADMIN_REVIEW_PENDING`.
+- Customer resubmission is blocked from all non-`CORRECTION_REQUIRED` statuses.
+- Timeline records both status transitions for correction resubmission.
+- Audit records correction acknowledgment and resubmission action.
+- Customer-facing status display remains `Pending Admin Review` after resubmission.
+- Customer-facing non-final notice remains visible: `This is not booking confirmation.`
+- No payment, pickup, dispatch, manifest, label, or SaaS-unit side effects are triggered.
+
 ## Phase 1 Checklist
 - Separate booking quote API route is isolated from existing upload route.
 - Separate Booking Quote page is available for authenticated users.

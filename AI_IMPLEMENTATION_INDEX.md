@@ -1,5 +1,36 @@
 # AI Implementation Index
 
+## 2026-06-01 - Aggregator Correction Resubmission (Phase 2B)
+
+### Files Changed
+- `apps/api/src/services/aggregatorBookingService.ts`
+- `apps/api/src/routes/aggregatorBookings.ts`
+- `apps/api/src/utils/aggregatorBookingValidation.ts`
+- `apps/api/src/services/aggregatorCorrectionResubmitPhase.test.ts`
+- `apps/web/src/pages/AggregatorBookingDetail.tsx`
+- `apps/web/src/lib/aggregatorBookings.ts`
+- `apps/web/src/components/booking/AggregatorBookingDraftForm.tsx`
+- `CHANGELOG.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+- `docs/operations/aggregator-booking-rollout-checklist.md`
+- `docs/architecture/aggregator-booking-business-plan.md`
+
+### Behavior Added
+- Customer resubmission endpoint and flow for correction requests only.
+- Mandatory customer acknowledgment (`correctionAcknowledged: true`) before resubmission.
+- Transition path enforced:
+  - `CORRECTION_REQUIRED -> BOOKING_SUBMITTED -> ADMIN_REVIEW_PENDING`
+- Timeline status events and audit logs are written for resubmission and acknowledgment.
+- Admin correction reason/note context remains preserved and referenced in audit metadata.
+- UI shows correction banner only for `CORRECTION_REQUIRED` and keeps `Pending Admin Review` display after resubmission.
+- Customer notice remains: `This is not booking confirmation.`
+
+### Safety / Scope Confirmation
+- No Prisma schema change.
+- No migration change.
+- No payment, pickup, dispatch, label, manifest, or unit-consumption side effects added.
+- No Railway/Cloudflare/R2/env/secret touch.
+
 ## 2026-06-01 - Postage Calculator Production Deployment Closed
 
 ### Deployment Target
