@@ -53,6 +53,37 @@ Direct diagnostic via `scripts/jazzcash-mobile-wallet-support-payload-check.mjs`
 - `03123456780` -> create `201`, provider `199`, txnRefNo prefix `T`, inquiry `failed`
 - `03123456781` -> create `201`, provider `999`, txnRefNo prefix `T`, inquiry `failed`
 
+## Success Reconciliation Fix (2026-06-01)
+
+### Root Cause
+
+- Inquiry settlement logic only persisted changes when payment status was `PENDING`.
+- When provider create returned `000` but callback-style verification path wrote an early `FAILED`, later inquiry success could not heal the payment row.
+
+### Fix Applied
+
+- Inquiry reconciliation now allows healing to `SUCCEEDED` from non-success states when provider proof validates.
+- Mobile Wallet create flow now runs inquiry fallback for provider code `000` even when callback-style processing does not immediately settle success.
+- Duplicate inquiry event handling now short-circuits to current payment state to reduce repeated settlement work.
+- Subscription activation on inquiry success is guarded to avoid double activation when subscription already exists.
+
+### Final Live Verification Snapshot
+
+- `03123456789`
+  - provider code: `000`
+  - `GET /api/payments/jazzcash/status/:txnRefNo`: `SUCCEEDED`
+  - invoice status: `PAID`
+  - package: `Standard Plan` active
+- `03123456780`
+  - provider code: `199`
+  - payment status: `FAILED`
+  - invoice status: `FAILED`
+  - no new subscription activation
+- `03123456781`
+  - provider code: `999`
+  - payment status: `FAILED`
+  - no subscription link created
+
 ## Scope
 
 This reference documents the current Mobile Wallet API integration behavior used by the API service and the validated secure-hash rules from sandbox testing.

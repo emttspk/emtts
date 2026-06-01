@@ -43,6 +43,36 @@ Using `scripts/jazzcash-mobile-wallet-support-payload-check.mjs` with env creden
 
 For provider `000`, immediate `GET /api/payments/jazzcash/status/:txnRefNo` can still show `FAILED` while inquiry indicates success. Additional provider-response reconciliation may still be needed if strict immediate status parity is required.
 
+## 2026-06-01 Reconciliation Resolution Addendum
+
+The app-side success reconciliation issue has been fixed.
+
+### Resolved App-Side Bug
+
+- Root cause: inquiry persistence only executed for `PENDING` payments, so false early `FAILED` states were not healable.
+- Fix: inquiry success can now reconcile eligible non-success states to `SUCCEEDED`, with subscription-creation guards to avoid double activation.
+
+### Post-Fix Live Matrix
+
+- `03123456789`
+   - provider code `000`
+   - JazzCash status endpoint now returns `SUCCEEDED`
+   - invoice observed as `PAID`
+   - Standard package active
+- `03123456780`
+   - provider code `199`
+   - payment remains `FAILED`
+   - no new subscription link
+- `03123456781`
+   - provider code `999`
+   - payment remains `FAILED`
+   - no subscription link
+
+### Current Support Escalation Need
+
+- No escalation is required for payload/signature parity anymore.
+- Provider escalation remains optional only for business-level behavior differences in sandbox failure numbers (`199`/`999`) and any ambiguity in inquiry vs payment response code semantics.
+
 ## Merchant
 
 - Merchant ID: MC771933

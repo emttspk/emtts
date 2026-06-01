@@ -1,5 +1,37 @@
 # AI Implementation Index
 
+## 2026-06-01 - JazzCash Success Reconciliation Bug Fix
+
+### Root Cause
+- Mobile Wallet success reconciliation depended on status inquiry, but inquiry persistence only ran when payment status was `PENDING`.
+- If a false `FAILED` state was written first (for example callback-style verification mismatch despite provider `000`), later inquiry success could not heal the row.
+
+### Files Changed
+- `apps/api/src/services/jazzcash.ts`
+- `scripts/jazzcash-status-inquiry-check.mjs`
+- `scripts/jazzcash-reconciliation-check.mjs`
+
+### Behavior Updated
+- Inquiry reconciliation now allows valid success (`SUCCEEDED`) to heal non-success states (including `FAILED`) instead of being blocked by a strict `PENDING` gate.
+- Mobile Wallet create flow now attempts inquiry reconciliation when provider response code is `000` even if callback-style processing did not immediately settle success.
+- Duplicate inquiry event handling now returns current payment state early to reduce duplicate settlement work.
+- Subscription creation on inquiry success is guarded to avoid double activation when a subscription is already linked.
+
+### Verification Highlights
+- Local checks passed:
+	- `npm run prisma:generate --workspace=@labelgen/api`
+	- `node scripts/jazzcash-hash-check.mjs`
+	- `node scripts/jazzcash-mobile-wallet-check.mjs`
+	- `node scripts/jazzcash-status-inquiry-check.mjs`
+	- `node scripts/jazzcash-reconciliation-check.mjs`
+	- `npm run phase-3-verify`
+	- `npm run build`
+- Support payload check with Railway env returned `pp_ResponseCode=000`.
+- Post-fix live matrix:
+	- `03123456789`: provider `000`, JazzCash status endpoint `SUCCEEDED`, invoice `PAID`, Standard package active
+	- `03123456780`: provider `199`, payment `FAILED`, invoice `FAILED`, no subscription link
+	- `03123456781`: provider `999`, payment `FAILED`, no subscription link
+
 ## 2026-06-01 - JazzCash Mobile Wallet Support-Payload Alignment
 
 ### Files Changed
