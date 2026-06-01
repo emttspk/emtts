@@ -154,3 +154,9 @@
 - Payment, pickup, dispatch, labels, and final-processing endpoints are blocked for this phase.
 
 - Phase 2B lock update: remove/hide mark-pending, payment, gateway, handoff, final-processing, and bulk-pack controls from operational UI paths.
+
+## Phase 2B Production Deployment Success (2026-06-01)
+- Final status: PHASE_2B_PRODUCTION_DEPLOY_SUCCESS.
+- Api and Web deployed in Railway production.
+- Smoke checks passed: API health, root, login, booking quote, aggregator bookings, admin aggregator bookings.
+- Unauthenticated protection confirmed: convert-to-draft 401 and admin approve 401.

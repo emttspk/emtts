@@ -192,3 +192,7 @@ Leopards is for bundle movement to ePost hub only. Final value-payable delivery 
 - No payment transaction, payment placeholder transition, pickup, dispatch, label generation, or SaaS unit consumption is part of Phase 2B execution path.
 
 - Phase 2B UI/API scope lock ensures admin decision surface is limited to approve/reject/correction and customer view excludes non-2B flows.
+
+## Phase 2B Production Validation (2026-06-01)
+- Deployed commit line through main at 67b13c2 with successful production verification.
+- Phase 2B behavior in production confirms draft-request + admin-review scope with protected unauthenticated API boundaries (401).

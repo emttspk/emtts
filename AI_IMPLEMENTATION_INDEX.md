@@ -2577,3 +2577,8 @@ From JazzCash v4.2 docs (ApiReferences.html), the **Hosted Checkout + Mobile Acc
 - Locked admin flow to review outcomes (approve/reject/request-correction) without payment/pickup/dispatch/label/final-processing execution in this phase.
 
 - Phase 2B UI scope lock: customer/admin pages now expose only draft request + review actions (approve/reject/correction).
+
+## Phase 2B Production Closure (2026-06-01)
+- Classification: PHASE_2B_PRODUCTION_DEPLOY_SUCCESS.
+- Production smoke: API health 200, Web root 200, /login 200, /booking-quote 200, /aggregator-bookings 200, /admin/aggregator-bookings 200.
+- Protected auth behavior verified: convert-to-draft without auth = 401 (acceptable), admin approve without auth = 401 (acceptable).
