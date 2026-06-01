@@ -1,0 +1,61 @@
+{
+  "project": "ePost.pk Label Generator",
+  "signature": "EPOST_PK_LABEL_GENERATOR__MAIN__PROTECTED_SCOPE",
+  "targets": {
+    "localDevelopment": {
+      "description": "Local workstation development only",
+      "gitBranch": "main",
+      "allowsDeploy": false,
+      "notes": [
+        "Use local .env files outside git",
+        "No production credentials in local files"
+      ]
+    },
+    "railwayStaging": {
+      "platform": "Railway",
+      "projectName": "Epost",
+      "projectId": "144be6f4-a17c-47ec-8c23-3d5963c4d5fb",
+      "environment": "staging",
+      "environmentId": "90c86298-668f-4445-b727-a74786477ee4",
+      "allowedServices": [
+        "Api-staging",
+        "Web",
+        "Worker"
+      ],
+      "allowsDeploy": false,
+      "notes": [
+        "Validation only through safety scripts",
+        "Manual approval required before any deploy action"
+      ]
+    },
+    "railwayProduction": {
+      "platform": "Railway",
+      "projectName": "Epost",
+      "projectId": "144be6f4-a17c-47ec-8c23-3d5963c4d5fb",
+      "environment": "production",
+      "environmentId": "94b155fc-32fe-467b-8b78-2ab7e7d3365d",
+      "allowedServices": [
+        "Api",
+        "Web",
+        "Worker"
+      ],
+      "allowsDeploy": false,
+      "notes": [
+        "Safety checks are read-only",
+        "Deployment requires explicit human approval"
+      ]
+    },
+    "cloudflareR2Production": {
+      "platform": "Cloudflare R2",
+      "accountId": "PASTE_CLOUDFLARE_ACCOUNT_ID_HERE",
+      "allowedBuckets": [
+        "PASTE_EPOST_R2_BUCKET_HERE"
+      ],
+      "allowsWriteOperations": false,
+      "notes": [
+        "Safety check validates names only",
+        "No upload, delete, or mutation from guard scripts"
+      ]
+    }
+  }
+}

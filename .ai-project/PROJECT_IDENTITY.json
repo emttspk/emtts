@@ -1,0 +1,19 @@
+{
+  "projectName": "ePost.pk Label Generator",
+  "projectSlug": "epost-label-generator",
+  "expectedGitRemote": "https://github.com/emttspk/emtts.git",
+  "expectedGitBranch": "main",
+  "expectedRailwayProjectName": "Epost",
+  "expectedRailwayProjectId": "144be6f4-a17c-47ec-8c23-3d5963c4d5fb",
+  "allowedRailwayServices": [
+    "Api",
+    "Api-staging",
+    "Web",
+    "Worker"
+  ],
+  "expectedCloudflareAccountId": "PASTE_CLOUDFLARE_ACCOUNT_ID_HERE",
+  "allowedR2Buckets": [
+    "PASTE_EPOST_R2_BUCKET_HERE"
+  ],
+  "signature": "EPOST_PK_LABEL_GENERATOR__MAIN__PROTECTED_SCOPE"
+}
