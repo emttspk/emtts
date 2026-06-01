@@ -716,18 +716,59 @@ export async function createJazzcashMobileWalletPayment(input: JazzcashMobileWal
     pp_TxnCurrency: normalizeFieldValue(responsePayload.pp_TxnCurrency) || "PKR",
   };
 
+  const providerResponseCode = normalizeFieldValue(callbackPayload.pp_ResponseCode || callbackPayload.pp_PaymentResponseCode || null) || null;
+  const providerResponseMessage = normalizeFieldValue(callbackPayload.pp_ResponseMessage || callbackPayload.pp_PaymentResponseMessage || null) || null;
+  const hasSecureHash = Boolean(normalizeFieldValue(callbackPayload.pp_SecureHash));
+
   logSafe("mobile wallet api response", {
     reference: txnRefNo,
     httpStatus: responseStatus,
-    responseCode: normalizeFieldValue(callbackPayload.pp_ResponseCode || callbackPayload.pp_PaymentResponseCode || null) || null,
-    responseMessage: normalizeFieldValue(callbackPayload.pp_ResponseMessage || callbackPayload.pp_PaymentResponseMessage || null) || null,
-    hasSecureHash: Boolean(normalizeFieldValue(callbackPayload.pp_SecureHash)),
+    responseCode: providerResponseCode,
+    responseMessage: providerResponseMessage,
+    hasSecureHash,
   });
 
-  const processed = await processJazzcashCallback(callbackPayload, "CALLBACK");
-  const paymentStatus = String(processed.status ?? "FAILED") as "SUCCEEDED" | "FAILED" | "CANCELED" | "PENDING";
+  let paymentStatus: "SUCCEEDED" | "FAILED" | "CANCELED" | "PENDING" = "FAILED";
+
+  if (hasSecureHash) {
+    const processed = await processJazzcashCallback(callbackPayload, "CALLBACK");
+    paymentStatus = String(processed.status ?? "FAILED") as "SUCCEEDED" | "FAILED" | "CANCELED" | "PENDING";
+  } else {
+    const initialStatus = providerResponseCode === "000" ? "PENDING" : "FAILED";
+
+    await prisma.payment.update({
+      where: { id: paymentId! },
+      data: {
+        providerTxnId: pickProviderTxnId(callbackPayload),
+        responseCode: providerResponseCode,
+        responseMessage: providerResponseMessage,
+        rawResponse: callbackPayload as Prisma.InputJsonValue,
+        hashVerified: false,
+        status: initialStatus,
+        verifiedAt: initialStatus === "FAILED" ? new Date() : null,
+        failureReason: initialStatus === "FAILED" ? (providerResponseCode ?? "FAILED") : null,
+      },
+    });
+
+    if (initialStatus === "FAILED") {
+      await prisma.invoice.updateMany({ where: { paymentId: paymentId! }, data: { status: "FAILED" } });
+      paymentStatus = "FAILED";
+    } else {
+      try {
+        const inquiry = await queryJazzcashTransactionStatus({ txnRefNo, userId: input.userId });
+        paymentStatus = inquiry.status;
+      } catch (error) {
+        logSafe("mobile wallet status inquiry fallback failed", {
+          reference: txnRefNo,
+          message: error instanceof Error ? error.message : "unknown error",
+        });
+        paymentStatus = "PENDING";
+      }
+    }
+  }
+
   const status = mapPaymentStatusToMobileWalletResult(paymentStatus);
-  const message = normalizeFieldValue(responsePayload.pp_ResponseMessage || responsePayload.pp_PaymentResponseMessage || "")
+  const message = providerResponseMessage
     || (paymentStatus === "PENDING"
       ? "Payment request sent to your JazzCash mobile number. Please approve with MPIN on your phone."
       : paymentStatus === "SUCCEEDED"
@@ -740,7 +781,7 @@ export async function createJazzcashMobileWalletPayment(input: JazzcashMobileWal
     status,
     paymentStatus,
     message,
-    providerResponseCode: normalizeFieldValue(responsePayload.pp_ResponseCode || responsePayload.pp_PaymentResponseCode || null) || null,
+    providerResponseCode,
   };
 }
 
