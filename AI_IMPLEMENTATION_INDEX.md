@@ -1,5 +1,33 @@
 # AI Implementation Index
 
+## 2026-06-01 - Controlled Production Rollout Verification After Backup
+
+### Backup Gate
+- Prior verified classification: `BACKUP_COMPLETED_READY_FOR_ROLLOUT`.
+- Production Postgres backup completed.
+- Restore verification completed.
+- No secrets included in this record.
+
+### Protected Scope Identity
+- Verified local folder: `C:/Users/Nazim/Desktop/P.Post/Label Generator`.
+- Verified git remote: `https://github.com/emttspk/emtts.git`.
+- Verified branch: `main`.
+- Verified Railway project: `Epost`.
+- Verified Railway environment: `production`.
+
+### Production Migration State
+- Read-only production database check confirmed `_prisma_migrations` already contains `20260531123000_add_aggregator_payment_transaction`.
+- Migration state is applied with `applied_steps_count = 1` and a non-null `finished_at`.
+- `AggregatorPaymentTransaction` already exists in production.
+- Rollout decision for this verification pass: skip migration and do not run `prisma migrate deploy`.
+
+### Verification Result
+- Local `npm run build`: PASS.
+- Public smoke verification: `GET https://api.epost.pk/health` PASS, `GET https://api.epost.pk/health/db` PASS.
+- Public web verification: `/`, `/login`, `/upload`, and `/aggregator-bookings/payment/jazzcash/result` all returned HTTP 200.
+- No Railway deploy executed in this verification step.
+- Final classification: `READY_BUT_NOT_DEPLOYED`.
+
 ## 2026-05-31 - Aggregator Booking Phase 3C-5B Isolated JazzCash Gateway Lane
 
 ### Task Name
@@ -236,26 +264,13 @@
 	- Approved for manual action,
 	- Correction required,
 	- Rejected,
+	- Production rollout remains blocked until explicit user approval.
 	- Cancelled.
 - Clarified submit response messaging as review-only and non-final.
 - Added clearer admin decision audit actions and rationale audit payload.
 
-### Safety / Scope Confirmation
-- No Prisma schema edits.
-- No migration files created or modified.
-- No live payment collection, pickup execution, dispatch execution, courier API, or Pakistan Post API integration added.
-- No Railway, Cloudflare/R2, or production action performed.
-- Protected scope modules remained untouched.
-
 ### Next Item
 - Phase 3B/3C rollout controls and monitoring hardening only after explicit approval.
-
-## 2026-05-31 - Local DB Drift Repair and Aggregator Booking Phase 2B Smoke
-
-### Task Name
-- Repair local Prisma drift safely and rerun the Phase 2B DB-backed smoke in the local development database.
-
-### Local DB Drift Cause
 - Local `prisma migrate deploy` initially failed on `20260530154500_add_complaint_queue_table` with `relation "ComplaintQueue" already exists`.
 - `_prisma_migrations` showed that migration as failed/partial with `finished_at = null` and `applied_steps_count = 0`.
 - The local target was PostgreSQL on `localhost:5432` database `labelgen`.
@@ -267,12 +282,6 @@
 ### Object Inspection Result
 - `ComplaintQueue` exists locally and matches the migration shape.
 - Expected columns, indexes, and foreign key were present.
-- Aggregator tables were present after deploy:
-	- `AggregatorQuote`
-	- `AggregatorBooking`
-	- `AggregatorBookingItem`
-	- `AggregatorBookingStatusEvent`
-	- `AggregatorBookingAuditLog`
 
 ### DB-Backed Smoke Result
 - Local test user found: PASS.

@@ -4,6 +4,7 @@ dist
 .env
 .env.*
 !.env.example
+!.env.project.example
 !.env.staging.local.example
 .DS_Store
 coverage
@@ -20,9 +21,13 @@ outputs/
 *.err.log
 *.out.log
 
+# Local manual database backups
+backups/
+
 # Temporary / smoke-test outputs
 tmp-*.pdf
 smoke-*.pdf
+.smoke_tmp*/
 
 # Generated runtime validation outputs and Puppeteer artifacts
 storage/generated/
@@ -100,3 +105,12 @@ tmp-audit/
 
 # Local third-party reference bundle (not part of product source)
 jazz cash/
+
+# Project signature guard secret protection
+.ai-project/private/
+*.pem
+*.key
+service-account*.json
+*credentials*.json
+railway-secrets
+cloudflare-secrets

@@ -8,6 +8,18 @@
 **Blast Radius:** New uploads only. All downloads remain legacy-only.  
 **RTO (Rollback):** < 15 minutes  
 
+## 2026-06-01 Controlled Rollout Verification Addendum
+
+- Backup completed and restore verified before this verification pass.
+- Prior verified classification: `BACKUP_COMPLETED_READY_FOR_ROLLOUT`.
+- Protected-scope identity matched expected local folder, git remote, `main` branch, Railway project `Epost`, and Railway `production` environment.
+- Read-only production database verification confirmed migration `20260531123000_add_aggregator_payment_transaction` is already recorded as applied in `_prisma_migrations` and table `AggregatorPaymentTransaction` already exists.
+- Decision for this pass: skip migration, do not run `prisma migrate deploy`, and do not perform a Railway deploy from this verification step.
+- Local `npm run build` completed successfully.
+- Public smoke verification passed for API health, DB health, web root, login page, upload route shell, and aggregator JazzCash result route shell.
+- No secrets included in this document update.
+- Verification classification: `READY_BUT_NOT_DEPLOYED`.
+
 ---
 
 ## ⚠️ CRITICAL PRE-READ: STORAGE_PROVIDER REQUIREMENT
