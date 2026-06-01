@@ -190,3 +190,5 @@ Leopards is for bundle movement to ePost hub only. Final value-payable delivery 
 - Quote preview conversion persists a draft request and immediately enters admin review pending state.
 - Existing AggregatorQuote/AggregatorBooking/AggregatorBookingItem/StatusEvent/AuditLog models are reused.
 - No payment transaction, payment placeholder transition, pickup, dispatch, label generation, or SaaS unit consumption is part of Phase 2B execution path.
+
+- Phase 2B UI/API scope lock ensures admin decision surface is limited to approve/reject/correction and customer view excludes non-2B flows.

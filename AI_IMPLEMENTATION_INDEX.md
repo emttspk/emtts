@@ -2575,3 +2575,5 @@ From JazzCash v4.2 docs (ApiReferences.html), the **Hosted Checkout + Mobile Acc
 - Implemented strict draft-request-only conversion from quote preview.
 - Enforced zero error-row, no OVER_PHASE_LIMIT blocker, required sender fields, and consent confirmation gates.
 - Locked admin flow to review outcomes (approve/reject/request-correction) without payment/pickup/dispatch/label/final-processing execution in this phase.
+
+- Phase 2B UI scope lock: customer/admin pages now expose only draft request + review actions (approve/reject/correction).

@@ -744,13 +744,6 @@ export async function adminRequestCorrectionAggregatorBooking(bookingId: string,
   );
 }
 
-export async function adminMarkPendingAggregatorBooking(bookingId: string, payload?: { reasonCode?: string; note?: string }) {
-  return api<{ success: boolean; booking: AggregatorBooking }>(`/api/admin/aggregator-bookings/${encodeURIComponent(bookingId)}/mark-pending`, {
-    method: "POST",
-    body: JSON.stringify(payload ?? {}),
-  });
-}
-
 export async function adminSelectAggregatorBulkPackPlan(
   bookingId: string,
   payload: {

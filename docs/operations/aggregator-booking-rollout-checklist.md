@@ -152,3 +152,5 @@
 - Sender name, phone, address, city and customer confirmation are mandatory.
 - Customer status is queued as ADMIN_REVIEW_PENDING (display label: Pending Admin Review).
 - Payment, pickup, dispatch, labels, and final-processing endpoints are blocked for this phase.
+
+- Phase 2B lock update: remove/hide mark-pending, payment, gateway, handoff, final-processing, and bulk-pack controls from operational UI paths.

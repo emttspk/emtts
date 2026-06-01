@@ -368,3 +368,5 @@ These must be executed once PostgreSQL + Docker/R2 test environment is available
 - Draft conversion now saves directly as ADMIN_REVIEW_PENDING (displayed as Pending Admin Review).
 - Blocked payment, operational movement, final-processing, and document endpoints in Phase 2B routes.
 - Added Phase 2B draft-request service test coverage for success/failure and no payment artifacts.
+
+- UI/API scope lock follow-up: removed admin mark-pending action from Phase 2B surfaces and hid non-Phase-2B customer/admin controls.
