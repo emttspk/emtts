@@ -1,5 +1,34 @@
 # AI Implementation Index
 
+## 2026-06-01 - JazzCash Mobile Wallet Support-Payload Alignment
+
+### Files Changed
+- `apps/api/src/services/jazzcash.ts`
+- `scripts/jazzcash-hash-check.mjs`
+- `scripts/jazzcash-mobile-wallet-check.mjs`
+- `scripts/jazzcash-status-inquiry-check.mjs`
+- `scripts/jazzcash-mobile-wallet-support-payload-check.mjs`
+- `docs/jazzcash-mobile-wallet-reference.md`
+- `docs/jazzcash-support-escalation-2026-05-29.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Behavior Updated
+- Mobile Wallet API payload aligned to JazzCash support successful sandbox field set only.
+- Mobile Wallet removed fields:
+	- `pp_CNIC`, `pp_BankID`, `pp_ProductID`, `pp_SubMerchantID`, `pp_DiscountedAmount`, `ppmpf_2..ppmpf_5`
+- Mobile Wallet transaction reference reverted to `TYYYYMMDDHHMMSS`.
+- Mobile Wallet expiry changed to `TxnDateTime + 7 days`.
+- Hash generation uses outbound non-empty `pp*` fields only (excluding `pp_SecureHash`), sorted ASCII, values-only concatenation, prefixed with integrity salt.
+- Added direct support-payload sandbox diagnostic script with safe output only.
+
+### Verification Highlights
+- `node scripts/jazzcash-mobile-wallet-support-payload-check.mjs` with Railway env returned provider code `000`.
+- Authenticated live matrix after deploy:
+	- `03123456789` -> provider `000`, txnRefNo prefix `T`, inquiry `completed`
+	- `03123456780` -> provider `199`, inquiry `failed`
+	- `03123456781` -> provider `999`, inquiry `failed`
+- Build and phase verification commands passed.
+
 ## 2026-06-01 - Aggregator Correction Resubmission (Phase 2B)
 
 ### Files Changed

@@ -1,5 +1,48 @@
 # JazzCash Support Escalation Packet (Sandbox)
 
+## 2026-06-01 Alignment + Live Retest Addendum
+
+Support-shared successful sandbox payload has now been implemented exactly in app outbound Mobile Wallet requests.
+
+### Implemented Alignment
+
+- Endpoint confirmed: `https://sandbox.jazzcash.com.pk/ApplicationAPI/API/Payment/DoTransaction`
+- Mobile Wallet field set reduced to support sample fields only.
+- Mobile Wallet txn reference reverted to `TYYYYMMDDHHMMSS`.
+- Mobile Wallet expiry moved to `TxnDateTime + 7 days`.
+- Removed fields from Mobile Wallet create request:
+   - `pp_CNIC`, `pp_BankID`, `pp_ProductID`, `pp_SubMerchantID`, `pp_DiscountedAmount`, `ppmpf_2..ppmpf_5`
+
+### Direct Support-Payload Diagnostic Result
+
+Using `scripts/jazzcash-mobile-wallet-support-payload-check.mjs` with env credentials:
+
+- HTTP: `200`
+- `pp_ResponseCode`: `000`
+- `pp_ResponseMessage`: `Thank you for Using JazzCash, your transaction was successful.`
+
+### App Live Matrix Retest (Authenticated)
+
+- `03123456789`
+   - create HTTP `201`
+   - provider code `000`
+   - txnRefNo `T20260601174441`
+   - status inquiry: `completed`
+- `03123456780`
+   - create HTTP `201`
+   - provider code `199`
+   - txnRefNo `T20260601174452`
+   - status inquiry: `failed`
+- `03123456781`
+   - create HTTP `201`
+   - provider code `999`
+   - txnRefNo `T20260601174500`
+   - status inquiry: `failed`
+
+### Open Runtime Observation
+
+For provider `000`, immediate `GET /api/payments/jazzcash/status/:txnRefNo` can still show `FAILED` while inquiry indicates success. Additional provider-response reconciliation may still be needed if strict immediate status parity is required.
+
 ## Merchant
 
 - Merchant ID: MC771933

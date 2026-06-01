@@ -1,5 +1,58 @@
 # JazzCash Mobile Wallet Reference
 
+## Final Support-Alignment Update (2026-06-01)
+
+JazzCash support-shared successful sandbox payload has been applied to the Mobile Wallet outbound request shape.
+
+### Exact Mobile Wallet Outbound Fields
+
+- `pp_Version`
+- `pp_TxnType`
+- `pp_Language`
+- `pp_MerchantID`
+- `pp_Password`
+- `pp_TxnRefNo`
+- `pp_Amount`
+- `pp_TxnCurrency`
+- `pp_TxnDateTime`
+- `pp_BillReference`
+- `pp_Description`
+- `pp_TxnExpiryDateTime`
+- `pp_ReturnURL`
+- `ppmpf_1`
+- `pp_SecureHash`
+
+### Removed From Mobile Wallet Create Request
+
+- `pp_CNIC`
+- `pp_BankID`
+- `pp_ProductID`
+- `pp_SubMerchantID`
+- `pp_DiscountedAmount`
+- `ppmpf_2`
+- `ppmpf_3`
+- `ppmpf_4`
+- `ppmpf_5`
+
+### TxnRefNo + Expiry
+
+- Mobile Wallet txn reference: `TYYYYMMDDHHMMSS`
+- Mobile Wallet expiry: `pp_TxnDateTime + 7 days`
+
+### Support-Payload Diagnostic Result
+
+Direct diagnostic via `scripts/jazzcash-mobile-wallet-support-payload-check.mjs` with Railway env:
+
+- HTTP `200`
+- `pp_ResponseCode=000`
+- `pp_ResponseMessage=Thank you for Using JazzCash, your transaction was successful.`
+
+### Live Authenticated Matrix (2026-06-01)
+
+- `03123456789` -> create `201`, provider `000`, txnRefNo prefix `T`, inquiry `completed`
+- `03123456780` -> create `201`, provider `199`, txnRefNo prefix `T`, inquiry `failed`
+- `03123456781` -> create `201`, provider `999`, txnRefNo prefix `T`, inquiry `failed`
+
 ## Scope
 
 This reference documents the current Mobile Wallet API integration behavior used by the API service and the validated secure-hash rules from sandbox testing.
