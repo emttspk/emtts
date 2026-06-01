@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-06-01 - Temporary Admin-Only Gate for Aggregator Modules
+
+### Scope
+- Restricted aggregator-facing customer routes and navigation visibility to admin/internal users only until final public launch.
+
+### Frontend Access Control
+- Added admin guards on:
+  - `/booking-quote`
+  - `/postage-calculator`
+  - `/postage-upload-summary`
+  - `/postage-comparison`
+  - `/aggregator-bookings`
+  - `/aggregator-bookings/:bookingId`
+  - `/aggregator-bookings/payment/jazzcash/result`
+- Removed aggregator entries from default customer navigation and customer route-title map.
+- Kept admin aggregator routes available for testing/review.
+
+### Safety
+- No backend operational flow changes.
+- No schema/migration changes.
+- Existing upload/jobs/labels/money-order/tracking/complaint/billing/package/customer flows remain unchanged.
+
 ## 2026-06-01 - Aggregator Correction Resubmission Flow (Phase 2B Safe Scope)
 
 ### Scope

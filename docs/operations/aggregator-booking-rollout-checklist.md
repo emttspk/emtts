@@ -1,5 +1,15 @@
 # Aggregator Booking Rollout Checklist
 
+## Temporary Admin-Only Access Gate (2026-06-01)
+- Aggregator customer-facing routes are blocked for normal customers via admin-only route guards.
+- Booking quote and postage comparison/calculator routes used for aggregator request flow are admin-only until launch unlock.
+- Sidebar/customer navigation hides aggregator entries for non-admin users.
+- Admin routes remain available for internal testing/review:
+  - `/admin/aggregator-bookings`
+  - aggregator user flows when accessed by admin role.
+- Existing label/upload/jobs/money-order/tracking/complaints/billing/package flows remain unchanged.
+- No backend mutation, no schema change, no migration, and no deployment action in this gate.
+
 ## Phase 2B-Correction (Customer Resubmission) Checklist
 - Customer correction edit/resubmit is enabled only when booking status is `CORRECTION_REQUIRED`.
 - Customer must acknowledge admin correction note before resubmission (`correctionAcknowledged: true`).

@@ -82,8 +82,6 @@ export default function App() {
         <Route path="/tracking" element={<TrackingEntry />} />
         <Route path="/tracking/:trackingId" element={<PublicTracking />} />
         <Route path="/payment/jazzcash/result" element={<JazzCashResult />} />
-        <Route path="/aggregator-bookings/payment/jazzcash/result" element={<AggregatorJazzCashResult />} />
-
         <Route
           element={
             <RequireAuth>
@@ -103,12 +101,62 @@ export default function App() {
             path="/upload"
             element={<Upload />}
           />
-          <Route path="/booking-quote" element={<BookingQuote />} />
-          <Route path="/postage-calculator" element={<PostageCalculator />} />
-          <Route path="/postage-upload-summary" element={<PostageUploadSummary />} />
-          <Route path="/postage-comparison" element={<PostageComparison />} />
-          <Route path="/aggregator-bookings" element={<AggregatorBookings />} />
-          <Route path="/aggregator-bookings/:bookingId" element={<AggregatorBookingDetail />} />
+          <Route
+            path="/booking-quote"
+            element={
+              <RequireAdmin>
+                <BookingQuote />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/postage-calculator"
+            element={
+              <RequireAdmin>
+                <PostageCalculator />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/postage-upload-summary"
+            element={
+              <RequireAdmin>
+                <PostageUploadSummary />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/postage-comparison"
+            element={
+              <RequireAdmin>
+                <PostageComparison />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/aggregator-bookings"
+            element={
+              <RequireAdmin>
+                <AggregatorBookings />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/aggregator-bookings/:bookingId"
+            element={
+              <RequireAdmin>
+                <AggregatorBookingDetail />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="/aggregator-bookings/payment/jazzcash/result"
+            element={
+              <RequireAdmin>
+                <AggregatorJazzCashResult />
+              </RequireAdmin>
+            }
+          />
           <Route path="/jobs" element={<Jobs />} />
           <Route path="/download-labels" element={<Navigate to="/jobs?filter=completed" replace />} />
           <Route path="/downloads" element={<Navigate to="/jobs?filter=completed" replace />} />

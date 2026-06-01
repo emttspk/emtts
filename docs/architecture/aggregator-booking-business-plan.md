@@ -1,5 +1,12 @@
 # Aggregator Booking Business Plan
 
+## Temporary Access Policy (2026-06-01)
+- Aggregator modules are temporarily admin/internal-only until final public launch approval.
+- Normal customer navigation and route access to aggregator modules is intentionally hidden/blocked.
+- Admin/internal users retain access for aggregator testing and review workflows.
+- Core SaaS customer modules remain public to authenticated customers:
+  - label generation, upload/jobs, money order, tracking, complaints, billing, packages, dashboard.
+
 ## Phase 2B-Correction Resubmission (Implemented Scope)
 - Customer correction workflow is enabled only for bookings in `CORRECTION_REQUIRED`.
 - Customer must acknowledge admin correction instruction before resubmission.

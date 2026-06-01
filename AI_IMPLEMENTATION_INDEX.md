@@ -1,5 +1,28 @@
 # AI Implementation Index
 
+## 2026-06-01 - Aggregator Modules Temporarily Admin-Only
+
+### Files Changed
+- `apps/web/src/App.tsx`
+- `apps/web/src/components/Sidebar.tsx`
+- `apps/web/src/lib/navigation.ts`
+- `CHANGELOG.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+- `docs/operations/aggregator-booking-rollout-checklist.md`
+- `docs/architecture/aggregator-booking-business-plan.md`
+
+### Behavior Added
+- Customer-facing aggregator and booking-quote/postage routes are admin-gated.
+- Aggregator navigation entries are hidden from normal customers.
+- Admin/internal users retain access for aggregator testing/review.
+
+### Safety / Scope Confirmation
+- No changes to protected SaaS customer flows:
+  - labels, upload/jobs, money order, tracking, complaints, billing, packages, dashboard, auth.
+- No backend operational change.
+- No schema/migration change.
+- No deployment/infrastructure touch.
+
 ## 2026-06-01 - JazzCash Success Reconciliation Bug Fix
 
 ### Root Cause

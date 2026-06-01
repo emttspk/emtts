@@ -22,8 +22,6 @@ import { APP_NAV_ITEMS, isRouteActive } from "../lib/navigation";
 
 const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, matchPrefixes: ["/dashboard"] },
-  { to: "/booking-quote", label: "Booking Quote", icon: Calculator, matchPrefixes: ["/booking-quote"] },
-  { to: "/aggregator-bookings", label: "Aggregator Bookings", icon: ClipboardList, matchPrefixes: ["/aggregator-bookings"] },
   { to: "/generate-labels", label: "Generate Labels", icon: UploadCloud, matchPrefixes: ["/generate-labels", "/admin/generate-labels"] },
   { to: "/generate-money-orders", label: "Generate Money Order", icon: Wallet, matchPrefixes: ["/generate-money-orders", "/admin/generate-money-orders"] },
   { to: "/tracking-workspace", label: "Tracking", icon: Radar, matchPrefixes: ["/tracking", "/tracking-workspace"] },
@@ -117,6 +115,8 @@ export default function Sidebar(props: {
             {nav.map((n) => (
               <NavItem key={n.to} {...n} />
             ))}
+            {role === "ADMIN" ? <NavItem to="/booking-quote" label="Booking Quote" icon={Calculator} matchPrefixes={["/booking-quote"]} /> : null}
+            {role === "ADMIN" ? <NavItem to="/aggregator-bookings" label="Aggregator Bookings" icon={ClipboardList} matchPrefixes={["/aggregator-bookings"]} /> : null}
             {role === "ADMIN" ? <NavItem to="/admin" label="Admin Panel" icon={Shield} matchPrefixes={["/admin"]} /> : null}
             {role === "ADMIN" ? <NavItem to="/admin/aggregator-bookings" label="Aggregator Queue" icon={ClipboardList} matchPrefixes={["/admin/aggregator-bookings"]} /> : null}
           </div>
@@ -148,5 +148,4 @@ export default function Sidebar(props: {
     </>
   );
 }
-
 
