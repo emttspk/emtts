@@ -1,5 +1,24 @@
 # AI Implementation Index
 
+## 2026-06-01 - Aggregator Admin-Only Gate Production Deployment
+
+### Merge and Deploy
+- Branch merged to `main`: `feature/aggregator-correction-resubmission`.
+- Commit included: `825f530` (`fix: restrict aggregator modules to admin only`).
+- Railway deploy executed: **Web service only** (production), no Api deploy for this gate-only diff.
+
+### Verification Snapshot
+- Build: PASS (`npm run build`).
+- Correction resubmission test: PASS (`npx tsx apps/api/src/services/aggregatorCorrectionResubmitPhase.test.ts`).
+- Public endpoint checks: `api /health`, web `/`, `/login`, `/upload`, `/dashboard` responded successfully.
+- Aggregator route gating is enforced in frontend with `RequireAdmin` + sidebar/nav role gating.
+
+### Safety / Scope
+- Protected files for upload/jobs/billing/public-tracking/complaints/routes/worker were not changed by this gate deploy.
+- No schema/migration changes.
+- No Railway variable changes.
+- No Cloudflare/R2 or manual DB actions.
+
 ## 2026-06-01 - Aggregator Modules Temporarily Admin-Only
 
 ### Files Changed

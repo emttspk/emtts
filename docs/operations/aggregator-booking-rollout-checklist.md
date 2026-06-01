@@ -1,5 +1,14 @@
 # Aggregator Booking Rollout Checklist
 
+## Production Gate Rollout (2026-06-01)
+- Merge to `main` completed with admin-only gate commit `825f530`.
+- Railway production deploy completed for **Web** service only.
+- Aggregator customer entry points are hidden from normal-customer navigation.
+- Aggregator customer-facing routes are admin-only via route guard.
+- Admin/internal access to `/admin/aggregator-bookings` remains available.
+- No API deploy required for gate-only frontend diff.
+- No migration/schema/database/manual infra action performed.
+
 ## Temporary Admin-Only Access Gate (2026-06-01)
 - Aggregator customer-facing routes are blocked for normal customers via admin-only route guards.
 - Booking quote and postage comparison/calculator routes used for aggregator request flow are admin-only until launch unlock.

@@ -1,5 +1,11 @@
 # Aggregator Booking Business Plan
 
+## Production Access-Control State (2026-06-01)
+- Aggregator modules are now production-gated to admin/internal users only.
+- Customer-facing aggregator navigation and route access is disabled pending public launch readiness.
+- Admin/internal users continue to access aggregator workflow for validation and review.
+- Core SaaS customer workflows remain active and unchanged.
+
 ## Temporary Access Policy (2026-06-01)
 - Aggregator modules are temporarily admin/internal-only until final public launch approval.
 - Normal customer navigation and route access to aggregator modules is intentionally hidden/blocked.

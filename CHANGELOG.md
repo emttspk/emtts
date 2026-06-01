@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-06-01 - Aggregator Admin-Only Gate Production Rollout
+
+### Production Rollout
+- Merged `feature/aggregator-correction-resubmission` into `main` (includes commit `825f530`).
+- Deployed Web service only in Railway production to apply aggregator admin-only UI/route gating.
+
+### Scope Outcome
+- Normal customer sidebar no longer exposes aggregator entries (`Booking Quote`, `Aggregator Bookings`).
+- Aggregator customer-facing routes are admin-guarded.
+- Admin aggregator route remains available for internal testing/review.
+
+### Safety Confirmation
+- No API deploy required for this gate-only diff.
+- No schema or migration changes.
+- No Cloudflare/R2, Railway variable, or database manual action.
+- Protected core SaaS modules remain unchanged.
+
 ## 2026-06-01 - Temporary Admin-Only Gate for Aggregator Modules
 
 ### Scope
