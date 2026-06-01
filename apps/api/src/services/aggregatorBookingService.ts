@@ -1595,14 +1595,31 @@ export async function convertQuoteToDraft(input: {
     throw new Error("Draft request is not allowed for this recommendation result");
   }
 
+  const senderName = String(input.sender.senderName ?? "").trim();
+  const senderPhone = String(input.sender.senderPhone ?? "").trim();
+  const senderAddress = String(input.sender.senderAddress ?? "").trim();
+  const senderCity = String(input.sender.senderCity ?? "").trim();
+  if (!senderName || !senderPhone || !senderAddress || !senderCity) {
+    throw new Error("Sender name, phone, address, and city are required");
+  }
+
   const recomputed = buildBookingQuoteSummary(input.rows);
+  if ((recomputed.errorRows ?? []).length > 0) {
+    throw new Error("Draft request can only be created when quote has zero error rows");
+  }
   const requestPayload = {
     requestOnly: input.requestFlags.requestOnly,
     noPayment: input.requestFlags.noPayment,
     noLiveBooking: input.requestFlags.noLiveBooking,
     noPickupExecution: input.requestFlags.noPickupExecution,
     selectedOption: input.selectedOption,
-    senderDetails: input.sender,
+      senderDetails: {
+        ...input.sender,
+        senderName,
+        senderPhone,
+        senderAddress,
+        senderCity,
+      },
     quoteSnapshot: {
       totalArticles: recomputed.totalArticles,
       totalActualWeightGrams: recomputed.totalActualWeightGrams,
@@ -1652,13 +1669,13 @@ export async function convertQuoteToDraft(input: {
           ...recomputed,
           requestPayload,
         } as unknown as JsonValue,
-        status: "BOOKING_DRAFT",
+        status: "ADMIN_REVIEW_PENDING",
         intakeMethod: input.sender.intakeMethod,
         hubCity: input.sender.hubCity,
-        senderName: input.sender.senderName,
-        senderPhone: input.sender.senderPhone,
-        senderAddress: input.sender.senderAddress,
-        senderCity: input.sender.senderCity,
+        senderName,
+        senderPhone,
+        senderAddress,
+        senderCity,
         specialInstructions: normalizeOptionalString(input.sender.specialInstructions),
         totalArticles: toSafeInt(recomputed.totalArticles),
         totalActualWeightGrams: toSafeInt(recomputed.totalActualWeightGrams),
@@ -1669,7 +1686,7 @@ export async function convertQuoteToDraft(input: {
         totalInsuranceFee: toSafeInt(recomputed.totalInsuranceFee),
         totalOfficialPostalCharge: toSafeInt(recomputed.totalOfficialPostalCharge),
         paymentStatus: "NOT_INITIATED",
-        adminReviewStatus: "NOT_REVIEWED",
+        adminReviewStatus: "PENDING",
         items: {
           create: summarizeRows(recomputed),
         },
@@ -1684,23 +1701,23 @@ export async function convertQuoteToDraft(input: {
       data: {
         bookingId: booking.id,
         fromStatus: "QUOTE_READY",
-        toStatus: "BOOKING_DRAFT",
+        toStatus: "ADMIN_REVIEW_PENDING",
         actorType: actor.actorType,
         actorUserId: actor.actorUserId,
         reasonCode: "QUOTE_CONVERTED",
-        note: "Quote converted to booking draft.",
+        note: "Quote converted to draft request and queued for admin review.",
       },
     });
 
     await tx.aggregatorBookingAuditLog.create({
       data: {
         bookingId: booking.id,
-        action: "QUOTE_CONVERTED_TO_DRAFT",
+        action: "QUOTE_CONVERTED_TO_DRAFT_REQUEST",
         actorType: actor.actorType,
         actorUserId: actor.actorUserId,
         targetField: "status",
         oldValueJson: "QUOTE_READY" as unknown as JsonValue,
-        newValueJson: "BOOKING_DRAFT" as unknown as JsonValue,
+        newValueJson: "ADMIN_REVIEW_PENDING" as unknown as JsonValue,
       },
     });
 
@@ -1744,12 +1761,12 @@ export async function convertQuoteToDraft(input: {
 
   await writeAuditLog({
     bookingId: created.booking.id,
-    action: "BOOKING_DRAFT_CREATED",
-    actor,
-    targetField: "quoteSnapshotJson",
-    oldValueJson: null,
-    newValueJson: created.booking.quoteSnapshotJson as unknown as JsonValue,
-    context: input.context,
+      action: "BOOKING_DRAFT_REQUEST_CREATED",
+      actor,
+      targetField: "quoteSnapshotJson",
+      oldValueJson: null,
+      newValueJson: created.booking.quoteSnapshotJson as unknown as JsonValue,
+      context: input.context,
   });
 
   return created;
@@ -3154,49 +3171,6 @@ async function adminTransition(input: {
         note,
       },
     });
-
-    if (input.toStatus === "ADMIN_APPROVED") {
-      assertCanTransitionBookingStatus({ from: "ADMIN_APPROVED", to: "PAYMENT_PENDING_PLACEHOLDER", actor: "ADMIN" });
-
-      await tx.aggregatorBooking.update({
-        where: { id: booking.id },
-        data: {
-          status: "PAYMENT_PENDING_PLACEHOLDER",
-          paymentStatus: input.paymentStatus ?? "PENDING_PLACEHOLDER",
-        },
-      });
-
-      await tx.aggregatorBookingStatusEvent.create({
-        data: {
-          bookingId: booking.id,
-          fromStatus: "ADMIN_APPROVED",
-          toStatus: "PAYMENT_PENDING_PLACEHOLDER",
-          actorType: "SYSTEM",
-          actorUserId: input.adminUserId,
-          reasonCode: "AUTO_PAYMENT_PLACEHOLDER",
-          note: "Approved for manual action. Placeholder state only; no live payment collection.",
-        },
-      });
-
-      await tx.aggregatorPaymentPlaceholder.upsert({
-        where: { bookingId: booking.id },
-        create: {
-          bookingId: booking.id,
-          paymentStatus: input.paymentStatus ?? "PENDING_PLACEHOLDER",
-          placeholderAmount: booking.totalOfficialPostalCharge,
-          placeholderCurrency: "PKR",
-        },
-        update: {
-          paymentStatus: input.paymentStatus ?? "PENDING_PLACEHOLDER",
-          placeholderAmount: booking.totalOfficialPostalCharge,
-          placeholderCurrency: "PKR",
-          placeholderReference: null,
-          dueAt: null,
-        },
-      });
-
-      return tx.aggregatorBooking.findUniqueOrThrow({ where: { id: booking.id } });
-    }
 
     return first;
   });

@@ -185,3 +185,8 @@ Leopards is for bundle movement to ePost hub only. Final value-payable delivery 
 - No SaaS billing/subscription/invoice/unit mutation occurred.
 - No pickup/dispatch/final-booking execution occurred.
 - No production or Cloudflare/R2 touch occurred.
+
+## Phase 2B Draft Request Architecture Update (2026-06-01)
+- Quote preview conversion persists a draft request and immediately enters admin review pending state.
+- Existing AggregatorQuote/AggregatorBooking/AggregatorBookingItem/StatusEvent/AuditLog models are reused.
+- No payment transaction, payment placeholder transition, pickup, dispatch, label generation, or SaaS unit consumption is part of Phase 2B execution path.

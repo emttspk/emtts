@@ -31,7 +31,7 @@ function getCustomerStatusLabel(status: string) {
     case "BOOKING_SUBMITTED":
       return "Submitted for review";
     case "ADMIN_REVIEW_PENDING":
-      return "Under admin review";
+      return "Pending Admin Review";
     case "ADMIN_APPROVED":
     case "PAYMENT_PENDING_PLACEHOLDER":
       return "Approved for manual action";
@@ -324,7 +324,7 @@ export default function AggregatorBookingDetail() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <PageTitle>{booking.bookingNo}</PageTitle>
-            <BodyText className="mt-1">Manual-review lifecycle detail and timeline. This is not final booking confirmation.</BodyText>
+            <BodyText className="mt-1">Manual-review lifecycle detail and timeline. This is not booking confirmation.</BodyText>
           </div>
           <div className="flex items-center gap-2">
             <AggregatorBookingStatusBadge status={booking.status} />

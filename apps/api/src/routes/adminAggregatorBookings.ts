@@ -68,6 +68,18 @@ import {
 export const adminAggregatorBookingsRouter = Router();
 
 adminAggregatorBookingsRouter.use(requireAuth, requireAdmin);
+adminAggregatorBookingsRouter.use((req, res, next) => {
+  const path = String(req.path ?? "");
+  const blockedPrefixes = ["/payment", "/hub-receiving", "/handoff", "/final-processing", "/bulk-pack-plan"];
+  if (blockedPrefixes.some((prefix) => path.includes(prefix))) {
+    return res.status(403).json({
+      success: false,
+      error:
+        "Phase 2B scope guard: only admin review actions (approve/reject/request-correction) are enabled.",
+    });
+  }
+  return next();
+});
 
 adminAggregatorBookingsRouter.get("/", async (req, res) => {
   try {

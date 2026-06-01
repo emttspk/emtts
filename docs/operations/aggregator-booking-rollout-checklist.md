@@ -146,3 +146,9 @@
 	- no production DB touch,
 	- no Cloudflare/R2 touch,
 	- no pickup/dispatch/final-booking side effect.
+
+## Phase 2B Scope Guardrails (2026-06-01)
+- Draft request can be created only when quote has no error rows and no OVER_PHASE_LIMIT blocker.
+- Sender name, phone, address, city and customer confirmation are mandatory.
+- Customer status is queued as ADMIN_REVIEW_PENDING (display label: Pending Admin Review).
+- Payment, pickup, dispatch, labels, and final-processing endpoints are blocked for this phase.

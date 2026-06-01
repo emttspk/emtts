@@ -39,6 +39,18 @@ import {
 export const aggregatorBookingsRouter = Router();
 
 aggregatorBookingsRouter.use(requireAuth);
+aggregatorBookingsRouter.use((req, res, next) => {
+  const path = String(req.path ?? "");
+  const blockedPrefixes = ["/payment", "/final-processing", "/documents"];
+  if (blockedPrefixes.some((prefix) => path.includes(prefix))) {
+    return res.status(403).json({
+      success: false,
+      error:
+        "Phase 2B scope guard: payment, document, and final-processing endpoints are disabled for draft-request flow.",
+    });
+  }
+  return next();
+});
 
 aggregatorBookingsRouter.post("/quotes/convert-to-draft", async (req: AuthedRequest, res) => {
   try {

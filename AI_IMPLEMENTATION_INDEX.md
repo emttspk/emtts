@@ -2570,3 +2570,8 @@ From JazzCash v4.2 docs (ApiReferences.html), the **Hosted Checkout + Mobile Acc
 - Cloudflare/R2: NOT TOUCHED.
 - Protected scope modules remained unchanged.
 - Production rollout remains blocked until explicit user approval.
+
+## Phase 2B Draft Aggregator Booking Request (2026-06-01)
+- Implemented strict draft-request-only conversion from quote preview.
+- Enforced zero error-row, no OVER_PHASE_LIMIT blocker, required sender fields, and consent confirmation gates.
+- Locked admin flow to review outcomes (approve/reject/request-correction) without payment/pickup/dispatch/label/final-processing execution in this phase.

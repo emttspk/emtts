@@ -12,7 +12,7 @@ function getCustomerStatusLabel(status: string) {
     case "BOOKING_SUBMITTED":
       return "Submitted for review";
     case "ADMIN_REVIEW_PENDING":
-      return "Under admin review";
+      return "Pending Admin Review";
     case "ADMIN_APPROVED":
     case "PAYMENT_PENDING_PLACEHOLDER":
       return "Approved for manual action";
@@ -97,7 +97,7 @@ export default function AggregatorBookings() {
         <div>
           <PageTitle>Aggregator Bookings</PageTitle>
           <BodyText className="mt-1">
-            Separate money-based booking lane with manual-review workflow. This is not final booking confirmation.
+            Separate money-based booking lane with manual-review workflow. This is not booking confirmation.
           </BodyText>
         </div>
 

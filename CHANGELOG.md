@@ -362,3 +362,9 @@ Blocked sequence steps:
 - Verify legacy job downloads against live backend
 
 These must be executed once PostgreSQL + Docker/R2 test environment is available.
+
+## 2026-06-01 - Phase 2B Draft Request Scope Lock
+- Enforced Phase 2B aggregator draft-request flow with admin-review-only transitions.
+- Draft conversion now saves directly as ADMIN_REVIEW_PENDING (displayed as Pending Admin Review).
+- Blocked payment, operational movement, final-processing, and document endpoints in Phase 2B routes.
+- Added Phase 2B draft-request service test coverage for success/failure and no payment artifacts.
