@@ -195,12 +195,19 @@ export function buildJazzcashTxnRefNo(date = new Date()) {
   return `Epo${formatPkDateTime(date)}`;
 }
 
-async function allocateUniqueJazzcashTxnRefNo(preferred?: string | null) {
+function buildJazzcashSupportTxnRefNo(date = new Date()) {
+  return `T${formatPkDateTime(date)}`;
+}
+
+async function allocateUniqueJazzcashTxnRefNo(
+  preferred?: string | null,
+  builder: (date?: Date) => string = buildJazzcashTxnRefNo,
+) {
   const existing = String(preferred ?? "").trim();
   if (existing) return existing;
 
   for (let attempt = 0; attempt < 6; attempt += 1) {
-    const candidate = buildJazzcashTxnRefNo(new Date(Date.now() + attempt * 1000));
+    const candidate = builder(new Date(Date.now() + attempt * 1000));
     const collision = await prisma.payment.findFirst({
       where: {
         OR: [
@@ -235,7 +242,7 @@ function buildJazzcashHashInput(fields: Record<string, unknown>, options?: { inc
     // JazzCash requires concatenation in ascending ASCII order of field names.
     .sort(([leftKey], [rightKey]) => (leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0));
   const concatenated = entries.map(([, value]) => normalizeFieldValue(value)).join("&");
-  return `${getJazzcashIntegritySalt()}&${concatenated}`;
+  return concatenated ? `${getJazzcashIntegritySalt()}&${concatenated}` : `${getJazzcashIntegritySalt()}`;
 }
 
 export function generateJazzcashSecureHash(fields: Record<string, unknown>, options?: { includeEmptyFields?: boolean }) {
@@ -338,33 +345,25 @@ function buildJazzcashMobileWalletFields(input: {
   txnExpiryDateTime: string;
   txnRefNo: string;
   mobileNumber: string;
-  cnic?: string;
 }) {
-  // Field set per JazzCash MWallet REST API v1.1 (Without CNIC) spec.
-  // pp_BankID and pp_ProductID are excluded: they are not part of the REST v1.1 field set
-  // and the server does not include them when computing its hash → including them causes mismatch.
-  // pp_CNIC is excluded: REST v1.1 (Without CNIC) spec does not include it in hash computation.
+  // Match JazzCash support's successful sandbox request field set exactly.
   const fields: Record<string, string> = {
-    pp_Amount: String(input.amountCents),
-    pp_BillReference: input.billReference,
-    pp_Description: input.description,
+    pp_Version: "1.1",
+    pp_TxnType: getJazzcashTxnType(),
     pp_Language: "EN",
     pp_MerchantID: getJazzcashMerchantId(),
     pp_Password: getJazzcashPassword(),
-    pp_ReturnURL: getJazzcashReturnUrl(),
+    pp_TxnRefNo: input.txnRefNo,
+    pp_Amount: String(input.amountCents),
+    pp_BillReference: input.billReference,
+    pp_Description: input.description,
     pp_TxnCurrency: "PKR",
     pp_TxnDateTime: input.txnDateTime,
+    pp_ReturnURL: getJazzcashReturnUrl(),
     pp_TxnExpiryDateTime: input.txnExpiryDateTime,
-    pp_TxnRefNo: input.txnRefNo,
-    pp_TxnType: getJazzcashTxnType(),
-    pp_Version: "1.1",
     ppmpf_1: input.mobileNumber,
-    ppmpf_2: "",
-    ppmpf_3: "",
-    ppmpf_4: "",
-    ppmpf_5: "",
   };
-  // JazzCash sample integration excludes empty PP fields when computing outbound request hash.
+  // Use only outbound non-empty pp* values that are actually sent.
   fields.pp_SecureHash = generateJazzcashSecureHash(fields, { includeEmptyFields: false });
   return fields;
 }
@@ -600,10 +599,13 @@ export async function createJazzcashMobileWalletPayment(input: JazzcashMobileWal
   }
 
   const endpoint = getJazzcashMobileWalletEndpoint();
-  const txnRefNo = await allocateUniqueJazzcashTxnRefNo(pendingPayment?.txnRefNo ?? pendingPayment?.reference ?? null);
+  const txnRefNo = await allocateUniqueJazzcashTxnRefNo(
+    pendingPayment?.txnRefNo ?? pendingPayment?.reference ?? null,
+    buildJazzcashSupportTxnRefNo,
+  );
   const kind = activeSubscription ? (activeSubscription.planId === plan.id ? "RENEWAL" : "UPGRADE") : "PURCHASE";
   const txnDateTime = formatPkDateTime(new Date());
-  const txnExpiryDateTime = formatPkDateTime(addPkDays(new Date(), 1));
+  const txnExpiryDateTime = formatPkDateTime(addPkDays(new Date(), 7));
 
   const requestFields = buildJazzcashMobileWalletFields({
     amountCents: input.amountCents,
@@ -613,7 +615,6 @@ export async function createJazzcashMobileWalletPayment(input: JazzcashMobileWal
     txnExpiryDateTime,
     txnRefNo,
     mobileNumber,
-    cnic: getJazzcashMobileWalletCnic() || undefined,
   });
 
   let paymentId = pendingPayment?.id;

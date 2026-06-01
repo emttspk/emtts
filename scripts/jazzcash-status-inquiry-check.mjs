@@ -17,7 +17,7 @@ const sandboxEndpoint = process.env.JAZZCASH_STATUS_INQUIRY_ENDPOINT_SANDBOX
   || "https://sandbox.jazzcash.com.pk/ApplicationAPI/API/PaymentInquiry/Inquire";
 const liveEndpoint = process.env.JAZZCASH_STATUS_INQUIRY_ENDPOINT_LIVE
   || "https://payments.jazzcash.com.pk/ApplicationAPI/API/PaymentInquiry/Inquire";
-const txnRefNo = "Epo20260529000000";
+const txnRefNo = "T20260529000000";
 
 const fields = {
   pp_TxnRefNo: txnRefNo,
@@ -31,7 +31,7 @@ const secureHash = hmacSha256Uppercase(hashInput, integritySalt);
 const requiredChecks = [
   ["sandbox endpoint exact", sandboxEndpoint === "https://sandbox.jazzcash.com.pk/ApplicationAPI/API/PaymentInquiry/Inquire"],
   ["live endpoint exact", liveEndpoint === "https://payments.jazzcash.com.pk/ApplicationAPI/API/PaymentInquiry/Inquire"],
-  ["TxnRefNo starts with Epo", /^Epo\d{14}$/.test(txnRefNo)],
+  ["TxnRefNo starts with T", /^T\d{14}$/.test(txnRefNo)],
   ["pp_MerchantID present", Boolean(fields.pp_MerchantID)],
   ["pp_Password present", Boolean(fields.pp_Password)],
   ["status inquiry secure hash computed", Boolean(secureHash)],
