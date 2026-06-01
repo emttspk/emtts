@@ -1,5 +1,33 @@
 # AI Implementation Index
 
+## 2026-06-01 - Postage Calculator Production Deployment Closed
+
+### Deployment Target
+- Project: `Epost`
+- Environment: `production`
+- Commit: `15df875`
+
+### Deployment Result
+- Api deploy: `SUCCESS`
+- Api deployment id: `86d78bd2-c2e9-47e1-ac93-d9739aa5c761`
+- Web deploy: `SUCCESS`
+- Web deployment id: `dd997840-310e-410a-8a9e-0f67146e0e4a`
+
+### Smoke Results
+- `GET https://api.epost.pk/health` returned `200`.
+- `GET https://www.epost.pk/` returned `200`.
+- `GET https://www.epost.pk/login` returned `200`.
+- `GET https://www.epost.pk/upload` returned `200`.
+- `GET https://www.epost.pk/postage-calculator` returned `200`.
+- `GET https://www.epost.pk/postage-upload-summary` returned `200`.
+- `GET https://www.epost.pk/postage-comparison` returned `200`.
+- Unauthenticated `POST /api/postage-calculator/calculate` returned `401` (expected protected behavior).
+
+### Closure
+- No app code changes during deployment recording.
+- No migration, Railway variable change, database action, or Cloudflare/R2 action performed.
+- Final classification: `POSTAGE_FEATURE_PRODUCTION_CLOSED`.
+
 ## 2026-06-01 - Postage Calculator and Upload Comparison (Phase 1)
 
 ### Files Added
