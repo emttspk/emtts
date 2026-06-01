@@ -2,10 +2,10 @@ import crypto from "node:crypto";
 
 function buildHashInput(fields, integritySalt) {
   const hashFields = Object.entries(fields)
-    .filter(([key]) => /^pp/i.test(key) && !/^pp_securehash$/i.test(key))
-    .sort(([a], [b]) => a.localeCompare(b, "en", { sensitivity: "base" }))
+    .filter(([key, value]) => /^pp/i.test(key) && !/^pp_securehash$/i.test(key) && String(value ?? "") !== "")
+    .sort(([leftKey], [rightKey]) => (leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0))
     .map(([, value]) => String(value ?? ""));
-  return [integritySalt, ...hashFields].join("&");
+  return hashFields.length > 0 ? `${integritySalt}&${hashFields.join("&")}` : integritySalt;
 }
 
 function hmacSha256Uppercase(message, secret) {

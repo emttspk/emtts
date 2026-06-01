@@ -733,6 +733,18 @@ export async function createJazzcashMobileWalletPayment(input: JazzcashMobileWal
   if (hasSecureHash) {
     const processed = await processJazzcashCallback(callbackPayload, "CALLBACK");
     paymentStatus = String(processed.status ?? "FAILED") as "SUCCEEDED" | "FAILED" | "CANCELED" | "PENDING";
+
+    if (providerResponseCode === "000" && paymentStatus !== "SUCCEEDED") {
+      try {
+        const inquiry = await queryJazzcashTransactionStatus({ txnRefNo, userId: input.userId });
+        paymentStatus = inquiry.status;
+      } catch (error) {
+        logSafe("mobile wallet post-callback inquiry fallback failed", {
+          reference: txnRefNo,
+          message: error instanceof Error ? error.message : "unknown error",
+        });
+      }
+    }
   } else {
     const initialStatus = providerResponseCode === "000" ? "PENDING" : "FAILED";
 
@@ -1011,6 +1023,13 @@ function applyInquiryStatusFromPayload(payload: Record<string, unknown>) {
   return buildJazzcashStatus(providerStatusText, paymentResponseCode, paymentResponseMessage);
 }
 
+function shouldApplyInquiryReconciliation(currentStatus: string, resolvedStatus: JazzcashStatusInquiryResult["status"]) {
+  if (currentStatus === "SUCCEEDED") return false;
+  if (resolvedStatus === "SUCCEEDED") return true;
+  if (currentStatus === "PENDING") return true;
+  return false;
+}
+
 export async function queryJazzcashTransactionStatus(input: { txnRefNo: string; userId: string }) {
   const txnRefNo = String(input.txnRefNo ?? "").trim();
   if (!txnRefNo) {
@@ -1068,12 +1087,26 @@ export async function queryJazzcashTransactionStatus(input: { txnRefNo: string; 
       },
     });
   } catch (error) {
+    if (error instanceof Error && /unique|constraint/i.test(error.message)) {
+      const current = await prisma.payment.findUnique({ where: { id: payment.id } });
+      return {
+        reference: payment.txnRefNo ?? payment.reference,
+        status: (current?.status ?? payment.status) as JazzcashStatusInquiryResult["status"],
+        responseCode: current?.responseCode ?? responseCode,
+        paymentResponseCode: current?.responseCode ?? paymentResponseCode,
+        responseMessage: current?.responseMessage ?? responseMessage,
+        paymentResponseMessage: current?.responseMessage ?? paymentResponseMessage,
+        providerTxnId: current?.providerTxnId ?? providerTxnId,
+        hashVerified: current?.hashVerified ?? hashVerified,
+        rawResponse: parsed,
+      };
+    }
     if (!(error instanceof Error) || !/unique|constraint/i.test(error.message)) {
       throw error;
     }
   }
 
-  if (payment.status === "PENDING") {
+  if (shouldApplyInquiryReconciliation(payment.status, resolvedStatus)) {
     const existingActive = await prisma.subscription.findFirst({
       where: { userId: payment.userId, status: "ACTIVE" },
       include: { plan: true },
@@ -1083,8 +1116,12 @@ export async function queryJazzcashTransactionStatus(input: { txnRefNo: string; 
     const window = buildSubscriptionWindow(payment.plan.name, subscriptionKind, existingActive?.currentPeriodEnd ?? null);
 
     await prisma.$transaction(async (tx) => {
-      let subscriptionId = payment.subscriptionId;
-      if (resolvedStatus === "SUCCEEDED") {
+      const currentPayment = await tx.payment.findUnique({
+        where: { id: payment.id },
+        select: { status: true, subscriptionId: true },
+      });
+      let subscriptionId = currentPayment?.subscriptionId ?? payment.subscriptionId;
+      if (resolvedStatus === "SUCCEEDED" && !subscriptionId) {
         await tx.subscription.updateMany({ where: { userId: payment.userId, status: "ACTIVE" }, data: { status: "CANCELED" } });
         const subscription = await tx.subscription.create({
           data: {
@@ -1110,7 +1147,7 @@ export async function queryJazzcashTransactionStatus(input: { txnRefNo: string; 
           verifiedAt: new Date(),
           paidAt: resolvedStatus === "SUCCEEDED" ? new Date() : null,
           failureReason: resolvedStatus === "SUCCEEDED" ? null : (paymentResponseCode ?? responseCode ?? "FAILED"),
-          subscriptionId: resolvedStatus === "SUCCEEDED" ? subscriptionId : payment.subscriptionId,
+          subscriptionId: resolvedStatus === "SUCCEEDED" ? subscriptionId : (currentPayment?.subscriptionId ?? payment.subscriptionId),
         },
       });
 
