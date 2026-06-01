@@ -21,6 +21,7 @@ import { billingSettingsRouter } from "./routes/billingSettings.js";
 import { supportRouter } from "./routes/support.js";
 import { adminSupportRouter } from "./routes/adminSupport.js";
 import { bookingQuotesRouter } from "./routes/bookingQuotes.js";
+import { postageCalculatorRouter } from "./routes/postageCalculator.js";
 import { aggregatorBookingsRouter } from "./routes/aggregatorBookings.js";
 import { adminAggregatorBookingsRouter } from "./routes/adminAggregatorBookings.js";
 import { aggregatorPaymentsRouter } from "./routes/aggregatorPayments.js";
@@ -841,6 +842,7 @@ router.use("/admin/aggregator-bookings", ensureApiDatabaseConnection, adminAggre
 router.use("/admin", ensureApiDatabaseConnection, adminRouter);
 router.use("/support", ensureApiDatabaseConnection, supportRouter);
 router.use("/booking-quotes", ensureApiDatabaseConnection, bookingQuotesRouter);
+router.use("/postage-calculator", ensureApiDatabaseConnection, postageCalculatorRouter);
 router.use("/aggregator-bookings", ensureApiDatabaseConnection, aggregatorBookingsRouter);
 router.use("/aggregator-payments", ensureApiDatabaseConnection, aggregatorPaymentsRouter);
 router.use("/subscriptions", ensureApiDatabaseConnection, subscriptionsRouter);

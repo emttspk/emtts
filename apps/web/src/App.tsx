@@ -40,6 +40,9 @@ const BookingQuote = lazy(() => import("./pages/BookingQuote"));
 const AggregatorBookings = lazy(() => import("./pages/AggregatorBookings"));
 const AggregatorBookingDetail = lazy(() => import("./pages/AggregatorBookingDetail"));
 const AdminAggregatorBookings = lazy(() => import("./pages/admin/AdminAggregatorBookings"));
+const PostageCalculator = lazy(() => import("./pages/PostageCalculator"));
+const PostageUploadSummary = lazy(() => import("./pages/PostageUploadSummary"));
+const PostageComparison = lazy(() => import("./pages/PostageComparison"));
 
 function Loading() {
   return (
@@ -101,6 +104,9 @@ export default function App() {
             element={<Upload />}
           />
           <Route path="/booking-quote" element={<BookingQuote />} />
+          <Route path="/postage-calculator" element={<PostageCalculator />} />
+          <Route path="/postage-upload-summary" element={<PostageUploadSummary />} />
+          <Route path="/postage-comparison" element={<PostageComparison />} />
           <Route path="/aggregator-bookings" element={<AggregatorBookings />} />
           <Route path="/aggregator-bookings/:bookingId" element={<AggregatorBookingDetail />} />
           <Route path="/jobs" element={<Jobs />} />

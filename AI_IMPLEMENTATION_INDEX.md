@@ -1,5 +1,39 @@
 # AI Implementation Index
 
+## 2026-06-01 - Postage Calculator and Upload Comparison (Phase 1)
+
+### Files Added
+- `apps/api/src/routes/postageCalculator.ts`
+- `apps/api/src/services/postageCalculatorService.ts`
+- `apps/api/src/services/postageComparisonService.ts`
+- `apps/api/src/utils/postageComparisonRules.ts`
+- `apps/api/src/utils/postageUploadValidation.ts`
+- `apps/api/src/parse/postageUploadSummary.ts`
+- `apps/api/src/services/postageCalculatorService.test.ts`
+- `apps/api/src/services/postageComparisonService.test.ts`
+- `apps/web/src/pages/PostageCalculator.tsx`
+- `apps/web/src/pages/PostageUploadSummary.tsx`
+- `apps/web/src/pages/PostageComparison.tsx`
+- `apps/web/src/components/postage/PostageCalculatorForm.tsx`
+- `apps/web/src/components/postage/PostageArticleTable.tsx`
+- `apps/web/src/components/postage/PostageBundleSummaryCard.tsx`
+- `apps/web/src/components/postage/PostageComparisonPanel.tsx`
+- `apps/web/src/components/postage/PostageRecommendationBanner.tsx`
+- `apps/web/src/lib/postageCalculator.ts`
+- `apps/web/src/lib/postageComparison.ts`
+- `docs/architecture/postage-calculator-and-upload-comparison-plan.md`
+- `docs/operations/postage-upload-comparison-rules.md`
+
+### Files Modified
+- `apps/api/src/index.ts`
+- `apps/web/src/App.tsx`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Scope Notes
+- Additive Phase 1 quote/comparison only.
+- No service fee, handling fee, profit margin, suggested charges, or ePost service fee fields added.
+- No finalized generation/payment/tracking/complaint/auth/storage/worker modules modified.
+
 ## 2026-06-01 - Controlled Production Rollout Verification After Backup
 
 ### Backup Gate
