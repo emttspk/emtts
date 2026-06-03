@@ -94,3 +94,21 @@
 - [ ] Screenshot Search Console sitemap submission status.
 - [ ] Screenshot `robots.txt` opened in browser.
 - [ ] Store screenshots outside this repository unless a dedicated docs artifact folder is approved.
+
+## Production Verification Attempt (2026-06-03 23:00 UTC)
+
+- No PII used during this verification attempt.
+- Verification focused on public SEO endpoints and public routes only.
+
+| Check | Result | Notes |
+|------|------|------|
+| `https://www.epost.pk/` returns 200 | PASS | Production homepage reachable. |
+| `https://www.epost.pk/robots.txt` returns 200 | PASS | Reachable in browser/curl. |
+| `robots.txt` includes sitemap directive | FAIL | Current production robots content did not include a `Sitemap:` line during this attempt. |
+| `https://www.epost.pk/sitemap.xml` returns 200 | PASS | Sitemap reachable. |
+| Sitemap includes public URLs (`/`, `/tracking`, `/pricing`, `/register`, `/support`) | PASS | Expected public URLs present. |
+| Public routes `/tracking`, `/pricing`, `/register`, `/support` load without blank page | PASS | HTTP 200 and root app shell present for each route. |
+| Static meta tags exist in production HTML | PASS | Title, description, canonical, OG, and Twitter markers detected. |
+| JSON-LD exists in production HTML | PASS | `Organization`, `WebSite`, and `SoftwareApplication` markers detected. |
+| Search Console property + indexing request workflow | NEEDS MANUAL CONFIRMATION | Requires Search Console access and operator execution. |
+| Bing Webmaster submission (optional) | NEEDS MANUAL CONFIRMATION | Optional operator step. |

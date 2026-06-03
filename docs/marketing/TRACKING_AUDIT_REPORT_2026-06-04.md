@@ -75,6 +75,32 @@
 - [ ] Screenshot Meta Pixel Helper `PageView` confirmation.
 - [ ] Store screenshots outside this repository unless a dedicated docs artifact folder is approved.
 
+## Production Verification Attempt (2026-06-03 23:00 UTC)
+
+- No PII used during this verification attempt.
+- Login-protected pages were not tested.
+
+### URL and Route Checks
+
+| Check | Result | Notes |
+|------|------|------|
+| `https://www.epost.pk/` | PASS | HTTP 200 returned. |
+| `https://www.epost.pk/robots.txt` | PASS | HTTP 200 returned. |
+| `https://www.epost.pk/sitemap.xml` | PASS | HTTP 200 returned. |
+| `https://www.epost.pk/tracking` | PASS | HTTP 200 and app root shell present. |
+| `https://www.epost.pk/pricing` | PASS | HTTP 200 and app root shell present. |
+| `https://www.epost.pk/register` | PASS | HTTP 200 and app root shell present. |
+| `https://www.epost.pk/support` | PASS | HTTP 200 and app root shell present. |
+
+### Analytics and Payload Safety Checks
+
+| Check | Result | Notes |
+|------|------|------|
+| Homepage static SEO/meta/JSON-LD markers present in HTML | PASS | Title, description, canonical, OG/Twitter tags, and JSON-LD detected in production HTML. |
+| GA4 DebugView/Realtime event confirmation | NEEDS MANUAL CONFIRMATION | Requires Railway env confirmation for `VITE_GA_MEASUREMENT_ID` and browser GA4 access. |
+| Meta Pixel Helper event confirmation | NEEDS MANUAL CONFIRMATION | Requires Railway env confirmation for `VITE_META_PIXEL_ID` and Pixel Helper extension. |
+| Sensitive payload absence confirmation in analytics tools | NEEDS MANUAL CONFIRMATION | Must be confirmed in GA4/Pixel dashboards after live event inspection. |
+
 ## Current Status
 **CRITICAL MISSING** - The ePost.pk platform currently has **zero** marketing tracking implemented. There is no Meta Pixel, no Google Tag (GA4), and no conversion event tracking for key business actions.
 
