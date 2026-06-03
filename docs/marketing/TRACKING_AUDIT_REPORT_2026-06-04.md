@@ -101,6 +101,10 @@
 | Meta Pixel Helper event confirmation | NEEDS MANUAL CONFIRMATION | Requires Railway env confirmation for `VITE_META_PIXEL_ID` and Pixel Helper extension. |
 | Sensitive payload absence confirmation in analytics tools | NEEDS MANUAL CONFIRMATION | Must be confirmed in GA4/Pixel dashboards after live event inspection. |
 
+## robots.txt Fix Note (2026-06-04)
+
+- robots.txt sitemap directive fix prepared; production requires redeploy/recheck.
+
 ## Current Status
 **CRITICAL MISSING** - The ePost.pk platform currently has **zero** marketing tracking implemented. There is no Meta Pixel, no Google Tag (GA4), and no conversion event tracking for key business actions.
 

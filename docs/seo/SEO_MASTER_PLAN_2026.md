@@ -21,6 +21,10 @@
     - Added reusable SEO component for route-level title/description/canonical/social metadata.
     - Implemented route metadata on Home, Tracking, Pricing, Login, Register, and Support pages.
 
+## robots.txt Fix Status (2026-06-04)
+
+- robots.txt sitemap directive fixed and ready for redeploy verification.
+
 ## Current Status (Audit Date: 2026-06-04)
 
 **OVERALL SCORE: 15/100 (CRITICAL GAPS)**
