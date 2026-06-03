@@ -7,6 +7,13 @@
     - `apps/web/public/sitemap.xml` added with core discovery URLs.
     - `apps/web/index.html` updated with static title, description, canonical, OpenGraph, and Twitter meta tags.
 
+## Phase 2 Implementation Status (2026-06-04)
+
+- Phase 2 social and structured data completed:
+    - Added social preview image metadata (`og:image`, `twitter:image`) using existing public logo asset.
+    - Added static hardening tags: `og:site_name`, `twitter:site`, `robots`, `theme-color`, `application-name`.
+    - Added JSON-LD for `Organization`, `WebSite` (+ `SearchAction`), and `SoftwareApplication` with safe verified public details only.
+
 ## Current Status (Audit Date: 2026-06-04)
 
 **OVERALL SCORE: 15/100 (CRITICAL GAPS)**

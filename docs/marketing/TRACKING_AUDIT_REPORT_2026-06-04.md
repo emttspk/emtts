@@ -8,6 +8,11 @@
 	- Wired safe events only in this pass: `page_view`, `lead_start`, `tracking_search`, `whatsapp_demo_click`.
 	- Event payload policy enforced to safe generic keys only (`source`, `count`, `path`, etc.) with no PII.
 
+## Phase 2 SEO Note (2026-06-04)
+
+- Analytics remained unchanged in Phase 2.
+- This phase only hardened SEO social metadata and structured data in `apps/web/index.html`.
+
 ## Current Status
 **CRITICAL MISSING** - The ePost.pk platform currently has **zero** marketing tracking implemented. There is no Meta Pixel, no Google Tag (GA4), and no conversion event tracking for key business actions.
 

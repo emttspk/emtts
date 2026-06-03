@@ -1,5 +1,9 @@
 # AI Implementation Index
 
+## 2026-06-04 - SEO Phase 2 Social + Structured Data
+
+- SEO Phase 2 social preview and structured data implemented.
+
 ## 2026-06-04 - SEO Phase 1 + Minimal Analytics Foundation
 
 - SEO Phase 1 and minimal analytics foundation implemented.
