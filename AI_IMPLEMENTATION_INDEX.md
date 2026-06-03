@@ -34,9 +34,10 @@
 - `AI_IMPLEMENTATION_INDEX.md`
 
 ### Validation
-- `npm run lint` -> pending
-- `npm run typecheck` -> pending
-- `npm run build` -> pending
+- Gemini read-only audit -> PASS
+- Web build (`npm run build --workspace=@labelgen/web`) -> PASS
+- No code changes required -> confirmed
+- Production ready -> yes
 
 ---
 
