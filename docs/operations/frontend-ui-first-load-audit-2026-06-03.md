@@ -98,3 +98,26 @@
 ## Customer Login Readiness
 - Login/register visual and first-load reliability readiness: HIGH.
 - Residual risk level: LOW after deployment verification pass.
+
+---
+
+## Production Domain Status Addendum (2026-06-03)
+
+Post-deploy production connectivity audit performed. See full report: `docs/operations/production-domain-connectivity-audit-2026-06-03.md`
+
+### Reported Symptoms
+- Chrome `ERR_CONNECTION_CLOSED` on `www.epost.pk` immediately after deploy
+- `Failed to reach API endpoint https://api.epost.pk/api/auth/login` shown on login page
+
+### Verified Status (all URLs confirmed operational)
+
+| URL | Status |
+|-----|--------|
+| `https://epost.pk` | ✅ 200 OK |
+| `https://www.epost.pk` | ✅ 200 OK |
+| `https://www.epost.pk/login` | ✅ 200 OK, login form loaded |
+| `https://api.epost.pk/api/health` | ✅ 200 OK |
+| `https://api.epost.pk/api/auth/login` POST | ✅ 401 (correct: invalid test creds) |
+
+### Root Cause Confirmed
+Transient Railway container restart window during `0903343` deploy. Self-resolved within deployment window. No persistent infrastructure fault. No code changes required.

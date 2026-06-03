@@ -1,5 +1,49 @@
 # AI Implementation Index
 
+## 2026-06-03 - Production Domain Connectivity Audit
+
+### Scope
+- Railway Web and Api service health audit.
+- Cloudflare DNS/proxy/SSL verification.
+- Frontend env `VITE_API_URL` correctness check.
+- Production domain reachability for all public URLs.
+- CORS and WEB_ORIGIN configuration review.
+- Cache and header behavior review.
+- No business logic, auth, or backend code changes.
+
+### Reported Issue
+`ERR_CONNECTION_CLOSED` on `www.epost.pk` and `Failed to reach API endpoint https://api.epost.pk/api/auth/login` reported immediately after `0903343` deploy.
+
+### Root Cause
+**Transient Railway container restart window.** During the `0903343` deploy, the Railway Web container cycled (old instance teardown → new instance startup). Connections initiated during the ~15–60s window received `ERR_CONNECTION_CLOSED` as the TCP/TLS handshake was dropped by the exiting container. No persistent infrastructure fault. All services self-recovered.
+
+### Findings
+
+| Check | Status |
+|-------|--------|
+| epost.pk DNS / Cloudflare proxy | ✅ Working |
+| www.epost.pk DNS / Cloudflare proxy | ✅ Working |
+| api.epost.pk DNS / Cloudflare proxy | ✅ Working |
+| Railway Web service | ✅ Online, no crash loop |
+| Railway Api service | ✅ Online, no crash loop |
+| `VITE_API_URL` | ✅ `https://api.epost.pk` |
+| `WEB_ORIGIN` / `FRONTEND_URL` | ✅ `https://www.epost.pk` |
+| Login POST endpoint | ✅ Reachable (401 on invalid creds, as expected) |
+| Vite vendor chunks deployed | ✅ All served correctly |
+| Stale `VITE_API_BASE` env var | ⚠️ Unused — cleanup optional |
+
+### Files Changed
+- `docs/operations/production-domain-connectivity-audit-2026-06-03.md` (new)
+- `docs/operations/frontend-ui-first-load-audit-2026-06-03.md` (addendum)
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Validation Evidence
+- `curl` probes: epost.pk 200, www.epost.pk 200, api.epost.pk/api/health 200, login POST 401
+- Railway logs: successful logins at 13:32 and 14:30 UTC on 2026-06-03
+- Browser verification: all pages load with full content, no blank screen, no ERR_CONNECTION_CLOSED
+
+---
+
 ## 2026-06-03 - Frontend UI/UX + First-Load Reliability Audit
 
 ### Scope
