@@ -4,6 +4,43 @@ Date: 2026-06-03
 Mode: Verification-only (no feature implementation)
 Scope lock: ePost.pk / Label Generator only
 
+## 2026-06-03 Duplicate History + Timer + Migration Update
+
+### Verified Production Bugs
+1. Duplicate worker callback appended duplicate complaint history row for same CMP ID.
+2. Complaint count/attempt labels could diverge (`Complaint Count` inflation, repeated `Attempt #1`).
+3. PROCESSING timer could continue despite complaint ID/due date being available.
+4. `ComplaintNotification` Prisma model existed in schema but migration SQL artifact was missing.
+
+### Implemented Corrections
+- Added complaint history normalization + idempotent append in complaint service.
+- Updated processor to append only new unique complaint IDs and derive state reason from effective attempt.
+- Updated BulkTracking lifecycle/history parsing and history modal rendering to dedupe repeated CMP IDs.
+- Updated complaint card state resolution to force `ACTIVE` when complaint ID+due date or submitted/duplicate queue status exists.
+- Added migration SQL:
+  - `apps/api/prisma/migrations/20260603223000_add_complaint_notifications/migration.sql`
+
+### Regression Coverage
+- `processor success stores complaint id due date status and response text` (existing)
+- `duplicate worker callback does not create second history entry` (new)
+- `reopen creates exactly one new attempt` (new)
+- `deduplicates repeated complaint IDs from stored history` (new)
+- `migration SQL exists for ComplaintNotification table` (new)
+- `bulk tracking complaint state: complaint ID and due date force ACTIVE while queue says processing` (new)
+
+### Validation Snapshot
+- `npm run build` -> PASS
+- `npm run test:complaint-units --workspace=@labelgen/api` -> PASS
+- `npm run test:complaints --workspace=@labelgen/api` -> PASS
+- `npx tsx apps/web/src/pages/BulkTrackingComplaintState.test.ts` -> PASS
+- `npx prisma migrate deploy --schema apps/api/prisma/schema.prisma` -> FAIL locally (`localhost:5432` unreachable)
+
+### Prisma Command Note
+- Requested command with workspace flag:
+  - `npx prisma migrate dev --name add_complaint_notifications --workspace=@labelgen/api`
+- Prisma CLI does not support `--workspace` and exits with unknown option.
+- Equivalent package-scoped command was attempted from `apps/api`, but local DB (`localhost:5432`) was unreachable in this environment.
+
 ## 2026-06-03 Reopen Stuck PROCESSING Fix
 
 ### Issue

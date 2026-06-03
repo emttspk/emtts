@@ -38,6 +38,7 @@ import {
   type TrackingWorkspaceRenderCache,
   type TrackingWorkspaceViewState,
 } from "../lib/trackingWorkspaceCache";
+import { normalizeQueueStatusLabel, resolveComplaintCardState } from "./complaintCardState";
 
 type Shipment = BaseShipment & {
   shipmentType?: string | null;
@@ -317,6 +318,50 @@ function parseDueDateToTs(input: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function normalizeComplaintId(raw: string | null | undefined): string {
+  const value = String(raw ?? "").trim().toUpperCase();
+  if (!value) return "";
+  return value.startsWith("CMP-") ? value : `CMP-${value}`;
+}
+
+function normalizeComplaintHistoryEntries(entries: Array<{
+  complaintId?: string;
+  trackingId?: string;
+  createdAt?: string;
+  dueDate?: string;
+  status?: string;
+  attemptNumber?: number;
+  previousComplaintReference?: string;
+}>) {
+  const seen = new Set<string>();
+  const sorted = [...entries]
+    .map((entry) => ({
+      complaintId: normalizeComplaintId(entry.complaintId),
+      trackingId: String(entry.trackingId ?? "").trim(),
+      createdAt: String(entry.createdAt ?? "").trim(),
+      dueDate: String(entry.dueDate ?? "").trim(),
+      status: String(entry.status ?? "").trim().toUpperCase() || "ACTIVE",
+      attemptNumber: Math.max(1, Number(entry.attemptNumber ?? 1) || 1),
+      previousComplaintReference: normalizeComplaintId(entry.previousComplaintReference),
+    }))
+    .filter((entry) => Boolean(entry.complaintId))
+    .sort((a, b) => Number(a.attemptNumber ?? 1) - Number(b.attemptNumber ?? 1));
+
+  const unique = sorted.filter((entry) => {
+    if (seen.has(entry.complaintId)) return false;
+    seen.add(entry.complaintId);
+    return true;
+  });
+
+  return unique.map((entry, index) => ({
+    ...entry,
+    attemptNumber: index + 1,
+    previousComplaintReference: index === 0
+      ? ""
+      : (entry.previousComplaintReference || unique[index - 1]?.complaintId || ""),
+  }));
+}
+
 function parseComplaintLifecycle(shipment: Shipment): ComplaintLifecycle {
   const textBlob = String(shipment.complaintText ?? "").trim();
   const historyMarker = "COMPLAINT_HISTORY_JSON:";
@@ -331,7 +376,8 @@ function parseComplaintLifecycle(shipment: Shipment): ComplaintLifecycle {
       return [];
     }
   })();
-  const latestHistory = parsedHistory.length > 0 ? parsedHistory[parsedHistory.length - 1] : null;
+  const normalizedHistory = normalizeComplaintHistoryEntries(parsedHistory);
+  const latestHistory = normalizedHistory.length > 0 ? normalizedHistory[normalizedHistory.length - 1] : null;
   const idFromStructured = textBlob.match(/COMPLAINT_ID\s*:\s*([A-Z0-9\-]+)/i)?.[1] ?? "";
   const idFromMessage = textBlob.match(/Complaint\s*ID\s*([A-Z0-9\-]+)/i)?.[1] ?? "";
   const rawId = (latestHistory?.complaintId || idFromStructured || idFromMessage || "").trim();
@@ -378,7 +424,7 @@ function parseComplaintLifecycle(shipment: Shipment): ComplaintLifecycle {
     state: normalizedState,
     stateLabel: normalizedState,
     message: textBlob,
-    complaintCount: parsedHistory.length > 0 ? parsedHistory.length : (hasComplaint ? 1 : 0),
+    complaintCount: normalizedHistory.length > 0 ? normalizedHistory.length : (hasComplaint ? 1 : 0),
     latestAttempt: Number(latestHistory?.attemptNumber ?? (hasComplaint ? 1 : 0)) || 0,
     previousComplaintReference: String(latestHistory?.previousComplaintReference ?? "").trim(),
   };
@@ -387,49 +433,6 @@ function parseComplaintLifecycle(shipment: Shipment): ComplaintLifecycle {
 function isComplaintInProcess(lifecycle: ComplaintLifecycle): boolean {
   const state = String(lifecycle.state ?? "").trim().toUpperCase();
   return lifecycle.exists && (state === "ACTIVE" || state === "IN PROCESS" || lifecycle.active);
-}
-
-function normalizeQueueStatusLabel(raw: string | null | undefined): "QUEUED" | "PROCESSING" | "ACTIVE" | "RETRY PENDING" | "RESOLVED" | "MANUAL REVIEW" | "DUPLICATE" | "SUBMITTED" {
-  const token = String(raw ?? "").trim().toUpperCase().replace(/[\-_]+/g, " ");
-  if (!token) return "ACTIVE";
-  if (token === "RETRYING" || token === "RETRY PENDING") return "RETRY PENDING";
-  if (token === "QUEUED") return "QUEUED";
-  if (token === "PROCESSING") return "PROCESSING";
-  if (token === "MANUAL REVIEW") return "MANUAL REVIEW";
-  if (token === "DUPLICATE") return "DUPLICATE";
-  if (token === "SUBMITTED") return "SUBMITTED";
-  if (token === "RESOLVED" || token === "CLOSED") return "RESOLVED";
-  return "ACTIVE";
-}
-
-function resolveComplaintCardState(
-  lifecycle: ComplaintLifecycle,
-  shipmentStatus: string | null | undefined,
-  queueSnapshot: ComplaintQueueSnapshot | undefined,
-) {
-  const shipmentPending = normalizeStatus(shipmentStatus).toUpperCase() === "PENDING";
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const queueState = normalizeQueueStatusLabel(queueSnapshot?.complaintStatus);
-  const lifecycleResolved = ["RESOLVED", "CLOSED", "REJECTED"].includes(String(lifecycle.state ?? "").toUpperCase());
-  const hasComplaintId = Boolean(String(lifecycle.complaintId ?? "").trim() || String(queueSnapshot?.complaintId ?? "").trim());
-
-  if (shipmentPending && lifecycleResolved) {
-    if (queueState === "PROCESSING") return "PROCESSING";
-    if (queueState === "RETRY PENDING") return "RETRY PENDING";
-    if (queueState === "MANUAL REVIEW") return "MANUAL REVIEW";
-    const dueExpired = lifecycle.dueDateTs != null && lifecycle.dueDateTs < todayStart.getTime();
-    return dueExpired ? "PROCESSING" : "ACTIVE";
-  }
-
-  if (lifecycleResolved) return "RESOLVED";
-  if (hasComplaintId || queueState === "SUBMITTED" || queueState === "DUPLICATE") return "ACTIVE";
-  if (queueState === "PROCESSING") return "PROCESSING";
-  if (queueState === "QUEUED") return "QUEUED";
-  if (queueState === "RETRY PENDING") return "RETRY PENDING";
-  if (queueState === "MANUAL REVIEW") return "MANUAL REVIEW";
-  if (lifecycle.exists) return lifecycle.stateLabel || "ACTIVE";
-  return "";
 }
 
 function isComplaintActionAllowed(
@@ -4642,11 +4645,14 @@ export default function BulkTracking() {
                         const retryHint = complaintCardState === "RETRY PENDING"
                           ? formatRetryCountdown(queueSnapshot?.nextRetryAt, retryCountdownNow)
                           : "";
-                        const processingElapsed = complaintCardState === "PROCESSING"
+                        const showProcessingTimer = complaintCardState === "PROCESSING"
+                          && !String(lifecycle.complaintId ?? "").trim()
+                          && !String(queueSnapshot?.complaintId ?? "").trim();
+                        const processingElapsed = showProcessingTimer
                           ? formatProcessingElapsed(queueSnapshot?.updatedAt, retryCountdownNow)
                           : "";
-                        const processingUpdatedMs = queueSnapshot?.updatedAt ? new Date(queueSnapshot.updatedAt).getTime() : 0;
-                        const processingIsStale = complaintCardState === "PROCESSING"
+                        const processingUpdatedMs = showProcessingTimer && queueSnapshot?.updatedAt ? new Date(queueSnapshot.updatedAt).getTime() : 0;
+                        const processingIsStale = showProcessingTimer
                           && processingUpdatedMs > 0
                           && retryCountdownNow - processingUpdatedMs > COMPLAINT_PROCESSING_STALE_UI_MS;
                         const stateMessage = waitingComplaintId
@@ -4667,7 +4673,7 @@ export default function BulkTracking() {
                             {complaintCardState === "RETRY PENDING" ? (
                               <div className="mt-1 text-[9px] font-semibold text-amber-700">{retryHint}</div>
                             ) : null}
-                            {complaintCardState === "PROCESSING" ? (
+                            {showProcessingTimer ? (
                               <div className="mt-1 text-[9px] font-semibold text-purple-700">
                                 {processingIsStale
                                   ? `Stale — Pending Retry (${processingElapsed})`
@@ -5618,7 +5624,7 @@ export default function BulkTracking() {
             return Array.isArray(parsed?.entries) ? (parsed.entries as typeof historyEntries) : [];
           } catch { return []; }
         })();
-        const sortedEntries = [...historyEntries].sort((a, b) => Number(a.attemptNumber ?? 1) - Number(b.attemptNumber ?? 1));
+        const sortedEntries = normalizeComplaintHistoryEntries(historyEntries);
         return (
           <div className="modal-wrapper z-50 bg-slate-950/60 p-4">
             <div className="modal-content flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" role="dialog" aria-modal="true" aria-label="Complaint History">

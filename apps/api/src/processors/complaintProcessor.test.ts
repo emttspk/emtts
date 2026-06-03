@@ -176,6 +176,17 @@ function makeQueueRow(overrides?: Partial<QueueRow>): QueueRow {
   };
 }
 
+function readHistoryEntries(complaintText: string | null | undefined) {
+  const text = String(complaintText ?? "");
+  const marker = "COMPLAINT_HISTORY_JSON:";
+  const markerIndex = text.lastIndexOf(marker);
+  if (markerIndex < 0) return [] as Array<Record<string, unknown>>;
+  const raw = text.slice(markerIndex + marker.length).trim();
+  if (!raw) return [] as Array<Record<string, unknown>>;
+  const parsed = JSON.parse(raw) as { entries?: Array<Record<string, unknown>> };
+  return Array.isArray(parsed.entries) ? parsed.entries : [];
+}
+
 const tests: TestCase[] = [
   {
     name: "processor success stores complaint id due date status and response text",
@@ -245,7 +256,89 @@ const tests: TestCase[] = [
           assert.equal(getQueueRow()?.complaintStatus, "duplicate");
           assert.equal(result.complaintId, "CMP-OLD");
           assert.ok(String(getShipment()?.complaintText ?? "").includes("COMPLAINT_STATE: ACTIVE"));
-          assert.ok(String(getShipment()?.complaintText ?? "").includes("complaintStateReason: reopened_submission_pending_sync"));
+          assert.ok(String(getShipment()?.complaintText ?? "").includes("complaintStateReason: submitted_pending_sync"));
+        });
+      });
+    },
+  },
+  {
+    name: "duplicate worker callback does not create second history entry",
+    async run() {
+      await withComplaintApiResponse({
+        success: true,
+        response_text: "You complaint has been submitted successfully. Complaint No: 7788 Due Date on 26/05/2026",
+        complaint_number: "7788",
+        due_date: "26/05/2026",
+      }, async () => {
+        await withProcessorPrismaMock({
+          queueRow: makeQueueRow(),
+          shipment: null,
+        }, async ({ getShipment }) => {
+          const first = await processComplaintQueueById("cq-1");
+          assert.equal(first.success, true);
+          assert.equal(readHistoryEntries(getShipment()?.complaintText).length, 1);
+
+          const second = await processComplaintQueueById("cq-1");
+          assert.equal(second.success, true);
+          const entries = readHistoryEntries(getShipment()?.complaintText);
+          assert.equal(entries.length, 1);
+          assert.equal(String(entries[0]?.complaintId ?? ""), "CMP-7788");
+          assert.equal(Number(entries[0]?.attemptNumber ?? 0), 1);
+        });
+      });
+    },
+  },
+  {
+    name: "reopen creates exactly one new attempt",
+    async run() {
+      const existingText = [
+        "COMPLAINT_ID: CMP-100 | DUE_DATE: 20-05-2026 | COMPLAINT_STATE: RESOLVED",
+        "User complaint:",
+        "First complaint",
+        "",
+        "Response:",
+        "Resolved",
+        "",
+        "COMPLAINT_HISTORY_JSON: {\"entries\":[{\"complaintId\":\"CMP-100\",\"trackingId\":\"VPL26050001\",\"createdAt\":\"2026-05-01T00:00:00.000Z\",\"dueDate\":\"20-05-2026\",\"status\":\"RESOLVED\",\"attemptNumber\":1,\"previousComplaintReference\":\"\"}]}"
+      ].join("\n");
+
+      await withComplaintApiResponse({
+        success: true,
+        response_text: "You complaint has been submitted successfully. Complaint No: 9900 Due Date on 30/06/2026",
+        complaint_number: "9900",
+        due_date: "30/06/2026",
+      }, async () => {
+        await withProcessorPrismaMock({
+          queueRow: makeQueueRow({
+            complaintId: "CMP-100",
+            dueDate: new Date("2026-05-20T00:00:00.000Z"),
+            payloadJson: {
+              tracking_number: "VPL26050001",
+              phone: "03001234567",
+              complaint_text: "Reopen complaint",
+              current_user_remarks: "Reopen complaint",
+              attempt_number: 2,
+              previous_complaint_reference: "CMP-100",
+              shipment_status_at_complaint_submit: "PENDING",
+            },
+          }),
+          shipment: {
+            userId: "user-1",
+            trackingNumber: "VPL26050001",
+            complaintStatus: "FILED",
+            complaintText: existingText,
+          },
+        }, async ({ getShipment }) => {
+          const result = await processComplaintQueueById("cq-1");
+          assert.equal(result.success, true);
+          assert.equal(result.complaintId, "CMP-9900");
+
+          const entries = readHistoryEntries(getShipment()?.complaintText);
+          assert.equal(entries.length, 2);
+          assert.equal(String(entries[0]?.complaintId ?? ""), "CMP-100");
+          assert.equal(String(entries[1]?.complaintId ?? ""), "CMP-9900");
+          assert.equal(Number(entries[0]?.attemptNumber ?? 0), 1);
+          assert.equal(Number(entries[1]?.attemptNumber ?? 0), 2);
         });
       });
     },

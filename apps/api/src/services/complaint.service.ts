@@ -39,6 +39,73 @@ export type ComplaintHistoryEntry = {
 
 const COMPLAINT_HISTORY_MARKER = "COMPLAINT_HISTORY_JSON:";
 
+function normalizeComplaintId(input: string | null | undefined) {
+  const value = String(input ?? "").trim().toUpperCase();
+  if (!value) return "";
+  return value.startsWith("CMP-") ? value : `CMP-${value}`;
+}
+
+function sanitizeComplaintHistoryEntry(entry: Partial<ComplaintHistoryEntry>, fallbackTrackingId = ""): ComplaintHistoryEntry {
+  return {
+    complaintId: normalizeComplaintId(String(entry.complaintId ?? "")),
+    trackingId: String(entry.trackingId ?? fallbackTrackingId).trim(),
+    createdAt: String(entry.createdAt ?? "").trim() || new Date().toISOString(),
+    dueDate: String(entry.dueDate ?? "").trim(),
+    status: String(entry.status ?? "").trim().toUpperCase() || "ACTIVE",
+    attemptNumber: Math.max(1, Number(entry.attemptNumber ?? 1) || 1),
+    previousComplaintReference: normalizeComplaintId(String(entry.previousComplaintReference ?? "")),
+    userComplaint: String(entry.userComplaint ?? "").trim(),
+  };
+}
+
+export function normalizeComplaintHistoryEntries(entries: ComplaintHistoryEntry[]): ComplaintHistoryEntry[] {
+  const seenByComplaintId = new Set<string>();
+  const sorted = [...entries]
+    .map((entry) => sanitizeComplaintHistoryEntry(entry, String(entry.trackingId ?? "").trim()))
+    .filter((entry) => Boolean(entry.complaintId))
+    .sort((a, b) => Number(a.attemptNumber ?? 1) - Number(b.attemptNumber ?? 1));
+
+  const unique: ComplaintHistoryEntry[] = [];
+  for (const entry of sorted) {
+    if (seenByComplaintId.has(entry.complaintId)) continue;
+    seenByComplaintId.add(entry.complaintId);
+    unique.push(entry);
+  }
+
+  return unique.map((entry, index) => ({
+    ...entry,
+    attemptNumber: index + 1,
+    previousComplaintReference: index === 0
+      ? ""
+      : (entry.previousComplaintReference || unique[index - 1]?.complaintId || ""),
+  }));
+}
+
+export function appendComplaintHistoryAttempt(
+  existingEntries: ComplaintHistoryEntry[],
+  nextEntry: ComplaintHistoryEntry,
+) {
+  const normalizedExisting = normalizeComplaintHistoryEntries(existingEntries);
+  const sanitizedNext = sanitizeComplaintHistoryEntry(nextEntry, normalizedExisting[normalizedExisting.length - 1]?.trackingId ?? "");
+  if (!sanitizedNext.complaintId) {
+    return normalizedExisting;
+  }
+  if (normalizedExisting.some((entry) => entry.complaintId === sanitizedNext.complaintId)) {
+    return normalizedExisting;
+  }
+
+  return normalizeComplaintHistoryEntries([
+    ...normalizedExisting,
+    {
+      ...sanitizedNext,
+      attemptNumber: normalizedExisting.length + 1,
+      previousComplaintReference: sanitizedNext.previousComplaintReference
+        || normalizedExisting[normalizedExisting.length - 1]?.complaintId
+        || "",
+    },
+  ]);
+}
+
 function parseDueDateToTs(input: string): number | null {
   const value = String(input ?? "").trim();
   if (!value) return null;
@@ -120,18 +187,7 @@ function parseStoredComplaintHistory(textBlob: string | null | undefined): Compl
   try {
     const parsed = JSON.parse(rawJson) as { entries?: ComplaintHistoryEntry[] } | ComplaintHistoryEntry[];
     const entries = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.entries) ? parsed.entries : [];
-    return entries
-      .map((entry) => ({
-        complaintId: String(entry.complaintId ?? "").trim(),
-        trackingId: String(entry.trackingId ?? "").trim(),
-        createdAt: String(entry.createdAt ?? "").trim(),
-        dueDate: String(entry.dueDate ?? "").trim(),
-        status: String(entry.status ?? "").trim().toUpperCase() || "ACTIVE",
-        attemptNumber: Math.max(1, Number(entry.attemptNumber ?? 1) || 1),
-        previousComplaintReference: String(entry.previousComplaintReference ?? "").trim(),
-        userComplaint: String(entry.userComplaint ?? "").trim(),
-      }))
-      .filter((entry) => Boolean(entry.complaintId));
+    return normalizeComplaintHistoryEntries(entries.map((entry) => sanitizeComplaintHistoryEntry(entry)));
   } catch {
     return [];
   }
@@ -144,7 +200,7 @@ export function extractComplaintHistory(textBlob: string | null | undefined, com
   const fallback = parseComplaintRecord(textBlob, complaintStatus);
   const fallbackUserComplaint = String(textBlob ?? "").match(/User complaint:\s*([\s\S]*?)\n\nResponse:/i)?.[1]?.trim() ?? "";
   if (!fallback.complaintId) return [];
-  return [{
+  return normalizeComplaintHistoryEntries([{
     complaintId: fallback.complaintId,
     trackingId: String(trackingId ?? "").trim(),
     createdAt: new Date().toISOString(),
@@ -153,7 +209,7 @@ export function extractComplaintHistory(textBlob: string | null | undefined, com
     attemptNumber: 1,
     previousComplaintReference: "",
     userComplaint: fallbackUserComplaint,
-  }];
+  }]);
 }
 
 export function composeComplaintText(input: {

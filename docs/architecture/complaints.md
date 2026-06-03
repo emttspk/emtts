@@ -88,6 +88,31 @@ QUEUED → (worker picks up) → PROCESSING
 - Cards with `PROCESSING` elapsed > 10 minutes show "Stale — Pending Retry (HH:MM:SS)" instead of "Processing...".
 - A 5-second fast-refresh effect activates when any stale PROCESSING card is visible (admin view).
 
+## Complaint History Idempotency + Timer Stop (2026-06-03)
+
+### Problem
+- A duplicate worker callback could append the same complaint ID again, causing:
+  - `Complaint Count` inflation (e.g., 2 after one real submit)
+  - duplicate `Attempt #1` cards
+- UI could continue showing PROCESSING timer even after complaint ID/due date existed.
+
+### Backend Rules
+- Stored history is normalized to unique complaint IDs (`CMP-*`) and sequential attempts.
+- Appending history is idempotent:
+  - if incoming complaint ID already exists, do not append a new history row.
+  - reopen adds one new row only when complaint ID is genuinely new.
+- `complaintStateReason` is based on effective latest attempt after dedupe.
+
+### UI Rules
+- If complaint ID and due date are present, card state resolves to `ACTIVE`.
+- If queue state is `SUBMITTED` or `DUPLICATE`, card resolves to `ACTIVE`.
+- PROCESSING timer appears only when queue is actually `processing` and no complaint ID exists yet.
+- History modal deduplicates repeated complaint IDs and re-sequences attempts to avoid duplicate labels.
+
+### Migration Artifact
+- Prisma migration SQL created for missing table:
+  - `apps/api/prisma/migrations/20260603223000_add_complaint_notifications/migration.sql`
+
 
 - Newly submitted complaint state starts as `ACTIVE`.
 - Reopened/resubmitted complaint state starts as `ACTIVE`.

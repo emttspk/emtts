@@ -1,5 +1,50 @@
 # AI Implementation Index
 
+## 2026-06-03 - Complaint History Dedup + Timer Stop + Notification Migration
+
+### Scope
+- Complaint module only.
+- Fixed duplicate complaint history entries and incorrect complaint count inflation.
+- Fixed complaint card PROCESSING timer continuing after complaint ID/due date are available.
+- Added missing Prisma migration SQL artifact for `ComplaintNotification` table.
+
+### Core Fixes
+- Added history normalization and idempotent append logic in complaint service:
+	- duplicate CMP IDs are deduplicated
+	- attempt numbers are re-sequenced consistently
+	- reopen creates one new attempt only when complaint ID is genuinely new
+- Updated complaint processor to use idempotent history append and effective-attempt state reason.
+- Updated BulkTracking complaint lifecycle/history parsing to deduplicate repeated CMP IDs in UI.
+- Updated card-state resolver:
+	- complaint ID + due date (or submitted/duplicate queue status) now resolves to `ACTIVE`
+	- PROCESSING timer renders only when queue is truly processing without complaint ID
+- Added Prisma migration SQL:
+	- `apps/api/prisma/migrations/20260603223000_add_complaint_notifications/migration.sql`
+
+### Tests Updated/Added
+- Updated: `apps/api/src/processors/complaintProcessor.test.ts`
+	- `duplicate worker callback does not create second history entry`
+	- `reopen creates exactly one new attempt`
+- Updated: `apps/api/src/services/complaintParser.test.ts`
+	- `deduplicates repeated complaint IDs from stored history`
+	- `migration SQL exists for ComplaintNotification table`
+- Added: `apps/web/src/pages/BulkTrackingComplaintState.test.ts`
+	- complaint ID/due date and submitted status force `ACTIVE` (timer stop condition)
+
+### Migration Notes
+- Requested command `npx prisma migrate dev --name add_complaint_notifications --workspace=@labelgen/api` is not supported by Prisma CLI (`--workspace` is not a Prisma flag).
+- Equivalent package-scoped Prisma command requires a reachable local DB; local `DATABASE_URL` points to `localhost:5432` and was unreachable in this environment.
+- Safe migration SQL file was added manually under Prisma migrations for deployment via `prisma migrate deploy` in production startup.
+
+### Validation
+- `npm run build` -> PASS
+- `npm run test:complaint-units --workspace=@labelgen/api` -> PASS
+- `npm run test:complaints --workspace=@labelgen/api` -> PASS
+- `npx tsx apps/web/src/pages/BulkTrackingComplaintState.test.ts` -> PASS
+- `npx prisma migrate deploy --schema apps/api/prisma/schema.prisma` -> FAIL locally (`localhost:5432` unreachable)
+
+---
+
 ## 2026-06-03 - Complaint Reopen Stuck PROCESSING Fix
 
 ### Scope

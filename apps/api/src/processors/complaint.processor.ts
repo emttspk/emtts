@@ -9,7 +9,13 @@ import {
 } from "../services/complaint-queue.service.js";
 import { recordComplaintCircuitFailure, recordComplaintCircuitSuccess, isComplaintCircuitOpen } from "../services/complaint-circuit.service.js";
 import { logComplaintAudit } from "../services/complaint-audit.service.js";
-import { composeComplaintText, extractComplaintHistory, parseComplaintRecord, type ComplaintHistoryEntry } from "../services/complaint.service.js";
+import {
+  appendComplaintHistoryAttempt,
+  composeComplaintText,
+  extractComplaintHistory,
+  parseComplaintRecord,
+  type ComplaintHistoryEntry,
+} from "../services/complaint.service.js";
 import { createComplaintNotification } from "../services/complaintNotifications.js";
 
 function normalizeDueDateToDate(input: string) {
@@ -134,8 +140,10 @@ export async function processComplaintQueueById(queueId: string) {
       previousComplaintReference: String(payload.previous_complaint_reference ?? latestHistory?.complaintId ?? "").trim(),
       userComplaint: String(payload.current_user_remarks ?? payload.complaint_text ?? "").trim(),
     };
-    const mergedHistory = [...existingHistory.filter((entry) => Boolean(entry.complaintId)), nextEntry]
-      .sort((a, b) => Number(a.attemptNumber ?? 1) - Number(b.attemptNumber ?? 1));
+    const mergedHistory = appendComplaintHistoryAttempt(existingHistory, nextEntry);
+    const effectiveAttemptNumber = mergedHistory.length > 0
+      ? Math.max(1, Number(mergedHistory[mergedHistory.length - 1]?.attemptNumber ?? 1))
+      : attemptNumber;
 
     const structuredText = composeComplaintText({
       complaintId: finalizedComplaintId,
@@ -143,7 +151,7 @@ export async function processComplaintQueueById(queueId: string) {
       state: "ACTIVE",
       shipmentStatusAtComplaintSubmit: String(payload.shipment_status_at_complaint_submit ?? "PENDING").trim().toUpperCase() || "PENDING",
       trackingStateAtSync: "UNSYNCED",
-      complaintStateReason: attemptNumber > 1 ? "reopened_submission_pending_sync" : "submitted_pending_sync",
+      complaintStateReason: effectiveAttemptNumber > 1 ? "reopened_submission_pending_sync" : "submitted_pending_sync",
       userComplaint: String(payload.complaint_text ?? "").trim(),
       responseText,
       historyEntries: mergedHistory,

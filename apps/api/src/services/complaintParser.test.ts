@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { composeComplaintText, extractComplaintHistory, parseComplaintRecord } from "./complaint.service.js";
 
 type TestCase = {
   name: string;
   run: () => void;
 };
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const tests: TestCase[] = [
   {
@@ -100,6 +106,45 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "deduplicates repeated complaint IDs from stored history",
+    run() {
+      const text = composeComplaintText({
+        complaintId: "CMP-100",
+        dueDate: "26-05-2026",
+        state: "ACTIVE",
+        userComplaint: "First",
+        responseText: "Accepted",
+        historyEntries: [
+          {
+            complaintId: "CMP-100",
+            trackingId: "VPL1",
+            createdAt: "2026-05-01T00:00:00.000Z",
+            dueDate: "20-05-2026",
+            status: "ACTIVE",
+            attemptNumber: 1,
+            previousComplaintReference: "",
+            userComplaint: "old",
+          },
+          {
+            complaintId: "CMP-100",
+            trackingId: "VPL1",
+            createdAt: "2026-05-02T00:00:00.000Z",
+            dueDate: "20-05-2026",
+            status: "ACTIVE",
+            attemptNumber: 1,
+            previousComplaintReference: "",
+            userComplaint: "old duplicate",
+          },
+        ],
+      });
+
+      const history = extractComplaintHistory(text, "FILED", "VPL1");
+      assert.equal(history.length, 1);
+      assert.equal(history[0]?.complaintId, "CMP-100");
+      assert.equal(history[0]?.attemptNumber, 1);
+    },
+  },
+  {
     name: "falls back to single inferred history entry when marker is missing",
     run() {
       const text = "COMPLAINT_ID: CMP-551 | DUE_DATE: 26-05-2026 | COMPLAINT_STATE: ACTIVE\nUser complaint:\nNeed help\n\nResponse:\nQueued";
@@ -122,6 +167,24 @@ const tests: TestCase[] = [
       });
       const firstLine = String(text.split(/\r?\n/)[0] ?? "").trim();
       assert.equal(firstLine, "COMPLAINT_ID: CMP-7001 | DUE_DATE: 26-05-2026 | COMPLAINT_STATE: ACTIVE");
+    },
+  },
+  {
+    name: "migration SQL exists for ComplaintNotification table",
+    run() {
+      const migrationsDir = path.resolve(__dirname, "../../prisma/migrations");
+      const entries = fs.readdirSync(migrationsDir, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => path.join(migrationsDir, entry.name, "migration.sql"))
+        .filter((migrationPath) => fs.existsSync(migrationPath));
+
+      const hasComplaintNotificationMigration = entries.some((migrationPath) => {
+        const sql = fs.readFileSync(migrationPath, "utf8");
+        return /CREATE TABLE IF NOT EXISTS\s+"ComplaintNotification"/i.test(sql)
+          || /CREATE TABLE\s+"ComplaintNotification"/i.test(sql);
+      });
+
+      assert.equal(hasComplaintNotificationMigration, true);
     },
   },
 ];
