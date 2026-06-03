@@ -1,5 +1,9 @@
 # AI Implementation Index
 
+## 2026-06-04 - Production Verification Runbook
+
+- GA4, Meta Pixel, and Search Console verification runbook documented.
+
 ## 2026-06-04 - WhatsApp Analytics Env Guide
 
 - Frontend WhatsApp analytics environment guide documented.

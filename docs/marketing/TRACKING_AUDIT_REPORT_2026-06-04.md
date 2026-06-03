@@ -46,6 +46,35 @@
 - [ ] Confirm Meta Pixel Helper detects WhatsApp click event when Meta Pixel ID is configured.
 - [ ] Confirm event payload contains no phone, CNIC, address, tracking ID, parcel data, or payment reference.
 
+## Production Verification Runbook (GA4 + Meta Pixel)
+
+### GA4 DebugView / Realtime
+
+- [ ] Confirm `VITE_GA_MEASUREMENT_ID` is set in Railway frontend/web service variables.
+- [ ] Redeploy the web/frontend service.
+- [ ] Open production homepage (`https://www.epost.pk/`).
+- [ ] Open GA4 Realtime or DebugView.
+- [ ] Confirm `page_view` is received.
+- [ ] Click `Start Free` on homepage.
+- [ ] Click WhatsApp Demo CTA.
+- [ ] Run a tracking search with test count only.
+- [ ] Confirm no CNIC, phone, address, tracking ID, parcel data, payment reference, or file content is present in event payloads.
+
+### Meta Pixel Helper
+
+- [ ] Confirm `VITE_META_PIXEL_ID` is set in Railway frontend/web service variables.
+- [ ] Redeploy the web/frontend service.
+- [ ] Open production homepage (`https://www.epost.pk/`) with Meta Pixel Helper enabled.
+- [ ] Confirm `PageView` is detected.
+- [ ] Confirm safe custom events are detected (if Meta Pixel is configured).
+- [ ] Confirm no sensitive payload is emitted.
+
+## Evidence Capture Checklist
+
+- [ ] Screenshot GA4 `page_view` confirmation (Realtime or DebugView).
+- [ ] Screenshot Meta Pixel Helper `PageView` confirmation.
+- [ ] Store screenshots outside this repository unless a dedicated docs artifact folder is approved.
+
 ## Current Status
 **CRITICAL MISSING** - The ePost.pk platform currently has **zero** marketing tracking implemented. There is no Meta Pixel, no Google Tag (GA4), and no conversion event tracking for key business actions.
 

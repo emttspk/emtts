@@ -79,3 +79,18 @@
 - [ ] Use [Google Rich Results Test](https://search.google.com/test/rich-results) for JSON-LD.
 - [ ] Use [Meta Sharing Debugger](https://developers.facebook.com/tools/debug/) for OG tags.
 - [ ] Monitor Google Search Console for index status.
+
+## Production Indexing Runbook
+
+- [ ] Verify Google Search Console property exists for `https://www.epost.pk/`.
+- [ ] Submit sitemap: `https://www.epost.pk/sitemap.xml`.
+- [ ] Check robots file in browser: `https://www.epost.pk/robots.txt`.
+- [ ] Inspect homepage URL and request indexing.
+- [ ] Repeat URL inspection/index request for `/tracking`, `/pricing`, `/register`, and `/support` when publicly accessible.
+- [ ] Optionally submit sitemap in Bing Webmaster Tools.
+
+## SEO Evidence Capture Checklist
+
+- [ ] Screenshot Search Console sitemap submission status.
+- [ ] Screenshot `robots.txt` opened in browser.
+- [ ] Store screenshots outside this repository unless a dedicated docs artifact folder is approved.
