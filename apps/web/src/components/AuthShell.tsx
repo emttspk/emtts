@@ -63,7 +63,7 @@ export default function AuthShell(props: AuthShellProps) {
         transition={{ duration: 0.65, ease: "easeOut" }}
       >
         <div className="grid min-h-[calc(100vh-1rem)] min-h-[calc(100svh-1rem)] md:grid-cols-[0.94fr_0.96fr] xl:grid-cols-[1fr_1fr]">
-          <section className="relative flex flex-col overflow-hidden border-b border-white/60 bg-[linear-gradient(160deg,rgba(255,255,255,0.92),rgba(237,247,255,0.84))] p-4 sm:p-5 md:border-b-0 md:border-r md:border-r-white/60 md:p-5 lg:p-5 xl:p-6">
+          <section className="order-2 relative flex flex-col overflow-hidden border-t border-white/60 bg-[linear-gradient(160deg,rgba(255,255,255,0.92),rgba(237,247,255,0.84))] p-4 sm:p-5 md:order-2 md:border-l md:border-l-white/60 md:border-t-0 md:p-5 lg:p-5 xl:p-6">
             <div className="relative z-10 flex items-start justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div>
@@ -146,7 +146,7 @@ export default function AuthShell(props: AuthShellProps) {
             </div>
           </section>
 
-          <section className="relative flex items-center justify-center bg-[linear-gradient(180deg,rgba(255,255,255,0.54),rgba(246,252,255,0.78))] px-4 py-4 sm:px-5 sm:py-5 md:px-6 lg:px-7 xl:px-8">
+          <section className="order-1 relative flex items-center justify-center bg-[linear-gradient(180deg,rgba(255,255,255,0.54),rgba(246,252,255,0.78))] px-4 py-4 sm:px-5 sm:py-5 md:order-1 md:px-6 lg:px-7 xl:px-8">
             <div className="w-full max-w-[480px]">
               <motion.div
                 className="rounded-[26px] border border-white/85 bg-[rgba(255,255,255,0.9)] p-[18px] shadow-[0_24px_70px_rgba(10,31,68,0.12)] backdrop-blur-2xl sm:p-5 lg:p-6"

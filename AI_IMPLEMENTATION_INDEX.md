@@ -1,5 +1,28 @@
 # AI Implementation Index
 
+## 2026-06-03 - Auth Layout Flip (Form Left)
+
+### Scope
+- Auth page layout UI only via shared shell.
+- No auth/Firebase/validation/backend/business/postal workflow logic changes.
+
+### Files Changed
+- `apps/web/src/components/AuthShell.tsx`
+- `docs/operations/auth-layout-flip-audit-2026-06-03.md` (new)
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Result
+- Desktop: auth form/card block on left, branding block on right.
+- Mobile: auth form first, branding panel below.
+- Premium visual styling preserved.
+
+### Validation
+- `npm run lint` -> PASS
+- `npm run typecheck` -> PASS
+- `npm run build` -> PASS
+
+---
+
 ## 2026-06-03 - Final Production Readiness Checklist + Support SOP
 
 ### Scope
