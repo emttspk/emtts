@@ -13,6 +13,12 @@
 - Analytics remained unchanged in Phase 2.
 - This phase only hardened SEO social metadata and structured data in `apps/web/index.html`.
 
+## Phase 3 Event Status (2026-06-04)
+
+- `registration_complete` is now tracked after successful registration API responses in `apps/web/src/pages/Register.tsx`.
+- Dedicated marketing WhatsApp demo CTA link is still not present in Navbar/Footer/Home; no new marketing WhatsApp event hook added in this phase.
+- Existing safe WhatsApp sharing tracking remains in public tracking flow (`whatsapp_demo_click`) without PII.
+
 ## Current Status
 **CRITICAL MISSING** - The ePost.pk platform currently has **zero** marketing tracking implemented. There is no Meta Pixel, no Google Tag (GA4), and no conversion event tracking for key business actions.
 

@@ -10,6 +10,7 @@ import GoogleAuthButton from "../components/GoogleAuthButton";
 import AuthInputField from "../components/auth/AuthInputField";
 import { auth, firebaseReady } from "../firebase";
 import { getFriendlyFirebaseAuthMessage, shouldThrottle } from "../lib/firebaseAuthGuards";
+import SEO from "../components/SEO";
 
 const AUTH_ACTION_DEBOUNCE_MS = 1200;
 
@@ -70,11 +71,17 @@ export default function Login() {
   }
 
   return (
-    <AuthShell
-      mode="login"
-      title="Sign in"
-      subtitle="Access your ePost.pk workspace."
-    >
+    <>
+      <SEO
+        title="Login | ePost.pk"
+        description="Sign in to access Pakistan Post tracking workspace, bulk tracking, label generation, money orders, complaints, and ecommerce shipping tools."
+        canonicalPath="/login"
+      />
+      <AuthShell
+        mode="login"
+        title="Sign in"
+        subtitle="Access your ePost.pk workspace."
+      >
       {err ? (
         <div
           className="mb-4 rounded-[22px] border border-red-200/80 bg-red-50/90 px-4 py-3 text-sm font-medium text-red-700 shadow-[0_12px_24px_rgba(239,68,68,0.08)]"
@@ -245,6 +252,7 @@ export default function Login() {
           </div>
         </div>
       ) : null}
-    </AuthShell>
+      </AuthShell>
+    </>
   );
 }

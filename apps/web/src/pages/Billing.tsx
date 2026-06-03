@@ -14,6 +14,7 @@ import {
 import type { MeResponse } from "../lib/types";
 import ActionButton from "../components/ui/ActionButton";
 import { BodyText, CardTitle, PageHeader, PageShell } from "../components/ui/PageSystem";
+import SEO from "../components/SEO";
 
 type ShellCtx = { me: MeResponse | null; refreshMe: () => Promise<void> };
 
@@ -331,6 +332,11 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
 
   return (
     <>
+      <SEO
+        title="Pricing | ePost.pk"
+        description="Explore ePost.pk pricing for Pakistan Post tracking, bulk tracking, shipping labels, money orders, complaints, and ecommerce shipping operations."
+        canonicalPath="/pricing"
+      />
       <PageShell className="space-y-5">
         <PageHeader eyebrow="Billing" title={modeTitle} subtitle={modeSubtitle} />
 

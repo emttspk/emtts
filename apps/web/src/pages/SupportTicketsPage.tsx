@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Card from "../components/Card";
 import CreateSupportTicketModal from "../components/CreateSupportTicketModal";
+import SEO from "../components/SEO";
 import { createSupportTicket, listMySupportTickets, uploadSupportAttachments, type SupportTicket } from "../lib/support";
 
 export default function SupportTicketsPage() {
@@ -35,6 +36,11 @@ export default function SupportTicketsPage() {
 
   return (
     <div className="space-y-6">
+      <SEO
+        title="Support | ePost.pk"
+        description="Manage support requests for Pakistan Post tracking, bulk tracking, shipping labels, money orders, complaints, and ecommerce shipping workflows."
+        canonicalPath="/support"
+      />
       <Card className="p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>

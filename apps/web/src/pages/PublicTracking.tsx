@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Clock, MapPin, MessageSquare, RefreshCw, Search, Truck } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import SEO from "../components/SEO";
 import type { TrackingLifecycle } from "../lib/types";
 import { trackTrackingSearch, trackWhatsAppClick } from "../lib/analytics";
 import {
@@ -458,6 +459,11 @@ export default function PublicTracking() {
 
   return (
     <div className="public-shell">
+      <SEO
+        title="Tracking | ePost.pk"
+        description="Track Pakistan Post parcels online with ePost.pk public tracking, bulk tracking visibility, and ecommerce shipment progress updates."
+        canonicalPath="/tracking"
+      />
       <Navbar />
       <main className="mx-auto w-full max-w-[1120px] px-4 py-8 sm:px-6 sm:py-10">
         <div className="rounded-[28px] border border-[#dce8f5] bg-[linear-gradient(135deg,#ffffff_0%,#f3f9ff_58%,#eefbf5_100%)] p-5 shadow-[0_20px_50px_rgba(10,31,68,0.1)] sm:p-6">
