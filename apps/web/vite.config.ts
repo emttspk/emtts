@@ -8,6 +8,17 @@ export default defineConfig({
   build: {
     outDir: "dist",
     assetsDir: "assets",
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-core": ["react", "react-dom", "react-router-dom"],
+          firebase: ["firebase/app", "firebase/auth"],
+          motion: ["framer-motion"],
+          icons: ["lucide-react"],
+          xlsx: ["xlsx"],
+        },
+      },
+    },
   },
   server: {
     proxy: {

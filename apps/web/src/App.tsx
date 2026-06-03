@@ -1,17 +1,17 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
+import AppErrorBoundary from "./components/AppErrorBoundary";
 import RequireAuth from "./components/RequireAuth";
 import RequireProfileCompletion from "./components/RequireProfileCompletion";
 import RequireAdmin from "./components/RequireAdmin";
 import AppShell from "./components/AppShell";
-import Card from "./components/Card";
 import { TEMPLATE_DESIGNER_ENABLED } from "./lib/featureFlags";
 import { getToken } from "./lib/auth";
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import RegisterProfile from "./pages/RegisterProfile";
 
-const Home = lazy(() => import("./pages/Home"));
-const Login = lazy(() => import("./pages/Login"));
-const Register = lazy(() => import("./pages/Register"));
-const RegisterProfile = lazy(() => import("./pages/RegisterProfile"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ForgotUsername = lazy(() => import("./pages/ForgotUsername"));
 const EmailOtpLogin = lazy(() => import("./pages/EmailOtpLogin"));
@@ -46,11 +46,18 @@ const PostageComparison = lazy(() => import("./pages/PostageComparison"));
 
 function Loading() {
   return (
-    <div className="w-full max-w-full px-3 py-6">
-      <Card className="p-6">
-        <div className="h-6 w-48 animate-pulse rounded bg-gray-100" />
-        <div className="mt-3 h-4 w-96 animate-pulse rounded bg-gray-100" />
-      </Card>
+    <div className="flex min-h-[100svh] items-center justify-center bg-[linear-gradient(180deg,#f4f9ff_0%,#eef6ff_55%,#f2fbf8_100%)] p-4">
+      <div className="w-full max-w-3xl rounded-[30px] border border-[#dce8f5] bg-white/95 p-6 shadow-[0_28px_64px_rgba(10,31,68,0.12)] md:p-8">
+        <div className="h-2 w-32 animate-pulse rounded-full bg-[#0ea576]/20" />
+        <div className="mt-4 h-8 w-56 animate-pulse rounded-xl bg-slate-100" />
+        <div className="mt-3 h-4 w-full animate-pulse rounded bg-slate-100" />
+        <div className="mt-2 h-4 w-4/5 animate-pulse rounded bg-slate-100" />
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="h-28 animate-pulse rounded-2xl bg-slate-100" />
+          <div className="h-28 animate-pulse rounded-2xl bg-slate-100" />
+          <div className="h-28 animate-pulse rounded-2xl bg-slate-100" />
+        </div>
+      </div>
     </div>
   );
 }
@@ -61,8 +68,9 @@ function TrackingEntry() {
 
 export default function App() {
   return (
-    <Suspense fallback={<Loading />}>
-      <Routes>
+    <AppErrorBoundary>
+      <Suspense fallback={<Loading />}>
+        <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -217,7 +225,8 @@ export default function App() {
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Suspense>
+        </Routes>
+      </Suspense>
+    </AppErrorBoundary>
   );
 }

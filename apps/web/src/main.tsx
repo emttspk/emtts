@@ -4,6 +4,8 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import "./index.css";
 
+const PRELOAD_RECOVERY_KEY = "epost_chunk_preload_recovered";
+
 declare global {
   interface Window {
     mgt?: {
@@ -18,6 +20,21 @@ if (typeof window !== "undefined") {
   if (typeof window.mgt.clearMarks !== "function") {
     window.mgt.clearMarks = () => {};
   }
+
+  window.addEventListener("vite:preloadError", (event) => {
+    event.preventDefault();
+    try {
+      const recovered = window.sessionStorage.getItem(PRELOAD_RECOVERY_KEY) === "1";
+      if (!recovered) {
+        window.sessionStorage.setItem(PRELOAD_RECOVERY_KEY, "1");
+        window.location.reload();
+      }
+    } catch {
+      window.location.reload();
+    }
+  });
+
+  window.sessionStorage.removeItem(PRELOAD_RECOVERY_KEY);
 }
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

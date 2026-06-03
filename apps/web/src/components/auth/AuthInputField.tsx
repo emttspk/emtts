@@ -53,7 +53,7 @@ export default function AuthInputField({
         <input
           name={name}
           className={[
-            "h-12 rounded-2xl border bg-white/92 pl-12 pr-12 text-[15px] font-medium text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_10px_28px_rgba(10,31,68,0.06)] outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-[#0ea576]/30 hover:bg-white focus:border-[#0ea576] focus:bg-white focus:ring-4 focus:ring-[#d8f3ea]",
+            "h-12 rounded-2xl border bg-white pl-12 pr-12 text-[15px] font-semibold text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),0_12px_24px_rgba(10,31,68,0.05)] outline-none transition-all duration-200 placeholder:text-slate-500 hover:border-[#0ea576]/45 focus:border-[#0ea576] focus:bg-white focus:ring-4 focus:ring-[#d8f3ea]",
             hasError ? "border-red-300 bg-red-50/80 focus:border-red-500 focus:ring-red-200" : "border-[#dce8f5]",
           ].join(" ")}
           value={value}

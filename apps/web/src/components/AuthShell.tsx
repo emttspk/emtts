@@ -41,7 +41,7 @@ export default function AuthShell(props: AuthShellProps) {
   ];
 
   return (
-    <div className="relative min-h-screen min-h-[100svh] overflow-hidden bg-[linear-gradient(180deg,#f4f9ff_0%,#edf6ff_52%,#eefaf5_100%)] px-3 py-2 font-auth sm:px-4 lg:px-5 lg:py-3">
+    <div className="relative min-h-screen min-h-[100svh] overflow-hidden bg-[linear-gradient(180deg,#f5fbff_0%,#edf6ff_52%,#eefbf6_100%)] px-3 py-2 font-auth sm:px-4 lg:px-5 lg:py-3">
       <motion.div
         aria-hidden="true"
         className="pointer-events-none absolute -left-24 top-8 h-56 w-56 rounded-full bg-[#2f7edb]/16 blur-3xl"
@@ -67,7 +67,7 @@ export default function AuthShell(props: AuthShellProps) {
             <div className="relative z-10 flex items-start justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div>
-                  <img src="/assets/pakistan-post-logo.png" alt="Pakistan Post" className="h-10 w-auto object-contain sm:h-11" />
+                  <img src="/assets/pakistan-post-logo.png" alt="Pakistan Post" className="h-10 w-auto object-contain sm:h-11" width="132" height="44" loading="eager" decoding="async" fetchPriority="high" />
                   <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#0ea576]">ePost.pk</p>
                 </div>
               </div>
@@ -116,7 +116,10 @@ export default function AuthShell(props: AuthShellProps) {
               <img
                 src="/assets/letter_box.png"
                 alt="Pakistan Post office with signature red mailbox"
-                className="relative z-10 h-[152px] w-full rounded-[20px] object-cover object-center sm:h-[172px] md:h-[164px] lg:h-[188px] xl:h-[212px]"
+                className="relative z-10 h-[164px] w-full rounded-[20px] object-cover object-center sm:h-[184px] md:h-[176px] lg:h-[196px] xl:h-[218px]"
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
               />
             </motion.div>
 
@@ -168,7 +171,7 @@ export default function AuthShell(props: AuthShellProps) {
                       <Icon className="h-4.5 w-4.5" strokeWidth={2.1} />
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-[12px] font-semibold text-slate-900">{label}</p>
+                      <p className="truncate text-[12px] font-semibold text-slate-950">{label}</p>
                     </div>
                   </div>
                 ))}

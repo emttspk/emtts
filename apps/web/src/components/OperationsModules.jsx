@@ -67,11 +67,20 @@ function complaintLimitText(plan) {
 
 export default function OperationsModules() {
   const [plans, setPlans] = useState([]);
+  const [plansFailed, setPlansFailed] = useState(false);
 
-  useEffect(() => {
+  function loadPlans() {
+    setPlansFailed(false);
     fetchPlans()
       .then((items) => setPlans(items.filter((plan) => !plan.isSuspended)))
-      .catch(() => setPlans([]));
+      .catch(() => {
+        setPlans([]);
+        setPlansFailed(true);
+      });
+  }
+
+  useEffect(() => {
+    loadPlans();
   }, []);
 
   const billingPackages = useMemo(() => {
@@ -101,26 +110,46 @@ export default function OperationsModules() {
           <h2 className="mt-2 text-2xl font-black tracking-[-0.03em] text-[#0f1f3a] sm:text-3xl">Core Modules For Daily Dispatch Control</h2>
         </div>
 
-        <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {MODULES.map((module) => (
+        <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {MODULES.map((module, index) => (
             <article
               key={module.title}
-              className="ui-card-premium p-4"
+              className="group ui-card-premium flex min-h-[300px] flex-col overflow-hidden p-0"
             >
-              <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-[linear-gradient(145deg,#ffffff,#eef6ff)] sm:h-12 sm:w-12">
-                <img src={module.image} alt={module.title} className="h-6 w-6 object-contain sm:h-7 sm:w-7" loading="lazy" />
+              <div className="relative flex h-36 items-center justify-center overflow-hidden border-b border-[#dce8f5] bg-[radial-gradient(circle_at_top,rgba(47,126,219,0.18),transparent_56%),linear-gradient(160deg,#ffffff,#edf6ff_58%,#eefaf5)] sm:h-40">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(14,165,118,0.12),transparent_34%)]" />
+                <img
+                  src={module.image}
+                  alt={module.title}
+                  className="relative z-10 h-24 w-24 object-contain drop-shadow-[0_18px_28px_rgba(15,31,58,0.18)] transition-transform duration-300 group-hover:scale-[1.06] sm:h-28 sm:w-28"
+                  loading={index < 2 ? "eager" : "lazy"}
+                  decoding="async"
+                  fetchPriority={index < 2 ? "high" : "low"}
+                />
               </div>
-              <h3 className="mt-3 text-[15px] font-black tracking-[-0.02em] text-[#0f1f3a] sm:text-[16px]">{module.title}</h3>
-              <p className="mt-1.5 min-h-[40px] text-[12px] leading-5 text-slate-600 sm:text-[13px]">{module.description}</p>
-              <a
-                href={module.href}
-                className="btn-primary mt-3 inline-flex h-10 rounded-xl px-4 text-xs font-bold sm:text-sm"
-              >
-                Explore
-              </a>
+
+              <div className="flex flex-1 flex-col p-4 sm:p-4.5">
+                <h3 className="text-[17px] font-black tracking-[-0.02em] text-[#0f1f3a]">{module.title}</h3>
+                <p className="mt-1.5 min-h-[52px] text-[13px] leading-5 text-slate-700">{module.description}</p>
+                <a
+                  href={module.href}
+                  className="btn-primary mt-auto inline-flex h-11 rounded-xl px-4 text-sm font-bold"
+                >
+                  Explore
+                </a>
+              </div>
             </article>
           ))}
         </div>
+
+        {plansFailed ? (
+          <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Billing plans could not load right now.
+            <button type="button" className="ml-2 font-semibold underline" onClick={loadPlans}>
+              Retry plans
+            </button>
+          </div>
+        ) : null}
 
         <div id="how-it-works" className="ui-command-surface mt-11 p-5 md:p-8">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#2f7edb]">How It Works</p>

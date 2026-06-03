@@ -5,18 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Bulk Dispatch &amp; Tracking System</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
   </head>
   <body class="bg-slate-50">
     <div id="root">
-      <!-- This text appears while the app is loading or if opened without a server -->
-      <div style="padding: 2rem; font-family: sans-serif; text-align: center; color: #475569;">
-        Loading Bulk Dispatch &amp; Tracking System...
+      <div style="min-height: 100svh; display: grid; place-items: center; padding: 1rem; background: linear-gradient(180deg,#f4f9ff 0%,#eef6ff 55%,#f2fbf8 100%); font-family: Manrope, Segoe UI, sans-serif; color: #334155;">
+        <div style="width: 100%; max-width: 760px; border: 1px solid #dce8f5; border-radius: 28px; background: rgba(255,255,255,0.96); padding: 1.25rem 1.5rem; box-shadow: 0 24px 56px rgba(10,31,68,0.1);">
+          <div style="width: 120px; height: 8px; border-radius: 999px; background: rgba(14,165,118,0.25);"></div>
+          <div style="margin-top: 14px; width: 240px; height: 28px; border-radius: 12px; background: #e9f1fb;"></div>
+          <div style="margin-top: 12px; width: 100%; height: 14px; border-radius: 8px; background: #eef2f7;"></div>
+          <div style="margin-top: 8px; width: 78%; height: 14px; border-radius: 8px; background: #eef2f7;"></div>
+          <div style="margin-top: 18px; display: grid; gap: 10px; grid-template-columns: repeat(auto-fit,minmax(160px,1fr));">
+            <div style="height: 88px; border-radius: 16px; background: #eef2f7;"></div>
+            <div style="height: 88px; border-radius: 16px; background: #eef2f7;"></div>
+            <div style="height: 88px; border-radius: 16px; background: #eef2f7;"></div>
+          </div>
+        </div>
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>

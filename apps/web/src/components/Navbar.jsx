@@ -22,7 +22,7 @@ export default function Navbar() {
             href="/"
             className="inline-flex shrink-0 items-center justify-center rounded-2xl border border-[#dce8f5] bg-white px-1.5 py-1.5 shadow-[0_12px_30px_rgba(14,165,118,0.12)] sm:px-2 sm:py-2"
           >
-            <img src="/assets/pakistan-post-logo.png" alt="Pakistan Post" className="h-7 w-auto object-contain sm:h-8" />
+            <img src="/assets/pakistan-post-logo.png" alt="Pakistan Post" className="h-7 w-auto object-contain sm:h-8" width="108" height="32" loading="eager" decoding="async" fetchPriority="high" />
           </a>
           <div className="min-w-0 leading-tight">
             <div className="whitespace-nowrap text-[14px] font-extrabold tracking-[0.01em] text-slate-900 sm:text-[15px]">ePost.pk</div>
@@ -84,7 +84,7 @@ export default function Navbar() {
                 key={item.label}
                 href={item.href}
                 onClick={() => setOpen(false)}
-                className="rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-emerald-50 hover:text-emerald-800"
+                className="rounded-xl border border-transparent px-4 py-2.5 text-sm font-semibold text-slate-900 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-800"
               >
                 {item.label}
               </a>

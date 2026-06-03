@@ -1,5 +1,55 @@
 # AI Implementation Index
 
+## 2026-06-03 - Frontend UI/UX + First-Load Reliability Audit
+
+### Scope
+- Frontend-only reliability, UI polish, responsive/mobile readability, and build performance tuning.
+- No edits to money order logic, tracking logic, complaint logic, billing logic, postal business rules, admin backend logic, or auth security business behavior.
+
+### Root Cause (Blank First Load)
+- Probable primary failure mode: stale deployed HTML/client state requesting old lazy chunks, causing chunk fetch abort and blank route render on first open.
+- Evidence: mobile forensic run hit aborted register chunk request on production (`/register`) and produced an empty page state.
+- Secondary UX gap: no app-level error boundary/recovery action when lazy chunk load fails.
+
+### Files Changed
+- `apps/web/src/components/AppErrorBoundary.tsx` (new)
+- `apps/web/src/App.tsx`
+- `apps/web/src/main.tsx`
+- `apps/web/index.html`
+- `apps/web/src/components/OperationsModules.jsx`
+- `apps/web/src/components/auth/AuthInputField.tsx`
+- `apps/web/src/components/AuthShell.tsx`
+- `apps/web/src/components/Navbar.jsx`
+- `apps/web/src/index.css`
+- `apps/web/vite.config.ts`
+- `docs/operations/frontend-ui-first-load-audit-2026-06-03.md` (new)
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Reliability Fixes Applied
+- Added app-level runtime recovery boundary with user-safe retry and page reload actions.
+- Added stronger full-screen route loading skeleton for first paint and slow-network loading states.
+- Added Vite preload failure recovery handler (`vite:preloadError`) with one-time automatic refresh.
+- Reduced critical-route delay by eager-loading `Home`, `Login`, `Register`, and `RegisterProfile` routes.
+- Upgraded static pre-hydration fallback in `index.html` to avoid perceived blank state before JS boot.
+
+### UI/Mobile Fixes Applied
+- Reworked homepage product cards to premium hierarchy with larger, sharper module images and stronger CTA placement.
+- Increased input border contrast and font weight for auth/profile/account forms; improved disabled/focus states.
+- Improved auth shell visual contrast and key asset loading for mobile first paint.
+- Tightened navbar mobile readability and interaction affordances.
+
+### Performance Changes
+- Added manual chunking in Vite build for `react-core`, `firebase`, `motion`, `icons`, and `xlsx` to improve cache behavior and initial route payload profile.
+- Added selective image loading priorities and async decoding for key homepage/auth visual assets.
+
+### Validation Evidence
+- `npm run lint` -> PASS
+- `npm run typecheck` -> PASS
+- `npm run build` -> PASS
+- Browser forensic checks:
+	- Production mobile snapshot captured one blank `/register` case with aborted chunk request.
+	- Local preview mobile checks passed for `/`, `/login`, `/register`, `/register/profile`, `/settings` with no horizontal overflow and readable inputs.
+
 ## 2026-06-03 - Safe Production Auth Smoke Support
 
 ### Scope
