@@ -105,6 +105,14 @@
 
 - robots.txt sitemap directive fix prepared; production requires redeploy/recheck.
 
+## Production analytics/SEO Recheck Status (2026-06-03 23:17 UTC)
+
+- Web service redeploy was triggered in Railway production (`Web` service).
+- Production recheck now confirms `robots.txt` includes `Sitemap: https://www.epost.pk/sitemap.xml`.
+- Production recheck confirms `sitemap.xml` is reachable and includes required public URLs.
+- Homepage remains reachable with expected canonical and JSON-LD markers.
+- GA4/Meta validation remains manual and depends on Railway env values plus dashboard/extension access.
+
 ## Current Status
 **CRITICAL MISSING** - The ePost.pk platform currently has **zero** marketing tracking implemented. There is no Meta Pixel, no Google Tag (GA4), and no conversion event tracking for key business actions.
 

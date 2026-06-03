@@ -1,5 +1,9 @@
 # AI Implementation Index
 
+## 2026-06-04 - Production robots/sitemap Recheck
+
+- Production robots and sitemap recheck documented.
+
 ## 2026-06-04 - robots.txt Sitemap Directive Fix
 
 - robots.txt sitemap directive fixed for production SEO verification.

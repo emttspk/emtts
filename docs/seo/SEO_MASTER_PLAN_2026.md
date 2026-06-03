@@ -116,3 +116,15 @@
 | JSON-LD exists in production HTML | PASS | `Organization`, `WebSite`, and `SoftwareApplication` markers detected. |
 | Search Console property + indexing request workflow | NEEDS MANUAL CONFIRMATION | Requires Search Console access and operator execution. |
 | Bing Webmaster submission (optional) | NEEDS MANUAL CONFIRMATION | Optional operator step. |
+
+## Production robots/sitemap Recheck (2026-06-03 23:17 UTC)
+
+| Check | Result | Notes |
+|------|------|------|
+| `https://www.epost.pk/robots.txt` returns 200 | PASS | Reachable after Web redeploy. |
+| `robots.txt` includes `Sitemap: https://www.epost.pk/sitemap.xml` | PASS | Directive present in production response. |
+| `https://www.epost.pk/sitemap.xml` returns 200 | PASS | Reachable after Web redeploy. |
+| Sitemap includes `/`, `/tracking`, `/pricing`, `/register`, `/support` | PASS | All required public URLs present. |
+| `https://www.epost.pk/` returns 200 and contains canonical + JSON-LD | PASS | Canonical and JSON-LD markers detected in homepage HTML. |
+
+- Search Console URL inspection/submission and Bing submission remain manual operator steps.
