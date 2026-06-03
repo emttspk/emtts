@@ -47,6 +47,7 @@
     "push:safe": "node scripts/safe-git-push.mjs",
     "railway:check": "node scripts/safe-railway-check.mjs",
     "r2:check": "node scripts/safe-r2-check.mjs"
+    ,"auth:hammer": "tsx scripts/auth-hammer-test.mts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1048.0",

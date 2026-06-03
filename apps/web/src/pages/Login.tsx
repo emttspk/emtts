@@ -1,5 +1,5 @@
 import { GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup, signOut } from "firebase/auth";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowRight, Eye, EyeOff, KeyRound, Mail, SquareArrowOutUpRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, apiUrl } from "../lib/api";
@@ -8,6 +8,9 @@ import AuthShell from "../components/AuthShell";
 import GoogleAuthButton from "../components/GoogleAuthButton";
 import AuthInputField from "../components/auth/AuthInputField";
 import { auth, firebaseReady } from "../firebase";
+import { getFriendlyFirebaseAuthMessage, shouldThrottle } from "../lib/firebaseAuthGuards";
+
+const AUTH_ACTION_DEBOUNCE_MS = 1200;
 
 export default function Login() {
   const nav = useNavigate();
@@ -18,6 +21,7 @@ export default function Login() {
   const [googleLoginLoading, setGoogleLoginLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const lastPasswordSubmitAtRef = useRef(0);
 
   async function loginWithFirebaseToken(idToken: string) {
     const data = await api<{ token: string; refreshToken?: string; user: { role: string } }>("/api/auth/firebase-login", {
@@ -29,6 +33,7 @@ export default function Login() {
   }
 
   async function handleGoogleLogin() {
+    if (googleLoginLoading || passwordLoginLoading) return;
     setErr(null);
     if (!firebaseReady || !auth) {
       setErr("Google login is not configured. Please contact support.");
@@ -43,7 +48,7 @@ export default function Login() {
       const idToken = await result.user.getIdToken();
       await loginWithFirebaseToken(idToken);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Google login failed";
+      const message = getFriendlyFirebaseAuthMessage(error, "Google login failed");
       setErr(message);
     } finally {
       setGoogleLoginLoading(false);
@@ -70,6 +75,13 @@ export default function Login() {
         className="space-y-3.5"
         onSubmit={async (e) => {
           e.preventDefault();
+          if (passwordLoginLoading || googleLoginLoading) return;
+          const now = Date.now();
+          if (shouldThrottle(lastPasswordSubmitAtRef.current, AUTH_ACTION_DEBOUNCE_MS, now)) {
+            setErr("Please wait a moment before trying again.");
+            return;
+          }
+          lastPasswordSubmitAtRef.current = now;
           setErr(null);
           setPasswordLoginLoading(true);
           try {
@@ -78,6 +90,7 @@ export default function Login() {
             if (isEmail && firebaseReady && auth) {
               try {
                 const credential = await signInWithEmailAndPassword(auth, identifier, password);
+                await credential.user.reload();
                 if (!credential.user.emailVerified) {
                   await signOut(auth);
                   throw new Error("Email is not verified. Please verify your email before logging in.");
@@ -108,7 +121,7 @@ export default function Login() {
             setSession(data.token, data.user.role, data.refreshToken);
             nav("/dashboard");
           } catch (error) {
-            const errorMsg = error instanceof Error ? error.message : "Login failed";
+            const errorMsg = getFriendlyFirebaseAuthMessage(error, error instanceof Error ? error.message : "Login failed");
             console.error(`[LOGIN] Error: ${errorMsg}`);
             setErr(errorMsg);
           } finally {

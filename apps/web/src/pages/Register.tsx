@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { GoogleAuthProvider, createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, signOut } from "firebase/auth";
 import { api } from "../lib/api";
@@ -6,6 +6,16 @@ import { setSession } from "../lib/auth";
 import AuthShell from "../components/AuthShell";
 import GoogleAuthButton from "../components/GoogleAuthButton";
 import { auth, firebaseReady } from "../firebase";
+import {
+  getCooldownRemainingSeconds,
+  getFriendlyFirebaseAuthMessage,
+  isFirebaseTooManyRequests,
+  shouldThrottle,
+} from "../lib/firebaseAuthGuards";
+
+const VERIFY_ACTION_DEBOUNCE_MS = 1200;
+const RESEND_COOLDOWN_MS = 60 * 1000;
+const LOCKOUT_COOLDOWN_MS = 10 * 60 * 1000;
 
 export default function Register() {
   const nav = useNavigate();
@@ -67,6 +77,26 @@ export default function Register() {
   const [pendingVerification, setPendingVerification] = useState(false);
   const [pendingData, setPendingData] = useState<{ token: string; refreshToken?: string; user: { role: string }; onboardingRequired?: boolean } | null>(null);
   const [verifyChecking, setVerifyChecking] = useState(false);
+  const [resendPending, setResendPending] = useState(false);
+  const [resendCooldownUntil, setResendCooldownUntil] = useState(0);
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const lastContinueAttemptAtRef = useRef(0);
+  const lastResendAttemptAtRef = useRef(0);
+
+  useEffect(() => {
+    if (!pendingVerification) {
+      setResendCountdown(0);
+      return;
+    }
+
+    const updateCountdown = () => {
+      setResendCountdown(getCooldownRemainingSeconds(resendCooldownUntil));
+    };
+
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
+    return () => clearInterval(timer);
+  }, [pendingVerification, resendCooldownUntil]);
 
   async function finalizeRegistrationSession(data: { token: string; refreshToken?: string; user: { role: string }; onboardingRequired?: boolean }) {
     setSession(data.token, data.user.role, data.refreshToken);
@@ -105,33 +135,75 @@ export default function Register() {
   }
 
   async function handleContinueAfterVerify() {
-    if (!pendingData || !auth) return;
+    if (verifyChecking) return;
+    const now = Date.now();
+    if (shouldThrottle(lastContinueAttemptAtRef.current, VERIFY_ACTION_DEBOUNCE_MS, now)) {
+      setNotice("Please wait a moment before checking again.");
+      return;
+    }
+    lastContinueAttemptAtRef.current = now;
+
+    if (!pendingData || !auth) {
+      setErr("Your verification session expired. Please log in again.");
+      return;
+    }
+
     setVerifyChecking(true);
     setErr(null);
+    setNotice(null);
     try {
-      // Reload the Firebase user to pick up latest emailVerified state
-      await auth.currentUser?.reload();
-      if (auth.currentUser?.emailVerified) {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        setErr("Session expired. Please log in again, then complete verification.");
+        return;
+      }
+
+      await currentUser.reload();
+      if (currentUser.emailVerified) {
         await signOut(auth);
         await finalizeRegistrationSession(pendingData);
       } else {
         setErr("Email not yet verified. Please click the link in your inbox, then try again.");
       }
     } catch (error) {
-      setErr(error instanceof Error ? error.message : "Verification check failed");
+      setErr(getFriendlyFirebaseAuthMessage(error, "Verification check failed"));
     } finally {
       setVerifyChecking(false);
     }
   }
 
   async function handleResendVerification() {
-    if (!auth?.currentUser) return;
+    if (verifyChecking || resendPending) return;
+    const now = Date.now();
+    if (resendCooldownUntil > now) {
+      setNotice(`Please wait ${getCooldownRemainingSeconds(resendCooldownUntil, now)}s before resending.`);
+      return;
+    }
+    if (shouldThrottle(lastResendAttemptAtRef.current, VERIFY_ACTION_DEBOUNCE_MS, now)) {
+      setNotice("Please wait a moment before resending.");
+      return;
+    }
+    lastResendAttemptAtRef.current = now;
+
+    if (!auth?.currentUser) {
+      setErr("Session expired. Please log in again to resend verification email.");
+      return;
+    }
+
+    setResendPending(true);
     setErr(null);
+    setNotice(null);
     try {
       await sendEmailVerification(auth.currentUser);
       setNotice("Verification email resent. Check your inbox.");
+      setResendCooldownUntil(Date.now() + RESEND_COOLDOWN_MS);
     } catch (error) {
-      setErr(error instanceof Error ? error.message : "Failed to resend verification email");
+      if (isFirebaseTooManyRequests(error)) {
+        setResendCooldownUntil(Date.now() + LOCKOUT_COOLDOWN_MS);
+      }
+      setErr(getFriendlyFirebaseAuthMessage(error, "Failed to resend verification email"));
+    } finally {
+      setResendPending(false);
     }
   }
 
@@ -144,7 +216,7 @@ export default function Register() {
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
           <p className="font-semibold text-slate-900">A verification link was sent to:</p>
-            <p className="mt-1 font-medium text-[#0b7f6d]">{email}</p>
+          <p className="mt-1 break-all font-medium text-[#0b7f6d]">{email}</p>
           <p className="mt-3 text-slate-600">Click the link in your email, then return here and press <strong>Continue</strong>.</p>
         </div>
 
@@ -159,12 +231,19 @@ export default function Register() {
           </button>
           <button
             type="button"
-            disabled={verifyChecking}
+            disabled={verifyChecking || resendPending || resendCountdown > 0}
             className="btn-secondary w-full rounded-xl text-sm"
             onClick={handleResendVerification}
           >
-            Resend verification email
+            {resendPending
+              ? "Sending..."
+              : resendCountdown > 0
+                ? `Resend available in ${resendCountdown}s`
+                : "Resend verification email"}
           </button>
+          <Link to="/login" className="text-center text-sm font-medium text-[#0b7f6d] transition hover:text-[#096658]">
+            Session expired? Go to login
+          </Link>
         </div>
       </AuthShell>
     );
@@ -221,6 +300,7 @@ export default function Register() {
 
                 if (!credential.user.emailVerified) {
                   await sendEmailVerification(credential.user);
+                  setResendCooldownUntil(Date.now() + RESEND_COOLDOWN_MS);
                   // Block navigation — show verify email screen
                   setPendingData(data);
                   setPendingVerification(true);
@@ -229,8 +309,13 @@ export default function Register() {
                 }
                 await signOut(auth);
               } catch (firebaseError) {
-                const message = firebaseError instanceof Error ? firebaseError.message : "Failed to send verification email";
+                const message = getFriendlyFirebaseAuthMessage(firebaseError, "Failed to send verification email");
                 console.warn(`[REGISTER] Firebase verification warning: ${message}`);
+                setPendingData(data);
+                setPendingVerification(true);
+                setErr(message);
+                setLoading(false);
+                return;
               }
             }
 

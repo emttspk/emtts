@@ -1,5 +1,90 @@
 # AI Implementation Index
 
+## 2026-06-03 - Firebase Email Verification Auth Flow Stabilization
+
+### Safety Gate Verification
+- Git remote: `https://github.com/emttspk/emtts.git`
+- Branch: `main`
+- Workspace: `Label Generator`
+- Railway CLI link: not linked in this local workspace (`railway status` returned no linked project)
+- Frontend Firebase env: `VITE_FIREBASE_PROJECT_ID=epost-auth` with `epost-auth.firebaseapp.com`
+- Backend local Firebase env: no `FIREBASE_*` keys present in local `apps/api/.env`
+
+### Forensic Root Cause Summary
+- Stale verification state in login path:
+	- `signInWithEmailAndPassword()` result was checked without `user.reload()`, so recently verified users could still be treated as unverified.
+- Verification resend lockout risk:
+	- Resend had no cooldown and no throttle, allowing rapid repeated requests that can trigger Firebase `auth/too-many-requests`.
+- Continue button retry pressure:
+	- Continue verification checks could be spam-clicked across repeated attempts with no debounce window.
+- Session-expiry confusion loop:
+	- Verification screen had no explicit guidance when `auth.currentUser` was missing/expired.
+- Customer-facing lockout message quality:
+	- Raw Firebase error strings were shown instead of user-safe guidance.
+
+### Files Inspected
+- `apps/web/src/pages/Login.tsx`
+- `apps/web/src/pages/Register.tsx`
+- `apps/web/src/firebase.ts`
+- `apps/web/src/components/AuthShell.tsx`
+- `apps/web/src/main.tsx`
+- `apps/api/src/routes/auth.ts`
+- `apps/api/src/middleware/auth.ts`
+
+### Files Changed
+- `apps/web/src/lib/firebaseAuthGuards.ts` (new)
+- `apps/web/src/pages/Login.tsx`
+- `apps/web/src/pages/Register.tsx`
+- `scripts/auth-hammer-test.mts` (new)
+- `package.json`
+- `docs/operations/account-duplicate-risk-controls-2026-05-29.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Exact Fix Applied
+- Added shared auth guard helpers:
+	- Friendly normalization for Firebase lockout (`auth/too-many-requests`).
+	- Generic action throttle helper.
+	- Cooldown countdown helper.
+- Login flow hardening:
+	- Added submit debounce to reduce rapid duplicate attempts.
+	- Added `credential.user.reload()` before `emailVerified` check.
+	- Mapped lockout errors to: `Too many attempts. Please wait 10 to 15 minutes before trying again.`
+- Register verify-email flow hardening:
+	- Added resend cooldown + visible countdown.
+	- Added resend/continue debounce guards.
+	- Disabled resend while pending/cooling down.
+	- Added friendly session-expired guidance and login path.
+	- Mapped lockout errors to user-safe message.
+	- Preserved no auto-resend on page load.
+	- Added mobile-safe email rendering (`break-all`) on verify screen.
+
+### Hammer Test Result
+- Added mocked stress simulation script that does not call live Firebase email APIs.
+- Simulated:
+	- 50 users visiting auth pages.
+	- Rapid resend clicking.
+	- Rapid continue clicking.
+	- Mixed repeated login attempts.
+	- Repeated mobile-style reload behavior.
+- Result: PASS (`npm run auth:hammer`)
+
+### Validation Commands and Result
+- `npm install`: PASS
+- `npm run lint`: PASS
+- `npm run typecheck`: PASS
+- `npm run build`: PASS
+- `npm run auth:hammer`: PASS
+
+### Remaining Risk
+- Backend and frontend Firebase project mismatch cannot be fully ruled out in this local environment because backend `FIREBASE_*` vars are not set locally and Railway is not linked from this shell.
+- Production quotas/policy limits still depend on Firebase console settings and abuse protection configuration.
+
+### Expected Customer-Facing Behavior
+- Recently verified users can continue after refresh-check without false unverified loop.
+- Resend action is rate-limited in UI with countdown and disabled state.
+- Lockout errors show a clear wait message instead of raw Firebase error text.
+- Expired verification session now clearly tells user to log in again.
+
 ## 2026-06-01 - Aggregator Admin-Only Gate Production Deployment
 
 ### Merge and Deploy

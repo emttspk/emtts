@@ -83,3 +83,49 @@ npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma
 - password vs Google loading labels are isolated
 - immutable contact/CNIC rejects user edits
 - admin users tab shows duplicate-risk badge/reasons
+
+## 2026-06-03 Addendum - Firebase Verification Flow Stabilization
+
+### Root Cause Found
+- Login path checked `emailVerified` without `user.reload()`, causing stale verification state.
+- Verify-email resend lacked cooldown and debounce, enabling rapid attempts and Firebase lockout risk.
+- Verify-email continue action lacked debounce, enabling repeated checks and noisy error loops.
+- Session expiry on verify screen was not explicitly handled for user guidance.
+
+### Auth Files Inspected
+- `apps/web/src/pages/Login.tsx`
+- `apps/web/src/pages/Register.tsx`
+- `apps/web/src/firebase.ts`
+- `apps/web/src/components/AuthShell.tsx`
+- `apps/web/src/main.tsx`
+- `apps/api/src/routes/auth.ts`
+- `apps/api/src/middleware/auth.ts`
+
+### Auth Files Changed
+- `apps/web/src/lib/firebaseAuthGuards.ts` (new)
+- `apps/web/src/pages/Login.tsx`
+- `apps/web/src/pages/Register.tsx`
+- `scripts/auth-hammer-test.mts` (new)
+- `package.json`
+
+### Exact Fixes
+- Added client-side debounce/throttle for login submit, resend verification, and continue verification.
+- Added resend cooldown timer with visible countdown and disabled resend button state.
+- Added friendly Firebase lockout message:
+  - `Too many attempts. Please wait 10 to 15 minutes before trying again.`
+- Added `credential.user.reload()` before login email verification checks.
+- Added explicit session-expired guidance when `auth.currentUser` is unavailable.
+- Kept behavior safe: no auto resend on page load.
+- Added mobile-safe verify email text wrapping (`break-all`) to avoid overflow.
+
+### Hammer Test (Mocked, Safe)
+- Command: `npm run auth:hammer`
+- Simulates 50 users with rapid resend/continue/login attempt patterns and mobile reload cycles.
+- No real Firebase email send spam.
+- Result: PASS
+
+### Customer-Facing Expected Behavior
+- Verified users can complete continue/login without stale unverified false negatives.
+- Resend is clearly rate-limited with countdown and pending disabled state.
+- Lockout is explained with a clear wait-time message.
+- Users with expired auth session are redirected by clear login guidance instead of looping.
