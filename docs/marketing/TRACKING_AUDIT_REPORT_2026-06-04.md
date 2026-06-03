@@ -19,6 +19,12 @@
 - Dedicated marketing WhatsApp demo CTA link is still not present in Navbar/Footer/Home; no new marketing WhatsApp event hook added in this phase.
 - Existing safe WhatsApp sharing tracking remains in public tracking flow (`whatsapp_demo_click`) without PII.
 
+## Phase 3.1 Event Status (2026-06-04)
+
+- WhatsApp demo CTA event implemented.
+- Public Home CTA now tracks `whatsapp_demo_click` with source `home_demo` only.
+- CTA uses `VITE_PUBLIC_WHATSAPP_NUMBER` when configured; otherwise renders disabled "coming soon" state.
+
 ## Current Status
 **CRITICAL MISSING** - The ePost.pk platform currently has **zero** marketing tracking implemented. There is no Meta Pixel, no Google Tag (GA4), and no conversion event tracking for key business actions.
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Search, ScanLine, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { trackLeadStart, trackTrackingSearch } from "../lib/analytics";
+import { trackLeadStart, trackTrackingSearch, trackWhatsAppClick } from "../lib/analytics";
 
 const SCANNER_CONTAINER_ID = "home-scan-fallback";
 const CAMERA_PERMISSION_NOTICE = "Camera permission is required to scan barcode. Please tap Allow when your browser asks.";
@@ -55,6 +55,8 @@ export default function HomeHero() {
   const mediaStreamRef = useRef(null);
   const scanHandledRef = useRef(false);
   const videoRef = useRef(null);
+  const publicWhatsAppDigits = String(import.meta.env.VITE_PUBLIC_WHATSAPP_NUMBER ?? "").replace(/\D/g, "");
+  const publicWhatsAppUrl = publicWhatsAppDigits.length >= 7 ? `https://wa.me/${publicWhatsAppDigits}` : "";
 
   const submitTracking = useCallback(
     (rawValue) => {
@@ -275,6 +277,30 @@ export default function HomeHero() {
               >
                 Track Parcel
               </a>
+            </div>
+
+            <div className="mt-3 w-full max-w-[560px]">
+              {publicWhatsAppUrl ? (
+                <a
+                  href={publicWhatsAppUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => trackWhatsAppClick("home_demo")}
+                  className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
+                >
+                  WhatsApp Demo
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  aria-disabled="true"
+                  title="WhatsApp demo will be enabled after public number configuration"
+                  className="inline-flex h-10 w-full cursor-not-allowed items-center justify-center rounded-xl border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-500"
+                >
+                  WhatsApp Demo (coming soon)
+                </button>
+              )}
             </div>
 
             <form
