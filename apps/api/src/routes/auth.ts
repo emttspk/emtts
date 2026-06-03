@@ -32,6 +32,11 @@ import { env } from "../config.js";
 
 export const authRouter = Router();
 
+function logDevAuthTiming(event: string, payload: Record<string, unknown>) {
+  if (process.env.NODE_ENV === "production") return;
+  console.info(`[timing][auth] ${event}`, payload);
+}
+
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
@@ -281,6 +286,9 @@ authRouter.post("/register", async (req, res) => {
 });
 
 authRouter.post("/login", async (req, res) => {
+  const loginStartedAt = Date.now();
+  let userLookupMs = 0;
+  let passwordVerifyMs = 0;
   // Accept { identifier, password } (new) or legacy { email, password }
   const parsed = z
     .object({
@@ -313,11 +321,27 @@ authRouter.post("/login", async (req, res) => {
 
     console.log(`[AUTH] Login attempt for identifier: ${rawIdentifier} (${isEmail ? "email" : "username"})`);
     const user = isEmail
-      ? await prisma.user.findUnique({ where: { email: lookupKey } })
-      : await prisma.user.findFirst({ where: { username: rawIdentifier } });
+      ? await (async () => {
+        const startedAt = Date.now();
+        const found = await prisma.user.findUnique({ where: { email: lookupKey } });
+        userLookupMs = Date.now() - startedAt;
+        return found;
+      })()
+      : await (async () => {
+        const startedAt = Date.now();
+        const found = await prisma.user.findFirst({ where: { username: rawIdentifier } });
+        userLookupMs = Date.now() - startedAt;
+        return found;
+      })();
 
     if (!user) {
       console.log(`[AUTH] Login failed: User not found for identifier: ${rawIdentifier}`);
+      logDevAuthTiming("login_user_missing", {
+        identifier: rawIdentifier,
+        isEmail,
+        userLookupMs,
+        totalMs: Date.now() - loginStartedAt,
+      });
       const failed = recordFailedAttempt(lookupKey, ip);
       auditAuthEvent("auth.login.user_missing", req, { identifier: rawIdentifier, failedCount: failed.count, locked: failed.locked });
       auditAuthMetric(req, "login_failure", { reason: "user_missing", identifier: rawIdentifier, failedCount: failed.count, locked: failed.locked });
@@ -332,9 +356,18 @@ authRouter.post("/login", async (req, res) => {
     }
 
     console.log(`[AUTH] User found for identifier: ${rawIdentifier}. Verifying password...`);
+    const passwordVerifyStartedAt = Date.now();
     const ok = await verifyPassword(parsed.data.password, user.passwordHash);
+    passwordVerifyMs = Date.now() - passwordVerifyStartedAt;
     if (!ok) {
       console.log(`[AUTH] Login failed: Invalid password for identifier: ${rawIdentifier}`);
+      logDevAuthTiming("login_invalid_password", {
+        identifier: rawIdentifier,
+        isEmail,
+        userLookupMs,
+        passwordVerifyMs,
+        totalMs: Date.now() - loginStartedAt,
+      });
       const failed = recordFailedAttempt(lookupKey, ip);
       auditAuthEvent("auth.login.password_invalid", req, { identifier: rawIdentifier, userId: user.id, failedCount: failed.count, locked: failed.locked });
       auditAuthMetric(req, "login_failure", {
@@ -350,6 +383,13 @@ authRouter.post("/login", async (req, res) => {
 
     clearFailedAttempts(lookupKey, ip);
     console.log(`[AUTH] Login successful for identifier: ${rawIdentifier}`);
+    logDevAuthTiming("login_success", {
+      identifier: rawIdentifier,
+      isEmail,
+      userLookupMs,
+      passwordVerifyMs,
+      totalMs: Date.now() - loginStartedAt,
+    });
     recordLoginHistory(user.id, { email: user.email, method: "password", ip, device, success: true });
     auditAuthEvent("auth.login.success", req, { identifier: rawIdentifier, userId: user.id });
     auditAuthMetric(req, "login_success", { method: "password", identifier: rawIdentifier, userId: user.id });
@@ -357,6 +397,13 @@ authRouter.post("/login", async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[AUTH] Login database error:", message);
+    logDevAuthTiming("login_failure", {
+      identifier: rawIdentifier,
+      userLookupMs,
+      passwordVerifyMs,
+      totalMs: Date.now() - loginStartedAt,
+      message,
+    });
     auditAuthMetric(req, "login_failure", { reason: "service_unavailable", identifier: rawIdentifier, message });
     return res.status(503).json({ error: "Login temporarily unavailable. Please try again." });
   }

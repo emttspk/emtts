@@ -110,3 +110,25 @@ flowchart TD
 - `docs/architecture/storage-rollout-architecture.md`
 - `docs/rollout/storage-rollout-runbook.md`
 - `docs/rollout/deployment-status.md`
+
+## Login and Upload UX Runtime Behavior
+
+- Login and dashboard bootstrap:
+  - Frontend now renders shell early and hydrates `/api/me` asynchronously.
+  - Post-login transition shows a full-screen handoff overlay: "Signing you in... loading dashboard".
+  - `/api/me` bootstrap fetch uses shared in-memory cache + in-flight dedupe to prevent duplicate calls from auth/profile guards.
+
+- Generate-label waiting UX:
+  - Processing overlay now uses explicit pipeline stages:
+    1. Uploading file
+    2. Reading records
+    3. Validating rows
+    4. Creating preview table
+    5. Preparing label job
+  - Visual estimate is non-authoritative; if estimate reaches zero while backend still runs, UI switches to "Still working... checking progress".
+  - Long-running processing exposes a manual "Check status" action tied to `/api/jobs/:jobId`.
+
+- Dev-only timing instrumentation:
+  - Frontend: login API timing, Google token exchange timing, session restore timing, upload stage timings, status-check timing.
+  - API: login timing breakdown (`user lookup`, `password verify`, `total`) and `/api/me` timing breakdown (`user`, `subscription`, `snapshot`, `complaint allowance`, `total`).
+  - Production logging remains unchanged (timing logs suppressed in production).

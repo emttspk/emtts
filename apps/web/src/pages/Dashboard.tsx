@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router-dom";
 import { ArrowRight, Boxes, Clock3, Package2, ShieldCheck } from "lucide-react";
 import Card from "../components/Card";
@@ -23,20 +23,7 @@ const formatPKR = new Intl.NumberFormat("en-PK", {
 export default function Dashboard() {
   const { me } = useOutletContext<ShellCtx>();
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
-  const { shipmentStats, refreshShipmentStats } = useShipmentStats();
-
-  useEffect(() => {
-    let ok = true;
-    setError(null);
-    Promise.all([refreshShipmentStats()]).catch((e) => {
-      if (!ok) return;
-      setError(e instanceof Error ? e.message : "Failed to load shipments");
-    });
-    return () => {
-      ok = false;
-    };
-  }, [refreshShipmentStats]);
+  const { shipmentStats } = useShipmentStats();
 
   const stats = useMemo(
     () => ({
@@ -213,12 +200,6 @@ export default function Dashboard() {
           </div>
         </Card>
       </div>
-
-      {error ? (
-        <Card className="border-red-200 bg-red-50 p-4">
-          <div className="text-sm font-medium text-red-800">{error}</div>
-        </Card>
-      ) : null}
     </PageShell>
   );
 }

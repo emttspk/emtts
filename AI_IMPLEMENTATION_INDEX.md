@@ -1,5 +1,49 @@
 # AI Implementation Index
 
+## 2026-06-04 - Login/Dashboard Delay + Generate-Label Waiting UX Hardening
+
+### Scope
+- Login flow, dashboard first-load UX, upload/generate waiting UX, timer handling only.
+- No changes to label business logic, pricing, units, MO calculation, or PDF layout.
+
+### Core Improvements
+- Added post-login full-screen transition overlay: "Signing you in... loading dashboard".
+- Rendered app shell early while `/api/me` hydrates in background.
+- Reduced duplicate bootstrap `/api/me` pressure via shared short-lived cache + in-flight dedupe in `fetchMe`.
+- Updated profile gate to use shared `fetchMe` cache path.
+- Removed redundant dashboard forced stats refresh on mount.
+- Added full-screen generate-label processing overlay with explicit stages:
+	1. Uploading file
+	2. Reading records
+	3. Validating rows
+	4. Creating preview table
+	5. Preparing label job
+- Separated visual timer from backend completion: when estimate reaches zero but processing continues, UI now shows "Still working... checking progress".
+- Added long-run status check action for queued/slow jobs.
+- Added dev-only timing logs (frontend login/upload/me + API auth login + API me breakdown).
+
+### Runtime Audit Outcome
+- Local browser probe observed `ERR_CONNECTION_REFUSED` for `/api/auth/login`, `/api/me`, `/api/health` during session; direct live latency numbers were not available.
+- Added instrumentation and resilience UX so operators can capture exact timings once API connectivity is restored.
+
+### Files Updated
+- `apps/web/src/lib/devTiming.ts`
+- `apps/web/src/lib/UserService.ts`
+- `apps/web/src/components/RequireProfileCompletion.tsx`
+- `apps/web/src/components/AppShell.tsx`
+- `apps/web/src/pages/Login.tsx`
+- `apps/web/src/pages/Dashboard.tsx`
+- `apps/web/src/pages/Upload.tsx`
+- `apps/api/src/routes/auth.ts`
+- `apps/api/src/routes/me.ts`
+- `docs/audits/LOGIN_AND_LABEL_GENERATION_DELAY_AUDIT.md`
+- `docs/architecture/system-map.md`
+
+### Validation
+- Pending in this run: `npm run build`
+
+---
+
 ## 2026-06-03 - Complaint History Dedup + Timer Stop + Notification Migration
 
 ### Scope

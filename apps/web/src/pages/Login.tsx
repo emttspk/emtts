@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { ArrowRight, Eye, EyeOff, KeyRound, Mail, SquareArrowOutUpRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, apiUrl } from "../lib/api";
+import { logDevTiming } from "../lib/devTiming";
 import { setSession } from "../lib/auth";
 import AuthShell from "../components/AuthShell";
 import GoogleAuthButton from "../components/GoogleAuthButton";
@@ -19,17 +20,27 @@ export default function Login() {
   const [err, setErr] = useState<string | null>(null);
   const [passwordLoginLoading, setPasswordLoginLoading] = useState(false);
   const [googleLoginLoading, setGoogleLoginLoading] = useState(false);
+  const [postLoginRedirecting, setPostLoginRedirecting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const lastPasswordSubmitAtRef = useRef(0);
 
+  function finalizeLogin(token: string, role: string, refreshToken?: string) {
+    const sessionStartedAt = performance.now();
+    setSession(token, role, refreshToken, { rememberMe });
+    logDevTiming("session_restore", performance.now() - sessionStartedAt, { rememberMe });
+    setPostLoginRedirecting(true);
+    nav("/dashboard", { state: { postLogin: true, loginAt: Date.now() } });
+  }
+
   async function loginWithFirebaseToken(idToken: string) {
+    const startedAt = performance.now();
     const data = await api<{ token: string; refreshToken?: string; user: { role: string } }>("/api/auth/firebase-login", {
       method: "POST",
       body: JSON.stringify({ idToken }),
     });
-    setSession(data.token, data.user.role, data.refreshToken, { rememberMe });
-    nav("/dashboard");
+    logDevTiming("google_token_exchange", performance.now() - startedAt);
+    finalizeLogin(data.token, data.user.role, data.refreshToken);
   }
 
   async function handleGoogleLogin() {
@@ -41,15 +52,18 @@ export default function Login() {
     }
 
     setGoogleLoginLoading(true);
+    const startedAt = performance.now();
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
       const result = await signInWithPopup(auth, provider);
       const idToken = await result.user.getIdToken();
       await loginWithFirebaseToken(idToken);
+      logDevTiming("google_login_total", performance.now() - startedAt);
     } catch (error) {
       const message = getFriendlyFirebaseAuthMessage(error, "Google login failed");
       setErr(message);
+      setPostLoginRedirecting(false);
     } finally {
       setGoogleLoginLoading(false);
     }
@@ -84,6 +98,7 @@ export default function Login() {
           lastPasswordSubmitAtRef.current = now;
           setErr(null);
           setPasswordLoginLoading(true);
+          const loginStartedAt = performance.now();
           try {
             const isEmail = identifier.includes("@");
 
@@ -111,19 +126,19 @@ export default function Login() {
 
             const endpoint = "/api/auth/login";
             const fullUrl = apiUrl(endpoint);
-            console.log(`[LOGIN] Attempting login for: ${identifier}`);
-            console.log(`[LOGIN] Request URL: ${fullUrl}`);
+            logDevTiming("password_login_begin", 0, { identifier, endpoint: fullUrl });
+            const apiStartedAt = performance.now();
             const data = await api<{ token: string; refreshToken?: string; user: { role: string } }>(endpoint, {
               method: "POST",
               body: JSON.stringify({ identifier, password }),
             });
-            console.log(`[LOGIN] Success, received token and user role: ${data.user.role}`);
-            setSession(data.token, data.user.role, data.refreshToken, { rememberMe });
-            nav("/dashboard");
+            logDevTiming("password_login_api", performance.now() - apiStartedAt);
+            finalizeLogin(data.token, data.user.role, data.refreshToken);
+            logDevTiming("password_login_total", performance.now() - loginStartedAt);
           } catch (error) {
             const errorMsg = getFriendlyFirebaseAuthMessage(error, error instanceof Error ? error.message : "Login failed");
-            console.error(`[LOGIN] Error: ${errorMsg}`);
             setErr(errorMsg);
+            setPostLoginRedirecting(false);
           } finally {
             setPasswordLoginLoading(false);
           }
@@ -220,6 +235,16 @@ export default function Login() {
           </Link>
         </div>
       </form>
+
+      {postLoginRedirecting ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4">
+          <div className="w-full max-w-lg rounded-[2rem] border border-emerald-200 bg-white p-7 text-center shadow-[0_28px_80px_rgba(15,23,42,0.3)]">
+            <div className="mx-auto h-11 w-11 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
+            <div className="mt-4 text-2xl font-semibold text-slate-900">Signing you in... loading dashboard</div>
+            <div className="mt-2 text-sm text-slate-600">Please wait while we restore your session and prepare your workspace.</div>
+          </div>
+        </div>
+      ) : null}
     </AuthShell>
   );
 }

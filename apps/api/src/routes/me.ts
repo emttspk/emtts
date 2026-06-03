@@ -9,12 +9,23 @@ import { getRequestSignalHashes, hashAccountSignal } from "../auth/security.js";
 
 export const meRouter = Router();
 
+function logDevMeTiming(payload: Record<string, unknown>) {
+  if (process.env.NODE_ENV === "production") return;
+  console.info("[timing][me] /api/me", payload);
+}
+
 meRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
   const userId = req.user!.id;
+  const startedAt = Date.now();
+  let userQueryMs = 0;
+  let subscriptionQueryMs = 0;
+  let snapshotQueryMs = 0;
+  let complaintAllowanceMs = 0;
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   res.setHeader("Pragma", "no-cache");
   res.setHeader("Expires", "0");
 
+  const userQueryStartedAt = Date.now();
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -33,18 +44,23 @@ meRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
       extraTrackingCredits: true,
     },
   });
+  userQueryMs = Date.now() - userQueryStartedAt;
   if (!user) return res.status(404).json({ error: "Not found" });
 
+  const subscriptionStartedAt = Date.now();
   const subscription = await prisma.subscription.findFirst({
     where: { userId, status: "ACTIVE" },
     include: { plan: true },
     orderBy: { createdAt: "desc" },
   });
+  subscriptionQueryMs = Date.now() - subscriptionStartedAt;
   const pendingPayment = await getLatestPendingPayment(userId);
   const planExtrasMap = subscription?.planId ? await getPlanExtrasByIds([subscription.planId]) : new Map();
   const subscriptionPlanExtras = subscription?.planId ? planExtrasMap.get(subscription.planId) : null;
 
+  const snapshotStartedAt = Date.now();
   const snapshot = await getLatestUnitSnapshot(userId);
+  snapshotQueryMs = Date.now() - snapshotStartedAt;
   const month = snapshot.month;
   const usage = {
     labelsGenerated: snapshot.labelsGenerated,
@@ -58,7 +74,9 @@ meRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
   const labelsQueued = snapshot.labelsQueued;
   const trackingGenerated = snapshot.trackingGenerated;
   const trackingQueued = snapshot.trackingQueued;
+  const complaintAllowanceStartedAt = Date.now();
   const complaintAllowance = await getComplaintAllowance(userId);
+  complaintAllowanceMs = Date.now() - complaintAllowanceStartedAt;
   const usedUnits = (usage.labelsGenerated ?? 0) + labelsQueued;
   const remainingUnits = snapshot.remainingUnits;
   const periodEnd = subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd) : null;
@@ -95,6 +113,17 @@ meRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
         createdAt: pendingPayment.createdAt,
       }
     : null;
+
+  logDevMeTiming({
+    userId,
+    totalMs: Date.now() - startedAt,
+    userQueryMs,
+    subscriptionQueryMs,
+    snapshotQueryMs,
+    complaintAllowanceMs,
+    hasSubscription: Boolean(subscription),
+    hasPendingPayment: Boolean(pendingPayment),
+  });
 
   return res.json({
     user,

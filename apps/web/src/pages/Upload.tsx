@@ -5,6 +5,7 @@ import Card from "../components/Card";
 import SampleDownloadLink from "../components/SampleDownloadLink";
 import UploadDropzone from "../components/UploadDropzone";
 import { api, apiHealthCheck, buildJobDownloadFallbackName, triggerBrowserDownload, uploadFile } from "../lib/api";
+import { logDevTiming } from "../lib/devTiming";
 import { FALLBACK_SERVICE_CATALOG, fetchServiceCatalog, servicesByCategory, type ServiceCatalogEntry } from "../lib/serviceCatalog";
 import type { LabelJob, MeResponse } from "../lib/types";
 import { useJobPolling } from "../lib/useJobPolling";
@@ -45,6 +46,11 @@ type UploadInsights = {
   recommendedOutputMode: "envelope-9x4" | "universal-9x4" | "box" | "a4-multi" | "flyer";
   recommendationReason: string;
 };
+
+type UploadProcessingStage = "uploading" | "reading" | "validating" | "previewing" | "creating_job";
+
+const STILL_WORKING_THRESHOLD_SEC = 45;
+const STATUS_CHECK_THRESHOLD_SEC = 90;
 
 const SERVICE_WEIGHT_LIMITS: Record<string, number> = {
   VPL: 2_000,
@@ -570,10 +576,13 @@ export default function Upload() {
 
   // Generation state for countdown + silent downloads
   const [uiState, setUiState] = useState<"idle" | "uploading" | "processing" | "completed" | "failed">("idle");
+  const [processingStage, setProcessingStage] = useState<UploadProcessingStage>("uploading");
   const [uiError, setUiError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [estimatedTotalSec, setEstimatedTotalSec] = useState<number | null>(null);
+  const [statusCheckBusy, setStatusCheckBusy] = useState(false);
+  const [statusCheckMessage, setStatusCheckMessage] = useState<string | null>(null);
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [completionAction, setCompletionAction] = useState<"labels" | "money-orders" | "tracking-master" | "tracking-workspace" | null>(null);
   const progressTimer = useRef<number | null>(null);
@@ -613,11 +622,19 @@ export default function Upload() {
 
   const statusLabel = useMemo(() => {
     if (uiState === "uploading") return "Uploading";
-    if (uiState === "processing") return remaining == null ? "Processing" : `Estimated time remaining: ${remaining} sec`;
+    if (uiState === "processing") {
+      if (polling.jobStatus === "QUEUED") return "Job queued. Waiting for worker...";
+      if (remaining == null) return "Processing";
+      if (remaining <= 0) return "Still working... checking progress";
+      return `Estimated time remaining: ${remaining} sec`;
+    }
     if (uiState === "completed") return "Completed";
     if (uiState === "failed") return "Failed";
     return "Ready";
-  }, [remaining, uiState]);
+  }, [polling.jobStatus, remaining, uiState]);
+
+  const showStillWorkingNotice = uiState === "processing" && elapsed >= STILL_WORKING_THRESHOLD_SEC;
+  const showStatusCheckAction = uiState === "processing" && elapsed >= STATUS_CHECK_THRESHOLD_SEC;
 
   const successServiceSummary = useMemo(() => {
     const fromValidation = validationSummary?.acceptedServiceCounts ?? {};
@@ -670,18 +687,38 @@ export default function Upload() {
     }
   }
 
+  async function checkCurrentJobStatus() {
+    if (!polling.jobId || statusCheckBusy) return;
+    setStatusCheckBusy(true);
+    setStatusCheckMessage(null);
+    const startedAt = performance.now();
+    try {
+      const res = await api<{ job: LabelJob }>(`/api/jobs/${polling.jobId}`);
+      setStatusCheckMessage(`Job is still ${String(res.job.status).toLowerCase()}.`);
+      await refreshJobs();
+      logDevTiming("upload_status_check", performance.now() - startedAt, { status: res.job.status, jobId: polling.jobId });
+    } catch (error) {
+      setStatusCheckMessage(error instanceof Error ? error.message : "Unable to check status right now.");
+    } finally {
+      setStatusCheckBusy(false);
+    }
+  }
+
   async function startGenerate() {
     if (!file) return;
     if (!isReadyToGenerate) return;
     if (uiState === "uploading" || uiState === "processing") return;
     setUiError(null);
+    setStatusCheckMessage(null);
     setValidationSummary(null);
     setShowCompletionModal(false);
     setCompletionAction(null);
     setUiState("uploading");
+    setProcessingStage("uploading");
     setProgress(10);
     setElapsed(0);
     setEstimatedTotalSec(null);
+    const uploadFlowStartedAt = performance.now();
 
     if (progressTimer.current) window.clearInterval(progressTimer.current);
     progressTimer.current = window.setInterval(() => {
@@ -692,15 +729,20 @@ export default function Upload() {
     }, 120);
 
     try {
+      const healthStartedAt = performance.now();
       await apiHealthCheck();
+      logDevTiming("upload_health_check", performance.now() - healthStartedAt);
 
       // Frontend pre-check only: header names are case-insensitive but must map to strict fields.
       const uploadedFile = file;
       console.log("Tracking file received:", uploadedFile?.name);
+      setProcessingStage("reading");
+      const readStartedAt = performance.now();
       const ab = await uploadedFile.arrayBuffer();
       const wb = XLSX.read(ab);
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { raw: false, defval: "" });
+      logDevTiming("upload_read_parse", performance.now() - readStartedAt, { rows: rows.length });
       const effectiveBarcodeMode = shipmentMode === "mix_articles" ? "auto" : barcodeMode;
 
       if (shipmentMode === "single_service" && effectiveBarcodeMode === "manual") {
@@ -736,6 +778,8 @@ export default function Upload() {
         throw new Error(`Missing required columns: ${missingHeaders.join(", ")}`);
       }
 
+      setProcessingStage("validating");
+      const validateStartedAt = performance.now();
       const rowErrors: string[] = [];
       const rowWarnings: string[] = [];
       const validationIssues: ValidationIssue[] = [];
@@ -1048,6 +1092,7 @@ export default function Upload() {
       }
 
       const groupedIssues = summarizeIssuesByCategory(validationIssues);
+      setProcessingStage("previewing");
       const recommendations = [
         groupedIssues.prefixMismatches.length > 0 ? "Review prefix mismatches and use the mismatch decision options for consistency." : null,
         groupedIssues.invalidServices.length > 0 ? "Fix non-canonical shipment_type values before re-uploading." : null,
@@ -1083,6 +1128,11 @@ export default function Upload() {
       if (acceptedRows.length === 0) {
         throw new Error(`Upload validation failed. ${rowErrors.slice(0, 8).join(" ")}`);
       }
+      logDevTiming("upload_validation", performance.now() - validateStartedAt, {
+        totalRows: rows.length,
+        acceptedRows: acceptedRows.length,
+        rejectedRows: rejected,
+      });
 
       if (rowErrors.length > 0) {
         rowWarnings.push(`Proceeding with ${acceptedRows.length} accepted row(s); ${rejected} row(s) were rejected.`);
@@ -1111,6 +1161,9 @@ export default function Upload() {
 
       const trackAfterGenerate = false;
 
+      setProcessingStage("creating_job");
+      const createJobStartedAt = performance.now();
+
       console.info("UPLOAD_REPLAY_REQUEST", {
         fileName: uploadFileForApi.name,
         shipmentMode,
@@ -1132,6 +1185,10 @@ export default function Upload() {
           generateMoneyOrder: String(Boolean(includeMoneyOrders && eligibleForMoneyOrder)),
           trackAfterGenerate: String(trackAfterGenerate),
         })) as { jobId: string; recordCount: number; duplicateFilenameBypassUsed?: boolean };
+      logDevTiming("upload_create_job", performance.now() - createJobStartedAt, {
+        jobId: data.jobId,
+        recordCount: data.recordCount,
+      });
       console.info("UPLOAD_REPLAY_RESPONSE", data);
       if (data.duplicateFilenameBypassUsed) {
         setValidationSummary((prev) => {
@@ -1150,6 +1207,7 @@ export default function Upload() {
       polling.start(data.jobId);
       setUiState("processing");
       setProgress(90);
+      logDevTiming("upload_total_until_polling", performance.now() - uploadFlowStartedAt, { jobId: data.jobId });
     } catch (e) {
       setUiState("failed");
       setUiError(e instanceof Error ? e.message : "Upload failed");
@@ -1162,15 +1220,18 @@ export default function Upload() {
     if (!polling.jobStatus) return;
     if (uiState !== "processing" && (polling.jobStatus === "QUEUED" || polling.jobStatus === "PROCESSING")) {
       setUiState("processing");
+      setProcessingStage("creating_job");
     }
     if (polling.jobStatus === "COMPLETED") {
       setUiState("completed");
+      setStatusCheckMessage(null);
       setShowCompletionModal(true);
       setProgress(100);
       if (progressTimer.current) window.clearInterval(progressTimer.current);
     }
     if (polling.jobStatus === "FAILED") {
       setUiState("failed");
+      setStatusCheckMessage(null);
       setUiError(polling.jobError ?? "Generation failed");
       setProgress(100);
       if (progressTimer.current) window.clearInterval(progressTimer.current);
@@ -1718,6 +1779,22 @@ export default function Upload() {
                 Generate Labels
               </button>
               <div className="text-xs text-gray-600">{statusLabel}</div>
+              {showStillWorkingNotice ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                  Large files may take a little longer. Please keep this tab open.
+                </div>
+              ) : null}
+              {showStatusCheckAction ? (
+                <button
+                  type="button"
+                  onClick={() => void checkCurrentJobStatus()}
+                  disabled={statusCheckBusy || !polling.jobId}
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {statusCheckBusy ? "Checking status..." : "Check status"}
+                </button>
+              ) : null}
+              {statusCheckMessage ? <div className="text-xs text-slate-600">{statusCheckMessage}</div> : null}
               {uiError ? <div className="text-xs font-medium text-red-600">{uiError}</div> : null}
             </div>
           </div>
@@ -1744,6 +1821,70 @@ export default function Upload() {
         ) : null}
         </div>
       </div>
+      {(uiState === "uploading" || uiState === "processing") ? (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/45 px-4">
+          <div className="w-full max-w-xl rounded-[1.8rem] border border-slate-200 bg-white p-6 shadow-[0_28px_80px_rgba(15,23,42,0.28)]">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
+              <div>
+                <div className="text-lg font-semibold text-slate-900">Preparing your generation request</div>
+                <div className="text-sm text-slate-600">Large files may take a little longer. Please keep this tab open.</div>
+              </div>
+            </div>
+            <div className="mt-4 h-2 rounded-full bg-slate-100">
+              <div className="h-2 rounded-full bg-[linear-gradient(90deg,#10b981,#2563eb)] transition-all" style={{ width: `${Math.max(8, Math.min(100, progress))}%` }} />
+            </div>
+            <div className="mt-2 flex items-center justify-between text-xs text-slate-600">
+              <span>Elapsed: {elapsed}s</span>
+              <span>{statusLabel}</span>
+            </div>
+            <div className="mt-4 grid gap-2 text-sm">
+              {[
+                { id: "uploading", title: "Uploading file" },
+                { id: "reading", title: "Reading records" },
+                { id: "validating", title: "Validating rows" },
+                { id: "previewing", title: "Creating preview table" },
+                { id: "creating_job", title: "Preparing label job" },
+              ].map((step, idx) => {
+                const order: Record<UploadProcessingStage, number> = {
+                  uploading: 1,
+                  reading: 2,
+                  validating: 3,
+                  previewing: 4,
+                  creating_job: 5,
+                };
+                const currentOrder = order[processingStage];
+                const stepOrder = order[step.id as UploadProcessingStage];
+                const done = stepOrder < currentOrder || (uiState === "processing" && step.id === "creating_job");
+                const active = stepOrder === currentOrder;
+                return (
+                  <div key={step.id} className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${done ? "border-emerald-200 bg-emerald-50 text-emerald-800" : active ? "border-sky-200 bg-sky-50 text-sky-800" : "border-slate-200 bg-slate-50 text-slate-500"}`}>
+                    <span className="w-5 text-center text-xs font-semibold">{done ? "OK" : idx + 1}</span>
+                    <span>{step.title}</span>
+                  </div>
+                );
+              })}
+            </div>
+            {showStillWorkingNotice ? (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                Still working... checking progress.
+              </div>
+            ) : null}
+            {showStatusCheckAction ? (
+              <div className="mt-3 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => void checkCurrentJobStatus()}
+                  disabled={statusCheckBusy || !polling.jobId}
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {statusCheckBusy ? "Checking status..." : "Check status"}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
       {uiState === "completed" && polling.jobId && showCompletionModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4">
           <div className="relative max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-[2rem] border border-emerald-200 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.95),_rgba(240,253,250,0.98)_36%,_rgba(236,254,255,0.98)_100%)] p-6 shadow-[0_32px_90px_rgba(15,23,42,0.35)] sm:p-8">

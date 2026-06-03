@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { api } from "../lib/api";
+import { fetchMe, primeMeCache } from "../lib/UserService";
 
 export default function RequireProfileCompletion(props: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
@@ -11,9 +11,11 @@ export default function RequireProfileCompletion(props: { children: React.ReactN
 
     async function load() {
       try {
-        const me = await api<{ onboardingRequired?: boolean }>("/api/me");
+        const me = await fetchMe({ source: "require-profile" });
         if (!active) return;
-        setOnboardingRequired(!!me.onboardingRequired);
+        primeMeCache(me);
+        const onboarding = (me as { onboardingRequired?: boolean }).onboardingRequired;
+        setOnboardingRequired(Boolean(onboarding));
       } catch {
         if (!active) return;
         setOnboardingRequired(false);
