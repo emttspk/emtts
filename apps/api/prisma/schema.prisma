@@ -40,6 +40,7 @@ model User {
   supportTicketAttachments SupportTicketAttachment[]
   supportTicketAuditLogs SupportTicketAuditLog[]
   supportNotifications SupportTicketNotification[]
+  complaintNotifications ComplaintNotification[]
   aggregatorQuotes AggregatorQuote[]
   aggregatorBookings AggregatorBooking[]
   aggregatorPaymentTransactions AggregatorPaymentTransaction[]
@@ -587,6 +588,24 @@ model SupportTicketNotification {
 
   @@index([userId, isRead, createdAt])
   @@index([ticketId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model ComplaintNotification {
+  id          String   @id @default(uuid())
+  userId      String
+  trackingId  String
+  type        String   @default("complaint_status_change")
+  title       String
+  message     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+  @@index([trackingId])
   @@index([type])
   @@index([createdAt])
 }

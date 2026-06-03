@@ -402,11 +402,23 @@ function normalizeQueueStatusLabel(raw: string | null | undefined): "QUEUED" | "
 
 function resolveComplaintCardState(
   lifecycle: ComplaintLifecycle,
+  shipmentStatus: string | null | undefined,
   queueSnapshot: ComplaintQueueSnapshot | undefined,
 ) {
+  const shipmentPending = normalizeStatus(shipmentStatus).toUpperCase() === "PENDING";
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
   const queueState = normalizeQueueStatusLabel(queueSnapshot?.complaintStatus);
   const lifecycleResolved = ["RESOLVED", "CLOSED", "REJECTED"].includes(String(lifecycle.state ?? "").toUpperCase());
   const hasComplaintId = Boolean(String(lifecycle.complaintId ?? "").trim() || String(queueSnapshot?.complaintId ?? "").trim());
+
+  if (shipmentPending && lifecycleResolved) {
+    if (queueState === "PROCESSING") return "PROCESSING";
+    if (queueState === "RETRY PENDING") return "RETRY PENDING";
+    if (queueState === "MANUAL REVIEW") return "MANUAL REVIEW";
+    const dueExpired = lifecycle.dueDateTs != null && lifecycle.dueDateTs < todayStart.getTime();
+    return dueExpired ? "PROCESSING" : "ACTIVE";
+  }
 
   if (lifecycleResolved) return "RESOLVED";
   if (hasComplaintId || queueState === "SUBMITTED" || queueState === "DUPLICATE") return "ACTIVE";
@@ -430,7 +442,7 @@ function isComplaintActionAllowed(
   const reopenEligible = statusUpper === "PENDING"
     && (["RESOLVED", "CLOSED", "REJECTED"].includes(lifecycleStateUp)
       || (lifecycle.dueDateTs != null && lifecycle.dueDateTs < todayStart.getTime()));
-  const complaintCardState = resolveComplaintCardState(lifecycle, queueSnapshot).toUpperCase();
+  const complaintCardState = resolveComplaintCardState(lifecycle, shipmentStatus, queueSnapshot).toUpperCase();
   const hasKnownComplaint = lifecycle.exists || Boolean(queueSnapshot)
     || Boolean(String(lifecycle.complaintId ?? "").trim() || String(queueSnapshot?.complaintId ?? "").trim())
     || ["ACTIVE", "QUEUED", "PROCESSING", "RETRY PENDING", "MANUAL REVIEW", "SUBMITTED", "DUPLICATE", "RESOLVED"].includes(complaintCardState);
@@ -1428,7 +1440,11 @@ export default function BulkTracking() {
       const lifecycle = parseComplaintLifecycle(shipment);
       const queueSnapshot = complaintQueueByTracking.get(shipment.trackingNumber);
       if (!queueSnapshot) continue;
-      const cardState = resolveComplaintCardState(lifecycle, queueSnapshot).toUpperCase();
+      const raw = parseRaw(shipment.rawJson);
+      const effectiveShipmentStatus = Boolean(raw?.manual_pending_override)
+        ? "PENDING"
+        : normalizeStatus(shipment.status);
+      const cardState = resolveComplaintCardState(lifecycle, effectiveShipmentStatus, queueSnapshot).toUpperCase();
       const hasComplaintId = Boolean(String(lifecycle.complaintId ?? "").trim() || String(queueSnapshot.complaintId ?? "").trim());
       const resolved = hasComplaintId || ["ACTIVE", "RESOLVED", "CLOSED", "REJECTED"].includes(cardState);
       if (!resolved && ["QUEUED", "PROCESSING", "RETRY PENDING"].includes(cardState)) {
@@ -2415,10 +2431,10 @@ export default function BulkTracking() {
   function buildTrackingTableRowModel(records: FinalTrackingRecord[]): TrackingTableRowModel[] {
     return records.map((record) => {
       const s = record.shipment;
-      const lifecycle = parseComplaintLifecycle(s);
-      const complaintState = resolveComplaintCardState(lifecycle, complaintQueueByTracking.get(s.trackingNumber));
-      const manualOverride = isManualOverrideShipment(s);
       const authoritativeStatus = getAuthoritativeRecordStatus(record);
+      const lifecycle = parseComplaintLifecycle(s);
+      const complaintState = resolveComplaintCardState(lifecycle, authoritativeStatus, complaintQueueByTracking.get(s.trackingNumber));
+      const manualOverride = isManualOverrideShipment(s);
       const statusBadge = statusBadgeClass(authoritativeStatus);
       const days = s.daysPassed ?? Math.floor((Date.now() - new Date(s.createdAt).getTime()) / (1000 * 60 * 60 * 24));
       const displayCity = preferredCity(s);
@@ -2962,7 +2978,7 @@ export default function BulkTracking() {
     const deliveryProgress = Number.isFinite(rawDeliveryProgress) ? rawDeliveryProgress : undefined;
     const complaintLifecycle = parseComplaintLifecycle(detailShipment);
     const queueSnapshot = complaintQueueByTracking.get(detailShipment.trackingNumber);
-    const complaintCardState = resolveComplaintCardState(complaintLifecycle, queueSnapshot);
+    const complaintCardState = resolveComplaintCardState(complaintLifecycle, selectedTrackingStatus, queueSnapshot);
     const presentation = resolveTrackingPresentation(selectedTrackingStatus, timeline, deliveryProgress, trackingLifecycle, {
       operationalStatus: selectedTrackingStatus,
       complaintActive: isComplaintInProcess(complaintLifecycle) || ["ACTIVE", "PROCESSING", "RETRY PENDING", "MANUAL REVIEW", "QUEUED"].includes(complaintCardState.toUpperCase()),

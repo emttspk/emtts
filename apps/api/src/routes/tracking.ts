@@ -1737,6 +1737,7 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
   };
 
   let complaintAllowed = false;
+  let shipmentStatusAtComplaintSubmit = "";
   let complaintContext: {
     complainant_name: string;
     sender_name: string;
@@ -1783,6 +1784,9 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
     const manualPendingOverride = Boolean((raw as any)?.manual_pending_override);
     const pendingStatus = String(processed.systemStatus ?? processed.status ?? "").trim().toUpperCase().startsWith("PENDING");
     complaintAllowed = manualPendingOverride || pendingStatus;
+    shipmentStatusAtComplaintSubmit = manualPendingOverride
+      ? "PENDING"
+      : String(processed.systemStatus ?? processed.status ?? "").trim().toUpperCase();
 
     const trackingNode = ((raw as any)?.tracking && typeof (raw as any).tracking === "object")
       ? ((raw as any).tracking as Record<string, unknown>)
@@ -1957,7 +1961,7 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
       !complaintContext.receiver_city.trim() ? "ReceiverCity" : "",
       !complaintContext.recipient_district.trim() ? "District" : "",
       !complaintContext.recipient_tehsil.trim() ? "Tehsil" : "",
-      !complaintContext.recipient_location.trim() ? "DeliveryOffice" : "",
+      !complaintContext.recipient_location.trim() || complaintContext.recipient_location.trim() === "-" ? "DeliveryOffice" : "",
       !normalizedPhone.trim() ? "Mobile" : "",
       !remarks.trim() ? "Remarks" : "",
     ].filter(Boolean);
@@ -2037,6 +2041,7 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
       const live = await pythonTrackOne(trackingNumber, { includeRaw: true });
       const liveStatus = String(live?.status ?? "").trim().toUpperCase();
       complaintAllowed = liveStatus.startsWith("PENDING") || live?.complaint_eligible === true;
+      shipmentStatusAtComplaintSubmit = liveStatus;
       const liveRaw = (live?.raw && typeof live.raw === "object") ? (live.raw as Record<string, unknown>) : {};
       const liveTracking = ((liveRaw as any)?.tracking && typeof (liveRaw as any).tracking === "object")
         ? ((liveRaw as any).tracking as Record<string, unknown>)
@@ -2201,6 +2206,7 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
     tracking_number: trackingNumber,
     phone: normalizedPhone,
     complaint_text: finalRemarks,
+    shipment_status_at_complaint_submit: shipmentStatusAtComplaintSubmit || "PENDING",
     current_user_remarks: baseRemarks,
     attempt_number: attemptNumber,
     previous_complaint_reference: previousComplaintReference,
@@ -2231,6 +2237,23 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
       browserSession: body.browser_session ?? null,
     });
 
+    // Consume units AFTER queue row is safely created
+    const requestKey = `complaint:${queueRow.id}`;
+    const consumeResult = await consumeUnits(userId, [{
+      actionType: "complaint" as const,
+      requestKey,
+      unitsUsed: COMPLAINT_UNIT_COST,
+    }]);
+
+    if (!consumeResult.ok) {
+      // Rollback: delete queued complaint since units could not be deducted
+      await prisma.complaintQueue.delete({ where: { id: queueRow.id } });
+      return res.status(402).json({
+        success: false,
+        message: consumeResult.reason || "Insufficient units for complaint submission.",
+      });
+    }
+
     const complaintJob = await prisma.trackingJob.create({
       data: {
         userId,
@@ -2260,7 +2283,7 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
       actorEmail: String((req as any).user?.email ?? body.reply_email ?? normalizedPhone ?? "system").trim() || "system",
       action: "complaint_updated",
       trackingId: trackingNumber,
-      details: `queue_id:${queueRow.id};job_id:${complaintJob.id};status:queued`,
+      details: `queue_id:${queueRow.id};job_id:${complaintJob.id};status:queued;units_consumed:${COMPLAINT_UNIT_COST}`,
     });
 
     return res.json({

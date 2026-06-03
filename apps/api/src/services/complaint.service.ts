@@ -7,10 +7,12 @@ export type ComplaintRecord = {
   complaintId: string;
   dueDate: string;
   dueDateTs: number | null;
-  state: "OPEN" | "IN_PROCESS" | "RESOLVED" | "CLOSED" | "ACTIVE";
+  state: "OPEN" | "IN_PROCESS" | "PROCESSING" | "RESOLVED" | "CLOSED" | "ACTIVE" | "REJECTED";
   active: boolean;
   complaintStatus: string;
   complaintText: string;
+  shipmentStatus: string;
+  manualPendingOverride: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -72,6 +74,9 @@ export function parseComplaintRecord(textBlob: string | null | undefined, compla
       ?? (String(complaintStatus ?? "").toUpperCase() === "FILED" ? "ACTIVE" : complaintStatus ?? "ACTIVE"),
   ).trim().toUpperCase() || "ACTIVE";
   const dueDateTs = parseDueDateToTs(String(dueDate).trim());
+  const shipmentStatusAtComplaintSubmit = String(text.match(/shipmentStatusAtComplaintSubmit\s*:\s*([^|\n]+)/i)?.[1] ?? "").trim().toUpperCase();
+  const trackingStateAtSync = String(text.match(/trackingStateAtSync\s*:\s*([^|\n]+)/i)?.[1] ?? "").trim().toUpperCase();
+  const complaintStateReason = String(text.match(/complaintStateReason\s*:\s*([^|\n]+)/i)?.[1] ?? "").trim();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const active = String(complaintStatus ?? "").toUpperCase() === "FILED"
@@ -86,6 +91,9 @@ export function parseComplaintRecord(textBlob: string | null | undefined, compla
     dueDateTs,
     state: state as ComplaintRecord["state"],
     active,
+    shipmentStatusAtComplaintSubmit,
+    trackingStateAtSync,
+    complaintStateReason,
   };
 }
 
@@ -152,6 +160,9 @@ export function composeComplaintText(input: {
   complaintId: string;
   dueDate: string;
   state?: string;
+  shipmentStatusAtComplaintSubmit?: string;
+  trackingStateAtSync?: string;
+  complaintStateReason?: string;
   userComplaint: string;
   responseText: string;
   historyEntries: ComplaintHistoryEntry[];
@@ -161,6 +172,15 @@ export function composeComplaintText(input: {
   if (String(input.complaintId ?? "").trim()) headerParts.push(`COMPLAINT_ID: ${String(input.complaintId).trim()}`);
   if (String(input.dueDate ?? "").trim()) headerParts.push(`DUE_DATE: ${String(input.dueDate).trim()}`);
   headerParts.push(`COMPLAINT_STATE: ${stateLabel}`);
+  if (String(input.shipmentStatusAtComplaintSubmit ?? "").trim()) {
+    headerParts.push(`shipmentStatusAtComplaintSubmit: ${String(input.shipmentStatusAtComplaintSubmit).trim().toUpperCase()}`);
+  }
+  if (String(input.trackingStateAtSync ?? "").trim()) {
+    headerParts.push(`trackingStateAtSync: ${String(input.trackingStateAtSync).trim().toUpperCase()}`);
+  }
+  if (String(input.complaintStateReason ?? "").trim()) {
+    headerParts.push(`complaintStateReason: ${String(input.complaintStateReason).trim()}`);
+  }
   const header = headerParts.join(" | ");
   const historyJson = JSON.stringify({ entries: input.historyEntries });
   return `${header}\nUser complaint:\n${String(input.userComplaint ?? "").trim()}\n\nResponse:\n${String(input.responseText ?? "").trim()}\n\n${COMPLAINT_HISTORY_MARKER} ${historyJson}`;
@@ -190,6 +210,13 @@ export async function listComplaintRecords(filters?: { trackingIds?: string[]; u
     .map((shipment) => {
       const parsed = parseComplaintRecord(shipment.complaintText, shipment.complaintStatus);
       if (!parsed.complaintId && String(shipment.complaintStatus ?? "").toUpperCase() !== "ERROR") return null;
+      let manualPendingOverride = false;
+      try {
+        const raw = shipment.rawJson ? JSON.parse(shipment.rawJson) as Record<string, unknown> : {};
+        manualPendingOverride = Boolean((raw as any)?.manual_pending_override);
+      } catch {
+        manualPendingOverride = false;
+      }
       return {
         userId: shipment.userId,
         userEmail: String(shipment.user?.email ?? "").trim(),
@@ -201,6 +228,8 @@ export async function listComplaintRecords(filters?: { trackingIds?: string[]; u
         active: parsed.active,
         complaintStatus: String(shipment.complaintStatus ?? "").trim().toUpperCase(),
         complaintText: String(shipment.complaintText ?? ""),
+        shipmentStatus: String(shipment.status ?? "").trim().toUpperCase(),
+        manualPendingOverride,
         createdAt: shipment.createdAt,
         updatedAt: shipment.updatedAt,
       } satisfies ComplaintRecord;

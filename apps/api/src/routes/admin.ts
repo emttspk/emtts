@@ -1203,7 +1203,7 @@ adminRouter.post("/complaints/manual-override", async (req, res) => {
   }).parse(req.body ?? {});
 
   const actorEmail = String((req as any).user?.email ?? "system").trim() || "system";
-  const text = `COMPLAINT_ID: ${body.complaintId} | DUE_DATE: ${body.dueDate} | COMPLAINT_STATE: ${body.state}\nResponse:\nManual override by admin`;
+  const text = `COMPLAINT_ID: ${body.complaintId} | DUE_DATE: ${body.dueDate} | COMPLAINT_STATE: ${body.state} | trackingStateAtSync: MANUAL_OVERRIDE | complaintStateReason: admin_manual_override\nResponse:\nManual override by admin`;
 
   await prisma.shipment.updateMany({
     where: { trackingNumber: body.trackingId },

@@ -1,5 +1,6 @@
 import { prisma } from "../lib/prisma.js";
 import { pythonSubmitComplaint } from "../services/trackingService.js";
+import { COMPLAINT_UNIT_COST, refundUnits } from "../usage/unitConsumption.js";
 import {
   markComplaintQueueFailure,
   markComplaintQueueProcessing,
@@ -9,6 +10,7 @@ import {
 import { recordComplaintCircuitFailure, recordComplaintCircuitSuccess, isComplaintCircuitOpen } from "../services/complaint-circuit.service.js";
 import { logComplaintAudit } from "../services/complaint-audit.service.js";
 import { composeComplaintText, extractComplaintHistory, parseComplaintRecord, type ComplaintHistoryEntry } from "../services/complaint.service.js";
+import { createComplaintNotification } from "../services/complaintNotifications.js";
 
 function normalizeDueDateToDate(input: string) {
   const value = String(input ?? "").trim();
@@ -135,6 +137,9 @@ export async function processComplaintQueueById(queueId: string) {
       complaintId: finalizedComplaintId,
       dueDate: normalizedFinalDueDate,
       state: "ACTIVE",
+      shipmentStatusAtComplaintSubmit: String(payload.shipment_status_at_complaint_submit ?? "PENDING").trim().toUpperCase() || "PENDING",
+      trackingStateAtSync: "UNSYNCED",
+      complaintStateReason: attemptNumber > 1 ? "reopened_submission_pending_sync" : "submitted_pending_sync",
       userComplaint: String(payload.complaint_text ?? "").trim(),
       responseText,
       historyEntries: mergedHistory,
@@ -162,6 +167,23 @@ export async function processComplaintQueueById(queueId: string) {
         complaintId: finalizedComplaintId || undefined,
         details: `queue:${queueId};status:${queueStatus};due:${normalizedFinalDueDate || "-"}`,
       });
+      
+      // Create notification for successful complaint submission
+      const notificationType = submitSuccess ? "complaint_filed" : "complaint_resolved";
+      const notificationTitle = submitSuccess 
+        ? "Complaint Submitted" 
+        : "Complaint Already Registered";
+      const notificationMessage = submitSuccess
+        ? `Your complaint for tracking ${trackingNumber} has been successfully submitted. Complaint ID: ${finalizedComplaintId || "-"}, Due Date: ${normalizedFinalDueDate || "-"}`
+        : `A complaint already exists for tracking ${trackingNumber}. Complaint ID: ${finalizedComplaintId || "-"}`;
+      
+      await createComplaintNotification({
+        userId: queueRow.userId,
+        trackingId: trackingNumber,
+        type: notificationType,
+        title: notificationTitle,
+        message: notificationMessage,
+      });
     }
 
     return {
@@ -176,6 +198,24 @@ export async function processComplaintQueueById(queueId: string) {
     const message = error instanceof Error ? error.message : "Complaint worker submission failed";
     await markComplaintQueueFailure(queueId, message);
     await recordComplaintCircuitFailure(message);
+    
+    // Refund units if complaint submission failed
+    const refundKey = `complaint:${queueId}`;
+    await refundUnits(queueRow.userId, [{
+      actionType: "complaint" as const,
+      requestKey: refundKey,
+      unitsUsed: COMPLAINT_UNIT_COST,
+    }]);
+    
+    // Notify user of failure
+    await createComplaintNotification({
+      userId: queueRow.userId,
+      trackingId: trackingNumber,
+      type: "complaint_failed",
+      title: "Complaint Submission Failed",
+      message: `Your complaint for tracking ${trackingNumber} failed to submit. Please try again or contact support.`,
+    });
+    
     return { success: false, status: "ERROR", message, trackingId: trackingNumber };
   }
 }

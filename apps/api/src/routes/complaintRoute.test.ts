@@ -590,7 +590,7 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: "accepted complaint creates queue payload with expected fields",
+    name: "accepted complaint creates queue payload with expected fields and consumes complaint units",
     async run() {
       const state = makeState({ shipmentRow: makePendingShipment() });
       const result = await runComplaintRoute({ state, body: defaultBody() });
@@ -601,18 +601,22 @@ const tests: TestCase[] = [
       assert.equal(payload?.phone, "03001234567");
       assert.ok(String(payload?.complaint_text ?? "").length > 0);
       const consumedComplaint = state.usageLogs.find((row) => row.action_type === "complaint" && row.status === "CONSUMED");
-      assert.equal(consumedComplaint, undefined);
+      assert.ok(consumedComplaint);
+      assert.match(String(consumedComplaint?.request_key ?? ""), /^complaint:cq-/i);
+      assert.equal(Number(consumedComplaint?.units_used ?? 0), 10);
     },
   },
   {
-    name: "queue enqueue failure returns safe error without mutating complaint usage logs",
+    name: "queue enqueue failure returns safe error and leaves consumed complaint usage log for later worker refund",
     async run() {
       const state = makeState({ shipmentRow: makePendingShipment(), queueAddShouldFail: true });
       const result = await runComplaintRoute({ state, body: defaultBody() });
       assert.equal(result.statusCode, 500);
+      const consumed = state.usageLogs.find((row) => row.action_type === "complaint" && row.status === "CONSUMED");
+      assert.ok(consumed);
       const refunded = state.usageLogs.find((row) => row.action_type === "complaint" && row.status === "REFUNDED");
       assert.equal(refunded, undefined);
-      assert.equal(state.usageMonthly.labelsQueued, 0);
+      assert.equal(state.usageMonthly.labelsQueued, 10);
     },
   },
 ];

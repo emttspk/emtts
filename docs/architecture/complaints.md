@@ -57,10 +57,21 @@ The district/tehsil/location hierarchy is auto-resolved from `city/post office l
 - Card displays `Complaint ID`, `Due Date`, and a compact status badge
 - Clicking the card opens the complaint modal in detail mode and disables re-submission while the complaint is active
 
+## Complaint State Rules (2026-06-03)
+- Newly submitted complaint state starts as `ACTIVE`.
+- Reopened/resubmitted complaint state starts as `ACTIVE`.
+- If authoritative shipment status is `PENDING` (system or manual override), complaint state must remain `ACTIVE` or `PROCESSING`.
+- Complaint becomes `RESOLVED` only when latest verified Pakistan Post tracking state is `DELIVERED` or `RETURNED`.
+- If tracking is unavailable/uncertain during sync, complaint must not resolve and remains `ACTIVE` or `PROCESSING`.
+- Sync metadata persisted in complaint header:
+  - `shipmentStatusAtComplaintSubmit`
+  - `trackingStateAtSync`
+  - `complaintStateReason`
+
 ## Sync, Alerts, And Audit
 - `POST /api/admin/complaints/sync` manually syncs complaint state
 - Scheduled sync runs every 6 hours
-- Derived states: `OPEN`, `IN_PROCESS`, `RESOLVED`, `CLOSED`
+- Derived states: `ACTIVE`, `PROCESSING`, `RESOLVED`, `CLOSED`
 - SLA alerts are stored in `complaint_notification_logs`
 - Admin audit entries are stored in `complaint_audit_logs`
 - CSV export endpoint: `GET /api/admin/complaints/export`
@@ -81,7 +92,7 @@ The district/tehsil/location hierarchy is auto-resolved from `city/post office l
 
 ## Storage Format
 ```
-COMPLAINT_ID: CMP-984183 | DUE_DATE: 03-05-2026
+COMPLAINT_ID: CMP-984183 | DUE_DATE: 03-05-2026 | COMPLAINT_STATE: ACTIVE | shipmentStatusAtComplaintSubmit: PENDING | trackingStateAtSync: UNSYNCED | complaintStateReason: submitted_pending_sync
 User complaint:
 [user remarks]
 

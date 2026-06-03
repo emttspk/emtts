@@ -2,28 +2,109 @@ import cron from "node-cron";
 import { randomUUID } from "node:crypto";
 import { prisma } from "../lib/prisma.js";
 import { pythonTrackOne } from "./trackingService.js";
-import { ensureComplaintNotificationTable, listComplaintRecords, parseComplaintRecord, upsertComplaintMetadata } from "./complaint.service.js";
+import { ensureComplaintNotificationTable, listComplaintRecords, upsertComplaintMetadata } from "./complaint.service.js";
 import { logComplaintAudit } from "./complaint-audit.service.js";
 
 let complaintSyncScheduleStarted = false;
 
 function normalizeTrackingState(value: string) {
   const upper = String(value ?? "").trim().toUpperCase();
+  if (!upper) return "UNAVAILABLE";
   if (upper.includes("DELIVER")) return "DELIVERED";
   if (upper.includes("RETURN")) return "RETURNED";
   if (upper.includes("PENDING")) return "PENDING";
-  return upper || "UNKNOWN";
+  return "UNKNOWN";
 }
 
-function deriveComplaintState(input: { priorState: string; trackingState: string; dueDateTs: number | null; now: number }) {
-  const trackingState = normalizeTrackingState(input.trackingState);
-  if (trackingState === "DELIVERED" || trackingState === "RETURNED") {
-    return input.priorState === "RESOLVED" || input.priorState === "CLOSED" ? "CLOSED" : "RESOLVED";
+function normalizeShipmentState(value: string) {
+  const upper = String(value ?? "").trim().toUpperCase();
+  if (!upper) return "UNKNOWN";
+  if (upper.includes("PENDING")) return "PENDING";
+  if (upper.includes("DELIVER")) return "DELIVERED";
+  if (upper.includes("RETURN")) return "RETURNED";
+  return upper;
+}
+
+export function deriveComplaintState(input: {
+  priorState: string;
+  trackingState: string;
+  trackingAvailable: boolean;
+  shipmentStatus: string;
+  manualPendingOverride: boolean;
+  dueDateTs: number | null;
+  now: number;
+}) {
+  const trackingStateAtSync = input.trackingAvailable ? normalizeTrackingState(input.trackingState) : "UNAVAILABLE";
+  const shipmentState = normalizeShipmentState(input.shipmentStatus);
+  const duePassed = input.dueDateTs != null && input.dueDateTs <= input.now;
+
+  if (input.manualPendingOverride || shipmentState === "PENDING") {
+    return {
+      state: duePassed ? "PROCESSING" : "ACTIVE",
+      reason: input.manualPendingOverride ? "shipment_pending_manual_override" : "shipment_pending_system",
+      trackingStateAtSync,
+    };
   }
-  if (input.dueDateTs != null && input.dueDateTs <= input.now) {
-    return "PROCESSING";
+
+  if (trackingStateAtSync === "DELIVERED" || trackingStateAtSync === "RETURNED") {
+    return {
+      state: input.priorState === "RESOLVED" || input.priorState === "CLOSED" ? "CLOSED" : "RESOLVED",
+      reason: `verified_tracking_${trackingStateAtSync.toLowerCase()}`,
+      trackingStateAtSync,
+    };
   }
-  return "ACTIVE";
+
+  if (!input.trackingAvailable || trackingStateAtSync === "UNAVAILABLE" || trackingStateAtSync === "UNKNOWN") {
+    return {
+      state: duePassed ? "PROCESSING" : "ACTIVE",
+      reason: "tracking_unavailable_or_uncertain",
+      trackingStateAtSync,
+    };
+  }
+
+  if (duePassed) {
+    return {
+      state: "PROCESSING",
+      reason: "due_date_reached_pending_verification",
+      trackingStateAtSync,
+    };
+  }
+
+  return {
+    state: "ACTIVE",
+    reason: "tracking_non_terminal",
+    trackingStateAtSync,
+  };
+}
+
+function buildSyncMetadata(input: {
+  nextState: string;
+  trackingStateAtSync: string;
+  reason: string;
+}) {
+  return {
+    COMPLAINT_STATE: input.nextState,
+    LAST_SYNC_AT: new Date().toISOString(),
+    LAST_TRACKING_STATUS: input.trackingStateAtSync,
+    trackingStateAtSync: input.trackingStateAtSync,
+    complaintStateReason: input.reason,
+  };
+}
+
+function shouldPersistSyncUpdate(input: {
+  priorState: string;
+  nextState: string;
+  complaintText: string;
+  trackingStateAtSync: string;
+  reason: string;
+  alerts: string[];
+}) {
+  if (input.priorState !== input.nextState) return true;
+  if (input.alerts.length > 0) return true;
+  const text = String(input.complaintText ?? "");
+  if (!text.includes(`trackingStateAtSync: ${input.trackingStateAtSync}`)) return true;
+  if (!text.includes(`complaintStateReason: ${input.reason}`)) return true;
+  return false;
 }
 
 async function recordComplaintAlert(input: { trackingId: string; complaintId: string; dueDate: string; alertType: string }) {
@@ -66,48 +147,107 @@ async function updateComplaintAlerts(record: { trackingId: string; complaintId: 
 export async function runComplaintSync(options?: { trackingIds?: string[]; actorEmail?: string }) {
   const actorEmail = String(options?.actorEmail ?? "system").trim() || "system";
   const complaints = await listComplaintRecords({ trackingIds: options?.trackingIds });
-  const results: Array<{ trackingId: string; complaintId: string; previousState: string; nextState: string; alerts: string[] }> = [];
+  const results: Array<{ trackingId: string; complaintId: string; previousState: string; nextState: string; alerts: string[]; reason: string; trackingStateAtSync: string }> = [];
 
   for (const complaint of complaints) {
     if (!complaint.complaintId) continue;
+    let liveStatus = "";
+    let trackingAvailable = false;
     try {
       const live = await pythonTrackOne(complaint.trackingId, { includeRaw: true });
-      const nextState = deriveComplaintState({
+      liveStatus = String(live.status ?? "").trim();
+      trackingAvailable = liveStatus.length > 0;
+      const decision = deriveComplaintState({
         priorState: complaint.state,
-        trackingState: String(live.status ?? ""),
+        trackingState: liveStatus,
+        trackingAvailable,
+        shipmentStatus: complaint.shipmentStatus,
+        manualPendingOverride: complaint.manualPendingOverride,
         dueDateTs: complaint.dueDateTs,
         now: Date.now(),
       });
       const alerts = await updateComplaintAlerts(complaint);
-      if (nextState !== complaint.state || alerts.length > 0) {
-        const nextText = upsertComplaintMetadata(complaint.complaintText, {
-          COMPLAINT_STATE: nextState,
-          LAST_SYNC_AT: new Date().toISOString(),
-          LAST_TRACKING_STATUS: String(live.status ?? "").trim().toUpperCase(),
-        });
+      if (shouldPersistSyncUpdate({
+        priorState: complaint.state,
+        nextState: decision.state,
+        complaintText: complaint.complaintText,
+        trackingStateAtSync: decision.trackingStateAtSync,
+        reason: decision.reason,
+        alerts,
+      })) {
+        const nextText = upsertComplaintMetadata(
+          complaint.complaintText,
+          buildSyncMetadata({
+            nextState: decision.state,
+            trackingStateAtSync: decision.trackingStateAtSync,
+            reason: decision.reason,
+          }),
+        );
         await prisma.shipment.update({
           where: { userId_trackingNumber: { userId: complaint.userId, trackingNumber: complaint.trackingId } },
           data: {
             complaintText: nextText,
-            complaintStatus: nextState === "CLOSED" ? "FILED" : complaint.complaintStatus,
+            complaintStatus: decision.state === "CLOSED" ? "FILED" : complaint.complaintStatus,
           },
         });
         await logComplaintAudit({
           actorEmail,
-          action: nextState === "CLOSED" ? "complaint_closed" : "complaint_synced",
+          action: decision.state === "CLOSED" ? "complaint_closed" : "complaint_synced",
           trackingId: complaint.trackingId,
           complaintId: complaint.complaintId,
-          details: `state:${complaint.state}->${nextState};alerts:${alerts.join("|") || "none"}`,
+          details: `state:${complaint.state}->${decision.state};shipment:${complaint.shipmentStatus || "UNKNOWN"};tracking:${decision.trackingStateAtSync};reason:${decision.reason};alerts:${alerts.join("|") || "none"}`,
         });
       }
       results.push({
         trackingId: complaint.trackingId,
         complaintId: complaint.complaintId,
         previousState: complaint.state,
-        nextState,
+        nextState: decision.state,
         alerts,
+        reason: decision.reason,
+        trackingStateAtSync: decision.trackingStateAtSync,
       });
     } catch (error) {
+      const fallbackDecision = deriveComplaintState({
+        priorState: complaint.state,
+        trackingState: liveStatus,
+        trackingAvailable: false,
+        shipmentStatus: complaint.shipmentStatus,
+        manualPendingOverride: complaint.manualPendingOverride,
+        dueDateTs: complaint.dueDateTs,
+        now: Date.now(),
+      });
+      const nextText = upsertComplaintMetadata(
+        complaint.complaintText,
+        buildSyncMetadata({
+          nextState: fallbackDecision.state,
+          trackingStateAtSync: fallbackDecision.trackingStateAtSync,
+          reason: fallbackDecision.reason,
+        }),
+      );
+      await prisma.shipment.update({
+        where: { userId_trackingNumber: { userId: complaint.userId, trackingNumber: complaint.trackingId } },
+        data: {
+          complaintText: nextText,
+          complaintStatus: complaint.complaintStatus,
+        },
+      });
+      await logComplaintAudit({
+        actorEmail,
+        action: "complaint_synced",
+        trackingId: complaint.trackingId,
+        complaintId: complaint.complaintId,
+        details: `sync_uncertain:true;state:${complaint.state}->${fallbackDecision.state};shipment:${complaint.shipmentStatus || "UNKNOWN"};tracking:${fallbackDecision.trackingStateAtSync};reason:${fallbackDecision.reason};error:${error instanceof Error ? error.message : "unknown"}`,
+      });
+      results.push({
+        trackingId: complaint.trackingId,
+        complaintId: complaint.complaintId,
+        previousState: complaint.state,
+        nextState: fallbackDecision.state,
+        alerts: [],
+        reason: fallbackDecision.reason,
+        trackingStateAtSync: fallbackDecision.trackingStateAtSync,
+      });
       console.error(`[ComplaintSync] ${complaint.trackingId} failed:`, error instanceof Error ? error.message : error);
     }
   }

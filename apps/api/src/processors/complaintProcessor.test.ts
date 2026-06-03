@@ -198,6 +198,8 @@ const tests: TestCase[] = [
           assert.equal(getQueueRow()?.complaintStatus, "submitted");
           assert.equal(getShipment()?.complaintStatus, "FILED");
           assert.ok(String(getShipment()?.complaintText ?? "").includes("COMPLAINT_ID: CMP-7788"));
+          assert.ok(String(getShipment()?.complaintText ?? "").includes("COMPLAINT_STATE: ACTIVE"));
+          assert.ok(String(getShipment()?.complaintText ?? "").includes("complaintStateReason: submitted_pending_sync"));
           const snapshotText = String(getShipment()?.complaintText ?? "");
           const marker = "COMPLAINT_HISTORY_JSON:";
           const markerIndex = snapshotText.lastIndexOf(marker);
@@ -223,14 +225,27 @@ const tests: TestCase[] = [
         already_exists: true,
       }, async () => {
         await withProcessorPrismaMock({
-          queueRow: makeQueueRow({ complaintId: "CMP-OLD", dueDate: new Date("2026-06-10T00:00:00.000Z") }),
+          queueRow: makeQueueRow({
+            complaintId: "CMP-OLD",
+            dueDate: new Date("2026-06-10T00:00:00.000Z"),
+            payloadJson: {
+              tracking_number: "VPL26050001",
+              phone: "03001234567",
+              complaint_text: "Pending delivery again",
+              attempt_number: 2,
+              previous_complaint_reference: "CMP-OLD",
+              shipment_status_at_complaint_submit: "PENDING",
+            },
+          }),
           shipment: null,
-        }, async ({ getQueueRow }) => {
+        }, async ({ getQueueRow, getShipment }) => {
           const result = await processComplaintQueueById("cq-1");
           assert.equal(result.success, true);
           assert.equal(result.status, "FILED");
           assert.equal(getQueueRow()?.complaintStatus, "duplicate");
           assert.equal(result.complaintId, "CMP-OLD");
+          assert.ok(String(getShipment()?.complaintText ?? "").includes("COMPLAINT_STATE: ACTIVE"));
+          assert.ok(String(getShipment()?.complaintText ?? "").includes("complaintStateReason: reopened_submission_pending_sync"));
         });
       });
     },
