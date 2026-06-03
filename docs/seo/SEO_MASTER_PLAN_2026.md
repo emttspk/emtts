@@ -143,3 +143,56 @@
 ## Metadata Strengthening Note (2026-06-04)
 
 - Homepage search metadata strengthened for Pakistan Post, bulk tracking, 1 click complaints, labels and money orders.
+
+## Keyword Priority Strategy (From Local Marketing Keyword List)
+
+Source reviewed: `marketing/Keyword Stats 2026-06-04 at 02_49_24.csv` (local only, not committed).
+
+### Primary Keywords
+
+- Pakistan Post
+- Pakistan Post Tracking
+- Pak Post Tracking
+- Bulk Tracking
+- Post Office Tracking
+- Pakistan Mail Tracking
+
+### Secondary Keywords
+
+- Pakistan Post Complaints
+- 1 Click Complaints
+- Label Generation
+- Money Order Generation
+- Ecommerce Shipping Pakistan
+
+### Long-Tail Keywords
+
+- Pakistan Post tracking for ecommerce orders
+- Bulk parcel tracking for Pakistan Post shipments
+- 1 click Pakistan Post complaint submission online
+- Pakistan Post label generation for bulk dispatch
+- Money order generation and dispatch workflow Pakistan
+- Ecommerce shipping Pakistan with tracking and complaints
+
+### Keyword-to-Page Usage Map
+
+- `/`: Pakistan Post, Ecommerce Shipping Pakistan, Label Generation (high-level service summary copy).
+- `/tracking`: Pakistan Post Tracking, Pak Post Tracking, Post Office Tracking, Pakistan Mail Tracking, Bulk Tracking.
+- `/support`: Pakistan Post Complaints, 1 Click Complaints.
+- Label generation flow pages: Label Generation.
+- Money order generation flow pages: Money Order Generation.
+- Pricing/service overview pages: Ecommerce Shipping Pakistan, Bulk Tracking.
+
+### Guardrails
+
+- Avoid keyword stuffing: prioritize natural language and user intent over repeated exact-match phrases.
+- Do not claim official Pakistan Post affiliation unless explicitly authorized; use wording that positions ePost.pk as a platform/service provider.
+
+### Recommended Future Landing Pages
+
+- `/pakistan-post-tracking`
+- `/bulk-tracking`
+- `/pakistan-post-complaints`
+- `/label-generator`
+- `/money-order-generation`
+- `/ecommerce-shipping-pakistan`
