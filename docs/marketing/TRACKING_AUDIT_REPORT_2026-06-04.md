@@ -25,6 +25,27 @@
 - Public Home CTA now tracks `whatsapp_demo_click` with source `home_demo` only.
 - CTA uses `VITE_PUBLIC_WHATSAPP_NUMBER` when configured; otherwise renders disabled "coming soon" state.
 
+## Frontend Environment Guide (WhatsApp Demo CTA)
+
+- Variable: `VITE_PUBLIC_WHATSAPP_NUMBER`
+- Example format only: `VITE_PUBLIC_WHATSAPP_NUMBER=923001234567`
+- Use digits only.
+- Do not use plus sign (`+`).
+- Do not use spaces.
+- Do not use hyphens.
+- Do not use a private/personal number unless explicitly approved as public business WhatsApp.
+
+## Production Verification Checklist (WhatsApp Demo Tracking)
+
+- [ ] Set `VITE_PUBLIC_WHATSAPP_NUMBER` in Railway web/frontend service variables.
+- [ ] Redeploy the web/frontend service.
+- [ ] Open the ePost.pk home page.
+- [ ] Confirm WhatsApp Demo CTA is enabled.
+- [ ] Click CTA and confirm `wa.me` opens.
+- [ ] Confirm GA4 Realtime receives WhatsApp click event when GA measurement ID is configured.
+- [ ] Confirm Meta Pixel Helper detects WhatsApp click event when Meta Pixel ID is configured.
+- [ ] Confirm event payload contains no phone, CNIC, address, tracking ID, parcel data, or payment reference.
+
 ## Current Status
 **CRITICAL MISSING** - The ePost.pk platform currently has **zero** marketing tracking implemented. There is no Meta Pixel, no Google Tag (GA4), and no conversion event tracking for key business actions.
 

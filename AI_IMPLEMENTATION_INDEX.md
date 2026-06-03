@@ -1,5 +1,9 @@
 # AI Implementation Index
 
+## 2026-06-04 - WhatsApp Analytics Env Guide
+
+- Frontend WhatsApp analytics environment guide documented.
+
 ## 2026-06-04 - WhatsApp Demo CTA Tracking
 
 - WhatsApp demo CTA and safe analytics event implemented.
