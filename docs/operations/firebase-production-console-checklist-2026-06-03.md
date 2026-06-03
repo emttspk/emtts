@@ -29,3 +29,20 @@ railway variables --set "SMOKE_EMAIL=your-smoke-user@example.com" --service Api 
 railway variables --set "SMOKE_PASSWORD=REPLACE_WITH_SECRET" --service Api --environment production
 railway run --service Api --environment production -- npm run auth:smoke:prod
 ```
+
+## 2026-06-03 Production Smoke Status
+- Smoke environment present:
+	- `SMOKE_EMAIL`: yes
+	- `SMOKE_PASSWORD`: yes
+- Final smoke run result: PASS
+- Verified responses:
+	- `health` 200
+	- `login` 200
+	- `refresh` 200
+	- `logout` 200
+	- `refreshAfterLogout` 401 (expected)
+- Secret-handling status:
+	- no password printed
+	- no token printed
+- Remaining operational risk:
+	- Firebase console manual checklist still requires explicit operator completion and sign-off.

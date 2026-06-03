@@ -89,6 +89,43 @@ Optional forgot-password check during smoke run:
 railway run --service Api --environment production -- env SMOKE_ENABLE_FORGOT_PASSWORD=true npm run auth:smoke:prod
 ```
 
+## 2026-06-03 Final Production Smoke Verification (Credentials Added)
+
+### Date/Time (UTC)
+- 2026-06-03 (final verification run completed after Api deployment stabilized)
+
+### Smoke Environment Check
+- `SMOKE_EMAIL`: present
+- `SMOKE_PASSWORD`: present
+
+### Execution Result
+- Initial attempt during active Api deployment returned transient `502` from `/api/auth/login`.
+- Re-run after deployment completion: PASS.
+
+Smoke output summary:
+- `health`: `200`
+- `login`: `200`
+- `refresh`: `200`
+- `logout`: `200`
+- `refreshAfterLogout`: `401` (expected)
+- `forgotPassword`: skipped (flag not enabled in this run)
+
+### Safety Confirmation
+- Smoke script did not print passwords.
+- Smoke script did not print tokens.
+- Smoke script used masked account logging only.
+
+### Railway Log Confirmation
+- Recent Api logs include expected auth events for smoke path:
+	- `auth.login.success`
+	- `auth.metric.login_success`
+	- `auth.logout`
+	- `auth.metric.login_failure` with `invalid_refresh_token` for refresh-after-logout check (expected)
+
+### Customer Login Readiness
+- Status: HIGH
+- Auth success-path verification: COMPLETE for health/login/refresh/logout/revoke semantics.
+
 ## Phase 1 - Firebase Console Audit (Required Production Settings)
 
 This section documents required production settings to validate in Firebase Console for project `epost-auth`.
@@ -255,8 +292,8 @@ Overall production auth readiness score: 89/100
 - Firebase Console settings must be manually confirmed against this checklist.
 - Tokens are still browser-stored (session/local) and therefore not equivalent to HttpOnly cookie security.
 - Monitoring is log-based; no dedicated auth dashboard/alerts are wired yet.
-- Production success-path login/refresh/logout was not fully verified end-to-end because no smoke credentials were present in the linked production Api service environment.
-- Real browser/mobile auth flow was not directly exercised in this pass because no browser page/tool was available.
+- Optional forgot-password smoke leg was skipped in this run (`SMOKE_ENABLE_FORGOT_PASSWORD` not enabled); endpoint behavior is already validated separately.
+- Real browser/mobile auth flow remains operationally recommended for periodic UI regression checks.
 
 ## Recommended Next Hardening (Future)
 - Move access/refresh token transport to secure HttpOnly cookies.

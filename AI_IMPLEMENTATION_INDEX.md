@@ -1,5 +1,50 @@
 # AI Implementation Index
 
+## 2026-06-03 - Production Auth Smoke Verification (Railway Credentials Present)
+
+### Scope
+- Production auth smoke verification only.
+- Documentation updates only.
+- No app code, backend logic, or auth behavior changes.
+
+### Safety Snapshot
+- Git remote: `https://github.com/emttspk/emtts.git`
+- Branch: `main`
+- Railway project/environment: `Epost` / `production`
+- Linked service: `Api`
+
+### Smoke Environment Status
+- `SMOKE_EMAIL` present: yes
+- `SMOKE_PASSWORD` present: yes
+
+### Production Smoke Result
+- First run during active Api deployment returned transient `502`.
+- Re-run after deployment stabilized: PASS.
+- Confirmed flow:
+	- `health` -> `200`
+	- `login` -> `200`
+	- `refresh` -> `200`
+	- `logout` -> `200`
+	- `refreshAfterLogout` -> `401` (expected)
+- Script safety preserved:
+	- no password printed
+	- no token printed
+	- masked smoke email only
+
+### Log Verification
+- Production Api logs show expected auth activity for smoke run:
+	- `auth.login.success`
+	- `auth.metric.login_success`
+	- `auth.logout`
+	- `auth.metric.login_failure` on refresh after logout (expected invalid refresh token)
+
+### Readiness
+- Production smoke status: PASS
+- Customer login readiness: HIGH
+- Remaining risk: LOW (manual Firebase Console checklist and monitoring dashboard/alerts still operationally recommended)
+
+---
+
 ## 2026-06-03 - Auth Layout Flip (Form Left)
 
 ### Scope
