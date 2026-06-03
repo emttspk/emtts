@@ -61,6 +61,34 @@ Protected modules (labels, money orders, tracking, complaints, billing, admin wo
 - Forgot password flow works: endpoint behavior verified, email delivery not verified in inbox in this pass
 - Mobile browser view is clean: not verified live in this pass
 
+### Final Live Browser Checklist
+- [ ] Login page mobile layout is clean.
+- [ ] Register page mobile layout is clean.
+- [ ] Verify email page mobile layout is clean.
+- [ ] Resend cooldown is visibly enforced.
+- [ ] Continue button debounce prevents rapid repeat checks.
+- [ ] Remember me ON persists session after browser restart.
+- [ ] Remember me OFF keeps session browser-tab scoped.
+- [ ] Logout clears browser session state.
+- [ ] Forgot password returns generic safety response.
+- [ ] Login after email verification succeeds.
+
+### Railway Production Smoke Commands
+Run these commands without printing secrets in logs/screenshots:
+
+```bash
+railway variables --service Api --environment production
+railway variables --set "SMOKE_EMAIL=your-smoke-user@example.com" --service Api --environment production
+railway variables --set "SMOKE_PASSWORD=REPLACE_WITH_SECRET" --service Api --environment production
+railway run --service Api --environment production -- npm run auth:smoke:prod
+```
+
+Optional forgot-password check during smoke run:
+
+```bash
+railway run --service Api --environment production -- env SMOKE_ENABLE_FORGOT_PASSWORD=true npm run auth:smoke:prod
+```
+
 ## Phase 1 - Firebase Console Audit (Required Production Settings)
 
 This section documents required production settings to validate in Firebase Console for project `epost-auth`.

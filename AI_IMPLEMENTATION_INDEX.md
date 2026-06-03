@@ -1,5 +1,39 @@
 # AI Implementation Index
 
+## 2026-06-03 - Safe Production Auth Smoke Support
+
+### Scope
+- Added only auth smoke script and verification documentation updates.
+
+### Files Changed
+- `scripts/production-auth-smoke.mts`
+- `package.json`
+- `docs/operations/production-auth-hardening-report-2026-06-03.md`
+- `docs/operations/firebase-production-console-checklist-2026-06-03.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Script Added
+- New script: `npm run auth:smoke:prod`
+- Reads env only:
+	- `SMOKE_EMAIL`
+	- `SMOKE_PASSWORD`
+	- optional `API_URL` (default `https://api.epost.pk`)
+	- optional `SMOKE_ENABLE_FORGOT_PASSWORD=true` to include forgot-password probe
+- Safety:
+	- Fails with clear instruction if smoke credentials are missing
+	- Never prints password
+	- Never prints tokens
+	- Masks smoke email in logs
+	- No account creation and no Firebase resend spam behavior
+
+### Production Smoke Flow Covered
+- health
+- login success
+- refresh success
+- logout success
+- refresh-after-logout must fail (`401`)
+- forgot-password generic response (optional by flag)
+
 ## 2026-06-03 - Final Production Auth Risk Closure
 
 ### Scope

@@ -19,3 +19,13 @@ Environment target: production (`www.epost.pk` / `epost.pk`)
 - Do not record secrets, API keys, or email addresses in this file.
 - Validate all links from a controlled test account only.
 - If any item fails, auth production readiness is blocked until corrected and re-tested.
+
+## Safe Production Smoke Execution
+Use env variables only and do not print passwords or tokens:
+
+```bash
+railway variables --service Api --environment production
+railway variables --set "SMOKE_EMAIL=your-smoke-user@example.com" --service Api --environment production
+railway variables --set "SMOKE_PASSWORD=REPLACE_WITH_SECRET" --service Api --environment production
+railway run --service Api --environment production -- npm run auth:smoke:prod
+```
