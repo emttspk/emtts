@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Search, ScanLine, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { trackLeadStart, trackTrackingSearch } from "../lib/analytics";
 
 const SCANNER_CONTAINER_ID = "home-scan-fallback";
 const CAMERA_PERMISSION_NOTICE = "Camera permission is required to scan barcode. Please tap Allow when your browser asks.";
@@ -64,6 +65,7 @@ export default function HomeHero() {
         .map((id) => id.trim())
         .filter(Boolean);
       if (!ids.length) return;
+      trackTrackingSearch(ids.length);
       navigate(`/tracking?ids=${encodeURIComponent(ids.join(","))}`);
     },
     [navigate]
@@ -262,6 +264,7 @@ export default function HomeHero() {
             <div className="mt-5 grid w-full max-w-[560px] grid-cols-1 gap-2.5 sm:grid-cols-2">
               <a
                 href="/register"
+                onClick={() => trackLeadStart("home_hero")}
                 className="btn-primary h-11 w-full rounded-xl px-4 text-sm font-bold"
               >
                 Start Free

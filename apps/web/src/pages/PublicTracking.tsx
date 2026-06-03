@@ -4,6 +4,7 @@ import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Clock, MapPin, Messag
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import type { TrackingLifecycle } from "../lib/types";
+import { trackTrackingSearch, trackWhatsAppClick } from "../lib/analytics";
 import {
   buildTrackingWhatsAppShareUrl,
   getStatusDisplayColor,
@@ -326,7 +327,10 @@ function TrackingResultCard({ result }: { result: TrackingResult }) {
                 href={whatsappShareUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={() => setWaModalOpen(false)}
+                onClick={() => {
+                  trackWhatsAppClick("public_tracking_share");
+                  setWaModalOpen(false);
+                }}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-emerald-700"
               >
                 <MessageSquare className="h-4 w-4" />
@@ -440,6 +444,7 @@ export default function PublicTracking() {
       return;
     }
     setError(null);
+    trackTrackingSearch(ids.length);
     if (ids.length === 1) {
       navigate(`/tracking?ids=${encodeURIComponent(ids[0])}`);
       return;

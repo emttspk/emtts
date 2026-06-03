@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
+import { initializeAnalytics } from "./lib/analytics";
 import "./index.css";
 
 const PRELOAD_RECOVERY_KEY = "epost_chunk_preload_recovered";
@@ -16,6 +17,8 @@ declare global {
 }
 
 if (typeof window !== "undefined") {
+  initializeAnalytics();
+
   window.mgt = window.mgt ?? {};
   if (typeof window.mgt.clearMarks !== "function") {
     window.mgt.clearMarks = () => {};

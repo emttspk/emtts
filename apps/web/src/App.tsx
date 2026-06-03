@@ -1,11 +1,12 @@
-import { lazy, Suspense } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { lazy, Suspense, useEffect } from "react";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import AppErrorBoundary from "./components/AppErrorBoundary";
 import RequireAuth from "./components/RequireAuth";
 import RequireProfileCompletion from "./components/RequireProfileCompletion";
 import RequireAdmin from "./components/RequireAdmin";
 import AppShell from "./components/AppShell";
 import { TEMPLATE_DESIGNER_ENABLED } from "./lib/featureFlags";
+import { trackPageView } from "./lib/analytics";
 import { getToken } from "./lib/auth";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -66,10 +67,21 @@ function TrackingEntry() {
   return getToken() ? <Navigate to="/tracking-workspace" replace /> : <PublicTracking />;
 }
 
+function AnalyticsRouteTracker() {
+  const location = useLocation();
+
+  useEffect(() => {
+    trackPageView(`${location.pathname}${location.search}`);
+  }, [location.pathname, location.search]);
+
+  return null;
+}
+
 export default function App() {
   return (
     <AppErrorBoundary>
       <Suspense fallback={<Loading />}>
+        <AnalyticsRouteTracker />
         <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
