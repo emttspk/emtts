@@ -11,6 +11,56 @@ Auth-only hardening audit for:
 
 Protected modules (labels, money orders, tracking, complaints, billing, admin workflows, postal workflows) were not modified.
 
+## 2026-06-03 Production Deployment Verification Addendum
+
+### Safety Snapshot Result
+- Git remote verified: `https://github.com/emttspk/emtts.git`
+- Branch verified: `main`
+- Railway project verified: `Epost`
+- Railway environment verified: `production`
+- Railway linked service verified: `Api`
+
+### Deploy / Migration Status
+- Migration file exists locally:
+	- `apps/api/prisma/migrations/20260603192000_add_auth_refresh_token_store/migration.sql`
+- Production Api logs show startup execution of:
+	- `prisma generate`
+	- `prisma migrate deploy`
+- Production health endpoint is healthy:
+	- `GET https://api.epost.pk/api/health -> 200`
+- No direct production DB schema verification was possible from local shell because Railway production `DATABASE_URL` resolves to an internal `railway.internal` host that is not reachable outside the Railway network.
+- No direct Prisma startup error evidence observed for:
+	- `P3005`
+	- `P2021`
+	- `42601`
+
+### Safe Production API Probe Result
+- `GET /api/health` -> `200`
+- `POST /api/auth/refresh` with empty body -> `400` (`refreshToken is required`)
+- `POST /api/auth/logout` unauthenticated -> `401` (`Unauthorized`)
+- `POST /api/auth/login` with intentionally invalid controlled probe identity -> `401` (`Invalid credentials`)
+- `POST /api/auth/forgot-password` with intentionally invalid controlled probe identity -> `200` generic success response
+
+### Real Customer Login Stability Status
+- Fully verified customer-success login flow: BLOCKED in this pass
+- Blockers:
+	- No production smoke credentials are available in the linked Api service environment (`SMOKE_EMAIL/SMOKE_PASSWORD` absent)
+	- No shared browser page / browser automation tool was available for live register/verify/login/mobile UI confirmation
+
+### Real Browser Smoke Checklist Status
+- New registration: not verified in browser in this pass
+- Email verification screen: not verified in browser in this pass
+- Login before email verification blocked: not verified live; code path previously audited
+- Resend verification cooldown works: not verified live; mock and code path verified
+- Continue button does not spam Firebase: not verified live; mock and code path verified
+- Login after verification works: blocked by missing smoke credentials
+- Remember me ON persists session: not verified live; code path verified
+- Remember me OFF uses browser session scope: not verified live; code path verified
+- Refresh token works after access token refresh: blocked by missing smoke credentials
+- Logout revokes refresh token and clears client storage: live success-path blocked by missing smoke credentials; code path verified
+- Forgot password flow works: endpoint behavior verified, email delivery not verified in inbox in this pass
+- Mobile browser view is clean: not verified live in this pass
+
 ## Phase 1 - Firebase Console Audit (Required Production Settings)
 
 This section documents required production settings to validate in Firebase Console for project `epost-auth`.
@@ -148,6 +198,7 @@ Added metric-style auth events:
 ### Where to Check
 - Railway service logs for `Api` service in production.
 - Search for `[AUTH_AUDIT]` and `auth.metric.` event names.
+- These events are emitted to application stdout/stderr logs, not to a database audit table.
 
 ### Detection Guidance
 - Firebase too-many-requests pattern:
@@ -156,6 +207,10 @@ Added metric-style auth events:
 - Repeated login failures:
 	- Filter `auth.metric.login_failure` grouped by identifier/IP/device.
 	- Alert on sustained spikes by same identifier/IP over short windows.
+
+### Verification Status
+- Code confirms events are emitted via `auditAuthEvent()` to application logs.
+- Recent production log sample did not return matching auth events in the queried window after safe probes, so log visibility is only partially verified from CLI in this pass.
 
 ## Phase 6 - Production Readiness Score
 
@@ -172,6 +227,8 @@ Overall production auth readiness score: 89/100
 - Firebase Console settings must be manually confirmed against this checklist.
 - Tokens are still browser-stored (session/local) and therefore not equivalent to HttpOnly cookie security.
 - Monitoring is log-based; no dedicated auth dashboard/alerts are wired yet.
+- Production success-path login/refresh/logout was not fully verified end-to-end because no smoke credentials were present in the linked production Api service environment.
+- Real browser/mobile auth flow was not directly exercised in this pass because no browser page/tool was available.
 
 ## Recommended Next Hardening (Future)
 - Move access/refresh token transport to secure HttpOnly cookies.

@@ -42,6 +42,29 @@
 - In-memory refresh-token risk: CLOSED (replaced with DB-backed durable store).
 - Production monitoring visibility: improved with event catalog and detection guidance; dashboard/alert wiring remains future step.
 
+## 2026-06-03 - Production Auth Deployment Verification
+
+### Verified
+- Safety snapshot matched required target:
+	- repo `emttspk/emtts.git`
+	- branch `main`
+	- Railway project `Epost`
+	- environment `production`
+	- linked service `Api`
+- Production Api health endpoint returned `200`.
+- Production Api logs showed startup execution of `prisma generate` and `prisma migrate deploy`.
+- Safe auth endpoint probes returned expected protected/generic responses.
+
+### Blocked / Not Fully Proven
+- Direct DB confirmation of `AuthRefreshToken` table from local shell was blocked because production `DATABASE_URL` points to an internal `railway.internal` host not reachable externally.
+- Success-path production login/refresh/logout proof was blocked because no production `SMOKE_EMAIL` / `SMOKE_PASSWORD` env vars were present in the linked Api service environment.
+- Real browser/mobile auth smoke flow was not directly exercised because no browser page/tool was available in this pass.
+
+### Documentation Added / Updated
+- `docs/operations/firebase-production-console-checklist-2026-06-03.md`
+- `docs/operations/production-auth-hardening-report-2026-06-03.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
 ## 2026-06-03 - Production Authentication Hardening Audit
 
 ### Scope

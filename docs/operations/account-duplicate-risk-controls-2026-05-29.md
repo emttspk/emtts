@@ -141,3 +141,7 @@ npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma
 ### Remaining Open Risks
 - Firebase Console settings are still a manual operational verification item.
 - Browser storage token model remains less secure than HttpOnly cookie model and is tracked as future hardening.
+
+### Production Verification Note
+- Production deployment verification on 2026-06-03 confirmed Api health and protected endpoint behavior.
+- Full success-path customer login proof remained blocked in that pass because no smoke credentials were present in linked production Api env and no browser tool was available.
