@@ -51,6 +51,10 @@ function shapeAuthResponse(user: { id: string; email: string; role: string; crea
   };
 }
 
+function auditAuthMetric(req: Parameters<typeof auditAuthEvent>[1], metric: string, details: Record<string, unknown> = {}) {
+  auditAuthEvent(`auth.metric.${metric}`, req, details);
+}
+
 function normalizeNullable(value: string | null | undefined) {
   const trimmed = String(value ?? "").trim();
   return trimmed.length > 0 ? trimmed : null;
@@ -303,6 +307,7 @@ authRouter.post("/login", async (req, res) => {
     const lockout = getLockout(lookupKey, ip);
     if (lockout.locked) {
       auditAuthEvent("auth.login.locked", req, { identifier: rawIdentifier, remainingSeconds: lockout.remainingSeconds });
+      auditAuthMetric(req, "login_failure", { reason: "locked", identifier: rawIdentifier, remainingSeconds: lockout.remainingSeconds });
       return res.status(423).json({ error: `Account temporarily locked. Try again in ${lockout.remainingSeconds}s.` });
     }
 
@@ -315,12 +320,14 @@ authRouter.post("/login", async (req, res) => {
       console.log(`[AUTH] Login failed: User not found for identifier: ${rawIdentifier}`);
       const failed = recordFailedAttempt(lookupKey, ip);
       auditAuthEvent("auth.login.user_missing", req, { identifier: rawIdentifier, failedCount: failed.count, locked: failed.locked });
+      auditAuthMetric(req, "login_failure", { reason: "user_missing", identifier: rawIdentifier, failedCount: failed.count, locked: failed.locked });
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
     if (user.suspended) {
       console.log(`[AUTH] Login failed: Suspended account for identifier: ${rawIdentifier}`);
       auditAuthEvent("auth.login.suspended", req, { identifier: rawIdentifier, userId: user.id });
+      auditAuthMetric(req, "login_failure", { reason: "suspended", identifier: rawIdentifier, userId: user.id });
       return res.status(403).json({ error: "Account disabled" });
     }
 
@@ -330,6 +337,13 @@ authRouter.post("/login", async (req, res) => {
       console.log(`[AUTH] Login failed: Invalid password for identifier: ${rawIdentifier}`);
       const failed = recordFailedAttempt(lookupKey, ip);
       auditAuthEvent("auth.login.password_invalid", req, { identifier: rawIdentifier, userId: user.id, failedCount: failed.count, locked: failed.locked });
+      auditAuthMetric(req, "login_failure", {
+        reason: "password_invalid",
+        identifier: rawIdentifier,
+        userId: user.id,
+        failedCount: failed.count,
+        locked: failed.locked,
+      });
       recordLoginHistory(user.id, { email: user.email, method: "password", ip, device, success: false });
       return res.status(401).json({ error: "Invalid credentials" });
     }
@@ -338,10 +352,12 @@ authRouter.post("/login", async (req, res) => {
     console.log(`[AUTH] Login successful for identifier: ${rawIdentifier}`);
     recordLoginHistory(user.id, { email: user.email, method: "password", ip, device, success: true });
     auditAuthEvent("auth.login.success", req, { identifier: rawIdentifier, userId: user.id });
+    auditAuthMetric(req, "login_success", { method: "password", identifier: rawIdentifier, userId: user.id });
     return res.json(shapeAuthResponse(user));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[AUTH] Login database error:", message);
+    auditAuthMetric(req, "login_failure", { reason: "service_unavailable", identifier: rawIdentifier, message });
     return res.status(503).json({ error: "Login temporarily unavailable. Please try again." });
   }
 });
@@ -410,6 +426,8 @@ authRouter.post("/firebase-login", async (req, res) => {
 
     if (!isGoogle && !emailVerified) {
       auditAuthEvent("auth.firebase.unverified_email", req, { email, provider });
+      auditAuthMetric(req, "email_verification_failure", { email, provider, reason: "email_unverified" });
+      auditAuthMetric(req, "login_failure", { method: "firebase", provider, email, reason: "email_unverified" });
       return res.status(403).json({ error: "Email is not verified" });
     }
 
@@ -436,6 +454,7 @@ authRouter.post("/firebase-login", async (req, res) => {
 
     if (user.suspended) {
       auditAuthEvent("auth.firebase.suspended", req, { email, userId: user.id, provider });
+      auditAuthMetric(req, "login_failure", { method: "firebase", provider, email, reason: "suspended", userId: user.id });
       return res.status(403).json({ error: "Account disabled" });
     }
 
@@ -447,6 +466,10 @@ authRouter.post("/firebase-login", async (req, res) => {
       success: true,
     });
     auditAuthEvent("auth.firebase.success", req, { email, userId: user.id, provider });
+    auditAuthMetric(req, "login_success", { method: isGoogle ? "google" : "firebase", provider, email, userId: user.id });
+    if (!isGoogle) {
+      auditAuthMetric(req, "email_verification_success", { email, provider, userId: user.id });
+    }
 
     const onboardingRequired = !user.onboardingComplete;
 
@@ -462,6 +485,8 @@ authRouter.post("/firebase-login", async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     auditAuthEvent("auth.firebase.failure", req, { message });
+    auditAuthMetric(req, "email_verification_failure", { reason: "token_verification_error", message });
+    auditAuthMetric(req, "login_failure", { method: "firebase", reason: "token_verification_error", message });
     return res.status(401).json({ error: "Invalid Firebase token" });
   }
 });
@@ -485,10 +510,12 @@ authRouter.post("/forgot-password", async (req, res) => {
       await generateFirebasePasswordResetLink(email, continueUrl);
     }
     auditAuthEvent("auth.forgot_password.requested", req, { email, userFound: !!user });
+    auditAuthMetric(req, "password_reset_request", { email, userFound: !!user });
     return res.json({ success: true, message: "If this account exists, a password reset email has been sent." });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     auditAuthEvent("auth.forgot_password.failed", req, { email, message });
+    auditAuthMetric(req, "password_reset_failure", { email, message });
     return res.status(500).json({ error: "Failed to process password reset" });
   }
 });

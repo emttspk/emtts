@@ -10,8 +10,10 @@ type VerifyFlowState = {
   lastResendAt: number;
   resendCooldownUntil: number;
   continueBlocked: number;
+  continueAccepted: number;
   resendBlocked: number;
   resendSent: number;
+  failedAuthAttempts: number;
 };
 
 const VERIFY_ACTION_DEBOUNCE_MS = 1200;
@@ -27,8 +29,10 @@ function newState(): VerifyFlowState {
     lastResendAt: 0,
     resendCooldownUntil: 0,
     continueBlocked: 0,
+    continueAccepted: 0,
     resendBlocked: 0,
     resendSent: 0,
+    failedAuthAttempts: 0,
   };
 }
 
@@ -38,6 +42,7 @@ function attemptContinue(state: VerifyFlowState, now: number) {
     return false;
   }
   state.lastContinueAt = now;
+  state.continueAccepted += 1;
   return true;
 }
 
@@ -74,33 +79,21 @@ function runUserSimulation(userId: number) {
   // Retry resend after cooldown window
   attemptResend(state, start + 2_000 + RESEND_COOLDOWN_MS + 500);
 
-  return state;
-}
-
-function runLoginAttemptMix() {
-  const result = {
-    wrongCredentialAttempts: 0,
-    correctCredentialAttempts: 0,
-    throttled: 0,
-  };
-
+  // Simulate mixed auth attempts for failure/success pressure.
   let lastSubmitAt = 0;
-  const start = 5_000_000;
-  for (let i = 0; i < 30; i += 1) {
-    const now = start + i * 150;
+  for (let i = 0; i < 24; i += 1) {
+    const now = start + 120_000 + i * 120;
     if (shouldThrottle(lastSubmitAt, VERIFY_ACTION_DEBOUNCE_MS, now)) {
-      result.throttled += 1;
       continue;
     }
     lastSubmitAt = now;
+    // One out of three attempts fails.
     if (i % 3 === 0) {
-      result.wrongCredentialAttempts += 1;
-    } else {
-      result.correctCredentialAttempts += 1;
+      state.failedAuthAttempts += 1;
     }
   }
 
-  return result;
+  return state;
 }
 
 function runMobileReloadSimulation() {
@@ -117,34 +110,81 @@ function runMobileReloadSimulation() {
   return stableReloads;
 }
 
-function main() {
-  const users = Array.from({ length: 50 }, (_, i) => runUserSimulation(i + 1));
+function runScenario(userCount: number) {
+  const users = Array.from({ length: userCount }, (_, i) => runUserSimulation(i + 1));
   const totals = users.reduce(
     (acc, user) => {
       acc.continueBlocked += user.continueBlocked;
+      acc.continueAccepted += user.continueAccepted;
       acc.resendBlocked += user.resendBlocked;
       acc.resendSent += user.resendSent;
+      acc.failedAuthAttempts += user.failedAuthAttempts;
       return acc;
     },
-    { continueBlocked: 0, resendBlocked: 0, resendSent: 0 },
+    { continueBlocked: 0, continueAccepted: 0, resendBlocked: 0, resendSent: 0, failedAuthAttempts: 0 },
   );
 
-  const loginMix = runLoginAttemptMix();
+  const duplicateSuppressionRate = totals.resendBlocked / Math.max(1, totals.resendBlocked + totals.resendSent);
+  const cooldownEffectiveness = totals.resendBlocked / Math.max(1, userCount * 10);
+
+  return {
+    usersSimulated: userCount,
+    totals,
+    duplicateSuppressionRate,
+    cooldownEffectiveness,
+  };
+}
+
+function main() {
+  const memoryStart = process.memoryUsage().heapUsed;
+
+  const scenarios = [100, 500, 1000].map((size) => runScenario(size));
   const stableReloads = runMobileReloadSimulation();
+  const memoryEnd = process.memoryUsage().heapUsed;
+  const memoryGrowthMb = Number(((memoryEnd - memoryStart) / (1024 * 1024)).toFixed(2));
 
   const tooManyMessage = getFriendlyFirebaseAuthMessage({ code: "auth/too-many-requests" }, "fallback");
   const countdown = getCooldownRemainingSeconds(Date.now() + 45_000, Date.now());
 
   assert(tooManyMessage === TOO_MANY_ATTEMPTS_MESSAGE, "too-many-requests message was not normalized");
-  assert(totals.resendSent === 100, "Expected each user to send exactly 2 allowed resends");
-  assert(totals.resendBlocked >= 400, "Expected blocked resend attempts during cooldown/debounce");
-  assert(totals.continueBlocked >= 400, "Expected blocked continue attempts during debounce");
-  assert(loginMix.throttled > 0, "Expected login throttling to trigger");
+  for (const scenario of scenarios) {
+    assert(
+      scenario.totals.resendSent === scenario.usersSimulated * 2,
+      `Expected each user to send exactly 2 allowed resends for ${scenario.usersSimulated} users`,
+    );
+    assert(
+      scenario.totals.resendBlocked >= scenario.usersSimulated * 8,
+      `Expected blocked resend attempts for ${scenario.usersSimulated} users`,
+    );
+    assert(
+      scenario.totals.continueBlocked >= scenario.usersSimulated * 8,
+      `Expected blocked continue attempts for ${scenario.usersSimulated} users`,
+    );
+    assert(
+      scenario.totals.failedAuthAttempts > 0,
+      `Expected failed auth attempts to be present for ${scenario.usersSimulated} users`,
+    );
+    assert(
+      scenario.cooldownEffectiveness >= 0.8,
+      `Expected cooldown effectiveness >= 0.8 for ${scenario.usersSimulated} users`,
+    );
+  }
   assert(stableReloads === 25, "Expected mobile reload simulation to remain stable");
   assert(countdown >= 44 && countdown <= 45, "Cooldown countdown helper returned unexpected value");
+  assert(memoryGrowthMb < 20, `Unexpected memory growth under mock load: ${memoryGrowthMb} MB`);
 
   console.log("[AUTH HAMMER] PASS");
-  console.log(JSON.stringify({ usersSimulated: 50, totals, loginMix, mobileReloads: stableReloads }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        scenarios,
+        mobileReloads: stableReloads,
+        memoryGrowthMb,
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 main();

@@ -1,12 +1,10 @@
 import { useState } from "react";
 import { Mail, SendHorizonal } from "lucide-react";
 import { Link } from "react-router-dom";
-import { sendPasswordResetEmail } from "firebase/auth";
 import AuthShell from "../components/AuthShell";
 import AuthInputField from "../components/auth/AuthInputField";
-import { auth, firebaseReady } from "../firebase";
-
-const PASSWORD_RESET_REDIRECT = `${window.location.origin}/login`;
+import { api } from "../lib/api";
+import { getFriendlyFirebaseAuthMessage } from "../lib/firebaseAuthGuards";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -26,20 +24,15 @@ export default function ForgotPassword() {
           setError(null);
           setNotice(null);
 
-          if (!firebaseReady || !auth) {
-            setError("Password reset is not configured.");
-            return;
-          }
-
           setLoading(true);
           try {
-            await sendPasswordResetEmail(auth, email.trim(), {
-              url: PASSWORD_RESET_REDIRECT,
-              handleCodeInApp: false,
+            await api<{ success: boolean; message: string }>("/api/auth/forgot-password", {
+              method: "POST",
+              body: JSON.stringify({ email: email.trim().toLowerCase() }),
             });
-            setNotice("ePost.pk password reset email sent. Please check your inbox.");
+            setNotice("If this account exists, a password reset email has been sent.");
           } catch (err) {
-            const message = err instanceof Error ? err.message : "Failed to send password reset email";
+            const message = getFriendlyFirebaseAuthMessage(err, err instanceof Error ? err.message : "Failed to send password reset email");
             setError(message);
           } finally {
             setLoading(false);

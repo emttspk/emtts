@@ -1,5 +1,49 @@
 # AI Implementation Index
 
+## 2026-06-03 - Production Authentication Hardening Audit
+
+### Scope
+- Auth/Firebase/security/rate-limit/session/monitoring only.
+- No changes to labels, money orders, tracking, complaints, billing, admin workflows, or postal workflow logic.
+
+### Files Changed
+- `apps/web/src/lib/auth.ts`
+- `apps/web/src/pages/Login.tsx`
+- `apps/web/src/pages/ForgotPassword.tsx`
+- `apps/api/src/routes/auth.ts`
+- `scripts/auth-hammer-test.mts`
+- `docs/operations/production-auth-hardening-report-2026-06-03.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Key Findings
+- Session hardening gap: remember-me toggle existed but session persistence strategy did not change storage scope.
+- Monitoring gap: explicit metric-style auth events for login/email verification/password reset were incomplete.
+- Password reset telemetry gap: frontend called Firebase directly, bypassing backend audit visibility.
+- Existing duplicate-request/cooldown controls from previous auth stabilization remain effective.
+
+### Fixes Applied
+- Added dual-scope session handling:
+	- `setSession(..., { rememberMe })` now stores auth in `sessionStorage` when remember-me is off, `localStorage` when on.
+	- `getToken/getRole/getRefreshToken` now read from session-first then local fallback.
+	- `clearSession` now removes auth keys from both storages.
+- Login page now passes `rememberMe` into session creation.
+- Forgot Password page now calls backend `/api/auth/forgot-password` for centralized auth auditing and metric capture.
+- Added auth metric audit events (existing logger reused):
+	- `auth.metric.login_success`
+	- `auth.metric.login_failure`
+	- `auth.metric.email_verification_success`
+	- `auth.metric.email_verification_failure`
+	- `auth.metric.password_reset_request`
+	- `auth.metric.password_reset_failure`
+- Expanded mocked hammer test to include 100/500/1000-user scenarios with duplicate suppression, cooldown effectiveness, failed-attempt counts, and memory growth checks.
+
+### Documentation Added
+- `docs/operations/production-auth-hardening-report-2026-06-03.md`
+	- Firebase Console production checklist
+	- Findings and risks
+	- Monitoring additions
+	- Production readiness score
+
 ## 2026-06-03 - Firebase Email Verification Auth Flow Stabilization
 
 ### Safety Gate Verification

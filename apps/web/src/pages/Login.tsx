@@ -28,7 +28,7 @@ export default function Login() {
       method: "POST",
       body: JSON.stringify({ idToken }),
     });
-    setSession(data.token, data.user.role, data.refreshToken);
+    setSession(data.token, data.user.role, data.refreshToken, { rememberMe });
     nav("/dashboard");
   }
 
@@ -118,7 +118,7 @@ export default function Login() {
               body: JSON.stringify({ identifier, password }),
             });
             console.log(`[LOGIN] Success, received token and user role: ${data.user.role}`);
-            setSession(data.token, data.user.role, data.refreshToken);
+            setSession(data.token, data.user.role, data.refreshToken, { rememberMe });
             nav("/dashboard");
           } catch (error) {
             const errorMsg = getFriendlyFirebaseAuthMessage(error, error instanceof Error ? error.message : "Login failed");
