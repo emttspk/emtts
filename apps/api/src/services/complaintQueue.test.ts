@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { prisma } from "../lib/prisma.js";
 import {
   COMPLAINT_MAX_RETRIES,
+  COMPLAINT_PROCESSING_STALE_AFTER_MS,
   getComplaintNextRetryAt,
   enqueueComplaint,
   findActiveComplaintDuplicate,
@@ -10,6 +11,7 @@ import {
   markComplaintQueueProcessing,
   markComplaintQueueSuccess,
   normalizeComplaintQueueStatus,
+  rescueStuckProcessingComplaints,
 } from "./complaint-queue.service.js";
 
 type QueueRow = {
@@ -68,13 +70,18 @@ async function withPrismaQueueMock(input: {
   p.complaintQueue = {
     findMany: async ({ where }: any) => {
       const statuses: string[] = where?.complaintStatus?.in ?? [];
+      const singleStatus: string | undefined = where?.complaintStatus && typeof where.complaintStatus === "string" ? where.complaintStatus : undefined;
       const now = where?.nextRetryAt?.lte;
+      const updatedBefore: Date | undefined = where?.updatedAt?.lt;
       const filtered = queueRows.filter((row) => {
         const byUser = !where?.userId || row.userId === where.userId;
         const byTracking = !where?.trackingId || row.trackingId === where.trackingId;
-        const byStatus = statuses.length === 0 || statuses.includes(row.complaintStatus);
+        const byStatus = singleStatus
+          ? row.complaintStatus === singleStatus
+          : statuses.length === 0 || statuses.includes(row.complaintStatus);
         const byRetry = !now || (row.nextRetryAt != null && row.nextRetryAt <= now);
-        return byUser && byTracking && byStatus && byRetry;
+        const byUpdatedBefore = !updatedBefore || row.updatedAt < updatedBefore;
+        return byUser && byTracking && byStatus && byRetry && byUpdatedBefore;
       });
       return filtered.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
     },
@@ -127,8 +134,9 @@ const tests: TestCase[] = [
   {
     name: "detects active duplicate from queue rows",
     async run() {
+      // Use a fresh updatedAt so the row is not classified as stale (> 10 min old).
       await withPrismaQueueMock({
-        queueRows: [makeQueueRow({ complaintStatus: "processing", complaintId: "CMP-1001" })],
+        queueRows: [makeQueueRow({ complaintStatus: "processing", complaintId: "CMP-1001", updatedAt: new Date() })],
       }, async () => {
         const duplicate = await findActiveComplaintDuplicate("u-1", "VPL26050001");
         assert.equal(duplicate.duplicate, true);
@@ -255,6 +263,94 @@ const tests: TestCase[] = [
       assert.ok(retry4 >= 59 && retry4 <= 61);
       assert.ok(retry5 >= 179 && retry5 <= 181);
       assert.ok(retry9 >= 179 && retry9 <= 181);
+    },
+  },
+  // ── Reopen / stuck-processing tests (2026-06-03) ─────────────────────────
+  {
+    name: "reopen: enqueues a new complaint queue row independent of resolved history",
+    async run() {
+      await withPrismaQueueMock({
+        queueRows: [],
+        shipmentComplaintStatus: "FILED",
+        shipmentComplaintText: "COMPLAINT_STATE: RESOLVED | COMPLAINT_ID: CMP-100",
+      }, async ({ queueRows }) => {
+        const row = await enqueueComplaint({
+          userId: "u-1",
+          trackingId: "VPL26040379",
+          payload: {
+            tracking_number: "VPL26040379",
+            phone: "03001234567",
+            complaint_text: "Still not delivered, reopening complaint",
+            attempt_number: 2,
+            previous_complaint_reference: "CMP-100",
+          },
+        });
+        assert.equal(row.complaintStatus, "queued");
+        assert.equal(row.retryCount, 0);
+        assert.equal(queueRows.length, 1);
+      });
+    },
+  },
+  {
+    name: "stuck processing: rescue transitions stale processing row to retry_pending",
+    async run() {
+      const staleUpdatedAt = new Date(Date.now() - COMPLAINT_PROCESSING_STALE_AFTER_MS - 60_000);
+      await withPrismaQueueMock({
+        queueRows: [
+          makeQueueRow({ id: "q-stale", complaintStatus: "processing", retryCount: 0, updatedAt: staleUpdatedAt }),
+        ],
+      }, async ({ queueRows }) => {
+        const result = await rescueStuckProcessingComplaints();
+        assert.equal(result.rescued, 1);
+        assert.equal(queueRows[0]?.complaintStatus, "retry_pending");
+        assert.ok(queueRows[0]?.nextRetryAt != null);
+        assert.ok(String(queueRows[0]?.lastError ?? "").includes("Processing timeout"));
+      });
+    },
+  },
+  {
+    name: "stuck processing: rescue transitions to manual_review when retries exhausted",
+    async run() {
+      const staleUpdatedAt = new Date(Date.now() - COMPLAINT_PROCESSING_STALE_AFTER_MS - 60_000);
+      await withPrismaQueueMock({
+        queueRows: [
+          makeQueueRow({ id: "q-maxed", complaintStatus: "processing", retryCount: COMPLAINT_MAX_RETRIES - 1, updatedAt: staleUpdatedAt }),
+        ],
+      }, async ({ queueRows }) => {
+        const result = await rescueStuckProcessingComplaints();
+        assert.equal(result.rescued, 1);
+        assert.equal(queueRows[0]?.complaintStatus, "manual_review");
+        assert.equal(queueRows[0]?.nextRetryAt, null);
+      });
+    },
+  },
+  {
+    name: "stuck processing: fresh processing row is not rescued",
+    async run() {
+      const freshUpdatedAt = new Date(Date.now() - 60_000); // 1 minute old, within stale threshold
+      await withPrismaQueueMock({
+        queueRows: [
+          makeQueueRow({ id: "q-fresh", complaintStatus: "processing", retryCount: 0, updatedAt: freshUpdatedAt }),
+        ],
+      }, async ({ queueRows }) => {
+        const result = await rescueStuckProcessingComplaints();
+        assert.equal(result.rescued, 0);
+        assert.equal(queueRows[0]?.complaintStatus, "processing");
+      });
+    },
+  },
+  {
+    name: "duplicate check: stale processing row does not block new complaint submission",
+    async run() {
+      const staleUpdatedAt = new Date(Date.now() - COMPLAINT_PROCESSING_STALE_AFTER_MS - 60_000);
+      await withPrismaQueueMock({
+        queueRows: [
+          makeQueueRow({ id: "q-stale2", complaintStatus: "processing", updatedAt: staleUpdatedAt, dueDate: null }),
+        ],
+      }, async () => {
+        const duplicate = await findActiveComplaintDuplicate("u-1", "VPL26050001");
+        assert.equal(duplicate.duplicate, false, "stale processing row should not block new submission");
+      });
     },
   },
 ];

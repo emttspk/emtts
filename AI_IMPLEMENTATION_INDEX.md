@@ -1,5 +1,45 @@
 # AI Implementation Index
 
+## 2026-06-03 - Complaint Reopen Stuck PROCESSING Fix
+
+### Scope
+- Complaint module only.
+- Fixed reopened complaint stuck indefinitely in `PROCESSING` state (example: CMP-173173, VPL26040379).
+- No changes to shipment, tracking, billing, or package logic.
+
+### Root Causes Fixed
+1. **Unguarded I/O in processor**: `isComplaintCircuitOpen()` and `prisma.shipment.findUnique()` ran *before* the `try/catch` in `processComplaintQueueById` — any DB/network error there left the queue row permanently stuck in `processing`.
+2. **No timeout rescue**: `getQueuedComplaintsForRetry` only picks `queued | retry_pending` — a stuck `processing` row was never retried. Added `rescueStuckProcessingComplaints()` with a 10-minute stale threshold.
+3. **Duplicate check blocked reopens**: `findActiveComplaintDuplicate` treated stale `processing` rows as active, preventing new queue rows from being created. Fixed to skip rows older than the stale threshold.
+
+### State Transition (Corrected)
+```
+QUEUED → PROCESSING → SUBMITTED / DUPLICATE
+                    ↓ (on error / timeout)
+               RETRY_PENDING → PROCESSING (retry)
+                    ↓ (max retries)
+               MANUAL_REVIEW
+```
+
+### Files Updated (Core)
+- `apps/api/src/services/complaint-queue.service.ts` — added `COMPLAINT_PROCESSING_STALE_AFTER_MS`, `rescueStuckProcessingComplaints()`, stale skip in `findActiveComplaintDuplicate`
+- `apps/api/src/processors/complaint.processor.ts` — moved pre-try I/O inside the main try/catch
+- `apps/api/src/jobs/complaint-retry.job.ts` — calls `rescueStuckProcessingComplaints()` each sweep
+- `apps/web/src/pages/BulkTracking.tsx` — stale PROCESSING badge, rapid-refresh effect for stale cards
+
+### Tests Updated/Added
+- Updated: `apps/api/src/services/complaintQueue.test.ts` (5 new reopen/rescue tests + updated mock for `updatedAt` filter)
+
+### Pending-Safe Rule
+- Preserved: pending shipment must not turn RESOLVED — unchanged from 2026-06-03 fix.
+
+### Validation
+- `npm run build` -> PASS (to be verified)
+- `npm run test:complaint-units --workspace=@labelgen/api` -> PASS (to be verified)
+- `npm run test:complaints --workspace=@labelgen/api` -> PASS (to be verified)
+
+---
+
 ## 2026-06-03 - Complaint Pending-Safe State Logic Fix
 
 ### Scope

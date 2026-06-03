@@ -119,6 +119,8 @@ type TrackingBatchHistoryItem = {
 
 const TRACKING_CACHE_TTL_MS = 60_000;
 const COMPLAINT_QUEUE_CACHE_TTL_MS = 45_000;
+/** After this elapsed time a "processing" complaint card is considered stale and shows a retry warning. */
+const COMPLAINT_PROCESSING_STALE_UI_MS = 10 * 60 * 1000; // 10 minutes
 const WORKSPACE_RENDER_CACHE_PERSIST_MS = 150;
 const WORKSPACE_FULL_SNAPSHOT_PERSIST_MS = 300;
 const BACKGROUND_BATCH_SIZE = 100;
@@ -1462,6 +1464,23 @@ export default function BulkTracking() {
     }, 15_000);
     return () => window.clearInterval(timer);
   }, [isAdmin, unresolvedComplaintCount]);
+
+  // Extra rapid refresh when any complaint card has been in PROCESSING beyond the
+  // stale threshold — the backend rescue will have fired but the UI needs to pick up
+  // the new retry_pending/manual_review state without a page reload.
+  useEffect(() => {
+    if (!isAdmin) return;
+    const hasStaleProcessing = Array.from(complaintQueueByTracking.values()).some((snapshot) => {
+      if (String(snapshot?.complaintStatus ?? "").toLowerCase() !== "processing") return false;
+      const updatedMs = snapshot?.updatedAt ? new Date(snapshot.updatedAt).getTime() : 0;
+      return updatedMs > 0 && Date.now() - updatedMs > COMPLAINT_PROCESSING_STALE_UI_MS;
+    });
+    if (!hasStaleProcessing) return;
+    const timer = window.setInterval(() => {
+      void refreshComplaintQueueSnapshot({ force: true });
+    }, 5_000);
+    return () => window.clearInterval(timer);
+  }, [isAdmin, complaintQueueByTracking]);
 
   useEffect(() => {
     let interval: number;
@@ -4626,6 +4645,10 @@ export default function BulkTracking() {
                         const processingElapsed = complaintCardState === "PROCESSING"
                           ? formatProcessingElapsed(queueSnapshot?.updatedAt, retryCountdownNow)
                           : "";
+                        const processingUpdatedMs = queueSnapshot?.updatedAt ? new Date(queueSnapshot.updatedAt).getTime() : 0;
+                        const processingIsStale = complaintCardState === "PROCESSING"
+                          && processingUpdatedMs > 0
+                          && retryCountdownNow - processingUpdatedMs > COMPLAINT_PROCESSING_STALE_UI_MS;
                         const stateMessage = waitingComplaintId
                           ? "Complaint already queued. Waiting for complaint number."
                           : complaintCardState.toUpperCase() === "MANUAL REVIEW"
@@ -4645,7 +4668,11 @@ export default function BulkTracking() {
                               <div className="mt-1 text-[9px] font-semibold text-amber-700">{retryHint}</div>
                             ) : null}
                             {complaintCardState === "PROCESSING" ? (
-                              <div className="mt-1 text-[9px] font-semibold text-purple-700">Processing... {processingElapsed}</div>
+                              <div className="mt-1 text-[9px] font-semibold text-purple-700">
+                                {processingIsStale
+                                  ? `Stale — Pending Retry (${processingElapsed})`
+                                  : `Processing... ${processingElapsed}`}
+                              </div>
                             ) : null}
                             {stateMessage ? (
                               <div className="mt-1 text-[9px] font-medium text-slate-600">{stateMessage}</div>

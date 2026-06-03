@@ -4,6 +4,37 @@ Date: 2026-06-03
 Mode: Verification-only (no feature implementation)
 Scope lock: ePost.pk / Label Generator only
 
+## 2026-06-03 Reopen Stuck PROCESSING Fix
+
+### Issue
+Reopened complaint (example CMP-173173, VPL26040379) displayed `PROCESSING` indefinitely with growing elapsed timer (00:06:09+). Complaint Count stayed at 1.
+
+### Root Causes Identified
+1. `isComplaintCircuitOpen()` and `prisma.shipment.findUnique()` executed outside the `try/catch` in `processComplaintQueueById` — any transient DB or network error left the `complaintQueue` row stuck in `processing` permanently.
+2. `getQueuedComplaintsForRetry` only picks `queued | retry_pending` — stuck `processing` rows were silently ignored forever.
+3. `findActiveComplaintDuplicate` treated stale `processing` rows (no due date, old `updatedAt`) as active blocking duplicates, preventing new reopen queue rows from being created in some scenarios.
+
+### Corrections Implemented
+- `processComplaintQueueById`: All I/O after `markComplaintQueueProcessing()` is now inside the try/catch. DB errors will now correctly call `markComplaintQueueFailure` and transition to `retry_pending`.
+- `rescueStuckProcessingComplaints()`: New function. Called every 1 minute from the complaint retry cron. Rescues rows with `processing` status and `updatedAt < now - 10 min`.
+- `COMPLAINT_PROCESSING_STALE_AFTER_MS = 600_000`: Exported constant (10 minutes).
+- `findActiveComplaintDuplicate`: Stale `processing` rows (older than stale threshold) are skipped and do not block new submissions.
+- UI (BulkTracking.tsx): Cards stuck in PROCESSING > 10 min show "Stale — Pending Retry" label with elapsed time. Fast 5-second refresh activates for stale PROCESSING cards.
+
+### Tests Added
+- `reopen: enqueues a new complaint queue row independent of resolved history`
+- `stuck processing: rescue transitions stale processing row to retry_pending`
+- `stuck processing: rescue transitions to manual_review when retries exhausted`
+- `stuck processing: fresh processing row is not rescued`
+- `duplicate check: stale processing row does not block new complaint submission`
+
+### Validation
+- `npm run build` → PASS
+- `npm run test:complaint-units --workspace=@labelgen/api` → PASS
+- `npm run test:complaints --workspace=@labelgen/api` → PASS
+
+---
+
 ## 2026-06-03 Status Logic Fix Update
 - Implemented pending-safe complaint resolution logic in sync path.
 - Complaint now remains `ACTIVE`/`PROCESSING` when shipment is pending (system or manual override).

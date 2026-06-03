@@ -58,6 +58,37 @@ The district/tehsil/location hierarchy is auto-resolved from `city/post office l
 - Clicking the card opens the complaint modal in detail mode and disables re-submission while the complaint is active
 
 ## Complaint State Rules (2026-06-03)
+
+## Stuck PROCESSING Timeout Guard (2026-06-03)
+
+### Problem
+Queue rows set to `processing` by `markComplaintQueueProcessing()` could remain stuck indefinitely if:
+- A DB/network error occurred between `markComplaintQueueProcessing()` and the main `try/catch` in `processComplaintQueueById`.
+- The BullMQ job expired or the worker crashed before completing.
+
+`getQueuedComplaintsForRetry` only picks `queued | retry_pending`, so stuck `processing` rows were never retried.
+
+### Fix
+- **`COMPLAINT_PROCESSING_STALE_AFTER_MS = 10 minutes`** — stale threshold constant.
+- **`rescueStuckProcessingComplaints()`** — runs at every complaint-retry cron sweep (every 1 minute). Finds all `processing` rows with `updatedAt < now - 10min` and transitions them to `retry_pending` (or `manual_review` if retries exhausted).
+- **`processComplaintQueueById`** — all I/O after `markComplaintQueueProcessing()` is now inside the `try/catch`, eliminating the stuck-state path.
+- **`findActiveComplaintDuplicate`** — skips stale `processing` rows so they do not block reopen submissions.
+
+### Queue State Transitions
+```
+QUEUED → (worker picks up) → PROCESSING
+  → SUBMITTED | DUPLICATE      (success)
+  → RETRY_PENDING               (failure, retries remaining)
+  → MANUAL_REVIEW               (failure, max retries exhausted)
+  → RETRY_PENDING               (rescue: stuck > 10 min, retries remaining)
+  → MANUAL_REVIEW               (rescue: stuck > 10 min, max retries exhausted)
+```
+
+### UI Behavior
+- Cards with `PROCESSING` elapsed > 10 minutes show "Stale — Pending Retry (HH:MM:SS)" instead of "Processing...".
+- A 5-second fast-refresh effect activates when any stale PROCESSING card is visible (admin view).
+
+
 - Newly submitted complaint state starts as `ACTIVE`.
 - Reopened/resubmitted complaint state starts as `ACTIVE`.
 - If authoritative shipment status is `PENDING` (system or manual override), complaint state must remain `ACTIVE` or `PROCESSING`.

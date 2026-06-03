@@ -4,6 +4,8 @@ import { parseComplaintRecord } from "./complaint.service.js";
 
 export const COMPLAINT_RETRY_SCHEDULE_MINUTES = [5, 15, 30, 60, 180] as const;
 export const COMPLAINT_MAX_RETRIES = 6;
+/** Queue rows stuck in "processing" longer than this are rescued to retry_pending. */
+export const COMPLAINT_PROCESSING_STALE_AFTER_MS = 10 * 60 * 1000; // 10 minutes
 
 export type ComplaintQueueStatus = "queued" | "processing" | "submitted" | "duplicate" | "retry_pending" | "manual_review" | "resolved" | "closed";
 
@@ -63,6 +65,10 @@ export async function findActiveComplaintDuplicate(userId: string, trackingId: s
 
   for (const queueDuplicate of queueDuplicates) {
     const status = normalizeComplaintQueueStatus(queueDuplicate.complaintStatus);
+    // Skip stale "processing" rows — they are stuck and will be rescued by the retry sweep.
+    const isStaleProcessing = status === "processing"
+      && queueDuplicate.updatedAt.getTime() < Date.now() - COMPLAINT_PROCESSING_STALE_AFTER_MS;
+    if (isStaleProcessing) continue;
     const dueDateActive = queueDuplicate.dueDate ? queueDuplicate.dueDate >= now : false;
     const missingDueDateButInFlight = ["queued", "processing", "retry_pending"].includes(String(status));
     if (dueDateActive || missingDueDateButInFlight) {
@@ -172,4 +178,41 @@ export async function getQueuedComplaintsForRetry(limit = 25) {
     orderBy: [{ nextRetryAt: "asc" }, { createdAt: "asc" }],
     take: limit,
   });
+}
+
+/**
+ * Rescues complaint queue rows that have been stuck in "processing" longer than
+ * COMPLAINT_PROCESSING_STALE_AFTER_MS. Transitions them to retry_pending (or
+ * manual_review if retries are exhausted) so they re-enter the normal retry sweep.
+ */
+export async function rescueStuckProcessingComplaints(): Promise<{ rescued: number }> {
+  const staleThreshold = new Date(Date.now() - COMPLAINT_PROCESSING_STALE_AFTER_MS);
+  const staleRows = await prisma.complaintQueue.findMany({
+    where: {
+      complaintStatus: "processing",
+      updatedAt: { lt: staleThreshold },
+    },
+    select: { id: true, retryCount: true },
+  });
+
+  let rescued = 0;
+  for (const row of staleRows) {
+    const retryCount = Number(row.retryCount ?? 0) + 1;
+    const status = retryCount >= COMPLAINT_MAX_RETRIES ? "manual_review" : "retry_pending";
+    await prisma.complaintQueue.update({
+      where: { id: row.id },
+      data: {
+        retryCount,
+        complaintStatus: status,
+        nextRetryAt: status === "manual_review" ? null : getComplaintNextRetryAt(retryCount),
+        lastError: "Processing timeout: job stalled and was rescued by retry sweep",
+      },
+    });
+    rescued += 1;
+  }
+
+  if (rescued > 0) {
+    console.log(`[ComplaintRescue] Rescued ${rescued} stuck processing complaint(s) to ${rescued === 1 ? "retry_pending/manual_review" : "retry_pending/manual_review"}`);
+  }
+  return { rescued };
 }

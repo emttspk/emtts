@@ -1,11 +1,17 @@
 import cron from "node-cron";
 import { prisma } from "../lib/prisma.js";
 import { trackingQueue } from "../queue/queue.js";
-import { getQueuedComplaintsForRetry } from "../services/complaint-queue.service.js";
+import { getQueuedComplaintsForRetry, rescueStuckProcessingComplaints } from "../services/complaint-queue.service.js";
 
 let started = false;
 
 export async function runComplaintRetryJob() {
+  // Rescue any complaint queue rows that have been stuck in "processing" longer
+  // than the stale threshold before running the normal retry sweep.
+  await rescueStuckProcessingComplaints().catch((err) => {
+    console.error("[ComplaintRetry] Rescue sweep failed:", err instanceof Error ? err.message : err);
+  });
+
   const rows = await getQueuedComplaintsForRetry(25);
   let queued = 0;
   for (const row of rows) {

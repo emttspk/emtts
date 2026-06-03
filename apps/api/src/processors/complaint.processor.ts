@@ -56,22 +56,26 @@ export async function processComplaintQueueById(queueId: string) {
 
   await markComplaintQueueProcessing(queueId);
 
-  const circuitOpen = await isComplaintCircuitOpen();
-  if (circuitOpen) {
-    await markComplaintQueueFailure(queueId, "Complaint circuit is open; keeping request queued");
-    return { success: false, status: "QUEUED_ONLY", message: "Circuit breaker is open" };
-  }
-
+  // Extract pure values (no I/O, cannot throw).
   const payload = queueRow.payloadJson as ComplaintQueuePayload;
   const trackingNumber = String(payload.tracking_number ?? queueRow.trackingId).trim();
   const phone = String(payload.phone ?? "").trim();
-  const existingShipment = await prisma.shipment.findUnique({
-    where: { userId_trackingNumber: { userId: queueRow.userId, trackingNumber } },
-    select: { complaintText: true, complaintStatus: true },
-  });
-  const existingParsed = parseComplaintRecord(existingShipment?.complaintText, existingShipment?.complaintStatus);
 
   try {
+    // All I/O after markComplaintQueueProcessing is inside the try so that any
+    // unexpected DB or network error still transitions the row away from "processing".
+    const circuitOpen = await isComplaintCircuitOpen();
+    if (circuitOpen) {
+      await markComplaintQueueFailure(queueId, "Complaint circuit is open; keeping request queued");
+      return { success: false, status: "QUEUED_ONLY", message: "Circuit breaker is open" };
+    }
+
+    const existingShipment = await prisma.shipment.findUnique({
+      where: { userId_trackingNumber: { userId: queueRow.userId, trackingNumber } },
+      select: { complaintText: true, complaintStatus: true },
+    });
+    const existingParsed = parseComplaintRecord(existingShipment?.complaintText, existingShipment?.complaintStatus);
+
     const response = await pythonSubmitComplaint(trackingNumber, phone, payload as unknown as Record<string, unknown>);
 
     const responseText = String(response.response_text ?? "").trim();
