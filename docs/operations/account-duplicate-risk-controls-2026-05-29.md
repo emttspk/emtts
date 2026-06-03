@@ -129,3 +129,15 @@ npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma
 - Resend is clearly rate-limited with countdown and pending disabled state.
 - Lockout is explained with a clear wait-time message.
 - Users with expired auth session are redirected by clear login guidance instead of looping.
+
+## 2026-06-03 Addendum - Final Production Auth Risk Closure
+
+### Closure Summary
+- Durable refresh token persistence moved from in-memory state to DB-backed storage (`AuthRefreshToken`).
+- Logout now attempts backend refresh-token revocation before local/session storage cleanup.
+- Production Firebase manual verification checklist and production auth smoke checklist were added to:
+  - `docs/operations/production-auth-hardening-report-2026-06-03.md`
+
+### Remaining Open Risks
+- Firebase Console settings are still a manual operational verification item.
+- Browser storage token model remains less secure than HttpOnly cookie model and is tracked as future hardening.

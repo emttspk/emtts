@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { clearSession } from "../lib/auth";
+import { logoutAndClearSession } from "../lib/logout";
 
 const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -51,7 +51,7 @@ export function useIdleTimeout(enabled: boolean = true) {
 
   const logout = useCallback(() => {
     clearAllAppCache();
-    clearSession();
+    void logoutAndClearSession();
     const host = typeof window !== "undefined" ? window.location.hostname : "";
     const isLocal = /^(localhost|127\.0\.0\.1)$/i.test(host);
     const isProductionHost = /^(www\.)?epost\.pk$/i.test(host);

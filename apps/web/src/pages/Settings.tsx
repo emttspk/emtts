@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import Card from "../components/Card";
-import { clearSession } from "../lib/auth";
 import { api } from "../lib/api";
 import type { MeResponse } from "../lib/types";
 import { resolvePackageMeta, usagePercent } from "../lib/packageCatalog";
 import { TEMPLATE_DESIGNER_ADMIN_EMAIL, TEMPLATE_DESIGNER_ENABLED } from "../lib/featureFlags";
 import { BodyText, CardTitle, PageShell, PageTitle } from "../components/ui/PageSystem";
+import { logoutAndClearSession } from "../lib/logout";
 
 type ShellCtx = { me: MeResponse | null; refreshMe: () => Promise<void> };
 
@@ -155,8 +155,9 @@ export default function Settings() {
           <button
             className="btn-secondary mt-6 w-full"
             onClick={() => {
-              clearSession();
-              nav("/");
+              void logoutAndClearSession().finally(() => {
+                nav("/");
+              });
             }}
           >
             Logout

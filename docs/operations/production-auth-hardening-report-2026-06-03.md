@@ -15,19 +15,23 @@ Protected modules (labels, money orders, tracking, complaints, billing, admin wo
 
 This section documents required production settings to validate in Firebase Console for project `epost-auth`.
 
+### Firebase Manual Verification Checklist (Production)
+- [ ] Authorized domains include `www.epost.pk` and `epost.pk`.
+- [ ] Authorized domains do not include unknown/untrusted hosts.
+- [ ] Email/Password provider is enabled.
+- [ ] Google provider is enabled when Google sign-in is intended for production.
+- [ ] Action URL/domain for email actions is set to trusted production host (`https://www.epost.pk`).
+- [ ] Email verification template text and links match ePost.pk production branding/URLs.
+- [ ] Password reset template text and links match ePost.pk production branding/URLs.
+- [ ] Abuse protection controls are enabled and reviewed.
+- [ ] Quota and Identity Toolkit limits are reviewed for expected traffic.
+
 ### 1) Authorized Domains
 Required allowlist:
 - `www.epost.pk`
 - `epost.pk`
-- `api.epost.pk` (if any direct auth handler callback redirects use this host)
-- Local/staging hosts only when explicitly required for controlled verification
-
-Must not allow broad/untrusted domains.
-
-### 2) Sign-in Providers
-Required providers:
-- Email/Password: enabled
-- Google: enabled with production OAuth client IDs and approved domain list
+- `api.epost.pk` (only if auth action/redirect flow explicitly needs it)
+- Local/staging hosts only for controlled verification
 
 ### 3) Email Verification Enforcement
 Required behavior:
@@ -43,6 +47,7 @@ Required behavior:
 Required behavior:
 - Support short-lived session storage for non-remembered logins
 - Support local persistence only when remember-me is intentionally enabled
+- Revoke refresh token server-side on logout
 
 ### 6) Abuse Protection
 Required behavior:
@@ -86,8 +91,17 @@ Findings:
 - Mitigation status: reduced persistence footprint by using sessionStorage where appropriate.
 
 ### Refresh Token Handling
-- Refresh tokens continue to be managed server-side via in-memory rotation/revocation logic.
-- Logout clears local + session storage token artifacts.
+- Refresh tokens are now persisted in PostgreSQL (`AuthRefreshToken`) with hashed token values.
+- Rotation and revocation are durable across API restarts and multi-instance Railway deployments.
+- Logout now attempts server-side refresh token revocation and then clears local + session storage.
+
+### Session/Token Flow Audit Snapshot
+- Access token storage: browser storage (session or local based on remember-me).
+- Refresh token storage (client): browser storage (session or local based on remember-me).
+- Refresh token storage (server): durable DB-backed table `AuthRefreshToken`.
+- Logout cleanup: API revoke attempt + Firebase signOut attempt + local/session storage clear.
+- Multi-tab behavior: localStorage-backed sessions sync naturally by browser storage events, sessionStorage-backed sessions remain tab-scoped by design.
+- Multi-instance Railway behavior: refresh token validity no longer depends on in-memory state of a single API instance.
 
 ## Phase 4 - Mock Load Testing (No Production Firebase Spam)
 
@@ -105,8 +119,19 @@ Measured outputs:
 - cooldown effectiveness
 - memory growth (heap delta)
 
-Result expectation:
+Result:
 - PASS with high duplicate suppression and stable memory growth under mocked load.
+
+### Production Auth Smoke Checklist (Real Flow)
+- [ ] New registration succeeds.
+- [ ] Verification email is delivered.
+- [ ] Login before email verification is blocked with clear message.
+- [ ] Login after verification succeeds.
+- [ ] Resend verification cooldown is enforced in UI.
+- [ ] Forgot password request succeeds and email is delivered.
+- [ ] Logout revokes session and redirects correctly.
+- [ ] Session expiry/idle timeout logs out as expected.
+- [ ] Mobile browser auth flow (register/verify/login/forgot-password) is stable.
 
 ## Phase 5 - Monitoring Enhancements
 
@@ -119,6 +144,18 @@ Added metric-style auth events:
 - `auth.metric.email_verification_failure`
 - `auth.metric.password_reset_request`
 - `auth.metric.password_reset_failure`
+
+### Where to Check
+- Railway service logs for `Api` service in production.
+- Search for `[AUTH_AUDIT]` and `auth.metric.` event names.
+
+### Detection Guidance
+- Firebase too-many-requests pattern:
+	- Filter for repeated `auth.metric.email_verification_failure` with reasons/messages containing `too-many-requests`.
+	- Correlate with frontend message: `Too many attempts. Please wait 10 to 15 minutes before trying again.`
+- Repeated login failures:
+	- Filter `auth.metric.login_failure` grouped by identifier/IP/device.
+	- Alert on sustained spikes by same identifier/IP over short windows.
 
 ## Phase 6 - Production Readiness Score
 
@@ -134,9 +171,8 @@ Overall production auth readiness score: 89/100
 ## Remaining Risks
 - Firebase Console settings must be manually confirmed against this checklist.
 - Tokens are still browser-stored (session/local) and therefore not equivalent to HttpOnly cookie security.
-- Backend refresh token state is in-memory; process restarts invalidate in-memory token state.
+- Monitoring is log-based; no dedicated auth dashboard/alerts are wired yet.
 
 ## Recommended Next Hardening (Future)
 - Move access/refresh token transport to secure HttpOnly cookies.
-- Back refresh-token store by Redis for multi-instance durability.
 - Add dashboard/alert wiring for `auth.metric.*` log events.

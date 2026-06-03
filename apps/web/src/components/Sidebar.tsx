@@ -16,9 +16,10 @@ import {
   MessageCircle,
   X,
 } from "lucide-react";
-import { clearSession, getRole } from "../lib/auth";
+import { getRole } from "../lib/auth";
 import { cn } from "../lib/cn";
 import { APP_NAV_ITEMS, isRouteActive } from "../lib/navigation";
+import { logoutAndClearSession } from "../lib/logout";
 
 const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, matchPrefixes: ["/dashboard"] },
@@ -136,8 +137,9 @@ export default function Sidebar(props: {
             title="Logout"
             className="flex h-12 w-full items-center gap-3 rounded-2xl px-3.5 text-sm font-medium text-slate-200 transition-all duration-200 ease-out hover:bg-white/10 hover:text-white md:h-[64px] md:flex-col md:justify-center md:gap-1.5 md:px-1.5 lg:h-12 lg:flex-row lg:justify-start lg:gap-3 lg:px-3.5"
             onClick={() => {
-              clearSession();
-              navigate("/");
+              void logoutAndClearSession().finally(() => {
+                navigate("/");
+              });
             }}
           >
             <LogOut className="h-5 w-5 flex-none opacity-90" />

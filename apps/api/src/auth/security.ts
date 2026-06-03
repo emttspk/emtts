@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { Request } from "express";
 import type { AppRole } from "./jwt.js";
+import { prisma } from "../lib/prisma.js";
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 30;
@@ -20,13 +21,11 @@ type LoginHistoryEntry = {
   device: string;
   success: boolean;
 };
-type RefreshTokenState = { userId: string; role: AppRole; expiresAtMs: number };
 
 const rateLimitByIp = new Map<string, RateLimitState>();
 const failedAttemptByIdentity = new Map<string, FailedAttemptState>();
 const loginHistoryByUser = new Map<string, LoginHistoryEntry[]>();
 const revokedAccessToken = new Map<string, number>();
-const refreshTokens = new Map<string, RefreshTokenState>();
 
 function nowMs() {
   return Date.now();
@@ -45,13 +44,12 @@ function pruneExpiredRevocations() {
   }
 }
 
-function pruneExpiredRefreshTokens() {
-  const now = nowMs();
-  for (const [token, state] of refreshTokens.entries()) {
-    if (state.expiresAtMs <= now) {
-      refreshTokens.delete(token);
-    }
-  }
+function refreshTokenSalt() {
+  return String(process.env.JWT_SECRET ?? "labelgen-refresh-token-salt").trim();
+}
+
+function hashRefreshToken(token: string) {
+  return createHash("sha256").update(`${refreshTokenSalt()}:${token}`).digest("hex");
 }
 
 export function getClientIp(req: Request) {
@@ -181,24 +179,57 @@ export function isAccessJwtRevoked(token: string) {
   return revokedAccessToken.has(token);
 }
 
-export function issueRefreshToken(userId: string, role: AppRole) {
-  pruneExpiredRefreshTokens();
+export async function issueRefreshToken(userId: string, role: AppRole) {
   const token = `${randomUUID()}_${randomBytes(20).toString("hex")}`;
-  refreshTokens.set(token, { userId, role, expiresAtMs: nowMs() + REFRESH_TOKEN_TTL_MS });
+  const tokenHash = hashRefreshToken(token);
+  const expiresAt = new Date(nowMs() + REFRESH_TOKEN_TTL_MS);
+  await prisma.$executeRaw`
+    INSERT INTO "AuthRefreshToken" ("id", "userId", "role", "tokenHash", "expiresAt")
+    VALUES (${randomUUID()}, ${userId}, ${role}, ${tokenHash}, ${expiresAt})
+  `;
   return token;
 }
 
-export function rotateRefreshToken(token: string) {
-  pruneExpiredRefreshTokens();
-  const state = refreshTokens.get(token);
+export async function rotateRefreshToken(token: string) {
+  const now = new Date();
+  const tokenHash = hashRefreshToken(token);
+
+  const [state] = await prisma.$queryRaw<Array<{ userId: string; role: string }>>`
+    SELECT "userId", "role"
+    FROM "AuthRefreshToken"
+    WHERE "tokenHash" = ${tokenHash}
+      AND "revokedAt" IS NULL
+      AND "expiresAt" > ${now}
+    LIMIT 1
+  `;
+
   if (!state) return null;
 
-  refreshTokens.delete(token);
-  const nextToken = issueRefreshToken(state.userId, state.role);
-  return { userId: state.userId, role: state.role, refreshToken: nextToken };
+  const nextToken = `${randomUUID()}_${randomBytes(20).toString("hex")}`;
+  const nextTokenHash = hashRefreshToken(nextToken);
+  const expiresAt = new Date(nowMs() + REFRESH_TOKEN_TTL_MS);
+
+  await prisma.$transaction([
+    prisma.$executeRaw`
+      UPDATE "AuthRefreshToken"
+      SET "revokedAt" = ${now}, "replacedByHash" = ${nextTokenHash}, "updatedAt" = NOW()
+      WHERE "tokenHash" = ${tokenHash} AND "revokedAt" IS NULL
+    `,
+    prisma.$executeRaw`
+      INSERT INTO "AuthRefreshToken" ("id", "userId", "role", "tokenHash", "expiresAt")
+      VALUES (${randomUUID()}, ${state.userId}, ${String(state.role)}, ${nextTokenHash}, ${expiresAt})
+    `,
+  ]);
+
+  return { userId: state.userId, role: String(state.role) as AppRole, refreshToken: nextToken };
 }
 
-export function revokeRefreshToken(token: string | null | undefined) {
+export async function revokeRefreshToken(token: string | null | undefined) {
   if (!token) return;
-  refreshTokens.delete(token);
+  const tokenHash = hashRefreshToken(token);
+  await prisma.$executeRaw`
+    UPDATE "AuthRefreshToken"
+    SET "revokedAt" = NOW(), "updatedAt" = NOW()
+    WHERE "tokenHash" = ${tokenHash} AND "revokedAt" IS NULL
+  `;
 }

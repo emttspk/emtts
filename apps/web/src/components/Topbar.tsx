@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, LogOut, Menu, Plus, Search, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { clearSession } from "../lib/auth";
 import { cn } from "../lib/cn";
+import { logoutAndClearSession } from "../lib/logout";
 import ActionButton from "./ui/ActionButton";
 import SearchInput from "./ui/SearchInput";
 import SupportNotificationsBell from "./SupportNotificationsBell";
@@ -92,8 +92,9 @@ export default function Topbar(props: {
                     "transition-all duration-300 ease-in-out hover:bg-gray-50",
                   )}
                   onClick={() => {
-                    clearSession();
-                    navigate("/");
+                    void logoutAndClearSession().finally(() => {
+                      navigate("/");
+                    });
                   }}
                 >
                   <LogOut className="h-4 w-4" />

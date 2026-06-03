@@ -42,12 +42,12 @@ function extractBearerToken(authorizationHeader: string | undefined) {
   return authorizationHeader.slice("Bearer ".length).trim() || null;
 }
 
-function shapeAuthResponse(user: { id: string; email: string; role: string; createdAt: Date }) {
+async function shapeAuthResponse(user: { id: string; email: string; role: string; createdAt: Date }) {
   const role = asAppRole(user.role);
   return {
     user: { id: user.id, email: user.email, role: user.role, createdAt: user.createdAt },
     token: signAccessToken({ sub: user.id, role }),
-    refreshToken: issueRefreshToken(user.id, role),
+    refreshToken: await issueRefreshToken(user.id, role),
   };
 }
 
@@ -275,7 +275,7 @@ authRouter.post("/register", async (req, res) => {
   recordLoginHistory(user.id, { email, method: "password", ip, device, success: true });
   auditAuthEvent("auth.register.success", req, { email, userId: user.id });
   return res.json({
-    ...shapeAuthResponse(user),
+    ...(await shapeAuthResponse(user)),
     onboardingRequired: !onboardingComplete,
   });
 });
@@ -353,7 +353,7 @@ authRouter.post("/login", async (req, res) => {
     recordLoginHistory(user.id, { email: user.email, method: "password", ip, device, success: true });
     auditAuthEvent("auth.login.success", req, { identifier: rawIdentifier, userId: user.id });
     auditAuthMetric(req, "login_success", { method: "password", identifier: rawIdentifier, userId: user.id });
-    return res.json(shapeAuthResponse(user));
+    return res.json(await shapeAuthResponse(user));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[AUTH] Login database error:", message);
@@ -474,12 +474,12 @@ authRouter.post("/firebase-login", async (req, res) => {
     const onboardingRequired = !user.onboardingComplete;
 
     return res.json({
-      ...shapeAuthResponse({
+      ...(await shapeAuthResponse({
         id: user.id,
         email: user.email,
         role: user.role,
         createdAt: user.createdAt,
-      }),
+      })),
       onboardingRequired,
     });
   } catch (err) {
@@ -602,12 +602,12 @@ authRouter.post("/email-otp/verify", async (req, res) => {
     auditAuthEvent("auth.email_otp.verify_success", req, { email, userId: user.id });
 
     return res.json({
-      ...shapeAuthResponse({
+      ...(await shapeAuthResponse({
         id: user.id,
         email: user.email,
         role: user.role,
         createdAt: user.createdAt,
-      }),
+      })),
       onboardingRequired: !user.onboardingComplete,
     });
   } catch (err) {
@@ -685,7 +685,7 @@ authRouter.post("/complete-profile", requireAuth, async (req, res) => {
     });
 
     return res.json({
-      ...shapeAuthResponse(user),
+      ...(await shapeAuthResponse(user)),
       onboardingRequired: false,
     });
   } catch (err) {
@@ -756,18 +756,30 @@ authRouter.post("/refresh", async (req, res) => {
     return res.status(400).json({ error: "refreshToken is required" });
   }
 
-  const rotated = rotateRefreshToken(body.data.refreshToken);
-  if (!rotated) {
-    return res.status(401).json({ error: "Invalid refresh token" });
-  }
+  try {
+    const rotated = await rotateRefreshToken(body.data.refreshToken);
+    if (!rotated) {
+      auditAuthMetric(req, "login_failure", { method: "refresh", reason: "invalid_refresh_token" });
+      return res.status(401).json({ error: "Invalid refresh token" });
+    }
 
-  const token = signAccessToken({ sub: rotated.userId, role: rotated.role });
-  return res.json({ token, refreshToken: rotated.refreshToken });
+    const token = signAccessToken({ sub: rotated.userId, role: rotated.role });
+    return res.json({ token, refreshToken: rotated.refreshToken });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    auditAuthMetric(req, "login_failure", { method: "refresh", reason: "refresh_error", message });
+    return res.status(500).json({ error: "Failed to refresh session" });
+  }
 });
 
 authRouter.post("/logout", requireAuth, async (req, res) => {
   const refreshToken = typeof req.body?.refreshToken === "string" ? req.body.refreshToken : null;
-  revokeRefreshToken(refreshToken);
+  try {
+    await revokeRefreshToken(refreshToken);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    auditAuthEvent("auth.logout.refresh_revoke_failed", req, { message });
+  }
 
   const accessToken = extractBearerToken(req.header("authorization"));
   if (accessToken) {

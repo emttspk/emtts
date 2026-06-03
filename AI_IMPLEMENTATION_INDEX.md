@@ -1,5 +1,47 @@
 # AI Implementation Index
 
+## 2026-06-03 - Final Production Auth Risk Closure
+
+### Scope
+- Auth/Firebase/security/rate-limiting/session/monitoring only.
+- Protected business modules unchanged.
+
+### Safety Snapshot
+- Git remote: `https://github.com/emttspk/emtts.git`
+- Branch: `main`
+- Railway link: `Epost` / `production` / `Api` (online)
+- Env keys inspected by name only; secrets not printed.
+
+### High-Risk Closures
+- Implemented durable refresh token persistence in DB:
+	- Added Prisma model `AuthRefreshToken`
+	- Added migration `20260603192000_add_auth_refresh_token_store`
+	- Refresh token issue/rotate/revoke moved from in-memory map to PostgreSQL-backed store with hashed token values.
+- Strengthened logout cleanup:
+	- UI logout now calls backend `/api/auth/logout` for server-side refresh token revocation.
+	- UI logout then clears local/session storage and attempts Firebase sign-out.
+- Clarified production monitoring visibility:
+	- Documented exact `auth.metric.*` events and detection patterns.
+
+### Files Changed
+- `apps/api/prisma/schema.prisma`
+- `apps/api/prisma/migrations/20260603192000_add_auth_refresh_token_store/migration.sql`
+- `apps/api/src/auth/security.ts`
+- `apps/api/src/routes/auth.ts`
+- `apps/web/src/lib/logout.ts`
+- `apps/web/src/hooks/useIdleTimeout.ts`
+- `apps/web/src/components/Topbar.tsx`
+- `apps/web/src/components/Sidebar.tsx`
+- `apps/web/src/pages/Settings.tsx`
+- `docs/operations/production-auth-hardening-report-2026-06-03.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Risk Status After Closure Pass
+- Firebase Console verification: still manual, now fully checklisted in operations doc.
+- Browser-storage token model: partially mitigated via session/local scope selection; HttpOnly-cookie migration remains future hardening.
+- In-memory refresh-token risk: CLOSED (replaced with DB-backed durable store).
+- Production monitoring visibility: improved with event catalog and detection guidance; dashboard/alert wiring remains future step.
+
 ## 2026-06-03 - Production Authentication Hardening Audit
 
 ### Scope
