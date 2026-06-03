@@ -128,3 +128,18 @@
 | `https://www.epost.pk/` returns 200 and contains canonical + JSON-LD | PASS | Canonical and JSON-LD markers detected in homepage HTML. |
 
 - Search Console URL inspection/submission and Bing submission remain manual operator steps.
+
+## Final Manual Evidence Checklist (SEO)
+
+- Google Search Console property verified: pending/manual.
+- Sitemap submitted: pending/manual.
+- Homepage inspected: pending/manual.
+- `/tracking` inspected: pending/manual.
+- `/pricing` inspected: pending/manual.
+- `/register` inspected: pending/manual.
+- `/support` inspected: pending/manual.
+- Bing Webmaster submission: optional pending.
+
+## Metadata Strengthening Note (2026-06-04)
+
+- Homepage search metadata strengthened for Pakistan Post, bulk tracking, 1 click complaints, labels and money orders.

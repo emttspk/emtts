@@ -8,8 +8,8 @@ export default function Home() {
   return (
     <div className="public-shell">
       <SEO
-        title="Home | ePost.pk"
-        description="Pakistan Post tracking, bulk tracking, shipping label generation, money orders, complaints, and ecommerce shipping tools in one workspace."
+        title="Pakistan Post Tracking, 1 Click Complaints, Bulk Tracking, Labels & Money Orders | ePost.pk"
+        description="Use ePost.pk for Pakistan Post bulk tracking, 1 click complaints, label generation, money order generation, billing, and ecommerce shipping management from one workspace."
         canonicalPath="/"
       />
       <Navbar />

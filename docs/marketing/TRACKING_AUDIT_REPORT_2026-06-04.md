@@ -113,6 +113,23 @@
 - Homepage remains reachable with expected canonical and JSON-LD markers.
 - GA4/Meta validation remains manual and depends on Railway env values plus dashboard/extension access.
 
+## Final Manual Evidence Checklist (Analytics)
+
+- GA4 Realtime `page_view` screenshot: pending/manual.
+- GA4 Start Free event screenshot: pending/manual.
+- GA4 WhatsApp click event screenshot: pending/manual.
+- Meta Pixel Helper `PageView` screenshot: pending/manual.
+- Meta Pixel safe custom event screenshot: pending/manual.
+- Confirm no CNIC, phone, address, tracking ID, parcel data, payment reference, or file content in analytics payloads.
+
+### Recommended Screenshot Naming
+
+- `2026-06-04-gsc-sitemap-submitted.png`
+- `2026-06-04-ga4-page-view.png`
+- `2026-06-04-meta-pixel-pageview.png`
+
+- Store screenshots outside this repository unless an approved docs artifact folder is created.
+
 ## Current Status
 **CRITICAL MISSING** - The ePost.pk platform currently has **zero** marketing tracking implemented. There is no Meta Pixel, no Google Tag (GA4), and no conversion event tracking for key business actions.
 
