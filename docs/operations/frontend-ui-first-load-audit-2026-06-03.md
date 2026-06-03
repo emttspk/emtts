@@ -121,3 +121,22 @@ Post-deploy production connectivity audit performed. See full report: `docs/oper
 
 ### Root Cause Confirmed
 Transient Railway container restart window during `0903343` deploy. Self-resolved within deployment window. No persistent infrastructure fault. No code changes required.
+
+---
+
+## Homepage Barcode Scanner UX Addendum (2026-06-03)
+
+Detailed report: `docs/operations/barcode-scanner-mobile-ux-audit-2026-06-03.md`
+
+### Scope
+- Homepage track parcel scanner UI only.
+- Camera permission messaging and retry UX only.
+- Mobile form layout stabilization only.
+
+### Improvements
+- Scanner panel moved above Track and Scan Barcode buttons.
+- Tracking input remains visible while scanner is open.
+- Added pre-permission guidance before camera request prompt.
+- Added explicit blocked-permission recovery message with browser settings guidance.
+- Added Retry Scanner button.
+- Preserved user-initiated camera opening only (no page-load auto open).

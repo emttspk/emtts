@@ -1,5 +1,45 @@
 # AI Implementation Index
 
+## 2026-06-03 - Homepage Barcode Scanner Mobile UX Fix
+
+### Scope
+- Homepage Track Parcel UI and barcode scanner UX only.
+- Camera permission messaging and retry behavior only.
+- Mobile layout and scanner panel placement only.
+- No auth, money order, complaints, billing, backend, or postal workflow logic changes.
+
+### Issues Addressed
+- Scanner panel opened below action buttons, causing awkward mobile flow.
+- No pre-permission guidance before browser camera prompt.
+- Permission blocked state lacked clear settings instructions and retry path.
+
+### Root Cause
+- Homepage scanner panel was rendered outside the Track Parcel form section, so it appeared after form action controls.
+- Camera permission handling relied on generic error text and did not guide users to browser site settings.
+
+### Fixes Applied
+- Moved scanner panel inside the track form, positioned above Track and Scan Barcode buttons.
+- Added pre-permission notice shown before scanner startup:
+	- "Camera permission is required to scan barcode. Please tap Allow when your browser asks."
+- Added exact blocked-permission instruction:
+	- "Camera access was blocked. Tap the lock/site settings icon in your browser and allow Camera, then try again."
+- Added Retry Scanner button for blocked/unavailable states.
+- Kept tracking input visible while scanner panel is open.
+- Preserved click-to-open behavior only (no auto camera on page load).
+
+### Files Changed
+- `apps/web/src/components/HomeHero.jsx`
+- `docs/operations/barcode-scanner-mobile-ux-audit-2026-06-03.md` (new)
+- `docs/operations/frontend-ui-first-load-audit-2026-06-03.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Validation
+- `npm run lint` -> pending
+- `npm run typecheck` -> pending
+- `npm run build` -> pending
+
+---
+
 ## 2026-06-03 - Production Domain Connectivity Audit
 
 ### Scope

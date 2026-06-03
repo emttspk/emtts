@@ -3,6 +3,8 @@ import { Search, ScanLine, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const SCANNER_CONTAINER_ID = "home-scan-fallback";
+const CAMERA_PERMISSION_NOTICE = "Camera permission is required to scan barcode. Please tap Allow when your browser asks.";
+const CAMERA_BLOCKED_MESSAGE = "Camera access was blocked. Tap the lock/site settings icon in your browser and allow Camera, then try again.";
 
 const DASHBOARD_TRACKING_ROWS = [
   { id: "TRK-98231", city: "Lahore", status: "In Transit", eta: "Today" },
@@ -45,6 +47,7 @@ export default function HomeHero() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerError, setScannerError] = useState("");
   const [scannerNotice, setScannerNotice] = useState("");
+  const [scannerRetryTick, setScannerRetryTick] = useState(0);
 
   const fallbackScannerRef = useRef(null);
   const detectorTimerRef = useRef(null);
@@ -146,8 +149,9 @@ export default function HomeHero() {
       return true;
     } catch (error) {
       const message = String(error?.message || "");
-      if (/permission|denied|notallowed/i.test(message)) {
-        setScannerError("Camera access denied. Enable camera permission to scan.");
+      const errorName = String(error?.name || "");
+      if (/permission|denied|notallowed/i.test(message) || /notallowederror|securityerror/i.test(errorName)) {
+        setScannerError(CAMERA_BLOCKED_MESSAGE);
       }
       return false;
     }
@@ -174,13 +178,26 @@ export default function HomeHero() {
       );
     } catch (error) {
       const message = String(error?.message || "");
-      if (/permission|denied|notallowed/i.test(message)) {
-        setScannerError("Camera access denied. Enable camera permission to scan.");
+      const errorName = String(error?.name || "");
+      if (/permission|denied|notallowed/i.test(message) || /notallowederror|securityerror/i.test(errorName)) {
+        setScannerError(CAMERA_BLOCKED_MESSAGE);
         return;
       }
       setScannerError("Scanner unavailable on this device. Enter tracking ID manually.");
     }
   }, [completeScan]);
+
+  const openScanner = useCallback(() => {
+    setScannerError("");
+    setScannerNotice(CAMERA_PERMISSION_NOTICE);
+    setScannerOpen(true);
+  }, []);
+
+  const retryScanner = useCallback(() => {
+    setScannerError("");
+    setScannerNotice(CAMERA_PERMISSION_NOTICE);
+    setScannerRetryTick((value) => value + 1);
+  }, []);
 
   useEffect(() => {
     if (!scannerOpen) return;
@@ -189,7 +206,7 @@ export default function HomeHero() {
 
     async function startScanner() {
       setScannerError("");
-      setScannerNotice("");
+      setScannerNotice(CAMERA_PERMISSION_NOTICE);
       scanHandledRef.current = false;
 
       const startedWithDetector = await startBarcodeDetector();
@@ -204,7 +221,7 @@ export default function HomeHero() {
       cancelled = true;
       stopScanner();
     };
-  }, [scannerOpen, startBarcodeDetector, startHtml5Fallback, stopScanner]);
+  }, [scannerOpen, scannerRetryTick, startBarcodeDetector, startHtml5Fallback, stopScanner]);
 
   const servicePills = [
      "Labels",
@@ -265,7 +282,7 @@ export default function HomeHero() {
               className="mt-5 max-w-[700px] rounded-3xl border border-[#dce8f5] bg-white/90 p-2 shadow-[0_18px_44px_rgba(10,31,68,0.12)] backdrop-blur"
             >
               <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Track Parcel</p>
-              <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto_auto] md:items-center">
+              <div className="grid grid-cols-1 gap-2">
                 <input
                   type="text"
                   value={trackingId}
@@ -274,47 +291,70 @@ export default function HomeHero() {
                   className="input-premium h-11 sm:h-12"
                 />
 
-                <button
-                  type="submit"
-                  className="btn-primary h-11 gap-2 rounded-xl px-5 text-sm font-bold sm:h-12"
-                >
-                  <Search className="h-4 w-4" />
-                  Track
-                </button>
+                {scannerOpen ? (
+                  <div className="rounded-2xl border border-[#cfdff2] bg-[linear-gradient(170deg,#ffffff,#f7fbff)] p-3 shadow-[0_16px_36px_rgba(10,31,68,0.12)]">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-slate-800">Scan Barcode</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setScannerOpen(false);
+                          stopScanner();
+                        }}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700"
+                        aria-label="Close scanner"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                        Close
+                      </button>
+                    </div>
 
-                <button
-                  type="button"
-                  onClick={() => setScannerOpen(true)}
-                  className="btn-secondary h-11 gap-2 rounded-xl px-4 text-sm sm:h-12"
-                >
-                  <ScanLine className="h-4 w-4" />
-                  Scan Barcode
-                </button>
-              </div>
-            </form>
+                    <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs font-medium text-amber-800">
+                      {CAMERA_PERMISSION_NOTICE}
+                    </p>
 
-            {scannerOpen ? (
-              <div className="mt-3 max-w-[700px] rounded-2xl border border-[#dce8f5] bg-white/95 p-3 shadow-[0_16px_36px_rgba(10,31,68,0.1)]">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="text-sm font-semibold text-slate-800">Scan Barcode</p>
+                    <video ref={videoRef} className="mb-3 h-40 w-full rounded-xl border border-slate-200 bg-slate-950 object-cover sm:h-48" playsInline muted />
+                    <div id={SCANNER_CONTAINER_ID} className="overflow-hidden rounded-xl border border-slate-200 bg-white" />
+
+                    {scannerError ? (
+                      <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 p-2">
+                        <p className="text-xs font-semibold text-rose-700">{scannerError}</p>
+                        <button
+                          type="button"
+                          onClick={retryScanner}
+                          className="mt-2 inline-flex h-8 items-center rounded-lg border border-rose-300 bg-white px-3 text-xs font-semibold text-rose-700"
+                        >
+                          Retry Scanner
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {scannerNotice && scannerNotice !== CAMERA_PERMISSION_NOTICE && !scannerError ? (
+                      <p className="mt-2 text-xs font-semibold text-emerald-700">{scannerNotice}</p>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <button
+                    type="submit"
+                    className="btn-primary h-11 gap-2 rounded-xl px-5 text-sm font-bold sm:h-12"
+                  >
+                    <Search className="h-4 w-4" />
+                    Track
+                  </button>
+
                   <button
                     type="button"
-                    onClick={() => {
-                      setScannerOpen(false);
-                      stopScanner();
-                    }}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 text-slate-600"
-                    aria-label="Close scanner"
+                    onClick={openScanner}
+                    className="btn-secondary h-11 gap-2 rounded-xl px-4 text-sm sm:h-12"
                   >
-                    <X className="h-4 w-4" />
+                    <ScanLine className="h-4 w-4" />
+                    Scan Barcode
                   </button>
                 </div>
-                <video ref={videoRef} className="mb-3 h-40 w-full rounded-xl border border-slate-200 object-cover sm:h-48" playsInline muted />
-                <div id={SCANNER_CONTAINER_ID} className="overflow-hidden rounded-xl border border-slate-200" />
-                {scannerError ? <p className="mt-2 text-xs font-semibold text-red-600">{scannerError}</p> : null}
-                {scannerNotice ? <p className="mt-1 text-xs font-semibold text-emerald-700">{scannerNotice}</p> : null}
               </div>
-            ) : null}
+            </form>
           </div>
 
           <div className="relative">
