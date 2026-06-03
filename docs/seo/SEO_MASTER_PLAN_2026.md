@@ -196,3 +196,5 @@ Source reviewed: `marketing/Keyword Stats 2026-06-04 at 02_49_24.csv` (local onl
 - `/label-generator`
 - `/money-order-generation`
 - `/ecommerce-shipping-pakistan`
+
+- Raw marketing keyword exports are kept outside commits; only final keyword strategy is documented.

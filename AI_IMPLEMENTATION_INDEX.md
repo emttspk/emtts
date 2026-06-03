@@ -1,5 +1,9 @@
 # AI Implementation Index
 
+## 2026-06-04 - Marketing CSV Exclusion Rule
+
+- Marketing keyword CSV exports excluded from commits and gitignore rule documented.
+
 ## 2026-06-04 - Keyword Priority Strategy Documentation
 
 - Keyword priority strategy documented from marketing folder keyword list.

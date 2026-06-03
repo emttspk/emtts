@@ -117,3 +117,6 @@ service-account*.json
 *credentials*.json
 railway-secrets
 cloudflare-secrets
+
+# Raw marketing keyword exports (local only)
+marketing/*.csv
