@@ -200,3 +200,5 @@ Source reviewed: `marketing/Keyword Stats 2026-06-04 at 02_49_24.csv` (local onl
 - Raw marketing keyword exports are kept outside commits; only final keyword strategy is documented.
 
 - First dedicated Pakistan Post Tracking landing page added.
+
+- Bulk Tracking SEO landing page added and linked with Pakistan Post Tracking page.

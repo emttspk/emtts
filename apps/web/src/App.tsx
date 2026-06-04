@@ -45,6 +45,7 @@ const PostageCalculator = lazy(() => import("./pages/PostageCalculator"));
 const PostageUploadSummary = lazy(() => import("./pages/PostageUploadSummary"));
 const PostageComparison = lazy(() => import("./pages/PostageComparison"));
 const PakistanPostTracking = lazy(() => import("./pages/PakistanPostTracking"));
+const BulkTrackingLanding = lazy(() => import("./pages/BulkTrackingLanding"));
 
 function Loading() {
   return (
@@ -103,6 +104,7 @@ export default function App() {
         <Route path="/tracking" element={<TrackingEntry />} />
         <Route path="/tracking/:trackingId" element={<PublicTracking />} />
         <Route path="/pakistan-post-tracking" element={<PakistanPostTracking />} />
+        <Route path="/bulk-tracking" element={<BulkTrackingLanding />} />
         <Route path="/payment/jazzcash/result" element={<JazzCashResult />} />
         <Route
           element={

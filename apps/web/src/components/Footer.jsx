@@ -13,6 +13,7 @@ export default function Footer() {
       title: "SHIPPING TOOLS",
       links: [
         { label: "Pakistan Post Tracking Guide", href: "/pakistan-post-tracking" },
+        { label: "Bulk Tracking Guide", href: "/bulk-tracking" },
         { label: "Track Shipment", href: "/tracking" },
         { label: "Book Parcel", href: "/upload" },
         { label: "Complaint Monitor", href: "/complaints" },
