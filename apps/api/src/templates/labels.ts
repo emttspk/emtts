@@ -321,15 +321,7 @@ function renderBoxAmountBlock(summary: LabelAmountSummary) {
 
 function renderUniversalAmountBlock(summary: LabelAmountSummary) {
   const formatRs = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
-  if (!summary.appliesPakistanPostRules || !shouldShowValuePayableAmount(summary.shipmentType)) {
-    return `
-      <div class="box amount-box amount-box--placeholder" aria-hidden="true">
-        <div class="amount-row"><span>&nbsp;</span><span>&nbsp;</span></div>
-        <div class="amount-row"><span>&nbsp;</span><span>&nbsp;</span></div>
-        <div class="amount-row amount-total"><span>&nbsp;</span><span>&nbsp;</span></div>
-      </div>
-    `;
-  }
+  if (!summary.appliesPakistanPostRules || !shouldShowValuePayableAmount(summary.shipmentType)) return "";
 
   return `
     <div class="box amount-box">
@@ -755,7 +747,7 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
         </div>
         ${amountMarkup}
         <div class="FooterBlock fl-from">
-          <span class="fl-from-line">FROM: <span class="fl-from-name">${escapeHtml(senderName || "-")}</span> <span class="fl-from-addr">${escapeHtml(senderAddressInline || "-")}</span> <span class="fl-from-city">${escapeHtml(senderCity || "-")}</span> <span class="fl-from-phone">${escapeHtml(senderPhone || "-")}</span></span>
+          <div class="fl-from-line">FROM: <span class="fl-from-name">${escapeHtml(senderName || "-")}</span> <span class="fl-from-addr">${escapeHtml(senderAddressInline || "-")}</span> <span class="fl-from-city">${escapeHtml(senderCity || "-")}</span> <span class="fl-from-phone">${escapeHtml(senderPhone || "-")}</span></div>
         </div>
       </div>`;
   };
@@ -837,9 +829,12 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
         .fl-name { font-weight: 900; font-size: 3mm; }
         .fl-addr { font-size: 2.45mm; line-height: 1.15; white-space: pre-line; overflow: hidden; min-height: 6.1mm; }
         .fl-city-phone { font-size: 2.35mm; color: #111; font-weight: 700; }
-        .fl-from { border-top: 0.3mm solid #000; padding-top: 0.7mm; font-size: 2.0mm; min-height: 0; }
+        .fl-from { border-top: 0.3mm solid #000; padding-top: 0.55mm; font-size: 1.95mm; min-height: 8.1mm; display:flex; align-items:flex-start; }
         .fl-from-line {
           display: -webkit-box;
+          width: 100%;
+          min-width: 0;
+          max-width: 100%;
           white-space: normal;
           overflow: hidden;
           overflow-wrap: anywhere;
@@ -848,7 +843,7 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
           -webkit-box-orient: vertical;
           font-weight: 500;
           letter-spacing: 0.05mm;
-          line-height: 1.12;
+          line-height: 1.06;
         }
         .fl-from-name, .fl-from-city, .fl-from-phone { font-weight: 900; }
         .fl-from-addr { font-weight: 500; }

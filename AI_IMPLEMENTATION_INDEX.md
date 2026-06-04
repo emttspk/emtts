@@ -7,6 +7,12 @@
 - Follow-up log audit confirmed failed Web deployment `d02e15f5-39e1-45fa-9962-f329b8b482eb` failed before `npm install`/Vite/startup: Docker metadata resolution for `node:22.13.1-bookworm-slim` hit a Docker Hub TLS handshake timeout.
 - Recovery hardening follow-up confirmed the latest Web deployment is still `d02e15f5-39e1-45fa-9962-f329b8b482eb` (`FAILED`) while Railway continues serving the prior successful image. Local `apps/api` and `apps/web` builds passed; documented Docker base-image hardening and recovery guidance in `docs/operations/railway-web-dockerhub-timeout-hardening-2026-06-04.md` and `docs/deployment/stable-railway-deploy.md`.
 
+## 2026-06-04 - Final Label Polish + Sample File Correction
+
+- Removed the empty universal-label MO amount panel for non value-payable rows so PAR/RGL/UMS move ORDER/PRODUCT/branding upward without changing page width.
+- Tightened flyer sender-line wrapping/clamping to reduce FROM-block clipping within the fixed 8-per-A4 layout.
+- Updated the sample CSV and upload aliases to use `weight_gram` as integer grams, while still accepting `weight(g)` and `Weight` for upload compatibility.
+
 ## 2026-06-04 - Label Generator Loader, Layout, and Sample Alias Fixes
 
 - Implemented a branded route loader for the web shell, layout-preserving universal 9x4 amount placeholders, sender wrap/clamp fixes for universal and flyer labels, and sample alias updates for `order_id` / `weight(g)`.

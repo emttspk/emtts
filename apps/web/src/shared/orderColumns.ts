@@ -30,6 +30,7 @@ const COLUMN_ALIAS_MAP: Record<string, OrderUploadColumn> = {
   shipment_type: "shipmenttype",
   amount: "CollectAmount",
   "weight(g)": "Weight",
+  weight_gram: "Weight",
 };
 
 export function normalizeOrderColumnKey(value: string) {
@@ -39,7 +40,7 @@ export function normalizeOrderColumnKey(value: string) {
 export function normalizeOrderHeaders(headers: string[]) {
   const normalized = new Set(headers.map((header) => normalizeOrderColumnKey(header)));
   for (const [alias, target] of Object.entries(COLUMN_ALIAS_MAP)) {
-    if (normalized.has(alias)) {
+    if (normalized.has(normalizeOrderColumnKey(alias))) {
       normalized.add(normalizeOrderColumnKey(target));
     }
   }
