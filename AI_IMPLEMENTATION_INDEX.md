@@ -1,5 +1,10 @@
 # AI Implementation Index
 
+## 2026-06-04 - Label Generator Loader, Layout, and Sample Alias Fixes
+
+- Implemented a branded route loader for the web shell, layout-preserving universal 9x4 amount placeholders, sender wrap/clamp fixes for universal and flyer labels, and sample alias updates for `order_id` / `weight(g)`.
+- Documented the existing workbook `shipment_type` sheet as a future XLSX sample reference only; no CSV-to-XLSX conversion was made in this pass.
+
 ## 2026-06-04 - Final Production Verification Note
 
 - Final production SEO and sitemap verification note documented.

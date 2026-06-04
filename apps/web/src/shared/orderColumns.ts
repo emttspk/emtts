@@ -25,9 +25,11 @@ export type UploadOrderRow = Record<OrderUploadColumn, string>;
 const COLUMN_ALIAS_MAP: Record<string, OrderUploadColumn> = {
   bookingcity: "senderCity",
   consigneecity: "receiverCity",
+  order_id: "ordered",
   orderid: "ordered",
   shipment_type: "shipmenttype",
   amount: "CollectAmount",
+  "weight(g)": "Weight",
 };
 
 export function normalizeOrderColumnKey(value: string) {

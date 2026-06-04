@@ -320,11 +320,17 @@ function renderBoxAmountBlock(summary: LabelAmountSummary) {
 }
 
 function renderUniversalAmountBlock(summary: LabelAmountSummary) {
+  const formatRs = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
   if (!summary.appliesPakistanPostRules || !shouldShowValuePayableAmount(summary.shipmentType)) {
-    return "";
+    return `
+      <div class="box amount-box amount-box--placeholder" aria-hidden="true">
+        <div class="amount-row"><span>&nbsp;</span><span>&nbsp;</span></div>
+        <div class="amount-row"><span>&nbsp;</span><span>&nbsp;</span></div>
+        <div class="amount-row amount-total"><span>&nbsp;</span><span>&nbsp;</span></div>
+      </div>
+    `;
   }
 
-  const formatRs = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
   return `
     <div class="box amount-box">
       <div class="amount-row">
@@ -629,7 +635,6 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
     const orderSource = String(o.reference ?? (o as any)?.source ?? (o as any)?.Source ?? "ePost Workspace").trim() || "ePost Workspace";
     const productDetails = String(o.ProductDescription ?? "").trim() || "-";
     const amountMarkup = renderUniversalAmountBlock(summary);
-    const hasVisibleAmount = summary.appliesPakistanPostRules && shouldShowValuePayableAmount(summary.shipmentType);
 
     const tokenMap: Record<string, string> = {
       "{{amount}}": summary.appliesPakistanPostRules
@@ -657,12 +662,6 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
         ? `<img id="barcode" src="${barcodeMarkup}" alt="Barcode" />`
         : `<div id="barcode" class="barcode-fallback">${escapeHtml(tracking || "NO TRACKING")}</div>`,
     );
-    if (!hasVisibleAmount) {
-      html = html.replace(
-        /<span class="vpl-divider"[^>]*><\/span>\s*<span class="vpl-amount-box">[\s\S]*?<\/span>/i,
-        "",
-      );
-    }
 
     for (const [token, value] of Object.entries(tokenMap)) {
       html = html.split(token).join(value);
@@ -674,11 +673,11 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
       throw new Error(`Universal 9x4 render failed due to unresolved tokens: ${unresolvedTokens.join(", ")}`);
     }
 
-    return `<div class="universal-page${hasVisibleAmount ? "" : " universal-no-amount"}">${html}</div>`;
+    return `<div class="universal-page">${html}</div>`;
   };
 
   const pages = orders.map((order) => renderSingle(order)).join("");
-  const safetyCss = `<style>.universal-page{width:9in;height:4in;box-sizing:border-box;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;}.universal-page:last-child{page-break-after:auto;break-after:auto;}.universal-page .header{height:56px;min-height:56px}.universal-page .barcode-area{justify-content:center;padding-top:0;padding-left:7px;padding-right:7px;gap:2px;overflow:visible}.universal-page #barcode{height:40px;max-width:248px;width:96%;object-fit:contain}.universal-page .footer{height:32px;padding-top:2px;overflow:visible}.universal-page.universal-no-amount .body{grid-template-columns:minmax(0,2.7fr) minmax(0,2.3fr);align-items:center}.universal-page.universal-no-amount .right-column{grid-template-rows:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:8px;align-content:center}.universal-page.universal-no-amount .right-column .box{justify-content:center}</style>`;
+  const safetyCss = `<style>.universal-page{width:9in;height:4in;box-sizing:border-box;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;}.universal-page:last-child{page-break-after:auto;break-after:auto;}.universal-page .header{height:56px;min-height:56px}.universal-page .barcode-area{justify-content:center;padding-top:0;padding-left:7px;padding-right:7px;gap:2px;overflow:visible}.universal-page #barcode{height:40px;max-width:248px;width:96%;object-fit:contain}.universal-page .footer{height:32px;padding-top:2px;overflow:visible}.universal-page .amount-box--placeholder{opacity:.18}.universal-page .amount-box--placeholder .amount-row{border-bottom-color:transparent}.universal-page .amount-box--placeholder .amount-label,.universal-page .amount-box--placeholder .amount-value{color:transparent}</style>`;
   const outputHead = templateHead.replace(/<\/head>/i, `${safetyCss}</head>`);
 
   return `${outputHead}${pages}${template.tail}`;
@@ -838,8 +837,19 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
         .fl-name { font-weight: 900; font-size: 3mm; }
         .fl-addr { font-size: 2.45mm; line-height: 1.15; white-space: pre-line; overflow: hidden; min-height: 6.1mm; }
         .fl-city-phone { font-size: 2.35mm; color: #111; font-weight: 700; }
-        .fl-from { border-top: 0.3mm solid #000; padding-top: 0.9mm; font-size: 2.2mm; }
-        .fl-from-line { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; letter-spacing: 0.05mm; line-height: 1.1; }
+        .fl-from { border-top: 0.3mm solid #000; padding-top: 0.7mm; font-size: 2.0mm; min-height: 0; }
+        .fl-from-line {
+          display: -webkit-box;
+          white-space: normal;
+          overflow: hidden;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          font-weight: 500;
+          letter-spacing: 0.05mm;
+          line-height: 1.12;
+        }
         .fl-from-name, .fl-from-city, .fl-from-phone { font-weight: 900; }
         .fl-from-addr { font-weight: 500; }
       </style>

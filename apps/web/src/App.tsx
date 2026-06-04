@@ -52,17 +52,61 @@ const MoneyOrderGenerationLanding = lazy(() => import("./pages/MoneyOrderGenerat
 const EcommerceShippingPakistanLanding = lazy(() => import("./pages/EcommerceShippingPakistanLanding"));
 
 function Loading() {
+  const serviceCards = [
+    { label: "Labels", src: "/assets/label.png", animation: "epostLoaderFlip 8s linear infinite" },
+    { label: "Money Order", src: "/assets/money-order.png", animation: "epostLoaderFlip 8s linear infinite reverse" },
+    { label: "Tracking", src: "/assets/tracking.png", animation: "epostLoaderFloat 5s ease-in-out infinite" },
+    { label: "Complaints", src: "/assets/complaint.png", animation: "epostLoaderFloat 5s ease-in-out infinite reverse" },
+  ] as const;
+
   return (
-    <div className="flex min-h-[100svh] items-center justify-center bg-[linear-gradient(180deg,#f4f9ff_0%,#eef6ff_55%,#f2fbf8_100%)] p-4">
-      <div className="w-full max-w-3xl rounded-[30px] border border-[#dce8f5] bg-white/95 p-6 shadow-[0_28px_64px_rgba(10,31,68,0.12)] md:p-8">
-        <div className="h-2 w-32 animate-pulse rounded-full bg-[#0ea576]/20" />
-        <div className="mt-4 h-8 w-56 animate-pulse rounded-xl bg-slate-100" />
-        <div className="mt-3 h-4 w-full animate-pulse rounded bg-slate-100" />
-        <div className="mt-2 h-4 w-4/5 animate-pulse rounded bg-slate-100" />
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="h-28 animate-pulse rounded-2xl bg-slate-100" />
-          <div className="h-28 animate-pulse rounded-2xl bg-slate-100" />
-          <div className="h-28 animate-pulse rounded-2xl bg-slate-100" />
+    <div className="flex min-h-[100svh] items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(14,165,118,0.12),transparent_32%),linear-gradient(180deg,#f6fbff_0%,#edf5ff_56%,#f4fbf7_100%)] p-4">
+      <style>{`
+        @keyframes epostLoaderFloat {
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-4px) scale(1.01); }
+        }
+        @keyframes epostLoaderFlip {
+          0% { transform: perspective(900px) rotateY(0deg) rotateZ(0deg); }
+          50% { transform: perspective(900px) rotateY(180deg) rotateZ(180deg); }
+          100% { transform: perspective(900px) rotateY(360deg) rotateZ(360deg); }
+        }
+      `}</style>
+      <div className="w-full max-w-4xl overflow-hidden rounded-[28px] border border-[#d6e4f0] bg-white/96 p-5 shadow-[0_30px_80px_rgba(10,31,68,0.14)] backdrop-blur">
+        <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <img src="/assets/pakistan-post-logo.png" alt="Pakistan Post" className="h-10 w-auto object-contain" width="132" height="44" loading="eager" decoding="async" fetchPriority="high" />
+              <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">ePost Workspace</div>
+            </div>
+            <div className="text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl">Loading ePost Workspace...</div>
+            <div className="max-w-xl text-sm leading-6 text-slate-600 md:text-base">
+              Preparing labels, money orders, tracking, and complaints so the next screen is ready to work.
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700">Processing...</div>
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">Workspace assets loaded locally</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {serviceCards.map((card, index) => (
+              <div
+                key={card.label}
+                className="rounded-[18px] border border-slate-200 bg-white p-3 shadow-[0_14px_30px_rgba(15,23,42,0.08)]"
+                style={{ animation: card.animation, animationDelay: `${index * 180}ms`, transformOrigin: "center" }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,rgba(15,31,58,0.06),rgba(14,165,118,0.12))]">
+                    <img src={card.src} alt="" className="h-9 w-9 object-contain" loading="eager" decoding="async" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">{card.label}</div>
+                    <div className="text-xs text-slate-500">Synchronizing</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

@@ -69,7 +69,7 @@ const strictColumnAliases: Record<StrictColumn, string[]> = {
   CollectAmount: ["collectamount", "amount", "collect_amount", "codamount", "cod"],
   ordered: ["ordered", "orderid", "order_id", "reference", "referenceno"],
   ProductDescription: ["productdescription", "product", "itemdescription", "description"],
-  Weight: ["weight", "parcelweight"],
+  Weight: ["weight", "weight(g)", "parcelweight"],
   shipmenttype: ["shipmenttype", "shipment_type", "shipment"],
   numberOfPieces: ["numberofpieces", "pieces", "qty", "quantity"],
   TrackingID: [

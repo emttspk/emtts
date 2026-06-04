@@ -1,4 +1,4 @@
-shipperName,shipperPhone,shipperAddress,shipperEmail,BookingCity,consigneeName,consigneeEmail,consigneePhone,consigneeAddress,ConsigneeCity,CollectAmount,ordered,ProductDescription,Weight,shipmenttype,numberOfPieces,TrackingID
+shipperName,shipperPhone,shipperAddress,shipperEmail,BookingCity,consigneeName,consigneeEmail,consigneePhone,consigneeAddress,ConsigneeCity,CollectAmount,order_id,ProductDescription,weight(g),shipmenttype,numberOfPieces,TrackingID
 Acme Store,03001234567,"1 Mall Road",ops@acme.example,Lahore,Ali Raza,ali@example.com,03111222333,"House 10, Street 5",Lahore,20000,2026-03-25,Books,1.0,VPL,1,VPL26050001
 Acme Store,03001234567,"1 Mall Road",ops@acme.example,Lahore,Sara Khan,sara@example.com,03223334444,"Flat 4, Model Town",Karachi,9000,2026-03-25,Clothes,0.5,VPP,1,VPP26050002
 Acme Store,03001234567,"1 Mall Road",ops@acme.example,Lahore,Usman,usman@example.com,03335556666,"Block B, Street 9",Islamabad,12000,2026-03-25,Shoes,0.8,COD,1,COD26050003

@@ -339,7 +339,7 @@ export default function Upload() {
             moIneligibleRows += 1;
           }
 
-          const grams = parseWeightToGrams(row.Weight);
+          const grams = parseWeightToGrams(row.Weight ?? row["weight(g)"] ?? row.weight ?? row.weightg ?? row.parcelweight);
           if (grams > 0) {
             knownWeightRows += 1;
             if (grams > 2_000) {
@@ -986,7 +986,7 @@ export default function Upload() {
         }
 
         if (effectiveService && canonicalServices.has(effectiveService)) {
-          const weightGrams = parseWeightToGrams(find("Weight"));
+          const weightGrams = parseWeightToGrams(find("Weight") || find("weight(g)") || find("weightg") || find("weight") || find("parcelweight"));
           const limit = SERVICE_WEIGHT_LIMITS[effectiveService];
           if (weightGrams > 0 && Number.isFinite(limit) && weightGrams > limit) {
             overweightWarnings += 1;
