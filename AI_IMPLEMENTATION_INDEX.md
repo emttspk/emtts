@@ -1,5 +1,9 @@
 # AI Implementation Index
 
+## 2026-06-04 - Pakistan Post Complaints Landing Page
+
+- Pakistan Post Complaints SEO landing page added.
+
 ## 2026-06-04 - Bulk Tracking Landing Page
 
 - Bulk Tracking SEO landing page added.

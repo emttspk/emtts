@@ -202,3 +202,4 @@ Source reviewed: `marketing/Keyword Stats 2026-06-04 at 02_49_24.csv` (local onl
 - First dedicated Pakistan Post Tracking landing page added.
 
 - Bulk Tracking SEO landing page added and linked with Pakistan Post Tracking page.
+- Pakistan Post Complaints SEO landing page added and linked with tracking/bulk pages.
