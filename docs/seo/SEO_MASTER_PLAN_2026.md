@@ -237,3 +237,4 @@ Source reviewed: `marketing/Keyword Stats 2026-06-04 at 02_49_24.csv` (local onl
 - Bulk Tracking SEO landing page added and linked with Pakistan Post Tracking page.
 - Pakistan Post Complaints SEO landing page added and linked with tracking/bulk pages.
 - Label Generator SEO landing page added and linked with tracking, bulk tracking, and complaints pages.
+- Money Order Generation SEO landing page added and linked with label, tracking, bulk tracking, and complaint pages.

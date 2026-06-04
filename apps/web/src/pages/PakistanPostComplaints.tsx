@@ -81,6 +81,11 @@ export default function PakistanPostComplaints() {
               </a>
             </li>
             <li>
+              <a className="font-semibold text-[#0f1f3a] underline decoration-[#8eb8e7] decoration-2 underline-offset-4" href="/money-order-generation">
+                Money order generation
+              </a>
+            </li>
+            <li>
               <a className="font-semibold text-[#0f1f3a] underline decoration-[#8eb8e7] decoration-2 underline-offset-4" href="/bulk-tracking">
                 Bulk tracking
               </a>

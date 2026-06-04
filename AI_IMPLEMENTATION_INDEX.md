@@ -1,5 +1,9 @@
 # AI Implementation Index
 
+## 2026-06-04 - Money Order Generation Landing Page
+
+- Money Order Generation SEO landing page added.
+
 ## 2026-06-04 - Label Generator Landing Page
 
 - Label Generator SEO landing page added.
