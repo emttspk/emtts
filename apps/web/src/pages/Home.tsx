@@ -15,6 +15,14 @@ export default function Home() {
       <Navbar />
       <main>
         <HomeHero />
+        <section className="mx-auto mt-4 w-full max-w-[1240px] px-4 sm:px-6 lg:px-8">
+          <a
+            href="/pakistan-post-tracking"
+            className="inline-flex items-center rounded-full border border-[#dce8f5] bg-white px-4 py-2 text-sm font-semibold text-[#0f1f3a] shadow-sm transition hover:border-[#8eb8e7]"
+          >
+            Pakistan Post Tracking Guide
+          </a>
+        </section>
         <OperationsModules />
       </main>
       <Footer />
