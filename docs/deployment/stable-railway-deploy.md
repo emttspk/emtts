@@ -52,6 +52,31 @@ Verify all of the following in the logs:
 2. If logs show startup is healthy but the CLI times out, treat the deploy as unconfirmed until a new deployment ID appears in Railway logs or status.
 3. If API reaches `FULLY_READY` but Web does not, redeploy Web only.
 
+## Web Base Image Failure Recovery
+
+If Web fails during Docker metadata resolution before `npm install`, `npm run build`, or container startup, treat it as an external image registry/build-network incident until logs prove otherwise.
+
+Confirmed 2026-06-04 example:
+
+```text
+failed to solve: node:22.13.1-bookworm-slim: failed to resolve source metadata ... TLS handshake timeout
+```
+
+Safe response:
+
+1. Confirm the latest Web deployment ID and status with `railway deployment list --service Web --json`.
+2. Confirm the prior successful Web deployment is still serving traffic with `railway status` and a public HTTP check.
+3. Do not change env vars, app code, or business logic for this failure class.
+4. Retry/redeploy Web only after confirming Docker Hub/Railway builder connectivity has recovered.
+5. If the failure repeats, harden the Web Dockerfile in a separate approved implementation by pinning the Node base image to a verified digest and improving install reproducibility.
+
+Hardening candidates for a future approved implementation:
+
+- Pin both Web Dockerfile stages from `node:22.13.1-bookworm-slim` to a verified digest.
+- Prefer deterministic installs (`npm ci`) with a lockfile available inside the Docker build context.
+- Preserve Railway service scope and avoid `skipBuildCache` unless intentionally forcing a cold build.
+- Keep Web deploy watch patterns scoped to `/apps/web/**`; docs-only commits should remain skipped by Web.
+
 ## Rollback Flow
 
 1. Redeploy the previous known-good commit.

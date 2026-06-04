@@ -1,5 +1,12 @@
 # AI Implementation Index
 
+## 2026-06-04 - Railway Production Forensic Audit
+
+- Confirmed Railway project `Epost` in `production` with `Web` showing `Deploy failed (42m)` while public `www.epost.pk` and API health routes still returned `200`.
+- Confirmed API public health routes for `db`, `redis`, and `worker` returned `ok`; worker public root URL returned `502 Bad Gateway`.
+- Follow-up log audit confirmed failed Web deployment `d02e15f5-39e1-45fa-9962-f329b8b482eb` failed before `npm install`/Vite/startup: Docker metadata resolution for `node:22.13.1-bookworm-slim` hit a Docker Hub TLS handshake timeout.
+- Recovery hardening follow-up confirmed the latest Web deployment is still `d02e15f5-39e1-45fa-9962-f329b8b482eb` (`FAILED`) while Railway continues serving the prior successful image. Local `apps/api` and `apps/web` builds passed; documented Docker base-image hardening and recovery guidance in `docs/operations/railway-web-dockerhub-timeout-hardening-2026-06-04.md` and `docs/deployment/stable-railway-deploy.md`.
+
 ## 2026-06-04 - Label Generator Loader, Layout, and Sample Alias Fixes
 
 - Implemented a branded route loader for the web shell, layout-preserving universal 9x4 amount placeholders, sender wrap/clamp fixes for universal and flyer labels, and sample alias updates for `order_id` / `weight(g)`.
