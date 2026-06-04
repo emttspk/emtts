@@ -167,6 +167,45 @@
 - Review Search Console clicks, impressions, CTR, and average position on a weekly cadence.
 - Compare query performance against landing page intent and adjust internal links or on-page copy only when data shows a meaningful gap.
 
+## Final SEO Landing-Page Cluster Signoff
+
+The ePost.pk SEO landing-page cluster is now documented as complete for the current roadmap set:
+
+- `/pakistan-post-tracking`
+- `/bulk-tracking`
+- `/pakistan-post-complaints`
+- `/label-generator`
+- `/money-order-generation`
+- `/ecommerce-shipping-pakistan`
+
+### Production Indexing Checklist
+
+- Confirm the sitemap includes all six URLs.
+- Submit `https://www.epost.pk/sitemap.xml` in Google Search Console.
+- Inspect and request indexing for all six landing pages.
+- Do not repeatedly resubmit daily unless a real page update is made.
+- Recheck indexing status after 24 to 72 hours.
+- Review impressions and clicks after 7 to 14 days.
+- Optionally submit the sitemap in Bing Webmaster Tools.
+
+### Keyword Monitoring List
+
+- Pakistan Post Tracking
+- Pak Post Tracking
+- Bulk Tracking
+- Pakistan Post Complaints
+- 1 Click Complaints
+- Pakistan Post Label Generator
+- Money Order Generation
+- Ecommerce Shipping Pakistan
+
+### Evidence Checklist
+
+- Screenshot sitemap submitted in Google Search Console.
+- Screenshot URL inspection for each landing page.
+- Screenshot indexing status after Google processes the pages.
+- Screenshot Search Performance report after 7 to 14 days.
+
 ## Next SEO Page Roadmap
 
 - `/label-generator`
@@ -239,3 +278,4 @@ Source reviewed: `marketing/Keyword Stats 2026-06-04 at 02_49_24.csv` (local onl
 - Label Generator SEO landing page added and linked with tracking, bulk tracking, and complaints pages.
 - Money Order Generation SEO landing page added and linked with label, tracking, bulk tracking, and complaint pages.
 - Ecommerce Shipping Pakistan SEO landing page added and linked with all core SEO landing pages.
+- Final SEO landing-page cluster signoff documented.
