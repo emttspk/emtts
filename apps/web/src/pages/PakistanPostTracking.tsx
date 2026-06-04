@@ -6,7 +6,7 @@ export default function PakistanPostTracking() {
   return (
     <div className="public-shell">
       <SEO
-        title="Pakistan Post Tracking, Bulk Tracking & Parcel Status | ePost.pk"
+        title="Pakistan Post, Bulk Tracking & Parcel Status | ePost.pk"
         description="Track Pakistan Post parcels, check bulk tracking status, manage pending shipments, and use ePost.pk tools for labels, money orders, and 1 click complaints."
         canonicalPath="/pakistan-post-tracking"
       />
