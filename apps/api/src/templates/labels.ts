@@ -239,8 +239,8 @@ function resolvePakistanPostLogoDataUrl() {
   if (pakistanPostLogoDataUrlCache !== undefined) return pakistanPostLogoDataUrlCache ?? "";
 
   const candidates = [
+    path.resolve(process.cwd(), "apps", "web", "public", "assets", "logo.png"),
     path.resolve(process.cwd(), "images", "logo.png"),
-    path.resolve(process.cwd(), "apps", "web", "public", "assets", "pakistan-post-logo.png"),
   ];
 
   const logoPath = candidates.find((candidate) => fs.existsSync(candidate));
@@ -339,6 +339,25 @@ function renderUniversalAmountBlock(summary: LabelAmountSummary) {
       </div>
     </div>
   `;
+}
+
+function buildAdaptiveUniversalSenderClass(senderLine: string) {
+  const normalized = senderLine.replace(/\s+/g, " ").trim();
+  const length = normalized.length;
+
+  if (length <= 22) {
+    return "sender-fit sender-fit--short";
+  }
+
+  if (length <= 40) {
+    return "sender-fit sender-fit--medium";
+  }
+
+  if (length <= 58) {
+    return "sender-fit sender-fit--long";
+  }
+
+  return "sender-fit sender-fit--xl";
 }
 
 function loadHtmlTemplate(candidates: string[], notFoundMessage: string) {
@@ -676,7 +695,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
   };
 
   const pages = orders.map((order) => renderSingle(order)).join("");
-  const safetyCss = `<style>.universal-page{width:9in;height:4in;box-sizing:border-box;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;}.universal-page:last-child{page-break-after:auto;break-after:auto;}.universal-page .header{height:56px;min-height:56px}.universal-page .barcode-area{justify-content:center;padding-top:0;padding-left:7px;padding-right:7px;gap:2px;overflow:visible}.universal-page #barcode{height:40px;max-width:248px;width:96%;object-fit:contain}.universal-page .footer{height:32px;padding-top:2px;overflow:visible}.universal-page .right-column--no-amount{grid-template-rows:auto auto 1fr}.universal-page .amount-box--placeholder{opacity:.18}.universal-page .amount-box--placeholder .amount-row{border-bottom-color:transparent}.universal-page .amount-box--placeholder .amount-label,.universal-page .amount-box--placeholder .amount-value{color:transparent}</style>`;
+  const safetyCss = `<style>.universal-page{width:9in;height:4in;box-sizing:border-box;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;}.universal-page:last-child{page-break-after:auto;break-after:auto;}.universal-page .header{height:56px;min-height:56px}.universal-page .barcode-area{justify-content:center;padding-top:0;padding-left:7px;padding-right:7px;gap:2px;overflow:visible}.universal-page #barcode{height:40px;max-width:248px;width:96%;object-fit:contain}.universal-page .footer{height:32px;padding-top:2px;overflow:visible}.universal-page .right-column--no-amount{grid-template-rows:minmax(0,1fr) minmax(0,1fr) 38mm}.universal-page .right-column--no-amount .promo-box{height:38mm;min-height:38mm;max-height:38mm;align-self:start}.universal-page .sender-fit{position:absolute;left:47.56mm;top:105.69mm;width:100.06mm;text-align:left;overflow:hidden}.universal-page .sender-fit--short{font-size:3.7mm;line-height:1.02;white-space:nowrap}.universal-page .sender-fit--medium{font-size:3.35mm;line-height:1.05;white-space:nowrap}.universal-page .sender-fit--long{font-size:3.0mm;line-height:1.05;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere;word-break:break-word}.universal-page .sender-fit--xl{font-size:2.75mm;line-height:1.02;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere;word-break:break-word}.universal-page .amount-box--placeholder{opacity:.18}.universal-page .amount-box--placeholder .amount-row{border-bottom-color:transparent}.universal-page .amount-box--placeholder .amount-label,.universal-page .amount-box--placeholder .amount-value{color:transparent}</style>`;
   const outputHead = templateHead.replace(/<\/head>/i, `${safetyCss}</head>`);
 
   return `${outputHead}${pages}${template.tail}`;
@@ -815,7 +834,7 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
         .fl-carrier-stack { display: grid; gap: 0.25mm; min-width: 0; }
         .fl-brand-row { display: flex; align-items: center; gap: 1.2mm; min-width: 0; }
         .fl-brand-copy { display: grid; gap: 0.25mm; min-width: 0; }
-        .fl-logo { width: 22mm; max-height: 8mm; object-fit: contain; }
+        .fl-logo { width: 16mm; max-height: 8mm; object-fit: cover; object-position: left center; overflow: hidden; }
         .fl-carrier { font-weight: 900; font-size: 3.5mm; text-transform: uppercase; letter-spacing: 0.12mm; }
         .fl-dispatch-date { font-size: 2.1mm; font-weight: 700; line-height: 1.05; }
         .fl-badge { border: 0.3mm solid #000; padding: 0.6mm 1.2mm; font-weight: 900; font-size: 3mm; white-space: nowrap; }
@@ -1541,7 +1560,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     out,
     /<div class="field strong en" style="left:47\.56mm;top:105\.69mm;[^"]*">[^<]*<\/div>/g,
     slotIndex,
-    () => `<div class="field strong en" style="left:47.56mm;top:105.69mm;width:100.06mm;font-size:3.35mm;line-height:1.08;white-space:nowrap;overflow:hidden;text-align:left;">${escapeHtml(senderLine)}</div>`,
+    () => `<div class="field strong en ${buildAdaptiveUniversalSenderClass(senderLine)}">${escapeHtml(senderLine)}</div>`,
     "sender_line"
   );
   out = trackReplaceNth(

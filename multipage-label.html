@@ -84,9 +84,10 @@ body{
 }
 
 .pp-logo{
-    width:72px;
+    width:48px;
     height:44px;
-    object-fit:contain;
+    object-fit:cover;
+    object-position:left center;
     display:block;
     flex-shrink:0;
     overflow:hidden;
@@ -374,7 +375,14 @@ body{
 }
 
 .right-column--no-amount{
-    grid-template-rows:auto auto 1fr;
+    grid-template-rows:minmax(0,1fr) minmax(0,1fr) 38mm;
+}
+
+.right-column--no-amount .promo-box{
+    height:38mm;
+    min-height:38mm;
+    max-height:38mm;
+    align-self:start;
 }
 
 /* AMOUNT */
@@ -623,15 +631,7 @@ body{
 
         <!-- LOGO -->
         <div class="logo-area">
-
-            <img class="pp-logo" src="{{logo_src}}" alt="Pakistan Post" />
-
-            <div class="logo-text">
-                <div class="eng-top">PAKISTAN</div>
-                <div class="eng-bottom">POST</div>
-                <div class="urdu">پاکستان پوسٹ</div>
-            </div>
-
+            <img class="pp-logo" src="{{logo_src}}" alt="logo" />
         </div>
 
         <!-- VPL -->

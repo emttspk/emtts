@@ -3,7 +3,8 @@
 ## 2026-06-04 - Final Universal Label + Flyer Layout Correction
 
 - Removed the reserved universal MO area for non value-payable PAR/RGL/UMS labels by switching the right column into a no-amount layout state, so ORDER, PRODUCT, and branding occupy the full available height.
-- Replaced the universal header's left postal image block with the existing `logo.png` asset while preserving the original dimensions.
+- Replaced the universal header's left postal image block with the clean `logo.png` asset path and removed the remaining header text so the logo stands alone.
+- Made the universal FROM sender line adapt its font size and wrapping by content-length classes.
 - Removed the flyer `TO:` label, lifted the receiver block, and tightened flyer footer wrapping/font sizing to reduce sender clipping.
 - Generated local visual previews for PAR universal, VPL universal, PAR flyer, and VPL flyer; preview screenshots were captured in the temp preview run and showed the intended reflow with no empty MO area on PAR and no flyer `TO:` label.
 
@@ -3539,3 +3540,7 @@ From JazzCash v4.2 docs (ApiReferences.html), the **Hosted Checkout + Mobile Acc
 
 ### Status
 READY FOR PRODUCTION - All 3 critical fixes implemented and tested.
+## 2026-06-04 - Final Visual Pass Completion
+
+- Final approved visual pass completed after build verification for the universal and flyer label polish.
+- Universal header now uses the cropped logo-only presentation in the rendered preview, the no-amount right column keeps ORDER and PRODUCT expanded with a fixed branding box, and the sender line uses length-based fit classes.
