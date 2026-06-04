@@ -17,6 +17,7 @@ export default function Footer() {
         { label: "Pakistan Post Complaints", href: "/pakistan-post-complaints" },
         { label: "Label Generator", href: "/label-generator" },
         { label: "Money Order Generation", href: "/money-order-generation" },
+        { label: "Ecommerce Shipping Pakistan", href: "/ecommerce-shipping-pakistan" },
         { label: "Track Shipment", href: "/tracking" },
         { label: "Book Parcel", href: "/upload" },
         { label: "Complaint Monitor", href: "/complaints" },

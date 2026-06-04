@@ -49,6 +49,7 @@ const BulkTrackingLanding = lazy(() => import("./pages/BulkTrackingLanding"));
 const PakistanPostComplaints = lazy(() => import("./pages/PakistanPostComplaints"));
 const LabelGeneratorLanding = lazy(() => import("./pages/LabelGeneratorLanding"));
 const MoneyOrderGenerationLanding = lazy(() => import("./pages/MoneyOrderGenerationLanding"));
+const EcommerceShippingPakistanLanding = lazy(() => import("./pages/EcommerceShippingPakistanLanding"));
 
 function Loading() {
   return (
@@ -111,6 +112,7 @@ export default function App() {
         <Route path="/pakistan-post-complaints" element={<PakistanPostComplaints />} />
         <Route path="/label-generator" element={<LabelGeneratorLanding />} />
         <Route path="/money-order-generation" element={<MoneyOrderGenerationLanding />} />
+        <Route path="/ecommerce-shipping-pakistan" element={<EcommerceShippingPakistanLanding />} />
         <Route path="/payment/jazzcash/result" element={<JazzCashResult />} />
         <Route
           element={
