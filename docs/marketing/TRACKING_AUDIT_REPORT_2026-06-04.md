@@ -130,6 +130,16 @@
 
 - Store screenshots outside this repository unless an approved docs artifact folder is created.
 
+## Marketing Tracking Monitoring Checklist
+
+- Confirm GA4 `page_view`.
+- Confirm `Start Free` event.
+- Confirm WhatsApp click event.
+- Confirm `registration_complete` event.
+- Confirm Meta Pixel `PageView`.
+- Confirm no sensitive data in event payloads.
+- Check weekly for broken tracking after deployments.
+
 ## Current Status
 **CRITICAL MISSING** - The ePost.pk platform currently has **zero** marketing tracking implemented. There is no Meta Pixel, no Google Tag (GA4), and no conversion event tracking for key business actions.
 

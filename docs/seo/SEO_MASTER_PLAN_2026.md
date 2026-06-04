@@ -167,6 +167,23 @@
 - Review Search Console clicks, impressions, CTR, and average position on a weekly cadence.
 - Compare query performance against landing page intent and adjust internal links or on-page copy only when data shows a meaningful gap.
 
+## Post Launch Monitoring Checklist
+
+- Confirm all six SEO landing pages are submitted in Google Search Console.
+- Confirm the sitemap processed successfully.
+- Confirm pages are indexed or queued.
+- Check impressions and clicks after 7, 14, and 30 days.
+- Watch keywords:
+  - Pakistan Post Tracking
+  - Pak Post Tracking
+  - Bulk Tracking
+  - Pakistan Post Complaints
+  - 1 Click Complaints
+  - Pakistan Post Label Generator
+  - Money Order Generation
+  - Ecommerce Shipping Pakistan
+- Note that ranking improvement may take time and should not be judged daily.
+
 ## Final SEO Landing-Page Cluster Signoff
 
 The ePost.pk SEO landing-page cluster is now documented as complete for the current roadmap set:
