@@ -1,5 +1,12 @@
 # AI Implementation Index
 
+## 2026-06-04 - Final Universal Label + Flyer Layout Correction
+
+- Removed the reserved universal MO area for non value-payable PAR/RGL/UMS labels by switching the right column into a no-amount layout state, so ORDER, PRODUCT, and branding occupy the full available height.
+- Replaced the universal header's left postal image block with the existing `logo.png` asset while preserving the original dimensions.
+- Removed the flyer `TO:` label, lifted the receiver block, and tightened flyer footer wrapping/font sizing to reduce sender clipping.
+- Generated local visual previews for PAR universal, VPL universal, PAR flyer, and VPL flyer; preview screenshots were captured in the temp preview run and showed the intended reflow with no empty MO area on PAR and no flyer `TO:` label.
+
 ## 2026-06-04 - Railway Production Forensic Audit
 
 - Confirmed Railway project `Epost` in `production` with `Web` showing `Deploy failed (42m)` while public `www.epost.pk` and API health routes still returned `200`.

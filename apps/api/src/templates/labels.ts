@@ -589,6 +589,7 @@ export function previewLabelHtml(opts?: {
 
 export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTracking?: boolean; includeMoneyOrders?: boolean }) {
   const autoGenerateTracking = opts?.autoGenerateTracking === true;
+  const logoSrc = resolvePakistanPostLogoDataUrl();
 
   const template = loadHtmlTemplate(
     [
@@ -606,6 +607,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
     const shipmentType = resolveOrderShipmentType(o);
     const shipmentLabel = displayShipmentType(shipmentType);
     const summary = getLabelAmountSummary(o);
+    const showAmountBlock = summary.appliesPakistanPostRules && shouldShowValuePayableAmount(summary.shipmentType);
     const tracking = resolveTracking(o, autoGenerateTracking);
     const formatRs = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(2));
     const barcodeMarkup = o.skipGlobalBarcode ? "" : (o.barcodeBase64 || generateLabelBarcodeBase64(tracking));
@@ -629,6 +631,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
     const amountMarkup = renderUniversalAmountBlock(summary);
 
     const tokenMap: Record<string, string> = {
+      "{{logo_src}}": escapeHtml(logoSrc),
       "{{amount}}": summary.appliesPakistanPostRules
         ? `Rs. ${escapeHtml(formatRs(summary.moAmount))}`
         : "",
@@ -644,6 +647,10 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
 
     let html = templateBody;
     html = html.replace(/<span class="vpl-label">[^<]*<\/span>/i, `<span class="vpl-label">${escapeHtml(shipmentLabel)}</span>`);
+    html = html.replace(
+      /<div class="right-column">/i,
+      `<div class="right-column${showAmountBlock ? "" : " right-column--no-amount"}">`,
+    );
     html = html.replace(
       /<!--\s*AMOUNT\s*-->[\s\S]*?<!--\s*ORDER\s*-->/i,
       `<!-- AMOUNT -->\n${amountMarkup}\n\n            <!-- ORDER -->`,
@@ -669,7 +676,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
   };
 
   const pages = orders.map((order) => renderSingle(order)).join("");
-  const safetyCss = `<style>.universal-page{width:9in;height:4in;box-sizing:border-box;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;}.universal-page:last-child{page-break-after:auto;break-after:auto;}.universal-page .header{height:56px;min-height:56px}.universal-page .barcode-area{justify-content:center;padding-top:0;padding-left:7px;padding-right:7px;gap:2px;overflow:visible}.universal-page #barcode{height:40px;max-width:248px;width:96%;object-fit:contain}.universal-page .footer{height:32px;padding-top:2px;overflow:visible}.universal-page .amount-box--placeholder{opacity:.18}.universal-page .amount-box--placeholder .amount-row{border-bottom-color:transparent}.universal-page .amount-box--placeholder .amount-label,.universal-page .amount-box--placeholder .amount-value{color:transparent}</style>`;
+  const safetyCss = `<style>.universal-page{width:9in;height:4in;box-sizing:border-box;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;}.universal-page:last-child{page-break-after:auto;break-after:auto;}.universal-page .header{height:56px;min-height:56px}.universal-page .barcode-area{justify-content:center;padding-top:0;padding-left:7px;padding-right:7px;gap:2px;overflow:visible}.universal-page #barcode{height:40px;max-width:248px;width:96%;object-fit:contain}.universal-page .footer{height:32px;padding-top:2px;overflow:visible}.universal-page .right-column--no-amount{grid-template-rows:auto auto 1fr}.universal-page .amount-box--placeholder{opacity:.18}.universal-page .amount-box--placeholder .amount-row{border-bottom-color:transparent}.universal-page .amount-box--placeholder .amount-label,.universal-page .amount-box--placeholder .amount-value{color:transparent}</style>`;
   const outputHead = templateHead.replace(/<\/head>/i, `${safetyCss}</head>`);
 
   return `${outputHead}${pages}${template.tail}`;
@@ -707,10 +714,10 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
     const amountMarkup = amountSummary.appliesPakistanPostRules && shouldShowValuePayableAmount(amountSummary.shipmentType)
       ? `<div class="fl-bottom-grid">
           <div class="fl-card fl-amount-box">
-          <div class="fl-amount-title">MONEY ORDER SUMMARY</div>
-          <div class="fl-amount-row"><span>MO Amount</span><span>Rs.${escapeHtml(formatRs(amountSummary.moAmount))}</span></div>
-          <div class="fl-amount-row"><span>MO Commission</span><span>Rs.${escapeHtml(formatRs(amountSummary.commission))}</span></div>
-          <div class="fl-amount-row"><span>Gross Collect Amount</span><span>Rs.${escapeHtml(formatRs(amountSummary.grossAmount))}</span></div>
+            <div class="fl-amount-title">MONEY ORDER SUMMARY</div>
+            <div class="fl-amount-row"><span>MO Amount</span><span>Rs.${escapeHtml(formatRs(amountSummary.moAmount))}</span></div>
+            <div class="fl-amount-row"><span>MO Commission</span><span>Rs.${escapeHtml(formatRs(amountSummary.commission))}</span></div>
+            <div class="fl-amount-row"><span>Gross Collect Amount</span><span>Rs.${escapeHtml(formatRs(amountSummary.grossAmount))}</span></div>
           </div>
           <div class="fl-card fl-product-box">
             <div class="fl-product-title">PRODUCT DETAILS</div>
@@ -739,7 +746,6 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
           <div class="fl-tracking">${escapeHtml(tracking)}</div>
         </div>
         <div class="LabelWrapper AddressBlock fl-to">
-          <span class="fl-k">TO:</span>
           <span class="fl-name">${escapeHtml(receiverName)}</span>
           <div class="fl-addr">${escapeHtml(receiverAddress || "-")}</div>
           <div class="fl-city-phone">${escapeHtml(receiverCity || "-")}</div>
@@ -824,12 +830,11 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
         .fl-amount-row { display: flex; justify-content: space-between; gap: 2mm; font-size: 2.35mm; font-weight: 800; line-height: 1.1; }
         .fl-product-title { font-size: 2.1mm; font-weight: 900; letter-spacing: 0.25mm; border-bottom: 0.25mm solid #000; padding-bottom: 0.45mm; }
         .fl-product-row { display: flex; justify-content: space-between; gap: 2mm; font-size: 2.25mm; font-weight: 800; line-height: 1.12; }
-        .fl-to { display: grid; gap: 0.45mm; overflow: hidden; border: 0.3mm solid #000; padding: 0.95mm 1.2mm; }
-        .fl-k { font-weight: 900; font-size: 2.5mm; letter-spacing: 0.3mm; }
-        .fl-name { font-weight: 900; font-size: 3mm; }
-        .fl-addr { font-size: 2.45mm; line-height: 1.15; white-space: pre-line; overflow: hidden; min-height: 6.1mm; }
+        .fl-to { display: grid; gap: 0.35mm; overflow: hidden; border: 0.3mm solid #000; padding: 0.7mm 1.15mm 0.95mm; }
+        .fl-name { font-weight: 900; font-size: 3.1mm; line-height: 1.05; }
+        .fl-addr { font-size: 2.35mm; line-height: 1.12; white-space: normal; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; min-height: 0; }
         .fl-city-phone { font-size: 2.35mm; color: #111; font-weight: 700; }
-        .fl-from { border-top: 0.3mm solid #000; padding-top: 0.55mm; font-size: 1.95mm; min-height: 8.1mm; display:flex; align-items:flex-start; }
+        .fl-from { border-top: 0.3mm solid #000; padding-top: 0.45mm; font-size: 1.8mm; min-height: 7.2mm; display:flex; align-items:flex-start; }
         .fl-from-line {
           display: -webkit-box;
           width: 100%;
@@ -843,7 +848,7 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
           -webkit-box-orient: vertical;
           font-weight: 500;
           letter-spacing: 0.05mm;
-          line-height: 1.06;
+          line-height: 1.02;
         }
         .fl-from-name, .fl-from-city, .fl-from-phone { font-weight: 900; }
         .fl-from-addr { font-weight: 500; }
