@@ -15,6 +15,7 @@ export default function Footer() {
         { label: "Pakistan Post Tracking Guide", href: "/pakistan-post-tracking" },
         { label: "Bulk Tracking Guide", href: "/bulk-tracking" },
         { label: "Pakistan Post Complaints", href: "/pakistan-post-complaints" },
+        { label: "Label Generator", href: "/label-generator" },
         { label: "Track Shipment", href: "/tracking" },
         { label: "Book Parcel", href: "/upload" },
         { label: "Complaint Monitor", href: "/complaints" },
