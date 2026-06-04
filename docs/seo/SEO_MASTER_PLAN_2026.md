@@ -140,6 +140,39 @@
 - `/support` inspected: pending/manual.
 - Bing Webmaster submission: optional pending.
 
+## Final Google Search Console Indexing Checklist
+
+- Open Google Search Console for the `https://www.epost.pk/` property.
+- Inspect `https://www.epost.pk/pakistan-post-tracking` and request indexing.
+- Inspect `https://www.epost.pk/bulk-tracking` and request indexing.
+- Inspect `https://www.epost.pk/pakistan-post-complaints` and request indexing.
+- Confirm the sitemap includes all three URLs:
+  - `https://www.epost.pk/pakistan-post-tracking`
+  - `https://www.epost.pk/bulk-tracking`
+  - `https://www.epost.pk/pakistan-post-complaints`
+- Check Coverage/Indexing status after 24 to 72 hours.
+- Track impressions and clicks after 7 to 14 days.
+- Avoid repeated daily resubmission unless there is a real page update.
+
+## Keyword Monitoring Plan
+
+- Monitor query performance for:
+  - Pakistan Post Tracking
+  - Pak Post Tracking
+  - Bulk Tracking
+  - Pakistan Post Complaints
+  - 1 Click Complaints
+  - Pakistan Post Label Generation
+  - Money Order Generation
+- Review Search Console clicks, impressions, CTR, and average position on a weekly cadence.
+- Compare query performance against landing page intent and adjust internal links or on-page copy only when data shows a meaningful gap.
+
+## Next SEO Page Roadmap
+
+- `/label-generator`
+- `/money-order-generation`
+- `/ecommerce-shipping-pakistan`
+
 ## Metadata Strengthening Note (2026-06-04)
 
 - Homepage search metadata strengthened for Pakistan Post, bulk tracking, 1 click complaints, labels and money orders.
