@@ -1,5 +1,11 @@
 # AI Implementation Index
 
+## 2026-06-04 - Final Label Layout Balancing and Sender Fit Verification
+
+- Balanced the universal 9x4 PAR/RGL/UMS right column into a PAR-lite ratio so ORDER and PRODUCT stay near parity and branding no longer dominates the column.
+- Added render-time sender length classification for the universal FROM block with short, medium, long, and xl classes to prevent clipping across sender lengths.
+- Verified current PAR and VPL screenshots locally after the layout adjustment; PAR no-amount state remains empty in the money-order block and VPL still renders the money-order summary.
+
 ## 2026-06-04 - Final Universal Label + Flyer Layout Correction
 
 - Removed the reserved universal MO area for non value-payable PAR/RGL/UMS labels by switching the right column into a no-amount layout state, so ORDER, PRODUCT, and branding occupy the full available height.

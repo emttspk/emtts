@@ -224,6 +224,15 @@ function compactInlineParts(parts: unknown[]) {
     .filter(Boolean);
 }
 
+function resolveUniversalSenderInlineClass(senderInline: string) {
+  const normalized = String(senderInline ?? "").replace(/\s+/g, " ").trim();
+  const length = normalized.length;
+  if (length <= 54) return "from-inline--short";
+  if (length <= 90) return "from-inline--medium";
+  if (length <= 130) return "from-inline--long";
+  return "from-inline--xl";
+}
+
 const ESCAPED_PRINT_MARKETING_LINE = escapeHtml(PRINT_MARKETING_LINE);
 let pakistanPostLogoDataUrlCache: string | null | undefined;
 
@@ -625,10 +634,16 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
       senderCity,
       senderPhone,
     ]).join(" | ") || "-";
+    const senderInlineClass = resolveUniversalSenderInlineClass(senderInline);
 
     const orderSource = String(o.reference ?? (o as any)?.source ?? (o as any)?.Source ?? "ePost Workspace").trim() || "ePost Workspace";
     const productDetails = String(o.ProductDescription ?? "").trim() || "-";
     const amountMarkup = renderUniversalAmountBlock(summary);
+    const useParLiteLayout = !showAmountBlock && ["PAR", "RGL", "UMS"].includes(shipmentType);
+    const rightColumnClasses = [
+      "right-column",
+      showAmountBlock ? "" : useParLiteLayout ? "right-column--par-lite" : "right-column--no-amount",
+    ].filter(Boolean).join(" ");
 
     const tokenMap: Record<string, string> = {
       "{{logo_src}}": escapeHtml(logoSrc),
@@ -641,6 +656,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
       "{{customer_city}}": escapeHtml(receiverCity),
       "{{customer_phone}}": escapeHtml(receiverPhone),
       "{{sender_inline}}": escapeHtml(senderInline),
+      "{{sender_inline_class}}": escapeHtml(senderInlineClass),
       "{{order_source}}": escapeHtml(orderSource),
       "{{product_details}}": escapeHtml(productDetails),
     };
@@ -649,7 +665,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
     html = html.replace(/<span class="vpl-label">[^<]*<\/span>/i, `<span class="vpl-label">${escapeHtml(shipmentLabel)}</span>`);
     html = html.replace(
       /<div class="right-column">/i,
-      `<div class="right-column${showAmountBlock ? "" : " right-column--no-amount"}">`,
+      `<div class="${rightColumnClasses}">`,
     );
     html = html.replace(
       /<!--\s*AMOUNT\s*-->[\s\S]*?<!--\s*ORDER\s*-->/i,
