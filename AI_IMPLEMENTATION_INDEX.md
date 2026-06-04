@@ -3544,3 +3544,7 @@ READY FOR PRODUCTION - All 3 critical fixes implemented and tested.
 
 - Final approved visual pass completed after build verification for the universal and flyer label polish.
 - Universal header now uses the cropped logo-only presentation in the rendered preview, the no-amount right column keeps ORDER and PRODUCT expanded with a fixed branding box, and the sender line uses length-based fit classes.
+## 2026-06-04 - Benchmark Money Order Sender Line Restore
+
+- Restored the benchmark MO `sender_line` renderer back to the last stable inline-style output so slot 1 population remains compatible with the benchmark replacement contract.
+- Verified the restore against the current renderer diff from `913c4f8` back to the stable `bef9d34` shape; no other Money Order fields were changed in this fix.

@@ -341,25 +341,6 @@ function renderUniversalAmountBlock(summary: LabelAmountSummary) {
   `;
 }
 
-function buildAdaptiveUniversalSenderClass(senderLine: string) {
-  const normalized = senderLine.replace(/\s+/g, " ").trim();
-  const length = normalized.length;
-
-  if (length <= 22) {
-    return "sender-fit sender-fit--short";
-  }
-
-  if (length <= 40) {
-    return "sender-fit sender-fit--medium";
-  }
-
-  if (length <= 58) {
-    return "sender-fit sender-fit--long";
-  }
-
-  return "sender-fit sender-fit--xl";
-}
-
 function loadHtmlTemplate(candidates: string[], notFoundMessage: string) {
   const templatePath = candidates.find((candidate) => fs.existsSync(candidate));
   if (!templatePath) {
@@ -1560,7 +1541,7 @@ function fillBenchmarkSlot(htmlBody: string, slotIndex: number, order?: OrderRec
     out,
     /<div class="field strong en" style="left:47\.56mm;top:105\.69mm;[^"]*">[^<]*<\/div>/g,
     slotIndex,
-    () => `<div class="field strong en ${buildAdaptiveUniversalSenderClass(senderLine)}">${escapeHtml(senderLine)}</div>`,
+    () => `<div class="field strong en" style="left:47.56mm;top:105.69mm;width:100.06mm;font-size:3.35mm;line-height:1.08;white-space:nowrap;overflow:hidden;text-align:left;">${escapeHtml(senderLine)}</div>`,
     "sender_line"
   );
   out = trackReplaceNth(
