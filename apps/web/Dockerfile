@@ -46,4 +46,5 @@ RUN npm install --global serve@14.2.4
 
 COPY --from=build /app/dist ./dist
 
-CMD ["sh", "-c", "echo \"[runtime-env] analytics env present: ga=${VITE_GA_MEASUREMENT_ID:+yes} meta=${VITE_META_PIXEL_ID:+yes} whatsapp=${VITE_PUBLIC_WHATSAPP_NUMBER:+yes}\" && find dist -type f \\( -name '*.html' -o -name '*.js' -o -name '*.css' \\) -exec sed -i \"s|__VITE_GA_MEASUREMENT_ID__|${VITE_GA_MEASUREMENT_ID}|g;s|__VITE_META_PIXEL_ID__|${VITE_META_PIXEL_ID}|g;s|__VITE_PUBLIC_WHATSAPP_NUMBER__|${VITE_PUBLIC_WHATSAPP_NUMBER}|g\" {} + && serve -s dist --single -l ${PORT:-3000}"]
+ENTRYPOINT ["sh", "-c", "echo \"[runtime-env] analytics env present: ga=${VITE_GA_MEASUREMENT_ID:+yes} meta=${VITE_META_PIXEL_ID:+yes} whatsapp=${VITE_PUBLIC_WHATSAPP_NUMBER:+yes}\" && find dist -type f \\( -name '*.html' -o -name '*.js' -o -name '*.css' \\) -exec sed -i \"s|__VITE_GA_MEASUREMENT_ID__|${VITE_GA_MEASUREMENT_ID}|g;s|__VITE_META_PIXEL_ID__|${VITE_META_PIXEL_ID}|g;s|__VITE_PUBLIC_WHATSAPP_NUMBER__|${VITE_PUBLIC_WHATSAPP_NUMBER}|g\" {} + && exec \"$@\"", "sh"]
+CMD ["sh", "-c", "serve -s dist --single -l ${PORT:-3000}"]
