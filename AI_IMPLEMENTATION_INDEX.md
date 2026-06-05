@@ -1,11 +1,19 @@
 # AI Implementation Index
 
+## 2026-06-05 - Flyer Footer Adaptive Sender Fix
+
+- Updated flyer sender footer class selection in `apps/api/src/templates/labels.ts` so short, medium, long, and very long sender lines map to `sender-xl`, `sender-large`, `sender-medium`, and `sender-small` by rendered content length.
+- Adjusted flyer sender footer sizing so short senders keep the largest font, long and very long senders can wrap without breaking words, and the footer can use its full available height instead of clipping at the previous fixed small-size behavior.
+- Generated local flyer footer proof screenshots for short, medium, long, and very long sender samples and captured the measured font size used by each sender class.
+- Final verification passed: local flyer proof screenshots showed no clipped sender text, no broken words, and the footer using expanded height for long cases; `npm run build -w apps/api` and `npm run build -w apps/web` both completed successfully before commit.
+
 ## 2026-06-05 - Final Header Fix
 
 - Removed the universal header amount box entirely for PAR/RGL/UMS by rendering a no-amount header-right block instead of the VPL amount box markup.
 - Kept the VPL/VPP/COD amount box path unchanged so value-payable headers continue to render the amount summary exactly as before.
 - Increased the rendered Pakistan Post logo mark size inside the existing container so the header logo reads larger without expanding the logo area itself.
 - Fine-tuned the A4 header logo alignment so the mark sits centered and clean in the header row without affecting barcode width, shipment type, or amount logic.
+- Added flyer footer sender-length classes so short, medium, long, and very long senders can render at different sizes without changing the static flyer template file.
 
 ## 2026-06-04 - Final Label Layout Balancing and Sender Fit Verification
 

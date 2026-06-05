@@ -233,6 +233,15 @@ function resolveUniversalSenderInlineClass(senderInline: string) {
   return "from-inline--xl";
 }
 
+function resolveFlyerSenderFooterClass(senderFooterText: string) {
+  const normalized = String(senderFooterText ?? "").replace(/\s+/g, " ").trim();
+  const length = normalized.length;
+  if (length <= 48) return "sender-xl";
+  if (length <= 84) return "sender-large";
+  if (length <= 130) return "sender-medium";
+  return "sender-small";
+}
+
 const ESCAPED_PRINT_MARKETING_LINE = escapeHtml(PRINT_MARKETING_LINE);
 let pakistanPostLogoDataUrlCache: string | null | undefined;
 
@@ -644,9 +653,58 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
       "right-column",
       showAmountBlock ? "" : useParLiteLayout ? "right-column--par-lite" : "right-column--no-amount",
     ].filter(Boolean).join(" ");
+    const headerRightMarkup = showAmountBlock
+      ? `
+        <div class="header-right header-right--payable">
+
+            <!-- VPL -->
+            <div class="vpl-area">
+
+                <div class="vpl-box">
+                    <span class="vpl-label">${escapeHtml(shipmentLabel)}</span>
+                    <span class="vpl-divider" aria-hidden="true"></span>
+                    <span class="vpl-amount-box">
+                        <span class="vpl-amount">Rs. ${escapeHtml(formatRs(summary.moAmount))}</span>
+                    </span>
+                </div>
+
+            </div>
+
+            <!-- BARCODE -->
+            <div class="barcode-area">
+
+                <svg id="barcode"></svg>
+
+                <div class="barcode-text">
+                    {{tracking_no}}
+                </div>
+
+            </div>
+
+        </div>`
+      : `
+        <div class="header-right header-right--no-amount">
+
+            <div class="shipment-area">
+                <span class="shipment-label">${escapeHtml(shipmentLabel)}</span>
+            </div>
+
+            <!-- BARCODE -->
+            <div class="barcode-area">
+
+                <svg id="barcode"></svg>
+
+                <div class="barcode-text">
+                    {{tracking_no}}
+                </div>
+
+            </div>
+
+        </div>`;
 
     const tokenMap: Record<string, string> = {
       "{{logo_src}}": escapeHtml(logoSrc),
+      "{{header_right}}": headerRightMarkup,
       "{{amount}}": summary.appliesPakistanPostRules
         ? `Rs. ${escapeHtml(formatRs(summary.moAmount))}`
         : "",
@@ -662,7 +720,6 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
     };
 
     let html = templateBody;
-    html = html.replace(/<span class="vpl-label">[^<]*<\/span>/i, `<span class="vpl-label">${escapeHtml(shipmentLabel)}</span>`);
     html = html.replace(
       /<div class="right-column">/i,
       `<div class="${rightColumnClasses}">`,
@@ -692,7 +749,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
   };
 
   const pages = orders.map((order) => renderSingle(order)).join("");
-  const safetyCss = `<style>.universal-page{width:9in;height:4in;box-sizing:border-box;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;}.universal-page:last-child{page-break-after:auto;break-after:auto;}.universal-page .header{height:56px;min-height:56px}.universal-page .barcode-area{justify-content:center;padding-top:0;padding-left:7px;padding-right:7px;gap:2px;overflow:visible}.universal-page #barcode{height:40px;max-width:248px;width:96%;object-fit:contain}.universal-page .footer{height:32px;padding-top:2px;overflow:visible}.universal-page .right-column--no-amount{grid-template-rows:minmax(0,1fr) minmax(0,1fr) 38mm}.universal-page .right-column--no-amount .promo-box{height:38mm;min-height:38mm;max-height:38mm;align-self:start}.universal-page .sender-fit{position:absolute;left:47.56mm;top:105.69mm;width:100.06mm;text-align:left;overflow:hidden}.universal-page .sender-fit--short{font-size:3.7mm;line-height:1.02;white-space:nowrap}.universal-page .sender-fit--medium{font-size:3.35mm;line-height:1.05;white-space:nowrap}.universal-page .sender-fit--long{font-size:3.0mm;line-height:1.05;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere;word-break:break-word}.universal-page .sender-fit--xl{font-size:2.75mm;line-height:1.02;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere;word-break:break-word}.universal-page .amount-box--placeholder{opacity:.18}.universal-page .amount-box--placeholder .amount-row{border-bottom-color:transparent}.universal-page .amount-box--placeholder .amount-label,.universal-page .amount-box--placeholder .amount-value{color:transparent}</style>`;
+  const safetyCss = `<style>.universal-page{width:9in;height:4in;box-sizing:border-box;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;}.universal-page:last-child{page-break-after:auto;break-after:auto;}.universal-page .header{height:56px;min-height:56px}.universal-page .barcode-area{justify-content:center;padding-top:0;padding-left:7px;padding-right:7px;gap:2px;overflow:visible}.universal-page #barcode{height:40px;max-width:248px;width:96%;object-fit:contain}.universal-page .header-right--no-amount #barcode{max-width:none;width:100%}.universal-page .footer{height:32px;padding-top:2px;overflow:visible}.universal-page .right-column--no-amount{grid-template-rows:minmax(0,1fr) minmax(0,1fr) 38mm}.universal-page .right-column--no-amount .promo-box{height:38mm;min-height:38mm;max-height:38mm;align-self:start}.universal-page .sender-fit{position:absolute;left:47.56mm;top:105.69mm;width:100.06mm;text-align:left;overflow:hidden}.universal-page .sender-fit--short{font-size:3.7mm;line-height:1.02;white-space:nowrap}.universal-page .sender-fit--medium{font-size:3.35mm;line-height:1.05;white-space:nowrap}.universal-page .sender-fit--long{font-size:3.0mm;line-height:1.05;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere;word-break:break-word}.universal-page .sender-fit--xl{font-size:2.75mm;line-height:1.02;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere;word-break:break-word}.universal-page .amount-box--placeholder{opacity:.18}.universal-page .amount-box--placeholder .amount-row{border-bottom-color:transparent}.universal-page .amount-box--placeholder .amount-label,.universal-page .amount-box--placeholder .amount-value{color:transparent}</style>`;
   const outputHead = templateHead.replace(/<\/head>/i, `${safetyCss}</head>`);
 
   return `${outputHead}${pages}${template.tail}`;
@@ -721,6 +778,8 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
     const { senderName, senderAddress, senderPhone } = resolveMoneyOrderSenderFields(o as unknown as OrderRecord);
     const senderCity = String(o.senderCity ?? "");
     const senderAddressInline = compactInlineParts([senderAddress.replace(/\n+/g, ", ")]).join(", ");
+    const senderFooterText = compactInlineParts(["FROM:", senderName, senderAddressInline, senderCity, senderPhone]).join(" ");
+    const senderFooterClass = resolveFlyerSenderFooterClass(senderFooterText);
     const weight = formatWeightInGrams(o.Weight);
     const orderId = String((o as any).ordered ?? "").trim() || "-";
     const dispatchDateLine = `Dispatch Date: ${resolveDispatchDate((o as any)?.issueDate)}`;
@@ -769,7 +828,7 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
         </div>
         ${amountMarkup}
         <div class="FooterBlock fl-from">
-          <div class="fl-from-line">FROM: <span class="fl-from-name">${escapeHtml(senderName || "-")}</span> <span class="fl-from-addr">${escapeHtml(senderAddressInline || "-")}</span> <span class="fl-from-city">${escapeHtml(senderCity || "-")}</span> <span class="fl-from-phone">${escapeHtml(senderPhone || "-")}</span></div>
+          <div class="fl-from-line ${escapeHtml(senderFooterClass)}">FROM: <span class="fl-from-name">${escapeHtml(senderName || "-")}</span> <span class="fl-from-addr">${escapeHtml(senderAddressInline || "-")}</span> <span class="fl-from-city">${escapeHtml(senderCity || "-")}</span> <span class="fl-from-phone">${escapeHtml(senderPhone || "-")}</span></div>
         </div>
       </div>`;
   };
@@ -850,22 +909,25 @@ export function flyerHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?: 
         .fl-name { font-weight: 900; font-size: 3.1mm; line-height: 1.05; }
         .fl-addr { font-size: 2.35mm; line-height: 1.12; white-space: normal; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; min-height: 0; }
         .fl-city-phone { font-size: 2.35mm; color: #111; font-weight: 700; }
-        .fl-from { border-top: 0.3mm solid #000; padding-top: 0.45mm; font-size: 1.8mm; min-height: 7.2mm; display:flex; align-items:flex-start; }
+        .fl-from { border-top: 0.3mm solid #000; padding-top: 0.45mm; padding-bottom: 0.2mm; font-size: 1.8mm; min-height: 0; display:flex; align-items:flex-start; }
         .fl-from-line {
-          display: -webkit-box;
+          display: block;
           width: 100%;
           min-width: 0;
           max-width: 100%;
           white-space: normal;
-          overflow: hidden;
-          overflow-wrap: anywhere;
-          word-break: break-word;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
+          overflow: visible;
+          overflow-wrap: normal;
+          word-break: normal;
+          hyphens: none;
           font-weight: 500;
           letter-spacing: 0.05mm;
-          line-height: 1.02;
+          line-height: 1.08;
         }
+        .sender-xl { font-size: 2.08mm; line-height: 1.04; white-space: nowrap; }
+        .sender-large { font-size: 1.92mm; line-height: 1.04; white-space: nowrap; }
+        .sender-medium { font-size: 1.74mm; line-height: 1.06; white-space: normal; overflow-wrap: normal; word-break: normal; hyphens: none; }
+        .sender-small { font-size: 1.56mm; line-height: 1.12; white-space: normal; overflow-wrap: normal; word-break: normal; hyphens: none; }
         .fl-from-name, .fl-from-city, .fl-from-phone { font-weight: 900; }
         .fl-from-addr { font-weight: 500; }
       </style>
