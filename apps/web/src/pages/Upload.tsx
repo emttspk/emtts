@@ -47,7 +47,13 @@ type UploadInsights = {
   recommendationReason: string;
 };
 
-type UploadProcessingStage = "uploading" | "reading" | "validating" | "previewing" | "creating_job";
+type UploadProcessingStage =
+  | "uploading_file"
+  | "validating_records"
+  | "creating_job"
+  | "queued"
+  | "generating_labels"
+  | "preparing_download";
 
 const STILL_WORKING_THRESHOLD_SEC = 45;
 const STATUS_CHECK_THRESHOLD_SEC = 90;
@@ -442,14 +448,30 @@ export default function Upload() {
     if (resolver) resolver(decision);
   }
 
+  const previewRequestKey = useMemo(() => JSON.stringify({
+    file: file ? `${file.name}:${file.size}:${file.lastModified}` : "none",
+    outputMode,
+    carrierType: carrierType ?? "pakistan_post",
+    shipmentType: shipmentMode === "mix_articles" ? "" : (shipmentType ?? "RGL"),
+    shipmentMode,
+    includeMoneyOrders: Boolean(includeMoneyOrders && eligibleForMoneyOrder),
+    barcodeMode: shipmentMode === "mix_articles" ? "auto" : (barcodeMode ?? "auto"),
+  }), [barcodeMode, carrierType, eligibleForMoneyOrder, file, includeMoneyOrders, outputMode, shipmentMode, shipmentType]);
+  const previewDebounceTimerRef = useRef<number | null>(null);
+  const previewLoadedKeyRef = useRef<string | null>(null);
+  const previewInFlightKeyRef = useRef<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     const previewBarcodeMode = shipmentMode === "mix_articles" ? "auto" : (barcodeMode ?? "auto");
+    const previewKey = previewRequestKey;
 
     if (!outputMode) {
       setPreviewHtml("");
       setPreviewError(null);
       setPreviewLoading(false);
+      previewLoadedKeyRef.current = null;
+      previewInFlightKeyRef.current = null;
       return () => {
         cancelled = true;
       };
@@ -457,46 +479,70 @@ export default function Upload() {
 
     setPreviewDocSize(defaultPreviewSize);
 
+    if (previewLoadedKeyRef.current === previewKey || previewInFlightKeyRef.current === previewKey) {
+      setPreviewError(null);
+      setPreviewLoading(previewInFlightKeyRef.current === previewKey);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     setPreviewLoading(true);
     setPreviewError(null);
 
-    const loadPreview = file
-      ? uploadFile("/api/jobs/preview/labels", file, {
-          outputMode,
-          carrierType: carrierType ?? "pakistan_post",
-          shipmentType: shipmentMode === "mix_articles" ? "" : (shipmentType ?? "RGL"),
-          shipmentMode,
-          includeMoneyOrders: String(Boolean(includeMoneyOrders && eligibleForMoneyOrder)),
-          barcodeMode: previewBarcodeMode,
-        })
-      : api<{ html: string }>(
-          `/api/jobs/preview/labels?${new URLSearchParams({
+    if (previewDebounceTimerRef.current) {
+      window.clearTimeout(previewDebounceTimerRef.current);
+    }
+
+    previewDebounceTimerRef.current = window.setTimeout(() => {
+      previewInFlightKeyRef.current = previewKey;
+
+      const loadPreview = file
+        ? uploadFile("/api/jobs/preview/labels", file, {
             outputMode,
             carrierType: carrierType ?? "pakistan_post",
             shipmentType: shipmentMode === "mix_articles" ? "" : (shipmentType ?? "RGL"),
             shipmentMode,
             includeMoneyOrders: String(Boolean(includeMoneyOrders && eligibleForMoneyOrder)),
-          }).toString()}`,
-        );
+            barcodeMode: previewBarcodeMode,
+          })
+        : api<{ html: string }>(
+            `/api/jobs/preview/labels?${new URLSearchParams({
+              outputMode,
+              carrierType: carrierType ?? "pakistan_post",
+              shipmentType: shipmentMode === "mix_articles" ? "" : (shipmentType ?? "RGL"),
+              shipmentMode,
+              includeMoneyOrders: String(Boolean(includeMoneyOrders && eligibleForMoneyOrder)),
+            }).toString()}`,
+          );
 
-    Promise.resolve(loadPreview)
-      .then((data) => {
-        if (cancelled) return;
-        setPreviewHtml(data.html);
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        setPreviewHtml("");
-        setPreviewError(error instanceof Error ? error.message : "Failed to load preview");
-      })
-      .finally(() => {
-        if (!cancelled) setPreviewLoading(false);
-      });
+      Promise.resolve(loadPreview)
+        .then((data) => {
+          if (cancelled) return;
+          previewLoadedKeyRef.current = previewKey;
+          setPreviewHtml(data.html);
+        })
+        .catch((error) => {
+          if (cancelled) return;
+          setPreviewHtml("");
+          setPreviewError(error instanceof Error ? error.message : "Failed to load preview");
+        })
+        .finally(() => {
+          if (previewInFlightKeyRef.current === previewKey) {
+            previewInFlightKeyRef.current = null;
+          }
+          if (!cancelled) setPreviewLoading(false);
+        });
+    }, 300);
 
     return () => {
       cancelled = true;
+      if (previewDebounceTimerRef.current) {
+        window.clearTimeout(previewDebounceTimerRef.current);
+        previewDebounceTimerRef.current = null;
+      }
     };
-  }, [barcodeMode, carrierType, defaultPreviewSize, eligibleForMoneyOrder, file, includeMoneyOrders, outputMode, shipmentMode, shipmentType]);
+  }, [barcodeMode, carrierType, defaultPreviewSize, eligibleForMoneyOrder, file, includeMoneyOrders, outputMode, previewRequestKey, shipmentMode, shipmentType]);
 
   useEffect(() => {
     const node = previewViewportRef.current;
@@ -518,7 +564,17 @@ export default function Upload() {
   }
 
   const polling = useJobPolling({
-    refreshJobs: async () => {
+    onStatusChange: async (job) => {
+      if (job.status === "QUEUED") {
+        setProcessingStage("queued");
+        return;
+      }
+      if (job.status === "PROCESSING") {
+        setProcessingStage("generating_labels");
+        setProgress((value) => Math.max(value, 92));
+      }
+    },
+    onTerminal: async () => {
       await refreshJobs();
       await refreshMe();
     },
@@ -576,7 +632,7 @@ export default function Upload() {
 
   // Generation state for countdown + silent downloads
   const [uiState, setUiState] = useState<"idle" | "uploading" | "processing" | "completed" | "failed">("idle");
-  const [processingStage, setProcessingStage] = useState<UploadProcessingStage>("uploading");
+  const [processingStage, setProcessingStage] = useState<UploadProcessingStage>("uploading_file");
   const [uiError, setUiError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [elapsed, setElapsed] = useState(0);
@@ -621,17 +677,25 @@ export default function Upload() {
   }, [activeJob?.recordCount, estimatedTotalSec, uiState]);
 
   const statusLabel = useMemo(() => {
-    if (uiState === "uploading") return "Uploading";
+    if (uiState === "uploading") {
+      if (processingStage === "uploading_file") return "Uploading file";
+      if (processingStage === "validating_records") return "Validating records";
+      return "Creating job";
+    }
     if (uiState === "processing") {
-      if (polling.jobStatus === "QUEUED") return "Job queued. Waiting for worker...";
+      if (processingStage === "queued") return "Queued for generation";
+      if (processingStage === "preparing_download") return "Preparing download";
+      if (processingStage === "generating_labels" && remaining != null && remaining > 0) {
+        return `Generating labels • about ${remaining}s remaining`;
+      }
       if (remaining == null) return "Processing";
       if (remaining <= 0) return "Still working... checking progress";
-      return `Estimated time remaining: ${remaining} sec`;
+      return `Generating labels • about ${remaining}s remaining`;
     }
     if (uiState === "completed") return "Completed";
     if (uiState === "failed") return "Failed";
     return "Ready";
-  }, [polling.jobStatus, remaining, uiState]);
+  }, [processingStage, remaining, uiState]);
 
   const showStillWorkingNotice = uiState === "processing" && elapsed >= STILL_WORKING_THRESHOLD_SEC;
   const showStatusCheckAction = uiState === "processing" && elapsed >= STATUS_CHECK_THRESHOLD_SEC;
@@ -714,7 +778,7 @@ export default function Upload() {
     setShowCompletionModal(false);
     setCompletionAction(null);
     setUiState("uploading");
-    setProcessingStage("uploading");
+    setProcessingStage("uploading_file");
     setProgress(10);
     setElapsed(0);
     setEstimatedTotalSec(null);
@@ -736,7 +800,7 @@ export default function Upload() {
       // Frontend pre-check only: header names are case-insensitive but must map to strict fields.
       const uploadedFile = file;
       console.log("Tracking file received:", uploadedFile?.name);
-      setProcessingStage("reading");
+      setProcessingStage("validating_records");
       const readStartedAt = performance.now();
       const ab = await uploadedFile.arrayBuffer();
       const wb = XLSX.read(ab);
@@ -778,7 +842,7 @@ export default function Upload() {
         throw new Error(`Missing required columns: ${missingHeaders.join(", ")}`);
       }
 
-      setProcessingStage("validating");
+      setProcessingStage("validating_records");
       const validateStartedAt = performance.now();
       const rowErrors: string[] = [];
       const rowWarnings: string[] = [];
@@ -1092,7 +1156,6 @@ export default function Upload() {
       }
 
       const groupedIssues = summarizeIssuesByCategory(validationIssues);
-      setProcessingStage("previewing");
       const recommendations = [
         groupedIssues.prefixMismatches.length > 0 ? "Review prefix mismatches and use the mismatch decision options for consistency." : null,
         groupedIssues.invalidServices.length > 0 ? "Fix non-canonical shipment_type values before re-uploading." : null,
@@ -1206,6 +1269,7 @@ export default function Upload() {
       await refreshJobs();
       polling.start(data.jobId);
       setUiState("processing");
+      setProcessingStage("queued");
       setProgress(90);
       logDevTiming("upload_total_until_polling", performance.now() - uploadFlowStartedAt, { jobId: data.jobId });
     } catch (e) {
@@ -1220,9 +1284,10 @@ export default function Upload() {
     if (!polling.jobStatus) return;
     if (uiState !== "processing" && (polling.jobStatus === "QUEUED" || polling.jobStatus === "PROCESSING")) {
       setUiState("processing");
-      setProcessingStage("creating_job");
+      setProcessingStage(polling.jobStatus === "PROCESSING" ? "generating_labels" : "queued");
     }
     if (polling.jobStatus === "COMPLETED") {
+      setProcessingStage("preparing_download");
       setUiState("completed");
       setStatusCheckMessage(null);
       setShowCompletionModal(true);
@@ -1827,8 +1892,8 @@ export default function Upload() {
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
               <div>
-                <div className="text-lg font-semibold text-slate-900">Preparing your generation request</div>
-                <div className="text-sm text-slate-600">Large files may take a little longer. Please keep this tab open.</div>
+                <div className="text-lg font-semibold text-slate-900">Processing your label generation</div>
+                <div className="text-sm text-slate-600">We&apos;ll keep this popup updated through upload, queue, generation, and download prep.</div>
               </div>
             </div>
             <div className="mt-4 h-2 rounded-full bg-slate-100">
@@ -1840,22 +1905,24 @@ export default function Upload() {
             </div>
             <div className="mt-4 grid gap-2 text-sm">
               {[
-                { id: "uploading", title: "Uploading file" },
-                { id: "reading", title: "Reading records" },
-                { id: "validating", title: "Validating rows" },
-                { id: "previewing", title: "Creating preview table" },
-                { id: "creating_job", title: "Preparing label job" },
+                { id: "uploading_file", title: "Uploading file" },
+                { id: "validating_records", title: "Validating records" },
+                { id: "creating_job", title: "Creating job" },
+                { id: "queued", title: "Queued" },
+                { id: "generating_labels", title: "Generating labels" },
+                { id: "preparing_download", title: "Preparing download" },
               ].map((step, idx) => {
                 const order: Record<UploadProcessingStage, number> = {
-                  uploading: 1,
-                  reading: 2,
-                  validating: 3,
-                  previewing: 4,
-                  creating_job: 5,
+                  uploading_file: 1,
+                  validating_records: 2,
+                  creating_job: 3,
+                  queued: 4,
+                  generating_labels: 5,
+                  preparing_download: 6,
                 };
                 const currentOrder = order[processingStage];
                 const stepOrder = order[step.id as UploadProcessingStage];
-                const done = stepOrder < currentOrder || (uiState === "processing" && step.id === "creating_job");
+                const done = stepOrder < currentOrder || (uiState === "completed" && step.id === "preparing_download");
                 const active = stepOrder === currentOrder;
                 return (
                   <div key={step.id} className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${done ? "border-emerald-200 bg-emerald-50 text-emerald-800" : active ? "border-sky-200 bg-sky-50 text-sky-800" : "border-slate-200 bg-slate-50 text-slate-500"}`}>

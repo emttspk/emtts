@@ -1,5 +1,30 @@
 # AI Implementation Index
 
+## 2026-06-05 - Phase 1 Performance Optimization
+
+- Verified scope only: repo remote `origin https://github.com/emttspk/emtts.git`, branch `main`, Railway project `Epost` in `production` with `Api`/`Web` online.
+- Implemented a debounced preview refresh in `apps/web/src/pages/Upload.tsx` so preview configuration changes settle into a single `/api/jobs/preview/labels` refresh instead of reposting the same file multiple times while options are still changing.
+- Added duplicate-preview guards keyed by file metadata plus preview configuration so an already-loaded or already-running preview request is not posted again for the same state.
+- Reduced active job polling overhead in `apps/web/src/lib/useJobPolling.ts` by keeping the `/api/jobs/:id` heartbeat every 2 seconds but deferring the heavier `/api/jobs` and `/api/me` refreshes until terminal completion/failure instead of repeating them throughout processing.
+- Improved the existing generation popup only, keeping the same modal path but updating its visible stages to `Uploading file`, `Validating records`, `Creating job`, `Queued`, `Generating labels`, and `Preparing download`.
+- Documented dashboard skeleton work as a future recommendation only; no dashboard UI implementation was included in this phase.
+- Before/after request estimate:
+  - Preview churn before: one preview POST per config change, including rapid repeated changes or rerenders touching the same file-backed preview state.
+  - Preview churn after: one debounced preview POST per settled config state, eliminating duplicate reposts for identical file/config combinations.
+  - Polling before: every 2 seconds during processing -> `/api/jobs/:id` + `/api/jobs` + `/api/me` = 3 requests per tick.
+  - Polling after: every 2 seconds during processing -> `/api/jobs/:id` only, with `/api/jobs` + `/api/me` refreshed once at terminal completion/failure.
+  - Example steady-state reduction for a 60-second job: about `90` requests before vs about `32` after, or roughly `64%` fewer total requests during active processing.
+- Verified `npm run build -w apps/web` completed successfully after the scoped Phase 1 changes.
+
+## 2026-06-05 - Login + Dashboard Performance Forensic Audit
+
+- Verified scope only: repo remote `origin https://github.com/emttspk/emtts.git`, branch `main`, Railway project `Epost` in `production` with `Api`/`Web` online.
+- Audited login flow, auth bootstrap, dashboard loading, upload workflow, and label-generation workflow without implementation, build, commit, or push.
+- Confirmed the login-to-dashboard path is gated by the post-login auth exchange plus `/api/me`, while the dashboard separately loads shipment stats and support notifications after route entry.
+- Confirmed the upload/generate path performs substantial client-side XLSX parsing and validation before `/api/upload`, and the preview effect can repeatedly re-upload the same file to `/api/jobs/preview/labels` when configuration state changes.
+- Confirmed the current generation progress overlay appears immediately, but it stalls on generic stages and the polling loop refreshes `/api/jobs`, `/api/jobs/:id`, and `/api/me` every 2 seconds, creating extra wait noise and backend load without richer progress detail.
+- Production log evidence showed repeated preview-label POSTs before final upload, repeated poll triplets during processing, and artifact download fallback/streaming activity after job completion.
+
 ## 2026-06-05 - Flyer Footer Adaptive Sender Fix
 
 - Updated flyer sender footer class selection in `apps/api/src/templates/labels.ts` so short, medium, long, and very long sender lines map to `sender-xl`, `sender-large`, `sender-medium`, and `sender-small` by rendered content length.
