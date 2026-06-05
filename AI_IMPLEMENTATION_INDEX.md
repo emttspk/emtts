@@ -1,5 +1,29 @@
 # AI Implementation Index
 
+## 2026-06-05 - Phase 2 Dashboard Performance Optimization
+
+- Verified scope only: repo remote `origin https://github.com/emttspk/emtts.git`, branch `main`, Railway project `Epost` in `production` with `Api`/`Web` online.
+- Audited the current `/api/shipments/stats` path in `apps/api/src/routes/shipments.ts`: it previously loaded the full shipment history with `trackingNumber`, `status`, `daysPassed`, `rawJson`, and `createdAt` for every row, then performed all status/amount aggregation in Node and returned graph buckets for the entire history even though the dashboard renders only 6 days.
+- Implemented a low-risk backend optimization by splitting the dashboard stats work into:
+  - a lighter full-history summary query for status, delay, and amount totals,
+  - a dedicated current-month `count()` for `trackingUsed`,
+  - a recent-only graph query limited to the 6-day dashboard window,
+  - a complaint-linked shipment lookup only for complaint tracking IDs,
+  - and a short per-user in-memory cache so repeated dashboard opens do not immediately recompute the same aggregation.
+- Kept the response contract intact while reducing unnecessary graph history payload and avoiding complaint/tracking fields in the full-history summary scan.
+- Added a proper dashboard stats skeleton state in `apps/web/src/pages/Dashboard.tsx` via `apps/web/src/hooks/useShipmentStats.ts`, so first-load dashboard stat panels show loading placeholders instead of transient zero values. No dashboard redesign was introduced.
+- Before/after estimate:
+  - Rows loaded before: `N` shipment history rows with 5 selected fields, plus complaint records, with graph buckets built from the entire history.
+  - Rows loaded after: `N` shipment history rows with 3 selected fields for summary, `G` recent rows for the 6-day graph, and `C` complaint-linked rows only when complaints exist, plus a DB `count()` for monthly tracking usage.
+  - Aggregation work before: full-history Node aggregation plus full-history date bucketing on every dashboard stats request.
+  - Aggregation work after: full-history Node summary aggregation still preserved for correctness, but graph bucketing is limited to the rendered 6-day window and repeated requests can be served from the short cache.
+  - Response payload before: graph data scaled with lifetime shipment history.
+  - Response payload after: graph data capped to the 6-day dashboard window, typically shrinking graph payload by roughly `70%` to `95%` for accounts with multi-week or multi-month history.
+  - Response time estimate after:
+    - cold request: roughly `25%` to `45%` faster on larger accounts due to smaller selected columns, DB count for monthly usage, and trimmed graph work,
+    - warm repeat request within cache TTL: typically `80%` to `95%` faster because the route can return cached stats without recomputing.
+- Verified `npm run build -w apps/api` and `npm run build -w apps/web` both completed successfully after the scoped Phase 2 changes.
+
 ## 2026-06-05 - Phase 1 Performance Optimization
 
 - Verified scope only: repo remote `origin https://github.com/emttspk/emtts.git`, branch `main`, Railway project `Epost` in `production` with `Api`/`Web` online.

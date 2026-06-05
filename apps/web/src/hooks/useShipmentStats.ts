@@ -65,6 +65,7 @@ function writeCachedShipmentStats(value: ShipmentStats, ts = Date.now()) {
 export function useShipmentStats() {
   const [shipmentStats, setShipmentStats] = useState<ShipmentStats | null>(() => readCachedShipmentStats());
   const [shipmentStatsFetchedAt, setShipmentStatsFetchedAt] = useState<number>(() => readCachedShipmentStatsTs());
+  const [shipmentStatsLoading, setShipmentStatsLoading] = useState(() => readCachedShipmentStats() == null);
   const inFlightRef = useRef<Promise<ShipmentStats> | null>(null);
 
   const refreshShipmentStats = useCallback(async (options?: { force?: boolean }) => {
@@ -80,12 +81,15 @@ export function useShipmentStats() {
       return inFlightRef.current;
     }
 
+    setShipmentStatsLoading(shipmentStats == null);
     const request = api<ShipmentStats>("/api/shipments/stats").then((latest) => {
+      const fetchedAt = Date.now();
       setShipmentStats(latest);
-      setShipmentStatsFetchedAt(Date.now());
-      writeCachedShipmentStats(latest, Date.now());
+      setShipmentStatsFetchedAt(fetchedAt);
+      writeCachedShipmentStats(latest, fetchedAt);
       return latest;
     }).finally(() => {
+      setShipmentStatsLoading(false);
       inFlightRef.current = null;
     });
 
@@ -104,5 +108,5 @@ export function useShipmentStats() {
     }
   }, [refreshShipmentStats, shipmentStats, shipmentStatsFetchedAt]);
 
-  return { shipmentStats, refreshShipmentStats, shipmentStatsFetchedAt };
+  return { shipmentStats, refreshShipmentStats, shipmentStatsFetchedAt, shipmentStatsLoading };
 }

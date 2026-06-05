@@ -20,10 +20,25 @@ const formatPKR = new Intl.NumberFormat("en-PK", {
   maximumFractionDigits: 0,
 });
 
+function DashboardSkeletonLine({ className }: { className: string }) {
+  return <div className={`animate-pulse rounded-full bg-slate-200 ${className}`} />;
+}
+
+function DashboardMetricCardSkeleton() {
+  return (
+    <Card className="min-h-[104px] rounded-2xl border border-[color:var(--line)] bg-[#F8FAFC] p-3">
+      <DashboardSkeletonLine className="h-3 w-24" />
+      <DashboardSkeletonLine className="mt-3 h-8 w-16" />
+      <DashboardSkeletonLine className="mt-2 h-3 w-20" />
+    </Card>
+  );
+}
+
 export default function Dashboard() {
   const { me } = useOutletContext<ShellCtx>();
   const navigate = useNavigate();
-  const { shipmentStats } = useShipmentStats();
+  const { shipmentStats, shipmentStatsLoading } = useShipmentStats();
+  const showStatsSkeleton = shipmentStatsLoading && !shipmentStats;
 
   const stats = useMemo(
     () => ({
@@ -100,7 +115,9 @@ export default function Dashboard() {
         <StatsCard title="Active package" value={activePlanName} detail={`Status: ${billingStatus}`} icon={Boxes} tone="blue" />
         <StatsCard title="Remaining units" value={remainingUnits.toLocaleString()} detail={`${usedUnits.toLocaleString()} used of ${packageLimit.toLocaleString()}`} icon={Package2} tone="green" />
         <StatsCard title="Complaint limits" value={`Daily: ${complaintDailyLabel}`} detail={`Monthly: ${complaintMonthlyLabel}`} icon={ShieldCheck} tone="amber" />
-        <StatsCard title="Tracking used" value={stats.trackingUsed.toLocaleString()} detail="Tracking actions" icon={Clock3} tone="purple" />
+        {showStatsSkeleton
+          ? <DashboardMetricCardSkeleton />
+          : <StatsCard title="Tracking used" value={stats.trackingUsed.toLocaleString()} detail="Tracking actions" icon={Clock3} tone="purple" />}
       </div>
 
       <div className="grid min-w-0 w-full gap-3 overflow-hidden xl:grid-cols-12">
@@ -144,22 +161,39 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <UnifiedShipmentCards
-        items={summaryCards}
-        onSelect={(key) => {
-          if (key === "COMPLAINTS") {
-            navigateToTrackingFilter("COMPLAINT_TOTAL");
-            return;
-          }
-          navigateToTrackingFilter(key);
-        }}
-      />
+      {showStatsSkeleton ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <DashboardMetricCardSkeleton key={index} />
+          ))}
+        </div>
+      ) : (
+        <UnifiedShipmentCards
+          items={summaryCards}
+          onSelect={(key) => {
+            if (key === "COMPLAINTS") {
+              navigateToTrackingFilter("COMPLAINT_TOTAL");
+              return;
+            }
+            navigateToTrackingFilter(key);
+          }}
+        />
+      )}
 
       <div className="grid min-w-0 w-full gap-3 overflow-hidden xl:grid-cols-12">
         <Card className="min-w-0 w-full overflow-hidden xl:col-span-8 p-4 md:p-5">
           <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Shipment Status</div>
           <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {[
+            {showStatsSkeleton ? Array.from({ length: 9 }).map((_, index) => (
+              <div
+                key={index}
+                className="rounded-2xl border border-[color:var(--line)] bg-[#F8FAFC] p-3 min-h-[104px]"
+              >
+                <DashboardSkeletonLine className="h-3 w-24" />
+                <DashboardSkeletonLine className="mt-3 h-8 w-16" />
+                <DashboardSkeletonLine className="mt-2 h-3 w-20" />
+              </div>
+            )) : [
               { label: "Delivered", count: stats.delivered, amount: stats.deliveredAmount, filter: "DELIVERED", tone: "text-emerald-700" },
               { label: "Pending", count: stats.pending, amount: stats.pendingAmount, filter: "PENDING", tone: "text-amber-700" },
               { label: "Returned", count: stats.returned, amount: stats.returnedAmount, filter: "RETURNED", tone: "text-red-700" },
@@ -187,7 +221,16 @@ export default function Dashboard() {
         <Card className="min-w-0 w-full overflow-hidden xl:col-span-4 p-4 md:p-5">
           <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">6 Day Activity</div>
           <div className="mt-3 flex items-end gap-1.5">
-            {activity.length > 0 ? activity.map((item) => {
+            {showStatsSkeleton ? Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="flex flex-1 flex-col items-center gap-1">
+                <DashboardSkeletonLine className="h-3 w-6" />
+                <div
+                  className="w-full animate-pulse rounded-md bg-slate-200"
+                  style={{ height: 32 + (index % 4) * 18 }}
+                />
+                <DashboardSkeletonLine className="h-3 w-8" />
+              </div>
+            )) : activity.length > 0 ? activity.map((item) => {
               const height = Math.max(16, Math.round((item.total / maxActivity) * 120));
               return (
                 <div key={item.date} className="flex flex-1 flex-col items-center gap-1">

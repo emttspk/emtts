@@ -20,7 +20,44 @@ export const shipmentsRouter = Router();
 shipmentsRouter.use(requireAuth);
 
 const TRACKING_CACHE_TTL_MS = 10 * 60 * 1000;
+const DASHBOARD_STATS_CACHE_TTL_MS = 30_000;
+const DASHBOARD_GRAPH_DAYS = 6;
 let moTablesReady = false;
+
+type ShipmentStatsResponse = {
+  success: true;
+  total: number;
+  delivered: number;
+  pending: number;
+  returned: number;
+  undelivered: number;
+  outForDelivery: number;
+  delayed: number;
+  byStatus: Record<string, number>;
+  totalAmount: number;
+  deliveredAmount: number;
+  pendingAmount: number;
+  returnedAmount: number;
+  delayedAmount: number;
+  trackingUsed: number;
+  graphData: Array<{ date: string; total: number; byStatus: Record<string, number> }>;
+  complaintAmount: number;
+  complaints: number;
+  complaintWatch: number;
+  complaintWatchAmount: number;
+  complaintActive: number;
+  complaintInProcess: number;
+  complaintResolved: number;
+  complaintClosed: number;
+  complaintReopened: number;
+  complaintActiveAmount: number;
+  complaintInProcessAmount: number;
+  complaintResolvedAmount: number;
+  complaintClosedAmount: number;
+  complaintReopenedAmount: number;
+};
+
+const shipmentStatsCache = new Map<string, { expiresAt: number; value: ShipmentStatsResponse }>();
 
 type MoneyOrderRow = {
   mo_number: string;
@@ -367,22 +404,48 @@ function normalizeComplaintLifecycleState(state: string): "ACTIVE" | "IN_PROCESS
   return "ACTIVE";
 }
 
+function startOfUtcDay(date: Date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
 shipmentsRouter.get("/stats", async (req, res) => {
   const userId = (req as AuthedRequest).user!.id;
+  const cached = shipmentStatsCache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return res.json(cached.value);
+  }
+  if (cached) shipmentStatsCache.delete(userId);
+
   try {
     await ensureMoneyOrderTables();
   } catch (err) {
     console.log("Failed to ensure money order tables:", err instanceof Error ? err.message : err);
   }
 
-  let shipments: Array<{ trackingNumber: string; status: string | null; daysPassed: number | null; rawJson: string | null; createdAt: Date }> = [];
+  const now = new Date();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const graphStart = startOfUtcDay(now);
+  graphStart.setUTCDate(graphStart.getUTCDate() - (DASHBOARD_GRAPH_DAYS - 1));
+
+  let summaryShipments: Array<{ status: string | null; daysPassed: number | null; rawJson: string | null }> = [];
+  let recentGraphShipments: Array<{ status: string | null; rawJson: string | null; createdAt: Date }> = [];
+  let trackingUsed = 0;
   try {
-    shipments = await prisma.shipment.findMany({
-      where: { userId },
-      select: { trackingNumber: true, status: true, daysPassed: true, rawJson: true, createdAt: true },
-    });
+    [summaryShipments, recentGraphShipments, trackingUsed] = await Promise.all([
+      prisma.shipment.findMany({
+        where: { userId },
+        select: { status: true, daysPassed: true, rawJson: true },
+      }),
+      prisma.shipment.findMany({
+        where: { userId, createdAt: { gte: graphStart } },
+        select: { status: true, rawJson: true, createdAt: true },
+      }),
+      prisma.shipment.count({
+        where: { userId, createdAt: { gte: monthStart } },
+      }),
+    ]);
   } catch (err) {
-    console.log("Database unavailable for shipments, returning empty data:", err instanceof Error ? err.message : err);
+    console.log("Database unavailable for shipment stats, returning empty data:", err instanceof Error ? err.message : err);
   }
 
   let complaintRecords: Awaited<ReturnType<typeof listComplaintRecords>> = [];
@@ -392,9 +455,26 @@ shipmentsRouter.get("/stats", async (req, res) => {
     console.log("Failed to fetch complaint records for stats:", err instanceof Error ? err.message : err);
   }
 
+  const complaintTrackingIds = Array.from(new Set(
+    complaintRecords
+      .map((record) => String(record.trackingId ?? "").trim())
+      .filter(Boolean),
+  ));
+  let complaintShipments: Array<{ trackingNumber: string; status: string | null; rawJson: string | null }> = [];
+  if (complaintTrackingIds.length > 0) {
+    try {
+      complaintShipments = await prisma.shipment.findMany({
+        where: { userId, trackingNumber: { in: complaintTrackingIds } },
+        select: { trackingNumber: true, status: true, rawJson: true },
+      });
+    } catch (err) {
+      console.log("Failed to fetch complaint-linked shipments for stats:", err instanceof Error ? err.message : err);
+    }
+  }
+
   const byStatus: Record<string, number> = {};
   const byDate: Record<string, { total: number; byStatus: Record<string, number> }> = {};
-  let total = 0;
+  const total = summaryShipments.length;
   let delivered = 0;
   let pending = 0;
   let returned = 0;
@@ -404,19 +484,13 @@ shipmentsRouter.get("/stats", async (req, res) => {
   let pendingAmount = 0;
   let returnedAmount = 0;
   let delayedAmount = 0;
-  let trackingUsed = 0;
-  const now = new Date();
-  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const shipmentAmounts = new Map<string, number>();
   const shipmentStatuses = new Map<string, "DELIVERED" | "DELIVERED WITH PAYMENT" | "RETURNED" | "PENDING">();
 
-  for (const s of shipments) {
+  for (const s of summaryShipments) {
     const key = deriveFinalShipmentStatusForStats(s);
-    total += 1;
     byStatus[key] = (byStatus[key] ?? 0) + 1;
     const amt = toAmount(s.rawJson);
-    shipmentAmounts.set(s.trackingNumber, amt);
-    shipmentStatuses.set(s.trackingNumber, key);
 
     if (key === "DELIVERED" || key === "DELIVERED WITH PAYMENT") {
       delivered += 1;
@@ -432,15 +506,24 @@ shipmentsRouter.get("/stats", async (req, res) => {
       delayed += 1;
       delayedAmount += amt;
     }
-    if (s.createdAt >= monthStart) trackingUsed += 1;
     totalAmount += amt;
+  }
 
+  for (const s of recentGraphShipments) {
+    const key = deriveFinalShipmentStatusForStats(s);
     const date = new Date(s.createdAt).toISOString().split("T")[0];
     if (!byDate[date]) {
       byDate[date] = { total: 0, byStatus: {} };
     }
     byDate[date].total++;
     byDate[date].byStatus[key] = (byDate[date].byStatus[key] ?? 0) + 1;
+  }
+
+  for (const shipment of complaintShipments) {
+    const trackingNumber = String(shipment.trackingNumber ?? "").trim();
+    if (!trackingNumber) continue;
+    shipmentAmounts.set(trackingNumber, toAmount(shipment.rawJson));
+    shipmentStatuses.set(trackingNumber, deriveFinalShipmentStatusForStats(shipment));
   }
 
   let complaintAmount = 0;
@@ -501,7 +584,7 @@ shipmentsRouter.get("/stats", async (req, res) => {
       byStatus: byDate[date].byStatus,
     }));
 
-  return res.json({
+  const response: ShipmentStatsResponse = {
     success: true,
     total,
     delivered,
@@ -532,7 +615,14 @@ shipmentsRouter.get("/stats", async (req, res) => {
     complaintResolvedAmount,
     complaintClosedAmount,
     complaintReopenedAmount,
+  };
+
+  shipmentStatsCache.set(userId, {
+    expiresAt: Date.now() + DASHBOARD_STATS_CACHE_TTL_MS,
+    value: response,
   });
+
+  return res.json(response);
 });
 
 shipmentsRouter.get("/", async (req, res) => {
