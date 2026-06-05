@@ -647,13 +647,18 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
 
     const orderSource = String(o.reference ?? (o as any)?.source ?? (o as any)?.Source ?? "ePost Workspace").trim() || "ePost Workspace";
     const productDetails = String(o.ProductDescription ?? "").trim() || "-";
-    const amountMarkup = renderUniversalAmountBlock(summary);
-    const useParLiteLayout = !showAmountBlock && ["PAR", "RGL", "UMS"].includes(shipmentType);
+    const shouldSuppressAmountBox = ["PAR", "RGL", "UMS"].includes(shipmentType);
+    const showUniversalAmountBlock = showAmountBlock && !shouldSuppressAmountBox;
+    const renderableSummary = showUniversalAmountBlock
+      ? summary
+      : { ...summary, appliesPakistanPostRules: false, showCalculation: false };
+    const amountMarkup = renderUniversalAmountBlock(renderableSummary);
+    const useParLiteLayout = !showUniversalAmountBlock && shouldSuppressAmountBox;
     const rightColumnClasses = [
       "right-column",
-      showAmountBlock ? "" : useParLiteLayout ? "right-column--par-lite" : "right-column--no-amount",
+      showUniversalAmountBlock ? "" : useParLiteLayout ? "right-column--par-lite" : "right-column--no-amount",
     ].filter(Boolean).join(" ");
-    const headerRightMarkup = showAmountBlock
+    const headerRightMarkup = showUniversalAmountBlock
       ? `
         <div class="header-right header-right--payable">
 
@@ -661,7 +666,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
             <div class="vpl-area">
 
                 <div class="vpl-box">
-                    <span class="vpl-label">${escapeHtml(shipmentLabel)}</span>
+                    <span class="vpl-label">{{shipment_label}}</span>
                     <span class="vpl-divider" aria-hidden="true"></span>
                     <span class="vpl-amount-box">
                         <span class="vpl-amount">Rs. ${escapeHtml(formatRs(summary.moAmount))}</span>
@@ -686,7 +691,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
         <div class="header-right header-right--no-amount">
 
             <div class="shipment-area">
-                <span class="shipment-label">${escapeHtml(shipmentLabel)}</span>
+                <span class="shipment-label">{{shipment_label}}</span>
             </div>
 
             <!-- BARCODE -->
@@ -705,6 +710,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
     const tokenMap: Record<string, string> = {
       "{{logo_src}}": escapeHtml(logoSrc),
       "{{header_right}}": headerRightMarkup,
+      "{{shipment_label}}": escapeHtml(shipmentLabel),
       "{{amount}}": summary.appliesPakistanPostRules
         ? `Rs. ${escapeHtml(formatRs(summary.moAmount))}`
         : "",

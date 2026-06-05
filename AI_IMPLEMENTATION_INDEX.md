@@ -11,6 +11,21 @@
   - `E:\Temp\label-ux-proof-2\completed.png`
 - Verified the processing and completed states visually after the fix; the completed screenshot now shows every stage marked done, including `Completed`.
 
+## 2026-06-05 - Universal 9x4 Header Regression Fix
+
+- Verified scope only: repo remote `origin https://github.com/emttspk/emtts.git`, branch `main`.
+- Restored dynamic shipment type rendering in the universal 9x4 header by replacing the hardcoded VPL label with the existing `{{header_right}}` token path in `apps/api/src/templates/multipage-label.html`.
+- Updated `apps/api/src/templates/labels.ts` so the universal header uses `{{shipment_label}}` from the computed shipment type, adds the missing token replacement for `{{shipment_label}}`, and suppresses the amount block for `PAR`, `RGL`, and `UMS`, allowing the barcode area to expand without reserving width.
+- Kept `VPL`, `VPP`, and `COD` amount behavior unchanged so value-payable labels continue to render the amount box.
+- Proof screenshots:
+  - `E:\Temp\universal-header-proof\par.png`
+  - `E:\Temp\universal-header-proof\rgl.png`
+  - `E:\Temp\universal-header-proof\ums.png`
+  - `E:\Temp\universal-header-proof\vpl.png`
+  - `E:\Temp\universal-header-proof\vpp.png`
+  - `E:\Temp\universal-header-proof\cod.png`
+- Build check: `npm run build -w apps/api` PASS.
+
 ## 2026-06-05 - Phase 3 Label Generation UX Optimization
 
 - Verified scope only: repo remote `origin https://github.com/emttspk/emtts.git`, branch `main`, Railway project `Epost` in `production` with `Api`/`Web` online.
