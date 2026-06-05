@@ -1,5 +1,12 @@
 # AI Implementation Index
 
+## 2026-06-05 - Universal 9x4 Stable Behavior Restore
+
+- Verified scope only: repo remote `origin https://github.com/emttspk/emtts.git`, branch `main`.
+- Partially restored the stable universal 9x4 header/body behavior by reverting the tokenized header slot back to the literal VPL block in `apps/api/src/templates/multipage-label.html`.
+- Kept the Universal 9x4 renderer logic in `apps/api/src/templates/labels.ts` aligned with the stable header path while preserving the `PAR`, `RGL`, and `UMS` no-amount behavior so their barcode area can expand.
+- This change is limited to the allowed Universal 9x4 files and does not touch flyer, dashboard, auth, payments, tracking, queue, or money order logic.
+
 ## 2026-06-05 - Progress Popup Regression Fix
 
 - Verified scope only: repo remote `origin https://github.com/emttspk/emtts.git`, branch `main`.

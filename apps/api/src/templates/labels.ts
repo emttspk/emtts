@@ -658,59 +658,8 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
       "right-column",
       showUniversalAmountBlock ? "" : useParLiteLayout ? "right-column--par-lite" : "right-column--no-amount",
     ].filter(Boolean).join(" ");
-    const headerRightMarkup = showUniversalAmountBlock
-      ? `
-        <div class="header-right header-right--payable">
-
-            <!-- VPL -->
-            <div class="vpl-area">
-
-                <div class="vpl-box">
-                    <span class="vpl-label">{{shipment_label}}</span>
-                    <span class="vpl-divider" aria-hidden="true"></span>
-                    <span class="vpl-amount-box">
-                        <span class="vpl-amount">Rs. ${escapeHtml(formatRs(summary.moAmount))}</span>
-                    </span>
-                </div>
-
-            </div>
-
-            <!-- BARCODE -->
-            <div class="barcode-area">
-
-                <svg id="barcode"></svg>
-
-                <div class="barcode-text">
-                    {{tracking_no}}
-                </div>
-
-            </div>
-
-        </div>`
-      : `
-        <div class="header-right header-right--no-amount">
-
-            <div class="shipment-area">
-                <span class="shipment-label">{{shipment_label}}</span>
-            </div>
-
-            <!-- BARCODE -->
-            <div class="barcode-area">
-
-                <svg id="barcode"></svg>
-
-                <div class="barcode-text">
-                    {{tracking_no}}
-                </div>
-
-            </div>
-
-        </div>`;
-
     const tokenMap: Record<string, string> = {
       "{{logo_src}}": escapeHtml(logoSrc),
-      "{{header_right}}": headerRightMarkup,
-      "{{shipment_label}}": escapeHtml(shipmentLabel),
       "{{amount}}": summary.appliesPakistanPostRules
         ? `Rs. ${escapeHtml(formatRs(summary.moAmount))}`
         : "",
@@ -726,6 +675,23 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
     };
 
     let html = templateBody;
+    if (showUniversalAmountBlock) {
+      html = html.replace(/<span class="vpl-label">[^<]*<\/span>/i, `<span class="vpl-label">${escapeHtml(shipmentLabel)}</span>`);
+    } else {
+      html = html.replace(
+        /<!-- VPL -->[\s\S]*?<div class="barcode-area">/i,
+        `
+        <div class="header-right header-right--no-amount">
+
+            <div class="shipment-area">
+                <span class="shipment-label">${escapeHtml(shipmentLabel)}</span>
+            </div>
+
+            <!-- BARCODE -->
+            <div class="barcode-area">
+`,
+      );
+    }
     html = html.replace(
       /<div class="right-column">/i,
       `<div class="${rightColumnClasses}">`,
