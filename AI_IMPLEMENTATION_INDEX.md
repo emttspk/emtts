@@ -1,5 +1,12 @@
 # AI Implementation Index
 
+## 2026-06-05 - Final Header Fix
+
+- Removed the universal header amount box entirely for PAR/RGL/UMS by rendering a no-amount header-right block instead of the VPL amount box markup.
+- Kept the VPL/VPP/COD amount box path unchanged so value-payable headers continue to render the amount summary exactly as before.
+- Increased the rendered Pakistan Post logo mark size inside the existing container so the header logo reads larger without expanding the logo area itself.
+- Fine-tuned the A4 header logo alignment so the mark sits centered and clean in the header row without affecting barcode width, shipment type, or amount logic.
+
 ## 2026-06-04 - Final Label Layout Balancing and Sender Fit Verification
 
 - Balanced the universal 9x4 PAR/RGL/UMS right column into a PAR-lite ratio so ORDER and PRODUCT stay near parity and branding no longer dominates the column.
