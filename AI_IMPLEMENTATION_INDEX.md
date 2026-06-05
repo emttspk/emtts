@@ -1,5 +1,20 @@
 # AI Implementation Index
 
+## 2026-06-05 - Universal 9x4 Layout Shell Restore
+
+- Verified scope only: repo remote `origin https://github.com/emttspk/emtts.git`, branch `main`, latest commit before this change `0ab8c51c6c835ff6839546dace8e857c6ff66a7c`.
+- Restored the stable Universal 9x4 center shell in `apps/api/src/templates/labels.ts` so all shipment types keep the same `.vpl-area` / `.vpl-box` structure.
+- For `PAR`, `RGL`, and `UMS`, only the shipment text is changed and the amount box is hidden via a class hook, avoiding the previous `header-right--no-amount` replacement that collapsed layout.
+- Kept the amount box visible for `VPL`, `VPP`, and `COD`.
+- Generated proof screenshots after the source-only render verification:
+  - `C:\Users\Nazim\Desktop\P.Post\Label Generator\forensic-artifacts\layout-shell-fix\par.png`
+  - `C:\Users\Nazim\Desktop\P.Post\Label Generator\forensic-artifacts\layout-shell-fix\rgl.png`
+  - `C:\Users\Nazim\Desktop\P.Post\Label Generator\forensic-artifacts\layout-shell-fix\ums.png`
+  - `C:\Users\Nazim\Desktop\P.Post\Label Generator\forensic-artifacts\layout-shell-fix\vpl.png`
+  - `C:\Users\Nazim\Desktop\P.Post\Label Generator\forensic-artifacts\layout-shell-fix\vpp.png`
+  - `C:\Users\Nazim\Desktop\P.Post\Label Generator\forensic-artifacts\layout-shell-fix\cod.png`
+- API build was run after the screenshot verification and passed.
+
 ## 2026-06-05 - Universal 9x4 Stable Behavior Restore
 
 - Verified scope only: repo remote `origin https://github.com/emttspk/emtts.git`, branch `main`.

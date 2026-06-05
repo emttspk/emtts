@@ -675,21 +675,11 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
     };
 
     let html = templateBody;
-    if (showUniversalAmountBlock) {
-      html = html.replace(/<span class="vpl-label">[^<]*<\/span>/i, `<span class="vpl-label">${escapeHtml(shipmentLabel)}</span>`);
-    } else {
+    html = html.replace(/<span class="vpl-label">[^<]*<\/span>/i, `<span class="vpl-label">${escapeHtml(shipmentLabel)}</span>`);
+    if (!showUniversalAmountBlock) {
       html = html.replace(
-        /<!-- VPL -->[\s\S]*?<div class="barcode-area">/i,
-        `
-        <div class="header-right header-right--no-amount">
-
-            <div class="shipment-area">
-                <span class="shipment-label">${escapeHtml(shipmentLabel)}</span>
-            </div>
-
-            <!-- BARCODE -->
-            <div class="barcode-area">
-`,
+        /<span class="vpl-amount-box">/i,
+        `<span class="vpl-amount-box vpl-amount-box--hidden">`,
       );
     }
     html = html.replace(
