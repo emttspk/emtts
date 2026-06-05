@@ -46,5 +46,40 @@ RUN npm install --global serve@14.2.4
 
 COPY --from=build /app/dist ./dist
 
-ENTRYPOINT ["sh", "-c", "echo \"[runtime-env] analytics env present: ga=${VITE_GA_MEASUREMENT_ID:+yes} meta=${VITE_META_PIXEL_ID:+yes} whatsapp=${VITE_PUBLIC_WHATSAPP_NUMBER:+yes}\" && find dist -type f \\( -name '*.html' -o -name '*.js' -o -name '*.css' \\) -exec sed -i \"s|__VITE_GA_MEASUREMENT_ID__|${VITE_GA_MEASUREMENT_ID}|g;s|__VITE_META_PIXEL_ID__|${VITE_META_PIXEL_ID}|g;s|__VITE_PUBLIC_WHATSAPP_NUMBER__|${VITE_PUBLIC_WHATSAPP_NUMBER}|g\" {} + && exec \"$@\"", "sh"]
+RUN printf '%s\n' \
+  "const fs = require('fs');" \
+  "const path = require('path');" \
+  "const root = path.resolve('dist');" \
+  "const replacements = {" \
+  "  __VITE_GA_MEASUREMENT_ID__: process.env.VITE_GA_MEASUREMENT_ID || ''," \
+  "  __VITE_META_PIXEL_ID__: process.env.VITE_META_PIXEL_ID || ''," \
+  "  __VITE_PUBLIC_WHATSAPP_NUMBER__: process.env.VITE_PUBLIC_WHATSAPP_NUMBER || ''," \
+  "};" \
+  "let files = 0;" \
+  "let replacementsCount = 0;" \
+  "console.log('[runtime-env] analytics env present: ga=' + (process.env.VITE_GA_MEASUREMENT_ID ? 'yes' : 'no') + ' meta=' + (process.env.VITE_META_PIXEL_ID ? 'yes' : 'no') + ' whatsapp=' + (process.env.VITE_PUBLIC_WHATSAPP_NUMBER ? 'yes' : 'no'));" \
+  "function walk(dir) {" \
+  "  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {" \
+  "    const file = path.join(dir, entry.name);" \
+  "    if (entry.isDirectory()) {" \
+  "      walk(file);" \
+  "      continue;" \
+  "    }" \
+  "    if (!(entry.name.endsWith('.html') || entry.name.endsWith('.js') || entry.name.endsWith('.css'))) continue;" \
+  "    files += 1;" \
+  "    let text = fs.readFileSync(file, 'utf8');" \
+  "    let next = text;" \
+  "    for (const [from, to] of Object.entries(replacements)) {" \
+  "      const before = next;" \
+  "      next = next.split(from).join(to);" \
+  "      if (next !== before) replacementsCount += before.split(from).length - 1;" \
+  "    }" \
+  "    if (next !== text) fs.writeFileSync(file, next);" \
+  "  }" \
+  "}" \
+  "walk(root);" \
+  "console.log('[runtime-env] analytics placeholders replaced: ' + replacementsCount + ' in ' + files + ' files');" \
+  > runtime-env.cjs
+
+ENTRYPOINT ["sh", "-c", "node runtime-env.cjs && exec \"$@\"", "sh"]
 CMD ["sh", "-c", "serve -s dist --single -l ${PORT:-3000}"]
