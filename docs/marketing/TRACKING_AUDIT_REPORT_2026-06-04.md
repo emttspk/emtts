@@ -164,6 +164,32 @@
 - Next action:
   - Run one true browser session with Chrome DevTools Network plus GA4 Realtime/DebugView and Meta Pixel Helper to close the last two manual verification gaps.
 
+## Railway Analytics Deployment Verification
+
+- Test date/time: 2026-06-05 20:27 PKT
+- Railway login status: `railway logout` succeeded. `railway login` failed because this Codex shell is non-interactive, so browser OAuth login could not be completed here.
+- Railway scope confirmation: `railway status` still confirms project `Epost`, environment `production`, and public `Web` service at `https://www.epost.pk`.
+- Web service variable result: not fully confirmed. A masked summary probe against `railway variable list --service Web --json` returned `AUTH_OR_EMPTY` without an authenticated Railway session, so Web-variable presence could not be safely verified in this run.
+- API-service cross-check: not performed, because secret-bearing variable commands remained blocked until Railway auth is restored.
+- Web redeploy: not performed.
+- Bundle GA4 presence result: generic GA bootstrap code is present in the live production bundle (`googletagmanager`, `gtag/js`, `send_page_view` path), but a concrete baked GA4 measurement ID was not confirmed from shell output in this run.
+- Bundle Meta presence result: generic Meta Pixel bootstrap code is present in the live production bundle (`fbevents.js`, `fbq`, `PageView`, `trackCustom` path), but a concrete baked Meta Pixel ID was not confirmed from shell output in this run.
+- Network endpoint check: browser-style event requests to `google-analytics.com/g/collect` and `facebook.com/tr` still require a real browser click/page-load session; shell-only curl checks cannot generate those page events.
+- Likely reason live status is still not showing:
+  - Railway Web variables may still be missing or unreadable on the Web service.
+  - Web may not have been redeployed after variables were uploaded.
+  - Browser-side blockers or the wrong GA4 property / Meta Pixel may still be selected.
+- Remaining manual browser verification:
+  - Open Chrome Incognito.
+  - Disable ad blocker and privacy extensions.
+  - Open DevTools > Network.
+  - Visit `https://www.epost.pk/` and filter for `collect?v=2`.
+  - Confirm a GA4 request appears.
+  - Filter for `facebook.com/tr`.
+  - Confirm a Meta request appears.
+  - Open GA4 Realtime / DebugView and Meta Pixel Helper and confirm `PageView`.
+- Final score: 8/10
+
 ## Final Production Verification Note (2026-06-04)
 
 - Final production checks confirmed public SEO landing pages, sitemap, and robots availability.
