@@ -209,6 +209,22 @@
 - Remaining manual browser step: after build-time injection is fixed and Web is redeployed, open Chrome Incognito with extensions disabled, use DevTools Network filters `collect?v=2` and `facebook.com/tr`, then confirm GA4 Realtime / DebugView and Meta Pixel Helper `PageView`.
 - Final score: 3/10 for live analytics readiness.
 
+## Railway Runtime Analytics Env Injection Fix
+
+- Test date/time: 2026-06-06 01:34 PKT.
+- Root cause: `apps/web/railway.json` started `serve` directly, bypassing the Dockerfile runtime placeholder replacement path. The Web bundle was built with analytics placeholders, but Railway served `dist` before replacing those placeholders with Web service runtime variables.
+- Fix applied: `apps/web/railway.json` now runs `node runtime-env.cjs` before `serve -s dist --single -l ${PORT:-3000}`. `apps/web/Dockerfile` now creates `runtime-env.cjs` inside the runtime image so the same replacement can run safely without shell `sed` quoting risk.
+- Railway safety: `railway status` confirmed project `Epost`, environment `production`, and public `Web` service at `https://www.epost.pk`. The CLI remains linked to `Api`, so deployment commands used explicit `--service Web`.
+- Deployment result: PASS after explicit Web redeploy. Web deployment `eda380d9-ad8d-4c10-9fcf-95a4423b4885` completed with `SUCCESS`.
+- Runtime log result: PASS. Web logs reported analytics env present for GA4, Meta, and WhatsApp, and `analytics placeholders replaced: 3 in 63 files`.
+- Bundle check result: PASS for cache-busted production JS fetch. Placeholder strings were `NOT FOUND` after fetching `/assets/index-D2HNUHpQ.js` with cache-busting.
+- GA4 bundle result: FOUND by runtime replacement evidence. The GA4 placeholder was one of the three replaced runtime analytics values; full ID was not printed.
+- Meta Pixel bundle result: FOUND by runtime replacement evidence. The Meta placeholder was one of the three replaced runtime analytics values; full ID was not printed.
+- WhatsApp number bundle result: FOUND by runtime replacement evidence. The WhatsApp placeholder was one of the three replaced runtime analytics values; full value was not printed.
+- Placeholder verification result: PASS. Cache-busted bundle check returned no `__VITE_` placeholder strings.
+- Remaining manual browser verification: Open Chrome Incognito with ad blockers disabled, open DevTools Network, filter `collect?v=2` and `facebook.com/tr`, load `https://www.epost.pk/`, then confirm GA4 Realtime / DebugView and Meta Pixel Helper `PageView`.
+- Final score: 9/10. Production bundle injection is fixed; the only remaining gap is true browser-side GA4 Realtime / Meta Pixel Helper confirmation.
+
 ## Final Production Verification Note (2026-06-04)
 
 - Final production checks confirmed public SEO landing pages, sitemap, and robots availability.
