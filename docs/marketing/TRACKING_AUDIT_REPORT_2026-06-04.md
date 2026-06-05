@@ -190,6 +190,25 @@
   - Open GA4 Realtime / DebugView and Meta Pixel Helper and confirm `PageView`.
 - Final score: 8/10
 
+## Railway Web Variable and Bundle Verification
+
+- Test date/time: 2026-06-06 00:15 PKT
+- Railway login status: PASS. `railway whoami` returned authenticated user `nazimsaeed@gmail.com`.
+- Railway scope confirmation: PASS. `railway status` confirmed project `Epost`, environment `production`, and public `Web` service at `https://www.epost.pk`.
+- Web service variable result:
+  - `VITE_GA_MEASUREMENT_ID`: present, non-empty, masked `G-****E20Z`
+  - `VITE_META_PIXEL_ID`: present, non-empty, masked `****6370`
+  - `VITE_PUBLIC_WHATSAPP_NUMBER`: present, non-empty, masked `****9783`
+- API service cross-check: PASS. The three frontend analytics variables were not present on `Api`; they are attached to `Web`.
+- Deployment timestamp comparison: latest successful Web deployment before redeploy was `2026-06-05 15:01:07 +05:00`. Railway variable list did not expose variable update timestamps, so an exact timestamp comparison was unavailable.
+- Web redeploy: DONE. `railway redeploy --service Web --yes` produced new successful Web deployment `d87a6abe-c3a4-4202-b803-591a1b3fa558` at `2026-06-06 00:10:06 +05:00`.
+- Live bundle checked: `/assets/index-nnmcI8ej.js`
+- GA4 bundle status: FAIL. The live bundle contains generic GA code paths (`googletagmanager`, `gtag/js`, `send_page_view`), but the actual masked Web GA4 ID `G-****E20Z` is not baked into the bundle.
+- Meta bundle status: FAIL. The live bundle contains generic Meta Pixel code paths (`fbevents.js`, `fbq`, `PageView`, `trackCustom`), but the actual masked Web Meta Pixel ID `****6370` is not baked into the bundle. The literal `facebook.com/tr` was not found in app bundle source.
+- Likely cause: Web Dockerfile build args do not include `VITE_GA_MEASUREMENT_ID`, `VITE_META_PIXEL_ID`, or `VITE_PUBLIC_WHATSAPP_NUMBER`, so Vite does not receive these values during `npm run build` even though Railway runtime variables exist on the Web service.
+- Remaining manual browser step: after build-time injection is fixed and Web is redeployed, open Chrome Incognito with extensions disabled, use DevTools Network filters `collect?v=2` and `facebook.com/tr`, then confirm GA4 Realtime / DebugView and Meta Pixel Helper `PageView`.
+- Final score: 3/10 for live analytics readiness.
+
 ## Final Production Verification Note (2026-06-04)
 
 - Final production checks confirmed public SEO landing pages, sitemap, and robots availability.
