@@ -225,6 +225,19 @@
 - Remaining manual browser verification: Open Chrome Incognito with ad blockers disabled, open DevTools Network, filter `collect?v=2` and `facebook.com/tr`, load `https://www.epost.pk/`, then confirm GA4 Realtime / DebugView and Meta Pixel Helper `PageView`.
 - Final score: 9/10. Production bundle injection is fixed; the only remaining gap is true browser-side GA4 Realtime / Meta Pixel Helper confirmation.
 
+## Final Browser-Level Analytics Verification Attempt
+
+- Test date/time: 2026-06-06 01:55 PKT.
+- Method: production browser automation against `https://www.epost.pk/`, with cache disabled and Network request capture for GA4 `collect?v=2` / `google-analytics.com/g/collect` and Meta `facebook.com/tr`.
+- GA4 browser result: FAIL. `window.gtag` and `window.dataLayer` were present, but the loaded Google Tag script URL still contained the unresolved placeholder `__VITE_GA_MEASUREMENT_ID__`; no GA4 `page_view` collect request was captured.
+- Meta browser result: FAIL. `window.fbq` was present and `fbevents.js` loaded, but the browser console reported `Invalid PixelID: null`; no Meta `PageView` request to `facebook.com/tr` was captured.
+- Duplicate event result: NOT PASSABLE in this browser run because GA4 and Meta events did not fire. No duplicate analytics requests were observed, but this is not a valid deduplication pass while primary requests are missing.
+- CTA event result: NOT PASSABLE in this browser run because analytics IDs were unresolved in the normal loaded bundle.
+- Payload safety result: PASS for observed analytics/network capture. No CNIC, phone number, address, tracking ID, parcel data, email, or payment reference was found in captured analytics request payloads; however, GA4/Meta payload safety still needs final confirmation after events actually fire.
+- Root cause of failed browser verification: the normal active asset `/assets/index-D2HNUHpQ.js` is still being served with unresolved `__VITE_*` placeholders in a real browser session, while cache-busted fetches can see the replaced runtime asset. This indicates a stale edge/browser asset cache caused by runtime replacement mutating JS content without changing the hashed filename.
+- Required next action: purge/bypass the stale cached `/assets/index-D2HNUHpQ.js` asset or deploy a new versioned asset filename, then rerun Chrome DevTools Network, GA4 Realtime / DebugView, and Meta Pixel Helper verification.
+- Final browser analytics score: 8/10. Railway variables and runtime replacement are working, but normal browser traffic still does not produce GA4/Meta events until the stale asset cache is cleared or the bundle filename changes.
+
 ## Final Production Verification Note (2026-06-04)
 
 - Final production checks confirmed public SEO landing pages, sitemap, and robots availability.

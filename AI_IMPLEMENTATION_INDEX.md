@@ -339,6 +339,7 @@
 - Railway Web analytics variables and live bundle verification documented.
 - Railway Web variables verified present, Web redeployed, and live bundle confirmed missing baked GA4/Meta IDs pending build-time env injection fix.
 - Railway Web runtime analytics env injection restored and documented; cache-busted production bundle placeholders verified removed.
+- Final browser analytics verification attempted; normal production browser load still served unresolved analytics placeholders from stale `/assets/index-D2HNUHpQ.js`, so GA4/Meta firing remains blocked pending cache purge or new versioned bundle.
 - SEO + Google Ranking Audit completed. Report: docs/seo/SEO_MASTER_PLAN_2026.md
 
 ---
