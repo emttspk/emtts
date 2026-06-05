@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, Clock3, Download, FileArchive, FileSpreadsheet, ReceiptText, ShieldCheck, Sparkles } from "lucide-react";
+import { CheckCircle2, Download, ShieldCheck, Sparkles } from "lucide-react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import Card from "../components/Card";
+import LabelGenerationProgressCard, { type LabelGenerationStage } from "../components/LabelGenerationProgressCard";
 import SampleDownloadLink from "../components/SampleDownloadLink";
 import UploadDropzone from "../components/UploadDropzone";
 import { api, apiHealthCheck, buildJobDownloadFallbackName, triggerBrowserDownload, uploadFile } from "../lib/api";
@@ -47,13 +48,7 @@ type UploadInsights = {
   recommendationReason: string;
 };
 
-type UploadProcessingStage =
-  | "uploading_file"
-  | "validating_records"
-  | "creating_job"
-  | "queued"
-  | "generating_labels"
-  | "preparing_download";
+type UploadProcessingStage = Exclude<LabelGenerationStage, "completed">;
 
 const STILL_WORKING_THRESHOLD_SEC = 45;
 const STATUS_CHECK_THRESHOLD_SEC = 90;
@@ -696,6 +691,7 @@ export default function Upload() {
     if (uiState === "failed") return "Failed";
     return "Ready";
   }, [processingStage, remaining, uiState]);
+  const normalizedStatusLabel = statusLabel.replaceAll("â€¢", "•");
 
   const showStillWorkingNotice = uiState === "processing" && elapsed >= STILL_WORKING_THRESHOLD_SEC;
   const showStatusCheckAction = uiState === "processing" && elapsed >= STATUS_CHECK_THRESHOLD_SEC;
@@ -717,9 +713,53 @@ export default function Upload() {
     if (retentionHours === 24) return "Free retention window: 24 hours";
     return `Retention window from backend: ${retentionHours} hours`;
   }, [retentionHours]);
+  const processedRecordsCount = validationSummary?.accepted ?? activeJob?.recordCount ?? 0;
+  const generatedLabelsCount = validationSummary?.accepted ?? activeJob?.recordCount ?? 0;
   const canDownloadMoneyOrders = Boolean(activeJob?.moneyOrderPdfPath || activeJob?.includeMoneyOrders);
   const canDownloadTrackingMaster = Boolean(polling.jobId && polling.jobStatus === "COMPLETED");
   const completionButtonsDisabled = completionAction !== null;
+  const localhostUxDemo = useMemo(() => {
+    if (typeof window === "undefined") return null;
+    if (window.location.hostname !== "localhost") return null;
+    const mode = new URLSearchParams(window.location.search).get("uxDemo");
+    if (mode === "processing" || mode === "generating" || mode === "completed") return mode;
+    return null;
+  }, []);
+  const demoStage = localhostUxDemo === "processing"
+    ? "creating_job"
+    : localhostUxDemo === "generating"
+      ? "generating_labels"
+      : localhostUxDemo === "completed"
+        ? "completed"
+        : null;
+  const displayStage: LabelGenerationStage = demoStage ?? (uiState === "completed" ? "completed" : processingStage);
+  const displayProgress = localhostUxDemo === "processing"
+    ? 38
+    : localhostUxDemo === "generating"
+      ? 86
+      : localhostUxDemo === "completed"
+        ? 100
+        : progress;
+  const displayElapsed = localhostUxDemo === "processing"
+    ? 7
+    : localhostUxDemo === "generating"
+      ? 33
+      : localhostUxDemo === "completed"
+        ? 49
+        : elapsed;
+  const displayStatusLabel = localhostUxDemo === "processing"
+    ? "Creating job from 248 validated records"
+    : localhostUxDemo === "generating"
+      ? "Generating labels • preparing print-ready files"
+      : localhostUxDemo === "completed"
+        ? "Completed • download package ready"
+        : normalizedStatusLabel;
+  const displayRecordsCount = localhostUxDemo ? 248 : processedRecordsCount;
+  const displayLabelsCount = localhostUxDemo ? 248 : generatedLabelsCount;
+  const displayDownloadReady = localhostUxDemo === "completed" || uiState === "completed";
+  const displayJobId = localhostUxDemo ? "demo-label-job-ux-001" : polling.jobId;
+  const showProcessingOverlay = uiState === "uploading" || uiState === "processing" || localhostUxDemo === "processing" || localhostUxDemo === "generating";
+  const showCompletedOverlay = (uiState === "completed" && polling.jobId && showCompletionModal) || localhostUxDemo === "completed";
 
   async function runCompletionAction(action: "labels" | "money-orders" | "tracking-master" | "tracking-workspace") {
     if (!polling.jobId || completionAction) return;
@@ -1358,7 +1398,7 @@ export default function Upload() {
               polling.reset();
             }
           }}
-          statusLabel={statusLabel}
+          statusLabel={normalizedStatusLabel}
           progress={progress}
           error={uiError}
           busy={uiState === "uploading" || uiState === "processing"}
@@ -1843,7 +1883,7 @@ export default function Upload() {
               >
                 Generate Labels
               </button>
-              <div className="text-xs text-gray-600">{statusLabel}</div>
+              <div className="text-xs text-gray-600">{normalizedStatusLabel}</div>
               {showStillWorkingNotice ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                   Large files may take a little longer. Please keep this tab open.
@@ -1886,52 +1926,18 @@ export default function Upload() {
         ) : null}
         </div>
       </div>
-      {(uiState === "uploading" || uiState === "processing") ? (
+      {showProcessingOverlay ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/45 px-4">
-          <div className="w-full max-w-xl rounded-[1.8rem] border border-slate-200 bg-white p-6 shadow-[0_28px_80px_rgba(15,23,42,0.28)]">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
-              <div>
-                <div className="text-lg font-semibold text-slate-900">Processing your label generation</div>
-                <div className="text-sm text-slate-600">We&apos;ll keep this popup updated through upload, queue, generation, and download prep.</div>
-              </div>
-            </div>
-            <div className="mt-4 h-2 rounded-full bg-slate-100">
-              <div className="h-2 rounded-full bg-[linear-gradient(90deg,#10b981,#2563eb)] transition-all" style={{ width: `${Math.max(8, Math.min(100, progress))}%` }} />
-            </div>
-            <div className="mt-2 flex items-center justify-between text-xs text-slate-600">
-              <span>Elapsed: {elapsed}s</span>
-              <span>{statusLabel}</span>
-            </div>
-            <div className="mt-4 grid gap-2 text-sm">
-              {[
-                { id: "uploading_file", title: "Uploading file" },
-                { id: "validating_records", title: "Validating records" },
-                { id: "creating_job", title: "Creating job" },
-                { id: "queued", title: "Queued" },
-                { id: "generating_labels", title: "Generating labels" },
-                { id: "preparing_download", title: "Preparing download" },
-              ].map((step, idx) => {
-                const order: Record<UploadProcessingStage, number> = {
-                  uploading_file: 1,
-                  validating_records: 2,
-                  creating_job: 3,
-                  queued: 4,
-                  generating_labels: 5,
-                  preparing_download: 6,
-                };
-                const currentOrder = order[processingStage];
-                const stepOrder = order[step.id as UploadProcessingStage];
-                const done = stepOrder < currentOrder || (uiState === "completed" && step.id === "preparing_download");
-                const active = stepOrder === currentOrder;
-                return (
-                  <div key={step.id} className={`flex items-center gap-2 rounded-xl border px-3 py-2 ${done ? "border-emerald-200 bg-emerald-50 text-emerald-800" : active ? "border-sky-200 bg-sky-50 text-sky-800" : "border-slate-200 bg-slate-50 text-slate-500"}`}>
-                    <span className="w-5 text-center text-xs font-semibold">{done ? "OK" : idx + 1}</span>
-                    <span>{step.title}</span>
-                  </div>
-                );
-              })}
-            </div>
+          <div className="w-full max-w-6xl rounded-[1.8rem] border border-slate-200 bg-white p-6 shadow-[0_28px_80px_rgba(15,23,42,0.28)]">
+            <LabelGenerationProgressCard
+              currentStage={displayStage}
+              elapsedSeconds={displayElapsed}
+              progress={displayProgress}
+              recordsProcessed={displayRecordsCount}
+              labelsGenerated={displayLabelsCount}
+              downloadReady={displayDownloadReady}
+              statusLabel={displayStatusLabel}
+            />
             {showStillWorkingNotice ? (
               <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                 Still working... checking progress.
@@ -1952,12 +1958,14 @@ export default function Upload() {
           </div>
         </div>
       ) : null}
-      {uiState === "completed" && polling.jobId && showCompletionModal ? (
+      {showCompletedOverlay ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4">
           <div className="relative max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-[2rem] border border-emerald-200 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.95),_rgba(240,253,250,0.98)_36%,_rgba(236,254,255,0.98)_100%)] p-6 shadow-[0_32px_90px_rgba(15,23,42,0.35)] sm:p-8">
             <button
               type="button"
-              onClick={() => setShowCompletionModal(false)}
+              onClick={() => {
+                if (!localhostUxDemo) setShowCompletionModal(false);
+              }}
               className="absolute right-4 top-4 rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-sm font-semibold text-slate-600 shadow-sm hover:bg-white"
             >
               Close
@@ -1987,56 +1995,20 @@ export default function Upload() {
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                   <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Job ID</div>
-                  <div className="mt-1 break-all font-mono text-[13px] text-slate-900">{polling.jobId}</div>
+                  <div className="mt-1 break-all font-mono text-[13px] text-slate-900">{displayJobId}</div>
                 </div>
               </div>
             </div>
-
-            <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-[1.5rem] border border-emerald-200 bg-white/95 p-4 shadow-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-700">Labels Generated</div>
-                    <div className="mt-2 text-3xl font-black text-slate-950">{validationSummary?.accepted ?? activeJob?.recordCount ?? 0}</div>
-                  </div>
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
-                    <FileArchive className="h-5 w-5" />
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-[1.5rem] border border-sky-200 bg-white/95 p-4 shadow-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">Tracking IDs</div>
-                    <div className="mt-2 text-3xl font-black text-slate-950">{validationSummary?.accepted ?? activeJob?.recordCount ?? 0}</div>
-                  </div>
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
-                    <FileSpreadsheet className="h-5 w-5" />
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-[1.5rem] border border-fuchsia-200 bg-white/95 p-4 shadow-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-fuchsia-700">Money Orders</div>
-                    <div className="mt-2 text-3xl font-black text-slate-950">{includeMoneyOrders ? (validationSummary?.moEligibleRows ?? 0) : 0}</div>
-                  </div>
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-fuchsia-100 text-fuchsia-700">
-                    <ReceiptText className="h-5 w-5" />
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-[1.5rem] border border-amber-200 bg-white/95 p-4 shadow-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-700">Deletion Time</div>
-                    <div className="mt-2 text-sm font-bold leading-6 text-slate-950">{exactDeletionTime || "Pending backend retention timestamp"}</div>
-                  </div>
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
-                    <Clock3 className="h-5 w-5" />
-                  </div>
-                </div>
-              </div>
+            <div className="mt-6">
+              <LabelGenerationProgressCard
+                currentStage="completed"
+                elapsedSeconds={displayElapsed}
+                progress={100}
+                recordsProcessed={displayRecordsCount}
+                labelsGenerated={displayLabelsCount}
+                downloadReady
+                statusLabel={displayStatusLabel}
+              />
             </div>
 
             <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-[1.35fr_0.95fr]">

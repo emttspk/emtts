@@ -1,5 +1,27 @@
 # AI Implementation Index
 
+## 2026-06-05 - Phase 3 Label Generation UX Optimization
+
+- Verified scope only: repo remote `origin https://github.com/emttspk/emtts.git`, branch `main`, Railway project `Epost` in `production` with `Api`/`Web` online.
+- Improved the existing label-generation processing experience in `apps/web/src/pages/Upload.tsx` without touching backend logic, APIs, queue behavior, renderer logic, or schema.
+- Added a reusable `LabelGenerationProgressCard` component in `apps/web/src/components/LabelGenerationProgressCard.tsx` to show:
+  - the current active stage,
+  - animated stage emphasis,
+  - a visual progress timeline,
+  - elapsed/progress context,
+  - records processed,
+  - labels generated,
+  - download readiness.
+- Updated the processing overlay to display the full 7-stage experience: `Uploading file`, `Validating records`, `Creating job`, `Queued`, `Generating labels`, `Preparing download`, and `Completed`.
+- Updated the completion experience so the completed state also reflects the same timeline and explicitly shows `records processed`, `labels generated`, and `download ready`.
+- Kept the implementation UI-only; no backend requests, queue logic, or API contracts were changed in this phase.
+- Added a localhost-only UX demo mode in the upload page to support local visual proof capture without affecting production behavior.
+- Generated local proof screenshots after `npm run build -w apps/web` using the built web CSS:
+  - `E:\Temp\label-ux-proof\processing.png`
+  - `E:\Temp\label-ux-proof\generating.png`
+  - `E:\Temp\label-ux-proof\completed.png`
+- Verified `npm run build -w apps/web` completed successfully after the scoped Phase 3 changes.
+
 ## 2026-06-05 - Phase 2 Dashboard Performance Optimization
 
 - Verified scope only: repo remote `origin https://github.com/emttspk/emtts.git`, branch `main`, Railway project `Epost` in `production` with `Api`/`Web` online.
