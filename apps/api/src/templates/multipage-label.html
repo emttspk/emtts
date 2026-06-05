@@ -84,33 +84,15 @@ body{
 }
 
 .pp-logo{
-    width:72px;
-    height:44px;
-    position:relative;
+    width:auto;
+    height:40px;
+    max-width:96px;
+    max-height:44px;
+    object-fit:contain;
+    object-position:center center;
+    display:block;
     flex-shrink:0;
-    overflow:hidden;
-}
-
-.pp-logo::before{
-    content:"";
-    position:absolute;
-    width:58px;
-    height:15px;
-    background:#000;
-    top:4px;
-    left:10px;
-    transform:skewX(-28deg) rotate(-14deg);
-}
-
-.pp-logo::after{
-    content:"";
-    position:absolute;
-    width:46px;
-    height:15px;
-    background:#000;
-    bottom:4px;
-    left:0;
-    transform:skewX(-28deg) rotate(-14deg);
+    overflow:visible;
 }
 
 .logo-text{
@@ -655,9 +637,7 @@ body{
 
         <!-- LOGO -->
         <div class="logo-area">
-
-            <div class="pp-logo">
-            </div>
+            <img class="pp-logo" src="{{logo_src}}" alt="logo" />
 
             <div class="logo-text">
                 <div class="eng-top">PAKISTAN</div>

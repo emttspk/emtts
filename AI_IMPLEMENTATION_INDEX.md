@@ -1,5 +1,23 @@
 # AI Implementation Index
 
+## 2026-06-05 - Universal 9x4 Logo Rendering Fix
+
+- Verified scope only: repo remote `origin https://github.com/emttspk/emtts.git`, branch `main`, HEAD before this change `7f9630e4e77c01416620f173acb837663c11c663`.
+- Inspected the active Universal 9x4 logo shell in `apps/api/src/templates/multipage-label.html`: `.logo-area` remained correct, while `.pp-logo` was constrained to a fixed `66px x 44px` box with `overflow:hidden`.
+- Measured the loaded Pakistan Post logo asset at `273x124` and the Universal header logo area at roughly `251.51px x 51.20px`; the fixed-width image box was shrinking the visible logo too aggressively inside the available header space.
+- Updated only the logo image sizing rules in `apps/api/src/templates/multipage-label.html` so the logo now uses `height:40px`, `width:auto`, `max-width:96px`, `max-height:44px`, `overflow:visible`, `object-fit:contain`, and centered object positioning.
+- Left shipment type rendering, barcode rendering, amount logic, and the Universal 9x4 header layout shell unchanged.
+- Generated proof screenshots from the source renderer:
+  - `C:\Users\Nazim\Desktop\P.Post\Label Generator\forensic-artifacts\logo-visibility-fix\par.png`
+  - `C:\Users\Nazim\Desktop\P.Post\Label Generator\forensic-artifacts\logo-visibility-fix\rgl.png`
+  - `C:\Users\Nazim\Desktop\P.Post\Label Generator\forensic-artifacts\logo-visibility-fix\ums.png`
+  - `C:\Users\Nazim\Desktop\P.Post\Label Generator\forensic-artifacts\logo-visibility-fix\irl.png`
+  - `C:\Users\Nazim\Desktop\P.Post\Label Generator\forensic-artifacts\logo-visibility-fix\vpl.png`
+  - `C:\Users\Nazim\Desktop\P.Post\Label Generator\forensic-artifacts\logo-visibility-fix\vpp.png`
+  - `C:\Users\Nazim\Desktop\P.Post\Label Generator\forensic-artifacts\logo-visibility-fix\cod.png`
+- Measurement artifact:
+  - `C:\Users\Nazim\Desktop\P.Post\Label Generator\forensic-artifacts\logo-visibility-fix\measurements.json`
+
 ## 2026-06-05 - Universal 9x4 No Placeholder Container Fix
 
 - Verified scope only: repo remote `origin https://github.com/emttspk/emtts.git`, branch `main`, HEAD `59a06249cf2c5f2c6c2bbc3adca7b987a98b3282`.
