@@ -1,5 +1,15 @@
 # AI Implementation Index
 
+## 2026-06-06 - Build-Time Analytics Injection Verification
+
+- Confirmed the Web deploy path was switched toward build-time analytics injection through `apps/web/railway.json`, with Railway Web building the frontend during deploy and serving `dist` directly afterward.
+- Verified local `npm run build` passed after the Web deploy path update.
+- Verified Railway production Web deployment `2489b78d-dbef-4b12-9363-09230fc2caaa` completed successfully.
+- Live production verification still showed `https://www.epost.pk/` referencing `/assets/index-D2HNUHpQ.js`, and the active served asset still contained an unresolved `__VITE_*` analytics placeholder token.
+- Cloudflare header evidence for the active asset showed `cf-cache-status: HIT` with a non-zero `Age`, indicating the public site is still serving a stale cached hashed bundle despite the successful deployment.
+- Outcome: build-time deployment path updated, but public live analytics readiness remains blocked by the stale active bundle still being served at the edge. GA4/Meta cannot be marked 10/10 until the stale asset is purged or the public homepage rolls to the newly built hashed bundle.
+- Documentation updated in `docs/marketing/TRACKING_AUDIT_REPORT_2026-06-04.md` with the latest live bundle verification findings.
+
 ## 2026-06-05 - Universal 9x4 Logo Rendering Fix
 
 - Verified scope only: repo remote `origin https://github.com/emttspk/emtts.git`, branch `main`, HEAD before this change `7f9630e4e77c01416620f173acb837663c11c663`.

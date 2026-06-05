@@ -238,6 +238,36 @@
 - Required next action: purge/bypass the stale cached `/assets/index-D2HNUHpQ.js` asset or deploy a new versioned asset filename, then rerun Chrome DevTools Network, GA4 Realtime / DebugView, and Meta Pixel Helper verification.
 - Final browser analytics score: 8/10. Railway variables and runtime replacement are working, but normal browser traffic still does not produce GA4/Meta events until the stale asset cache is cleared or the bundle filename changes.
 
+## Build-Time Analytics Injection Verification
+
+- Test date/time: 2026-06-06 02:38 PKT.
+- Goal: eliminate post-build mutation and move analytics injection to build time so each deployment emits a fresh hashed JS bundle.
+- Files changed for deploy path:
+  - `apps/web/railway.json`
+- Build-time deploy change:
+  - Switched Web service build to Nixpacks with `npm run build` during build stage.
+  - Removed runtime placeholder replacement from the Railway Web start path.
+  - Web start now serves built `dist` directly with `serve -s dist --single -l ${PORT:-3000}`.
+- Local build result: PASS. `npm run build` completed successfully after the Railway Web build/start adjustment.
+- Railway safety check: PASS. `railway status` confirmed project `Epost`, environment `production`, and public `Web` service at `https://www.epost.pk`.
+- Deployment result: PASS. Web deployment `2489b78d-dbef-4b12-9363-09230fc2caaa` completed successfully at `2026-06-06 02:35:30 +05:00`.
+- Live homepage result: FAIL for active bundle rollover. Fresh homepage fetches still reference `/assets/index-D2HNUHpQ.js`.
+- Active bundle verification:
+  - Placeholder strings: FOUND. The currently served production asset still contains an unresolved `__VITE_*` analytics placeholder token.
+  - GA4 marker: FOUND. Generic GA bootstrap code is still present in the active bundle.
+  - Meta marker: FOUND. Generic Meta Pixel bootstrap code is still present in the active bundle.
+  - Fresh hashed-bundle rollover: NOT CONFIRMED. Public HTML still points to the same old hashed file.
+- Cache evidence:
+  - `curl -I https://www.epost.pk/assets/index-D2HNUHpQ.js` returned `cf-cache-status: HIT`, `Age: 6157`, and `Cache-Control: max-age=14400`.
+  - This indicates Cloudflare is still serving the older hashed asset from cache even after the successful Web deployment.
+- Root cause after build-time change:
+  - The build-time deployment path was corrected, but the publicly served homepage and JS asset did not roll over to a new visible hashed bundle on `https://www.epost.pk/`.
+  - As verified from live production, the active browser path is still the stale hashed asset, so analytics cannot be marked 10/10 yet.
+- Remaining manual/browser verification:
+  - Purge or bypass the stale Cloudflare-cached `index-D2HNUHpQ.js` asset or otherwise force the public homepage to serve the newly built hashed bundle.
+  - Then rerun Chrome DevTools Network (`collect?v=2`, `facebook.com/tr`), GA4 Realtime / DebugView, and Meta Pixel Helper.
+- Final score after build-time deployment attempt: 8/10.
+
 ## Final Production Verification Note (2026-06-04)
 
 - Final production checks confirmed public SEO landing pages, sitemap, and robots availability.
