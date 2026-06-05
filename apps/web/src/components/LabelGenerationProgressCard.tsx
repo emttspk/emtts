@@ -46,7 +46,7 @@ function formatProgress(progress: number) {
 export default function LabelGenerationProgressCard(props: LabelGenerationProgressCardProps) {
   const { currentStage, elapsedSeconds, progress, recordsProcessed, labelsGenerated, downloadReady, statusLabel } = props;
   const currentStageMeta = LABEL_GENERATION_STAGES[getStageIndex(currentStage)] ?? LABEL_GENERATION_STAGES[0];
-  const currentStageIndex = getStageIndex(currentStage);
+  const currentStageIndex = currentStage === "completed" && downloadReady ? LABEL_GENERATION_STAGES.length : getStageIndex(currentStage);
   const progressValue = formatProgress(progress);
 
   return (

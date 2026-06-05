@@ -691,7 +691,7 @@ export default function Upload() {
     if (uiState === "failed") return "Failed";
     return "Ready";
   }, [processingStage, remaining, uiState]);
-  const normalizedStatusLabel = statusLabel.replaceAll("â€¢", "•");
+  const normalizedStatusLabel = statusLabel;
 
   const showStillWorkingNotice = uiState === "processing" && elapsed >= STILL_WORKING_THRESHOLD_SEC;
   const showStatusCheckAction = uiState === "processing" && elapsed >= STATUS_CHECK_THRESHOLD_SEC;
@@ -1927,7 +1927,7 @@ export default function Upload() {
         </div>
       </div>
       {showProcessingOverlay ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/45 px-4">
+      <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/55 px-4 py-4">
           <div className="w-full max-w-6xl rounded-[1.8rem] border border-slate-200 bg-white p-6 shadow-[0_28px_80px_rgba(15,23,42,0.28)]">
             <LabelGenerationProgressCard
               currentStage={displayStage}
@@ -1959,7 +1959,7 @@ export default function Upload() {
         </div>
       ) : null}
       {showCompletedOverlay ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4">
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/65 p-4">
           <div className="relative max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-[2rem] border border-emerald-200 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.95),_rgba(240,253,250,0.98)_36%,_rgba(236,254,255,0.98)_100%)] p-6 shadow-[0_32px_90px_rgba(15,23,42,0.35)] sm:p-8">
             <button
               type="button"

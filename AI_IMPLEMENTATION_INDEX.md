@@ -1,5 +1,16 @@
 # AI Implementation Index
 
+## 2026-06-05 - Progress Popup Regression Fix
+
+- Verified scope only: repo remote `origin https://github.com/emttspk/emtts.git`, branch `main`.
+- Fixed the label-generation progress popup in `apps/web/src/pages/Upload.tsx` so the modal is centered in the viewport, uses a stronger overlay, and renders above the workspace sidebar without left-edge clipping.
+- Updated the shared progress card in `apps/web/src/components/LabelGenerationProgressCard.tsx` so when the job has completed and download is ready, the `Completed` stage is rendered as `DONE` rather than remaining `ACTIVE`.
+- Kept the fix UI-only with no backend, API, queue, renderer, database, or shipment-generation changes.
+- Generated updated local proof screenshots after `npm run build -w apps/web`:
+  - `E:\Temp\label-ux-proof-2\processing.png`
+  - `E:\Temp\label-ux-proof-2\completed.png`
+- Verified the processing and completed states visually after the fix; the completed screenshot now shows every stage marked done, including `Completed`.
+
 ## 2026-06-05 - Phase 3 Label Generation UX Optimization
 
 - Verified scope only: repo remote `origin https://github.com/emttspk/emtts.git`, branch `main`, Railway project `Epost` in `production` with `Api`/`Web` online.
