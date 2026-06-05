@@ -151,6 +151,10 @@ body{
     overflow:visible;
 }
 
+.header--no-amount{
+    grid-template-columns:30% 22% 48%;
+}
+
 .vpl-box{
     display:flex;
     align-items:center;
@@ -161,6 +165,12 @@ body{
     padding:2px 8px;
     min-width:0;
     line-height:1;
+}
+
+.vpl-box--no-amount{
+    width:auto;
+    max-width:none;
+    gap:6px;
 }
 
 .vpl-label{
@@ -188,10 +198,6 @@ body{
     min-width:0;
     max-width:100%;
     line-height:1;
-}
-
-.vpl-amount-box--hidden{
-    visibility:hidden;
 }
 
 .vpl-amount{
@@ -222,11 +228,20 @@ body{
     overflow:visible;
 }
 
+.header--no-amount .barcode-area{
+    padding-left:10px;
+}
+
 #barcode{
     width:100%;
     max-width:255px;
     height:38px;
     display:block;
+}
+
+.header--no-amount #barcode{
+    max-width:none;
+    width:100%;
 }
 
 .barcode-fallback{

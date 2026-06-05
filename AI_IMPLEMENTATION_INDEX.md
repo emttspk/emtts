@@ -1,5 +1,21 @@
 # AI Implementation Index
 
+## 2026-06-05 - Universal 9x4 No Placeholder Container Fix
+
+- Verified scope only: repo remote `origin https://github.com/emttspk/emtts.git`, branch `main`, HEAD `59a06249cf2c5f2c6c2bbc3adca7b987a98b3282`.
+- Removed the Universal 9x4 amount-box container entirely for `PAR`, `RGL`, `UMS`, and `IRL` in `apps/api/src/templates/labels.ts` instead of hiding the text, so the header no longer leaves a blank placeholder gap.
+- Added a small no-amount header layout tweak in `apps/api/src/templates/multipage-label.html` so the freed width can flow toward the barcode area.
+- Left `VPL`, `VPP`, and `COD` unchanged with the amount box visible.
+- Generated proof screenshots from the source renderer:
+  - `C:\Users\Nazim\Desktop\P.Post\Label Generator\forensic-artifacts\no-placeholder-fix\par.png`
+  - `C:\Users\Nazim\Desktop\P.Post\Label Generator\forensic-artifacts\no-placeholder-fix\rgl.png`
+  - `C:\Users\Nazim\Desktop\P.Post\Label Generator\forensic-artifacts\no-placeholder-fix\ums.png`
+  - `C:\Users\Nazim\Desktop\P.Post\Label Generator\forensic-artifacts\no-placeholder-fix\irl.png`
+  - `C:\Users\Nazim\Desktop\P.Post\Label Generator\forensic-artifacts\no-placeholder-fix\vpl.png`
+  - `C:\Users\Nazim\Desktop\P.Post\Label Generator\forensic-artifacts\no-placeholder-fix\vpp.png`
+  - `C:\Users\Nazim\Desktop\P.Post\Label Generator\forensic-artifacts\no-placeholder-fix\cod.png`
+- Build check: `npm run build -w apps/api` PASS.
+
 ## 2026-06-05 - Universal 9x4 Layout Shell Restore
 
 - Verified scope only: repo remote `origin https://github.com/emttspk/emtts.git`, branch `main`, latest commit before this change `0ab8c51c6c835ff6839546dace8e857c6ff66a7c`.

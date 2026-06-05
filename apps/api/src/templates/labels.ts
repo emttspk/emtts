@@ -647,7 +647,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
 
     const orderSource = String(o.reference ?? (o as any)?.source ?? (o as any)?.Source ?? "ePost Workspace").trim() || "ePost Workspace";
     const productDetails = String(o.ProductDescription ?? "").trim() || "-";
-    const shouldSuppressAmountBox = ["PAR", "RGL", "UMS"].includes(shipmentType);
+    const shouldSuppressAmountBox = ["PAR", "RGL", "UMS", "IRL"].includes(shipmentType);
     const showUniversalAmountBlock = showAmountBlock && !shouldSuppressAmountBox;
     const renderableSummary = showUniversalAmountBlock
       ? summary
@@ -678,8 +678,16 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
     html = html.replace(/<span class="vpl-label">[^<]*<\/span>/i, `<span class="vpl-label">${escapeHtml(shipmentLabel)}</span>`);
     if (!showUniversalAmountBlock) {
       html = html.replace(
-        /<span class="vpl-amount-box">/i,
-        `<span class="vpl-amount-box vpl-amount-box--hidden">`,
+        /\s*<span class="vpl-amount-box">\s*<span class="vpl-amount">[\s\S]*?<\/span>\s*<\/span>\s*/i,
+        "",
+      );
+      html = html.replace(
+        /<div class="vpl-box">/i,
+        `<div class="vpl-box vpl-box--no-amount">`,
+      );
+      html = html.replace(
+        /<div class="header">/i,
+        `<div class="header header--no-amount">`,
       );
     }
     html = html.replace(
