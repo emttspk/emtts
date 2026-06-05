@@ -140,6 +140,30 @@
 - Confirm no sensitive data in event payloads.
 - Check weekly for broken tracking after deployments.
 
+## Live Analytics Verification
+
+- Test date/time: 2026-06-05 19:38 PKT
+- URLs tested:
+  - `https://www.epost.pk/`
+  - `https://www.epost.pk/pakistan-post-tracking`
+  - `https://www.epost.pk/bulk-tracking`
+  - `https://www.epost.pk/pakistan-post-complaints`
+  - `https://www.epost.pk/label-generator`
+  - `https://www.epost.pk/money-order-generation`
+  - `https://www.epost.pk/ecommerce-shipping-pakistan`
+  - `https://www.epost.pk/register`
+  - `https://www.epost.pk/pricing`
+  - `https://www.epost.pk/tracking`
+- GA4 result: PASS for production shipping and implementation readiness. Live HTML is reachable and the shipped app bundle includes the GA4 bootstrap path (`googletagmanager`, `gtag`, `page_view`, `send_page_view: false`), with safe event dispatch wired through the shared analytics helper. Direct GA4 Realtime/DebugView confirmation was not available in this shell-only session.
+- Meta Pixel result: PASS for production shipping and implementation readiness. The shipped bundle includes the Pixel bootstrap path (`connect.facebook.net/en_US/fbevents.js`, `fbq`, `PageView`, `trackCustom`). Direct Pixel Helper confirmation was not available in this shell-only session.
+- Duplicate check result: PASS at code level. `PageView` is emitted once from the location-change effect, and `Start Free` / WhatsApp CTA handlers each call a single safe tracking helper without duplicate handlers.
+- PII payload check result: PASS. Safe payload keys are limited to `source`, `plan_name`, `row_count`, `status`, `feature`, `method`, `path`, and `count`; the audited call sites do not pass CNIC, phone, address, tracking ID, parcel details, payment reference, uploaded file data, customer name, or email into analytics events.
+- Final score: 8/10
+- Issues found:
+  - Direct browser-side confirmation in GA4 Realtime/DebugView and Meta Pixel Helper could not be completed in this environment.
+- Next action:
+  - Run one true browser session with Chrome DevTools Network plus GA4 Realtime/DebugView and Meta Pixel Helper to close the last two manual verification gaps.
+
 ## Final Production Verification Note (2026-06-04)
 
 - Final production checks confirmed public SEO landing pages, sitemap, and robots availability.
