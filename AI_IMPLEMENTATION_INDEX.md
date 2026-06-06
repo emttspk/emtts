@@ -3838,3 +3838,9 @@ READY FOR PRODUCTION - All 3 critical fixes implemented and tested.
 ## 2026-06-06 - First User Success Audit
 
 - `docs/marketing/FIRST_USER_SUCCESS_AUDIT_2026.md` — first-user onboarding, empty-state guidance, and post-success upgrade prompts for the registration -> first label -> subscription path.
+## 2026-06-07 - Production Analytics Smoke Test
+- Smoke-tested `/api/analytics/collect` on the production API with a valid synthetic payload; received `200 OK`.
+- Verified `/api/analytics/report` returns `401 Unauthorized` without admin auth.
+- Confirmed the collector write path is live and backed by the `AnalyticsEvent` model.
+- Direct database row readback remains blocked in this workspace because the Railway DB shell requires a local `psql` client, which is not installed here.
+- Full details are documented in `docs/audits/ANALYTICS_SMOKE_TEST_2026.md`.
