@@ -64,6 +64,12 @@
 - Created `docs/marketing/ANALYTICS_EVENT_INVENTORY_2026.md`.
 - Next steps: Implement P1 missing events and standardize Meta Pixel mappings.
 
+## 2026-06-06 - Analytics Phase 1 Standard Conversion Events
+
+- Added GA4 `login` and Meta `Login` on successful login.
+- Added Meta `CompleteRegistration` for successful registration while keeping GA4 `registration_complete`.
+- Added GA4 `purchase` and Meta `Purchase` alongside existing `payment_success`, carrying only plan name, amount, and currency.
+
 ## 2026-06-06 - Build-Time Analytics Injection Verification
 
 - Confirmed the Web deploy path was switched toward build-time analytics injection through `apps/web/railway.json`, with Railway Web building the frontend during deploy and serving `dist` directly afterward.

@@ -17,6 +17,7 @@ The following events are currently implemented and verified to fire in the `apps
 | `page_view` | Every route change | `App.tsx` |
 | `lead_start` | CTA click (Hero, Navbar, Billing) | Various components |
 | `registration_complete` | Account creation success | `Register.tsx` |
+| `login` | Successful login | `Login.tsx` |
 | `whatsapp_demo_click` | WhatsApp CTA click | Various components |
 | `tracking_search` | Search submission on Tracking page | `PublicTracking.tsx` |
 | `file_upload` | Successful file upload | `Upload.tsx` |
@@ -25,6 +26,7 @@ The following events are currently implemented and verified to fire in the `apps
 | `package_select` | Plan selected in Billing | `Billing.tsx` |
 | `payment_start` | Checkout process initiated | `Billing.tsx`, `ManualPaymentModal.tsx` |
 | `payment_success` | Payment confirmation received | `Billing.tsx` |
+| `purchase` | Successful purchase confirmation | `Billing.tsx` |
 
 ---
 
@@ -34,6 +36,9 @@ Current Meta Pixel implementation primarily uses `trackCustom` for all non-pagev
 | Meta Event Name | Type | Mapping |
 | :--- | :--- | :--- |
 | `PageView` | Standard | `page_view` |
+| `Login` | Standard | `login` |
+| `CompleteRegistration` | Standard | `registration_complete` |
+| `Purchase` | Standard | `purchase` |
 | (Custom Events) | Custom | All other GA4 events listed above |
 
 ---
@@ -47,9 +52,9 @@ Current Meta Pixel implementation primarily uses `trackCustom` for all non-pagev
 Based on the priority list, the following events are missing or require refinement:
 
 ### P1 - Critical Funnel
-*   **`login`**: No tracking exists for successful login (Password or Google).
+*   **`login`**: Implemented as GA4 `login` and Meta `Login` on successful login.
 *   **`first_label_generated`**: Current `label_generation_success` fires for every job. We lack a "First Success" milestone event.
-*   **`purchase`**: Currently using `payment_success`. Should be standardized to `purchase` (GA4) and `Purchase` (Meta Standard).
+*   **`purchase`**: Implemented as GA4 `purchase` and Meta `Purchase` alongside `payment_success`.
 
 ### P2 - Operational Funnel
 *   **`money_order_generated`**: No specific event for the Money Order generation sub-flow.
@@ -67,11 +72,13 @@ Based on the priority list, the following events are missing or require refineme
 | Current Event | Recommended Event | Reason |
 | :--- | :--- | :--- |
 | `registration_complete` | `sign_up` | GA4 Standard |
+| `login` | `login` | GA4 Standard |
 | `payment_success` | `purchase` | GA4 Standard (requires value/currency) |
 
 ### Meta Pixel Standard Events
 | Event | Meta Standard Event |
 | :--- | :--- |
+| `login` | `Login` |
 | `registration_complete` | `CompleteRegistration` |
 | `payment_start` | `InitiateCheckout` |
 | `payment_success` | `Purchase` |
@@ -82,9 +89,9 @@ Based on the priority list, the following events are missing or require refineme
 ## 6. Recommended Implementation Order
 
 ### Phase 1: P1 Fixes (Immediate)
-1.  Add `trackLogin(method)` to `Login.tsx`.
-2.  Update `trackRegistrationComplete` to map to `CompleteRegistration` in Meta.
-3.  Implement `trackFirstLabelGenerated` logic in `Upload.tsx`.
+1.  Completed: added `trackLogin(method)` to `Login.tsx`.
+2.  Completed: `trackRegistrationComplete` now maps to `CompleteRegistration` in Meta.
+3.  Pending: implement `trackFirstLabelGenerated` logic in `Upload.tsx`.
 
 ### Phase 2: Operational (Next)
 1.  Add `trackMoneyOrderGenerated` in `Upload.tsx`.
@@ -98,9 +105,9 @@ Based on the priority list, the following events are missing or require refineme
 ---
 
 ## 7. Analytics Maturity Score
-**Current Score: 68/100**
+**Current Score: 82/100**
 
 *   **Foundation (25/25):** GA4 and Meta Pixel initialized correctly with env vars.
 *   **Page Tracking (15/15):** Full route tracking active.
-*   **Funnel Coverage (20/40):** Basic funnel is tracked, but key milestones (Login, First Gen, Purchase standard) are weak.
-*   **Standardisation (8/20):** Meta Standard events are missing; GA4 events use custom naming where standards exist.
+*   **Funnel Coverage (28/40):** Login, registration, and purchase now fire on successful conversion paths; first-generation milestone still needs a dedicated first-time event.
+*   **Standardisation (14/20):** Meta Standard events for Login, CompleteRegistration, and Purchase are now wired; GA4 login and purchase are standardised as well.

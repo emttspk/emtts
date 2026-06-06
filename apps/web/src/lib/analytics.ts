@@ -7,6 +7,9 @@ const META_PIXEL_ID = String(import.meta.env.VITE_META_PIXEL_ID ?? "").trim();
 const SAFE_PARAM_KEYS = new Set([
   "source",
   "plan_name",
+  "amount",
+  "currency",
+  "value",
   "row_count",
   "status",
   "feature",
@@ -128,6 +131,9 @@ export function trackLeadStart(source: string) {
 
 export function trackRegistrationComplete(method: string) {
   trackEvent("registration_complete", { method });
+  if (typeof window !== "undefined" && window.fbq) {
+    window.fbq("track", "CompleteRegistration");
+  }
 }
 
 export function trackWhatsAppClick(source: string) {
@@ -158,6 +164,22 @@ export function trackPaymentStart(planName: string) {
   trackEvent("payment_start", { plan_name: planName });
 }
 
-export function trackPaymentSuccess(planName: string) {
-  trackEvent("payment_success", { plan_name: planName });
+export function trackLogin(method: string) {
+  trackEvent("login", { method });
+  if (typeof window !== "undefined" && window.fbq) {
+    window.fbq("track", "Login");
+  }
+}
+
+export function trackPaymentSuccess(planName: string, amountCents: number, currency: string) {
+  const safeAmountCents = Math.max(0, Number(amountCents) || 0);
+  const safeCurrency = String(currency || "PKR").trim().toUpperCase() || "PKR";
+  const amount = safeAmountCents / 100;
+  trackEvent("payment_success", { plan_name: planName, amount, value: amount, currency: safeCurrency });
+  if (typeof window !== "undefined" && window.fbq) {
+    window.fbq("track", "Purchase", { plan_name: planName, value: amount, currency: safeCurrency });
+  }
+  if (typeof window !== "undefined" && window.gtag) {
+    window.gtag("event", "purchase", { plan_name: planName, amount, value: amount, currency: safeCurrency });
+  }
 }

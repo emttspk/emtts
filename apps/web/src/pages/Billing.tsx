@@ -99,10 +99,12 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
     const message = searchParams.get("message");
     if (!payment) return;
     const planName = me?.pendingPayment?.planName ?? activePlanName;
+    const purchaseAmountCents = me?.pendingPayment?.invoice?.amountCents ?? me?.pendingPayment?.amountCents ?? me?.subscription?.plan?.priceCents ?? 0;
+    const purchaseCurrency = me?.pendingPayment?.invoice?.currency ?? me?.pendingPayment?.currency ?? "PKR";
 
     if (payment === "success") {
       setSuccess(message ?? (reference ? `Payment verified and subscription activated. Ref: ${reference}` : "Payment verified and subscription activated."));
-      trackPaymentSuccess(planName);
+      trackPaymentSuccess(planName, purchaseAmountCents, purchaseCurrency);
       void refreshMe();
     } else if (payment === "pending") {
       setError(message ?? (reference ? `Payment is still pending. Ref: ${reference}` : "Payment is still pending."));
@@ -323,7 +325,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
       closeJazzcashModal();
       if (response.status === "success") {
         await refreshMe();
-        trackPaymentSuccess(plan.name);
+        trackPaymentSuccess(plan.name, plan.priceCents, "PKR");
         setSuccess(response.message || "Payment verified and subscription activated.");
         return;
       }

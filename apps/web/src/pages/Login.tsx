@@ -10,6 +10,7 @@ import GoogleAuthButton from "../components/GoogleAuthButton";
 import AuthInputField from "../components/auth/AuthInputField";
 import { auth, firebaseReady } from "../firebase";
 import { getFriendlyFirebaseAuthMessage, shouldFallbackToApiLogin, shouldThrottle, shouldUseRedirectAuthFlow } from "../lib/firebaseAuthGuards";
+import { trackLogin } from "../lib/analytics";
 import SEO from "../components/SEO";
 import { getRedirectResult, GoogleAuthProvider, signInWithPopup, signInWithRedirect } from "firebase/auth";
 
@@ -29,22 +30,23 @@ export default function Login() {
   const publicWhatsAppUrl = publicWhatsAppDigits.length >= 7 ? `https://wa.me/${publicWhatsAppDigits}` : "";
   const lastPasswordSubmitAtRef = useRef(0);
 
-  function finalizeLogin(token: string, role: string, refreshToken?: string) {
+  function finalizeLogin(token: string, role: string, refreshToken?: string, method = "password") {
     const sessionStartedAt = performance.now();
     setSession(token, role, refreshToken, { rememberMe });
+    trackLogin(method);
     logDevTiming("session_restore", performance.now() - sessionStartedAt, { rememberMe });
     setPostLoginRedirecting(true);
     nav("/dashboard", { state: { postLogin: true, loginAt: Date.now() } });
   }
 
-  async function loginWithFirebaseToken(idToken: string) {
+  async function loginWithFirebaseToken(idToken: string, method = "google") {
     const startedAt = performance.now();
     const data = await api<{ token: string; refreshToken?: string; user: { role: string } }>("/api/auth/firebase-login", {
       method: "POST",
       body: JSON.stringify({ idToken }),
     });
     logDevTiming("google_token_exchange", performance.now() - startedAt);
-    finalizeLogin(data.token, data.user.role, data.refreshToken);
+    finalizeLogin(data.token, data.user.role, data.refreshToken, method);
   }
 
   useEffect(() => {
@@ -56,7 +58,7 @@ export default function Login() {
         const result = await getRedirectResult(auth);
         if (cancelled || !result) return;
         const idToken = await result.user.getIdToken();
-        await loginWithFirebaseToken(idToken);
+        await loginWithFirebaseToken(idToken, "google");
       } catch (error) {
         if (!cancelled) {
           setErr(getFriendlyFirebaseAuthMessage(error, "Google login failed"));
@@ -161,7 +163,7 @@ export default function Login() {
                 }
 
                 const idToken = await credential.user.getIdToken();
-                await loginWithFirebaseToken(idToken);
+                await loginWithFirebaseToken(idToken, "google");
                 await signOut(auth);
                 return;
               } catch (firebaseError) {
@@ -182,7 +184,7 @@ export default function Login() {
               body: JSON.stringify({ identifier, password }),
             });
             logDevTiming("password_login_api", performance.now() - apiStartedAt);
-            finalizeLogin(data.token, data.user.role, data.refreshToken);
+            finalizeLogin(data.token, data.user.role, data.refreshToken, "password");
             logDevTiming("password_login_total", performance.now() - loginStartedAt);
           } catch (error) {
             const errorMsg = getFriendlyFirebaseAuthMessage(error, error instanceof Error ? error.message : "Login failed");
