@@ -39,4 +39,11 @@ export function getCooldownRemainingSeconds(cooldownUntil: number, now = Date.no
   return Math.ceil((cooldownUntil - now) / 1000);
 }
 
+export function shouldUseRedirectAuthFlow(): boolean {
+  if (typeof window === "undefined") return false;
+  const mobileQuery = window.matchMedia?.("(max-width: 767px), (pointer: coarse)");
+  if (mobileQuery?.matches) return true;
+  return /Android|iPhone|iPad|iPod|Mobi/i.test(window.navigator.userAgent);
+}
+
 export { TOO_MANY_ATTEMPTS_MESSAGE };

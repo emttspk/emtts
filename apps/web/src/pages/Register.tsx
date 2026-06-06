@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { GoogleAuthProvider, createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, signOut } from "firebase/auth";
+import { GoogleAuthProvider, createUserWithEmailAndPassword, getRedirectResult, sendEmailVerification, signInWithPopup, signInWithRedirect, signOut } from "firebase/auth";
 import { api } from "../lib/api";
 import { setSession } from "../lib/auth";
 import AuthShell from "../components/AuthShell";
@@ -13,6 +13,7 @@ import {
   getFriendlyFirebaseAuthMessage,
   isFirebaseTooManyRequests,
   shouldThrottle,
+  shouldUseRedirectAuthFlow,
 } from "../lib/firebaseAuthGuards";
 
 const VERIFY_ACTION_DEBOUNCE_MS = 1200;
@@ -105,6 +106,37 @@ export default function Register() {
     nav(data.onboardingRequired ? "/register/profile" : "/dashboard");
   }
 
+  useEffect(() => {
+    if (!firebaseReady || !auth) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (cancelled || !result) return;
+        const idToken = await result.user.getIdToken();
+        const data = await api<{ token: string; refreshToken?: string; user: { role: string }; onboardingRequired?: boolean }>("/api/auth/firebase-login", {
+          method: "POST",
+          body: JSON.stringify({ idToken }),
+        });
+        trackRegistrationComplete("google");
+        await finalizeRegistrationSession(data);
+      } catch (error) {
+        if (!cancelled) {
+          setErr(getFriendlyFirebaseAuthMessage(error, "Google registration failed"));
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   async function handleGoogleRegister() {
     setErr(null);
     setNotice(null);
@@ -115,9 +147,21 @@ export default function Register() {
     }
 
     setLoading(true);
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+
+    if (shouldUseRedirectAuthFlow()) {
+      try {
+        await signInWithRedirect(auth, provider);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Google registration failed";
+        setErr(message);
+        setLoading(false);
+      }
+      return;
+    }
+
     try {
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
       const result = await signInWithPopup(auth, provider);
       const idToken = await result.user.getIdToken();
 

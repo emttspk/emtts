@@ -1,5 +1,5 @@
 import { GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup, signOut } from "firebase/auth";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Eye, EyeOff, KeyRound, Mail, SquareArrowOutUpRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, apiUrl } from "../lib/api";
@@ -9,8 +9,9 @@ import AuthShell from "../components/AuthShell";
 import GoogleAuthButton from "../components/GoogleAuthButton";
 import AuthInputField from "../components/auth/AuthInputField";
 import { auth, firebaseReady } from "../firebase";
-import { getFriendlyFirebaseAuthMessage, shouldThrottle } from "../lib/firebaseAuthGuards";
+import { getFriendlyFirebaseAuthMessage, shouldThrottle, shouldUseRedirectAuthFlow } from "../lib/firebaseAuthGuards";
 import SEO from "../components/SEO";
+import { getRedirectResult, GoogleAuthProvider, signInWithPopup, signInWithRedirect } from "firebase/auth";
 
 const AUTH_ACTION_DEBOUNCE_MS = 1200;
 
@@ -44,6 +45,32 @@ export default function Login() {
     finalizeLogin(data.token, data.user.role, data.refreshToken);
   }
 
+  useEffect(() => {
+    if (!firebaseReady || !auth) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (cancelled || !result) return;
+        const idToken = await result.user.getIdToken();
+        await loginWithFirebaseToken(idToken);
+      } catch (error) {
+        if (!cancelled) {
+          setErr(getFriendlyFirebaseAuthMessage(error, "Google login failed"));
+        }
+      } finally {
+        if (!cancelled) {
+          setGoogleLoginLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   async function handleGoogleLogin() {
     if (googleLoginLoading || passwordLoginLoading) return;
     setErr(null);
@@ -54,9 +81,22 @@ export default function Login() {
 
     setGoogleLoginLoading(true);
     const startedAt = performance.now();
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+
+    if (shouldUseRedirectAuthFlow()) {
+      try {
+        await signInWithRedirect(auth, provider);
+      } catch (error) {
+        const message = getFriendlyFirebaseAuthMessage(error, "Google login failed");
+        setErr(message);
+        setPostLoginRedirecting(false);
+        setGoogleLoginLoading(false);
+      }
+      return;
+    }
+
     try {
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
       const result = await signInWithPopup(auth, provider);
       const idToken = await result.user.getIdToken();
       await loginWithFirebaseToken(idToken);
