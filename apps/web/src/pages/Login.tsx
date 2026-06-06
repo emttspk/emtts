@@ -9,7 +9,7 @@ import AuthShell from "../components/AuthShell";
 import GoogleAuthButton from "../components/GoogleAuthButton";
 import AuthInputField from "../components/auth/AuthInputField";
 import { auth, firebaseReady } from "../firebase";
-import { getFriendlyFirebaseAuthMessage, shouldThrottle, shouldUseRedirectAuthFlow } from "../lib/firebaseAuthGuards";
+import { getFriendlyFirebaseAuthMessage, shouldFallbackToApiLogin, shouldThrottle, shouldUseRedirectAuthFlow } from "../lib/firebaseAuthGuards";
 import SEO from "../components/SEO";
 import { getRedirectResult, GoogleAuthProvider, signInWithPopup, signInWithRedirect } from "firebase/auth";
 
@@ -164,7 +164,7 @@ export default function Login() {
                 return;
               } catch (firebaseError) {
                 const message = firebaseError instanceof Error ? firebaseError.message : "Firebase login failed";
-                const shouldFallback = /user-not-found|invalid-credential|auth\/invalid-login-credentials/i.test(message);
+                const shouldFallback = shouldFallbackToApiLogin(firebaseError) || /user-not-found|invalid-credential|auth\/invalid-login-credentials/i.test(message);
                 if (!shouldFallback) {
                   throw firebaseError;
                 }

@@ -30,6 +30,25 @@ export function isFirebaseTooManyRequests(error: unknown): boolean {
   return code.includes("too-many-requests") || message.includes("auth/too-many-requests");
 }
 
+export function shouldFallbackToApiLogin(error: unknown): boolean {
+  const code = asErrorCode(error).toLowerCase();
+  const message = asErrorMessage(error).toLowerCase();
+  return (
+    code.includes("user-not-found") ||
+    code.includes("invalid-credential") ||
+    code.includes("invalid-login-credentials") ||
+    code.includes("network-request-failed") ||
+    code.includes("no-auth-event") ||
+    code.includes("internal-error") ||
+    message.includes("auth/user-not-found") ||
+    message.includes("auth/invalid-credential") ||
+    message.includes("auth/invalid-login-credentials") ||
+    message.includes("auth/network-request-failed") ||
+    message.includes("auth/no-auth-event") ||
+    message.includes("auth/internal-error")
+  );
+}
+
 export function shouldThrottle(lastActionAt: number, debounceMs: number, now = Date.now()): boolean {
   return lastActionAt > 0 && now - lastActionAt < debounceMs;
 }
