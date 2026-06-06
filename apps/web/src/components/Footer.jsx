@@ -70,12 +70,13 @@ export default function Footer() {
               <div className="text-xs text-slate-500">Pakistan Post operations command center</div>
             </div>
           </div>
-          <div className="mt-4 flex items-center gap-2 md:mt-0">
-            <span className="ui-badge-soft">Live Platform</span>
-            <a
-              href="/register"
-              className="btn-primary h-10 rounded-full px-5 text-sm"
-            >
+          <div className="mt-4 flex flex-col gap-2 md:mt-0 md:flex-row md:items-center">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="ui-badge-soft">Live Platform</span>
+              <span className="ui-badge-soft">Free plan</span>
+              <span className="ui-badge-soft">WhatsApp demo</span>
+            </div>
+            <a href="/register" className="btn-primary h-10 rounded-full px-5 text-sm">
               Start Free
             </a>
           </div>
@@ -99,8 +100,8 @@ export default function Footer() {
         </div>
 
         <div className="mt-10 border-t border-[#dce8f5] pt-5 text-xs text-slate-500 sm:flex sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} ePost.pk. All rights reserved.</p>
-          <p className="mt-2 sm:mt-0">Built for Pakistan Post operations teams.</p>
+          <p>Copyright {new Date().getFullYear()} ePost.pk. All rights reserved.</p>
+          <p className="mt-2 sm:mt-0">Built for Pakistan Post operations teams. Start free or message us on WhatsApp.</p>
         </div>
       </div>
     </footer>

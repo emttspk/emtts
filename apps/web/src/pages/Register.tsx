@@ -31,6 +31,8 @@ export default function Register() {
   const [err, setErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const publicWhatsAppDigits = String(import.meta.env.VITE_PUBLIC_WHATSAPP_NUMBER ?? "").replace(/\D/g, "");
+  const publicWhatsAppUrl = publicWhatsAppDigits.length >= 7 ? `https://wa.me/${publicWhatsAppDigits}` : "";
 
   // Username availability
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
@@ -450,6 +452,26 @@ export default function Register() {
         </button>
 
         <GoogleAuthButton className="w-full" label="Sign up with Google" disabled={loading} loading={loading} onClick={handleGoogleRegister} />
+
+        <div className="rounded-2xl border border-[#dce8f5] bg-[linear-gradient(145deg,#f5fbff,#eefaf5)] p-4 text-sm text-slate-600 shadow-sm">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Why teams start here</div>
+          <div className="mt-1 font-medium text-slate-700">Free to start, quick to set up, and WhatsApp help is one tap away.</div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link to="/pricing" className="btn-secondary h-10 rounded-full px-4 text-sm">
+              View Pricing
+            </Link>
+            {publicWhatsAppUrl ? (
+              <a
+                href={publicWhatsAppUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-10 items-center justify-center rounded-full border border-emerald-300 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700"
+              >
+                WhatsApp Demo
+              </a>
+            ) : null}
+          </div>
+        </div>
 
         <div className="flex items-center justify-between text-sm text-slate-500">
           <Link to={`/login${email ? `?email=${encodeURIComponent(email)}` : ""}`} className="font-semibold text-[#0b7f6d] transition hover:text-[#096658]">

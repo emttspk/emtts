@@ -56,6 +56,10 @@ Protected logic such as labels, tracking engine, complaints, money orders, billi
 - WhatsApp CTA only renders when a public WhatsApp number is configured.
 - Existing analytics helpers were reused for CTA click tracking.
 
+## Mobile Follow-Up
+- The login and register pages now include a lightweight conversion strip to help mobile visitors continue to pricing or WhatsApp support without losing context.
+- Footer and auth-page spacing were kept conservative to avoid overlap on narrow screens.
+
 ## Conversion Score
 - Before: 78/100
 - After: 88/100

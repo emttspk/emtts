@@ -418,6 +418,7 @@
 - Firebase mobile auth now falls back to redirect on touch/mobile devices, with redirect-result handling added for login and registration to avoid the mobile-only `auth/network-request-failed` popup path.
 - Conversion funnel audit added in `CONVERSION_FUNNEL_AUDIT.md`; register is instrumented, but upload, label generation, package selection, and payment start still need GA4 wiring.
 - Conversion optimization audit added in `docs/marketing/CONVERSION_OPTIMIZATION_AUDIT_2026.md`; homepage hero, mobile sticky CTA, and free-plan visibility were improved for visitor-to-registration flow.
+- Mobile UX audit added in `docs/marketing/MOBILE_UX_AUDIT_2026.md`; login/register conversion strips and footer/mobile CTA spacing were tuned for narrow screens.
 - SEO + Google Ranking Audit completed. Report: docs/seo/SEO_MASTER_PLAN_2026.md
 
 ---
