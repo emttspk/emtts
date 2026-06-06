@@ -336,6 +336,18 @@
   - Production still serves `/assets/index-D2HNUHpQ.js`.
   - The active asset still contains unresolved analytics placeholder content.
 
+## Current Bundle Deployment Fix
+
+- Test date/time: 2026-06-06 06:15 UTC.
+- Root cause:
+  - `apps/web/Dockerfile` still forced analytics placeholder values into `VITE_GA_MEASUREMENT_ID`, `VITE_META_PIXEL_ID`, and `VITE_PUBLIC_WHATSAPP_NUMBER` before `npm run build`.
+  - That made Docker builds repeatedly generate the obsolete placeholder-based bundle hash `/assets/index-D2HNUHpQ.js`.
+- Fix:
+  - `apps/web/Dockerfile` now accepts the analytics values as Docker build args and exposes them to Vite before `npm run build`.
+  - The runtime placeholder replacement script was removed from the Docker runtime image path.
+- Expected result:
+  - Web deploys should generate a new hashed bundle from the real production analytics values instead of mutating a placeholder bundle after build.
+
 ## Final Production Verification Note (2026-06-04)
 
 - Final production checks confirmed public SEO landing pages, sitemap, and robots availability.

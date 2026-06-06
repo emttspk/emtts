@@ -1,5 +1,12 @@
 # AI Implementation Index
 
+## 2026-06-06 - Web Analytics Bundle Deployment Fix
+
+- Fixed `apps/web/Dockerfile` so analytics `VITE_*` values are provided to Vite as build-time Docker args instead of placeholder literals.
+- Removed the runtime placeholder replacement path from the Web Docker runtime image.
+- Root cause: Docker builds were repeatedly producing the placeholder-based `/assets/index-D2HNUHpQ.js` bundle, so production kept referencing the obsolete analytics placeholder asset.
+- Expected deploy outcome: Web should build a fresh hashed bundle containing the real GA4, Meta Pixel, and public WhatsApp values.
+
 ## 2026-06-06 - Cloudflare Purge Auth Diagnosis
 
 - Confirmed the workspace cleanup removed only temporary captures and `.tmp-*` directories; existing project evidence files were retained.
