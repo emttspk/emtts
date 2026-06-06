@@ -362,6 +362,31 @@
 - Final score after deployment fix:
   - 9/10
 
+## Browser Execution Verification
+
+- Test date/time: 2026-06-06 10:55 PKT.
+- Production homepage bundle:
+  - `https://www.epost.pk/` now serves `/assets/index-3tZ6Kv4N.js`.
+  - Unresolved `__VITE_*` placeholders: NOT FOUND.
+  - GA4 measurement ID: FOUND.
+  - Meta Pixel ID: FOUND.
+- Live runtime invocation check:
+  - `fbq('init', '<masked>')`: CONFIRMED by production browser wrapper.
+  - `fbq('track', 'PageView')`: CONFIRMED on homepage load.
+  - `gtag('config', 'G-****E20Z', { send_page_view: false })`: CONFIRMED.
+  - `gtag('event', 'page_view', { page_path: '/', page_location, page_title })`: CONFIRMED on homepage load.
+- Duplicate check:
+  - Previous duplicate custom `page_view` dispatch was removed from `apps/web/src/lib/analytics.ts`.
+  - Production homepage now emits one standard GA4 `page_view` and one Meta `PageView` call.
+  - Route navigation probe via `Start Free` to `/register` emitted one GA4 `page_view` and one Meta `PageView` for the destination route, with no repeated loop observed.
+- Payload safety:
+  - Confirmed runtime payload contains only safe page metadata (`page_path`, `page_location`, `page_title`) and no CNIC, phone, address, tracking ID, parcel details, payment reference, uploaded file data, customer name, or email.
+- Limitation:
+  - Headless browser verification confirmed live function execution, but it still did not surface final GA4 `collect` or Meta `/tr` beacons in the network layer.
+  - Manual Chrome verification remains required for GA4 Realtime / DebugView and Meta Pixel Helper.
+- Final score after browser execution verification:
+  - 9/10
+
 ## Final Production Verification Note (2026-06-04)
 
 - Final production checks confirmed public SEO landing pages, sitemap, and robots availability.
