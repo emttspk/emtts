@@ -294,6 +294,27 @@
 - Final score:
   - 8/10
 
+## Cloudflare Tooling Check
+
+- Test date/time: 2026-06-06 05:15 UTC.
+- Wrangler install status: PASS.
+  - Installed to `D:\AI-TOOLS\Wrangler`.
+  - `wrangler --version` returned `4.98.0`.
+- Wrangler auth status: PASS.
+  - `wrangler whoami` reported an OAuth login on `gisupp@gmail.com`.
+- Cloudflare zone check:
+  - `GET /zones?name=epost.pk` returned an empty result set for the authenticated Cloudflare account in this shell.
+  - That means the current authenticated Cloudflare account cannot see the `epost.pk` zone, so a safe purge cannot be executed from this environment.
+- Purge status: NOT RUN.
+  - No homepage / JS bundle / sitemap purge was possible without zone visibility.
+- Live asset recheck:
+  - Homepage still references `/assets/index-D2HNUHpQ.js`.
+  - The active asset still contains unresolved `__VITE_*` placeholder content.
+  - GA4 and Meta bootstrap markers remain present in the active asset, but the public browser path is still the stale file.
+- Remaining action:
+  - Use the Cloudflare account that owns the `epost.pk` zone, or grant this authenticated account access to that zone, then purge the homepage, active JS bundle, and sitemap.
+  - After purge, recheck that the homepage now serves a fresh hashed bundle and the placeholders are gone.
+
 ## Final Production Verification Note (2026-06-04)
 
 - Final production checks confirmed public SEO landing pages, sitemap, and robots availability.

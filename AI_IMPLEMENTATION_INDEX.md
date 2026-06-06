@@ -1,5 +1,14 @@
 # AI Implementation Index
 
+## 2026-06-06 - Cloudflare Tooling and Zone Access Audit
+
+- Installed Wrangler locally to `D:\AI-TOOLS\Wrangler` and verified `wrangler --version` as `4.98.0`.
+- Verified Wrangler auth is active, but the authenticated OAuth account in this shell is `gisupp@gmail.com`.
+- Queried the Cloudflare zone API for `epost.pk`; the response returned an empty result set, so this account does not currently have visibility into the `epost.pk` zone.
+- Because the zone is not visible, a safe purge of the homepage, active JS bundle, and sitemap could not be executed from this environment.
+- Live homepage recheck still shows `/assets/index-D2HNUHpQ.js`, and the active asset still contains unresolved analytics placeholder content.
+- Recommended next step: authenticate the Cloudflare account that owns the `epost.pk` zone, or grant this account access to that zone, then run a URL-only purge and revalidate the fresh hashed bundle.
+
 ## 2026-06-06 - Stale Analytics Asset Delivery Audit
 
 - Confirmed the production homepage still references `/assets/index-D2HNUHpQ.js` even after successful Web deployments.
