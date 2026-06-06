@@ -8,7 +8,7 @@ import UploadDropzone from "../components/UploadDropzone";
 import { api, apiHealthCheck, buildJobDownloadFallbackName, triggerBrowserDownload, uploadFile } from "../lib/api";
 import { logDevTiming } from "../lib/devTiming";
 import { FALLBACK_SERVICE_CATALOG, fetchServiceCatalog, servicesByCategory, type ServiceCatalogEntry } from "../lib/serviceCatalog";
-import { trackFileUpload, trackLabelJobStart, trackLabelJobSuccess } from "../lib/analytics";
+import { trackFileUpload, trackFirstLabelGenerated, trackLabelJobStart, trackLabelJobSuccess, trackMoneyOrderGenerated } from "../lib/analytics";
 import type { LabelJob, MeResponse } from "../lib/types";
 import { useJobPolling } from "../lib/useJobPolling";
 import { getMissingOrderColumns, normalizeOrderColumnKey } from "../shared/orderColumns";
@@ -638,6 +638,7 @@ export default function Upload() {
   const [showCompletionModal, setShowCompletionModal] = useState(false);
   const [completionAction, setCompletionAction] = useState<"labels" | "money-orders" | "tracking-master" | "tracking-workspace" | null>(null);
   const progressTimer = useRef<number | null>(null);
+  const moneyOrderTrackedJobIdRef = useRef<string | null>(null);
   const stateRef = useRef(uiState);
 
   useEffect(() => {
@@ -1300,6 +1301,7 @@ export default function Upload() {
         recordCount: data.recordCount,
       });
       trackLabelJobSuccess(Number(data.recordCount ?? 0));
+      trackFirstLabelGenerated(me?.user?.id ?? "", Number(data.recordCount ?? 0));
       console.info("UPLOAD_REPLAY_RESPONSE", data);
       if (data.duplicateFilenameBypassUsed) {
         setValidationSummary((prev) => {
@@ -1350,6 +1352,15 @@ export default function Upload() {
       if (progressTimer.current) window.clearInterval(progressTimer.current);
     }
   }, [polling.jobError, polling.jobStatus]);
+
+  useEffect(() => {
+    if (uiState !== "completed") return;
+    if (!polling.jobId) return;
+    if (!canDownloadMoneyOrders) return;
+    if (moneyOrderTrackedJobIdRef.current === polling.jobId) return;
+    moneyOrderTrackedJobIdRef.current = polling.jobId;
+    trackMoneyOrderGenerated(uploadInsights?.moneyOrderEligibleRows ?? generatedLabelsCount);
+  }, [canDownloadMoneyOrders, generatedLabelsCount, polling.jobId, uiState, uploadInsights?.moneyOrderEligibleRows]);
 
   function syncPreviewFrameSize() {
     const iframe = previewFrameRef.current;

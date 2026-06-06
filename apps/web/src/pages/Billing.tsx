@@ -14,6 +14,7 @@ import {
 import {
   trackPackageSelect,
   trackPaymentStart,
+  trackSubscriptionUpgrade,
   trackPaymentSuccess,
 } from "../lib/analytics";
 import type { MeResponse } from "../lib/types";
@@ -101,10 +102,17 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
     const planName = me?.pendingPayment?.planName ?? activePlanName;
     const purchaseAmountCents = me?.pendingPayment?.invoice?.amountCents ?? me?.pendingPayment?.amountCents ?? me?.subscription?.plan?.priceCents ?? 0;
     const purchaseCurrency = me?.pendingPayment?.invoice?.currency ?? me?.pendingPayment?.currency ?? "PKR";
+    const wasFreePlan = Boolean(
+      Number(me?.subscription?.plan?.priceCents ?? me?.activePackage?.priceCents ?? 0) === 0 ||
+        String(me?.subscription?.plan?.name ?? me?.activePackage?.planName ?? "").toLowerCase().includes("free"),
+    );
 
     if (payment === "success") {
       setSuccess(message ?? (reference ? `Payment verified and subscription activated. Ref: ${reference}` : "Payment verified and subscription activated."));
       trackPaymentSuccess(planName, purchaseAmountCents, purchaseCurrency);
+      if (wasFreePlan && Number(purchaseAmountCents) > 0) {
+        trackSubscriptionUpgrade(me?.user?.id ?? "", planName, purchaseAmountCents, purchaseCurrency);
+      }
       void refreshMe();
     } else if (payment === "pending") {
       setError(message ?? (reference ? `Payment is still pending. Ref: ${reference}` : "Payment is still pending."));
@@ -277,6 +285,11 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
         window.location.assign(apiUrl(response.checkoutUrl));
         return;
       }
+      if (Number(me?.subscription?.plan?.priceCents ?? me?.activePackage?.priceCents ?? 0) === 0 || String(me?.subscription?.plan?.name ?? me?.activePackage?.planName ?? "").toLowerCase().includes("free")) {
+        if (Number(plan.priceCents) > 0) {
+          trackSubscriptionUpgrade(me?.user?.id ?? "", plan.name, plan.priceCents, "PKR");
+        }
+      }
       await refreshMe();
       setSuccess(`Package changed to ${plan.name}.`);
     } catch (err) {
@@ -324,8 +337,14 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
       const response = await createJazzcashMobileWalletPayment(plan.id, normalizedMobile);
       closeJazzcashModal();
       if (response.status === "success") {
-        await refreshMe();
+        const wasFreeBeforeSuccess = Number(me?.subscription?.plan?.priceCents ?? me?.activePackage?.priceCents ?? 0) === 0 || String(me?.subscription?.plan?.name ?? me?.activePackage?.planName ?? "").toLowerCase().includes("free");
         trackPaymentSuccess(plan.name, plan.priceCents, "PKR");
+        if (wasFreeBeforeSuccess) {
+          if (Number(plan.priceCents) > 0) {
+            trackSubscriptionUpgrade(me?.user?.id ?? "", plan.name, plan.priceCents, "PKR");
+          }
+        }
+        await refreshMe();
         setSuccess(response.message || "Payment verified and subscription activated.");
         return;
       }

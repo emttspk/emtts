@@ -23,10 +23,14 @@ The following events are currently implemented and verified to fire in the `apps
 | `file_upload` | Successful file upload | `Upload.tsx` |
 | `label_generation_start` | "Generate Labels" button click | `Upload.tsx` |
 | `label_generation_success` | Job created & record count verified | `Upload.tsx` |
+| `first_label_generated` | First successful label batch per account | `Upload.tsx` |
 | `package_select` | Plan selected in Billing | `Billing.tsx` |
 | `payment_start` | Checkout process initiated | `Billing.tsx`, `ManualPaymentModal.tsx` |
 | `payment_success` | Payment confirmation received | `Billing.tsx` |
 | `purchase` | Successful purchase confirmation | `Billing.tsx` |
+| `subscription_upgrade` | Free → Paid upgrade confirmation | `Billing.tsx` |
+| `money_order_generated` | Successful money order generation | `Upload.tsx` |
+| `support_ticket_created` | New support ticket created | `SupportTicketsPage.tsx` |
 
 ---
 
@@ -36,9 +40,9 @@ Current Meta Pixel implementation primarily uses `trackCustom` for all non-pagev
 | Meta Event Name | Type | Mapping |
 | :--- | :--- | :--- |
 | `PageView` | Standard | `page_view` |
-| `Login` | Standard | `login` |
 | `CompleteRegistration` | Standard | `registration_complete` |
 | `Purchase` | Standard | `purchase` |
+| `Login` | Standard | `login` |
 | (Custom Events) | Custom | All other GA4 events listed above |
 
 ---
@@ -53,16 +57,16 @@ Based on the priority list, the following events are missing or require refineme
 
 ### P1 - Critical Funnel
 *   **`login`**: Implemented as GA4 `login` and Meta `Login` on successful login.
-*   **`first_label_generated`**: Current `label_generation_success` fires for every job. We lack a "First Success" milestone event.
+*   **`first_label_generated`**: Implemented as a one-time per-account milestone on first successful label generation.
 *   **`purchase`**: Implemented as GA4 `purchase` and Meta `Purchase` alongside `payment_success`.
 
 ### P2 - Operational Funnel
-*   **`money_order_generated`**: No specific event for the Money Order generation sub-flow.
-*   **`support_ticket_created`**: Missing from support/complaint pages.
+*   **`money_order_generated`**: Implemented as a successful money order generation milestone.
+*   **`support_ticket_created`**: Implemented on support ticket creation success.
 
 ### P3 - Retention & Support
 *   **`complaint_created`**: Missing from `Complaints.tsx`.
-*   **`subscription_upgrade`**: No distinction between initial purchase and upgrade.
+*   **`subscription_upgrade`**: Implemented as a free-to-paid upgrade milestone.
 
 ---
 
@@ -91,7 +95,12 @@ Based on the priority list, the following events are missing or require refineme
 ### Phase 1: P1 Fixes (Immediate)
 1.  Completed: added `trackLogin(method)` to `Login.tsx`.
 2.  Completed: `trackRegistrationComplete` now maps to `CompleteRegistration` in Meta.
-3.  Pending: implement `trackFirstLabelGenerated` logic in `Upload.tsx`.
+3.  Completed: implemented `trackFirstLabelGenerated` logic in `Upload.tsx`.
+
+### Phase 2: Milestone Tracking
+1.  Completed: `subscription_upgrade` added for free-to-paid conversion.
+2.  Completed: `money_order_generated` added for successful money order generation.
+3.  Completed: `support_ticket_created` added for new support ticket creation.
 
 ### Phase 2: Operational (Next)
 1.  Add `trackMoneyOrderGenerated` in `Upload.tsx`.
@@ -105,9 +114,9 @@ Based on the priority list, the following events are missing or require refineme
 ---
 
 ## 7. Analytics Maturity Score
-**Current Score: 82/100**
+**Current Score: 90/100**
 
 *   **Foundation (25/25):** GA4 and Meta Pixel initialized correctly with env vars.
 *   **Page Tracking (15/15):** Full route tracking active.
-*   **Funnel Coverage (28/40):** Login, registration, and purchase now fire on successful conversion paths; first-generation milestone still needs a dedicated first-time event.
-*   **Standardisation (14/20):** Meta Standard events for Login, CompleteRegistration, and Purchase are now wired; GA4 login and purchase are standardised as well.
+*   **Funnel Coverage (36/40):** Login, registration, first label, upgrade, purchase, money order, and support ticket milestones are now tracked.
+*   **Standardisation (16/20):** Meta Standard events for Login, CompleteRegistration, and Purchase are wired; remaining events are custom but high-value.

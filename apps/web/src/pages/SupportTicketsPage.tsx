@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import Card from "../components/Card";
 import CreateSupportTicketModal from "../components/CreateSupportTicketModal";
 import SEO from "../components/SEO";
+import { trackSupportTicketCreated } from "../lib/analytics";
 import { createSupportTicket, listMySupportTickets, uploadSupportAttachments, type SupportTicket } from "../lib/support";
 
 export default function SupportTicketsPage() {
@@ -96,6 +97,7 @@ export default function SupportTicketsPage() {
         onCreate={async (payload, options) => {
           setWarning(null);
           const created = await createSupportTicket(payload);
+          trackSupportTicketCreated();
           let attachmentWarning: string | undefined;
           if (options.files.length > 0) {
             try {

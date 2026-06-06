@@ -70,6 +70,13 @@
 - Added Meta `CompleteRegistration` for successful registration while keeping GA4 `registration_complete`.
 - Added GA4 `purchase` and Meta `Purchase` alongside existing `payment_success`, carrying only plan name, amount, and currency.
 
+## 2026-06-06 - Analytics Phase 2 Milestone Tracking
+
+- Added one-time per-account `first_label_generated` milestone tracking.
+- Added `subscription_upgrade` milestone tracking for free-to-paid conversions.
+- Added `money_order_generated` milestone tracking for successful money order generation.
+- Added `support_ticket_created` milestone tracking for successful support ticket creation.
+
 ## 2026-06-06 - Build-Time Analytics Injection Verification
 
 - Confirmed the Web deploy path was switched toward build-time analytics injection through `apps/web/railway.json`, with Railway Web building the frontend during deploy and serving `dist` directly afterward.

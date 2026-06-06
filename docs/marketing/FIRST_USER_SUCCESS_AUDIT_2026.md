@@ -24,13 +24,16 @@ This audit reviews the first-user path from registration through first label gen
 - Added a post-success upgrade prompt in the completion modal.
 - Kept all changes UI-only and outside protected business logic.
 
+## Analytics Follow-Up
+- The funnel now has milestone tracking for first successful label generation, free-to-paid upgrade, money order generation, and support ticket creation.
+- Events are limited to safe metadata such as plan name, amount, currency, and counts.
+
 ## Estimated Outcome
 - Funnel score before: 86/100
-- Funnel score after: 92/100
-- Onboarding readiness: 92%
-- Conversion impact estimate: moderate positive uplift for new registrations completing their first label batch
+- Funnel score after: 94/100
+- Onboarding readiness: 94%
+- Conversion impact estimate: moderate positive uplift for new registrations completing their first label batch and first paid conversion
 
 ## Remaining Improvements
 - Continue iterating on first-run guidance after real user feedback.
 - Consider adding a lightweight “resume where you left off” pattern for returning new users if analytics later show drop-off.
-

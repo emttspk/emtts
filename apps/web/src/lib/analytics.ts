@@ -19,6 +19,7 @@ const SAFE_PARAM_KEYS = new Set([
 ]);
 
 let initialized = false;
+const ONE_TIME_EVENT_PREFIX = "labelgen_analytics_once:";
 
 declare global {
   interface Window {
@@ -63,6 +64,16 @@ function sanitizeParams(params?: AnalyticsParams): Record<string, AnalyticsValue
   }
 
   return safe;
+}
+
+function markOneTimeAccountEvent(eventKey: string, accountId: string): boolean {
+  if (typeof window === "undefined") return false;
+  const safeAccountId = String(accountId || "").trim();
+  if (!safeAccountId) return false;
+  const storageKey = `${ONE_TIME_EVENT_PREFIX}${eventKey}:${safeAccountId}`;
+  if (window.localStorage.getItem(storageKey)) return false;
+  window.localStorage.setItem(storageKey, "1");
+  return true;
 }
 
 export function initializeAnalytics() {
@@ -181,5 +192,39 @@ export function trackPaymentSuccess(planName: string, amountCents: number, curre
   }
   if (typeof window !== "undefined" && window.gtag) {
     window.gtag("event", "purchase", { plan_name: planName, amount, value: amount, currency: safeCurrency });
+  }
+}
+
+export function trackFirstLabelGenerated(accountId: string, rowCount: number) {
+  if (!markOneTimeAccountEvent("first_label_generated", accountId)) return;
+  trackEvent("first_label_generated", { count: Math.max(0, Number(rowCount) || 0) });
+  if (typeof window !== "undefined" && window.fbq) {
+    window.fbq("trackCustom", "FirstLabelGenerated", { count: Math.max(0, Number(rowCount) || 0) });
+  }
+}
+
+export function trackSubscriptionUpgrade(accountId: string, planName: string, amountCents: number, currency: string) {
+  if (!markOneTimeAccountEvent("subscription_upgrade", accountId)) return;
+  const safeAmountCents = Math.max(0, Number(amountCents) || 0);
+  const safeCurrency = String(currency || "PKR").trim().toUpperCase() || "PKR";
+  const amount = safeAmountCents / 100;
+  trackEvent("subscription_upgrade", { plan_name: planName, amount, value: amount, currency: safeCurrency });
+  if (typeof window !== "undefined" && window.fbq) {
+    window.fbq("trackCustom", "SubscriptionUpgrade", { plan_name: planName, value: amount, currency: safeCurrency });
+  }
+}
+
+export function trackMoneyOrderGenerated(rowCount: number) {
+  const safeCount = Math.max(0, Number(rowCount) || 0);
+  trackEvent("money_order_generated", { count: safeCount });
+  if (typeof window !== "undefined" && window.fbq) {
+    window.fbq("trackCustom", "MoneyOrderGenerated", { count: safeCount });
+  }
+}
+
+export function trackSupportTicketCreated() {
+  trackEvent("support_ticket_created", { count: 1 });
+  if (typeof window !== "undefined" && window.fbq) {
+    window.fbq("trackCustom", "SupportTicketCreated", { count: 1 });
   }
 }
