@@ -1,5 +1,13 @@
 # AI Implementation Index
 
+## 2026-06-06 - Cloudflare Purge Auth Diagnosis
+
+- Confirmed the workspace cleanup removed only temporary captures and `.tmp-*` directories; existing project evidence files were retained.
+- Confirmed Wrangler is authenticated as `nazimsaeed@gmail.com` and the `epost.pk` zone is visible.
+- Confirmed Cloudflare purge requests still fail with `Authentication error`.
+- Root cause documented: the current Wrangler OAuth token lacks the `Cache Purge` permission needed for `POST /zones/{zone_id}/purge_cache`.
+- Recommended remediation: use a Cloudflare API token or dashboard session that has `Cache Purge` access for the `epost.pk` zone, then retry the targeted purge of homepage, active JS bundle, and `sitemap.xml`.
+
 ## 2026-06-06 - Cloudflare Cache Purge Attempt
 
 - Confirmed the Wrangler session is now authenticated as `nazimsaeed@gmail.com`.

@@ -316,6 +316,26 @@
   - Use a Cloudflare token or dashboard session with purge permission for the `epost.pk` zone, then purge the homepage, active JS bundle, and sitemap.
   - After purge, recheck that the homepage now serves a fresh hashed bundle and the placeholders are gone.
 
+## Purge Auth Diagnosis
+
+- Test date/time: 2026-06-06 05:20 UTC.
+- Cleanup result:
+  - Temporary `.tmp-*` artifacts and captured home/live bundle files were removed from the workspace.
+  - Pre-existing project evidence files such as `apps/web/public/sample.csv`, `multipage-label.html`, and `test-results/final-stabilization/*` were retained.
+- Cloudflare account:
+  - `nazimsaeed@gmail.com`
+- Auth method:
+  - Wrangler reports an OAuth token.
+- Purge failure root cause:
+  - Cloudflare API purge requests are failing with `Authentication error` because the current token does not have cache purge permission for the zone.
+- Exact missing permission:
+  - `Cache Purge`
+- Required next step:
+  - Create or use a Cloudflare API token with `Cache Purge` permission for the `epost.pk` zone, or use a dashboard session that can purge cache for that zone.
+- Current live status:
+  - Production still serves `/assets/index-D2HNUHpQ.js`.
+  - The active asset still contains unresolved analytics placeholder content.
+
 ## Final Production Verification Note (2026-06-04)
 
 - Final production checks confirmed public SEO landing pages, sitemap, and robots availability.
