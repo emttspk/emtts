@@ -25,6 +25,12 @@
 
 - robots.txt sitemap directive fixed and ready for redeploy verification.
 
+## Search Console Verification Readiness (2026-06-06)
+
+- Safe HTML verification placeholders were added to `apps/web/index.html` for Google Search Console, Bing Webmaster Tools, and Meta domain verification.
+- The public sitemap and robots files already exist and use canonical `https://www.epost.pk/` URLs.
+- The setup guide lives in `docs/seo/SEARCH_CONSOLE_SETUP_GUIDE.md`.
+
 ## Current Status (Audit Date: 2026-06-04)
 
 **OVERALL SCORE: 15/100 (CRITICAL GAPS)**

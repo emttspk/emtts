@@ -396,6 +396,7 @@
 - GA4 property mapping was re-verified on production: `G-PT14KRE20Z` is the live measurement ID, `gtag` and `dataLayer` are present, but the headless browser still did not surface a `google-analytics.com/g/collect` request.
 - GA4 transport debugging documented: `window.gtag` remains the queue shim, `dataLayer` receives `page_view`, but the browser probe did not trigger `sendBeacon`, `fetch`, or XHR transport to `g/collect`.
 - GA4 transport fix verified in production-style browser probe: `window.dataLayer` is initialized before `gtag.js`, `arguments`-style queueing works, and `google-analytics.com/g/collect` now returns `204`.
+- Search Console and domain verification readiness documented, with safe HTML placeholders for Google, Bing, and Meta plus a dedicated setup guide.
 - Railway Web analytics variables and live bundle verification documented.
 - Railway Web variables verified present, Web redeployed, and live bundle confirmed missing baked GA4/Meta IDs pending build-time env injection fix.
 - Railway Web runtime analytics env injection restored and documented; cache-busted production bundle placeholders verified removed.
