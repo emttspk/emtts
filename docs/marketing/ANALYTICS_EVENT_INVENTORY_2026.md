@@ -113,10 +113,41 @@ Based on the priority list, the following events are missing or require refineme
 
 ---
 
-## 7. Analytics Maturity Score
-**Current Score: 90/100**
+## 7. Attribution & Reporting Layer
+
+### Captured Attribution Fields
+The frontend analytics helper now captures a safe session snapshot for acquisition reporting:
+
+* `utm_source`
+* `utm_medium`
+* `utm_campaign`
+* `referrer`
+* `landing_path`
+* `session_id`
+
+### Reporting Storage
+* Analytics events are stored in a dedicated `AnalyticsEvent` table for read-only reporting.
+* The analytics helper sends safe event payloads to `/api/analytics/collect`.
+* Admin reporting reads `/api/analytics/report` for funnel, source, campaign, and landing-page performance.
+
+### Dashboard Metrics
+The new attribution dashboard provides:
+
+* registrations
+* logins
+* first labels
+* purchases
+* conversion rates
+* source performance
+* campaign performance
+* top landing pages
+
+---
+
+## 8. Analytics Maturity Score
+**Current Score: 96/100**
 
 *   **Foundation (25/25):** GA4 and Meta Pixel initialized correctly with env vars.
 *   **Page Tracking (15/15):** Full route tracking active.
-*   **Funnel Coverage (36/40):** Login, registration, first label, upgrade, purchase, money order, and support ticket milestones are now tracked.
+*   **Funnel Coverage (40/40):** Login, registration, first label, upgrade, purchase, money order, support ticket, and attribution milestones are now tracked and reported.
 *   **Standardisation (16/20):** Meta Standard events for Login, CompleteRegistration, and Purchase are wired; remaining events are custom but high-value.

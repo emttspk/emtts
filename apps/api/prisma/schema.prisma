@@ -38,6 +38,7 @@ model User {
   supportTickets SupportTicket[]
   supportTicketMessages SupportTicketMessage[]
   supportTicketAttachments SupportTicketAttachment[]
+  analyticsEvents AnalyticsEvent[]
   supportTicketAuditLogs SupportTicketAuditLog[]
   supportNotifications SupportTicketNotification[]
   complaintNotifications ComplaintNotification[]
@@ -179,6 +180,37 @@ model PaymentEvent {
 
   @@unique([paymentId, source, payloadHash])
   @@index([paymentId, source])
+}
+
+model AnalyticsEvent {
+  id            String   @id @default(uuid())
+  sessionId     String
+  userId        String?
+  eventName     String
+  path          String?
+  landingPath   String?
+  source        String?
+  utmSource     String?
+  utmMedium     String?
+  utmCampaign   String?
+  referrer      String?
+  planName      String?
+  method        String?
+  status        String?
+  feature       String?
+  amountCents   Int?
+  valueCents    Int?
+  count         Int?
+  currency      String?
+  createdAt     DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([eventName, createdAt])
+  @@index([sessionId, createdAt])
+  @@index([utmSource, utmCampaign])
+  @@index([landingPath])
+  @@index([userId, eventName])
 }
 
 model UsageMonthly {

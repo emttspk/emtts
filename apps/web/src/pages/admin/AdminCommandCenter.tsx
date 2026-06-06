@@ -92,6 +92,11 @@ function centsToPkr(value?: number) {
   return money.format((value ?? 0) / 100);
 }
 
+function formatPercent(value?: number | null) {
+  const safe = Number(value ?? 0);
+  return `${Math.round(safe * 10) / 10}%`;
+}
+
 function DataTable(props: { headers: Array<string | React.ReactNode>; rows: Array<Array<string | number | null | React.ReactNode>>; compact?: boolean }) {
   const bodyCellClass = props.compact
     ? "max-w-[320px] truncate px-3 py-2 text-xs text-slate-700"
@@ -316,6 +321,7 @@ export default function AdminCommandCenter() {
   const pendingSupportTicketIdRef = useRef<string | null>(typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("ticketId") : null);
   const [summary, setSummary] = useState<AnyObject | null>(null);
   const [health, setHealth] = useState<AnyObject | null>(null);
+  const [marketing, setMarketing] = useState<AnyObject | null>(null);
   const [users, setUsers] = useState<AnyObject | null>(null);
   const [revenue, setRevenue] = useState<AnyObject | null>(null);
   const [usage, setUsage] = useState<AnyObject | null>(null);
@@ -410,12 +416,14 @@ export default function AdminCommandCenter() {
   }
 
   async function loadDashboard() {
-    const [summaryRes, healthRes] = await Promise.all([
+    const [summaryRes, healthRes, marketingRes] = await Promise.all([
       api<AnyObject>("/api/admin/dashboard/summary"),
       api<AnyObject>("/api/admin/dashboard/health"),
+      api<AnyObject>("/api/analytics/report").catch(() => null),
     ]);
     setSummary(summaryRes);
     setHealth(healthRes);
+    setMarketing(marketingRes);
   }
 
   useEffect(() => {
@@ -667,6 +675,10 @@ export default function AdminCommandCenter() {
   }, [summary, health?.queue?.lastFailedReason, health?.queue?.lastFailedAt]);
 
   function renderDashboard() {
+    const marketingSummary = marketing?.summary ?? null;
+    const sourceRows: AnyObject[] = marketing?.sourcePerformance ?? [];
+    const campaignRows: AnyObject[] = marketing?.campaignPerformance ?? [];
+    const landingRows: AnyObject[] = marketing?.topLandingPages ?? [];
     return (
       <div className="space-y-4">
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -723,6 +735,78 @@ export default function AdminCommandCenter() {
               </div>
             ) : null}
           </article>
+        </section>
+        <section className="rounded-2xl border border-[color:var(--line)] bg-white p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-base font-bold">Attribution & Funnel</h3>
+              <p className="mt-1 text-sm text-slate-600">Source, campaign, and landing-page performance captured safely through analytics events.</p>
+            </div>
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+              Updated {String(marketing?.updatedAt ?? "-").slice(0, 19).replace("T", " ")}
+            </span>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard label="Registrations" value={marketingSummary?.registrations ?? 0} hint={`Login ${formatPercent(marketingSummary?.conversionRates?.registrationToLogin ?? 0)}`} />
+            <MetricCard label="Logins" value={marketingSummary?.logins ?? 0} hint={`First label ${formatPercent(marketingSummary?.conversionRates?.loginToFirstLabel ?? 0)}`} />
+            <MetricCard label="First Labels" value={marketingSummary?.firstLabels ?? 0} hint={`Purchase ${formatPercent(marketingSummary?.conversionRates?.firstLabelToPurchase ?? 0)}`} />
+            <MetricCard label="Purchases" value={marketingSummary?.purchases ?? 0} hint={`Reg → purchase ${formatPercent(marketingSummary?.conversionRates?.registrationToPurchase ?? 0)}`} />
+          </div>
+          <div className="mt-4 grid gap-4 xl:grid-cols-3">
+            <article className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+              <h4 className="text-sm font-bold text-slate-900">Source Performance</h4>
+              <div className="mt-3">
+                <DataTable
+                  headers={["Source", "Medium", "Regs", "Logs", "First", "Purch", "CVR"]}
+                  rows={sourceRows.map((row) => [
+                    row.source ?? "-",
+                    row.medium ?? "-",
+                    row.registrations ?? 0,
+                    row.logins ?? 0,
+                    row.firstLabels ?? 0,
+                    row.purchases ?? 0,
+                    formatPercent(row.registrationToPurchase ?? 0),
+                  ])}
+                  compact
+                />
+              </div>
+            </article>
+            <article className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+              <h4 className="text-sm font-bold text-slate-900">Campaign Performance</h4>
+              <div className="mt-3">
+                <DataTable
+                  headers={["Campaign", "Source", "Regs", "Logs", "First", "Purch", "CVR"]}
+                  rows={campaignRows.map((row) => [
+                    row.campaign ?? "-",
+                    row.source ?? "-",
+                    row.registrations ?? 0,
+                    row.logins ?? 0,
+                    row.firstLabels ?? 0,
+                    row.purchases ?? 0,
+                    formatPercent(row.registrationToPurchase ?? 0),
+                  ])}
+                  compact
+                />
+              </div>
+            </article>
+            <article className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+              <h4 className="text-sm font-bold text-slate-900">Top Landing Pages</h4>
+              <div className="mt-3">
+                <DataTable
+                  headers={["Landing", "Sess", "Regs", "First", "Purch", "CVR"]}
+                  rows={landingRows.map((row) => [
+                    row.landingPath ?? "-",
+                    row.sessions ?? 0,
+                    row.registrations ?? 0,
+                    row.firstLabels ?? 0,
+                    row.purchases ?? 0,
+                    formatPercent(row.registrationToPurchase ?? 0),
+                  ])}
+                  compact
+                />
+              </div>
+            </article>
+          </div>
         </section>
         {TEMPLATE_DESIGNER_ENABLED ? (
           <section className="rounded-2xl border border-[color:var(--line)] bg-white p-4">

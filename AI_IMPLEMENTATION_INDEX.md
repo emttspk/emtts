@@ -77,6 +77,14 @@
 - Added `money_order_generated` milestone tracking for successful money order generation.
 - Added `support_ticket_created` milestone tracking for successful support ticket creation.
 
+## 2026-06-06 - Analytics Phase 3 Attribution and Funnel Reporting
+
+- Added safe session attribution capture for `utm_source`, `utm_medium`, `utm_campaign`, `referrer`, `landing_path`, and `session_id`.
+- Added a dedicated `AnalyticsEvent` table and a public analytics collector endpoint for safe attribution/event persistence.
+- Added an admin reporting endpoint that surfaces registrations, logins, first labels, purchases, conversion rates, source performance, campaign performance, and top landing pages.
+- Added an attribution section to the admin dashboard so marketing can inspect funnel and source performance without touching business logic.
+- Created `docs/marketing/ATTRIBUTION_REPORTING_AUDIT_2026.md`.
+
 ## 2026-06-06 - Build-Time Analytics Injection Verification
 
 - Confirmed the Web deploy path was switched toward build-time analytics injection through `apps/web/railway.json`, with Railway Web building the frontend during deploy and serving `dist` directly afterward.

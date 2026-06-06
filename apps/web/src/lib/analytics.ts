@@ -1,3 +1,6 @@
+import { apiUrl } from "./api";
+import { getToken } from "./auth";
+
 type AnalyticsValue = string | number | boolean;
 type AnalyticsParams = Record<string, AnalyticsValue | null | undefined>;
 
@@ -20,6 +23,21 @@ const SAFE_PARAM_KEYS = new Set([
 
 let initialized = false;
 const ONE_TIME_EVENT_PREFIX = "labelgen_analytics_once:";
+const ANALYTICS_SESSION_KEY = "labelgen_analytics_session:v1";
+const ANALYTICS_ATTRIBUTION_KEY = "labelgen_analytics_attribution:v1";
+const INTERNAL_ANALYTICS_ENDPOINT = apiUrl("/api/analytics/collect");
+let fallbackSessionId = "";
+let fallbackAttributionSnapshot: AttributionContext | null = null;
+
+type AttributionContext = {
+  sessionId: string;
+  utmSource: string;
+  utmMedium: string;
+  utmCampaign: string;
+  referrer: string;
+  landingPath: string;
+  capturedAt: string;
+};
 
 declare global {
   interface Window {
@@ -76,9 +94,181 @@ function markOneTimeAccountEvent(eventKey: string, accountId: string): boolean {
   return true;
 }
 
+function getStorageSessionId(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    const existing = window.sessionStorage.getItem(ANALYTICS_SESSION_KEY);
+    if (existing) return existing;
+    const sessionId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `session_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+    window.sessionStorage.setItem(ANALYTICS_SESSION_KEY, sessionId);
+    return sessionId;
+  } catch {
+    if (!fallbackSessionId) {
+      fallbackSessionId = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `session_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+    }
+    return fallbackSessionId;
+  }
+}
+
+function getSessionStorageSnapshot(): AttributionContext | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(ANALYTICS_ATTRIBUTION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<AttributionContext> | null;
+    if (!parsed || typeof parsed !== "object") return null;
+    return {
+      sessionId: String(parsed.sessionId ?? "").trim(),
+      utmSource: String(parsed.utmSource ?? "").trim(),
+      utmMedium: String(parsed.utmMedium ?? "").trim(),
+      utmCampaign: String(parsed.utmCampaign ?? "").trim(),
+      referrer: String(parsed.referrer ?? "").trim(),
+      landingPath: String(parsed.landingPath ?? "").trim(),
+      capturedAt: String(parsed.capturedAt ?? "").trim(),
+    };
+  } catch {
+    return fallbackAttributionSnapshot;
+  }
+}
+
+function setSessionStorageSnapshot(snapshot: AttributionContext) {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(ANALYTICS_ATTRIBUTION_KEY, JSON.stringify(snapshot));
+  } catch {
+    // Ignore storage failures and continue with best-effort reporting.
+  }
+  fallbackAttributionSnapshot = snapshot;
+}
+
+function normalizeText(value: string | null | undefined) {
+  const text = String(value ?? "").trim();
+  return text ? text.slice(0, 120) : "";
+}
+
+function normalizeReferrer(value: string | null | undefined) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    return `${url.origin}${url.pathname}`.slice(0, 240);
+  } catch {
+    return raw.slice(0, 240);
+  }
+}
+
+function buildAttributionSnapshot(): AttributionContext {
+  if (typeof window === "undefined") {
+    return {
+      sessionId: "",
+      utmSource: "",
+      utmMedium: "",
+      utmCampaign: "",
+      referrer: "",
+      landingPath: "",
+      capturedAt: new Date().toISOString(),
+    };
+  }
+
+  const existing = getSessionStorageSnapshot();
+  if (existing?.sessionId) return existing;
+
+  const params = new URLSearchParams(window.location.search);
+  const referrer = normalizeReferrer(document.referrer);
+  const referrerHost = referrer ? (() => {
+    try {
+      return new URL(document.referrer).hostname.replace(/^www\./i, "");
+    } catch {
+      return "";
+    }
+  })() : "";
+  const snapshot: AttributionContext = {
+    sessionId: getStorageSessionId(),
+    utmSource: normalizeText(params.get("utm_source")) || referrerHost || "direct",
+    utmMedium: normalizeText(params.get("utm_medium")) || (referrerHost ? "referral" : "direct"),
+    utmCampaign: normalizeText(params.get("utm_campaign")),
+    referrer,
+    landingPath: String(window.location.pathname || "/").slice(0, 240),
+    capturedAt: new Date().toISOString(),
+  };
+  setSessionStorageSnapshot(snapshot);
+  return snapshot;
+}
+
+function getAttributionSnapshot() {
+  return buildAttributionSnapshot();
+}
+
+function toCents(value: unknown) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) return null;
+  return Math.round(numeric * 100);
+}
+
+function queueInternalAnalyticsEvent(eventName: string, params: AnalyticsParams, pagePath: string) {
+  if (typeof window === "undefined") return;
+  if (window.location.pathname.startsWith("/admin")) return;
+
+  const attribution = getAttributionSnapshot();
+  const sanitizedPath = String(pagePath || "")
+    .split("#")[0]
+    .split("?")[0]
+    .slice(0, 240);
+  const payload = {
+    eventName,
+    sessionId: attribution.sessionId,
+    path: sanitizedPath,
+    landingPath: attribution.landingPath || sanitizedPath,
+    utmSource: attribution.utmSource || null,
+    utmMedium: attribution.utmMedium || null,
+    utmCampaign: attribution.utmCampaign || null,
+    referrer: attribution.referrer || null,
+    source: typeof params.source === "string" ? params.source.slice(0, 120) : null,
+    planName: typeof params.plan_name === "string" ? params.plan_name.slice(0, 120) : null,
+    amountCents: toCents(params.amount ?? params.value),
+    valueCents: toCents(params.value ?? params.amount),
+    method: typeof params.method === "string" ? params.method.slice(0, 120) : null,
+    status: typeof params.status === "string" ? params.status.slice(0, 120) : null,
+    feature: typeof params.feature === "string" ? params.feature.slice(0, 120) : null,
+    count: typeof params.count === "number" ? Math.max(0, Math.floor(params.count)) : null,
+    currency: typeof params.currency === "string" ? params.currency.slice(0, 12).toUpperCase() : null,
+  };
+
+  const body = JSON.stringify(payload);
+  try {
+    const token = getToken();
+    const headers = token ? { authorization: `Bearer ${token}` } : undefined;
+    if (!token && typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+      const ok = navigator.sendBeacon(
+        INTERNAL_ANALYTICS_ENDPOINT,
+        new Blob([body], { type: "application/json" }),
+      );
+      if (ok) return;
+    }
+
+    void fetch(INTERNAL_ANALYTICS_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(headers ?? {}),
+      },
+      body,
+      credentials: "same-origin",
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    // Never block the UI on reporting.
+  }
+}
+
 export function initializeAnalytics() {
   if (initialized || typeof window === "undefined") return;
   initialized = true;
+  getAttributionSnapshot();
 
   if (GA_MEASUREMENT_ID) {
     window.dataLayer = window.dataLayer || [];
@@ -110,6 +300,7 @@ export function trackEvent(name: string, params?: AnalyticsParams) {
   const eventName = String(name || "").trim();
   if (!eventName) return;
   const safeParams = sanitizeParams(params);
+  const pagePath = `${window.location.pathname}${window.location.search}`.slice(0, 240);
 
   if (window.gtag) {
     window.gtag("event", eventName, safeParams);
@@ -118,6 +309,8 @@ export function trackEvent(name: string, params?: AnalyticsParams) {
   if (window.fbq) {
     window.fbq("trackCustom", eventName, safeParams);
   }
+
+  queueInternalAnalyticsEvent(eventName, safeParams, pagePath);
 }
 
 export function trackPageView(path: string) {
@@ -134,6 +327,7 @@ export function trackPageView(path: string) {
   if (window.fbq) {
     window.fbq("track", "PageView");
   }
+  queueInternalAnalyticsEvent("page_view", {}, safePath);
 }
 
 export function trackLeadStart(source: string) {
