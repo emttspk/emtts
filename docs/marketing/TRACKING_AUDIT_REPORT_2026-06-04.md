@@ -306,13 +306,14 @@
   - `GET /zones?name=epost.pk` returned an empty result set for the authenticated Cloudflare account in this shell.
   - That means the current authenticated Cloudflare account cannot see the `epost.pk` zone, so a safe purge cannot be executed from this environment.
 - Purge status: NOT RUN.
-  - No homepage / JS bundle / sitemap purge was possible without zone visibility.
+  - A targeted purge attempt against the visible `epost.pk` zone returned Cloudflare API `Authentication error` from the current Wrangler OAuth token.
+  - No homepage / JS bundle / sitemap purge completed from this shell.
 - Live asset recheck:
   - Homepage still references `/assets/index-D2HNUHpQ.js`.
   - The active asset still contains unresolved `__VITE_*` placeholder content.
   - GA4 and Meta bootstrap markers remain present in the active asset, but the public browser path is still the stale file.
 - Remaining action:
-  - Use the Cloudflare account that owns the `epost.pk` zone, or grant this authenticated account access to that zone, then purge the homepage, active JS bundle, and sitemap.
+  - Use a Cloudflare token or dashboard session with purge permission for the `epost.pk` zone, then purge the homepage, active JS bundle, and sitemap.
   - After purge, recheck that the homepage now serves a fresh hashed bundle and the placeholders are gone.
 
 ## Final Production Verification Note (2026-06-04)
