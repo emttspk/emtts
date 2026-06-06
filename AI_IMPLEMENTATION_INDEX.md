@@ -6,6 +6,10 @@
 - Removed the runtime placeholder replacement path from the Web Docker runtime image.
 - Root cause: Docker builds were repeatedly producing the placeholder-based `/assets/index-D2HNUHpQ.js` bundle, so production kept referencing the obsolete analytics placeholder asset.
 - Expected deploy outcome: Web should build a fresh hashed bundle containing the real GA4, Meta Pixel, and public WhatsApp values.
+- Deployed Web successfully as Railway deployment `4d8cdfcc-25a4-4846-95a8-4c1d3eb50121`.
+- Verified production homepage moved from `/assets/index-D2HNUHpQ.js` to `/assets/index-CyNPXa3k.js`.
+- Verified active production bundle has no unresolved `__VITE_*` placeholders and contains the masked GA4 / Meta Pixel ID suffixes.
+- Browser probe confirmed GA and Meta scripts initialize without placeholder URLs; final GA4 Realtime and Meta Pixel Helper verification remains the last 10/10 gate.
 
 ## 2026-06-06 - Cloudflare Purge Auth Diagnosis
 

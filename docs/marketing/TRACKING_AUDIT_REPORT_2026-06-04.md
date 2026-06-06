@@ -347,6 +347,20 @@
   - The runtime placeholder replacement script was removed from the Docker runtime image path.
 - Expected result:
   - Web deploys should generate a new hashed bundle from the real production analytics values instead of mutating a placeholder bundle after build.
+- Deployment result:
+  - Railway Web deployment `4d8cdfcc-25a4-4846-95a8-4c1d3eb50121` completed successfully.
+- Production verification:
+  - Homepage bundle before: `/assets/index-D2HNUHpQ.js`
+  - Homepage bundle after: `/assets/index-CyNPXa3k.js`
+  - Placeholder strings: NOT FOUND in the active production bundle.
+  - GA4 ID: FOUND by masked suffix check in the active production bundle.
+  - Meta Pixel ID: FOUND by masked suffix check in the active production bundle.
+  - Browser script load: GA and Meta scripts initialized without unresolved placeholder URLs.
+- Remaining browser confirmation:
+  - Headless browser confirmed `gtag`, populated `dataLayer`, loaded `fbq`, and loaded Meta config.
+  - GA4 collect and Meta `/tr` beacons still need a final Chrome DevTools / GA4 Realtime / Meta Pixel Helper confirmation for a 10/10 live marketing score.
+- Final score after deployment fix:
+  - 9/10
 
 ## Final Production Verification Note (2026-06-04)
 
