@@ -391,6 +391,23 @@
   - File upload, label generation start/success, package selection, payment start, and payment success events are now wired in the UI with safe payload fields only.
   - Remaining verification work is browser-side confirmation of GA4 DebugView and network beacons in Chrome.
 
+## GA4 Property Mapping Verification
+
+- Test date: 2026-06-06
+- Production measurement ID used by the site: `G-PT14KRE20Z`
+- Live homepage bundle: `https://www.epost.pk/assets/index-DsNQSP2B.js`
+- Browser verification result:
+  - `window.gtag`: present
+  - `window.dataLayer`: present
+  - `dataLayer` contains `config` for `G-PT14KRE20Z`
+  - `dataLayer` contains `page_view` for `/` and `/register`
+- Network verification result:
+  - `https://www.googletagmanager.com/gtag/js?id=G-PT14KRE20Z`: requested successfully with HTTP 200
+  - `google-analytics.com/g/collect`: not observed in the headless browser capture
+- Interpretation:
+  - Production bundle and GA4 property match.
+  - The remaining gap is transport-level `collect` confirmation, which points to either a browser/runtime suppression issue or delayed/hidden GA delivery rather than a measurement ID mismatch.
+
 ## Final Beacon Check
 
 - Test date/time: 2026-06-06 11:20 PKT.
