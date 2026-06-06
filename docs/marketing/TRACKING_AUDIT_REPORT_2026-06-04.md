@@ -427,6 +427,23 @@
   - Not a property mismatch.
   - Most likely a browser/runtime transport suppression or delayed flush issue in the current environment, since the queue is populated but GA never emits a network beacon.
 
+## GA4 Transport Fix Verification
+
+- Fix applied:
+  - `initializeAnalytics()` now creates `window.dataLayer` and the `gtag` queue shim before injecting `gtag.js`.
+  - The shim now uses `arguments` semantics, matching the standard Google snippet so the loaded GA library can drain the queue correctly.
+- Live verification:
+  - Production Measurement ID: `G-PT14KRE20Z`
+  - Live homepage bundle: `https://www.epost.pk/assets/index-1IvbyKA_.js`
+  - `window.gtag`: present
+  - `window.dataLayer`: present
+  - `page_view`: present in `dataLayer`
+  - `navigator.sendBeacon` / fetch / XHR transport: `google-analytics.com/g/collect` observed
+  - `g/collect` status: `204`
+- Interpretation:
+  - The GA4 transport layer is now working end-to-end.
+  - The previous blocker was the bootstrap sequence / queue shim behavior, not the measurement ID or property mapping.
+
 ## Final Beacon Check
 
 - Test date/time: 2026-06-06 11:20 PKT.
