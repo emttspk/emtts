@@ -309,3 +309,4 @@ Source reviewed: `marketing/Keyword Stats 2026-06-04 at 02_49_24.csv` (local onl
 - Money Order Generation SEO landing page added and linked with label, tracking, bulk tracking, and complaint pages.
 - Ecommerce Shipping Pakistan SEO landing page added and linked with all core SEO landing pages.
 - Final SEO landing-page cluster signoff documented.
+- Indexing readiness audit added in `docs/seo/INDEXING_READINESS_AUDIT_2026.md`; sitemap coverage now includes the public auth-help routes (`/forgot-password`, `/forgot-username`, `/email-otp-login`) alongside the existing discovery pages.

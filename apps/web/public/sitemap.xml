@@ -16,6 +16,15 @@
     <loc>https://www.epost.pk/register</loc>
   </url>
   <url>
+    <loc>https://www.epost.pk/forgot-password</loc>
+  </url>
+  <url>
+    <loc>https://www.epost.pk/forgot-username</loc>
+  </url>
+  <url>
+    <loc>https://www.epost.pk/email-otp-login</loc>
+  </url>
+  <url>
     <loc>https://www.epost.pk/support</loc>
   </url>
   <url>

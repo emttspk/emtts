@@ -419,6 +419,7 @@
 - Conversion funnel audit added in `CONVERSION_FUNNEL_AUDIT.md`; register is instrumented, but upload, label generation, package selection, and payment start still need GA4 wiring.
 - Conversion optimization audit added in `docs/marketing/CONVERSION_OPTIMIZATION_AUDIT_2026.md`; homepage hero, mobile sticky CTA, and free-plan visibility were improved for visitor-to-registration flow.
 - Mobile UX audit added in `docs/marketing/MOBILE_UX_AUDIT_2026.md`; login/register conversion strips and footer/mobile CTA spacing were tuned for narrow screens.
+- Indexing readiness audit added in `docs/seo/INDEXING_READINESS_AUDIT_2026.md`; sitemap coverage now includes the public auth-help routes and the homepage verification placeholders remain safely documented.
 - SEO + Google Ranking Audit completed. Report: docs/seo/SEO_MASTER_PLAN_2026.md
 
 ---
