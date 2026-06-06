@@ -108,13 +108,18 @@ export function trackEvent(name: string, params?: AnalyticsParams) {
 
 export function trackPageView(path: string) {
   const safePath = String(path || "").slice(0, 240);
+  const pageLocation = typeof window !== "undefined" ? window.location.href.slice(0, 240) : safePath;
+  const pageTitle = typeof document !== "undefined" ? document.title.slice(0, 120) : "";
   if (window.gtag) {
-    window.gtag("event", "page_view", { page_path: safePath });
+    window.gtag("event", "page_view", {
+      page_path: safePath,
+      page_location: pageLocation,
+      page_title: pageTitle,
+    });
   }
   if (window.fbq) {
     window.fbq("track", "PageView");
   }
-  trackEvent("page_view", { path: safePath });
 }
 
 export function trackLeadStart(source: string) {
