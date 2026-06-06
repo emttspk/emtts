@@ -394,6 +394,7 @@
 - Live GA4 and Meta Pixel firing verification documented.
 - Conversion funnel analytics events for file upload, label generation, package selection, and payment start/success are now wired in the UI.
 - GA4 property mapping was re-verified on production: `G-PT14KRE20Z` is the live measurement ID, `gtag` and `dataLayer` are present, but the headless browser still did not surface a `google-analytics.com/g/collect` request.
+- GA4 transport debugging documented: `window.gtag` remains the queue shim, `dataLayer` receives `page_view`, but the browser probe did not trigger `sendBeacon`, `fetch`, or XHR transport to `g/collect`.
 - Railway Web analytics variables and live bundle verification documented.
 - Railway Web variables verified present, Web redeployed, and live bundle confirmed missing baked GA4/Meta IDs pending build-time env injection fix.
 - Railway Web runtime analytics env injection restored and documented; cache-busted production bundle placeholders verified removed.

@@ -408,6 +408,25 @@
   - Production bundle and GA4 property match.
   - The remaining gap is transport-level `collect` confirmation, which points to either a browser/runtime suppression issue or delayed/hidden GA delivery rather than a measurement ID mismatch.
 
+## GA4 Transport Debugging
+
+- Test method: Chrome headless / incognito-style browser probe with transport instrumentation for `navigator.sendBeacon`, `fetch`, and `XMLHttpRequest`.
+- Initialization order:
+  - `gtag.js` loads before the page is checked.
+  - `window.dataLayer` is populated with `js`, `config`, and `page_view`.
+  - `window.gtag` remains the queue shim (`function(...s){ window.dataLayer.push(s) }`), which is expected until the GA script drains queued entries.
+- Transport result:
+  - No GA transport call was observed from the browser probe.
+  - `navigator.sendBeacon` was not called.
+  - GA `fetch` / XHR fallback transport was not called.
+  - The only observed network activity was the normal app/API fetch plus Cloudflare RUM.
+- Beacons:
+  - `google-analytics.com/g/collect`: not observed.
+  - `page_view` exists in `dataLayer`, but it does not leave the browser in this probe.
+- Likely cause:
+  - Not a property mismatch.
+  - Most likely a browser/runtime transport suppression or delayed flush issue in the current environment, since the queue is populated but GA never emits a network beacon.
+
 ## Final Beacon Check
 
 - Test date/time: 2026-06-06 11:20 PKT.
