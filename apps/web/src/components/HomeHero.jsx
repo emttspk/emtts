@@ -303,6 +303,14 @@ export default function HomeHero() {
               )}
             </div>
 
+            <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600 sm:text-[12px]">
+              {["Free plan available", "No card required", "WhatsApp support"].map((item) => (
+                <span key={item} className="inline-flex items-center rounded-full border border-[#dce8f5] bg-white/90 px-3 py-1.5 shadow-sm">
+                  {item}
+                </span>
+              ))}
+            </div>
+
             <form
               onSubmit={(event) => {
                 event.preventDefault();

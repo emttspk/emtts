@@ -223,7 +223,7 @@
   }
 
   .public-shell {
-    @apply min-h-screen bg-[linear-gradient(180deg,#f4f9ff_0%,#eef6ff_50%,#f2fbf8_100%)] text-[#0f1f3a];
+    @apply min-h-screen bg-[linear-gradient(180deg,#f4f9ff_0%,#eef6ff_50%,#f2fbf8_100%)] text-[#0f1f3a] pb-24 md:pb-0;
   }
 }
 

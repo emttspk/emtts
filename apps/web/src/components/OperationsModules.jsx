@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchPlans } from "../lib/PackageService";
+import { trackLeadStart, trackWhatsAppClick } from "../lib/analytics";
 
 const MODULES = [
   {
@@ -68,6 +69,8 @@ function complaintLimitText(plan) {
 export default function OperationsModules() {
   const [plans, setPlans] = useState([]);
   const [plansFailed, setPlansFailed] = useState(false);
+  const publicWhatsAppDigits = String(import.meta.env.VITE_PUBLIC_WHATSAPP_NUMBER ?? "").replace(/\D/g, "");
+  const publicWhatsAppUrl = publicWhatsAppDigits.length >= 7 ? `https://wa.me/${publicWhatsAppDigits}` : "";
 
   function loadPlans() {
     setPlansFailed(false);
@@ -89,15 +92,16 @@ export default function OperationsModules() {
       .map((plan, index) => {
         const planSlug = toPlanSlug(plan.name);
         const priceCents = plan.discountPriceCents ?? plan.priceCents;
+        const isFree = priceCents === 0 || planSlug === "free";
         return {
           name: planSlug.toUpperCase() || "PLAN",
           price: formatPrice(priceCents),
           totalSharedUnits: `Total Shared Units: ${(plan.unitsIncluded ?? plan.monthlyLabelLimit ?? 0).toLocaleString()}`,
           complaintLimits: `Complaint Limits: ${complaintLimitText(plan)}`,
-          cta: priceCents > 0 ? "Buy Now" : "Get Started Free",
+          cta: isFree ? "Start Free" : "Buy Now",
           checkoutHref: priceCents > 0 ? `/billing/checkout?plan=${encodeURIComponent(planSlug)}` : "/register",
-          badge: index === 1 || (planSlug || "").toUpperCase() === "STANDARD" ? "Most Popular" : null,
-          featured: index === 1 || (planSlug || "").toUpperCase() === "STANDARD",
+          badge: isFree ? "Best Entry" : index === 1 || (planSlug || "").toUpperCase() === "STANDARD" ? "Most Popular" : null,
+          featured: isFree || index === 1 || (planSlug || "").toUpperCase() === "STANDARD",
         };
       });
   }, [plans]);
@@ -199,6 +203,43 @@ export default function OperationsModules() {
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-700">Billing Plans</p>
             <h3 className="mt-2 text-3xl font-black tracking-[-0.03em] text-[#0f1f3a] sm:text-4xl">Billing Packages</h3>
+          </div>
+
+          <div className="ui-command-surface mt-6 flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between md:p-6">
+            <div className="max-w-2xl">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">Start Free</p>
+              <h4 className="mt-2 text-xl font-black tracking-[-0.03em] text-[#0f1f3a]">Start on the free plan, then upgrade when your volume grows.</h4>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Register in minutes, try the core workflow without payment, and message us on WhatsApp if you want a quick setup walkthrough.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row md:flex-col lg:flex-row">
+              <a
+                href="/register"
+                onClick={() => trackLeadStart("homepage_billing_packages")}
+                className="btn-primary h-11 rounded-xl px-5 text-sm font-bold"
+              >
+                Start Free
+              </a>
+              {publicWhatsAppUrl ? (
+                <a
+                  href={publicWhatsAppUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => trackWhatsAppClick("homepage_billing_packages")}
+                  className="inline-flex h-11 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 px-5 text-sm font-semibold text-emerald-700"
+                >
+                  WhatsApp Demo
+                </a>
+              ) : (
+                <a
+                  href="/pricing"
+                  className="inline-flex h-11 items-center justify-center rounded-xl border border-[#dce8f5] bg-white px-5 text-sm font-semibold text-slate-700"
+                >
+                  View Pricing
+                </a>
+              )}
+            </div>
           </div>
 
           <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-3">

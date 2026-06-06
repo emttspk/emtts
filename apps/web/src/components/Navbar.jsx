@@ -1,10 +1,16 @@
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
+import { trackLeadStart, trackWhatsAppClick } from "../lib/analytics";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const pathname = typeof window !== "undefined" ? window.location.pathname : "";
   const isLoggedIn = typeof window !== "undefined" && Boolean(window.localStorage.getItem("labelgen_token"));
+  const publicWhatsAppDigits = String(import.meta.env.VITE_PUBLIC_WHATSAPP_NUMBER ?? "").replace(/\D/g, "");
+  const publicWhatsAppUrl = publicWhatsAppDigits.length >= 7 ? `https://wa.me/${publicWhatsAppDigits}` : "";
+  const showMobileCtaBar =
+    typeof window !== "undefined" &&
+    !/^\/(login|register(?:\/profile)?|forgot-password|forgot-username|email-otp-login)$/i.test(pathname);
   const navLinks = [
     { href: "/#services", label: "Services" },
     { href: "/#how-it-works", label: "How It Works" },
@@ -97,6 +103,38 @@ export default function Navbar() {
                 Start Free
               </a>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showMobileCtaBar ? (
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#dce8f5] bg-white/96 px-4 py-3 shadow-[0_-12px_32px_rgba(10,31,68,0.12)] backdrop-blur-2xl lg:hidden">
+          <div className="mx-auto grid w-full max-w-[1240px] grid-cols-2 gap-2">
+            <a
+              href="/register"
+              onClick={() => trackLeadStart("navbar_mobile")}
+              className="inline-flex h-11 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#0f1f3a,#0ea576)] px-3 text-center text-sm font-bold text-white shadow-[0_10px_26px_rgba(10,31,68,0.2)]"
+            >
+              Start Free
+            </a>
+            {publicWhatsAppUrl ? (
+              <a
+                href={publicWhatsAppUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => trackWhatsAppClick("navbar_mobile")}
+                className="inline-flex h-11 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 px-3 text-center text-sm font-semibold text-emerald-700"
+              >
+                WhatsApp Demo
+              </a>
+            ) : (
+              <a
+                href="/pricing"
+                className="inline-flex h-11 items-center justify-center rounded-xl border border-[#dce8f5] bg-white px-3 text-center text-sm font-semibold text-slate-700"
+              >
+                View Pricing
+              </a>
+            )}
           </div>
         </div>
       ) : null}
