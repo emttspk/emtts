@@ -139,11 +139,23 @@ export function trackTrackingSearch(count: number) {
 }
 
 export function trackLabelJobStart(rowCount: number) {
-  trackEvent("label_job_start", { row_count: Math.max(0, Number(rowCount) || 0) });
+  trackEvent("label_generation_start", { count: Math.max(0, Number(rowCount) || 0) });
+}
+
+export function trackLabelJobSuccess(rowCount: number) {
+  trackEvent("label_generation_success", { count: Math.max(0, Number(rowCount) || 0) });
+}
+
+export function trackFileUpload(source: string) {
+  trackEvent("file_upload", { source, count: 1 });
+}
+
+export function trackPackageSelect(planName: string) {
+  trackEvent("package_select", { plan_name: planName });
 }
 
 export function trackPaymentStart(planName: string) {
-  trackEvent("payment_initiate", { plan_name: planName });
+  trackEvent("payment_start", { plan_name: planName });
 }
 
 export function trackPaymentSuccess(planName: string) {

@@ -11,6 +11,11 @@ import {
   fetchPlans,
   type Plan,
 } from "../lib/PackageService";
+import {
+  trackPackageSelect,
+  trackPaymentStart,
+  trackPaymentSuccess,
+} from "../lib/analytics";
 import type { MeResponse } from "../lib/types";
 import ActionButton from "../components/ui/ActionButton";
 import { BodyText, CardTitle, PageHeader, PageShell } from "../components/ui/PageSystem";
@@ -93,9 +98,11 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
     const reference = searchParams.get("reference");
     const message = searchParams.get("message");
     if (!payment) return;
+    const planName = me?.pendingPayment?.planName ?? activePlanName;
 
     if (payment === "success") {
       setSuccess(message ?? (reference ? `Payment verified and subscription activated. Ref: ${reference}` : "Payment verified and subscription activated."));
+      trackPaymentSuccess(planName);
       void refreshMe();
     } else if (payment === "pending") {
       setError(message ?? (reference ? `Payment is still pending. Ref: ${reference}` : "Payment is still pending."));
@@ -122,6 +129,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
       setError(`${plan.name} is temporarily suspended and cannot be purchased right now.`);
       return;
     }
+    trackPackageSelect(plan.name);
     setJazzcashModalPlan(plan);
     setJazzcashModalMobile(normalizeJazzcashMobile(String(me?.user?.contactNumber ?? "")));
     setJazzcashModalError(null);
@@ -250,6 +258,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
     }
     const renewingCurrentPlan = plan.id === currentPlanId && (expired || nearExpiry);
     if (plan.id === currentPlanId && !renewingCurrentPlan) return;
+    trackPackageSelect(plan.name);
     setSubmittingPlanId(plan.id);
     setError(null);
     setSuccess(null);
@@ -262,6 +271,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
         return;
       }
       if (response.requiresRedirect && response.checkoutUrl) {
+        trackPaymentStart(plan.name);
         window.location.assign(apiUrl(response.checkoutUrl));
         return;
       }
@@ -279,6 +289,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
       setError(`${plan.name} is temporarily suspended and cannot be purchased right now.`);
       return;
     }
+    trackPackageSelect(plan.name);
     setInitiatingWalletPlanId(plan.id);
     setError(null);
     try {
@@ -305,12 +316,14 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
       return;
     }
     setJazzcashModalError(null);
+    trackPaymentStart(plan.name);
     setInitiatingJazzcashPlanId(plan.id);
     try {
       const response = await createJazzcashMobileWalletPayment(plan.id, normalizedMobile);
       closeJazzcashModal();
       if (response.status === "success") {
         await refreshMe();
+        trackPaymentSuccess(plan.name);
         setSuccess(response.message || "Payment verified and subscription activated.");
         return;
       }
@@ -560,7 +573,3 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
   </>
   );
 }
-
-
-
-

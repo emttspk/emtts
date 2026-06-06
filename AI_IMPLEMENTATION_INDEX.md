@@ -392,6 +392,7 @@
 
 - Marketing tracking audit completed. Report: docs/marketing/TRACKING_AUDIT_REPORT_2026-06-04.md
 - Live GA4 and Meta Pixel firing verification documented.
+- Conversion funnel analytics events for file upload, label generation, package selection, and payment start/success are now wired in the UI.
 - Railway Web analytics variables and live bundle verification documented.
 - Railway Web variables verified present, Web redeployed, and live bundle confirmed missing baked GA4/Meta IDs pending build-time env injection fix.
 - Railway Web runtime analytics env injection restored and documented; cache-busted production bundle placeholders verified removed.

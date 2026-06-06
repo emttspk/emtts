@@ -109,3 +109,8 @@ Anonymous User -> Register -> Login -> Upload CSV -> Generate Labels -> Download
 - Funnel completion: 80%
 - Highest revenue risk: missing analytics around package selection and payment start.
 - Overall readiness: 80%
+
+## Implementation Update
+
+- Conversion funnel analytics wiring is now in place for file upload, label generation start/success, package selection, payment start, and payment success.
+- Remaining verification work is browser-side only: confirm GA4 DebugView and Network transport requests in Chrome for the live production bundle.

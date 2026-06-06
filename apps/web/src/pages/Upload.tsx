@@ -8,6 +8,7 @@ import UploadDropzone from "../components/UploadDropzone";
 import { api, apiHealthCheck, buildJobDownloadFallbackName, triggerBrowserDownload, uploadFile } from "../lib/api";
 import { logDevTiming } from "../lib/devTiming";
 import { FALLBACK_SERVICE_CATALOG, fetchServiceCatalog, servicesByCategory, type ServiceCatalogEntry } from "../lib/serviceCatalog";
+import { trackFileUpload, trackLabelJobStart, trackLabelJobSuccess } from "../lib/analytics";
 import type { LabelJob, MeResponse } from "../lib/types";
 import { useJobPolling } from "../lib/useJobPolling";
 import { getMissingOrderColumns, normalizeOrderColumnKey } from "../shared/orderColumns";
@@ -812,6 +813,7 @@ export default function Upload() {
     if (!file) return;
     if (!isReadyToGenerate) return;
     if (uiState === "uploading" || uiState === "processing") return;
+    trackLabelJobStart(1);
     setUiError(null);
     setStatusCheckMessage(null);
     setValidationSummary(null);
@@ -1292,6 +1294,7 @@ export default function Upload() {
         jobId: data.jobId,
         recordCount: data.recordCount,
       });
+      trackLabelJobSuccess(Number(data.recordCount ?? 0));
       console.info("UPLOAD_REPLAY_RESPONSE", data);
       if (data.duplicateFilenameBypassUsed) {
         setValidationSummary((prev) => {
@@ -1387,6 +1390,9 @@ export default function Upload() {
           file={file}
           onFileChange={(next) => {
             setFile(next);
+            if (next) {
+              trackFileUpload("upload_page");
+            }
             setUiError(null);
             setValidationSummary(null);
             setHasManualOutputChoice(false);

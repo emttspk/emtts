@@ -387,6 +387,10 @@
 - Final score after browser execution verification:
   - 9/10
 
+- Conversion funnel implementation update:
+  - File upload, label generation start/success, package selection, payment start, and payment success events are now wired in the UI with safe payload fields only.
+  - Remaining verification work is browser-side confirmation of GA4 DebugView and network beacons in Chrome.
+
 ## Final Beacon Check
 
 - Test date/time: 2026-06-06 11:20 PKT.

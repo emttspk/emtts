@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Smartphone, QrCode, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { api, apiUrl } from "../lib/api";
+import { trackPaymentStart } from "../lib/analytics";
 
 type Plan = {
   id: string;
@@ -111,6 +112,7 @@ export default function ManualPaymentModal({ plan, invoice, onClose, onSuccess }
 
     setSubmitting(true);
     setError(null);
+    trackPaymentStart(plan.name);
 
     try {
       const formData = new FormData();
