@@ -268,6 +268,32 @@
   - Then rerun Chrome DevTools Network (`collect?v=2`, `facebook.com/tr`), GA4 Realtime / DebugView, and Meta Pixel Helper.
 - Final score after build-time deployment attempt: 8/10.
 
+## Stale Asset Delivery Audit
+
+- Test date/time: 2026-06-06 02:46 PKT.
+- Audit goal: determine why `/assets/index-D2HNUHpQ.js` survives multiple deployments even though the Web build completes successfully.
+- Root cause:
+  - Runtime placeholder replacement is still part of the deployed delivery flow, which means analytics values can be rewritten after Vite has already generated the hashed file name.
+  - The public homepage is still serving the old hashed asset path, so the browser receives a stale edge-cached JS file instead of a fresh hash for the latest deploy.
+- Cloudflare involvement:
+  - `curl -I https://www.epost.pk/assets/index-D2HNUHpQ.js` returned `cf-cache-status: HIT`.
+  - That confirms Cloudflare is serving the stale JS asset from cache.
+- Hash generation result:
+  - Local `npm run build` produced a fresh bundle hash set, including `assets/index-CR1zYz4F.js`.
+  - The active public homepage still references `/assets/index-D2HNUHpQ.js`, so the fresh local hash is not what the browser currently receives.
+- Purge result:
+  - No safe Cloudflare purge was run from this shell because Wrangler is not installed here.
+  - The audit therefore relies on cache headers and live fetches rather than a direct purge action.
+- Placeholder result:
+  - The active live asset still contains an unresolved `__VITE_*` placeholder token.
+- Recommended architecture:
+  - Inject analytics values before the Vite build runs so the generated hash changes with the real production values.
+  - Avoid post-build mutation of hashed JS assets.
+- Analytics readiness:
+  - 80%
+- Final score:
+  - 8/10
+
 ## Final Production Verification Note (2026-06-04)
 
 - Final production checks confirmed public SEO landing pages, sitemap, and robots availability.

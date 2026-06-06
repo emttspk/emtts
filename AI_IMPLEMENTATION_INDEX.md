@@ -1,5 +1,14 @@
 # AI Implementation Index
 
+## 2026-06-06 - Stale Analytics Asset Delivery Audit
+
+- Confirmed the production homepage still references `/assets/index-D2HNUHpQ.js` even after successful Web deployments.
+- Confirmed cache headers on that active asset report `cf-cache-status: HIT`, which means Cloudflare is serving a stale cached JS file.
+- Confirmed the local build now emits a newer hashed JS file set, including `assets/index-CR1zYz4F.js`, so the build itself is producing fresh hashes.
+- Confirmed the live active bundle still contains an unresolved `__VITE_*` analytics placeholder token.
+- Wrangler is not installed in this shell, so no Cloudflare purge was possible here.
+- Recommended fix documented: inject analytics values before `vite build` so the final hashed bundle already contains the live IDs and cannot be separated from the correct public asset hash.
+
 ## 2026-06-06 - Build-Time Analytics Injection Verification
 
 - Confirmed the Web deploy path was switched toward build-time analytics injection through `apps/web/railway.json`, with Railway Web building the frontend during deploy and serving `dist` directly afterward.
