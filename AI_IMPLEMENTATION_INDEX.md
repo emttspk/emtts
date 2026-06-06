@@ -57,6 +57,13 @@
 - Wrangler is not installed in this shell, so no Cloudflare purge was possible here.
 - Recommended fix documented: inject analytics values before `vite build` so the final hashed bundle already contains the live IDs and cannot be separated from the correct public asset hash.
 
+## 2026-06-06 - Analytics Event Inventory Audit
+- Completed comprehensive audit of GA4 and Meta Pixel event implementations.
+- Documented active events and identified missing high-value triggers (`login`, `first_label_generated`, `complaint_created`).
+- Mapped current `trackCustom` Meta events to recommended Standard Events.
+- Created `docs/marketing/ANALYTICS_EVENT_INVENTORY_2026.md`.
+- Next steps: Implement P1 missing events and standardize Meta Pixel mappings.
+
 ## 2026-06-06 - Build-Time Analytics Injection Verification
 
 - Confirmed the Web deploy path was switched toward build-time analytics injection through `apps/web/railway.json`, with Railway Web building the frontend during deploy and serving `dist` directly afterward.
