@@ -3844,3 +3844,10 @@ READY FOR PRODUCTION - All 3 critical fixes implemented and tested.
 - Confirmed the collector write path is live and backed by the `AnalyticsEvent` model.
 - Direct database row readback remains blocked in this workspace because the Railway DB shell requires a local `psql` client, which is not installed here.
 - Full details are documented in `docs/audits/ANALYTICS_SMOKE_TEST_2026.md`.
+
+## 2026-06-07 - Meta Pixel Event Mapping Audit
+- Audited the full Meta Pixel event surface in `apps/web/src/lib/analytics.ts` and the live registration, login, billing, upload, support, dashboard, and homepage flows.
+- Confirmed implemented Meta standard events: `PageView`, `CompleteRegistration`, `Login`, and `Purchase`.
+- Confirmed implemented custom Meta events: `FirstLabelGenerated`, `SubscriptionUpgrade`, `MoneyOrderGenerated`, and `SupportTicketCreated`.
+- Identified missing high-value Meta events for `Lead`, `ViewContent`, `InitiateCheckout`, `Contact`, `Subscribe`, and `ComplaintCreated`.
+- Full findings are documented in `docs/marketing/META_PIXEL_EVENT_AUDIT_2026.md`.
