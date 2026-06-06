@@ -3807,3 +3807,6 @@ READY FOR PRODUCTION - All 3 critical fixes implemented and tested.
 
 - Restored the benchmark MO `sender_line` renderer back to the last stable inline-style output so slot 1 population remains compatible with the benchmark replacement contract.
 - Verified the restore against the current renderer diff from `913c4f8` back to the stable `bef9d34` shape; no other Money Order fields were changed in this fix.
+## 2026-06-06 - First User Success Audit
+
+- `docs/marketing/FIRST_USER_SUCCESS_AUDIT_2026.md` — first-user onboarding, empty-state guidance, and post-success upgrade prompts for the registration -> first label -> subscription path.

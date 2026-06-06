@@ -67,3 +67,6 @@ Protected logic such as labels, tracking engine, complaints, money orders, billi
 
 ## Recommended Next Step
 - Run a quick mobile browser pass on the homepage and landing pages to confirm the sticky CTA bar does not obscure content on small screens.
+
+## Follow-up Note
+- The first-user success funnel was later strengthened with dashboard onboarding guidance, a first-label checklist, and a post-success upgrade prompt to improve the registration -> first label -> subscription path.
