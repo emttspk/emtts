@@ -407,6 +407,37 @@
   - Beacon transport still needs a manual Chrome DevTools / GA4 Realtime / Meta Pixel Helper pass for absolute network-level confirmation.
   - Final score remains 9/10.
 
+## Firebase Mobile Auth Fix
+
+- Test date/time: 2026-06-06 11:50 PKT.
+- Observed error: `FirebaseError: auth/network-request-failed` on mobile view.
+- Root cause:
+  - Google auth was using `signInWithPopup` only.
+  - Mobile / touch browsers were failing on the popup path, which is consistent with the reported mobile-only `auth/network-request-failed`.
+- Failing request:
+  - No Firebase backend request returned a non-200 status in reproduction.
+  - The failing step was the mobile popup flow itself, not the Firebase project config or Identity Toolkit transport.
+- Affected devices:
+  - Mobile / touch browsers only.
+  - Desktop popup flow still works.
+- Fix applied:
+  - Added a mobile/touch detector in `apps/web/src/lib/firebaseAuthGuards.ts`.
+  - Switched Google auth to `signInWithRedirect` on mobile/touch devices.
+  - Added `getRedirectResult()` handling on return for both login and registration pages.
+- Browser verification:
+  - Desktop login still uses the popup path and remains functional.
+  - Mobile login now navigates to `accounts.google.com/o/oauth2/auth` and no longer stalls on the popup path.
+  - Firebase config requests in browser remain healthy:
+    - `epost-auth.firebaseapp.com/__/auth/iframe` returned `200`
+    - `identitytoolkit.googleapis.com/v1/projects` returned `200`
+    - `www.googleapis.com/identitytoolkit/v3/relyingparty/getProjectConfig` returned `200`
+- Build result:
+  - `npm run build` passed.
+- Auth readiness:
+  - 9/10.
+- Overall project readiness:
+  - 90%.
+
 ## Final Production Verification Note (2026-06-04)
 
 - Final production checks confirmed public SEO landing pages, sitemap, and robots availability.
