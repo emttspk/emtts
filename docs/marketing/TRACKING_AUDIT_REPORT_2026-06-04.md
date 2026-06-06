@@ -387,6 +387,26 @@
 - Final score after browser execution verification:
   - 9/10
 
+## Final Beacon Check
+
+- Test date/time: 2026-06-06 11:20 PKT.
+- Homepage load:
+  - Meta `fbq('init', '1352565343396370')`: CONFIRMED.
+  - Meta `fbq('track', 'PageView')`: CONFIRMED.
+  - GA4 `gtag('config', 'G-PT14KRE20Z', { send_page_view: false })`: CONFIRMED.
+  - GA4 `gtag('event', 'page_view', ...)`: CONFIRMED.
+  - Meta beacon `facebook.com/tr`: NOT DIRECTLY OBSERVED in the headless network log.
+  - GA4 beacon `google-analytics.com/g/collect`: NOT DIRECTLY OBSERVED in the headless network log.
+- Route change:
+  - Clicking `Start Free` moved to `/register` and produced one GA4 `page_view` and one Meta `PageView` invocation.
+  - Clicking `WhatsApp Demo` opened the configured WhatsApp URL and did not introduce duplicate analytics calls.
+- Duplicate result:
+  - No duplicate pageview loop observed in the runtime call log.
+- Final readout:
+  - Runtime analytics execution is correct.
+  - Beacon transport still needs a manual Chrome DevTools / GA4 Realtime / Meta Pixel Helper pass for absolute network-level confirmation.
+  - Final score remains 9/10.
+
 ## Final Production Verification Note (2026-06-04)
 
 - Final production checks confirmed public SEO landing pages, sitemap, and robots availability.

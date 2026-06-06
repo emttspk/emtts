@@ -397,6 +397,7 @@
 - Railway Web runtime analytics env injection restored and documented; cache-busted production bundle placeholders verified removed.
 - Final browser analytics verification attempted; normal production browser load still served unresolved analytics placeholders from stale `/assets/index-D2HNUHpQ.js`, so GA4/Meta firing remains blocked pending cache purge or new versioned bundle.
 - Production browser execution verification now confirms `gtag('config')`, single GA4 `page_view`, `fbq('init')`, and Meta `PageView` runtime calls on the live site; GA4 Realtime / DebugView and Meta Pixel Helper still need manual Chrome confirmation for 10/10.
+- Final beacon check recorded that runtime pageview execution is correct, but headless Chrome still did not surface the final `google-analytics.com/g/collect` or `facebook.com/tr` transport URLs; manual browser/network confirmation remains the last step.
 - SEO + Google Ranking Audit completed. Report: docs/seo/SEO_MASTER_PLAN_2026.md
 
 ---
