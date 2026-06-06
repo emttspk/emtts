@@ -67,13 +67,13 @@ export function initializeAnalytics() {
   initialized = true;
 
   if (GA_MEASUREMENT_ID) {
-    injectScript("epost-ga4", `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(GA_MEASUREMENT_ID)}`);
     window.dataLayer = window.dataLayer || [];
-    window.gtag = window.gtag || function gtag(...args: unknown[]) {
-      window.dataLayer?.push(args);
+    window.gtag = window.gtag || function gtag() {
+      window.dataLayer?.push(arguments);
     };
     window.gtag("js", new Date());
     window.gtag("config", GA_MEASUREMENT_ID, { send_page_view: false });
+    injectScript("epost-ga4", `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(GA_MEASUREMENT_ID)}`);
   }
 
   if (META_PIXEL_ID) {
