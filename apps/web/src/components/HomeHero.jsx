@@ -300,44 +300,12 @@ export default function HomeHero() {
               </a>
             </div>
 
-            <div className="mt-3 w-full max-w-[560px]">
-              {publicWhatsAppUrl ? (
-                <a
-                  href={publicWhatsAppUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => trackWhatsAppClick("home_demo")}
-                  className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
-                >
-                  WhatsApp Demo
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  aria-disabled="true"
-                  title="WhatsApp demo will be enabled after public number configuration"
-                  className="inline-flex h-10 w-full cursor-not-allowed items-center justify-center rounded-xl border border-slate-200 bg-slate-100 px-4 text-sm font-semibold text-slate-500"
-                >
-                  WhatsApp Demo (coming soon)
-                </button>
-              )}
-            </div>
-
-            <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600 sm:text-[12px]">
-              {["Free plan available", "No card required", "WhatsApp support"].map((item) => (
-                <span key={item} className="inline-flex items-center rounded-full border border-[#dce8f5] bg-white/90 px-3 py-1.5 shadow-sm">
-                  {item}
-                </span>
-              ))}
-            </div>
-
             <form
               onSubmit={(event) => {
                 event.preventDefault();
                 submitTracking(trackingId);
               }}
-              className="mt-4 max-w-[700px] rounded-3xl border border-[#dce8f5] bg-white/90 p-2 shadow-[0_18px_44px_rgba(10,31,68,0.12)] backdrop-blur"
+              className="mt-6 max-w-[700px] rounded-3xl border border-[#dce8f5] bg-white/90 p-2 shadow-[0_18px_44px_rgba(10,31,68,0.12)] backdrop-blur"
             >
               <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Track Parcel</p>
               <div className="grid grid-cols-1 gap-2">

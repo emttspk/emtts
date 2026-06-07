@@ -1,5 +1,13 @@
 # AI Implementation Index
 
+## 2026-06-07 - UI Cleanup: Landing Page Hero Optimization
+
+- Removed the "WhatsApp Demo" button from `apps/web/src/components/HomeHero.jsx`.
+- Removed feature pills: "FREE PLAN AVAILABLE", "NO CARD REQUIRED", "WHATSAPP SUPPORT".
+- Re-balanced spacing by increasing tracking form top margin (`mt-6`) to maintain a clean visual hierarchy.
+- Reduced overall vertical empty space while preserving responsive alignment.
+- Build check: `npm run build` PASS.
+
 ## 2026-06-07 - UI Cleanup: Login Page Simplification
 
 - Removed the "NEW HERE?" registration card from `apps/web/src/pages/Login.tsx`.
