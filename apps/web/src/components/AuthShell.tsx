@@ -116,7 +116,7 @@ export default function AuthShell(props: AuthShellProps) {
               <img
                src="/assets/main1.jpeg"
                alt="Pakistan Post office with signature red mailbox"
-               className="relative z-10 h-full min-h-[220px] w-full rounded-[20px] object-cover object-center"
+               className="relative z-10 h-auto w-full aspect-[2752/1536] rounded-[20px] object-contain object-center"
                loading="eager"
                decoding="async"
                fetchPriority="high"

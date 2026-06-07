@@ -417,12 +417,12 @@ export default function HomeHero() {
 
           <div className="relative h-full">
             <div className="relative h-full overflow-hidden rounded-3xl border border-[#dce8f5] bg-white/92 p-3 shadow-[0_26px_58px_rgba(10,31,68,0.16)] backdrop-blur-xl sm:p-4">
-              <div className="flex h-full min-h-[440px] items-center justify-center overflow-hidden rounded-2xl bg-slate-50 md:min-h-[580px] lg:min-h-[640px]">
+              <div className="flex h-full min-h-[300px] items-center justify-center overflow-hidden rounded-2xl bg-slate-50 md:min-h-[420px] lg:min-h-[500px]">
                 <img
                   key={currentImageIndex}
                   src={DASHBOARD_IMAGES[currentImageIndex]}
                   alt="Operations Dashboard Visual"
-                  className="h-full w-full object-cover transition-opacity duration-700"
+                  className="h-full w-full aspect-[2752/1536] object-contain transition-opacity duration-700"
                   onError={(e) => {
                     e.currentTarget.src = "/assets/dashboard.png";
                   }}

@@ -1,5 +1,16 @@
 # AI Implementation Index
 
+## 2026-06-07 - URGENT UI REGRESSION: Image Cropping Fix
+
+- Resolved regression where Operations Dashboard and Login images were cropped due to `object-cover`.
+- Switched all slideshow and login images to `object-contain` to ensure 100% visibility.
+- Implemented `aspect-[2752/1536]` (1.79 AR) on images to maintain natural proportions.
+- Refined `HomeHero.jsx` container heights:
+  - Reduced `min-h` from `440px/580px/640px` to `300px/420px/500px`.
+  - The container now adapts to the image aspect ratio while preventing extreme letterboxing.
+- Verified 100% visibility of `image1.jpeg` through `image7.jpeg` and `main1.jpeg`.
+- Build check: `npm run build` PASS.
+
 ## 2026-06-07 - UI Audit: Login & Homepage Hero Optimization
 
 - Fixed `apps/web/src/components/AuthShell.tsx` layout to eliminate blank space below the login image.
