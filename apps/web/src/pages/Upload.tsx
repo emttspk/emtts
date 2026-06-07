@@ -272,12 +272,6 @@ export default function Upload() {
     { label: "Generate", detail: "Build labels and tracking outputs." },
     { label: "Complete", detail: "Download the finished files." },
   ];
-  const uploadWorkflowIndex =
-    uiState === "completed" ? 4
-      : uiState === "processing" ? 3
-        : uiState === "uploading" ? 1
-          : 0;
-
   useEffect(() => {
     fetchServiceCatalog().then((services) => setServiceCatalog(services)).catch(() => undefined);
   }, []);
@@ -653,6 +647,11 @@ export default function Upload() {
   const progressTimer = useRef<number | null>(null);
   const moneyOrderTrackedJobIdRef = useRef<string | null>(null);
   const stateRef = useRef(uiState);
+  const uploadWorkflowIndex =
+    uiState === "completed" ? 4
+      : uiState === "processing" ? 3
+        : uiState === "uploading" ? 1
+          : 0;
 
   useEffect(() => {
     stateRef.current = uiState;

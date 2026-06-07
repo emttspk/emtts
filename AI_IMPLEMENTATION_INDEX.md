@@ -1,5 +1,12 @@
 # AI Implementation Index
 
+## 2026-06-08 - Upload Runtime Crash Fix
+- Traced the production `Upload-Dz6P6RVz.js:2:3061` runtime crash back to the lazy-loaded upload page module.
+- Identified a temporal dead zone bug in `apps/web/src/pages/Upload.tsx` where `uploadWorkflowIndex` read `uiState` before the `useState` hook initialized it.
+- Moved the derived workflow index below the `uiState` state declaration so the upload bundle can evaluate safely again.
+- Added audit documentation at `docs/audits/upload-runtime-crash-2026-06-08.md`.
+- Build check: `npm run build` PASS.
+
 ## 2026-06-07 - Final Launch Readiness Audit: Production Verification and Cleanup
 - Verified the production launch state after the latest Api deployment succeeded.
 - Removed the unused temp helper `apps/api/temp-cycle-audit-count.cjs`.
