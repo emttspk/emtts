@@ -3872,3 +3872,8 @@ READY FOR PRODUCTION - All 3 critical fixes implemented and tested.
 - Investigated the contradiction between automated browser probes and Meta Test Events UI.
 - Automated probes still do not capture `facebook.com/tr`, while the Test Events UI reportedly shows `PageView` and `Subscribe`.
 - Full details are documented in `docs/audits/META_LIVE_DELIVERY_AUDIT_2026.md`.
+
+## 2026-06-07 - Meta Pixel Forensic Investigation
+- Verified the active production Pixel ID is consistently `1352565343396370` in the deployed bundle and Meta `signals/config` request.
+- Confirmed the active production bundle does not contain a `Subscribe` event path or `test_event_code`.
+- Full details are documented in `docs/audits/META_PIXEL_FORENSIC_INVESTIGATION_2026.md`.
