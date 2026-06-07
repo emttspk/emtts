@@ -153,7 +153,29 @@ export default function GoogleAuthCallback() {
           firebaseReady
         });
 
-        const result = await getRedirectResult(auth!);
+        const authInstance = auth;
+        let result = null;
+        try {
+          result = authInstance ? await getRedirectResult(authInstance) : null;
+        } catch (error) {
+          const errorCode = typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code ?? "") : "";
+          const isAuthArgumentError = errorCode === "auth/argument-error"
+            || (error instanceof Error && error.message.includes("auth/argument-error"));
+
+          if (!isAuthArgumentError) {
+            throw error;
+          }
+
+          if (import.meta.env.DEV) {
+            console.warn("[AUTH][google-callback] step=redirect result argument error", {
+              flow,
+              authInstanceExists: !!authInstance,
+              authAppName: authInstance?.app?.name,
+              firebaseReady,
+              nextPath,
+            });
+          }
+        }
         if (cancelled || cancelledRef.current) return;
 
         if (import.meta.env.DEV) {

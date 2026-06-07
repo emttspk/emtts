@@ -1,5 +1,12 @@
 # AI Implementation Index
 
+## 2026-06-08 - Google Auth Minimal Regression Fix
+- Isolated the production Google auth regression to the callback path in `apps/web/src/pages/GoogleAuthCallback.tsx`.
+- The failing block was the direct `getRedirectResult(auth!)` call, which could throw `auth/argument-error` before the `auth.currentUser` fallback logic had a chance to run.
+- Added a minimal recovery wrapper so `auth/argument-error` is treated as a recoverable redirect miss and the existing mobile fallback flow can continue.
+- Added audit documentation at `docs/audits/google-auth-minimal-regression-fix-2026-06-08.md`.
+- Build and focused auth validation will be run after this index update.
+
 ## 2026-06-08 - Upload Runtime Crash Fix
 - Traced the production `Upload-Dz6P6RVz.js:2:3061` runtime crash back to the lazy-loaded upload page module.
 - Identified a temporal dead zone bug in `apps/web/src/pages/Upload.tsx` where `uploadWorkflowIndex` read `uiState` before the `useState` hook initialized it.
