@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { GoogleAuthProvider, getRedirectResult, signInWithRedirect } from "firebase/auth";
+import { GoogleAuthProvider, getRedirectResult, onAuthStateChanged, signInWithRedirect, type User } from "firebase/auth";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
 import SEO from "../components/SEO";
@@ -14,6 +14,66 @@ const CALLBACK_REDIRECT_DELAY_MS = 1800;
 
 function getFlow(value: string | null): GoogleAuthFlow {
   return value === "register" ? "register" : "login";
+}
+
+function describeCurrentUser(user: User | null) {
+  if (!user) {
+    return {
+      type: "null",
+      keys: [],
+      constructorName: null as string | null,
+      providerData: [],
+      uid: null as string | null,
+      email: null as string | null,
+    };
+  }
+
+  return {
+    type: typeof user,
+    keys: Object.keys(user as object),
+    constructorName: (user as { constructor?: { name?: string } }).constructor?.name ?? null,
+    providerData: Array.isArray(user.providerData)
+      ? user.providerData.map((provider) => ({
+        providerId: provider.providerId ?? null,
+        uid: provider.uid ?? null,
+        email: provider.email ?? null,
+      }))
+      : [],
+    uid: user.uid ?? null,
+    email: user.email ?? null,
+  };
+}
+
+async function waitForReadyCurrentUser(maxWaitMs = 2500) {
+  if (!auth) return null;
+  const snapshot = auth.currentUser;
+  if (snapshot?.uid) return snapshot;
+
+  return await new Promise<User | null>((resolve) => {
+    let settled = false;
+    let timeoutId: ReturnType<typeof window.setTimeout> | null = null;
+    let unsubscribe = () => {};
+
+    const finish = (user: User | null) => {
+      if (settled) return;
+      settled = true;
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+      unsubscribe();
+      resolve(user?.uid ? user : null);
+    };
+
+    timeoutId = window.setTimeout(() => {
+      finish(auth.currentUser);
+    }, maxWaitMs);
+
+    unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user?.uid) {
+        finish(user);
+      }
+    });
+  });
 }
 
 export default function GoogleAuthCallback() {
@@ -241,7 +301,8 @@ export default function GoogleAuthCallback() {
           return;
         }
 
-        const currentUser = auth.currentUser;
+        console.info("[AUTH][google-callback] step=currentUser raw diagnostics", describeCurrentUser(auth.currentUser));
+        const currentUser = await waitForReadyCurrentUser();
         console.info("[AUTH][google-callback] step=currentUser exists?", {
           flow,
           source: "fallback-current-user",
@@ -260,6 +321,7 @@ export default function GoogleAuthCallback() {
             currentUserEmail: currentUser.email ?? null,
             nextPath,
           });
+          console.info("[AUTH][google-callback] step=currentUser structure", describeCurrentUser(currentUser));
           setGoogleAuthDebug("currentUser detected", {
             uid: currentUser.uid,
             email: currentUser.email ?? null,

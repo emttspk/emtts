@@ -1,5 +1,12 @@
 # AI Implementation Index
 
+## 2026-06-08 - Google Auth Null-User Root Cause Fix
+- Added a readiness wait around the Google callback fallback path so the code no longer trusts a placeholder `auth.currentUser` before Firebase finishes restoring the signed-in user.
+- Added diagnostics for `typeof`, `Object.keys`, `constructor.name`, and `providerData` so the trace can distinguish a real Firebase `User` from a stale/partially hydrated object.
+- The fallback now waits for a ready user before calling `getIdToken()` and before any `firebase-login` request is attempted.
+- Added audit documentation at `docs/audits/google-auth-null-user-root-cause-2026-06-08.md`.
+- Build check: `npm run build` PASS.
+
 ## 2026-06-08 - Google Auth Persistent Debug Trace
 - Added a sessionStorage-backed Google auth trace so the callback state survives the redirect away from `/auth/callback` and can be inspected after the browser returns to `/register`.
 - Trace is mirrored to `window.__GOOGLE_AUTH_DEBUG__` from sessionStorage so browser console inspection remains possible after navigation.
