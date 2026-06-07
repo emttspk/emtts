@@ -61,6 +61,7 @@ No Meta Pixel events were found in the helper that are defined but never reachab
 - Acquisition and checkout-intent events still rely on internal analytics only, so Meta cannot currently see those funnel steps.
 - No protected data should be sent with Meta events; the current helper only sends plan name, amount, currency, and counts where needed.
 - The Meta bootstrap was updated to follow the official loading pattern more closely. Local browser checks confirmed `fbevents.js`, `signals/config`, and `fbq` initialization, but `facebook.com/tr` delivery still needs live production Chrome verification.
+- Live delivery investigation remains contradictory: Meta Test Events UI reportedly shows `PageView` and `Subscribe`, but automated browser probes against production still do not surface a `facebook.com/tr` request. The latest live investigation is documented in `docs/audits/META_LIVE_DELIVERY_AUDIT_2026.md`.
 
 ## Meta Maturity Score
 - `86/100`

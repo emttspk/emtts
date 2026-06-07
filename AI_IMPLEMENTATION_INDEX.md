@@ -3867,3 +3867,8 @@ READY FOR PRODUCTION - All 3 critical fixes implemented and tested.
 - Updated the Meta bootstrap in `apps/web/src/lib/analytics.ts` to follow the official loading pattern more closely.
 - Local browser checks now confirm `fbq` initialization and Meta script loading on the freshly built bundle, with live production Chrome verification still required to prove `facebook.com/tr` delivery.
 - Full details are documented in `docs/audits/META_TRANSPORT_FIX_2026.md`.
+
+## 2026-06-07 - Meta Live Delivery Audit
+- Investigated the contradiction between automated browser probes and Meta Test Events UI.
+- Automated probes still do not capture `facebook.com/tr`, while the Test Events UI reportedly shows `PageView` and `Subscribe`.
+- Full details are documented in `docs/audits/META_LIVE_DELIVERY_AUDIT_2026.md`.
