@@ -9,8 +9,16 @@ import { trackLogin, trackRegistrationComplete } from "../lib/analytics";
 import { getFriendlyFirebaseAuthMessage } from "../lib/firebaseAuthGuards";
 import { exchangeGoogleFirebaseToken, normalizeNextPath, setGoogleAuthDebug, type GoogleAuthFlow } from "../lib/googleAuth";
 
-const REDIRECT_STARTED_KEY = "labelgen_google_auth_redirect_started:v1";
 const CALLBACK_REDIRECT_DELAY_MS = 1800;
+const GOOGLE_REDIRECT_START_KEY = "GOOGLE_REDIRECT_START";
+
+type GoogleRedirectStartState = {
+  stage: "entry" | "redirect-started";
+  timestamp: string;
+  flow: GoogleAuthFlow;
+  origin: string;
+  authDomain: string | null;
+};
 
 function getFlow(value: string | null): GoogleAuthFlow {
   return value === "register" ? "register" : "login";
@@ -42,6 +50,42 @@ function describeCurrentUser(user: User | null) {
     uid: user.uid ?? null,
     email: user.email ?? null,
   };
+}
+
+function readGoogleRedirectStart(): GoogleRedirectStartState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(GOOGLE_REDIRECT_START_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as GoogleRedirectStartState;
+  } catch {
+    return null;
+  }
+}
+
+function writeGoogleRedirectStart(flow: GoogleAuthFlow, stage: GoogleRedirectStartState["stage"]) {
+  if (typeof window === "undefined") return;
+  const state: GoogleRedirectStartState = {
+    stage,
+    timestamp: new Date().toISOString(),
+    flow,
+    origin: window.location.href,
+    authDomain: auth?.app?.options?.authDomain ?? null,
+  };
+  try {
+    window.sessionStorage.setItem(GOOGLE_REDIRECT_START_KEY, JSON.stringify(state));
+  } catch {
+    // Ignore storage failures; diagnostics are best-effort.
+  }
+}
+
+function clearGoogleRedirectStart() {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(GOOGLE_REDIRECT_START_KEY);
+  } catch {
+    // Ignore storage failures.
+  }
 }
 
 async function waitForReadyCurrentUser(maxWaitMs = 2500) {
@@ -156,7 +200,7 @@ export default function GoogleAuthCallback() {
     }
 
     try {
-      window.sessionStorage.setItem(REDIRECT_STARTED_KEY, "1");
+      writeGoogleRedirectStart(flow, "redirect-started");
     } catch {
       // Ignore session storage failures; redirect can still proceed.
     }
@@ -184,6 +228,21 @@ export default function GoogleAuthCallback() {
       authInstanceExists: !!auth,
     });
     setGoogleAuthDebug("callback entry");
+
+    const redirectMarker = readGoogleRedirectStart();
+    console.info("[AUTH][google-callback] step=redirect marker", {
+      flow,
+      nextPath,
+      markerExists: Boolean(redirectMarker),
+      markerTimestamp: redirectMarker?.timestamp ?? null,
+      markerFlow: redirectMarker?.flow ?? null,
+      markerOrigin: redirectMarker?.origin ?? null,
+      markerAuthDomain: redirectMarker?.authDomain ?? null,
+      currentUrl: window.location.href,
+      authDomain: auth?.app?.options?.authDomain ?? null,
+      appName: auth?.app?.name ?? null,
+      markerStage: redirectMarker?.stage ?? null,
+    });
 
     if (!firebaseReady || !auth) {
       setErr("Google sign-in is not configured. Please contact support.");
@@ -373,14 +432,15 @@ export default function GoogleAuthCallback() {
           return;
         }
 
-        const alreadyStarted = (() => {
-          try {
-            return window.sessionStorage.getItem(REDIRECT_STARTED_KEY) === "1";
-          } catch {
-            return false;
-          }
-        })();
-        console.info("[AUTH][google-callback] step=check alreadyStarted", { alreadyStarted });
+        const redirectMarker = readGoogleRedirectStart();
+        const alreadyStarted = redirectMarker?.stage === "redirect-started";
+        console.info("[AUTH][google-callback] step=check alreadyStarted", {
+          alreadyStarted,
+          markerExists: Boolean(redirectMarker),
+          markerStage: redirectMarker?.stage ?? null,
+          markerTimestamp: redirectMarker?.timestamp ?? null,
+          markerFlow: redirectMarker?.flow ?? null,
+        });
 
         if (!alreadyStarted) {
           await startRedirect();
@@ -460,6 +520,7 @@ export default function GoogleAuthCallback() {
             onClick={() => {
               setErr(null);
               setLoading(true);
+              clearGoogleRedirectStart();
               setGoogleAuthDebug("redirect-attempt");
               void startRedirect().catch((error) => {
                 setErr(getFriendlyFirebaseAuthMessage(error, flow === "register" ? "Google registration failed" : "Google login failed"));

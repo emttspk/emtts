@@ -7,6 +7,12 @@
 - Created audit documentation at `docs/audits/firebase-getredirectresult-root-cause-2026-06-08.md`.
 - Build check: `npm run build` PASS.
 
+## 2026-06-08 - Google Auth Redirect State Phase 3
+- Added a structured `GOOGLE_REDIRECT_START` marker so each Google login/register attempt records `timestamp`, `flow`, `origin`, and `authDomain` before Firebase redirect starts.
+- The callback now upgrades the marker to `redirect-started`, logs the marker state on entry, and clears it on dashboard success so stale redirect state cannot block a fresh attempt.
+- Login and register entry points seed a fresh marker before routing to `/auth/callback` so the callback can distinguish a stale session from a new user-initiated attempt.
+- Build check: `npm run build` PASS.
+
 ## 2026-06-08 - Google Auth Null-User Root Cause Fix
 - Added a readiness wait around the Google callback fallback path so the code no longer trusts a placeholder `auth.currentUser` before Firebase finishes restoring the signed-in user.
 - Added diagnostics for `typeof`, `Object.keys`, `constructor.name`, and `providerData` so the trace can distinguish a real Firebase `User` from a stale/partially hydrated object.

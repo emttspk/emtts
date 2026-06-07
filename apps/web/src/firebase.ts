@@ -22,6 +22,7 @@ const firebaseConfig = {
 
 const firebaseConfigValues = Object.values(firebaseConfig);
 export const firebaseReady = firebaseConfigValues.every((value) => String(value ?? "").trim().length > 0);
+const GOOGLE_REDIRECT_START_KEY = "GOOGLE_REDIRECT_START";
 
 const app = firebaseReady ? initializeApp(firebaseConfig) : null;
 
@@ -43,6 +44,11 @@ if (typeof window !== "undefined") {
 
   if (window.location.pathname.startsWith("/dashboard")) {
     clearGoogleAuthDebugStorage();
+    try {
+      window.sessionStorage.removeItem(GOOGLE_REDIRECT_START_KEY);
+    } catch {
+      // Ignore storage failures.
+    }
   } else if (!window.sessionStorage.getItem(GOOGLE_AUTH_DEBUG_KEY)) {
     // Keep the in-memory debug mirror in sync when no persisted trace exists.
     try {

@@ -16,6 +16,7 @@ import SEO from "../components/SEO";
 import { buildGoogleAuthCallbackPath } from "../lib/googleAuth";
 
 const AUTH_ACTION_DEBOUNCE_MS = 1200;
+const GOOGLE_REDIRECT_START_KEY = "GOOGLE_REDIRECT_START";
 
 export default function Login() {
   const nav = useNavigate();
@@ -62,6 +63,20 @@ export default function Login() {
     provider.setCustomParameters({ prompt: "select_account" });
 
     if (shouldUseRedirectAuthFlow()) {
+      try {
+        window.sessionStorage.setItem(
+          GOOGLE_REDIRECT_START_KEY,
+          JSON.stringify({
+            stage: "entry",
+            timestamp: new Date().toISOString(),
+            flow: "login",
+            origin: window.location.href,
+            authDomain: auth?.app?.options?.authDomain ?? null,
+          }),
+        );
+      } catch {
+        // Ignore storage failures; redirect can still proceed.
+      }
       nav(buildGoogleAuthCallbackPath("login"), { replace: true });
       return;
     }
