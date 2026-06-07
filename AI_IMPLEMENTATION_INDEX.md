@@ -3857,3 +3857,8 @@ READY FOR PRODUCTION - All 3 critical fixes implemented and tested.
 - Confirmed implemented custom Meta events: `FirstLabelGenerated`, `SubscriptionUpgrade`, `MoneyOrderGenerated`, and `SupportTicketCreated`.
 - Remaining high-value Meta gaps are now `ViewContent`, `Contact`, `Subscribe`, and `ComplaintCreated`.
 - Full findings are documented in `docs/marketing/META_PIXEL_EVENT_AUDIT_2026.md`.
+
+## 2026-06-07 - Meta Pixel Transport Verification
+- Verified production browser loading of `fbevents.js` and the Meta `signals/config` handshake.
+- Confirmed `fbq` is available, but no `facebook.com/tr` beacon was emitted for `PageView`, `Lead`, `CompleteRegistration`, `Login`, `InitiateCheckout`, or `Purchase`.
+- Full details are documented in `docs/audits/META_PIXEL_TRANSPORT_VERIFICATION_2026.md`.
