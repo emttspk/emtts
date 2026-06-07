@@ -1,5 +1,14 @@
 # AI Implementation Index
 
+## 2026-06-07 - UI Cleanup: Login Page Simplification
+
+- Removed the "NEW HERE?" registration card from `apps/web/src/pages/Login.tsx`.
+- Removed associated text: "Create a free account or ask for a quick WhatsApp walkthrough."
+- Removed buttons: "Start Free", "View Pricing", and "WhatsApp Demo" from the login page.
+- Ensured layout collapses cleanly and remains responsive.
+- Maintained the "Register now" link for user accessibility while simplifying the UI.
+- Build check: `npm run build` PASS.
+
 ## 2026-06-07 - URGENT UI REGRESSION: Image Cropping Fix
 
 - Resolved regression where Operations Dashboard and Login images were cropped due to `object-cover`.

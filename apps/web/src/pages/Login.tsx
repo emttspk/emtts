@@ -269,29 +269,6 @@ export default function Login() {
           onClick={handleGoogleLogin}
         />
 
-        <div className="mt-3 rounded-2xl border border-[#dce8f5] bg-[linear-gradient(145deg,#f5fbff,#eefaf5)] p-4 text-sm text-slate-600 shadow-sm">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">New here?</div>
-          <div className="mt-1 font-medium text-slate-700">Create a free account or ask for a quick WhatsApp walkthrough.</div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Link to="/register" className="btn-primary h-10 rounded-full px-4 text-sm">
-              Start Free
-            </Link>
-            <Link to="/pricing" className="btn-secondary h-10 rounded-full px-4 text-sm">
-              View Pricing
-            </Link>
-            {publicWhatsAppUrl ? (
-              <a
-                href={publicWhatsAppUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex h-10 items-center justify-center rounded-full border border-emerald-300 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700"
-              >
-                WhatsApp Demo
-              </a>
-            ) : null}
-          </div>
-        </div>
-
         <div className="pt-0.5 text-center text-sm text-slate-500">
           Don&apos;t have an account?{" "}
           <Link to="/register" className="font-semibold text-[#0b7f6d] transition hover:text-[#096658]">
