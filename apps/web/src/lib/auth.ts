@@ -5,15 +5,46 @@ const sessionScopeKey = "labelgen_session_scope";
 
 type SessionScope = "local" | "session";
 
+const memorySession = new Map<string, string>();
+
 function readFromStorage(key: string) {
-  const sessionValue = sessionStorage.getItem(key);
-  if (sessionValue) return sessionValue;
-  return localStorage.getItem(key);
+  const memoryValue = memorySession.get(key);
+  if (memoryValue) return memoryValue;
+
+  try {
+    const sessionValue = sessionStorage.getItem(key);
+    if (sessionValue) return sessionValue;
+  } catch {
+    // Ignore browser storage access failures and fall back to memory.
+  }
+
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return memorySession.get(key) ?? null;
+  }
 }
 
 function clearKeyEverywhere(key: string) {
-  localStorage.removeItem(key);
-  sessionStorage.removeItem(key);
+  memorySession.delete(key);
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // Ignore browser storage access failures.
+  }
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    // Ignore browser storage access failures.
+  }
+}
+
+function writeToStorage(key: string, value: string, storage: Storage) {
+  try {
+    storage.setItem(key, value);
+  } catch {
+    memorySession.set(key, value);
+  }
 }
 
 export function getToken() {
@@ -26,12 +57,12 @@ export function setSession(token: string, role: string, refreshToken?: string, o
   const scope: SessionScope = rememberMe ? "local" : "session";
 
   clearSession();
-  storage.setItem(tokenKey, token);
-  storage.setItem(roleKey, role);
+  writeToStorage(tokenKey, token, storage);
+  writeToStorage(roleKey, role, storage);
   if (refreshToken) {
-    storage.setItem(refreshTokenKey, refreshToken);
+    writeToStorage(refreshTokenKey, refreshToken, storage);
   }
-  storage.setItem(sessionScopeKey, scope);
+  writeToStorage(sessionScopeKey, scope, storage);
 }
 
 export function clearSession() {
@@ -48,4 +79,3 @@ export function getRole() {
 export function getRefreshToken() {
   return readFromStorage(refreshTokenKey);
 }
-
