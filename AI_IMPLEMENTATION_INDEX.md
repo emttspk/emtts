@@ -3862,3 +3862,8 @@ READY FOR PRODUCTION - All 3 critical fixes implemented and tested.
 - Verified production browser loading of `fbevents.js` and the Meta `signals/config` handshake.
 - Confirmed `fbq` is available, but no `facebook.com/tr` beacon was emitted for `PageView`, `Lead`, `CompleteRegistration`, `Login`, `InitiateCheckout`, or `Purchase`.
 - Full details are documented in `docs/audits/META_PIXEL_TRANSPORT_VERIFICATION_2026.md`.
+
+## 2026-06-07 - Meta Pixel Transport Fix
+- Updated the Meta bootstrap in `apps/web/src/lib/analytics.ts` to follow the official loading pattern more closely.
+- Local browser checks now confirm `fbq` initialization and Meta script loading on the freshly built bundle, with live production Chrome verification still required to prove `facebook.com/tr` delivery.
+- Full details are documented in `docs/audits/META_TRANSPORT_FIX_2026.md`.

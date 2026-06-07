@@ -60,6 +60,7 @@ No Meta Pixel events were found in the helper that are defined but never reachab
 - The helper also emits custom Meta events for first label generation, subscription upgrade, money order generation, and support ticket creation.
 - Acquisition and checkout-intent events still rely on internal analytics only, so Meta cannot currently see those funnel steps.
 - No protected data should be sent with Meta events; the current helper only sends plan name, amount, currency, and counts where needed.
+- The Meta bootstrap was updated to follow the official loading pattern more closely. Local browser checks confirmed `fbevents.js`, `signals/config`, and `fbq` initialization, but `facebook.com/tr` delivery still needs live production Chrome verification.
 
 ## Meta Maturity Score
 - `86/100`
