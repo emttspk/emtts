@@ -1,5 +1,25 @@
 # AI Implementation Index
 
+## 2026-06-07 - UI Audit: Login & Homepage Hero Optimization
+
+- Fixed `apps/web/src/components/AuthShell.tsx` layout to eliminate blank space below the login image.
+- Expanded login image container vertically using `flex-1` and `h-full` with a healthy `min-h-[220px]` base.
+- Expanded `HomeHero.jsx` dashboard slideshow height:
+  - Increased `min-h` from `320px/400px` to `440px/580px/640px` across breakpoints.
+  - Reduced homepage hero vertical padding (`py-6/py-8/py-10`) for a more compact, high-impact feel.
+  - Reduced gap between service pills and tracking form (`mt-4`).
+- Verified responsive stability and visibility of all logo/title elements.
+- Build check: `npm run build` PASS.
+
+## 2026-06-07 - Login & Homepage Image Update
+
+- Updated `apps/web/src/components/AuthShell.tsx` to replace `letter_box.png` with `main1.jpeg`.
+- Implemented rotating image slideshow in `HomeHero.jsx` replacing the static dashboard preview.
+- Slideshow features 7 rotating images (`image1.jpeg` to `image7.jpeg`) with 5-second intervals.
+- Added random initial image selection on every page load.
+- Implemented safe fallback to `dashboard.png` if any slideshow image fails to load.
+- Copied required assets from root `images/` to `apps/web/public/assets/`.
+
 ## 2026-06-06 - Final Production Verification Audit
 
 - Conducted comprehensive production audit for ePost.pk.

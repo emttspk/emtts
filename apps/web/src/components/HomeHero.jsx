@@ -259,7 +259,7 @@ export default function HomeHero() {
   return (
     <section className="relative overflow-hidden bg-[radial-gradient(circle_at_8%_0%,rgba(47,126,219,0.2),transparent_36%),radial-gradient(circle_at_94%_10%,rgba(14,165,118,0.18),transparent_32%),linear-gradient(175deg,#f5faff_0%,#edf6ff_50%,#effbf5_100%)]">
       <div className="pointer-events-none absolute inset-0 [background-image:linear-gradient(rgba(10,31,68,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(10,31,68,0.05)_1px,transparent_1px)] [background-size:36px_36px] opacity-30" />
-      <div className="mx-auto max-w-[1320px] px-4 py-8 md:px-6 md:py-10 lg:px-10 lg:py-12">
+      <div className="mx-auto max-w-[1320px] px-4 py-6 md:px-6 md:py-8 lg:px-10 lg:py-10">
         <div className="grid items-start gap-6 lg:grid-cols-[1fr_1fr] lg:gap-7">
           <div>
             <p className="inline-flex items-center rounded-full border border-emerald-200 bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700 shadow-sm sm:text-[11px]">
@@ -337,7 +337,7 @@ export default function HomeHero() {
                 event.preventDefault();
                 submitTracking(trackingId);
               }}
-              className="mt-5 max-w-[700px] rounded-3xl border border-[#dce8f5] bg-white/90 p-2 shadow-[0_18px_44px_rgba(10,31,68,0.12)] backdrop-blur"
+              className="mt-4 max-w-[700px] rounded-3xl border border-[#dce8f5] bg-white/90 p-2 shadow-[0_18px_44px_rgba(10,31,68,0.12)] backdrop-blur"
             >
               <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Track Parcel</p>
               <div className="grid grid-cols-1 gap-2">
@@ -415,9 +415,9 @@ export default function HomeHero() {
             </form>
           </div>
 
-          <div className="relative">
+          <div className="relative h-full">
             <div className="relative h-full overflow-hidden rounded-3xl border border-[#dce8f5] bg-white/92 p-3 shadow-[0_26px_58px_rgba(10,31,68,0.16)] backdrop-blur-xl sm:p-4">
-              <div className="flex h-full min-h-[320px] items-center justify-center overflow-hidden rounded-2xl bg-slate-50 md:min-h-[400px]">
+              <div className="flex h-full min-h-[440px] items-center justify-center overflow-hidden rounded-2xl bg-slate-50 md:min-h-[580px] lg:min-h-[640px]">
                 <img
                   key={currentImageIndex}
                   src={DASHBOARD_IMAGES[currentImageIndex]}

@@ -106,7 +106,7 @@ export default function AuthShell(props: AuthShellProps) {
             </motion.div>
 
             <motion.div
-              className="relative z-10 mt-4 overflow-hidden rounded-[24px] border border-white/75 bg-white/60 p-2 shadow-[0_18px_48px_rgba(10,31,68,0.1)] backdrop-blur-xl sm:mt-5 md:mt-4 lg:mt-5"
+              className="relative z-10 mt-4 flex-1 overflow-hidden rounded-[24px] border border-white/75 bg-white/60 p-2 shadow-[0_18px_48px_rgba(10,31,68,0.1)] backdrop-blur-xl sm:mt-5 md:mt-4 lg:mt-5"
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.7, delay: 0.18, ease: "easeOut" }}
@@ -116,7 +116,7 @@ export default function AuthShell(props: AuthShellProps) {
               <img
                src="/assets/main1.jpeg"
                alt="Pakistan Post office with signature red mailbox"
-               className="relative z-10 h-[164px] w-full rounded-[20px] object-cover object-center sm:h-[184px] md:h-[176px] lg:h-[196px] xl:h-[218px]"
+               className="relative z-10 h-full min-h-[220px] w-full rounded-[20px] object-cover object-center"
                loading="eager"
                decoding="async"
                fetchPriority="high"
