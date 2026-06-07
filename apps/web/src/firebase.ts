@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, indexedDBLocalPersistence, initializeAuth } from "firebase/auth";
+import { getAuth, browserLocalPersistence, indexedDBLocalPersistence, initializeAuth } from "firebase/auth";
 import { clearGoogleAuthDebugStorage, GOOGLE_AUTH_DEBUG_KEY, restoreGoogleAuthDebugFromStorage } from "./lib/googleAuth";
 
 declare global {
@@ -54,5 +54,5 @@ if (typeof window !== "undefined") {
 }
 
 export const auth = app ? initializeAuth(app, {
-  persistence: indexedDBLocalPersistence
+  persistence: browserLocalPersistence
 }) : null;

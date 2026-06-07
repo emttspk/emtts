@@ -1,19 +1,11 @@
 # AI Implementation Index
 
-## 2026-06-08 - Firebase Auth Argument Error Root Cause Fix
-- Identified root cause: `getRedirectResult(auth)` was receiving a truthy but invalid auth object that passed basic checks but failed Firebase's internal validation.
-- Added validation before calling `getRedirectResult()` to check that the auth instance has valid `app` and `currentUser` properties.
-- Added diagnostics to log `auth.constructor.name`, `auth.app.name`, `typeof auth`, and `currentUser` presence.
-- Created audit documentation at `docs/audits/firebase-auth-argument-root-cause-2026-06-08.md`.
+## 2026-06-08 - Firebase Auth Argument Error Root Cause Fix (v2)
+- Root cause identified: `indexedDBLocalPersistence` is incompatible with `initializeAuth()` in Firebase v12.
+- Changed persistence from `indexedDBLocalPersistence` to `browserLocalPersistence` in `apps/web/src/firebase.ts`.
+- This creates a valid auth instance that works correctly with `getRedirectResult()`.
+- Created audit documentation at `docs/audits/firebase-getredirectresult-root-cause-2026-06-08.md`.
 - Build check: `npm run build` PASS.
-
-## 2026-06-08 - Google Auth Deployment Verification
-- Verified deployment mismatch: local working directory has fix but NOT committed/pushed.
-- Current deployed commit: `9aa0910` (fix: wait for ready google auth user).
-- Local build hash: `index-BolK8WZY.js` (with fix).
-- Root cause: Uncommitted changes in working directory.
-- Required action: Commit, push, redeploy.
-- Created audit documentation at `docs/audits/google-auth-deployment-verification-2026-06-08.md`.
 
 ## 2026-06-08 - Google Auth Null-User Root Cause Fix
 - Added a readiness wait around the Google callback fallback path so the code no longer trusts a placeholder `auth.currentUser` before Firebase finishes restoring the signed-in user.
