@@ -236,16 +236,27 @@ export default function GoogleAuthCallback() {
         console.info("[AUTH][google-callback] step=getRedirectResult start", {
           flow,
           nextPath,
-          authAppName: authInstance?.app?.name,
+          authInstance: authInstance
+            ? {
+                constructor: authInstance.constructor?.name,
+                appName: authInstance.app?.name,
+                hasCurrentUser: !!authInstance.currentUser,
+              }
+            : null,
         });
         setGoogleAuthDebug("getRedirectResult start");
         let result = null;
         try {
-          result = authInstance ? await getRedirectResult(authInstance) : null;
+          const isValidAuth = authInstance && typeof authInstance === "object" && "app" in authInstance && "currentUser" in authInstance;
+          if (!isValidAuth) {
+            throw new Error("Invalid auth instance: auth object is not a valid Firebase Auth instance");
+          }
+          result = await getRedirectResult(authInstance);
         } catch (error) {
           const errorCode = typeof error === "object" && error && "code" in error ? String((error as { code?: unknown }).code ?? "") : "";
           const isAuthArgumentError = errorCode === "auth/argument-error"
-            || (error instanceof Error && error.message.includes("auth/argument-error"));
+            || (error instanceof Error && error.message.includes("auth/argument-error"))
+            || (error instanceof Error && error.message.includes("Invalid auth instance"));
 
           if (!isAuthArgumentError) {
             throw error;
@@ -254,9 +265,12 @@ export default function GoogleAuthCallback() {
           console.warn("[AUTH][google-callback] step=redirect result argument error", {
             flow,
             authInstanceExists: !!authInstance,
+            authInstanceType: typeof authInstance,
+            authInstanceConstructor: authInstance?.constructor?.name,
             authAppName: authInstance?.app?.name,
             firebaseReady,
             nextPath,
+            errorMessage: error instanceof Error ? error.message : String(error),
           });
         }
         if (cancelled || cancelledRef.current) return;
