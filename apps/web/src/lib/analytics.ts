@@ -94,6 +94,18 @@ function markOneTimeAccountEvent(eventKey: string, accountId: string): boolean {
   return true;
 }
 
+function markOneTimeSessionEvent(eventKey: string): boolean {
+  if (typeof window === "undefined") return false;
+  const storageKey = `${ANALYTICS_SESSION_KEY}:once:${eventKey}`;
+  try {
+    if (window.sessionStorage.getItem(storageKey) === "1") return false;
+    window.sessionStorage.setItem(storageKey, "1");
+    return true;
+  } catch {
+    return true;
+  }
+}
+
 function getStorageSessionId(): string {
   if (typeof window === "undefined") return "";
   try {
@@ -332,6 +344,9 @@ export function trackPageView(path: string) {
 
 export function trackLeadStart(source: string) {
   trackEvent("lead_start", { source });
+  if (typeof window !== "undefined" && window.fbq && markOneTimeSessionEvent("lead")) {
+    window.fbq("track", "Lead");
+  }
 }
 
 export function trackRegistrationComplete(method: string) {
@@ -367,6 +382,9 @@ export function trackPackageSelect(planName: string) {
 
 export function trackPaymentStart(planName: string) {
   trackEvent("payment_start", { plan_name: planName });
+  if (typeof window !== "undefined" && window.fbq) {
+    window.fbq("track", "InitiateCheckout", { plan_name: planName });
+  }
 }
 
 export function trackLogin(method: string) {

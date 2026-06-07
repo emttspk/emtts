@@ -3845,9 +3845,15 @@ READY FOR PRODUCTION - All 3 critical fixes implemented and tested.
 - Direct database row readback remains blocked in this workspace because the Railway DB shell requires a local `psql` client, which is not installed here.
 - Full details are documented in `docs/audits/ANALYTICS_SMOKE_TEST_2026.md`.
 
+## 2026-06-07 - Meta Lead and InitiateCheckout Standard Events
+- Implemented the missing Meta standard events `Lead` and `InitiateCheckout` in the existing analytics helpers.
+- `Lead` now fires once per session from the existing registration / Start Free CTA flow.
+- `InitiateCheckout` now fires when checkout is initiated from billing.
+- The updated mapping is documented in `docs/marketing/META_PIXEL_EVENT_AUDIT_2026.md` and `docs/marketing/ANALYTICS_EVENT_INVENTORY_2026.md`.
+
 ## 2026-06-07 - Meta Pixel Event Mapping Audit
 - Audited the full Meta Pixel event surface in `apps/web/src/lib/analytics.ts` and the live registration, login, billing, upload, support, dashboard, and homepage flows.
-- Confirmed implemented Meta standard events: `PageView`, `CompleteRegistration`, `Login`, and `Purchase`.
+- Confirmed implemented Meta standard events: `PageView`, `Lead`, `CompleteRegistration`, `Login`, `InitiateCheckout`, and `Purchase`.
 - Confirmed implemented custom Meta events: `FirstLabelGenerated`, `SubscriptionUpgrade`, `MoneyOrderGenerated`, and `SupportTicketCreated`.
-- Identified missing high-value Meta events for `Lead`, `ViewContent`, `InitiateCheckout`, `Contact`, `Subscribe`, and `ComplaintCreated`.
+- Remaining high-value Meta gaps are now `ViewContent`, `Contact`, `Subscribe`, and `ComplaintCreated`.
 - Full findings are documented in `docs/marketing/META_PIXEL_EVENT_AUDIT_2026.md`.

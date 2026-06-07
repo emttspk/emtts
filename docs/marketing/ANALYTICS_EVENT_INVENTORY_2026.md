@@ -35,14 +35,16 @@ The following events are currently implemented and verified to fire in the `apps
 ---
 
 ## 2. Meta Events Currently Firing
-Current Meta Pixel implementation primarily uses `trackCustom` for all non-pageview events.
+Current Meta Pixel implementation now mixes standard and custom events for the primary funnel.
 
 | Meta Event Name | Type | Mapping |
 | :--- | :--- | :--- |
 | `PageView` | Standard | `page_view` |
+| `Lead` | Standard | `lead_start` |
 | `CompleteRegistration` | Standard | `registration_complete` |
 | `Purchase` | Standard | `purchase` |
 | `Login` | Standard | `login` |
+| `InitiateCheckout` | Standard | `payment_start` |
 | (Custom Events) | Custom | All other GA4 events listed above |
 
 ---
@@ -59,6 +61,8 @@ Based on the priority list, the following events are missing or require refineme
 *   **`login`**: Implemented as GA4 `login` and Meta `Login` on successful login.
 *   **`first_label_generated`**: Implemented as a one-time per-account milestone on first successful label generation.
 *   **`purchase`**: Implemented as GA4 `purchase` and Meta `Purchase` alongside `payment_success`.
+*   **`lead_start`**: Implemented as GA4 `lead_start` and Meta `Lead` on the first CTA click per session.
+*   **`payment_start`**: Implemented as GA4 `payment_start` and Meta `InitiateCheckout` when checkout begins.
 
 ### P2 - Operational Funnel
 *   **`money_order_generated`**: Implemented as a successful money order generation milestone.
@@ -96,6 +100,7 @@ Based on the priority list, the following events are missing or require refineme
 1.  Completed: added `trackLogin(method)` to `Login.tsx`.
 2.  Completed: `trackRegistrationComplete` now maps to `CompleteRegistration` in Meta.
 3.  Completed: implemented `trackFirstLabelGenerated` logic in `Upload.tsx`.
+4.  Completed: implemented Meta `Lead` and `InitiateCheckout` standards through the existing CTA and checkout helpers.
 
 ### Phase 2: Milestone Tracking
 1.  Completed: `subscription_upgrade` added for free-to-paid conversion.
@@ -145,9 +150,9 @@ The new attribution dashboard provides:
 ---
 
 ## 8. Analytics Maturity Score
-**Current Score: 96/100**
+**Current Score: 98/100**
 
 *   **Foundation (25/25):** GA4 and Meta Pixel initialized correctly with env vars.
 *   **Page Tracking (15/15):** Full route tracking active.
 *   **Funnel Coverage (40/40):** Login, registration, first label, upgrade, purchase, money order, support ticket, and attribution milestones are now tracked and reported.
-*   **Standardisation (16/20):** Meta Standard events for Login, CompleteRegistration, and Purchase are wired; remaining events are custom but high-value.
+*   **Standardisation (18/20):** Meta Standard events for PageView, Lead, Login, CompleteRegistration, InitiateCheckout, and Purchase are wired; remaining gaps are mostly custom/high-value reporting events.
