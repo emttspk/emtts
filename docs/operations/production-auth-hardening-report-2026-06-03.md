@@ -298,3 +298,13 @@ Overall production auth readiness score: 89/100
 ## Recommended Next Hardening (Future)
 - Move access/refresh token transport to secure HttpOnly cookies.
 - Add dashboard/alert wiring for `auth.metric.*` log events.
+
+## 2026-06-07 Mobile Google Auth Addendum
+
+- Added a dedicated Google auth callback route at `/auth/callback`.
+- Mobile/touch browsers now use redirect-based Google auth flow through the callback route instead of relying on page-local popup handling.
+- Login and register pages now surface readable Google auth failures and clear their loading state on failure.
+- Google signup now completes the Firebase token exchange, stores the session, and returns to `/dashboard` so the existing profile-completion guard can continue to enforce onboarding when required.
+- Validation in this pass:
+  - `npm.cmd run build`
+  - `npm.cmd run auth:hammer`

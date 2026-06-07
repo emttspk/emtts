@@ -1,5 +1,5 @@
 import { GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup, signOut } from "firebase/auth";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowRight, Eye, EyeOff, KeyRound, Mail, SquareArrowOutUpRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, apiUrl } from "../lib/api";
@@ -12,7 +12,7 @@ import { auth, firebaseReady } from "../firebase";
 import { getFriendlyFirebaseAuthMessage, shouldFallbackToApiLogin, shouldThrottle, shouldUseRedirectAuthFlow } from "../lib/firebaseAuthGuards";
 import { trackLogin } from "../lib/analytics";
 import SEO from "../components/SEO";
-import { getRedirectResult, GoogleAuthProvider, signInWithPopup, signInWithRedirect } from "firebase/auth";
+import { buildGoogleAuthCallbackPath } from "../lib/googleAuth";
 
 const AUTH_ACTION_DEBOUNCE_MS = 1200;
 
@@ -47,32 +47,6 @@ export default function Login() {
     finalizeLogin(data.token, data.user.role, data.refreshToken, method);
   }
 
-  useEffect(() => {
-    if (!firebaseReady || !auth) return;
-
-    let cancelled = false;
-    void (async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (cancelled || !result) return;
-        const idToken = await result.user.getIdToken();
-        await loginWithFirebaseToken(idToken, "google");
-      } catch (error) {
-        if (!cancelled) {
-          setErr(getFriendlyFirebaseAuthMessage(error, "Google login failed"));
-        }
-      } finally {
-        if (!cancelled) {
-          setGoogleLoginLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   async function handleGoogleLogin() {
     if (googleLoginLoading || passwordLoginLoading) return;
     setErr(null);
@@ -82,19 +56,11 @@ export default function Login() {
     }
 
     setGoogleLoginLoading(true);
-    const startedAt = performance.now();
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
 
     if (shouldUseRedirectAuthFlow()) {
-      try {
-        await signInWithRedirect(auth, provider);
-      } catch (error) {
-        const message = getFriendlyFirebaseAuthMessage(error, "Google login failed");
-        setErr(message);
-        setPostLoginRedirecting(false);
-        setGoogleLoginLoading(false);
-      }
+      nav(buildGoogleAuthCallbackPath("login"), { replace: true });
       return;
     }
 
@@ -102,7 +68,6 @@ export default function Login() {
       const result = await signInWithPopup(auth, provider);
       const idToken = await result.user.getIdToken();
       await loginWithFirebaseToken(idToken);
-      logDevTiming("google_login_total", performance.now() - startedAt);
     } catch (error) {
       const message = getFriendlyFirebaseAuthMessage(error, "Google login failed");
       setErr(message);
@@ -161,7 +126,7 @@ export default function Login() {
                 }
 
                 const idToken = await credential.user.getIdToken();
-                await loginWithFirebaseToken(idToken, "google");
+                await loginWithFirebaseToken(idToken, "email_password");
                 await signOut(auth);
                 return;
               } catch (firebaseError) {

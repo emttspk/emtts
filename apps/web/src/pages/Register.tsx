@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { GoogleAuthProvider, createUserWithEmailAndPassword, getRedirectResult, sendEmailVerification, signInWithPopup, signInWithRedirect, signOut } from "firebase/auth";
+import { GoogleAuthProvider, createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, signOut } from "firebase/auth";
 import { api } from "../lib/api";
 import { setSession } from "../lib/auth";
 import AuthShell from "../components/AuthShell";
@@ -32,16 +32,21 @@ export default function Register() {
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Username availability
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
   const [usernameChecking, setUsernameChecking] = useState(false);
   const [usernameFormatErr, setUsernameFormatErr] = useState<string | null>(null);
-
-  // Debounced username check
   const usernameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const USERNAME_REGEX = /^[a-zA-Z0-9_]+$/;
+
+  const [pendingVerification, setPendingVerification] = useState(false);
+  const [pendingData, setPendingData] = useState<{ token: string; refreshToken?: string; user: { role: string }; onboardingRequired?: boolean } | null>(null);
+  const [verifyChecking, setVerifyChecking] = useState(false);
+  const [resendPending, setResendPending] = useState(false);
+  const [resendCooldownUntil, setResendCooldownUntil] = useState(0);
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const lastContinueAttemptAtRef = useRef(0);
+  const lastResendAttemptAtRef = useRef(0);
 
   function handleUsernameChange(value: string) {
     setUsername(value);
@@ -49,6 +54,7 @@ export default function Register() {
     setUsernameSuggestions([]);
     setUsernameFormatErr(null);
     if (usernameDebounceRef.current) clearTimeout(usernameDebounceRef.current);
+
     const trimmed = value.trim();
     if (trimmed.includes("@")) {
       setUsernameFormatErr("Username cannot be an email address");
@@ -59,12 +65,13 @@ export default function Register() {
       return;
     }
     if (trimmed.length < 3) return;
+
     usernameDebounceRef.current = setTimeout(async () => {
       setUsernameChecking(true);
       try {
         const res = await fetch(`/api/auth/check-username?username=${encodeURIComponent(value.trim())}`);
         if (res.ok) {
-          const data = await res.json() as { available: boolean; suggestions?: string[] };
+          const data = (await res.json()) as { available: boolean; suggestions?: string[] };
           setUsernameAvailable(data.available);
           setUsernameSuggestions(data.suggestions ?? []);
         }
@@ -76,16 +83,6 @@ export default function Register() {
     }, 400);
   }
 
-  // Pending email verification state
-  const [pendingVerification, setPendingVerification] = useState(false);
-  const [pendingData, setPendingData] = useState<{ token: string; refreshToken?: string; user: { role: string }; onboardingRequired?: boolean } | null>(null);
-  const [verifyChecking, setVerifyChecking] = useState(false);
-  const [resendPending, setResendPending] = useState(false);
-  const [resendCooldownUntil, setResendCooldownUntil] = useState(0);
-  const [resendCountdown, setResendCountdown] = useState(0);
-  const lastContinueAttemptAtRef = useRef(0);
-  const lastResendAttemptAtRef = useRef(0);
-
   useEffect(() => {
     if (!pendingVerification) {
       setResendCountdown(0);
@@ -95,7 +92,6 @@ export default function Register() {
     const updateCountdown = () => {
       setResendCountdown(getCooldownRemainingSeconds(resendCooldownUntil));
     };
-
     updateCountdown();
     const timer = setInterval(updateCountdown, 1000);
     return () => clearInterval(timer);
@@ -103,39 +99,8 @@ export default function Register() {
 
   async function finalizeRegistrationSession(data: { token: string; refreshToken?: string; user: { role: string }; onboardingRequired?: boolean }) {
     setSession(data.token, data.user.role, data.refreshToken);
-    nav(data.onboardingRequired ? "/register/profile" : "/dashboard");
+    nav("/dashboard", { replace: true });
   }
-
-  useEffect(() => {
-    if (!firebaseReady || !auth) return;
-
-    let cancelled = false;
-    void (async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (cancelled || !result) return;
-        const idToken = await result.user.getIdToken();
-        const data = await api<{ token: string; refreshToken?: string; user: { role: string }; onboardingRequired?: boolean }>("/api/auth/firebase-login", {
-          method: "POST",
-          body: JSON.stringify({ idToken }),
-        });
-        trackRegistrationComplete("google");
-        await finalizeRegistrationSession(data);
-      } catch (error) {
-        if (!cancelled) {
-          setErr(getFriendlyFirebaseAuthMessage(error, "Google registration failed"));
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   async function handleGoogleRegister() {
     setErr(null);
@@ -151,32 +116,22 @@ export default function Register() {
     provider.setCustomParameters({ prompt: "select_account" });
 
     if (shouldUseRedirectAuthFlow()) {
-      try {
-        await signInWithRedirect(auth, provider);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Google registration failed";
-        setErr(message);
-        setLoading(false);
-      }
+      nav("/auth/callback?flow=register&next=%2Fdashboard", { replace: true });
       return;
     }
 
     try {
       const result = await signInWithPopup(auth, provider);
       const idToken = await result.user.getIdToken();
-
       const data = await api<{ token: string; refreshToken?: string; user: { role: string }; onboardingRequired?: boolean }>("/api/auth/firebase-login", {
         method: "POST",
         body: JSON.stringify({ idToken }),
       });
 
       trackRegistrationComplete("google");
-
-      // Google accounts are always verified — proceed directly
       await finalizeRegistrationSession(data);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Google registration failed";
-      setErr(message);
+      setErr(getFriendlyFirebaseAuthMessage(error, "Google registration failed"));
     } finally {
       setLoading(false);
     }
@@ -255,7 +210,6 @@ export default function Register() {
     }
   }
 
-  // Pending verification screen
   if (pendingVerification) {
     return (
       <>
@@ -265,40 +219,35 @@ export default function Register() {
           canonicalPath="/register"
         />
         <AuthShell mode="register" title="Verify your email" subtitle="Check your inbox to activate your account.">
-        {err ? <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">{err}</div> : null}
-        {notice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">{notice}</div> : null}
+          {err ? <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">{err}</div> : null}
+          {notice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">{notice}</div> : null}
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
-          <p className="font-semibold text-slate-900">A verification link was sent to:</p>
-          <p className="mt-1 break-all font-medium text-[#0b7f6d]">{email}</p>
-          <p className="mt-3 text-slate-600">Click the link in your email, then return here and press <strong>Continue</strong>.</p>
-        </div>
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-700">
+            <p className="font-semibold text-slate-900">A verification link was sent to:</p>
+            <p className="mt-1 break-all font-medium text-[#0b7f6d]">{email}</p>
+            <p className="mt-3 text-slate-600">Click the link in your email, then return here and press <strong>Continue</strong>.</p>
+          </div>
 
-        <div className="mt-4 grid gap-3">
-          <button
-            type="button"
-            disabled={verifyChecking}
-            className="btn-primary w-full rounded-xl"
-            onClick={handleContinueAfterVerify}
-          >
-            {verifyChecking ? "Checking..." : "I've verified — Continue →"}
-          </button>
-          <button
-            type="button"
-            disabled={verifyChecking || resendPending || resendCountdown > 0}
-            className="btn-secondary w-full rounded-xl text-sm"
-            onClick={handleResendVerification}
-          >
-            {resendPending
-              ? "Sending..."
-              : resendCountdown > 0
-                ? `Resend available in ${resendCountdown}s`
-                : "Resend verification email"}
-          </button>
-          <Link to="/login" className="text-center text-sm font-medium text-[#0b7f6d] transition hover:text-[#096658]">
-            Session expired? Go to login
-          </Link>
-        </div>
+          <div className="mt-4 grid gap-3">
+            <button type="button" disabled={verifyChecking} className="btn-primary w-full rounded-xl" onClick={handleContinueAfterVerify}>
+              {verifyChecking ? "Checking..." : "I've verified - Continue ->"}
+            </button>
+            <button
+              type="button"
+              disabled={verifyChecking || resendPending || resendCountdown > 0}
+              className="btn-secondary w-full rounded-xl text-sm"
+              onClick={handleResendVerification}
+            >
+              {resendPending
+                ? "Sending..."
+                : resendCountdown > 0
+                  ? `Resend available in ${resendCountdown}s`
+                  : "Resend verification email"}
+            </button>
+            <Link to="/login" className="text-center text-sm font-medium text-[#0b7f6d] transition hover:text-[#096658]">
+              Session expired? Go to login
+            </Link>
+          </div>
         </AuthShell>
       </>
     );
@@ -311,152 +260,140 @@ export default function Register() {
         description="Create your ePost.pk account for Pakistan Post tracking, bulk tracking, shipping labels, money orders, complaints, and ecommerce shipping tools."
         canonicalPath="/register"
       />
-      <AuthShell
-        mode="register"
-        title="Create account"
-        subtitle="Create your ePost.pk workspace in minutes."
-      >
-      {err ? <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">{err}</div> : null}
-      {notice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">{notice}</div> : null}
+      <AuthShell mode="register" title="Create account" subtitle="Create your ePost.pk workspace in minutes.">
+        {err ? <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">{err}</div> : null}
+        {notice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">{notice}</div> : null}
 
-      <form
-        className="space-y-3.5"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          setErr(null);
-          setNotice(null);
+        <form
+          className="space-y-3.5"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setErr(null);
+            setNotice(null);
 
-          const normalizedUsername = username.trim();
-          if (!normalizedUsername) {
-            setErr("Username is required.");
-            return;
-          }
-          if (normalizedUsername.includes("@")) {
-            setErr("Username cannot be an email address.");
-            return;
-          }
-          if (!/^[a-zA-Z0-9_]+$/.test(normalizedUsername)) {
-            setErr("Username can only contain letters, numbers, and underscores.");
-            return;
-          }
-          if (usernameAvailable === false) {
-            setErr("Please choose an available username before continuing.");
-            return;
-          }
+            const normalizedUsername = username.trim();
+            if (!normalizedUsername) {
+              setErr("Username is required.");
+              return;
+            }
+            if (normalizedUsername.includes("@")) {
+              setErr("Username cannot be an email address.");
+              return;
+            }
+            if (!/^[a-zA-Z0-9_]+$/.test(normalizedUsername)) {
+              setErr("Username can only contain letters, numbers, and underscores.");
+              return;
+            }
+            if (usernameAvailable === false) {
+              setErr("Please choose an available username before continuing.");
+              return;
+            }
 
-          setLoading(true);
-          try {
-            const data = await api<{ token: string; refreshToken?: string; user: { role: string }; onboardingRequired?: boolean }>("/api/auth/register", {
-              method: "POST",
-              body: JSON.stringify({
-                username: normalizedUsername,
-                email,
-                password,
-              }),
-            });
+            setLoading(true);
+            try {
+              const data = await api<{ token: string; refreshToken?: string; user: { role: string }; onboardingRequired?: boolean }>("/api/auth/register", {
+                method: "POST",
+                body: JSON.stringify({
+                  username: normalizedUsername,
+                  email,
+                  password,
+                }),
+              });
 
-            trackRegistrationComplete("email_password");
+              trackRegistrationComplete("email_password");
 
-            if (firebaseReady && auth) {
-              try {
-                const credential = await createUserWithEmailAndPassword(auth, email, password);
+              if (firebaseReady && auth) {
+                try {
+                  const credential = await createUserWithEmailAndPassword(auth, email, password);
 
-                if (!credential.user.emailVerified) {
-                  await sendEmailVerification(credential.user);
-                  setResendCooldownUntil(Date.now() + RESEND_COOLDOWN_MS);
-                  // Block navigation — show verify email screen
+                  if (!credential.user.emailVerified) {
+                    await sendEmailVerification(credential.user);
+                    setResendCooldownUntil(Date.now() + RESEND_COOLDOWN_MS);
+                    setPendingData(data);
+                    setPendingVerification(true);
+                    setLoading(false);
+                    return;
+                  }
+                  await signOut(auth);
+                } catch (firebaseError) {
+                  const message = getFriendlyFirebaseAuthMessage(firebaseError, "Failed to send verification email");
+                  console.warn(`[REGISTER] Firebase verification warning: ${message}`);
                   setPendingData(data);
                   setPendingVerification(true);
+                  setErr(message);
                   setLoading(false);
                   return;
                 }
-                await signOut(auth);
-              } catch (firebaseError) {
-                const message = getFriendlyFirebaseAuthMessage(firebaseError, "Failed to send verification email");
-                console.warn(`[REGISTER] Firebase verification warning: ${message}`);
-                setPendingData(data);
-                setPendingVerification(true);
-                setErr(message);
-                setLoading(false);
-                return;
               }
+
+              await finalizeRegistrationSession(data);
+            } catch (error) {
+              setErr(getFriendlyFirebaseAuthMessage(error, "Registration failed"));
+            } finally {
+              setLoading(false);
             }
+          }}
+        >
+          <div className="rounded-2xl border border-[#dce8f5] bg-[linear-gradient(145deg,#f4faff,#eefaf5)] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2f7edb]">
+            Built for Pakistan Post operations teams
+          </div>
+          <div className="space-y-3 rounded-2xl border border-[#dce8f5] bg-white/82 p-4 shadow-[0_14px_30px_rgba(10,31,68,0.06)]">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#0b7f6d]">Identity</div>
+            <label className="block text-sm">
+              <div className="mb-2 font-medium text-slate-700">Username *</div>
+              <input
+                className="field-input focus:ring-emerald-200"
+                value={username}
+                onChange={(e) => handleUsernameChange(e.target.value)}
+                type="text"
+                placeholder="your.username"
+                maxLength={80}
+                required
+              />
+              {usernameFormatErr ? <p className="mt-1 text-xs font-medium text-red-600">{usernameFormatErr}</p> : null}
+              {!usernameFormatErr && usernameChecking ? <p className="mt-1 text-xs text-slate-400">Checking availability...</p> : null}
+              {!usernameFormatErr && !usernameChecking && usernameAvailable === true && username.trim().length >= 3 ? (
+                <p className="mt-1 text-xs font-medium text-emerald-600">Username is available</p>
+              ) : null}
+              {!usernameFormatErr && !usernameChecking && usernameAvailable === false ? (
+                <div className="mt-1">
+                  <p className="text-xs font-medium text-red-600">Username already taken</p>
+                  {usernameSuggestions.length > 0 ? (
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      Try:{" "}
+                      {usernameSuggestions.map((s, i) => (
+                        <button key={s} type="button" className="font-medium text-[#0b7f6d] hover:underline" onClick={() => handleUsernameChange(s)}>
+                          {s}
+                          {i < usernameSuggestions.length - 1 ? ", " : ""}
+                        </button>
+                      ))}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </label>
+            <label className="block text-sm">
+              <div className="mb-2 font-medium text-slate-700">Email *</div>
+              <input className="field-input focus:ring-emerald-200" value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@company.com" required />
+            </label>
+            <label className="block text-sm">
+              <div className="mb-2 font-medium text-slate-700">Password *</div>
+              <input className="field-input focus:ring-emerald-200" value={password} onChange={(e) => setPassword(e.target.value)} type="password" minLength={8} placeholder="At least 8 characters" required />
+            </label>
+          </div>
 
-            await finalizeRegistrationSession(data);
-          } catch (error) {
-            const errorMsg = error instanceof Error ? error.message : "Registration failed";
-            setErr(errorMsg);
-          } finally {
-            setLoading(false);
-          }
-        }}
-      >
-        <div className="rounded-2xl border border-[#dce8f5] bg-[linear-gradient(145deg,#f4faff,#eefaf5)] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#2f7edb]">Built for Pakistan Post operations teams</div>
-        <div className="space-y-3 rounded-2xl border border-[#dce8f5] bg-white/82 p-4 shadow-[0_14px_30px_rgba(10,31,68,0.06)]">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#0b7f6d]">Identity</div>
-          <label className="block text-sm">
-            <div className="mb-2 font-medium text-slate-700">Username *</div>
-            <input
-              className="field-input focus:ring-emerald-200"
-              value={username}
-              onChange={(e) => handleUsernameChange(e.target.value)}
-              type="text"
-              placeholder="your.username"
-              maxLength={80}
-              required
-            />
-            {usernameFormatErr && (
-              <p className="mt-1 text-xs font-medium text-red-600">{usernameFormatErr}</p>
-            )}
-            {!usernameFormatErr && usernameChecking && (
-              <p className="mt-1 text-xs text-slate-400">Checking availability...</p>
-            )}
-            {!usernameFormatErr && !usernameChecking && usernameAvailable === true && username.trim().length >= 3 && (
-              <p className="mt-1 text-xs font-medium text-emerald-600">Username is available</p>
-            )}
-            {!usernameFormatErr && !usernameChecking && usernameAvailable === false && (
-              <div className="mt-1">
-                <p className="text-xs font-medium text-red-600">Username already taken</p>
-                {usernameSuggestions.length > 0 && (
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    Try:{" "}
-                    {usernameSuggestions.map((s, i) => (
-                      <button
-                        key={s}
-                        type="button"
-                        className="font-medium text-[#0b7f6d] hover:underline"
-                        onClick={() => handleUsernameChange(s)}
-                      >
-                        {s}{i < usernameSuggestions.length - 1 ? ", " : ""}
-                      </button>
-                    ))}
-                  </p>
-                )}
-              </div>
-            )}
-          </label>
-          <label className="block text-sm">
-            <div className="mb-2 font-medium text-slate-700">Email *</div>
-            <input className="field-input focus:ring-emerald-200" value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@company.com" required />
-          </label>
-          <label className="block text-sm">
-            <div className="mb-2 font-medium text-slate-700">Password *</div>
-            <input className="field-input focus:ring-emerald-200" value={password} onChange={(e) => setPassword(e.target.value)} type="password" minLength={8} placeholder="At least 8 characters" required />
-          </label>
-        </div>
+          <button disabled={loading} className="btn-primary w-full rounded-xl">
+            {loading ? "Creating account..." : "Continue"}
+          </button>
 
-        <button disabled={loading} className="btn-primary w-full rounded-xl">
-          {loading ? "Creating account..." : "Continue"}
-        </button>
+          <GoogleAuthButton className="w-full" label="Sign up with Google" disabled={loading} loading={loading} onClick={handleGoogleRegister} />
 
-        <GoogleAuthButton className="w-full" label="Sign up with Google" disabled={loading} loading={loading} onClick={handleGoogleRegister} />
-
-        <div className="flex items-center justify-between text-sm text-slate-500">
-          <Link to={`/login${email ? `?email=${encodeURIComponent(email)}` : ""}`} className="font-semibold text-[#0b7f6d] transition hover:text-[#096658]">
-            Login
-          </Link>
-        </div>
-      </form>
+          <div className="flex items-center justify-between text-sm text-slate-500">
+            <Link to={`/login${email ? `?email=${encodeURIComponent(email)}` : ""}`} className="font-semibold text-[#0b7f6d] transition hover:text-[#096658]">
+              Login
+            </Link>
+          </div>
+        </form>
       </AuthShell>
     </>
   );
