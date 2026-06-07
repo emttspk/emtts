@@ -1,5 +1,23 @@
 # AI Implementation Index
 
+## 2026-06-07 - Production Validation: Tracking Workspace Regression Review
+
+- Validated the tracking workspace after the cache isolation and crash-hardening changes deployed in `1846fcc3`, `251e6da`, and `82aede3`.
+- Confirmed the browser-side cleanup path still clears:
+  - auth/session tokens,
+  - tracking workspace render/view/snapshot caches,
+  - shipment stats cache,
+  - complaints shipment page cache,
+  - complaint form persistence keys.
+- Confirmed the app has no React Query usage in the web workspace, so there are no React Query cache keys to audit or invalidate.
+- Confirmed the user-facing tracking endpoints and shipment stats route are user-scoped in the API:
+  - tracking batch history and master-file download
+  - batch rerun and delete
+  - complaint prefill and complaint submission
+  - shipment stats and complaint-linked shipment aggregation
+- Build check: `npm run build` PASS.
+- Remaining limitation: this environment does not provide a live browser session or production credentials, so the cross-user dashboard/tracking click-through was validated from source and build output only.
+
 ## 2026-06-07 - Tracking Regression Fix: Workspace Render Crash After Tenant Cache Scope Change
 
 - Investigated the tracking workspace crash introduced after commit `251e6da` (`fix: isolate tracking workspace caches by user`).
