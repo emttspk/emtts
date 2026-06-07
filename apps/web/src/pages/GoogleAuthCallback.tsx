@@ -28,44 +28,46 @@ export default function GoogleAuthCallback() {
   const cancelledRef = useRef(false);
 
   async function completeSession(idToken: string, source: "redirect" | "fallback-current-user") {
-    if (import.meta.env.DEV) {
-      console.info("[AUTH][google-callback] step=exchange start", {
-        flow,
-        source,
-        tokenExistsBeforeExchange: Boolean(getToken()),
-        nextPath,
-      });
-    }
+    console.info("[AUTH][google-callback] step=exchange start", {
+      flow,
+      source,
+      tokenExistsBeforeExchange: Boolean(getToken()),
+      nextPath,
+    });
 
     const data = await exchangeGoogleFirebaseToken(idToken);
 
-    if (import.meta.env.DEV) {
-      console.info("[AUTH][google-callback] step=exchange response", {
+    console.info("[AUTH][google-callback] step=exchange response", {
+      flow,
+      source,
+      tokenReceived: Boolean(data?.token),
+      refreshTokenReceived: Boolean(data?.refreshToken),
+      onboardingRequired: Boolean(data?.onboardingRequired),
+      nextPath,
+    });
+
+    try {
+      if (flow === "register") {
+        trackRegistrationComplete("google");
+      } else {
+        trackLogin("google");
+      }
+    } catch (error) {
+      console.warn("[AUTH][google-callback] step=analytics nonfatal error", {
         flow,
         source,
-        tokenReceived: Boolean(data?.token),
-        refreshTokenReceived: Boolean(data?.refreshToken),
-        onboardingRequired: Boolean(data?.onboardingRequired),
-        nextPath,
+        message: error instanceof Error ? error.message : String(error),
       });
-    }
-
-    if (flow === "register") {
-      trackRegistrationComplete("google");
-    } else {
-      trackLogin("google");
     }
 
     setSession(data.token, data.user.role, data.refreshToken);
 
-    if (import.meta.env.DEV) {
-      console.info("[AUTH][google-callback] step=session saved", {
-        flow,
-        source,
-        tokenExistsAfterSave: Boolean(getToken()),
-        redirectTarget: nextPath,
-      });
-    }
+    console.info("[AUTH][google-callback] step=session saved", {
+      flow,
+      source,
+      tokenExistsAfterSave: Boolean(getToken()),
+      redirectTarget: nextPath,
+    });
 
     if (!cancelledRef.current) {
       setStatus("Session saved. Redirecting...");
@@ -89,13 +91,11 @@ export default function GoogleAuthCallback() {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
 
-    if (import.meta.env.DEV) {
-      console.info("[AUTH][google-callback] step=redirect start", {
-        flow,
-        tokenExistsBeforeRedirect: Boolean(getToken()),
-        nextPath,
-      });
-    }
+    console.info("[AUTH][google-callback] step=redirect start", {
+      flow,
+      tokenExistsBeforeRedirect: Boolean(getToken()),
+      nextPath,
+    });
 
     setStatus("Redirecting to Google...");
     await signInWithRedirect(auth, provider);
@@ -114,13 +114,11 @@ export default function GoogleAuthCallback() {
 
     const existingToken = getToken();
     if (existingToken) {
-      if (import.meta.env.DEV) {
-        console.info("[AUTH][google-callback] step=session already exists", {
-          flow,
-          tokenExists: true,
-          nextPath,
-        });
-      }
+      console.info("[AUTH][google-callback] step=session already exists", {
+        flow,
+        tokenExists: true,
+        nextPath,
+      });
 
       setStatus("Session already exists. Redirecting...");
       timerRef.current = window.setTimeout(() => {
@@ -139,18 +137,15 @@ export default function GoogleAuthCallback() {
     let cancelled = false;
     void (async () => {
       try {
-        if (import.meta.env.DEV) {
-          console.info("[AUTH][google-callback] step=read redirect result", {
-            flow,
-            tokenExists: Boolean(getToken()),
-            nextPath,
-          });
-        }
-        
         console.info("[AUTH][google-callback] DIAGNOSTICS", {
           authInstanceExists: !!auth,
           authAppName: auth?.app?.name,
-          firebaseReady
+          authCurrentUserUid: auth?.currentUser?.uid ?? null,
+          authCurrentUserEmail: auth?.currentUser?.email ?? null,
+          firebaseReady,
+          flow,
+          nextPath,
+          tokenExists: Boolean(getToken()),
         });
 
         const authInstance = auth;
@@ -166,26 +161,22 @@ export default function GoogleAuthCallback() {
             throw error;
           }
 
-          if (import.meta.env.DEV) {
-            console.warn("[AUTH][google-callback] step=redirect result argument error", {
-              flow,
-              authInstanceExists: !!authInstance,
-              authAppName: authInstance?.app?.name,
-              firebaseReady,
-              nextPath,
-            });
-          }
-        }
-        if (cancelled || cancelledRef.current) return;
-
-        if (import.meta.env.DEV) {
-          console.info("[AUTH][google-callback] step=redirect result resolved", {
+          console.warn("[AUTH][google-callback] step=redirect result argument error", {
             flow,
-            hasResult: Boolean(result),
-            tokenExists: Boolean(getToken()),
+            authInstanceExists: !!authInstance,
+            authAppName: authInstance?.app?.name,
+            firebaseReady,
             nextPath,
           });
         }
+        if (cancelled || cancelledRef.current) return;
+
+        console.info("[AUTH][google-callback] step=redirect result resolved", {
+          flow,
+          hasResult: Boolean(result),
+          tokenExists: Boolean(getToken()),
+          nextPath,
+        });
 
         if (result) {
           setStatus("Google authentication finished. Saving session...");
@@ -195,6 +186,9 @@ export default function GoogleAuthCallback() {
             source: "redirect",
             tokenExists: Boolean(getToken()),
             nextPath,
+            currentUserUid: result.user.uid,
+            currentUserEmail: result.user.email ?? null,
+            tokenGenerated: Boolean(idToken),
           });
           await completeSession(idToken, "redirect");
           return;
@@ -209,6 +203,9 @@ export default function GoogleAuthCallback() {
             source: "fallback-current-user",
             tokenExists: Boolean(getToken()),
             nextPath,
+            currentUserUid: currentUser.uid,
+            currentUserEmail: currentUser.email ?? null,
+            tokenGenerated: Boolean(idToken),
           });
           await completeSession(idToken, "fallback-current-user");
           return;
@@ -239,6 +236,7 @@ export default function GoogleAuthCallback() {
             tokenExists: Boolean(getToken()),
             nextPath,
             message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack ?? null : null,
           });
         }
       } finally {

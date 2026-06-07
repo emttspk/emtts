@@ -1,5 +1,11 @@
 # AI Implementation Index
 
+## 2026-06-08 - Google Registration Final Root Cause Diagnostics
+- Added production-visible diagnostics to the Google callback and `/api/auth/firebase-login` path so the next live Google signup/login attempt will surface the exact `currentUser`, token, response status, and response body in logs.
+- Hardened the register-specific callback branch so telemetry failures from `trackRegistrationComplete("google")` no longer abort a successful session exchange.
+- Added audit documentation at `docs/audits/google-registration-final-root-cause-2026-06-08.md`.
+- Build check: `npm run build` PASS.
+
 ## 2026-06-08 - Google Auth Minimal Regression Fix
 - Isolated the production Google auth regression to the callback path in `apps/web/src/pages/GoogleAuthCallback.tsx`.
 - The failing block was the direct `getRedirectResult(auth!)` call, which could throw `auth/argument-error` before the `auth.currentUser` fallback logic had a chance to run.

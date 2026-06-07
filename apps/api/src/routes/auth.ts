@@ -461,8 +461,18 @@ authRouter.post("/firebase-login", async (req, res) => {
   }
 
   try {
+    auditAuthEvent("auth.firebase.start", req, {
+      hasIdToken: true,
+      contentLength: String(req.header("content-length") ?? ""),
+    });
     const decoded = await verifyFirebaseIdToken(body.data.idToken);
     const email = normalizeEmail(decoded.email || "");
+    auditAuthEvent("auth.firebase.decoded", req, {
+      email,
+      provider: String((decoded.firebase as any)?.sign_in_provider || "firebase_token"),
+      emailVerified: !!decoded.email_verified,
+      uid: decoded.uid ?? null,
+    });
     if (!email) {
       return res.status(400).json({ error: "Firebase token has no email" });
     }
@@ -479,6 +489,12 @@ authRouter.post("/firebase-login", async (req, res) => {
     }
 
     let user = await prisma.user.findUnique({ where: { email } });
+    auditAuthEvent("auth.firebase.user_lookup", req, {
+      email,
+      provider,
+      userFound: !!user,
+      existingUserId: user?.id ?? null,
+    });
     if (!user) {
       const randomPassword = `${randomUUID()}-${Date.now()}-firebase`;
       const passwordHash = await hashPassword(randomPassword);
@@ -491,6 +507,11 @@ authRouter.post("/firebase-login", async (req, res) => {
           onboardingComplete: false,
           companyName: (decoded.name as string | undefined) || null,
         },
+      });
+      auditAuthEvent("auth.firebase.user_created", req, {
+        email,
+        provider,
+        userId: user.id,
       });
       try {
         await ensureStarterSubscription(user.id);
@@ -519,8 +540,14 @@ authRouter.post("/firebase-login", async (req, res) => {
     }
 
     const onboardingRequired = !user.onboardingComplete;
+    auditAuthEvent("auth.firebase.session_start", req, {
+      email,
+      provider,
+      userId: user.id,
+      onboardingRequired,
+    });
 
-    return res.json({
+    const response = {
       ...(await shapeAuthResponse({
         id: user.id,
         email: user.email,
@@ -528,10 +555,24 @@ authRouter.post("/firebase-login", async (req, res) => {
         createdAt: user.createdAt,
       })),
       onboardingRequired,
+    };
+
+    auditAuthEvent("auth.firebase.session_ready", req, {
+      email,
+      provider,
+      userId: user.id,
+      tokenIssued: Boolean(response.token),
+      refreshTokenIssued: Boolean(response.refreshToken),
+      onboardingRequired,
     });
+
+    return res.json(response);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    auditAuthEvent("auth.firebase.failure", req, { message });
+    auditAuthEvent("auth.firebase.failure", req, {
+      message,
+      stack: err instanceof Error ? err.stack ?? null : null,
+    });
     auditAuthMetric(req, "email_verification_failure", { reason: "token_verification_error", message });
     auditAuthMetric(req, "login_failure", { method: "firebase", reason: "token_verification_error", message });
     return res.status(401).json({ error: "Invalid Firebase token" });
