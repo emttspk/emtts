@@ -20,14 +20,17 @@ export function useTrackingJobPolling(opts: { onDone?: (result: unknown | null) 
     setJobStatus(res.job.status);
     setJobError(res.job.error ?? null);
     setResult(res.result ?? null);
+    console.info("[tracking-polling] tick", { jobId: id, status: res.job.status, error: res.job.error ?? null });
     if (res.job.status === "COMPLETED" || res.job.status === "FAILED") {
       if (timer.current) window.clearInterval(timer.current);
       timer.current = null;
+      console.info("[tracking-polling] terminal", { jobId: id, status: res.job.status });
       opts.onDone?.(res.result ?? null);
     }
   }
 
   function start(id: string) {
+    console.info("[tracking-polling] start", { jobId: id });
     setJobId(id);
     setJobStatus("QUEUED");
     setJobError(null);
@@ -38,6 +41,7 @@ export function useTrackingJobPolling(opts: { onDone?: (result: unknown | null) 
   }
 
   function reset() {
+    console.info("[tracking-polling] reset", { jobId });
     setJobId(null);
     setJobStatus(null);
     setJobError(null);
@@ -48,4 +52,3 @@ export function useTrackingJobPolling(opts: { onDone?: (result: unknown | null) 
 
   return { jobId, jobStatus, jobError, result, start, reset };
 }
-

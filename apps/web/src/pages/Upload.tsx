@@ -265,6 +265,19 @@ export default function Upload() {
     return pageCount > 0 ? pageCount : null;
   }, [previewHtml, previewMode]);
 
+  const uploadWorkflowSteps = [
+    { label: "Upload", detail: "Choose the CSV, XLS, or XLSX file." },
+    { label: "Validate", detail: "Check rows, service types, and limits." },
+    { label: "Process", detail: "Create the job and hand it to the worker." },
+    { label: "Generate", detail: "Build labels and tracking outputs." },
+    { label: "Complete", detail: "Download the finished files." },
+  ];
+  const uploadWorkflowIndex =
+    uiState === "completed" ? 4
+      : uiState === "processing" ? 3
+        : uiState === "uploading" ? 1
+          : 0;
+
   useEffect(() => {
     fetchServiceCatalog().then((services) => setServiceCatalog(services)).catch(() => undefined);
   }, []);
@@ -1464,6 +1477,8 @@ export default function Upload() {
           progress={progress}
           error={uiError}
           busy={uiState === "uploading" || uiState === "processing"}
+          workflowSteps={uploadWorkflowSteps}
+          activeStepIndex={uploadWorkflowIndex}
         />
 
         {uploadInsights ? (

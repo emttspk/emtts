@@ -1,5 +1,18 @@
 # AI Implementation Index
 
+## 2026-06-07 - Performance Audit: Login, Dashboard, Tracking, and Label Generation UX
+
+- Audited the login, dashboard, upload, tracking workspace, and label-generation flows for slow perceived load and blank waiting states.
+- Added a reusable loading overlay and workflow stepper to make initialization and processing states explicit.
+- Updated login to show a full-screen loading overlay during authentication and session restoration.
+- Updated dashboard initialization to show a full-screen loading overlay while summary data is still loading.
+- Added a workflow stepper to the upload dropzone and the label-generation progress card so users can see `Upload -> Validate -> Process -> Generate -> Complete`.
+- Added a workflow stepper to the tracking processing overlay so tracking file processing no longer feels like a blank wait.
+- Added temporary polling diagnostics for label jobs and tracking jobs to make queue completion and terminal status changes visible in logs.
+- Confirmed there is no React Query usage in the web app, so cache-key work is handled by the app's custom browser-storage helpers instead.
+- Build check: `npm run build` PASS.
+- Railway CLI validation was attempted, but the local Railway session is currently unauthenticated, so live response-time, CPU, memory, and queue-depth measurements could not be collected from Railway in this environment.
+
 ## 2026-06-07 - Production Validation: Tracking Workspace Regression Review
 
 - Validated the tracking workspace after the cache isolation and crash-hardening changes deployed in `1846fcc3`, `251e6da`, and `82aede3`.

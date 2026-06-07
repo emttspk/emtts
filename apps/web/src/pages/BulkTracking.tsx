@@ -8,6 +8,7 @@ import Card from "../components/Card";
 import ActionButton from "../components/ui/ActionButton";
 import UnifiedShipmentCards from "../components/UnifiedShipmentCards";
 import SampleDownloadLink from "../components/SampleDownloadLink";
+import ProcessStepper from "../components/ProcessStepper";
 import { cn } from "../lib/cn";
 import { buildScopedCacheKey } from "../lib/cache";
 import { api, apiHealthCheck, triggerBrowserDownload, uploadFile } from "../lib/api";
@@ -4027,17 +4028,32 @@ export default function BulkTracking() {
 
       {uiState === "processing" && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-brand px-6 py-3 text-white shadow-lg transition-all duration-300">
-          <div className="flex w-full max-w-none items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-2 w-2 animate-pulse rounded-full bg-white" />
-              <span className="font-medium">Tracking in progress...</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-sm font-medium">{Math.round(progress)}%</div>
-              <div className="h-2 w-32 overflow-hidden rounded-full bg-brand/70">
-                <div className="h-full bg-white transition-all duration-300 ease-out" style={{ width: `${progress}%` }} />
+          <div className="flex w-full max-w-none flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="h-2 w-2 animate-pulse rounded-full bg-white" />
+                <span className="font-medium">Tracking in progress...</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-sm font-medium">{Math.round(progress)}%</div>
+                <div className="h-2 w-32 overflow-hidden rounded-full bg-brand/70">
+                  <div className="h-full bg-white transition-all duration-300 ease-out" style={{ width: `${progress}%` }} />
+                </div>
               </div>
             </div>
+            <ProcessStepper
+              title="Tracking workflow"
+              subtitle="Upload, validate, process, sync, and finish."
+              steps={[
+                { label: "Upload", detail: "Send the Tracking File.xls to the server." },
+                { label: "Validate", detail: "Confirm the tracking rows and columns." },
+                { label: "Process", detail: "Queue the tracking job and fetch updates." },
+                { label: "Sync", detail: "Merge shipment, complaint, and batch data." },
+                { label: "Complete", detail: "Render the finished workspace." },
+              ]}
+              activeIndex={Math.max(0, Math.min(4, progress >= 100 ? 4 : progress >= 75 ? 3 : progress >= 40 ? 2 : 1))}
+              progress={progress}
+            />
           </div>
         </div>
       )}

@@ -7,6 +7,7 @@ import ActionButton from "../components/ui/ActionButton";
 import { BodyText, CardTitle, PageHeader, PageShell } from "../components/ui/PageSystem";
 import StatsCard from "../components/ui/StatsCard";
 import UnifiedShipmentCards from "../components/UnifiedShipmentCards";
+import LoadingOverlay from "../components/LoadingOverlay";
 import { useShipmentStats } from "../hooks/useShipmentStats";
 import { formatComplaintLimitValue } from "../lib/complaintLimits";
 
@@ -97,6 +98,21 @@ export default function Dashboard() {
 
   return (
     <PageShell className="space-y-5">
+      {showStatsSkeleton ? (
+        <LoadingOverlay
+          title="Loading dashboard"
+          subtitle="Fetching your shipment summary, complaint counts, and activity view."
+          progress={42}
+          activeIndex={1}
+          steps={[
+            { label: "Load account", detail: "Confirm the authenticated user session." },
+            { label: "Fetch summary", detail: "Pull shipment totals and complaint counts." },
+            { label: "Build cards", detail: "Prepare the dashboard tiles and charts." },
+            { label: "Ready", detail: "Open the dashboard once data is available." },
+          ]}
+        />
+      ) : null}
+
       <PageHeader
         eyebrow="Dashboard"
         title="ePost.pk Command Center"

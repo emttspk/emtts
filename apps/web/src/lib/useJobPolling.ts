@@ -23,6 +23,7 @@ export function useJobPolling(opts: {
     const res = await api<{ job: LabelJob }>(`/api/jobs/${id}`);
     setJobStatus(res.job.status);
     setJobError(res.job.error ?? null);
+    console.info("[job-polling] tick", { jobId: id, status: res.job.status, error: res.job.error ?? null });
     if (lastStatusRef.current !== res.job.status) {
       lastStatusRef.current = res.job.status;
       await opts.onStatusChange?.(res.job);
@@ -30,12 +31,14 @@ export function useJobPolling(opts: {
     if (res.job.status === "COMPLETED" || res.job.status === "FAILED") {
       if (timer.current) window.clearInterval(timer.current);
       timer.current = null;
+      console.info("[job-polling] terminal", { jobId: id, status: res.job.status });
       await opts.onTerminal?.(res.job);
       opts.onDone?.();
     }
   }
 
   function start(id: string) {
+    console.info("[job-polling] start", { jobId: id });
     setJobId(id);
     setJobStatus("QUEUED");
     setJobError(null);
@@ -46,6 +49,7 @@ export function useJobPolling(opts: {
   }
 
   function reset() {
+    console.info("[job-polling] reset", { jobId });
     setJobId(null);
     setJobStatus(null);
     setJobError(null);

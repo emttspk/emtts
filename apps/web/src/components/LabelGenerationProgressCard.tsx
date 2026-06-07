@@ -1,4 +1,5 @@
 import { CheckCircle2, CircleDashed, Download, FileArchive, LoaderCircle, TimerReset } from "lucide-react";
+import ProcessStepper from "./ProcessStepper";
 
 export type LabelGenerationStage =
   | "uploading_file"
@@ -35,6 +36,14 @@ export const LABEL_GENERATION_STAGES: StageDefinition[] = [
   { id: "completed", title: "Completed", activity: "Your label package is ready for download." },
 ];
 
+const LABEL_WORKFLOW_STEPS = [
+  { label: "Upload", detail: "Send the validated source file." },
+  { label: "Validate", detail: "Check rows, services, and limits." },
+  { label: "Process", detail: "Queue the generation job." },
+  { label: "Generate", detail: "Render labels and tracking assets." },
+  { label: "Complete", detail: "Make downloads available." },
+];
+
 function getStageIndex(stage: LabelGenerationStage) {
   return LABEL_GENERATION_STAGES.findIndex((item) => item.id === stage);
 }
@@ -48,6 +57,13 @@ export default function LabelGenerationProgressCard(props: LabelGenerationProgre
   const currentStageMeta = LABEL_GENERATION_STAGES[getStageIndex(currentStage)] ?? LABEL_GENERATION_STAGES[0];
   const currentStageIndex = currentStage === "completed" && downloadReady ? LABEL_GENERATION_STAGES.length : getStageIndex(currentStage);
   const progressValue = formatProgress(progress);
+  const workflowIndex =
+    currentStage === "completed" ? LABEL_WORKFLOW_STEPS.length - 1
+      : currentStage === "preparing_download" ? 4
+        : currentStage === "generating_labels" ? 3
+          : currentStage === "queued" || currentStage === "creating_job" ? 2
+            : currentStage === "validating_records" ? 1
+              : 0;
 
   return (
     <div className="space-y-5">
@@ -81,6 +97,14 @@ export default function LabelGenerationProgressCard(props: LabelGenerationProgre
           </div>
         </div>
       </div>
+
+      <ProcessStepper
+        title="Workflow"
+        subtitle="Upload, validate, process, generate, and complete."
+        steps={LABEL_WORKFLOW_STEPS}
+        activeIndex={workflowIndex}
+        progress={progressValue}
+      />
 
       <div className="rounded-[1.7rem] border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">

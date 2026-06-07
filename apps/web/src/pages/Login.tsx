@@ -8,6 +8,7 @@ import { setSession } from "../lib/auth";
 import AuthShell from "../components/AuthShell";
 import GoogleAuthButton from "../components/GoogleAuthButton";
 import AuthInputField from "../components/auth/AuthInputField";
+import LoadingOverlay from "../components/LoadingOverlay";
 import { auth, firebaseReady } from "../firebase";
 import { getFriendlyFirebaseAuthMessage, shouldFallbackToApiLogin, shouldThrottle, shouldUseRedirectAuthFlow } from "../lib/firebaseAuthGuards";
 import { trackLogin } from "../lib/analytics";
@@ -27,6 +28,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const lastPasswordSubmitAtRef = useRef(0);
+  const loginOverlayVisible = passwordLoginLoading || googleLoginLoading || postLoginRedirecting;
 
   function finalizeLogin(token: string, role: string, refreshToken?: string, method = "password") {
     const sessionStartedAt = performance.now();
@@ -250,14 +252,19 @@ export default function Login() {
         </div>
       </form>
 
-      {postLoginRedirecting ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4">
-          <div className="w-full max-w-lg rounded-[2rem] border border-emerald-200 bg-white p-7 text-center shadow-[0_28px_80px_rgba(15,23,42,0.3)]">
-            <div className="mx-auto h-11 w-11 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
-            <div className="mt-4 text-2xl font-semibold text-slate-900">Signing you in... loading dashboard</div>
-            <div className="mt-2 text-sm text-slate-600">Please wait while we restore your session and prepare your workspace.</div>
-          </div>
-        </div>
+      {loginOverlayVisible ? (
+        <LoadingOverlay
+          title="Signing you in"
+          subtitle="We are verifying your account, restoring the session, and preparing the dashboard."
+          progress={postLoginRedirecting ? 100 : passwordLoginLoading || googleLoginLoading ? 58 : 24}
+          activeIndex={postLoginRedirecting ? 3 : passwordLoginLoading || googleLoginLoading ? 1 : 0}
+          steps={[
+            { label: "Authenticate", detail: "Verify your login credentials or Google sign-in." },
+            { label: "Load account", detail: "Exchange tokens and restore the authenticated session." },
+            { label: "Prepare workspace", detail: "Fetch dashboard data and browser-scoped state." },
+            { label: "Open dashboard", detail: "Navigate into the workspace once ready." },
+          ]}
+        />
       ) : null}
       </AuthShell>
     </>

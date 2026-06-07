@@ -2,6 +2,7 @@ import { useCallback, type ReactNode } from "react";
 import { useDropzone } from "react-dropzone";
 import { UploadCloud } from "lucide-react";
 import Card from "./Card";
+import ProcessStepper from "./ProcessStepper";
 import { cn } from "../lib/cn";
 
 export default function UploadDropzone(props: {
@@ -14,6 +15,8 @@ export default function UploadDropzone(props: {
   progress: number;
   error?: string | null;
   busy?: boolean;
+  workflowSteps?: Array<{ label: string; detail?: string }>;
+  activeStepIndex?: number;
 }) {
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
@@ -50,6 +53,16 @@ export default function UploadDropzone(props: {
       </div>
 
       <div className="grid gap-4 p-4 sm:p-6">
+        {props.workflowSteps?.length ? (
+          <ProcessStepper
+            title="Workflow"
+            subtitle="Users should always know what the system is doing."
+            steps={props.workflowSteps}
+            activeIndex={props.activeStepIndex ?? 0}
+            progress={props.progress}
+          />
+        ) : null}
+
         <div
           {...getRootProps()}
           className={cn(
