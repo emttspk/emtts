@@ -1,5 +1,20 @@
 # AI Implementation Index
 
+## 2026-06-07 - Security Audit: Tracking Tenant Isolation Fix
+
+- Audited tracking workspace, shipment stats, complaints, batch history, and direct job/file access for cross-account isolation.
+- Scoped browser caches by authenticated user and cleared tracking-related caches on logout/session switches.
+- Hardened the app shell so protected workspace pages do not mount until the authenticated user has been loaded.
+- Added user-scoped cache helpers for:
+  - Tracking workspace render cache, view state, and IndexedDB snapshots.
+  - Shipment stats cache used by dashboard and workspace summary cards.
+  - Complaints page shipment pagination cache.
+  - Tracking complaint phone/email form persistence.
+- Patched the bulk tracking page to reset in-memory rows, batch history, and complaint queue state on user scope change.
+- Verified backend ownership filters for tracking/job/shipments endpoints and direct batch file access.
+- Added audit documentation at `docs/audits/tracking-tenant-isolation-audit-2026-06-07.md`.
+- Build check: `npm run build` PASS.
+
 ## 2026-06-07 - UI Cleanup: Mobile Header Login Button Fix
 
 - Modified `apps/web/src/components/Navbar.jsx` to replace the mobile-only "View Pricing" button with a "Login" button.

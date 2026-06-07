@@ -62,8 +62,7 @@ export default function AppShell() {
         />
 
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-transparent">
-          <Outlet context={{ me, refreshMe: async () => setMe(await fetchMe({ force: true, source: "shell-refresh" })) }} />
-          {loading && (loc.state as { postLogin?: boolean } | null)?.postLogin ? (
+          {loading ? (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
               <div className="w-full max-w-lg rounded-[2rem] border border-emerald-200 bg-white p-7 text-center shadow-[0_28px_80px_rgba(15,23,42,0.28)]">
                 <div className="mx-auto h-11 w-11 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
@@ -73,10 +72,11 @@ export default function AppShell() {
                 </div>
               </div>
             </div>
-          ) : null}
+          ) : (
+            <Outlet context={{ me, refreshMe: async () => setMe(await fetchMe({ force: true, source: "shell-refresh" })) }} />
+          )}
         </main>
       </div>
     </div>
   );
 }
-

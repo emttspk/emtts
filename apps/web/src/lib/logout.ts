@@ -2,6 +2,7 @@ import { signOut } from "firebase/auth";
 import { api } from "./api";
 import { auth, firebaseReady } from "../firebase";
 import { clearSession, getRefreshToken } from "./auth";
+import { clearTrackingWorkspaceCache } from "./trackingWorkspaceCache";
 
 export async function logoutAndClearSession() {
   const refreshToken = getRefreshToken();
@@ -24,4 +25,5 @@ export async function logoutAndClearSession() {
   }
 
   clearSession();
+  clearTrackingWorkspaceCache();
 }

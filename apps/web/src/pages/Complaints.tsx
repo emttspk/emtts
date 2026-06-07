@@ -1,10 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Card from "../components/Card";
+import { useOutletContext } from "react-router-dom";
 import { api } from "../lib/api";
 import { useTrackingJobPolling } from "../lib/useTrackingJobPolling";
 import type { Shipment } from "../lib/types";
+import { buildScopedCacheKey } from "../lib/cache";
+
+type ShellCtx = { me: { user: { id: string } } | null; refreshMe: () => Promise<void> };
 
 export default function Complaints() {
+  const { me } = useOutletContext<ShellCtx>();
+  const userCacheScope = me?.user.id ?? null;
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [totalShipments, setTotalShipments] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -14,9 +20,10 @@ export default function Complaints() {
   const [page, setPage] = useState(1);
   const pageSize = 25;
   const totalPages = Math.max(1, Math.ceil(totalShipments / pageSize));
-  const cacheKey = `complaints.shipments.page.${page}.limit.${pageSize}.v1`;
+  const cacheKey = buildScopedCacheKey(`complaints.shipments.page.${page}.limit.${pageSize}.v1`, userCacheScope);
 
   const polling = useTrackingJobPolling({});
+  const previousUserCacheScopeRef = useRef<string | null | undefined>(userCacheScope);
 
   async function refresh() {
     const data = await api<{ shipments: Shipment[]; total: number }>(`/api/shipments?page=${page}&limit=${pageSize}`);
@@ -53,7 +60,19 @@ export default function Complaints() {
     return () => {
       ok = false;
     };
-  }, [page]);
+  }, [cacheKey]);
+
+  useEffect(() => {
+    if (previousUserCacheScopeRef.current === userCacheScope) return;
+    previousUserCacheScopeRef.current = userCacheScope;
+    setShipments([]);
+    setTotalShipments(0);
+    setSelected("");
+    setPhone("");
+    setPage(1);
+    setError(null);
+    setLoading(true);
+  }, [userCacheScope]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);

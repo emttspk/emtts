@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
+import { buildScopedCacheKey } from "../lib/cache";
 
 export type ShipmentStats = {
   total: number;
@@ -38,9 +39,9 @@ type ShipmentStatsCacheEntry = {
   ts?: number;
 };
 
-function readCachedShipmentStatsEntry() {
+function readCachedShipmentStatsEntry(userId?: string | null) {
   if (typeof window === "undefined") return null;
-  const cachedRaw = window.localStorage.getItem(SHIPMENT_STATS_CACHE_KEY);
+  const cachedRaw = window.localStorage.getItem(buildScopedCacheKey(SHIPMENT_STATS_CACHE_KEY, userId));
   if (!cachedRaw) return null;
   try {
     return JSON.parse(cachedRaw) as ShipmentStatsCacheEntry;
@@ -49,23 +50,26 @@ function readCachedShipmentStatsEntry() {
   }
 }
 
-function readCachedShipmentStats() {
-  return readCachedShipmentStatsEntry()?.value ?? null;
+function readCachedShipmentStats(userId?: string | null) {
+  return readCachedShipmentStatsEntry(userId)?.value ?? null;
 }
 
-function readCachedShipmentStatsTs() {
-  return Number(readCachedShipmentStatsEntry()?.ts ?? 0) || 0;
+function readCachedShipmentStatsTs(userId?: string | null) {
+  return Number(readCachedShipmentStatsEntry(userId)?.ts ?? 0) || 0;
 }
 
-function writeCachedShipmentStats(value: ShipmentStats, ts = Date.now()) {
+function writeCachedShipmentStats(value: ShipmentStats, ts = Date.now(), userId?: string | null) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(SHIPMENT_STATS_CACHE_KEY, JSON.stringify({ value, ts } satisfies ShipmentStatsCacheEntry));
+  window.localStorage.setItem(
+    buildScopedCacheKey(SHIPMENT_STATS_CACHE_KEY, userId),
+    JSON.stringify({ value, ts } satisfies ShipmentStatsCacheEntry),
+  );
 }
 
-export function useShipmentStats() {
-  const [shipmentStats, setShipmentStats] = useState<ShipmentStats | null>(() => readCachedShipmentStats());
-  const [shipmentStatsFetchedAt, setShipmentStatsFetchedAt] = useState<number>(() => readCachedShipmentStatsTs());
-  const [shipmentStatsLoading, setShipmentStatsLoading] = useState(() => readCachedShipmentStats() == null);
+export function useShipmentStats(userId?: string | null) {
+  const [shipmentStats, setShipmentStats] = useState<ShipmentStats | null>(() => readCachedShipmentStats(userId));
+  const [shipmentStatsFetchedAt, setShipmentStatsFetchedAt] = useState<number>(() => readCachedShipmentStatsTs(userId));
+  const [shipmentStatsLoading, setShipmentStatsLoading] = useState(() => readCachedShipmentStats(userId) == null);
   const inFlightRef = useRef<Promise<ShipmentStats> | null>(null);
 
   const refreshShipmentStats = useCallback(async (options?: { force?: boolean }) => {
@@ -86,7 +90,7 @@ export function useShipmentStats() {
       const fetchedAt = Date.now();
       setShipmentStats(latest);
       setShipmentStatsFetchedAt(fetchedAt);
-      writeCachedShipmentStats(latest, fetchedAt);
+      writeCachedShipmentStats(latest, fetchedAt, userId);
       return latest;
     }).finally(() => {
       setShipmentStatsLoading(false);
@@ -95,7 +99,14 @@ export function useShipmentStats() {
 
     inFlightRef.current = request;
     return request;
-  }, [shipmentStats, shipmentStatsFetchedAt]);
+  }, [shipmentStats, shipmentStatsFetchedAt, userId]);
+
+  useEffect(() => {
+    setShipmentStats(readCachedShipmentStats(userId));
+    setShipmentStatsFetchedAt(readCachedShipmentStatsTs(userId));
+    setShipmentStatsLoading(readCachedShipmentStats(userId) == null);
+    inFlightRef.current = null;
+  }, [userId]);
 
   useEffect(() => {
     const cacheFresh = Boolean(

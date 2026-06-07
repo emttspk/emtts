@@ -9,6 +9,7 @@ import ActionButton from "../components/ui/ActionButton";
 import UnifiedShipmentCards from "../components/UnifiedShipmentCards";
 import SampleDownloadLink from "../components/SampleDownloadLink";
 import { cn } from "../lib/cn";
+import { buildScopedCacheKey } from "../lib/cache";
 import { api, apiHealthCheck, triggerBrowserDownload, uploadFile } from "../lib/api";
 import { useTrackingJobPolling } from "../lib/useTrackingJobPolling";
 import { collectComplaintBrowserBootstrap } from "../components/ComplaintModal";
@@ -29,12 +30,12 @@ import { BodyText, CardTitle, PageHeader, PageShell } from "../components/ui/Pag
 import { useShipmentStats } from "../hooks/useShipmentStats";
 import { PRINT_MARKETING_LINE } from "../lib/printBranding";
 import {
-  readTrackingWorkspaceRenderCache,
-  readTrackingWorkspaceSnapshot,
-  readTrackingWorkspaceViewState,
-  writeTrackingWorkspaceRenderCache,
-  writeTrackingWorkspaceSnapshot,
-  writeTrackingWorkspaceViewState,
+  readTrackingWorkspaceRenderCacheForScope,
+  readTrackingWorkspaceSnapshotForScope,
+  readTrackingWorkspaceViewStateForScope,
+  writeTrackingWorkspaceRenderCacheForScope,
+  writeTrackingWorkspaceSnapshotForScope,
+  writeTrackingWorkspaceViewStateForScope,
   type TrackingWorkspaceRenderCache,
   type TrackingWorkspaceViewState,
 } from "../lib/trackingWorkspaceCache";
@@ -279,19 +280,23 @@ function complaintQueueMapToRows(map: Map<string, ComplaintQueueSnapshot>) {
   return Array.from(map.values());
 }
 
+let initialWorkspaceRenderCacheScope: string | null | undefined;
 let initialWorkspaceRenderCache: TrackingWorkspaceRenderCache<Shipment, ComplaintQueueSnapshot> | null | undefined;
 
-function readInitialWorkspaceRenderCache() {
-  if (initialWorkspaceRenderCache !== undefined) return initialWorkspaceRenderCache;
-  initialWorkspaceRenderCache = readTrackingWorkspaceRenderCache<Shipment, ComplaintQueueSnapshot>();
+function readInitialWorkspaceRenderCache(scopeKey?: string | null) {
+  if (initialWorkspaceRenderCacheScope === scopeKey && initialWorkspaceRenderCache !== undefined) return initialWorkspaceRenderCache;
+  initialWorkspaceRenderCacheScope = scopeKey ?? null;
+  initialWorkspaceRenderCache = readTrackingWorkspaceRenderCacheForScope<Shipment, ComplaintQueueSnapshot>(scopeKey);
   return initialWorkspaceRenderCache;
 }
 
+let initialWorkspaceViewStateScope: string | null | undefined;
 let initialWorkspaceViewState: TrackingWorkspaceViewState<ExtendedStatusFilter> | null | undefined;
 
-function readInitialWorkspaceViewState() {
-  if (initialWorkspaceViewState !== undefined) return initialWorkspaceViewState;
-  initialWorkspaceViewState = readTrackingWorkspaceViewState<ExtendedStatusFilter>();
+function readInitialWorkspaceViewState(scopeKey?: string | null) {
+  if (initialWorkspaceViewStateScope === scopeKey && initialWorkspaceViewState !== undefined) return initialWorkspaceViewState;
+  initialWorkspaceViewStateScope = scopeKey ?? null;
+  initialWorkspaceViewState = readTrackingWorkspaceViewStateForScope<ExtendedStatusFilter>(scopeKey);
   return initialWorkspaceViewState;
 }
 
@@ -1163,11 +1168,14 @@ function getAuthoritativeRecordStatus(record: FinalTrackingRecord): string {
 export default function BulkTracking() {
   const { me } = useOutletContext<ShellCtx>();
   const [searchParams] = useSearchParams();
+  const userCacheScope = me?.user.id ?? null;
   const isAdmin = getRole() === "ADMIN";
+  const complaintPhoneStorageKey = buildScopedCacheKey(COMPLAINT_PHONE_STORAGE_KEY, userCacheScope);
+  const complaintEmailStorageKey = buildScopedCacheKey(COMPLAINT_EMAIL_STORAGE_KEY, userCacheScope);
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<TrackResult[] | null>(null);
-  const [shipments, setShipments] = useState<Shipment[]>(() => readInitialWorkspaceRenderCache()?.shipments ?? []);
+  const [shipments, setShipments] = useState<Shipment[]>(() => readInitialWorkspaceRenderCache(userCacheScope)?.shipments ?? []);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [uiState, setUiState] = useState<"idle" | "uploading" | "processing" | "completed" | "failed">("idle");
   const [progress, setProgress] = useState(0);
@@ -1185,25 +1193,25 @@ export default function BulkTracking() {
   const [batchActionLoadingId, setBatchActionLoadingId] = useState<string | null>(null);
   const [showBatchHistory, setShowBatchHistory] = useState(false);
   const [refreshSummary, setRefreshSummary] = useState<string | null>(() => {
-    const cached = readInitialWorkspaceRenderCache();
+    const cached = readInitialWorkspaceRenderCache(userCacheScope);
     if (!cached?.shipments.length) return null;
     return `Restored ${cached.shipments.length} cached tracking rows. Syncing latest updates in the background.`;
   });
   const [refreshingPending, setRefreshingPending] = useState(false);
   const [selectedTracking, setSelectedTracking] = useState<FinalTrackingRecord | null>(null);
-  const { refreshShipmentStats, shipmentStatsFetchedAt } = useShipmentStats();
-  const [pageSize, setPageSize] = useState<20 | 50 | 100>(() => readInitialWorkspaceViewState()?.pageSize ?? 20);
-  const [statusFilter, setStatusFilter] = useState<ExtendedStatusFilter>(() => readInitialWorkspaceViewState()?.statusFilter ?? "ALL");
-  const [searchInput, setSearchInput] = useState(() => readInitialWorkspaceViewState()?.searchInput ?? "");
-  const [searchTerm, setSearchTerm] = useState(() => readInitialWorkspaceViewState()?.searchTerm ?? "");
+  const { refreshShipmentStats, shipmentStatsFetchedAt } = useShipmentStats(userCacheScope);
+  const [pageSize, setPageSize] = useState<20 | 50 | 100>(() => readInitialWorkspaceViewState(userCacheScope)?.pageSize ?? 20);
+  const [statusFilter, setStatusFilter] = useState<ExtendedStatusFilter>(() => readInitialWorkspaceViewState(userCacheScope)?.statusFilter ?? "ALL");
+  const [searchInput, setSearchInput] = useState(() => readInitialWorkspaceViewState(userCacheScope)?.searchInput ?? "");
+  const [searchTerm, setSearchTerm] = useState(() => readInitialWorkspaceViewState(userCacheScope)?.searchTerm ?? "");
   const [sortKey, setSortKey] = useState<TrackingSortKey>(() => {
-    const value = String(readInitialWorkspaceViewState()?.sortKey ?? "updatedAt").trim();
+    const value = String(readInitialWorkspaceViewState(userCacheScope)?.sortKey ?? "updatedAt").trim();
     const allowed: TrackingSortKey[] = ["updatedAt", "bookingDate", "updatedBy", "trackingNumber", "status", "city", "moNumber", "moAmount"];
     return allowed.includes(value as TrackingSortKey) ? (value as TrackingSortKey) : "updatedAt";
   });
-  const [sortDir, setSortDir] = useState<"asc" | "desc">(() => readInitialWorkspaceViewState()?.sortDir ?? "desc");
-  const [page, setPage] = useState(() => Math.max(1, readInitialWorkspaceViewState()?.page ?? 1));
-  const [totalShipments, setTotalShipments] = useState(() => readInitialWorkspaceRenderCache()?.total ?? 0);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(() => readInitialWorkspaceViewState(userCacheScope)?.sortDir ?? "desc");
+  const [page, setPage] = useState(() => Math.max(1, readInitialWorkspaceViewState(userCacheScope)?.page ?? 1));
+  const [totalShipments, setTotalShipments] = useState(() => readInitialWorkspaceRenderCache(userCacheScope)?.total ?? 0);
   const [auditRows, setAuditRows] = useState<CycleAuditRecord[]>([]);
   const [auditError, setAuditError] = useState<string | null>(null);
   const [auditLoading, setAuditLoading] = useState(false);
@@ -1237,7 +1245,7 @@ export default function BulkTracking() {
   } | null>(null);
   const [complaintSubmitNotice, setComplaintSubmitNotice] = useState<{ kind: "info" | "warning" | "error"; message: string } | null>(null);
   const [complaintToast, setComplaintToast] = useState<{ kind: "info" | "warning" | "error"; message: string } | null>(null);
-  const [complaintQueueByTracking, setComplaintQueueByTracking] = useState<Map<string, ComplaintQueueSnapshot>>(() => complaintQueueRowsToMap(readInitialWorkspaceRenderCache()?.complaintQueue ?? []));
+  const [complaintQueueByTracking, setComplaintQueueByTracking] = useState<Map<string, ComplaintQueueSnapshot>>(() => complaintQueueRowsToMap(readInitialWorkspaceRenderCache(userCacheScope)?.complaintQueue ?? []));
   const [retryCountdownNow, setRetryCountdownNow] = useState(Date.now());
   const [complaintSelectionMode, setComplaintSelectionMode] = useState<"district" | "tehsil" | "location">("location");
   const [complaintSelectionLocked, setComplaintSelectionLocked] = useState(false);
@@ -1259,13 +1267,14 @@ export default function BulkTracking() {
   const backgroundRunningRef = useRef(false);
   const trackingCacheRef = useRef<{ shipments: Shipment[]; total: number; fetchedAt: number } | null>(null);
   const complaintQueueCacheRef = useRef<{ rows: ComplaintQueueSnapshot[]; fetchedAt: number; inFlight: Promise<Map<string, ComplaintQueueSnapshot>> | null }>({
-    rows: readInitialWorkspaceRenderCache()?.complaintQueue ?? [],
-    fetchedAt: readInitialWorkspaceRenderCache()?.latestSyncAt ?? 0,
+    rows: readInitialWorkspaceRenderCache(userCacheScope)?.complaintQueue ?? [],
+    fetchedAt: readInitialWorkspaceRenderCache(userCacheScope)?.latestSyncAt ?? 0,
     inFlight: null,
   });
   const shipmentsRefreshInFlightRef = useRef(false);
   const shipmentsRefreshPendingRef = useRef(false);
-  const scrollRestorePendingRef = useRef(Boolean(readInitialWorkspaceViewState()?.scrollY));
+  const scrollRestorePendingRef = useRef(Boolean(readInitialWorkspaceViewState(userCacheScope)?.scrollY));
+  const previousUserCacheScopeRef = useRef<string | null | undefined>(userCacheScope);
   const submitTrackingRef = useRef(false);
   const complaintPrefillRequestRef = useRef(0);
   const complaintModalRef = useRef<HTMLDivElement | null>(null);
@@ -1302,19 +1311,94 @@ export default function BulkTracking() {
   }, []);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem(COMPLAINT_PHONE_STORAGE_KEY);
+    const saved = window.localStorage.getItem(complaintPhoneStorageKey);
     if (saved && !complaintPhone) {
       setComplaintPhone(saved);
     }
-    const savedEmail = window.localStorage.getItem(COMPLAINT_EMAIL_STORAGE_KEY);
+    const savedEmail = window.localStorage.getItem(complaintEmailStorageKey);
     if (savedEmail && !complaintEmail) {
       setComplaintEmail(savedEmail);
     }
   }, []);
 
   useEffect(() => {
+    if (previousUserCacheScopeRef.current === userCacheScope) return;
+    previousUserCacheScopeRef.current = userCacheScope;
+    initialWorkspaceRenderCacheScope = undefined;
+    initialWorkspaceRenderCache = undefined;
+    initialWorkspaceViewStateScope = undefined;
+    initialWorkspaceViewState = undefined;
+    trackingCacheRef.current = null;
+    complaintQueueCacheRef.current = { rows: [], fetchedAt: 0, inFlight: null };
+    setShipments([]);
+    setSelectedIds([]);
+    setUiState("idle");
+    setProgress(0);
+    setElapsed(0);
+    setEstimatedTotalSec(null);
+    setShowRechargeAlert(false);
+    setServiceFailureCount(0);
+    setJobStartTime(null);
+    setRecordCount(0);
+    setDetectedUploadKind("unknown file");
+    setDetectedTrackingCount(0);
+    setShowNoTrackingModal(false);
+    setBatchHistory([]);
+    setBatchHistoryLoading(false);
+    setBatchActionLoadingId(null);
+    setShowBatchHistory(false);
+    setRefreshSummary(null);
+    setRefreshingPending(false);
+    setSelectedTracking(null);
+    setAuditRows([]);
+    setAuditError(null);
+    setAuditLoading(false);
+    setAuditSummary(null);
+    setAuditDrafts({});
+    setSavingCorrections(false);
+    setImportingCSV(false);
+    setComplaintRecord(null);
+    setComplaintPhone("");
+    setComplaintEmail("");
+    setReplyMode("POST");
+    setComplaintReason("Pending Delivery");
+    setComplainantNameInput("");
+    setSenderNameInput("");
+    setSenderAddressInput("");
+    setReceiverNameInput("");
+    setReceiverAddressInput("");
+    setSenderCityValue("");
+    setSenderCitySearch("");
+    setReceiverCityValue("");
+    setReceiverCitySearch("");
+    setComplaintText("");
+    setComplaintTemplate("NORMAL");
+    setComplaintPrefill(null);
+    setComplaintPrefillLoading(false);
+    setComplaintSubmitResult(null);
+    setComplaintSubmitNotice(null);
+    setComplaintToast(null);
+    setComplaintQueueByTracking(new Map());
+    setRetryCountdownNow(Date.now());
+    setComplaintSelectionMode("location");
+    setComplaintSelectionLocked(false);
+    setOfficeSearchQuery("");
+    setOfficeSearchResults([]);
+    setOfficeSearchLoading(false);
+    setHoveredPieLabel(null);
+    setSelectedDistrict("");
+    setSelectedTehsil("");
+    setSelectedLocation("");
+    setSubmittingComplaint(false);
+    setComplaintPreviewVisible(false);
+    setComplaintValidationState({});
+    setShowServiceAlert(false);
+    setHistoryModalRecord(null);
+  }, [userCacheScope]);
+
+  useEffect(() => {
     let active = true;
-    const cached = readInitialWorkspaceRenderCache();
+    const cached = readInitialWorkspaceRenderCache(userCacheScope);
     if (cached?.shipments.length) {
       trackingCacheRef.current = {
         shipments: cached.shipments,
@@ -1333,7 +1417,7 @@ export default function BulkTracking() {
     }
 
     async function hydrateFullWorkspaceSnapshot() {
-      const snapshot = await readTrackingWorkspaceSnapshot<Shipment, ComplaintQueueSnapshot>();
+      const snapshot = await readTrackingWorkspaceSnapshotForScope<Shipment, ComplaintQueueSnapshot>(userCacheScope);
       if (!active || !snapshot?.shipments.length) return;
       trackingCacheRef.current = {
         shipments: snapshot.shipments,
@@ -1361,20 +1445,20 @@ export default function BulkTracking() {
     return () => {
       active = false;
     };
-  }, [isAdmin]);
+  }, [isAdmin, userCacheScope]);
 
   useEffect(() => {
-    const state = readInitialWorkspaceViewState();
+    const state = readInitialWorkspaceViewState(userCacheScope);
     if (!state?.scrollY || !scrollRestorePendingRef.current || shipments.length === 0) return;
     const raf = window.requestAnimationFrame(() => {
       window.scrollTo({ top: state.scrollY, behavior: "auto" });
       scrollRestorePendingRef.current = false;
     });
     return () => window.cancelAnimationFrame(raf);
-  }, [shipments.length]);
+  }, [shipments.length, userCacheScope]);
 
   useEffect(() => {
-    writeTrackingWorkspaceViewState<ExtendedStatusFilter>({
+    writeTrackingWorkspaceViewStateForScope<ExtendedStatusFilter>({
       page,
       pageSize,
       statusFilter,
@@ -1384,12 +1468,12 @@ export default function BulkTracking() {
       sortDir,
       scrollY: typeof window !== "undefined" ? window.scrollY : 0,
       savedAt: Date.now(),
-    });
+    }, userCacheScope);
   }, [page, pageSize, searchInput, searchTerm, sortDir, sortKey, statusFilter]);
 
   useEffect(() => {
     const handleScroll = () => {
-      writeTrackingWorkspaceViewState<ExtendedStatusFilter>({
+      writeTrackingWorkspaceViewStateForScope<ExtendedStatusFilter>({
         page,
         pageSize,
         statusFilter,
@@ -1399,7 +1483,7 @@ export default function BulkTracking() {
         sortDir,
         scrollY: window.scrollY,
         savedAt: Date.now(),
-      });
+      }, userCacheScope);
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
@@ -2915,13 +2999,13 @@ export default function BulkTracking() {
   useEffect(() => {
     if (shipments.length === 0) return;
     const timer = window.setTimeout(() => {
-      writeTrackingWorkspaceRenderCache<Shipment, ComplaintQueueSnapshot>({
+      writeTrackingWorkspaceRenderCacheForScope<Shipment, ComplaintQueueSnapshot>({
         shipments,
         total: totalShipments ?? shipments.length,
         complaintQueue: complaintQueueMapToRows(complaintQueueByTracking),
         fetchedAt: trackingCacheRef.current?.fetchedAt ?? Date.now(),
         latestSyncAt: Math.max(trackingCacheRef.current?.fetchedAt ?? 0, shipmentStatsFetchedAt ?? 0, complaintQueueCacheRef.current.fetchedAt ?? 0),
-      });
+      }, userCacheScope);
     }, WORKSPACE_RENDER_CACHE_PERSIST_MS);
     return () => window.clearTimeout(timer);
   }, [complaintQueueByTracking, shipmentStatsFetchedAt, shipments, totalShipments]);
@@ -2929,13 +3013,13 @@ export default function BulkTracking() {
   useEffect(() => {
     if (shipments.length === 0) return;
     const timer = window.setTimeout(() => {
-      void writeTrackingWorkspaceSnapshot<Shipment, ComplaintQueueSnapshot>({
+      void writeTrackingWorkspaceSnapshotForScope<Shipment, ComplaintQueueSnapshot>({
         shipments,
         total: totalShipments ?? shipments.length,
         complaintQueue: complaintQueueMapToRows(complaintQueueByTracking),
         fetchedAt: trackingCacheRef.current?.fetchedAt ?? Date.now(),
         latestSyncAt: Math.max(trackingCacheRef.current?.fetchedAt ?? 0, shipmentStatsFetchedAt ?? 0, complaintQueueCacheRef.current.fetchedAt ?? 0),
-      });
+      }, userCacheScope);
     }, WORKSPACE_FULL_SNAPSHOT_PERSIST_MS);
     return () => window.clearTimeout(timer);
   }, [complaintQueueByTracking, shipmentStatsFetchedAt, shipments, totalShipments]);
@@ -3126,14 +3210,14 @@ export default function BulkTracking() {
       (raw?.tracking as any)?.sender_phone ??
       "",
     ).trim();
-    const manualSaved = window.localStorage.getItem(COMPLAINT_PHONE_STORAGE_KEY) ?? "";
+    const manualSaved = window.localStorage.getItem(complaintPhoneStorageKey) ?? "";
     const senderEmail = String(
       (raw as any)?.sender_email ??
       (raw as any)?.shipperEmail ??
       (raw as any)?.email ??
       "",
     ).trim();
-    const savedEmail = window.localStorage.getItem(COMPLAINT_EMAIL_STORAGE_KEY) ?? "";
+    const savedEmail = window.localStorage.getItem(complaintEmailStorageKey) ?? "";
     const phone = senderPhone || manualSaved;
     const email = senderEmail || savedEmail;
     const fields = getUnifiedFields(shipment.rawJson);
@@ -3474,9 +3558,9 @@ export default function BulkTracking() {
     setSubmittingComplaint(true);
     setComplaintSubmitNotice(null);
     try {
-      window.localStorage.setItem(COMPLAINT_PHONE_STORAGE_KEY, normalizedPhone);
+      window.localStorage.setItem(complaintPhoneStorageKey, normalizedPhone);
       if (complaintEmail.trim()) {
-        window.localStorage.setItem(COMPLAINT_EMAIL_STORAGE_KEY, complaintEmail.trim());
+        window.localStorage.setItem(complaintEmailStorageKey, complaintEmail.trim());
       }
       const formSnapshot = {
         sender_name: senderNameClean,
