@@ -37,7 +37,7 @@ function DashboardMetricCardSkeleton() {
 export default function Dashboard() {
   const { me } = useOutletContext<ShellCtx>();
   const navigate = useNavigate();
-  const { shipmentStats, shipmentStatsLoading } = useShipmentStats(me?.user.id);
+  const { shipmentStats, shipmentStatsLoading } = useShipmentStats(me?.user?.id);
   const showStatsSkeleton = shipmentStatsLoading && !shipmentStats;
 
   const stats = useMemo(

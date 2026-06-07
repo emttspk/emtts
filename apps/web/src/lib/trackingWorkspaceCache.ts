@@ -48,6 +48,23 @@ function scopedKey(baseKey: string, scopeKey?: string | null) {
   return scope ? `${baseKey}:${scope}` : baseKey;
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isFiniteNumber(value: unknown) {
+  return Number.isFinite(Number(value));
+}
+
+function clearLocalStorageEntry(key: string, scopeKey?: string | null) {
+  if (!canUseBrowserStorage()) return;
+  try {
+    window.localStorage.removeItem(scopedKey(key, scopeKey));
+  } catch {
+    // Best-effort cleanup only.
+  }
+}
+
 function readFromLocalStorage<T>(key: string, scopeKey?: string | null): T | null {
   if (!canUseBrowserStorage()) return null;
   try {
@@ -55,6 +72,7 @@ function readFromLocalStorage<T>(key: string, scopeKey?: string | null): T | nul
     if (!raw) return null;
     return JSON.parse(raw) as T;
   } catch {
+    clearLocalStorageEntry(key, scopeKey);
     return null;
   }
 }
@@ -84,12 +102,65 @@ function openTrackingWorkspaceDb(): Promise<IDBDatabase | null> {
   });
 }
 
+function isValidWorkspaceCollectionCache(value: unknown): value is TrackingWorkspaceRenderCache {
+  if (!isPlainObject(value)) return false;
+  return Array.isArray(value.shipments)
+    && Array.isArray(value.complaintQueue)
+    && isFiniteNumber(value.total)
+    && isFiniteNumber(value.fetchedAt)
+    && isFiniteNumber(value.latestSyncAt);
+}
+
+function isValidWorkspaceViewState(value: unknown): value is TrackingWorkspaceViewState {
+  if (!isPlainObject(value)) return false;
+  const pageSize = Number(value.pageSize);
+  const sortDir = value.sortDir;
+  return isFiniteNumber(value.page)
+    && [20, 50, 100].includes(pageSize)
+    && typeof value.statusFilter === "string"
+    && typeof value.searchInput === "string"
+    && typeof value.searchTerm === "string"
+    && (value.sortKey == null || typeof value.sortKey === "string")
+    && (sortDir == null || sortDir === "asc" || sortDir === "desc")
+    && isFiniteNumber(value.scrollY)
+    && isFiniteNumber(value.savedAt);
+}
+
+async function deleteTrackingWorkspaceSnapshot(scopeKey?: string | null) {
+  const db = await openTrackingWorkspaceDb();
+  if (!db) return;
+
+  await new Promise<void>((resolve) => {
+    const tx = db.transaction(TRACKING_WORKSPACE_STORE_NAME, "readwrite");
+    const store = tx.objectStore(TRACKING_WORKSPACE_STORE_NAME);
+    store.delete(scopedKey(TRACKING_WORKSPACE_SNAPSHOT_KEY, scopeKey));
+    tx.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    tx.onerror = () => {
+      db.close();
+      resolve();
+    };
+    tx.onabort = () => {
+      db.close();
+      resolve();
+    };
+  });
+}
+
 export function readTrackingWorkspaceRenderCache<TShipment = unknown, TComplaint = unknown>() {
   return readFromLocalStorage<TrackingWorkspaceRenderCache<TShipment, TComplaint>>(TRACKING_WORKSPACE_RENDER_CACHE_KEY);
 }
 
 export function readTrackingWorkspaceRenderCacheForScope<TShipment = unknown, TComplaint = unknown>(scopeKey?: string | null) {
-  return readFromLocalStorage<TrackingWorkspaceRenderCache<TShipment, TComplaint>>(TRACKING_WORKSPACE_RENDER_CACHE_KEY, scopeKey);
+  const cache = readFromLocalStorage<TrackingWorkspaceRenderCache<TShipment, TComplaint>>(TRACKING_WORKSPACE_RENDER_CACHE_KEY, scopeKey);
+  if (!cache) return null;
+  if (!isValidWorkspaceCollectionCache(cache)) {
+    clearLocalStorageEntry(TRACKING_WORKSPACE_RENDER_CACHE_KEY, scopeKey);
+    return null;
+  }
+  return cache;
 }
 
 export function writeTrackingWorkspaceRenderCache<TShipment = unknown, TComplaint = unknown>(cache: TrackingWorkspaceRenderCache<TShipment, TComplaint>) {
@@ -108,7 +179,13 @@ export function readTrackingWorkspaceViewState<TStatus extends string = string>(
 }
 
 export function readTrackingWorkspaceViewStateForScope<TStatus extends string = string>(scopeKey?: string | null) {
-  return readFromLocalStorage<TrackingWorkspaceViewState<TStatus>>(TRACKING_WORKSPACE_VIEW_STATE_KEY, scopeKey);
+  const state = readFromLocalStorage<TrackingWorkspaceViewState<TStatus>>(TRACKING_WORKSPACE_VIEW_STATE_KEY, scopeKey);
+  if (!state) return null;
+  if (!isValidWorkspaceViewState(state)) {
+    clearLocalStorageEntry(TRACKING_WORKSPACE_VIEW_STATE_KEY, scopeKey);
+    return null;
+  }
+  return state;
 }
 
 export function writeTrackingWorkspaceViewState<TStatus extends string = string>(state: TrackingWorkspaceViewState<TStatus>) {
@@ -179,7 +256,19 @@ export async function readTrackingWorkspaceSnapshotForScope<TShipment = unknown,
     const tx = db.transaction(TRACKING_WORKSPACE_STORE_NAME, "readonly");
     const store = tx.objectStore(TRACKING_WORKSPACE_STORE_NAME);
     const request = store.get(scopedKey(TRACKING_WORKSPACE_SNAPSHOT_KEY, scopeKey));
-    request.onsuccess = () => resolve((request.result as TrackingWorkspaceSnapshot<TShipment, TComplaint> | undefined) ?? null);
+    request.onsuccess = () => {
+      const snapshot = (request.result as TrackingWorkspaceSnapshot<TShipment, TComplaint> | undefined) ?? null;
+      if (!snapshot) {
+        resolve(null);
+        return;
+      }
+      if (!isValidWorkspaceCollectionCache(snapshot)) {
+        void deleteTrackingWorkspaceSnapshot(scopeKey);
+        resolve(null);
+        return;
+      }
+      resolve(snapshot);
+    };
     request.onerror = () => resolve(null);
     tx.oncomplete = () => db.close();
     tx.onerror = () => db.close();

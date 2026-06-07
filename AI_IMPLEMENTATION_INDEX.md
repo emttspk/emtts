@@ -1,5 +1,24 @@
 # AI Implementation Index
 
+## 2026-06-07 - Tracking Regression Fix: Workspace Render Crash After Tenant Cache Scope Change
+
+- Investigated the tracking workspace crash introduced after commit `251e6da` (`fix: isolate tracking workspace caches by user`).
+- Identified two crash paths in `apps/web/src/pages/BulkTracking.tsx`:
+  - A leftover performance-hydration effect still called the old unscoped workspace cache reader, which no longer matched the scoped restore flow.
+  - Several cache restore checks assumed `cached.shipments` always existed and could throw on malformed or stale cached JSON.
+- Hardened `apps/web/src/lib/trackingWorkspaceCache.ts` to validate render cache, view state, and IndexedDB snapshot shapes and automatically clear invalid entries.
+- Hardened `apps/web/src/hooks/useShipmentStats.ts` to skip loading without an authenticated user, clear malformed cache entries, and log diagnostics for cache restores and refreshes.
+- Updated `apps/web/src/pages/BulkTracking.tsx` to:
+  - gate tracking restore logic on authenticated user availability,
+  - use only scoped workspace cache hydration,
+  - avoid undefined cache property access,
+  - show a safe loading state when user context is unavailable,
+  - log temporary diagnostics for mount, auth scope changes, render cache restore, and snapshot hydration.
+- Added temporary auth diagnostics in `apps/web/src/components/AppShell.tsx`.
+- Tightened optional user access in `apps/web/src/pages/Dashboard.tsx` and `apps/web/src/pages/Complaints.tsx`.
+- Added audit documentation at `docs/audits/tracking-render-regression-2026-06-07.md`.
+- Build check: `npm run build` PASS.
+
 ## 2026-06-07 - Security Audit: Tracking Tenant Isolation Fix
 
 - Audited tracking workspace, shipment stats, complaints, batch history, and direct job/file access for cross-account isolation.

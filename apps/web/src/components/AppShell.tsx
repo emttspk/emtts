@@ -24,13 +24,16 @@ export default function AppShell() {
   useEffect(() => {
     let ok = true;
     setLoading(true);
+    console.info("[auth] loading user context", { path: loc.pathname });
     fetchMe({ source: "app-shell" })
       .then((data) => {
         if (!ok) return;
+        console.info("[auth] loaded user context", { userId: data?.user?.id ?? null, email: data?.user?.email ?? null });
         setMe(data);
       })
       .catch(() => {
         if (!ok) return;
+        console.warn("[auth] failed to load user context; redirecting to login");
         navigate("/login");
       })
       .finally(() => {

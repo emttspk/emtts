@@ -10,7 +10,7 @@ type ShellCtx = { me: { user: { id: string } } | null; refreshMe: () => Promise<
 
 export default function Complaints() {
   const { me } = useOutletContext<ShellCtx>();
-  const userCacheScope = me?.user.id ?? null;
+  const userCacheScope = me?.user?.id ?? null;
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [totalShipments, setTotalShipments] = useState(0);
   const [loading, setLoading] = useState(true);

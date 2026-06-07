@@ -1168,7 +1168,8 @@ function getAuthoritativeRecordStatus(record: FinalTrackingRecord): string {
 export default function BulkTracking() {
   const { me } = useOutletContext<ShellCtx>();
   const [searchParams] = useSearchParams();
-  const userCacheScope = me?.user.id ?? null;
+  const userCacheScope = me?.user?.id ?? null;
+  const hasAuthenticatedUser = Boolean(userCacheScope);
   const isAdmin = getRole() === "ADMIN";
   const complaintPhoneStorageKey = buildScopedCacheKey(COMPLAINT_PHONE_STORAGE_KEY, userCacheScope);
   const complaintEmailStorageKey = buildScopedCacheKey(COMPLAINT_EMAIL_STORAGE_KEY, userCacheScope);
@@ -1194,7 +1195,7 @@ export default function BulkTracking() {
   const [showBatchHistory, setShowBatchHistory] = useState(false);
   const [refreshSummary, setRefreshSummary] = useState<string | null>(() => {
     const cached = readInitialWorkspaceRenderCache(userCacheScope);
-    if (!cached?.shipments.length) return null;
+    if (!Array.isArray(cached?.shipments) || cached.shipments.length === 0) return null;
     return `Restored ${cached.shipments.length} cached tracking rows. Syncing latest updates in the background.`;
   });
   const [refreshingPending, setRefreshingPending] = useState(false);
@@ -1280,6 +1281,14 @@ export default function BulkTracking() {
   const complaintModalRef = useRef<HTMLDivElement | null>(null);
   const complaintFirstInputRef = useRef<HTMLInputElement | null>(null);
 
+  useEffect(() => {
+    console.info("[tracking] mount", {
+      userId: userCacheScope,
+      hasAuthenticatedUser,
+      isAdmin,
+    });
+  }, [hasAuthenticatedUser, isAdmin, userCacheScope]);
+
   const polling = useTrackingJobPolling({
     onDone: (res) => {
       submitTrackingRef.current = false;
@@ -1307,10 +1316,18 @@ export default function BulkTracking() {
   }, [polling.jobStatus]);
 
   useEffect(() => {
+    if (!userCacheScope) {
+      console.info("[tracking] skipped batch history refresh without authenticated user");
+      return;
+    }
     void refreshBatchHistory();
-  }, []);
+  }, [userCacheScope]);
 
   useEffect(() => {
+    if (!userCacheScope) {
+      console.info("[tracking] skipped complaint cache restore without authenticated user");
+      return;
+    }
     const saved = window.localStorage.getItem(complaintPhoneStorageKey);
     if (saved && !complaintPhone) {
       setComplaintPhone(saved);
@@ -1319,10 +1336,14 @@ export default function BulkTracking() {
     if (savedEmail && !complaintEmail) {
       setComplaintEmail(savedEmail);
     }
-  }, []);
+  }, [complaintEmail, complaintEmailStorageKey, complaintPhone, complaintPhoneStorageKey, userCacheScope]);
 
   useEffect(() => {
     if (previousUserCacheScopeRef.current === userCacheScope) return;
+    console.info("[tracking] user scope changed", {
+      previousUserId: previousUserCacheScopeRef.current ?? null,
+      nextUserId: userCacheScope,
+    });
     previousUserCacheScopeRef.current = userCacheScope;
     initialWorkspaceRenderCacheScope = undefined;
     initialWorkspaceRenderCache = undefined;
@@ -1394,12 +1415,21 @@ export default function BulkTracking() {
     setComplaintValidationState({});
     setShowServiceAlert(false);
     setHistoryModalRecord(null);
+    setHydrated(false);
   }, [userCacheScope]);
 
   useEffect(() => {
+    if (!userCacheScope) {
+      console.info("[tracking] skipped scoped cache restore without authenticated user");
+      return;
+    }
     let active = true;
     const cached = readInitialWorkspaceRenderCache(userCacheScope);
-    if (cached?.shipments.length) {
+    console.info("[tracking] restoring workspace render cache", {
+      userId: userCacheScope,
+      hasCachedRows: Array.isArray(cached?.shipments) && cached.shipments.length > 0,
+    });
+    if (Array.isArray(cached?.shipments) && cached.shipments.length > 0) {
       trackingCacheRef.current = {
         shipments: cached.shipments,
         total: cached.total ?? cached.shipments.length,
@@ -1418,7 +1448,11 @@ export default function BulkTracking() {
 
     async function hydrateFullWorkspaceSnapshot() {
       const snapshot = await readTrackingWorkspaceSnapshotForScope<Shipment, ComplaintQueueSnapshot>(userCacheScope);
-      if (!active || !snapshot?.shipments.length) return;
+      console.info("[tracking] restoring workspace snapshot", {
+        userId: userCacheScope,
+        hasSnapshotRows: Array.isArray(snapshot?.shipments) && snapshot.shipments.length > 0,
+      });
+      if (!active || !Array.isArray(snapshot?.shipments) || snapshot.shipments.length === 0) return;
       trackingCacheRef.current = {
         shipments: snapshot.shipments,
         total: snapshot.total ?? snapshot.shipments.length,
@@ -1448,6 +1482,7 @@ export default function BulkTracking() {
   }, [isAdmin, userCacheScope]);
 
   useEffect(() => {
+    if (!userCacheScope) return;
     const state = readInitialWorkspaceViewState(userCacheScope);
     if (!state?.scrollY || !scrollRestorePendingRef.current || shipments.length === 0) return;
     const raf = window.requestAnimationFrame(() => {
@@ -1458,6 +1493,7 @@ export default function BulkTracking() {
   }, [shipments.length, userCacheScope]);
 
   useEffect(() => {
+    if (!userCacheScope) return;
     writeTrackingWorkspaceViewStateForScope<ExtendedStatusFilter>({
       page,
       pageSize,
@@ -1469,9 +1505,10 @@ export default function BulkTracking() {
       scrollY: typeof window !== "undefined" ? window.scrollY : 0,
       savedAt: Date.now(),
     }, userCacheScope);
-  }, [page, pageSize, searchInput, searchTerm, sortDir, sortKey, statusFilter]);
+  }, [page, pageSize, searchInput, searchTerm, sortDir, sortKey, statusFilter, userCacheScope]);
 
   useEffect(() => {
+    if (!userCacheScope) return;
     const handleScroll = () => {
       writeTrackingWorkspaceViewStateForScope<ExtendedStatusFilter>({
         page,
@@ -1487,7 +1524,7 @@ export default function BulkTracking() {
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [page, pageSize, searchInput, searchTerm, sortDir, sortKey, statusFilter]);
+  }, [page, pageSize, searchInput, searchTerm, sortDir, sortKey, statusFilter, userCacheScope]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setRetryCountdownNow(Date.now()), 1000);
@@ -2501,9 +2538,13 @@ export default function BulkTracking() {
   // Hydrate from render cache on first load for instant UI.
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
-    if (!hydrated) {
-      const cached = readTrackingWorkspaceRenderCache<Shipment, ComplaintQueueSnapshot>();
-      if (cached?.shipments.length) {
+    if (!hydrated && userCacheScope) {
+      const cached = readTrackingWorkspaceRenderCacheForScope<Shipment, ComplaintQueueSnapshot>(userCacheScope);
+      console.info("[tracking] performance hydration restore", {
+        userId: userCacheScope,
+        hasCachedRows: Array.isArray(cached?.shipments) && cached.shipments.length > 0,
+      });
+      if (Array.isArray(cached?.shipments) && cached.shipments.length > 0) {
         const cachedCount = cached.shipments.length;
         const cachedTotal = cached.total ?? cachedCount;
         const currentCount = shipments.length;
@@ -2515,7 +2556,7 @@ export default function BulkTracking() {
         setHydrated(true);
       }
     }
-  }, [hydrated, shipments.length, totalShipments]);
+  }, [hydrated, shipments.length, totalShipments, userCacheScope]);
 
   // --- PRECOMPUTED ROW MODEL ---
   type TrackingTableRowModel = {
@@ -3713,6 +3754,22 @@ export default function BulkTracking() {
     } finally {
       setSubmittingComplaint(false);
     }
+  }
+
+  if (!hasAuthenticatedUser) {
+    return (
+      <PageShell className="space-y-0">
+        <div className="mx-auto flex w-full max-w-3xl px-4 py-10">
+          <div className="w-full rounded-[28px] border border-emerald-200 bg-white p-6 shadow-sm">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">Tracking Workspace</div>
+            <div className="mt-2 text-2xl font-bold text-slate-900">Loading your workspace</div>
+            <div className="mt-2 text-sm text-slate-600">
+              Verifying your account before restoring tracking rows and cached workspace state.
+            </div>
+          </div>
+        </div>
+      </PageShell>
+    );
   }
 
   return (
