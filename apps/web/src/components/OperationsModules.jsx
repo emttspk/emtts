@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchPlans } from "../lib/PackageService";
-import { trackLeadStart, trackWhatsAppClick } from "../lib/analytics";
+import { trackLeadStart } from "../lib/analytics";
 
 const MODULES = [
   {
@@ -69,8 +69,6 @@ function complaintLimitText(plan) {
 export default function OperationsModules() {
   const [plans, setPlans] = useState([]);
   const [plansFailed, setPlansFailed] = useState(false);
-  const publicWhatsAppDigits = String(import.meta.env.VITE_PUBLIC_WHATSAPP_NUMBER ?? "").replace(/\D/g, "");
-  const publicWhatsAppUrl = publicWhatsAppDigits.length >= 7 ? `https://wa.me/${publicWhatsAppDigits}` : "";
 
   function loadPlans() {
     setPlansFailed(false);
@@ -210,7 +208,7 @@ export default function OperationsModules() {
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">Start Free</p>
               <h4 className="mt-2 text-xl font-black tracking-[-0.03em] text-[#0f1f3a]">Start on the free plan, then upgrade when your volume grows.</h4>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Register in minutes, try the core workflow without payment, and message us on WhatsApp if you want a quick setup walkthrough.
+                Register in minutes and try the core workflow without payment.
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row md:flex-col lg:flex-row">
@@ -221,24 +219,12 @@ export default function OperationsModules() {
               >
                 Start Free
               </a>
-              {publicWhatsAppUrl ? (
-                <a
-                  href={publicWhatsAppUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => trackWhatsAppClick("homepage_billing_packages")}
-                  className="inline-flex h-11 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 px-5 text-sm font-semibold text-emerald-700"
-                >
-                  WhatsApp Demo
-                </a>
-              ) : (
-                <a
-                  href="/pricing"
-                  className="inline-flex h-11 items-center justify-center rounded-xl border border-[#dce8f5] bg-white px-5 text-sm font-semibold text-slate-700"
-                >
-                  View Pricing
-                </a>
-              )}
+              <a
+                href="/pricing"
+                className="inline-flex h-11 items-center justify-center rounded-xl border border-[#dce8f5] bg-white px-5 text-sm font-semibold text-slate-700"
+              >
+                View Pricing
+              </a>
             </div>
           </div>
 

@@ -26,8 +26,6 @@ export default function Login() {
   const [postLoginRedirecting, setPostLoginRedirecting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
-  const publicWhatsAppDigits = String(import.meta.env.VITE_PUBLIC_WHATSAPP_NUMBER ?? "").replace(/\D/g, "");
-  const publicWhatsAppUrl = publicWhatsAppDigits.length >= 7 ? `https://wa.me/${publicWhatsAppDigits}` : "";
   const lastPasswordSubmitAtRef = useRef(0);
 
   function finalizeLogin(token: string, role: string, refreshToken?: string, method = "password") {

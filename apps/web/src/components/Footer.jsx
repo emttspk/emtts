@@ -74,7 +74,6 @@ export default function Footer() {
             <div className="flex flex-wrap items-center gap-2">
               <span className="ui-badge-soft">Live Platform</span>
               <span className="ui-badge-soft">Free plan</span>
-              <span className="ui-badge-soft">WhatsApp demo</span>
             </div>
             <a href="/register" className="btn-primary h-10 rounded-full px-5 text-sm">
               Start Free
@@ -101,7 +100,7 @@ export default function Footer() {
 
         <div className="mt-10 border-t border-[#dce8f5] pt-5 text-xs text-slate-500 sm:flex sm:items-center sm:justify-between">
           <p>Copyright {new Date().getFullYear()} ePost.pk. All rights reserved.</p>
-          <p className="mt-2 sm:mt-0">Built for Pakistan Post operations teams. Start free or message us on WhatsApp.</p>
+          <p className="mt-2 sm:mt-0">Built for Pakistan Post operations teams. Start free today.</p>
         </div>
       </div>
     </footer>
