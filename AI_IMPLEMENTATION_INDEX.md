@@ -1,5 +1,13 @@
 # AI Implementation Index
 
+## 2026-06-07 - UI Cleanup: Mobile Header Login Button Fix
+
+- Modified `apps/web/src/components/Navbar.jsx` to replace the mobile-only "View Pricing" button with a "Login" button.
+- The change specifically targets the `showMobileCtaBar` (the fixed bar visible on mobile devices).
+- Ensured the new Login button routes to `/login` and maintains identical styling to the previous button.
+- Verified that the desktop header remains unaffected (already shows Login and Start Free).
+- Build check: `npm run build` PASS.
+
 ## 2026-06-07 - Global UI Cleanup: Final WhatsApp Demo Removal
 
 - Performed a comprehensive codebase purge of all "WhatsApp Demo" buttons, badges, and CTA cards.

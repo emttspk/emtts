@@ -116,10 +116,10 @@ export default function Navbar() {
               Start Free
             </a>
             <a
-              href="/pricing"
+              href="/login"
               className="inline-flex h-11 items-center justify-center rounded-xl border border-[#dce8f5] bg-white px-3 text-center text-sm font-semibold text-slate-700"
             >
-              View Pricing
+              Login
             </a>
           </div>
         </div>
