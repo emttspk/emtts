@@ -1,6 +1,17 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, indexedDBLocalPersistence, initializeAuth } from "firebase/auth";
 
+declare global {
+  interface Window {
+    __GOOGLE_AUTH_DEBUG__?: {
+      step: string;
+      uid: string | null;
+      email: string | null;
+      error: string | null;
+    };
+  }
+}
+
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,

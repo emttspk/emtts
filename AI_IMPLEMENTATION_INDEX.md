@@ -1,5 +1,12 @@
 # AI Implementation Index
 
+## 2026-06-08 - Google Auth Pre-Backend Trace
+- Added temporary browser-visible diagnostics to `apps/web/src/pages/GoogleAuthCallback.tsx` and a `window.__GOOGLE_AUTH_DEBUG__` marker so a live Google registration attempt can pinpoint the exact step where execution stops before `/api/auth/firebase-login`.
+- Instrumented the Firebase callback path to log callback entry, `getRedirectResult()` start/result, `auth.currentUser` presence, `currentUser.uid`, `currentUser.email`, `getIdToken()` start/success, and the backend request boundary.
+- Kept the auth/session flow unchanged so the trace only observes the failure point.
+- Added audit documentation at `docs/audits/google-auth-pre-backend-trace-2026-06-08.md`.
+- Build check: `npm run build` PASS.
+
 ## 2026-06-08 - Google Registration Final Root Cause Diagnostics
 - Added production-visible diagnostics to the Google callback and `/api/auth/firebase-login` path so the next live Google signup/login attempt will surface the exact `currentUser`, token, response status, and response body in logs.
 - Hardened the register-specific callback branch so telemetry failures from `trackRegistrationComplete("google")` no longer abort a successful session exchange.
