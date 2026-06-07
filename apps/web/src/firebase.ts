@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, indexedDBLocalPersistence, initializeAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -17,4 +17,6 @@ if (!firebaseReady) {
   console.warn("[FIREBASE] Missing Firebase web env vars. Firebase auth features are disabled.");
 }
 
-export const auth = app ? getAuth(app) : null;
+export const auth = app ? initializeAuth(app, {
+  persistence: indexedDBLocalPersistence
+}) : null;
