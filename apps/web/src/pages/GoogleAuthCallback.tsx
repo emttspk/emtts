@@ -162,14 +162,12 @@ export default function GoogleAuthCallback() {
         if (result) {
           setStatus("Google authentication finished. Saving session...");
           const idToken = await result.user.getIdToken();
-          if (import.meta.env.DEV) {
-            console.info("[AUTH][google-callback] step=firebase token ready", {
-              flow,
-              source: "redirect",
-              tokenExists: Boolean(getToken()),
-              nextPath,
-            });
-          }
+          console.info("[AUTH][google-callback] step=firebase token ready", {
+            flow,
+            source: "redirect",
+            tokenExists: Boolean(getToken()),
+            nextPath,
+          });
           await completeSession(idToken, "redirect");
           return;
         }
@@ -178,14 +176,12 @@ export default function GoogleAuthCallback() {
         if (currentUser) {
           setStatus("Google authentication finished. Restoring session...");
           const idToken = await currentUser.getIdToken(true);
-          if (import.meta.env.DEV) {
-            console.info("[AUTH][google-callback] step=current user token ready", {
-              flow,
-              source: "fallback-current-user",
-              tokenExists: Boolean(getToken()),
-              nextPath,
-            });
-          }
+          console.info("[AUTH][google-callback] step=current user token ready", {
+            flow,
+            source: "fallback-current-user",
+            tokenExists: Boolean(getToken()),
+            nextPath,
+          });
           await completeSession(idToken, "fallback-current-user");
           return;
         }
@@ -197,6 +193,7 @@ export default function GoogleAuthCallback() {
             return false;
           }
         })();
+        console.info("[AUTH][google-callback] step=check alreadyStarted", { alreadyStarted });
 
         if (!alreadyStarted) {
           await startRedirect();
@@ -209,14 +206,12 @@ export default function GoogleAuthCallback() {
         if (!cancelled && !cancelledRef.current) {
           const fallback = flow === "register" ? "Google registration failed" : "Google login failed";
           setErr(getFriendlyFirebaseAuthMessage(error, fallback));
-          if (import.meta.env.DEV) {
-            console.info("[AUTH][google-callback] step=error", {
-              flow,
-              tokenExists: Boolean(getToken()),
-              nextPath,
-              message: error instanceof Error ? error.message : String(error),
-            });
-          }
+          console.error("[AUTH][google-callback] step=error", {
+            flow,
+            tokenExists: Boolean(getToken()),
+            nextPath,
+            message: error instanceof Error ? error.message : String(error),
+          });
         }
       } finally {
         if (!cancelled && !cancelledRef.current) {
@@ -248,7 +243,8 @@ export default function GoogleAuthCallback() {
         description="Google sign-in callback for ePost.pk."
         canonicalPath="/auth/callback"
       />
-      <AuthShell mode={flow === "register" ? "register" : "login"} title={title} subtitle={subtitle}>
+      <AuthShell mode={flow === "register" ? "register" : "login"} title={title} subtitle={subtitle} loading={loading}>
+
         {err ? (
           <div className="mb-4 rounded-[22px] border border-red-200/80 bg-red-50/90 px-4 py-3 text-sm font-medium text-red-700 shadow-[0_12px_24px_rgba(239,68,68,0.08)]" role="alert" aria-live="polite">
             {err}

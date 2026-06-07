@@ -12,6 +12,7 @@ type AuthShellProps = {
   subtitle?: string;
   children: React.ReactNode;
   mode?: "login" | "register";
+  loading?: boolean;
 };
 
 export default function AuthShell(props: AuthShellProps) {
@@ -73,19 +74,23 @@ export default function AuthShell(props: AuthShellProps) {
               </div>
 
               <div className="flex items-center gap-2">
-                <Link
-                  to="/"
-                  className="inline-flex items-center gap-2 rounded-full border border-white/75 bg-white/80 px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:border-slate-200 hover:text-slate-950"
-                >
-                  <Home className="h-4 w-4" />
-                  Home
-                </Link>
-                <Link
-                  to={topPrompt.href}
-                  className="inline-flex items-center justify-center rounded-full border border-[#0ea576]/25 bg-white/80 px-3.5 py-1.5 text-sm font-semibold text-[#0b7f6d] shadow-[0_10px_24px_rgba(14,165,118,0.08)] transition duration-200 hover:-translate-y-0.5 hover:border-[#0ea576]/45 hover:bg-white"
-                >
-                  {topPrompt.action}
-                </Link>
+                {!props.loading && (
+                  <>
+                    <Link
+                      to="/"
+                      className="inline-flex items-center gap-2 rounded-full border border-white/75 bg-white/80 px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:border-slate-200 hover:text-slate-950"
+                    >
+                      <Home className="h-4 w-4" />
+                      Home
+                    </Link>
+                    <Link
+                      to={topPrompt.href}
+                      className="inline-flex items-center justify-center rounded-full border border-[#0ea576]/25 bg-white/80 px-3.5 py-1.5 text-sm font-semibold text-[#0b7f6d] shadow-[0_10px_24px_rgba(14,165,118,0.08)] transition duration-200 hover:-translate-y-0.5 hover:border-[#0ea576]/45 hover:bg-white"
+                    >
+                      {topPrompt.action}
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
 
@@ -140,10 +145,12 @@ export default function AuthShell(props: AuthShellProps) {
               ))}
             </div>
 
-            <div className="relative z-10 mt-3 flex items-center justify-between gap-2 text-[11px] text-slate-400">
-              <p>© 2026 ePost.pk</p>
-              <a href="/#support" className="font-medium text-slate-500 hover:text-slate-800">Support</a>
-            </div>
+            {!props.loading && (
+              <div className="relative z-10 mt-3 flex items-center justify-between gap-2 text-[11px] text-slate-400">
+                <p>© 2026 ePost.pk</p>
+                <a href="/#support" className="font-medium text-slate-500 hover:text-slate-800">Support</a>
+              </div>
+            )}
           </section>
 
           <section className="order-1 relative flex items-center justify-center bg-[linear-gradient(180deg,rgba(255,255,255,0.54),rgba(246,252,255,0.78))] px-4 py-4 sm:px-5 sm:py-5 md:order-1 md:px-6 lg:px-7 xl:px-8">
