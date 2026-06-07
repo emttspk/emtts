@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { GoogleAuthProvider, createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, signOut } from "firebase/auth";
+import { GoogleAuthProvider, createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, signInWithRedirect, signOut } from "firebase/auth";
 import { api } from "../lib/api";
 import { setSession } from "../lib/auth";
 import AuthShell from "../components/AuthShell";
@@ -15,11 +15,11 @@ import {
   shouldThrottle,
   shouldUseRedirectAuthFlow,
 } from "../lib/firebaseAuthGuards";
+import { clearGoogleAuthDebugStorage, clearGoogleRedirectStart, readGoogleRedirectStart, writeGoogleRedirectStart } from "../lib/googleAuth";
 
 const VERIFY_ACTION_DEBOUNCE_MS = 1200;
 const RESEND_COOLDOWN_MS = 60 * 1000;
 const LOCKOUT_COOLDOWN_MS = 10 * 60 * 1000;
-const GOOGLE_REDIRECT_START_KEY = "GOOGLE_REDIRECT_START";
 
 export default function Register() {
   const nav = useNavigate();
@@ -98,6 +98,14 @@ export default function Register() {
     return () => clearInterval(timer);
   }, [pendingVerification, resendCooldownUntil]);
 
+  useEffect(() => {
+    const marker = readGoogleRedirectStart();
+    if (marker && marker.flow === "register") {
+      clearGoogleRedirectStart();
+      nav("/auth/callback?flow=register&next=%2Fdashboard", { replace: true });
+    }
+  }, [nav]);
+
   async function finalizeRegistrationSession(data: { token: string; refreshToken?: string; user: { role: string }; onboardingRequired?: boolean }) {
     setSession(data.token, data.user.role, data.refreshToken);
     nav("/dashboard", { replace: true });
@@ -117,21 +125,10 @@ export default function Register() {
     provider.setCustomParameters({ prompt: "select_account" });
 
     if (shouldUseRedirectAuthFlow()) {
-      try {
-        window.sessionStorage.setItem(
-          GOOGLE_REDIRECT_START_KEY,
-          JSON.stringify({
-            stage: "entry",
-            timestamp: new Date().toISOString(),
-            flow: "register",
-            origin: window.location.href,
-            authDomain: auth?.app?.options?.authDomain ?? null,
-          }),
-        );
-      } catch {
-        // Ignore storage failures; redirect can still proceed.
-      }
-      nav("/auth/callback?flow=register&next=%2Fdashboard", { replace: true });
+      clearGoogleAuthDebugStorage();
+      clearGoogleRedirectStart();
+      writeGoogleRedirectStart("register", "entry");
+      await signInWithRedirect(auth, provider);
       return;
     }
 

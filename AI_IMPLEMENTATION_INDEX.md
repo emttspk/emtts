@@ -4117,3 +4117,16 @@ READY FOR PRODUCTION - All 3 critical fixes implemented and tested.
 - **Audit**: docs/audits/google-auth-phase6-firebase-compatibility-2026-06-08.md
 - **Confidence**: 97%
 
+## Phase 7: Google Auth Final Simplification (2026-06-08)
+
+- **Root Cause**: Two-step auth flow (Login/Register → navigate to /auth/callback → signInWithRedirect) introduced a fragile pre-navigation step. This caused redirect state loss when Firebase returned to /auth/callback, yielding "Google sign-in could not be completed on this device" error.
+- **Fix**: 
+  - Login.tsx and Register.tsx now call `signInWithRedirect(auth, provider)` directly, eliminating the pre-navigation to `/auth/callback`.
+  - Redirect marker functions (`readGoogleRedirectStart`, `writeGoogleRedirectStart`, `clearGoogleRedirectStart`) moved to `googleAuth.ts` for shared access.
+  - Added redirect-detection `useEffect` on Login and Register to forward returning users to `/auth/callback`.
+  - GoogleAuthCallback.tsx simplified: removed `startRedirect()`, recovery UI buttons, Phase 5 diagnostics, large recovery card. Only handles `getRedirectResult` return.
+  - firebase.ts cleaned up: removed Phase 5 diagnostics block (`GOOGLE_AUTH_FIREBASE_DIAG_KEY`), unused `indexedDBLocalPersistence` import.
+- **Files changed**: `apps/web/src/lib/googleAuth.ts`, `apps/web/src/pages/Login.tsx`, `apps/web/src/pages/Register.tsx`, `apps/web/src/pages/GoogleAuthCallback.tsx`, `apps/web/src/firebase.ts`
+- **Build**: passes
+- **Audit**: docs/audits/google-auth-final-simplification-2026-06-08.md
+

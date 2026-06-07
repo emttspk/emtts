@@ -2,6 +2,56 @@ import { apiUrl } from "./api";
 
 export type GoogleAuthFlow = "login" | "register";
 
+export type GoogleRedirectStartState = {
+  stage: "entry" | "redirect-started";
+  timestamp: string;
+  flow: GoogleAuthFlow;
+  origin: string;
+  authDomain: string | null;
+};
+
+export const GOOGLE_REDIRECT_START_KEY = "GOOGLE_REDIRECT_START";
+
+export function readGoogleRedirectStart(): GoogleRedirectStartState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(GOOGLE_REDIRECT_START_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as GoogleRedirectStartState;
+  } catch {
+    return null;
+  }
+}
+
+export function writeGoogleRedirectStart(flow: GoogleAuthFlow, stage: GoogleRedirectStartState["stage"]) {
+  if (typeof window === "undefined") return;
+  const state: GoogleRedirectStartState = {
+    stage,
+    timestamp: new Date().toISOString(),
+    flow,
+    origin: window.location.href,
+    authDomain: null,
+  };
+  try {
+    window.sessionStorage.setItem(GOOGLE_REDIRECT_START_KEY, JSON.stringify(state));
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+export function clearGoogleRedirectStart() {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(GOOGLE_REDIRECT_START_KEY);
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+export function getFlow(value: string | null): GoogleAuthFlow {
+  return value === "register" ? "register" : "login";
+}
+
 export type GoogleAuthDebugState = {
   step: string;
   uid: string | null;

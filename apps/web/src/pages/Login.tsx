@@ -1,5 +1,5 @@
-import { GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup, signOut } from "firebase/auth";
-import { useRef, useState } from "react";
+import { GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signOut } from "firebase/auth";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Eye, EyeOff, KeyRound, Mail, SquareArrowOutUpRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, apiUrl } from "../lib/api";
@@ -13,10 +13,9 @@ import { auth, firebaseReady } from "../firebase";
 import { getFriendlyFirebaseAuthMessage, shouldFallbackToApiLogin, shouldThrottle, shouldUseRedirectAuthFlow } from "../lib/firebaseAuthGuards";
 import { trackLogin } from "../lib/analytics";
 import SEO from "../components/SEO";
-import { buildGoogleAuthCallbackPath } from "../lib/googleAuth";
+import { clearGoogleAuthDebugStorage, clearGoogleRedirectStart, GOOGLE_REDIRECT_START_KEY, readGoogleRedirectStart, writeGoogleRedirectStart } from "../lib/googleAuth";
 
 const AUTH_ACTION_DEBOUNCE_MS = 1200;
-const GOOGLE_REDIRECT_START_KEY = "GOOGLE_REDIRECT_START";
 
 export default function Login() {
   const nav = useNavigate();
@@ -63,21 +62,10 @@ export default function Login() {
     provider.setCustomParameters({ prompt: "select_account" });
 
     if (shouldUseRedirectAuthFlow()) {
-      try {
-        window.sessionStorage.setItem(
-          GOOGLE_REDIRECT_START_KEY,
-          JSON.stringify({
-            stage: "entry",
-            timestamp: new Date().toISOString(),
-            flow: "login",
-            origin: window.location.href,
-            authDomain: auth?.app?.options?.authDomain ?? null,
-          }),
-        );
-      } catch {
-        // Ignore storage failures; redirect can still proceed.
-      }
-      nav(buildGoogleAuthCallbackPath("login"), { replace: true });
+      clearGoogleAuthDebugStorage();
+      clearGoogleRedirectStart();
+      writeGoogleRedirectStart("login", "entry");
+      await signInWithRedirect(auth, provider);
       return;
     }
 
@@ -93,6 +81,14 @@ export default function Login() {
       setGoogleLoginLoading(false);
     }
   }
+
+  useEffect(() => {
+    const marker = readGoogleRedirectStart();
+    if (marker && marker.flow === "login") {
+      clearGoogleRedirectStart();
+      nav("/auth/callback?flow=login&next=%2Fdashboard", { replace: true });
+    }
+  }, [nav]);
 
   return (
     <>
