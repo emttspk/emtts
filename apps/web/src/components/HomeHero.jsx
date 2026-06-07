@@ -42,6 +42,16 @@ function parseScannedTracking(decodedText) {
   return token || normalized;
 }
 
+const DASHBOARD_IMAGES = [
+  "/assets/image1.jpeg",
+  "/assets/image2.jpeg",
+  "/assets/image3.jpeg",
+  "/assets/image4.jpeg",
+  "/assets/image5.jpeg",
+  "/assets/image6.jpeg",
+  "/assets/image7.jpeg",
+];
+
 export default function HomeHero() {
   const navigate = useNavigate();
   const [trackingId, setTrackingId] = useState("");
@@ -49,6 +59,17 @@ export default function HomeHero() {
   const [scannerError, setScannerError] = useState("");
   const [scannerNotice, setScannerNotice] = useState("");
   const [scannerRetryTick, setScannerRetryTick] = useState(0);
+
+  const [currentImageIndex, setCurrentImageIndex] = useState(() =>
+    Math.floor(Math.random() * DASHBOARD_IMAGES.length)
+  );
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev + 1) % DASHBOARD_IMAGES.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
 
   const fallbackScannerRef = useRef(null);
   const detectorTimerRef = useRef(null);
@@ -395,60 +416,30 @@ export default function HomeHero() {
           </div>
 
           <div className="relative">
-            <div className="relative overflow-hidden rounded-3xl border border-[#dce8f5] bg-white/92 p-3 shadow-[0_26px_58px_rgba(10,31,68,0.16)] backdrop-blur-xl sm:p-4">
-              <div className="rounded-2xl border border-white/20 bg-[linear-gradient(170deg,#0f1f3a,#153153_45%,#0b7f6d)] p-4 text-white sm:p-5">
-                <div className="flex items-center justify-between">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/85">Operations Dashboard</p>
-                  <span className="rounded-full border border-white/30 bg-white/15 px-2.5 py-1 text-[10px] font-semibold">Live</span>
+            <div className="relative h-full overflow-hidden rounded-3xl border border-[#dce8f5] bg-white/92 p-3 shadow-[0_26px_58px_rgba(10,31,68,0.16)] backdrop-blur-xl sm:p-4">
+              <div className="flex h-full min-h-[320px] items-center justify-center overflow-hidden rounded-2xl bg-slate-50 md:min-h-[400px]">
+                <img
+                  key={currentImageIndex}
+                  src={DASHBOARD_IMAGES[currentImageIndex]}
+                  alt="Operations Dashboard Visual"
+                  className="h-full w-full object-cover transition-opacity duration-700"
+                  onError={(e) => {
+                    e.currentTarget.src = "/assets/dashboard.png";
+                  }}
+                />
+                <div className="absolute left-6 top-6 flex items-center gap-2 rounded-full border border-white/30 bg-black/20 px-3 py-1 backdrop-blur-md">
+                   <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white">Operations Dashboard</p>
+                   <span className="flex h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
                 </div>
-
-                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {[
-                    { label: "Total Parcels", value: "18,240" },
-                    { label: "Pending", value: "1,204" },
-                    { label: "Returned", value: "263" },
-                    { label: "Complaints", value: "78" },
-                  ].map((item) => (
-                    <div key={item.label} className="rounded-xl border border-white/15 bg-white/10 px-2.5 py-2.5">
-                      <p className="text-[10px] font-medium text-white/75">{item.label}</p>
-                      <p className="mt-1 text-sm font-extrabold tracking-[-0.01em] sm:text-base">{item.value}</p>
-                    </div>
+                <div className="absolute bottom-6 right-6 flex gap-1.5">
+                  {DASHBOARD_IMAGES.map((_, index) => (
+                    <div
+                      key={index}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${
+                        index === currentImageIndex ? "w-4 bg-white" : "w-1.5 bg-white/40"
+                      }`}
+                    />
                   ))}
-                </div>
-
-                <div className="mt-3 grid gap-3 lg:grid-cols-[1.2fr_0.8fr]">
-                  <div className="rounded-xl border border-white/15 bg-white/10 p-2.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/75">Recent Tracking</p>
-                    <div className="mt-2 space-y-1.5">
-                      {DASHBOARD_TRACKING_ROWS.map((row) => (
-                        <div key={row.id} className="grid grid-cols-[1.1fr_0.8fr_0.8fr_0.5fr] items-center gap-1 rounded-lg bg-white/10 px-2 py-1.5 text-[10px] sm:text-[11px]">
-                          <span className="truncate font-semibold">{row.id}</span>
-                          <span className="truncate text-white/80">{row.city}</span>
-                          <span className="truncate text-white/80">{row.status}</span>
-                          <span className="truncate text-right text-white/90">{row.eta}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-white/15 bg-white/10 p-2.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/75">Complaint Action</p>
-                    <div className="mt-2 space-y-2">
-                      {DASHBOARD_COMPLAINT_QUEUE.map((complaint) => (
-                        <div key={complaint.id} className="rounded-lg bg-white/10 p-2">
-                          <p className="text-[10px] font-bold">{complaint.id}</p>
-                          <p className="mt-1 text-[10px] text-white/80">{complaint.issue}</p>
-                          <div className="mt-1.5 flex items-center justify-between">
-                            <span className="text-[10px] text-amber-200">SLA {complaint.sla}</span>
-                            <div className="flex gap-1">
-                              <span className="rounded bg-white/15 px-1.5 py-0.5 text-[9px]">Resolve</span>
-                              <span className="rounded bg-rose-400/30 px-1.5 py-0.5 text-[9px]">Escalate</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>

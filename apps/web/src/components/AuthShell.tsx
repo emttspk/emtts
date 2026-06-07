@@ -114,12 +114,12 @@ export default function AuthShell(props: AuthShellProps) {
               <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-[#2f7edb]/14 blur-3xl" />
               <div className="pointer-events-none absolute -bottom-20 left-8 h-44 w-44 rounded-full bg-[#0ea576]/12 blur-3xl" />
               <img
-                src="/assets/letter_box.png"
-                alt="Pakistan Post office with signature red mailbox"
-                className="relative z-10 h-[164px] w-full rounded-[20px] object-cover object-center sm:h-[184px] md:h-[176px] lg:h-[196px] xl:h-[218px]"
-                loading="eager"
-                decoding="async"
-                fetchPriority="high"
+               src="/assets/main1.jpeg"
+               alt="Pakistan Post office with signature red mailbox"
+               className="relative z-10 h-[164px] w-full rounded-[20px] object-cover object-center sm:h-[184px] md:h-[176px] lg:h-[196px] xl:h-[218px]"
+               loading="eager"
+               decoding="async"
+               fetchPriority="high"
               />
             </motion.div>
 
