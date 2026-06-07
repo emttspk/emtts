@@ -146,8 +146,14 @@ export default function GoogleAuthCallback() {
             nextPath,
           });
         }
+        
+        console.info("[AUTH][google-callback] DIAGNOSTICS", {
+          authInstanceExists: !!auth,
+          authAppName: auth?.app?.name,
+          firebaseReady
+        });
 
-        const result = await getRedirectResult(auth);
+        const result = await getRedirectResult(auth!);
         if (cancelled || cancelledRef.current) return;
 
         if (import.meta.env.DEV) {
