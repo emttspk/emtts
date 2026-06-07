@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { GoogleAuthProvider, getRedirectResult, onAuthStateChanged, signInWithRedirect, type User } from "firebase/auth";
+
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
 import SEO from "../components/SEO";
-import { auth, firebaseReady } from "../firebase";
+import { auth, firebaseReady, GOOGLE_AUTH_FIREBASE_DIAG_KEY } from "../firebase";
 import { getToken, setSession } from "../lib/auth";
 import { trackLogin, trackRegistrationComplete } from "../lib/analytics";
 import { getFriendlyFirebaseAuthMessage } from "../lib/firebaseAuthGuards";
@@ -50,6 +51,49 @@ function describeCurrentUser(user: User | null) {
     uid: user.uid ?? null,
     email: user.email ?? null,
   };
+}
+
+// Phase 5: Firebase state loss diagnostics
+export function captureFirebaseDiagnostics(authInstance: typeof auth, currentUser: User | null = null): Record<string, unknown> {
+  const marker = readGoogleRedirectStart();
+  const diagnostics: Record<string, unknown> = {
+    windowOrigin: typeof window !== "undefined" ? window.location.origin : null,
+    authDomain: authInstance?.app?.options?.authDomain ?? null,
+    authAppName: authInstance?.app?.name ?? null,
+    authCurrentUserExists: Boolean(authInstance?.currentUser),
+    authCurrentUserUid: authInstance?.currentUser?.uid ?? null,
+    authCurrentUserEmail: authInstance?.currentUser?.email ?? null,
+    documentReferrer: typeof document !== "undefined" ? document.referrer ?? null : null,
+    redirectMarkerExists: Boolean(marker),
+    redirectMarkerStage: marker?.stage ?? null,
+    redirectMarkerFlow: marker?.flow ?? null,
+    redirectMarkerTimestamp: marker?.timestamp ?? null,
+    redirectMarkerAuthDomain: marker?.authDomain ?? null,
+    authConstructorName: authInstance?.constructor?.name ?? null,
+        initializeAuthUsed: true,
+    persistence: "browserLocalPersistence",
+    popupRedirectResolverConfigured: true,
+    currentTimestamp: new Date().toISOString(),
+    currentUserType: typeof currentUser,
+    currentUserConstructorName: currentUser?.constructor?.name ?? null,
+    currentUserProviderData: currentUser?.providerData?.map((p: { providerId?: string; uid?: string }) => ({
+      providerId: p.providerId ?? null,
+      uid: p.uid ?? null,
+    })) ?? [],
+    currentUrl: typeof window !== "undefined" ? window.location.href : null,
+    firebaseAppVersion: authInstance?.app && typeof authInstance.app === "object" && "version" in authInstance.app
+      ? String((authInstance.app as { version?: string }).version ?? "unknown") : "unknown",
+    providerId: (authInstance && typeof authInstance === "object" && "config" in (authInstance as object))
+      ? String((authInstance as { config?: { providerId?: string } }).config?.providerId ?? "null") : "null",
+  };
+  if (typeof window !== "undefined") {
+    try {
+      window.sessionStorage.setItem(GOOGLE_AUTH_FIREBASE_DIAG_KEY, JSON.stringify(diagnostics, null, 2));
+    } catch {
+      // Ignore storage failures.
+    }
+  }
+  return diagnostics;
 }
 
 function readGoogleRedirectStart(): GoogleRedirectStartState | null {
@@ -230,6 +274,10 @@ export default function GoogleAuthCallback() {
     setGoogleAuthDebug("callback entry");
 
     const redirectMarker = readGoogleRedirectStart();
+    // Phase 5: Capture Firebase diagnostics at callback entry
+    const phase5Diagnostics = captureFirebaseDiagnostics(auth, auth?.currentUser ?? null);
+    console.info("[AUTH][google-callback] step=phase5-firebase-diagnostics", phase5Diagnostics);
+
     console.info("[AUTH][google-callback] step=redirect marker", {
       flow,
       nextPath,
@@ -332,7 +380,16 @@ export default function GoogleAuthCallback() {
             errorMessage: error instanceof Error ? error.message : String(error),
           });
         }
-        if (cancelled || cancelledRef.current) return;
+                if (cancelled || cancelledRef.current) return;
+
+        // Phase 5: Capture diagnostics after getRedirectResult resolves
+        const phase5RedirectDiagnostics = captureFirebaseDiagnostics(auth, auth?.currentUser ?? null);
+        phase5RedirectDiagnostics.getRedirectResultResultType = result === null ? "null" : typeof result;
+        phase5RedirectDiagnostics.getRedirectResultHasUser = Boolean(result?.user);
+        phase5RedirectDiagnostics.getRedirectResultUserUid = result?.user?.uid ?? null;
+        phase5RedirectDiagnostics.getRedirectResultUserEmail = result?.user?.email ?? null;
+        phase5RedirectDiagnostics.getRedirectResultOperationType = result?.operationType ?? null;
+        console.info("[AUTH][google-callback] step=phase5-redirect-result-diagnostics", phase5RedirectDiagnostics);
 
         console.info("[AUTH][google-callback] step=redirect result resolved", {
           flow,
@@ -386,7 +443,20 @@ export default function GoogleAuthCallback() {
           uid: currentUser?.uid ?? null,
           email: currentUser?.email ?? null,
         });
-        if (currentUser) {
+
+
+                if (currentUser) {
+          // Phase 5: Capture diagnostics when fallback currentUser is detected
+          const phase5UserDiagnostics = captureFirebaseDiagnostics(auth, currentUser);
+          phase5UserDiagnostics.waitForReadyCurrentUserTimeMs = 2500;
+          phase5UserDiagnostics.fallbackUserUid = currentUser.uid;
+          phase5UserDiagnostics.fallbackUserEmail = currentUser.email ?? null;
+          phase5UserDiagnostics.fallbackUserProviderData = currentUser.providerData?.map((p: { providerId?: string; uid?: string }) => ({
+            providerId: p.providerId ?? null,
+            uid: p.uid ?? null,
+          })) ?? [];
+          console.info("[AUTH][google-callback] step=phase5-fallback-user-diagnostics", phase5UserDiagnostics);
+
           console.info("[AUTH][google-callback] step=currentUser uid/email", {
             flow,
             source: "fallback-current-user",

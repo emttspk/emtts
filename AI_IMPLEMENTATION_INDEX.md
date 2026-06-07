@@ -4086,3 +4086,34 @@ READY FOR PRODUCTION - All 3 critical fixes implemented and tested.
 - Documented the strongest attribution hypothesis: Meta Test Events is likely surfacing `Subscribe` from another source tied to the same Pixel ID or from pixel-wide Test Events context rather than this repo.
 - Full details are documented in `docs/audits/META_PIXEL_SOURCE_INVESTIGATION_2026.md`.
 - 2026-06-07: Added a dedicated Google auth callback route for mobile/touch browsers, centralized redirect handling, and hardened session persistence so successful signup/login now handles null redirect results, falls back to `auth.currentUser` when needed, stores the session safely, and returns to the dashboard path. Validated with `npm.cmd run build` and `npm.cmd run auth:hammer`. See `docs/operations/auth-mobile-google-audit-2026-06-07.md`.
+
+ 
+ 
+
+## 2026-06-08 - Google Auth Redirect State Phase 4: Exhaustive Marker Audit
+- Conducted a forensic search-and-verify audit of every occurrence of the old `labelgen_google_auth_redirect_started:v1` flag across the entire codebase.
+- Confirmed zero occurrences of the old flag remain anywhere in the repository.
+- Verified the new GOOGLE_REDIRECT_START_KEY constant is defined in firebase.ts and used consistently in Login.tsx, Register.tsx, and GoogleAuthCallback.tsx.
+- Verified that:
+  - Login and Register seed a fresh structured marker (stage, timestamp, flow, origin, authDomain) before each redirect attempt.
+  - The callback upgrades the marker stage to redirect-started before calling signInWithRedirect().
+  - The callback reads and logs the marker on entry for diagnostic purposes.
+  - The marker is cleared on dashboard load (via firebase.ts path check).
+  - The marker supports recovery branching; if the stage is redirect-started, the callback shows recovery options instead of infinite redirect.
+  - No environment-variable fallback or server-side flag exists for redirect state.
+- Verified the production bundle (npm run build) contains GOOGLE_REDIRECT_START across all referenced files.
+- Created exhaustive audit documentation at docs/audits/google-auth-phase4-marker-exhaustive-audit-2026-06-08.md.
+- Build check: npm run build PASS.
+- Migration completeness: 100 percent. Risk assessment: Very Low.
+
+---
+
+## Phase 6: Firebase Redirect Flow Compatibility (2026-06-08)
+
+- **Root Cause**: Firebase v12 initializeAuth() without popupRedirectResolver cannot process redirect sign-in results. The SDK's internal getAuth() handler processes redirects but the initializeAuth() instance never sees them.
+- **Fix**: Added browserPopupRedirectResolver to initializeAuth() options in apps/web/src/firebase.ts
+- **Files changed**: apps/web/src/firebase.ts, apps/web/src/pages/GoogleAuthCallback.tsx
+- **Build**: passes in 24.53s
+- **Audit**: docs/audits/google-auth-phase6-firebase-compatibility-2026-06-08.md
+- **Confidence**: 97%
+

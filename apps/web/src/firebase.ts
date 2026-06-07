@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, browserLocalPersistence, indexedDBLocalPersistence, initializeAuth } from "firebase/auth";
+import { getAuth, browserLocalPersistence, browserPopupRedirectResolver, indexedDBLocalPersistence, initializeAuth } from "firebase/auth";
 import { clearGoogleAuthDebugStorage, GOOGLE_AUTH_DEBUG_KEY, restoreGoogleAuthDebugFromStorage } from "./lib/googleAuth";
 
 declare global {
@@ -60,5 +60,31 @@ if (typeof window !== "undefined") {
 }
 
 export const auth = app ? initializeAuth(app, {
-  persistence: browserLocalPersistence
+  persistence: browserLocalPersistence,
+  popupRedirectResolver: browserPopupRedirectResolver,
 }) : null;
+
+// Phase 5: Google Auth Firebase state loss diagnostics
+export const GOOGLE_AUTH_FIREBASE_DIAG_KEY = "GOOGLE_AUTH_FIREBASE_DIAG";
+if (typeof window !== "undefined" && auth) {
+  const diagnostics = {
+    windowOrigin: window.location.origin,
+    authDomain: auth?.app?.options?.authDomain ?? null,
+    authAppName: auth?.app?.name ?? null,
+    authCurrentUserExists: Boolean(auth?.currentUser),
+    authCurrentUserUid: auth?.currentUser?.uid ?? null,
+    documentReferrer: document.referrer ?? null,
+    initializeAuthUsed: true,
+    persistence: "browserLocalPersistence",
+    firebaseAppVersion: typeof app === "object" && app !== null && "version" in app
+      ? String((app as { version?: string }).version ?? "unknown")
+      : "unknown",
+    authConstructorName: auth?.constructor?.name ?? null,
+    currentTimestamp: new Date().toISOString(),
+  };
+  try {
+    window.sessionStorage.setItem(GOOGLE_AUTH_FIREBASE_DIAG_KEY, JSON.stringify(diagnostics, null, 2));
+  } catch {
+    // Ignore storage failures.
+  }
+}

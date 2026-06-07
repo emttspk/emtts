@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Search, ScanLine, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { trackLeadStart, trackTrackingSearch, trackWhatsAppClick } from "../lib/analytics";
+import { trackLeadStart, trackTrackingSearch } from "../lib/analytics";
 
 const SCANNER_CONTAINER_ID = "home-scan-fallback";
 const CAMERA_PERMISSION_NOTICE = "Camera permission is required to scan barcode. Please tap Allow when your browser asks.";
@@ -76,8 +76,6 @@ export default function HomeHero() {
   const mediaStreamRef = useRef(null);
   const scanHandledRef = useRef(false);
   const videoRef = useRef(null);
-  const publicWhatsAppDigits = String(import.meta.env.VITE_PUBLIC_WHATSAPP_NUMBER ?? "").replace(/\D/g, "");
-  const publicWhatsAppUrl = publicWhatsAppDigits.length >= 7 ? `https://wa.me/${publicWhatsAppDigits}` : "";
 
   const submitTracking = useCallback(
     (rawValue) => {

@@ -59,7 +59,7 @@ body{
     height:53px;
     border-bottom:1px solid #000;
     display:grid;
-    grid-template-columns:30% 35% 35%;
+    grid-template-columns:30% minmax(0, 1fr);
     align-items:center;
     padding-bottom:4px;
     min-width:0;
@@ -83,11 +83,28 @@ body{
     overflow:visible;
 }
 
+.header-right{
+    height:100%;
+    display:grid;
+    align-items:center;
+    min-width:0;
+    min-height:0;
+    overflow:hidden;
+}
+
+.header-right--payable{
+    grid-template-columns:minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.header-right--no-amount{
+    grid-template-columns:minmax(0, 0.85fr) minmax(0, 1.15fr);
+}
+
 .pp-logo{
-    width:48px;
+    width:66px;
     height:44px;
-    object-fit:cover;
-    object-position:left center;
+    object-fit:contain;
+    object-position:center center;
     display:block;
     flex-shrink:0;
     overflow:hidden;
@@ -131,6 +148,19 @@ body{
     overflow:visible;
 }
 
+.shipment-area{
+    height:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-right:1px solid #000;
+    padding-left:8px;
+    padding-right:8px;
+    min-width:0;
+    min-height:0;
+    overflow:hidden;
+}
+
 .vpl-box{
     display:flex;
     align-items:center;
@@ -149,6 +179,17 @@ body{
     line-height:1;
     letter-spacing:0.2px;
     flex:0 0 auto;
+}
+
+.shipment-label{
+    font-size:32px;
+    font-weight:700;
+    line-height:1;
+    letter-spacing:0.2px;
+    flex:0 0 auto;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
 }
 
 .vpl-divider{
@@ -196,6 +237,20 @@ body{
     min-width:0;
     min-height:0;
     overflow:visible;
+}
+
+.header-right--no-amount .shipment-area{
+    justify-content:flex-start;
+}
+
+.header-right--no-amount .barcode-area{
+    padding-left:6px;
+    padding-right:6px;
+}
+
+.header-right--no-amount #barcode{
+    max-width:none;
+    width:100%;
 }
 
 #barcode{
@@ -664,29 +719,7 @@ body{
             <img class="pp-logo" src="{{logo_src}}" alt="logo" />
         </div>
 
-        <!-- VPL -->
-        <div class="vpl-area">
-
-            <div class="vpl-box">
-                <span class="vpl-label">VPL</span>
-                <span class="vpl-divider" aria-hidden="true"></span>
-                <span class="vpl-amount-box">
-                    <span class="vpl-amount">{{amount}}</span>
-                </span>
-            </div>
-
-        </div>
-
-        <!-- BARCODE -->
-        <div class="barcode-area">
-
-            <svg id="barcode"></svg>
-
-            <div class="barcode-text">
-                {{tracking_no}}
-            </div>
-
-        </div>
+        {{header_right}}
 
     </div>
 
