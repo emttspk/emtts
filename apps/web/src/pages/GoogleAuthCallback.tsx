@@ -7,23 +7,13 @@ import { auth, firebaseReady } from "../firebase";
 import { getToken, setSession } from "../lib/auth";
 import { trackLogin, trackRegistrationComplete } from "../lib/analytics";
 import { getFriendlyFirebaseAuthMessage } from "../lib/firebaseAuthGuards";
-import { exchangeGoogleFirebaseToken, normalizeNextPath, type GoogleAuthFlow } from "../lib/googleAuth";
+import { exchangeGoogleFirebaseToken, normalizeNextPath, setGoogleAuthDebug, type GoogleAuthFlow } from "../lib/googleAuth";
 
 const REDIRECT_STARTED_KEY = "labelgen_google_auth_redirect_started:v1";
 const CALLBACK_REDIRECT_DELAY_MS = 1800;
 
 function getFlow(value: string | null): GoogleAuthFlow {
   return value === "register" ? "register" : "login";
-}
-
-function updateGoogleAuthDebug(step: string, payload: { uid?: string | null; email?: string | null; error?: string | null } = {}) {
-  if (typeof window === "undefined") return;
-  window.__GOOGLE_AUTH_DEBUG__ = {
-    step,
-    uid: payload.uid ?? null,
-    email: payload.email ?? null,
-    error: payload.error ?? null,
-  };
 }
 
 export default function GoogleAuthCallback() {
@@ -37,14 +27,18 @@ export default function GoogleAuthCallback() {
   const timerRef = useRef<number | null>(null);
   const cancelledRef = useRef(false);
 
-  async function completeSession(idToken: string, source: "redirect" | "fallback-current-user") {
+  async function completeSession(
+    idToken: string,
+    source: "redirect" | "fallback-current-user",
+    identity: { uid?: string | null; email?: string | null } = {},
+  ) {
     console.info("[AUTH][google-callback] step=exchange start", {
       flow,
       source,
       tokenExistsBeforeExchange: Boolean(getToken()),
       nextPath,
     });
-    updateGoogleAuthDebug("firebase-login request start");
+    setGoogleAuthDebug("firebase-login request", {});
 
     const data = await exchangeGoogleFirebaseToken(idToken);
 
@@ -79,9 +73,17 @@ export default function GoogleAuthCallback() {
       tokenExistsAfterSave: Boolean(getToken()),
       redirectTarget: nextPath,
     });
+    setGoogleAuthDebug("session save", {
+      uid: identity.uid ?? null,
+      email: identity.email ?? null,
+    });
 
     if (!cancelledRef.current) {
       setStatus("Session saved. Redirecting...");
+      setGoogleAuthDebug("redirect", {
+        uid: identity.uid ?? null,
+        email: identity.email ?? null,
+      });
       nav(nextPath, { replace: true });
     }
   }
@@ -107,6 +109,7 @@ export default function GoogleAuthCallback() {
       tokenExistsBeforeRedirect: Boolean(getToken()),
       nextPath,
     });
+    setGoogleAuthDebug("redirect", {});
 
     setStatus("Redirecting to Google...");
     await signInWithRedirect(auth, provider);
@@ -120,12 +123,12 @@ export default function GoogleAuthCallback() {
       firebaseReady,
       authInstanceExists: !!auth,
     });
-    updateGoogleAuthDebug("entered callback");
+    setGoogleAuthDebug("callback entry");
 
     if (!firebaseReady || !auth) {
       setErr("Google sign-in is not configured. Please contact support.");
       setLoading(false);
-      updateGoogleAuthDebug("entered callback", {
+      setGoogleAuthDebug("callback entry", {
         error: "Google sign-in is not configured. Please contact support.",
       });
       return () => {
@@ -175,7 +178,7 @@ export default function GoogleAuthCallback() {
           nextPath,
           authAppName: authInstance?.app?.name,
         });
-        updateGoogleAuthDebug("getRedirectResult start");
+        setGoogleAuthDebug("getRedirectResult start");
         let result = null;
         try {
           result = authInstance ? await getRedirectResult(authInstance) : null;
@@ -204,7 +207,7 @@ export default function GoogleAuthCallback() {
           tokenExists: Boolean(getToken()),
           nextPath,
         });
-        updateGoogleAuthDebug("getRedirectResult result", {
+        setGoogleAuthDebug("getRedirectResult result", {
           uid: result?.user?.uid ?? null,
           email: result?.user?.email ?? null,
         });
@@ -227,7 +230,14 @@ export default function GoogleAuthCallback() {
             currentUserEmail: result.user.email ?? null,
             tokenGenerated: Boolean(idToken),
           });
-          await completeSession(idToken, "redirect");
+          setGoogleAuthDebug("getIdToken success", {
+            uid: result.user.uid,
+            email: result.user.email ?? null,
+          });
+          await completeSession(idToken, "redirect", {
+            uid: result.user.uid,
+            email: result.user.email ?? null,
+          });
           return;
         }
 
@@ -238,6 +248,10 @@ export default function GoogleAuthCallback() {
           currentUserExists: Boolean(currentUser),
           nextPath,
         });
+        setGoogleAuthDebug("currentUser detected", {
+          uid: currentUser?.uid ?? null,
+          email: currentUser?.email ?? null,
+        });
         if (currentUser) {
           console.info("[AUTH][google-callback] step=currentUser uid/email", {
             flow,
@@ -246,7 +260,7 @@ export default function GoogleAuthCallback() {
             currentUserEmail: currentUser.email ?? null,
             nextPath,
           });
-          updateGoogleAuthDebug("currentUser exists", {
+          setGoogleAuthDebug("currentUser detected", {
             uid: currentUser.uid,
             email: currentUser.email ?? null,
           });
@@ -258,7 +272,7 @@ export default function GoogleAuthCallback() {
             currentUserEmail: currentUser.email ?? null,
             nextPath,
           });
-          updateGoogleAuthDebug("getIdToken start", {
+          setGoogleAuthDebug("getIdToken start", {
             uid: currentUser.uid,
             email: currentUser.email ?? null,
           });
@@ -272,11 +286,14 @@ export default function GoogleAuthCallback() {
             currentUserEmail: currentUser.email ?? null,
             tokenGenerated: Boolean(idToken),
           });
-          updateGoogleAuthDebug("getIdToken success", {
+          setGoogleAuthDebug("getIdToken success", {
             uid: currentUser.uid,
             email: currentUser.email ?? null,
           });
-          await completeSession(idToken, "fallback-current-user");
+          await completeSession(idToken, "fallback-current-user", {
+            uid: currentUser.uid,
+            email: currentUser.email ?? null,
+          });
           return;
         }
 
@@ -307,7 +324,7 @@ export default function GoogleAuthCallback() {
             message: error instanceof Error ? error.message : String(error),
             stack: error instanceof Error ? error.stack ?? null : null,
           });
-          updateGoogleAuthDebug("error", {
+          setGoogleAuthDebug("error", {
             error: error instanceof Error ? error.message : String(error),
           });
         }
@@ -367,11 +384,11 @@ export default function GoogleAuthCallback() {
             onClick={() => {
               setErr(null);
               setLoading(true);
-              updateGoogleAuthDebug("redirect-attempt");
+              setGoogleAuthDebug("redirect-attempt");
               void startRedirect().catch((error) => {
                 setErr(getFriendlyFirebaseAuthMessage(error, flow === "register" ? "Google registration failed" : "Google login failed"));
                 setLoading(false);
-                updateGoogleAuthDebug("error", {
+                setGoogleAuthDebug("error", {
                   error: error instanceof Error ? error.message : String(error),
                 });
               });

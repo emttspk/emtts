@@ -2,12 +2,72 @@ import { apiUrl } from "./api";
 
 export type GoogleAuthFlow = "login" | "register";
 
+export type GoogleAuthDebugState = {
+  step: string;
+  uid: string | null;
+  email: string | null;
+  error: string | null;
+  timestamp: string;
+};
+
 export type GoogleAuthSession = {
   token: string;
   refreshToken?: string;
   user: { role: string };
   onboardingRequired?: boolean;
 };
+
+export const GOOGLE_AUTH_DEBUG_KEY = "GOOGLE_AUTH_DEBUG";
+
+export function setGoogleAuthDebug(step: string, payload: { uid?: string | null; email?: string | null; error?: string | null } = {}) {
+  if (typeof window === "undefined") return;
+  const state: GoogleAuthDebugState = {
+    step,
+    uid: payload.uid ?? null,
+    email: payload.email ?? null,
+    error: payload.error ?? null,
+    timestamp: new Date().toISOString(),
+  };
+
+  try {
+    window.sessionStorage.setItem(GOOGLE_AUTH_DEBUG_KEY, JSON.stringify(state));
+  } catch {
+    // Ignore storage failures; console logs still remain available.
+  }
+
+  try {
+    window.__GOOGLE_AUTH_DEBUG__ = JSON.parse(window.sessionStorage.getItem(GOOGLE_AUTH_DEBUG_KEY) ?? "null") as GoogleAuthDebugState | null ?? undefined;
+  } catch {
+    window.__GOOGLE_AUTH_DEBUG__ = state;
+  }
+}
+
+export function restoreGoogleAuthDebugFromStorage() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(GOOGLE_AUTH_DEBUG_KEY);
+    if (!raw) {
+      window.__GOOGLE_AUTH_DEBUG__ = undefined;
+      return null;
+    }
+    const parsed = JSON.parse(raw) as GoogleAuthDebugState;
+    window.__GOOGLE_AUTH_DEBUG__ = parsed;
+    return parsed;
+  } catch {
+    window.__GOOGLE_AUTH_DEBUG__ = undefined;
+    return null;
+  }
+}
+
+export function clearGoogleAuthDebugStorage() {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(GOOGLE_AUTH_DEBUG_KEY);
+  } catch {
+    // Ignore storage failures.
+  }
+  window.__GOOGLE_AUTH_DEBUG__ = undefined;
+}
 
 export function buildGoogleAuthCallbackPath(flow: GoogleAuthFlow, next = "/dashboard") {
   const safeNext = normalizeNextPath(next);
@@ -30,6 +90,7 @@ export async function exchangeGoogleFirebaseToken(idToken: string) {
     tokenExists: Boolean(idToken),
     tokenPreview: `${idToken.slice(0, 12)}...`,
   });
+  setGoogleAuthDebug("firebase-login request", {});
 
   let response: Response;
   try {
@@ -61,6 +122,9 @@ export async function exchangeGoogleFirebaseToken(idToken: string) {
     status: response.status,
     ok: response.ok,
     body,
+  });
+  setGoogleAuthDebug("firebase-login response", {
+    error: response.ok ? null : (typeof body === "string" ? body : body.error ?? body.message ?? null),
   });
 
   if (!response.ok) {

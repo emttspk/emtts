@@ -1,5 +1,13 @@
 # AI Implementation Index
 
+## 2026-06-08 - Google Auth Persistent Debug Trace
+- Added a sessionStorage-backed Google auth trace so the callback state survives the redirect away from `/auth/callback` and can be inspected after the browser returns to `/register`.
+- Trace is mirrored to `window.__GOOGLE_AUTH_DEBUG__` from sessionStorage so browser console inspection remains possible after navigation.
+- The trace records `step`, `uid`, `email`, `error`, and `timestamp` for callback entry, redirect-result, current-user, token generation, firebase-login request/response, session save, redirect, and failure states.
+- On successful dashboard load the trace is cleared from sessionStorage; on failure it remains available for inspection.
+- Added audit documentation at `docs/audits/google-auth-persistent-debug-2026-06-08.md`.
+- Build check: `npm run build` PASS.
+
 ## 2026-06-08 - Google Auth Pre-Backend Trace
 - Added temporary browser-visible diagnostics to `apps/web/src/pages/GoogleAuthCallback.tsx` and a `window.__GOOGLE_AUTH_DEBUG__` marker so a live Google registration attempt can pinpoint the exact step where execution stops before `/api/auth/firebase-login`.
 - Instrumented the Firebase callback path to log callback entry, `getRedirectResult()` start/result, `auth.currentUser` presence, `currentUser.uid`, `currentUser.email`, `getIdToken()` start/success, and the backend request boundary.
