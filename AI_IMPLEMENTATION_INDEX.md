@@ -3877,3 +3877,8 @@ READY FOR PRODUCTION - All 3 critical fixes implemented and tested.
 - Verified the active production Pixel ID is consistently `1352565343396370` in the deployed bundle and Meta `signals/config` request.
 - Confirmed the active production bundle does not contain a `Subscribe` event path or `test_event_code`.
 - Full details are documented in `docs/audits/META_PIXEL_FORENSIC_INVESTIGATION_2026.md`.
+
+## 2026-06-07 - Meta Pixel Source Investigation
+- Confirmed the repository does not contain any `Subscribe` Meta event path, `fbq("track", "Subscribe")`, `fbq("trackCustom", "Subscribe")`, Conversions API code, or `event_source_url` emission path.
+- Documented the strongest attribution hypothesis: Meta Test Events is likely surfacing `Subscribe` from another source tied to the same Pixel ID or from pixel-wide Test Events context rather than this repo.
+- Full details are documented in `docs/audits/META_PIXEL_SOURCE_INVESTIGATION_2026.md`.
