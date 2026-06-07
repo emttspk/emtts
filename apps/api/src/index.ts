@@ -1204,6 +1204,12 @@ async function main() {
       }
     } else if (process.env.START_WORKER_IN_API === "true" && !redisReady) {
       console.warn("[INIT] START_WORKER_IN_API=true but Redis is not ready — embedded worker not started");
+    } else if (process.env.START_WORKER_IN_API !== "true") {
+      console.info("[INIT] START_WORKER_IN_API=false — Expected dedicated worker container to be active");
+      const { uploadsDir, outputsDir } = await import("./storage/paths.js");
+      if (!fs.existsSync(uploadsDir()) || !fs.existsSync(outputsDir())) {
+        console.warn("[CRITICAL] START_WORKER_IN_API=false but local storage directories (uploads/generated) are missing. Dedicated worker may fail if local storage is required.");
+      }
     }
 
     console.log("[INIT] Async initialization complete");
