@@ -120,8 +120,8 @@ type TrackingBatchHistoryItem = {
   hasMasterFile: boolean;
 };
 
-const TRACKING_CACHE_TTL_MS = 60_000;
-const COMPLAINT_QUEUE_CACHE_TTL_MS = 45_000;
+const TRACKING_CACHE_TTL_MS = 30 * 60 * 1000;
+const COMPLAINT_QUEUE_CACHE_TTL_MS = 30 * 60 * 1000;
 /** After this elapsed time a "processing" complaint card is considered stale and shows a retry warning. */
 const COMPLAINT_PROCESSING_STALE_UI_MS = 10 * 60 * 1000; // 10 minutes
 const WORKSPACE_RENDER_CACHE_PERSIST_MS = 150;

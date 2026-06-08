@@ -1,5 +1,12 @@
 # AI Implementation Index
 
+## 2026-06-08 - Tracking Cache Regression Fix
+- Increased `TRACKING_CACHE_TTL_MS` from 60s to 30min and `COMPLAINT_QUEUE_CACHE_TTL_MS` from 45s to 30min in `BulkTracking.tsx`.
+- The 60-second TTL forced a full API re-fetch on every visit after 60s, causing perceived delay. Cache data was always shown instantly (from localStorage) but then immediately overwritten by background refresh.
+- With 30-min TTL, background refresh only fires if user hasn't visited in 30+ minutes. Supporting data (complaint queue, stats) still refreshes independently on mount.
+- Build: `npm run build` PASS.
+- Created audit documentation at `docs/audits/tracking-cache-regression-2026-06-08.md`.
+
 ## 2026-06-08 - Google Signup UX + Popup Delay Fix
 - **Register.tsx:** Split shared `loading` state into `emailRegisterLoading` + `googleRegisterLoading`. Continue button shows "Creating account..." only during email register; Google button shows "Please wait..." only during Google signup. No more cross-contamination.
 - **Login.tsx:** Removed stale `setPostLoginRedirecting(false)` calls (state was removed in earlier cleanup — would throw `ReferenceError` on failed login).
