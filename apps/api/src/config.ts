@@ -173,12 +173,14 @@ export function validateStartupConfig() {
 
 const DEFAULT_JWT_SECRET = "development-jwt-secret-at-least-32-chars-long";
 const rawJwtSecret = String(process.env.JWT_SECRET ?? "").trim();
+const isProduction = process.env.NODE_ENV === "production";
 
-if (!rawJwtSecret) {
-  console.warn("[STARTUP] JWT_SECRET is missing. Using development fallback secret.");
-  process.env.JWT_SECRET = DEFAULT_JWT_SECRET;
-} else if (rawJwtSecret.length < 16) {
-  console.warn("[STARTUP] JWT_SECRET is weak (less than 16 characters). Using development fallback secret.");
+if (!rawJwtSecret || rawJwtSecret.length < 32 || rawJwtSecret === DEFAULT_JWT_SECRET) {
+  if (isProduction) {
+    console.error("[STARTUP] [SECURITY] JWT_SECRET is missing, too weak (< 32 characters), or equals the development default. A strong, unique JWT_SECRET (>= 32 characters) is required in production. Aborting startup.");
+    process.exit(1);
+  }
+  console.warn("[STARTUP] JWT_SECRET is missing/weak. Using development fallback secret. This is NOT safe for production.");
   process.env.JWT_SECRET = DEFAULT_JWT_SECRET;
 }
 

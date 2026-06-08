@@ -1,5 +1,12 @@
 # AI Implementation Index
 
+## 2026-06-08 - Security Hardening Sprint
+- **P1: JWT_SECRET Blocker** — `apps/api/src/config.ts` now fails production startup with `process.exit(1)` if `JWT_SECRET` is missing, < 32 chars, or equals the development default fallback. Development mode may continue using the fallback.
+- **P2: Redis Rate Limiting** — `apps/api/src/auth/security.ts` moved `rateLimitByIp`, `failedAttemptByIdentity`, and `loginHistoryByUser` from in-memory Maps to Redis with TTL keys (`auth:ratelimit:*`, `auth:failed:*`, `auth:history:*`). In-memory fallback preserved when Redis is unavailable. All callers in `apps/api/src/routes/auth.ts` updated to `await` the now-async exports.
+- **P3: Auth Cleanup** — `apps/web/src/lib/auth.ts` now fires Firebase `signOut(auth)` in `clearSession()` to prevent stale Firebase state. Redundant `clearTrackingWorkspaceCache()` and Firebase sign-out removed from `apps/web/src/lib/logout.ts`.
+- Build check: `npm run build` PASS (both apps).
+- Created audit documentation at `docs/audits/security-hardening-sprint-2026-06-08.md`.
+
 ## 2026-06-08 - Password Reset Message Update
 - Updated forgot-password success message to be more user-friendly while maintaining security protection.
 - Frontend now uses API response message for consistency.

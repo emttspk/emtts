@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { Request } from "express";
 import type { AppRole } from "./jwt.js";
 import { prisma } from "../lib/prisma.js";
+import { redis, redisEnabled } from "../lib/redis.js";
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 30;
@@ -22,9 +23,12 @@ type LoginHistoryEntry = {
   success: boolean;
 };
 
-const rateLimitByIp = new Map<string, RateLimitState>();
-const failedAttemptByIdentity = new Map<string, FailedAttemptState>();
-const loginHistoryByUser = new Map<string, LoginHistoryEntry[]>();
+// In-memory fallback stores (used when Redis is unavailable)
+const _memRateLimitByIp = new Map<string, RateLimitState>();
+const _memFailedAttemptByIdentity = new Map<string, FailedAttemptState>();
+const _memLoginHistoryByUser = new Map<string, LoginHistoryEntry[]>();
+
+// JWT revocation is kept in-memory (short-lived, per-instance cache)
 const revokedAccessToken = new Map<string, number>();
 
 function nowMs() {
@@ -96,11 +100,105 @@ export function auditAuthEvent(event: string, req: Request, details: Record<stri
   console.info(`[AUTH_AUDIT] ${JSON.stringify(payload)}`);
 }
 
-export function checkAuthRateLimit(ip: string) {
+// ---------------------------------------------------------------------------
+// Redis key helpers
+// ---------------------------------------------------------------------------
+
+function rateLimitRedisKey(ip: string): string {
+  return `auth:ratelimit:${ip}`;
+}
+
+function failedAttemptRedisKey(identityKeyStr: string): string {
+  return `auth:failed:${identityKeyStr}`;
+}
+
+function loginHistoryRedisKey(userId: string): string {
+  return `auth:history:${userId}`;
+}
+
+// ---------------------------------------------------------------------------
+// Redis-backed implementations
+// ---------------------------------------------------------------------------
+
+async function redisCheckRateLimit(ip: string): Promise<{ allowed: boolean; retryAfterSec: number }> {
+  const key = rateLimitRedisKey(ip);
+  const count = await redis.incr(key);
+  if (count === 1) {
+    await redis.pexpire(key, RATE_LIMIT_WINDOW_MS);
+  }
+  if (count > RATE_LIMIT_MAX_REQUESTS) {
+    const ttlMs = await redis.pttl(key);
+    return { allowed: false, retryAfterSec: Math.max(1, Math.ceil(ttlMs / 1000)) };
+  }
+  return { allowed: true, retryAfterSec: 0 };
+}
+
+async function redisGetLockout(identityKeyStr: string): Promise<{ locked: boolean; remainingSeconds: number }> {
+  const key = failedAttemptRedisKey(identityKeyStr);
+  const ttlMs = await redis.pttl(key);
+  if (ttlMs <= 0) {
+    await redis.del(key).catch(() => {});
+    return { locked: false, remainingSeconds: 0 };
+  }
+  return { locked: true, remainingSeconds: Math.ceil(ttlMs / 1000) };
+}
+
+async function redisRecordFailedAttempt(identityKeyStr: string): Promise<{ count: number; locked: boolean; remainingSeconds: number }> {
+  const key = failedAttemptRedisKey(identityKeyStr);
+  const count = await redis.incr(key);
+  if (count === 1) {
+    await redis.pexpire(key, LOCKOUT_MS);
+  }
+  const locked = count >= FAILED_ATTEMPT_LIMIT;
+  if (locked) {
+    await redis.pexpire(key, LOCKOUT_MS);
+  }
+  const ttlMs = await redis.pttl(key);
+  return {
+    count,
+    locked,
+    remainingSeconds: Math.max(0, Math.ceil(ttlMs / 1000)),
+  };
+}
+
+async function redisClearFailedAttempts(identityKeyStr: string): Promise<void> {
+  await redis.del(failedAttemptRedisKey(identityKeyStr));
+}
+
+async function redisRecordLoginHistory(userId: string, entry: Omit<LoginHistoryEntry, "at">): Promise<void> {
+  const key = loginHistoryRedisKey(userId);
+  const entryWithTimestamp = { at: new Date().toISOString(), ...entry };
+  await redis.lpush(key, JSON.stringify(entryWithTimestamp));
+  await redis.ltrim(key, 0, LOGIN_HISTORY_LIMIT - 1);
+  await redis.expire(key, 30 * 24 * 60 * 60);
+}
+
+async function redisGetLoginHistory(userId: string): Promise<LoginHistoryEntry[]> {
+  const key = loginHistoryRedisKey(userId);
+  const entries = await redis.lrange(key, 0, LOGIN_HISTORY_LIMIT - 1);
+  return entries
+    .map((e) => {
+      try {
+        return JSON.parse(e) as LoginHistoryEntry;
+      } catch {
+        return null;
+      }
+    })
+    .filter((e): e is LoginHistoryEntry => e !== null);
+}
+
+// ---------------------------------------------------------------------------
+// Public API — Redis primary, in-memory fallback
+// ---------------------------------------------------------------------------
+
+export async function checkAuthRateLimit(ip: string): Promise<{ allowed: boolean; retryAfterSec: number }> {
+  if (redisEnabled) return redisCheckRateLimit(ip);
+
+  // In-memory fallback
   const now = nowMs();
-  const state = rateLimitByIp.get(ip);
+  const state = _memRateLimitByIp.get(ip);
   if (!state || now - state.windowStartMs > RATE_LIMIT_WINDOW_MS) {
-    rateLimitByIp.set(ip, { count: 1, windowStartMs: now });
+    _memRateLimitByIp.set(ip, { count: 1, windowStartMs: now });
     return { allowed: true, retryAfterSec: 0 };
   }
 
@@ -110,13 +208,17 @@ export function checkAuthRateLimit(ip: string) {
   }
 
   state.count += 1;
-  rateLimitByIp.set(ip, state);
+  _memRateLimitByIp.set(ip, state);
   return { allowed: true, retryAfterSec: 0 };
 }
 
-export function getLockout(email: string, ip: string) {
+export async function getLockout(email: string, ip: string): Promise<{ locked: boolean; remainingSeconds: number }> {
   const key = identityKey(email, ip);
-  const state = failedAttemptByIdentity.get(key);
+
+  if (redisEnabled) return redisGetLockout(key);
+
+  // In-memory fallback
+  const state = _memFailedAttemptByIdentity.get(key);
   const now = nowMs();
 
   if (!state || !state.lockedUntilMs) {
@@ -124,7 +226,7 @@ export function getLockout(email: string, ip: string) {
   }
 
   if (state.lockedUntilMs <= now) {
-    failedAttemptByIdentity.delete(key);
+    _memFailedAttemptByIdentity.delete(key);
     return { locked: false, remainingSeconds: 0 };
   }
 
@@ -134,16 +236,20 @@ export function getLockout(email: string, ip: string) {
   };
 }
 
-export function recordFailedAttempt(email: string, ip: string) {
+export async function recordFailedAttempt(email: string, ip: string): Promise<{ count: number; locked: boolean; remainingSeconds: number }> {
   const key = identityKey(email, ip);
-  const current = failedAttemptByIdentity.get(key) ?? { count: 0, lockedUntilMs: null };
+
+  if (redisEnabled) return redisRecordFailedAttempt(key);
+
+  // In-memory fallback
+  const current = _memFailedAttemptByIdentity.get(key) ?? { count: 0, lockedUntilMs: null };
   current.count += 1;
 
   if (current.count >= FAILED_ATTEMPT_LIMIT) {
     current.lockedUntilMs = nowMs() + LOCKOUT_MS;
   }
 
-  failedAttemptByIdentity.set(key, current);
+  _memFailedAttemptByIdentity.set(key, current);
 
   return {
     count: current.count,
@@ -152,21 +258,36 @@ export function recordFailedAttempt(email: string, ip: string) {
   };
 }
 
-export function clearFailedAttempts(email: string, ip: string) {
-  failedAttemptByIdentity.delete(identityKey(email, ip));
+export async function clearFailedAttempts(email: string, ip: string): Promise<void> {
+  const key = identityKey(email, ip);
+
+  if (redisEnabled) {
+    await redisClearFailedAttempts(key);
+    return;
+  }
+
+  // In-memory fallback
+  _memFailedAttemptByIdentity.delete(key);
 }
 
-export function recordLoginHistory(
+export async function recordLoginHistory(
   userId: string,
   entry: Omit<LoginHistoryEntry, "at">,
-) {
-  const list = loginHistoryByUser.get(userId) ?? [];
+): Promise<void> {
+  if (redisEnabled) {
+    await redisRecordLoginHistory(userId, entry);
+    return;
+  }
+
+  // In-memory fallback
+  const list = _memLoginHistoryByUser.get(userId) ?? [];
   list.unshift({ at: new Date().toISOString(), ...entry });
-  loginHistoryByUser.set(userId, list.slice(0, LOGIN_HISTORY_LIMIT));
+  _memLoginHistoryByUser.set(userId, list.slice(0, LOGIN_HISTORY_LIMIT));
 }
 
-export function getLoginHistory(userId: string) {
-  return loginHistoryByUser.get(userId) ?? [];
+export async function getLoginHistory(userId: string): Promise<LoginHistoryEntry[]> {
+  if (redisEnabled) return redisGetLoginHistory(userId);
+  return _memLoginHistoryByUser.get(userId) ?? [];
 }
 
 export function revokeAccessJwt(token: string) {

@@ -170,15 +170,20 @@ async function ensureStarterSubscription(userId: string) {
   });
 }
 
-authRouter.use((req, res, next) => {
-  const ip = getClientIp(req);
-  const rateLimit = checkAuthRateLimit(ip);
+authRouter.use(async (req, res, next) => {
+  try {
+    const ip = getClientIp(req);
+    const rateLimit = await checkAuthRateLimit(ip);
   if (!rateLimit.allowed) {
     res.setHeader("Retry-After", String(rateLimit.retryAfterSec));
     auditAuthEvent("auth.rate_limited", req, { retryAfterSec: rateLimit.retryAfterSec });
     return res.status(429).json({ error: "Too many authentication attempts. Try again shortly." });
   }
   return next();
+  } catch (err) {
+    auditAuthEvent("auth.rate_limit_error", req, { error: String(err) });
+    return next(err);
+  }
 });
 
 authRouter.post("/register", async (req, res) => {
@@ -277,7 +282,7 @@ authRouter.post("/register", async (req, res) => {
     metadata: { onboardingComplete },
   });
 
-  recordLoginHistory(user.id, { email, method: "password", ip, device, success: true });
+  await recordLoginHistory(user.id, { email, method: "password", ip, device, success: true });
   auditAuthEvent("auth.register.success", req, { email, userId: user.id });
   return res.json({
     ...(await shapeAuthResponse(user)),
@@ -312,7 +317,7 @@ authRouter.post("/login", async (req, res) => {
     const lookupKey = isEmail ? normalizeEmail(rawIdentifier) : rawIdentifier;
     const ip = getClientIp(req);
     const device = getDeviceInfo(req);
-    const lockout = getLockout(lookupKey, ip);
+    const lockout = await getLockout(lookupKey, ip);
     if (lockout.locked) {
       auditAuthEvent("auth.login.locked", req, { identifier: rawIdentifier, remainingSeconds: lockout.remainingSeconds });
       auditAuthMetric(req, "login_failure", { reason: "locked", identifier: rawIdentifier, remainingSeconds: lockout.remainingSeconds });
@@ -342,7 +347,7 @@ authRouter.post("/login", async (req, res) => {
         userLookupMs,
         totalMs: Date.now() - loginStartedAt,
       });
-      const failed = recordFailedAttempt(lookupKey, ip);
+      const failed = await recordFailedAttempt(lookupKey, ip);
       auditAuthEvent("auth.login.user_missing", req, { identifier: rawIdentifier, failedCount: failed.count, locked: failed.locked });
       auditAuthMetric(req, "login_failure", { reason: "user_missing", identifier: rawIdentifier, failedCount: failed.count, locked: failed.locked });
       return res.status(401).json({ error: "Invalid credentials" });
@@ -368,7 +373,7 @@ authRouter.post("/login", async (req, res) => {
         passwordVerifyMs,
         totalMs: Date.now() - loginStartedAt,
       });
-      const failed = recordFailedAttempt(lookupKey, ip);
+      const failed = await recordFailedAttempt(lookupKey, ip);
       auditAuthEvent("auth.login.password_invalid", req, { identifier: rawIdentifier, userId: user.id, failedCount: failed.count, locked: failed.locked });
       auditAuthMetric(req, "login_failure", {
         reason: "password_invalid",
@@ -377,11 +382,11 @@ authRouter.post("/login", async (req, res) => {
         failedCount: failed.count,
         locked: failed.locked,
       });
-      recordLoginHistory(user.id, { email: user.email, method: "password", ip, device, success: false });
+      await recordLoginHistory(user.id, { email: user.email, method: "password", ip, device, success: false });
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    clearFailedAttempts(lookupKey, ip);
+    await clearFailedAttempts(lookupKey, ip);
     console.log(`[AUTH] Login successful for identifier: ${rawIdentifier}`);
     logDevAuthTiming("login_success", {
       identifier: rawIdentifier,
@@ -390,7 +395,7 @@ authRouter.post("/login", async (req, res) => {
       passwordVerifyMs,
       totalMs: Date.now() - loginStartedAt,
     });
-    recordLoginHistory(user.id, { email: user.email, method: "password", ip, device, success: true });
+    await recordLoginHistory(user.id, { email: user.email, method: "password", ip, device, success: true });
     auditAuthEvent("auth.login.success", req, { identifier: rawIdentifier, userId: user.id });
     auditAuthMetric(req, "login_success", { method: "password", identifier: rawIdentifier, userId: user.id });
     return res.json(await shapeAuthResponse(user));
@@ -526,7 +531,7 @@ authRouter.post("/firebase-login", async (req, res) => {
       return res.status(403).json({ error: "Account disabled" });
     }
 
-    recordLoginHistory(user.id, {
+    await recordLoginHistory(user.id, {
       email,
       method: isGoogle ? "google" : "firebase_token",
       ip: getClientIp(req),
@@ -680,7 +685,7 @@ authRouter.post("/email-otp/verify", async (req, res) => {
       return res.status(403).json({ error: "Account disabled" });
     }
 
-    recordLoginHistory(user.id, {
+    await recordLoginHistory(user.id, {
       email,
       method: "email_link",
       ip: getClientIp(req),
@@ -880,5 +885,5 @@ authRouter.post("/logout", requireAuth, async (req, res) => {
 
 authRouter.get("/login-history", requireAuth, async (req, res) => {
   const userId = (req as any).user?.id as string;
-  return res.json({ history: getLoginHistory(userId) });
+  return res.json({ history: await getLoginHistory(userId) });
 });

@@ -2,7 +2,6 @@ import { signOut } from "firebase/auth";
 import { api } from "./api";
 import { auth, firebaseReady } from "../firebase";
 import { clearSession, getRefreshToken } from "./auth";
-import { clearTrackingWorkspaceCache } from "./trackingWorkspaceCache";
 
 export async function logoutAndClearSession() {
   const refreshToken = getRefreshToken();
@@ -16,14 +15,5 @@ export async function logoutAndClearSession() {
     // Continue local cleanup even if logout API call fails.
   }
 
-  try {
-    if (firebaseReady && auth?.currentUser) {
-      await signOut(auth);
-    }
-  } catch {
-    // Continue local cleanup even if Firebase sign-out fails.
-  }
-
   clearSession();
-  clearTrackingWorkspaceCache();
 }

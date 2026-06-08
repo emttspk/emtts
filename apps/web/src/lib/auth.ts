@@ -1,4 +1,6 @@
+import { signOut } from "firebase/auth";
 import { clearTrackingWorkspaceCache } from "./trackingWorkspaceCache";
+import { auth, firebaseReady } from "../firebase";
 
 const tokenKey = "labelgen_token";
 const roleKey = "labelgen_role";
@@ -99,6 +101,11 @@ export function clearSession() {
   clearKeyEverywhere(sessionScopeKey);
   clearBrowserCacheKeys();
   clearTrackingWorkspaceCache();
+
+  // Fire-and-forget Firebase sign-out to prevent stale auth state
+  if (typeof window !== "undefined" && firebaseReady && auth) {
+    signOut(auth).catch(() => {});
+  }
 }
 
 export function getRole() {
