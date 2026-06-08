@@ -4257,3 +4257,13 @@ READY FOR PRODUCTION - All 3 critical fixes implemented and tested.
 - **F. Responsive**: Cards use responsive grid (sm:grid-cols-2) for desktop/tablet, stack on mobile. No overflow or clipped content.
 - **G. Build**: `npm run build` PASS
 - **Files changed**: `apps/web/src/pages/Upload.tsx`, `apps/web/src/components/LabelGenerationProgressCard.tsx`, `apps/web/src/components/UploadDropzone.tsx`, `AI_IMPLEMENTATION_INDEX.md`
+
+## 2026-06-08 - Loading Overlay Removal + Premium UI Phase 3 + Shipment Descriptions
+- **A. Removed sign-in loading overlay**: Replaced full-screen "Signing you in... loading dashboard" overlay in `AppShell.tsx` with minimal spinner in content area. Text removed. Backdrop removed. No duplicate loading windows.
+- **B. Premium UI Phase 3**: Card now uses `p-0 overflow-hidden` with gradient header, step progress bar indicator, white card sections with `hover:shadow-md` transition, consistent `rounded-xl` borders and `px-5 py-2.5` button sizing, premium output mode cards with SVG icons, compact preview panel with page count badge.
+- **C. Shipment mode text**: Updated to "Single Service uses selected type. Mix Services uses multi shipment."
+- **D. Shipment descriptions**: Added info card below shipment type buttons showing `RGL — Registered Letter`, `IRL — Insured Letter`, `UMS — Urgent Mail Service`, `PAR — Parcel`, `VPL — Value Payable Letter`, `VPP — Value Payable Parcel`, `COD — Cash on Delivery`.
+- **E. UI cleanup**: All cards use consistent white background, shadow-sm, hover effects, rounded-xl buttons. Money Orders checkbox uses styled label card. Helper text consistent across all sections.
+- **F. Responsive**: Cards use responsive grids. No overflow or clipped content.
+- **G. Build**: `npm run build` PASS
+- **Files changed**: `apps/web/src/components/AppShell.tsx`, `apps/web/src/pages/Upload.tsx`, `AI_IMPLEMENTATION_INDEX.md`

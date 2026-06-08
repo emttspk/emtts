@@ -1444,29 +1444,36 @@ export default function Upload() {
           </Card>
         ) : null}
 
-        <Card className="border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand/10 text-brand">
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <Card className="border-slate-200 bg-white p-0 shadow-sm sm:p-0 overflow-hidden">
+          <div className="bg-gradient-to-r from-slate-50 to-white border-b border-slate-200 px-5 py-5 sm:px-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand text-white shadow-md">
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              </div>
+              <div>
+                <CardTitle className="text-xl">Label Configuration</CardTitle>
+                <div className="mt-0.5 text-sm text-slate-500">Configure carrier, service, barcode, and output options.</div>
+              </div>
             </div>
-            <div>
-              <CardTitle className="text-lg">Label Configuration</CardTitle>
-              <div className="mt-0.5 text-sm text-slate-500">Configure carrier, service, barcode, and output options.</div>
+            <div className="mt-4 flex gap-1">
+              {["Step 1", "Step 2", "Step 3"].map((step, i) => (
+                <div key={step} className={`flex-1 h-1.5 rounded-full ${i === 0 ? "bg-brand" : i === 1 ? "bg-brand/40" : "bg-slate-200"}`} />
+              ))}
             </div>
           </div>
-          <div className="mt-5 space-y-5 text-sm text-gray-700">
+          <div className="px-5 py-5 sm:px-6 space-y-5 text-sm text-gray-700">
             <div className="grid gap-5 sm:grid-cols-2">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
                   Carrier Type
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => setCarrierType("pakistan_post")}
-                    className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition-all ${
-                      carrierType === "pakistan_post" ? "border-brand bg-brand text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                    className={`rounded-xl border px-5 py-2.5 text-sm font-semibold transition-all ${
+                      carrierType === "pakistan_post" ? "border-brand bg-brand text-white shadow-md" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm"
                     }`}
                   >
                     ePost.pk
@@ -1474,8 +1481,8 @@ export default function Upload() {
                   <button
                     type="button"
                     onClick={() => setCarrierType("courier")}
-                    className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition-all ${
-                      carrierType === "courier" ? "border-brand bg-brand text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                    className={`rounded-xl border px-5 py-2.5 text-sm font-semibold transition-all ${
+                      carrierType === "courier" ? "border-brand bg-brand text-white shadow-md" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm"
                     }`}
                   >
                     Courier
@@ -1483,17 +1490,17 @@ export default function Upload() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
                   Shipment Mode
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => setShipmentMode("single_service")}
-                    className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition-all ${
-                      shipmentMode === "single_service" ? "border-brand bg-brand text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                    className={`rounded-xl border px-5 py-2.5 text-sm font-semibold transition-all ${
+                      shipmentMode === "single_service" ? "border-brand bg-brand text-white shadow-md" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm"
                     }`}
                   >
                     Single Service
@@ -1501,22 +1508,22 @@ export default function Upload() {
                   <button
                     type="button"
                     onClick={() => setShipmentMode("mix_articles")}
-                    className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition-all ${
-                      shipmentMode === "mix_articles" ? "border-brand bg-brand text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                    className={`rounded-xl border px-5 py-2.5 text-sm font-semibold transition-all ${
+                      shipmentMode === "mix_articles" ? "border-brand bg-brand text-white shadow-md" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm"
                     }`}
                   >
                     Mix Services
                   </button>
                 </div>
-                <div className="mt-2 text-xs text-slate-500">Single Service uses selected type. Mix Services uses per-row shipment_type.</div>
+                <div className="mt-2 text-xs text-slate-500">Single Service uses selected type. Mix Services uses multi shipment.</div>
               </div>
             </div>
 
             {shipmentMode === "single_service" ? (
             <div className="grid gap-5 sm:grid-cols-2">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
                   Category
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -1529,8 +1536,8 @@ export default function Upload() {
                       key={c.id}
                       type="button"
                       onClick={() => setPpCategory(c.id as any)}
-                      className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition-all ${
-                        ppCategory === c.id ? "border-brand bg-brand text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                      className={`rounded-xl border px-5 py-2.5 text-sm font-semibold transition-all ${
+                        ppCategory === c.id ? "border-brand bg-brand text-white shadow-md" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm"
                       }`}
                     >
                       {c.label}
@@ -1556,7 +1563,7 @@ export default function Upload() {
                         key={t}
                         type="button"
                         onClick={() => setShipmentType(t)}
-                        className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition-all ${
+                        className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
                           shipmentType === t ? "border-brand bg-brand text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
                         }`}
                       >
@@ -1571,7 +1578,7 @@ export default function Upload() {
                         key={t}
                         type="button"
                         onClick={() => setShipmentType(t)}
-                        className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition-all ${
+                        className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
                           shipmentType === t ? "border-brand bg-brand text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
                         }`}
                       >
@@ -1586,7 +1593,7 @@ export default function Upload() {
                       key={t}
                       type="button"
                       onClick={() => setShipmentType(t)}
-                      className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition-all ${
+                      className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
                         shipmentType === t ? "border-brand bg-brand text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
                       }`}
                     >
@@ -1597,6 +1604,12 @@ export default function Upload() {
                 ) : (
                   <div className="mt-3 text-sm text-slate-500">Select a category.</div>
                 )}
+                {shipmentType && shipmentType !== "COURIER" ? (
+                  <div className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm">
+                    <span className="font-semibold text-slate-900">{shipmentType}</span>
+                    {shipmentType === "RGL" ? " — Registered Letter" : shipmentType === "IRL" ? " — Insured Letter" : shipmentType === "UMS" ? " — Urgent Mail Service" : shipmentType === "PAR" ? " — Parcel" : shipmentType === "VPL" ? " — Value Payable Letter" : shipmentType === "VPP" ? " — Value Payable Parcel" : shipmentType === "COD" ? " — Cash on Delivery" : ""}
+                  </div>
+                ) : null}
               </div>
             </div>
             ) : null}
@@ -1674,17 +1687,17 @@ export default function Upload() {
             </div>
 
             <div>
-              <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
+              <div className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
                 Output Mode
               </div>
-              <div className="grid min-w-0 grid-cols-1 gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white xl:grid-cols-2">
-                <div className="grid min-w-0 grid-cols-1 gap-2 border-b border-slate-200 p-4 sm:grid-cols-2 xl:border-b-0 xl:border-r">
+              <div className="grid min-w-0 grid-cols-1 gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm xl:grid-cols-2">
+                <div className="grid min-w-0 grid-cols-1 gap-2 border-b border-slate-200 p-5 sm:grid-cols-2 xl:border-b-0 xl:border-r">
                   {([
-                    { id: "envelope-9x4" as const, label: "Envelope 9x4", desc: "Dedicated 9 x 4 layout with right-side compact amount/barcode" },
-                    { id: "universal-9x4" as const, label: "Universal 9x4", desc: "Template-driven 9 x 4 layout for all shipment types" },
-                    { id: "box" as const, label: "Box Shipment (4 per A4)", desc: "4.1 x 5.8 inch, 2 x 2 grid on A4" },
-                    { id: "flyer" as const, label: "Flyer Label (8 per A4)", desc: "105 x 74 mm, 2 x 4 grid, compact layout" },
+                    { id: "envelope-9x4" as const, label: "Envelope 9x4", icon: "M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z", desc: "9 x 4 layout, compact amount and barcode" },
+                    { id: "universal-9x4" as const, label: "Universal 9x4", icon: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z", desc: "Template-driven 9 x 4 for all types" },
+                    { id: "box" as const, label: "Box Shipment", icon: "M4 8v12a2 2 0 002 2h12a2 2 0 002-2V8M4 8l6-4m-6 4h16M10 4l6 4", desc: "4 per A4, 2 x 2 grid, 4.1 x 5.8 inch" },
+                    { id: "flyer" as const, label: "Flyer Label", icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z", desc: "8 per A4, 2 x 4 grid, compact layout" },
                   ]).map((opt) => (
                     <button
                       key={opt.id}
@@ -1693,46 +1706,51 @@ export default function Upload() {
                         setHasManualOutputChoice(true);
                         setOutputMode(opt.id);
                       }}
-                      className={`flex flex-col items-start rounded-2xl border px-4 py-3 text-left transition-all ${
+                      className={`flex items-start gap-3 rounded-xl border px-4 py-3.5 text-left transition-all ${
                         outputMode === opt.id
-                          ? "border-brand bg-brand/10 ring-2 ring-brand/30"
-                          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 hover:shadow-sm"
+                          ? "border-brand bg-brand/10 ring-2 ring-brand/30 shadow-sm"
+                          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm"
                       }`}
                     >
-                      <span className={`text-sm font-semibold ${
-                        outputMode === opt.id ? "text-brand" : "text-gray-800"
+                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                        outputMode === opt.id ? "bg-brand text-white" : "bg-slate-100 text-slate-500"
                       }`}>
-                        {opt.label}
-                      </span>
-                      <span className="mt-0.5 text-xs text-gray-500">{opt.desc}</span>
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={opt.icon}/></svg>
+                      </div>
+                      <div className="min-w-0">
+                        <div className={`text-sm font-semibold ${outputMode === opt.id ? "text-brand" : "text-slate-900"}`}>{opt.label}</div>
+                        <div className="mt-0.5 text-xs text-slate-500">{opt.desc}</div>
+                      </div>
                     </button>
                   ))}
                 </div>
-                <div className="flex min-w-0 flex-col p-4">
-                  <div className="text-sm font-semibold text-slate-900">Preview</div>
-                  <div className="mt-1 text-xs text-slate-500">
+                <div className="flex min-w-0 flex-col p-5">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold text-slate-900">Preview</div>
+                    {previewSummary ? (
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">
+                        {previewMode === "envelope" ? `${previewSummary} record${previewSummary === 1 ? "" : "s"}` : `${previewSummary} page${previewSummary === 1 ? "" : "s"}`}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="mt-2 text-xs text-slate-500">
                     {previewMode === "labels"
                       ? "A4 preview with a 2 x 2 label grid."
                       : previewMode === "flyer"
                         ? "A4 preview with flyer labels."
                         : "Envelope preview shown here."}
                   </div>
-                  {previewSummary ? (
-                    <div className="mt-1 text-xs font-medium text-slate-500">
-                      {previewMode === "envelope" ? `${previewSummary} record${previewSummary === 1 ? "" : "s"} in preview` : `${previewSummary} page${previewSummary === 1 ? "" : "s"} in preview`}
-                    </div>
-                  ) : null}
-                  <div className="mt-3 flex-1 rounded-2xl border border-slate-200 bg-white p-2">
+                  <div className="mt-3 flex-1 rounded-xl border border-slate-200 bg-white p-2">
                     {!outputMode ? (
-                      <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-center text-sm text-slate-500">
+                      <div className="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-center text-sm text-slate-400">
                         Select an output mode to enable preview.
                       </div>
                     ) : previewLoading ? (
-                      <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-center text-sm text-slate-500">
+                      <div className="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-center text-sm text-slate-400">
                         Loading preview...
                       </div>
                     ) : previewError ? (
-                      <div className="rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{previewError}</div>
+                      <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{previewError}</div>
                     ) : previewHtml ? (
                       <div ref={previewViewportRef} className="w-full overflow-x-hidden overflow-y-auto" style={{ maxHeight: 360, minHeight: 160 }}>
                         <div className="flex justify-center py-1">
@@ -1760,7 +1778,7 @@ export default function Upload() {
                         </div>
                       </div>
                     ) : (
-                      <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-center text-sm text-slate-500">
+                      <div className="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-center text-sm text-slate-400">
                         Preview unavailable.
                       </div>
                     )}
@@ -1874,14 +1892,14 @@ export default function Upload() {
     </div>
 
         <div>
-        <Card className="border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <Card className="border-slate-200 bg-white p-0 shadow-sm sm:p-0 overflow-hidden">
+          <div className="bg-gradient-to-r from-brand/5 to-white border-b border-slate-200 px-5 py-5 sm:px-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-brand">
                 <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
                 Generate
               </div>
-              <div className="mt-1 text-lg font-bold text-slate-900">Ready to generate labels?</div>
+              <div className="mt-1 text-xl font-bold text-slate-900">Ready to generate labels?</div>
               <div className="mt-0.5 text-sm text-slate-500">All required inputs must be selected to proceed.</div>
               {!isReadyToGenerate ? (
                 <div className="mt-3">
@@ -1900,7 +1918,7 @@ export default function Upload() {
                 type="button"
                 onClick={startGenerate}
                 disabled={!isReadyToGenerate || uiState === "uploading" || uiState === "processing"}
-                className="rounded-2xl bg-brand px-8 py-3.5 text-sm font-bold text-white shadow-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px] w-full sm:w-auto transition-all active:scale-[0.98]"
+                className="rounded-xl bg-brand px-8 py-3.5 text-sm font-bold text-white shadow-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px] w-full sm:w-auto transition-all active:scale-[0.98]"
               >
                 {uiState === "uploading" || uiState === "processing" ? "Generating..." : "Generate Labels"}
               </button>
