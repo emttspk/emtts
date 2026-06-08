@@ -4130,3 +4130,17 @@ READY FOR PRODUCTION - All 3 critical fixes implemented and tested.
 - **Build**: passes
 - **Audit**: docs/audits/google-auth-final-simplification-2026-06-08.md
 
+## Phase 8: Google Auth No-Auth-Event Fix (2026-06-08)
+
+- **Root Cause**: Phase 7 forwarding from Login/Register to `/auth/callback` via React Router navigation consumed or lost the Firebase `getRedirectResult` auth event. `getRedirectResult` must be called on the same page Firebase returns to after the OAuth redirect.
+- **Fix**:
+  - Moved `waitForReadyCurrentUser` and new `processGoogleRedirect(auth)` into `googleAuth.ts` as shared helpers.
+  - Login.tsx and Register.tsx now call `processGoogleRedirect(auth)` directly in the `useEffect` without navigating to `/auth/callback` first.
+  - On success: `firebase-login` API → `setSession` → redirect to dashboard (all on the same page).
+  - On failure: show error message on same page, clear marker.
+  - Removed dead `buildGoogleAuthCallbackPath()` from `googleAuth.ts`.
+  - GoogleAuthCallback.tsx retained as fallback route only.
+- **Files changed**: `apps/web/src/lib/googleAuth.ts`, `apps/web/src/pages/Login.tsx`, `apps/web/src/pages/Register.tsx`
+- **Build**: passes
+- **Audit**: docs/audits/google-auth-no-auth-event-2026-06-08.md
+

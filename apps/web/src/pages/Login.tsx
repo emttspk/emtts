@@ -13,7 +13,7 @@ import { auth, firebaseReady } from "../firebase";
 import { getFriendlyFirebaseAuthMessage, shouldFallbackToApiLogin, shouldThrottle, shouldUseRedirectAuthFlow } from "../lib/firebaseAuthGuards";
 import { trackLogin } from "../lib/analytics";
 import SEO from "../components/SEO";
-import { clearGoogleAuthDebugStorage, clearGoogleRedirectStart, GOOGLE_REDIRECT_START_KEY, readGoogleRedirectStart, writeGoogleRedirectStart } from "../lib/googleAuth";
+import { clearGoogleAuthDebugStorage, clearGoogleRedirectStart, processGoogleRedirect, readGoogleRedirectStart, writeGoogleRedirectStart } from "../lib/googleAuth";
 
 const AUTH_ACTION_DEBOUNCE_MS = 1200;
 
@@ -25,10 +25,11 @@ export default function Login() {
   const [passwordLoginLoading, setPasswordLoginLoading] = useState(false);
   const [googleLoginLoading, setGoogleLoginLoading] = useState(false);
   const [postLoginRedirecting, setPostLoginRedirecting] = useState(false);
+  const [googleRedirectProcessing, setGoogleRedirectProcessing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const lastPasswordSubmitAtRef = useRef(0);
-  const loginOverlayVisible = passwordLoginLoading || googleLoginLoading || postLoginRedirecting;
+  const loginOverlayVisible = passwordLoginLoading || googleLoginLoading || postLoginRedirecting || googleRedirectProcessing;
 
   function finalizeLogin(token: string, role: string, refreshToken?: string, method = "password") {
     const sessionStartedAt = performance.now();
@@ -84,11 +85,46 @@ export default function Login() {
 
   useEffect(() => {
     const marker = readGoogleRedirectStart();
-    if (marker && marker.flow === "login") {
-      clearGoogleRedirectStart();
-      nav("/auth/callback?flow=login&next=%2Fdashboard", { replace: true });
-    }
-  }, [nav]);
+    if (!marker || marker.flow !== "login") return;
+
+    let cancelled = false;
+
+    void (async () => {
+      setGoogleRedirectProcessing(true);
+      try {
+        if (!auth) {
+          setErr("Google sign-in is not configured. Please contact support.");
+          clearGoogleRedirectStart();
+          return;
+        }
+
+        const result = await processGoogleRedirect(auth);
+        if (cancelled) return;
+
+        if (result) {
+          await loginWithFirebaseToken(result.idToken);
+          clearGoogleRedirectStart();
+          clearGoogleAuthDebugStorage();
+        } else {
+          setErr("Google sign-in could not be completed. Please try again.");
+          clearGoogleRedirectStart();
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setErr(getFriendlyFirebaseAuthMessage(error, "Google login failed"));
+          clearGoogleRedirectStart();
+        }
+      } finally {
+        if (!cancelled) {
+          setGoogleRedirectProcessing(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <>

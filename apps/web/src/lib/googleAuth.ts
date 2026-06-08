@@ -1,3 +1,4 @@
+import { getRedirectResult, onAuthStateChanged, type Auth, type User } from "firebase/auth";
 import { apiUrl } from "./api";
 
 export type GoogleAuthFlow = "login" | "register";
@@ -46,6 +47,59 @@ export function clearGoogleRedirectStart() {
   } catch {
     // Ignore storage failures.
   }
+}
+
+export async function waitForReadyCurrentUser(authInstance: Auth, maxWaitMs = 2500): Promise<User | null> {
+  const snapshot = authInstance.currentUser;
+  if (snapshot?.uid) return snapshot;
+
+  return await new Promise<User | null>((resolve) => {
+    let settled = false;
+    let timeoutId: ReturnType<typeof window.setTimeout> | null = null;
+    let unsubscribe = () => {};
+
+    const finish = (user: User | null) => {
+      if (settled) return;
+      settled = true;
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+      unsubscribe();
+      resolve(user?.uid ? user : null);
+    };
+
+    timeoutId = window.setTimeout(() => {
+      finish(authInstance.currentUser);
+    }, maxWaitMs);
+
+    unsubscribe = onAuthStateChanged(authInstance, (user) => {
+      if (user?.uid) {
+        finish(user);
+      }
+    });
+  });
+}
+
+export async function processGoogleRedirect(authInstance: Auth): Promise<{ user: User; idToken: string } | null> {
+  let result = null;
+  try {
+    result = await getRedirectResult(authInstance);
+  } catch {
+    // getRedirectResult may throw on some browsers; fall through to currentUser.
+  }
+
+  if (result) {
+    const idToken = await result.user.getIdToken();
+    return { user: result.user, idToken };
+  }
+
+  const currentUser = await waitForReadyCurrentUser(authInstance);
+  if (currentUser) {
+    const idToken = await currentUser.getIdToken(true);
+    return { user: currentUser, idToken };
+  }
+
+  return null;
 }
 
 export function getFlow(value: string | null): GoogleAuthFlow {
@@ -117,12 +171,6 @@ export function clearGoogleAuthDebugStorage() {
     // Ignore storage failures.
   }
   window.__GOOGLE_AUTH_DEBUG__ = undefined;
-}
-
-export function buildGoogleAuthCallbackPath(flow: GoogleAuthFlow, next = "/dashboard") {
-  const safeNext = normalizeNextPath(next);
-  const params = new URLSearchParams({ flow, next: safeNext });
-  return `/auth/callback?${params.toString()}`;
 }
 
 export function normalizeNextPath(next: string | null | undefined, fallback = "/dashboard") {
