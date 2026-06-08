@@ -53,7 +53,8 @@ export default function Register() {
   const [username, setUsername] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [emailRegisterLoading, setEmailRegisterLoading] = useState(false);
+  const [googleRegisterLoading, setGoogleRegisterLoading] = useState(false);
 
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
@@ -126,6 +127,7 @@ export default function Register() {
   }
 
   async function handleGoogleRegister() {
+    if (googleRegisterLoading || emailRegisterLoading) return;
     setErr(null);
     setNotice(null);
 
@@ -134,13 +136,13 @@ export default function Register() {
       return;
     }
 
-    clearStaleAuthStorage();
-    setLoading(true);
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
+    setGoogleRegisterLoading(true);
 
     try {
       const result = await signInWithPopup(auth, provider);
+      clearStaleAuthStorage();
       const idToken = await result.user.getIdToken();
       const data = await api<{ token: string; refreshToken?: string; user: { role: string }; onboardingRequired?: boolean }>("/api/auth/firebase-login", {
         method: "POST",
@@ -152,7 +154,7 @@ export default function Register() {
     } catch (error) {
       setErr(getPopupErrorMessage(error));
     } finally {
-      setLoading(false);
+      setGoogleRegisterLoading(false);
     }
   }
 
@@ -308,7 +310,7 @@ export default function Register() {
               return;
             }
 
-            setLoading(true);
+            setEmailRegisterLoading(true);
             try {
               const data = await api<{ token: string; refreshToken?: string; user: { role: string }; onboardingRequired?: boolean }>("/api/auth/register", {
                 method: "POST",
@@ -330,7 +332,7 @@ export default function Register() {
                     setResendCooldownUntil(Date.now() + RESEND_COOLDOWN_MS);
                     setPendingData(data);
                     setPendingVerification(true);
-                    setLoading(false);
+                    setEmailRegisterLoading(false);
                     return;
                   }
                   await signOut(auth);
@@ -340,7 +342,7 @@ export default function Register() {
                   setPendingData(data);
                   setPendingVerification(true);
                   setErr(message);
-                  setLoading(false);
+                  setEmailRegisterLoading(false);
                   return;
                 }
               }
@@ -349,7 +351,7 @@ export default function Register() {
             } catch (error) {
               setErr(getFriendlyFirebaseAuthMessage(error, "Registration failed"));
             } finally {
-              setLoading(false);
+              setEmailRegisterLoading(false);
             }
           }}
         >
@@ -401,11 +403,11 @@ export default function Register() {
             </label>
           </div>
 
-          <button disabled={loading} className="btn-primary w-full rounded-xl">
-            {loading ? "Creating account..." : "Continue"}
+          <button disabled={emailRegisterLoading || googleRegisterLoading} className="btn-primary w-full rounded-xl">
+            {emailRegisterLoading ? "Creating account..." : "Continue"}
           </button>
 
-          <GoogleAuthButton className="w-full" label="Sign up with Google" disabled={loading} loading={loading} onClick={handleGoogleRegister} />
+          <GoogleAuthButton className="w-full" label="Sign up with Google" disabled={googleRegisterLoading || emailRegisterLoading} loading={googleRegisterLoading} onClick={handleGoogleRegister} />
 
           <div className="flex items-center justify-between text-sm text-slate-500">
             <Link to={`/login${email ? `?email=${encodeURIComponent(email)}` : ""}`} className="font-semibold text-[#0b7f6d] transition hover:text-[#096658]">

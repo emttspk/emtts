@@ -74,19 +74,18 @@ export default function Login() {
       return;
     }
 
-    clearStaleAuthStorage();
-    setGoogleLoginLoading(true);
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
+    setGoogleLoginLoading(true);
 
     try {
       const result = await signInWithPopup(auth, provider);
+      clearStaleAuthStorage();
       const idToken = await result.user.getIdToken();
       await loginWithFirebaseToken(idToken);
     } catch (error) {
       const message = getPopupErrorMessage(error);
       setErr(message);
-      setPostLoginRedirecting(false);
     } finally {
       setGoogleLoginLoading(false);
     }
@@ -167,7 +166,6 @@ export default function Login() {
           } catch (error) {
             const errorMsg = getFriendlyFirebaseAuthMessage(error, error instanceof Error ? error.message : "Login failed");
             setErr(errorMsg);
-            setPostLoginRedirecting(false);
           } finally {
             setPasswordLoginLoading(false);
           }

@@ -1,5 +1,12 @@
 # AI Implementation Index
 
+## 2026-06-08 - Google Signup UX + Popup Delay Fix
+- **Register.tsx:** Split shared `loading` state into `emailRegisterLoading` + `googleRegisterLoading`. Continue button shows "Creating account..." only during email register; Google button shows "Please wait..." only during Google signup. No more cross-contamination.
+- **Login.tsx:** Removed stale `setPostLoginRedirecting(false)` calls (state was removed in earlier cleanup — would throw `ReferenceError` on failed login).
+- **Popup delay fix:** Both pages now call `signInWithPopup(auth, provider)` in the same synchronous tick as the click handler — no more pre-popup storage cleanup or unnecessary `await` before the popup. `clearStaleAuthStorage()` moved to after popup returns.
+- Build: `npm run build` PASS.
+- Created audit documentation at `docs/audits/google-popup-ux-delay-2026-06-08.md`.
+
 ## 2026-06-08 - Login Regression Recovery
 - **URGENT FIX:** Commit `8664681` accidentally removed 5 critical imports from `Login.tsx` alongside `LoadingOverlay`: `setSession`, `AuthShell`, `GoogleAuthButton`, `AuthInputField`, `logDevTiming`.
 - All login pages crashed with `AppErrorBoundary` "We hit a loading problem".
