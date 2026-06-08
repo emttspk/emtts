@@ -184,6 +184,10 @@ if (!rawJwtSecret || rawJwtSecret.length < 32 || rawJwtSecret === DEFAULT_JWT_SE
   process.env.JWT_SECRET = DEFAULT_JWT_SECRET;
 }
 
+const jwtSecretForDiag = process.env.JWT_SECRET ?? "";
+console.log(`[CONFIG] JWT_SECRET_PRESENT=${jwtSecretForDiag.length > 0}`);
+console.log(`[CONFIG] JWT_SECRET_LENGTH=${jwtSecretForDiag.length}`);
+
 const envSchema = z.object({
   NODE_ENV: z.string().default("development"),
   PORT: z.coerce.number().default(3000),

@@ -1,5 +1,13 @@
 # AI Implementation Index
 
+## 2026-06-08 - Worker Startup Recovery Audit
+- Verified Worker Railway environment variables against API for JWT_SECRET production guard compatibility.
+- Added startup diagnostic logs: `[CONFIG] JWT_SECRET_PRESENT=true`, `[CONFIG] JWT_SECRET_LENGTH=xx` in `apps/api/src/config.ts`.
+- Confirmed Worker JWT_SECRET = 118 chars (≥ 32), not the default secret → Worker will NOT crash after deploy.
+- Identified minor configuration drift: `WEB_ORIGIN` placeholder in Worker (non-critical, queue processor doesn't serve HTTP).
+- Created audit documentation at `docs/audits/worker-startup-recovery-2026-06-08.md`.
+- Build check: `npm run build` PASS.
+
 ## 2026-06-08 - Security Hardening Sprint
 - **P1: JWT_SECRET Blocker** — `apps/api/src/config.ts` now fails production startup with `process.exit(1)` if `JWT_SECRET` is missing, < 32 chars, or equals the development default fallback. Development mode may continue using the fallback.
 - **P2: Redis Rate Limiting** — `apps/api/src/auth/security.ts` moved `rateLimitByIp`, `failedAttemptByIdentity`, and `loginHistoryByUser` from in-memory Maps to Redis with TTL keys (`auth:ratelimit:*`, `auth:failed:*`, `auth:history:*`). In-memory fallback preserved when Redis is unavailable. All callers in `apps/api/src/routes/auth.ts` updated to `await` the now-async exports.
