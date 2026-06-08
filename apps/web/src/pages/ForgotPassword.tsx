@@ -26,11 +26,11 @@ export default function ForgotPassword() {
 
           setLoading(true);
           try {
-            await api<{ success: boolean; message: string }>("/api/auth/forgot-password", {
+            const data = await api<{ success: boolean; message: string }>("/api/auth/forgot-password", {
               method: "POST",
               body: JSON.stringify({ email: email.trim().toLowerCase() }),
             });
-            setNotice("If this account exists, a password reset email has been sent.");
+            setNotice(data.message);
           } catch (err) {
             const message = getFriendlyFirebaseAuthMessage(err, err instanceof Error ? err.message : "Failed to send password reset email");
             setError(message);

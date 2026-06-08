@@ -599,7 +599,7 @@ authRouter.post("/forgot-password", async (req, res) => {
     }
     auditAuthEvent("auth.forgot_password.requested", req, { email, userFound: !!user });
     auditAuthMetric(req, "password_reset_request", { email, userFound: !!user });
-    return res.json({ success: true, message: "If this account exists, a password reset email has been sent." });
+    return res.json({ success: true, message: "If the email address is registered, a password reset email has been sent. Please check your inbox and spam folder." });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     auditAuthEvent("auth.forgot_password.failed", req, { email, message });

@@ -1,5 +1,14 @@
 # AI Implementation Index
 
+## 2026-06-08 - Password Reset Message Update
+- Updated forgot-password success message to be more user-friendly while maintaining security protection.
+- Frontend now uses API response message for consistency.
+- Changed from "If this account exists..." to "If the email address is registered, a password reset email has been sent. Please check your inbox and spam folder."
+- Identical response for registered and unregistered emails (no user discovery).
+- Files changed: `apps/web/src/pages/ForgotPassword.tsx`, `apps/api/src/routes/auth.ts`
+- Build check: `npm run build` PASS (both apps).
+- Created audit documentation at `docs/audits/password-reset-message-update-2026-06-08.md`.
+
 ## 2026-06-08 - Firebase Auth Argument Error Root Cause Fix (v2)
 - Root cause identified: `indexedDBLocalPersistence` is incompatible with `initializeAuth()` in Firebase v12.
 - Changed persistence from `indexedDBLocalPersistence` to `browserLocalPersistence` in `apps/web/src/firebase.ts`.
