@@ -1523,14 +1523,14 @@ export default function Upload() {
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
                   Category
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {[
-                    { id: "general_post", label: "General" },
-                    { id: "value_payable", label: "Value Payable" },
-                    { id: "cod_articles", label: "COD" },
+                    { id: "general_post", label: "General", icon: "M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" },
+                    { id: "value_payable", label: "Value Payable", icon: "M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" },
+                    { id: "cod_articles", label: "COD", icon: "M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" },
                   ].map((c) => (
                     <button
                       key={c.id}
@@ -1540,6 +1540,7 @@ export default function Upload() {
                         ppCategory === c.id ? "border-brand bg-brand text-white shadow-md" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm"
                       }`}
                     >
+                      <svg className="-ml-1 mr-1.5 h-3.5 w-3.5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={c.icon}/></svg>
                       {c.label}
                     </button>
                   ))}
@@ -1653,12 +1654,13 @@ export default function Upload() {
 
               <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                   Money Orders
                 </div>
                 {eligibleForMoneyOrder ? (
-                  <div className="mt-3 space-y-2">
+                  <div className="mt-3 space-y-3">
                     <div className="text-sm text-slate-500">VPL/VPP include commission. COD has no commission.</div>
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">Standard unit consumption will apply for money order generation.</div>
                     {shipmentMode === "mix_articles" ? (
                       <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">
                         MO generated only for VPL, VPP, COD rows. Eligible: {uploadInsights?.moneyOrderEligibleRows ?? 0}. Ineligible: {uploadInsights?.moneyOrderIneligibleRows ?? 0}.
@@ -1695,9 +1697,9 @@ export default function Upload() {
                 <div className="grid min-w-0 grid-cols-1 gap-2 border-b border-slate-200 p-5 sm:grid-cols-2 xl:border-b-0 xl:border-r">
                   {([
                     { id: "envelope-9x4" as const, label: "Envelope 9x4", icon: "M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z", desc: "9 x 4 layout, compact amount and barcode" },
-                    { id: "universal-9x4" as const, label: "Universal 9x4", icon: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z", desc: "Template-driven 9 x 4 for all types" },
-                    { id: "box" as const, label: "Box Shipment", icon: "M4 8v12a2 2 0 002 2h12a2 2 0 002-2V8M4 8l6-4m-6 4h16M10 4l6 4", desc: "4 per A4, 2 x 2 grid, 4.1 x 5.8 inch" },
-                    { id: "flyer" as const, label: "Flyer Label", icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z", desc: "8 per A4, 2 x 4 grid, compact layout" },
+                    { id: "universal-9x4" as const, label: "Universal 9x4", icon: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z M14 2v6h6", desc: "Template-driven 9 x 4 for all types" },
+                    { id: "box" as const, label: "Box Shipment", icon: "M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z", desc: "4 per A4, 2 x 2 grid, 4.1 x 5.8 inch" },
+                    { id: "flyer" as const, label: "Flyer Label", icon: "M4 4h16v16H4z M4 9h16 M9 4v16", desc: "8 per A4, 2 x 4 grid, compact layout" },
                   ]).map((opt) => (
                     <button
                       key={opt.id}

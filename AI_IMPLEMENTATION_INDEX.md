@@ -4267,3 +4267,13 @@ READY FOR PRODUCTION - All 3 critical fixes implemented and tested.
 - **F. Responsive**: Cards use responsive grids. No overflow or clipped content.
 - **G. Build**: `npm run build` PASS
 - **Files changed**: `apps/web/src/components/AppShell.tsx`, `apps/web/src/pages/Upload.tsx`, `AI_IMPLEMENTATION_INDEX.md`
+
+## 2026-06-08 - Default Precheck + Service Icons + Money Order Warning + Premium UI Polish
+- **A. Default precheck**: Carrier Type defaults to ePost.pk, Category to General, Shipment Type to PAR, Barcode Mode to Auto Generate, Output Mode to Box Shipment. Page loads with active selections, no blank/inactive form.
+- **B. Carrier icons**: ePost.pk button has parcel label icon, Courier button has delivery van icon. Category buttons have contextual icons (parcel box for General, dollar for Value Payable/COD).
+- **C. Output mode icons**: Envelope 9x4 uses envelope icon, Universal 9x4 uses document icon with plus, Box uses parcel box icon, Flyer uses grid icon.
+- **D. Money order warning**: Added permanent amber warning "Standard unit consumption will apply for money order generation." visible when money orders are enabled.
+- **E. Shipment type descriptions**: Pre-existing cards show RGL → Registered Letter, IRL → Insured Letter, UMS → Urgent Mail Service, PAR → Parcel, VPL → Value Payable Letter, VPP → Value Payable Parcel, COD → Cash on Delivery. (from previous session, preserved)
+- **F. Shipment mode text**: Already updated to "multi shipment" phrasing (from previous session, preserved).
+- **G. Build**: `npm run build` PASS
+- **Files changed**: `apps/web/src/pages/Upload.tsx`, `AI_IMPLEMENTATION_INDEX.md`
