@@ -268,9 +268,9 @@ export default function Upload() {
   const uploadWorkflowSteps = [
     { label: "Upload", detail: "Choose the CSV, XLS, or XLSX file." },
     { label: "Validate", detail: "Check rows, service types, and limits." },
-    { label: "Process", detail: "Create the job and hand it to the worker." },
     { label: "Generate", detail: "Build labels and tracking outputs." },
-    { label: "Complete", detail: "Download the finished files." },
+    { label: "Download", detail: "Get the finished files." },
+    { label: "Complete", detail: "Job is done." },
   ];
   useEffect(() => {
     fetchServiceCatalog().then((services) => setServiceCatalog(services)).catch(() => undefined);
@@ -1387,22 +1387,6 @@ export default function Upload() {
     <PageShell className="space-y-4">
     <div className="grid grid-cols-1 gap-3">
       <div className="min-w-0 w-full space-y-3">
-        <Card className="border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">ePost.pk Generation Flow</div>
-          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            {[
-              { step: "Step 1", title: "Upload file" },
-              { step: "Step 2", title: "Check validation" },
-              { step: "Step 3", title: "Generate labels/MO" },
-              { step: "Step 4", title: "Download output" },
-            ].map((item) => (
-              <div key={item.step} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">{item.step}</div>
-                <div className="mt-1 text-sm font-semibold text-slate-900">{item.title}</div>
-              </div>
-            ))}
-          </div>
-        </Card>
 
         <div className="grid grid-cols-1 gap-3">
           <div className="space-y-3 min-w-0 w-full">
@@ -1431,8 +1415,6 @@ export default function Upload() {
           progress={progress}
           error={uiError}
           busy={uiState === "uploading" || uiState === "processing"}
-          workflowSteps={uploadWorkflowSteps}
-          activeStepIndex={uploadWorkflowIndex}
         />
 
         {uploadInsights ? (
@@ -1462,185 +1444,242 @@ export default function Upload() {
           </Card>
         ) : null}
 
-        <Card className="border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-          <CardTitle>Generate Labels</CardTitle>
-          <div className="mt-0.5 text-sm font-normal text-slate-500">Actions consume units.</div>
-          <div className="mt-3 space-y-4 text-sm text-gray-700">
-            <div>
-              <div className="font-medium text-gray-900">1) Carrier Type</div>
-              <div className="mt-2 flex flex-wrap gap-3">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="carrierType"
-                    checked={carrierType === "pakistan_post"}
-                    onChange={() => setCarrierType("pakistan_post")}
-                    className="h-4 w-4 border-gray-300 text-brand focus:ring-brand"
-                  />
-                  ePost.pk
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="carrierType"
-                    checked={carrierType === "courier"}
-                    onChange={() => setCarrierType("courier")}
-                    className="h-4 w-4 border-gray-300 text-brand focus:ring-brand"
-                  />
-                  Courier
-                </label>
-              </div>
+        <Card className="border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-brand/10 text-brand">
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             </div>
-
             <div>
-              <div className="font-medium text-gray-900">2) Shipment Mode</div>
-              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => setShipmentMode("single_service")}
-                  className={`rounded-2xl border px-3 py-2 text-sm font-medium ${
-                    shipmentMode === "single_service" ? "border-brand bg-brand/10 text-brand" : "bg-white text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  Single Service
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShipmentMode("mix_articles")}
-                  className={`rounded-2xl border px-3 py-2 text-sm font-medium ${
-                    shipmentMode === "mix_articles" ? "border-brand bg-brand/10 text-brand" : "bg-white text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  Mix Services
-                </button>
-              </div>
-              <div className="mt-2 text-xs text-gray-600">Single Service uses selected shipment type. Mix Services uses row shipment_type.</div>
+              <CardTitle className="text-lg">Label Configuration</CardTitle>
+              <div className="mt-0.5 text-sm text-slate-500">Configure carrier, service, barcode, and output options.</div>
             </div>
-
-            {shipmentMode === "single_service" ? (
-            <div>
-              <div className="font-medium text-gray-900">3) Category</div>
-              <div className="mt-2 text-sm text-gray-600">Used to preset shipment options.</div>
-              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                {[
-                  { id: "general_post", label: "General" },
-                  { id: "value_payable", label: "Value Payable" },
-                  { id: "cod_articles", label: "COD" },
-                ].map((c) => (
+          </div>
+          <div className="mt-5 space-y-5 text-sm text-gray-700">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
+                  Carrier Type
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
                   <button
-                    key={c.id}
                     type="button"
-                    onClick={() => setPpCategory(c.id as any)}
-                    className={`rounded-2xl border px-3 py-2 text-sm font-medium ${
-                      ppCategory === c.id ? "border-brand bg-brand/10 text-brand" : "bg-white text-gray-700 hover:bg-gray-50"
+                    onClick={() => setCarrierType("pakistan_post")}
+                    className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition-all ${
+                      carrierType === "pakistan_post" ? "border-brand bg-brand text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
                     }`}
                   >
-                    {c.label}
+                    ePost.pk
                   </button>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => setCarrierType("courier")}
+                    className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition-all ${
+                      carrierType === "courier" ? "border-brand bg-brand text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    Courier
+                  </button>
                 </div>
               </div>
-            ) : null}
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
+                  Shipment Mode
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShipmentMode("single_service")}
+                    className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition-all ${
+                      shipmentMode === "single_service" ? "border-brand bg-brand text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    Single Service
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShipmentMode("mix_articles")}
+                    className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition-all ${
+                      shipmentMode === "mix_articles" ? "border-brand bg-brand text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    Mix Services
+                  </button>
+                </div>
+                <div className="mt-2 text-xs text-slate-500">Single Service uses selected type. Mix Services uses per-row shipment_type.</div>
+              </div>
+            </div>
 
             {shipmentMode === "single_service" ? (
-            <div>
-              <div className="font-medium text-gray-900">4) Shipment Type</div>
-              {carrierType === "courier" ? (
-                <div className="mt-2 text-sm text-gray-600">Courier selected (shipment type not required).</div>
-              ) : carrierType !== "pakistan_post" ? (
-                <div className="mt-2 text-sm text-gray-600">Select a carrier first.</div>
-              ) : ppCategory === "general_post" ? (
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  {(generalServices as string[]).map((t) => (
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                  Category
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {[
+                    { id: "general_post", label: "General" },
+                    { id: "value_payable", label: "Value Payable" },
+                    { id: "cod_articles", label: "COD" },
+                  ].map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setPpCategory(c.id as any)}
+                      className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition-all ${
+                        ppCategory === c.id ? "border-brand bg-brand text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                      }`}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-2 text-xs text-slate-500">Presets shipment options.</div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  Shipment Type
+                </div>
+                {carrierType === "courier" ? (
+                  <div className="mt-3 text-sm text-slate-500">Courier selected (shipment type not required).</div>
+                ) : carrierType !== "pakistan_post" ? (
+                  <div className="mt-3 text-sm text-slate-500">Select a carrier first.</div>
+                ) : ppCategory === "general_post" ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {(generalServices as string[]).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setShipmentType(t)}
+                        className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition-all ${
+                          shipmentType === t ? "border-brand bg-brand text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                ) : ppCategory === "value_payable" ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {(valuePayableServices as string[]).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setShipmentType(t)}
+                        className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition-all ${
+                          shipmentType === t ? "border-brand bg-brand text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                ) : ppCategory === "cod_articles" ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {(codServices as string[]).map((t) => (
                     <button
                       key={t}
                       type="button"
                       onClick={() => setShipmentType(t)}
-                      className={`rounded-2xl border px-3 py-2 text-sm font-medium ${
-                        shipmentType === t ? "border-brand bg-brand/10 text-brand" : "bg-white text-gray-700 hover:bg-gray-50"
+                      className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition-all ${
+                        shipmentType === t ? "border-brand bg-brand text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
                       }`}
                     >
                       {t}
                     </button>
-                  ))}
-                </div>
-              ) : ppCategory === "value_payable" ? (
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  {(valuePayableServices as string[]).map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setShipmentType(t)}
-                      className={`rounded-2xl border px-3 py-2 text-sm font-medium ${
-                        shipmentType === t ? "border-brand bg-brand/10 text-brand" : "bg-white text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              ) : ppCategory === "cod_articles" ? (
-                <div className="mt-2">
-                  {(codServices as string[]).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setShipmentType(t)}
-                    className={`rounded-2xl border px-3 py-2 text-sm font-medium ${
-                      shipmentType === t ? "border-brand bg-brand/10 text-brand" : "bg-white text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    {t}
-                  </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="mt-2 text-sm text-gray-600">Select a category.</div>
-              )}
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-3 text-sm text-slate-500">Select a category.</div>
+                )}
+              </div>
             </div>
             ) : null}
 
-            <div>
-              <div className="font-medium text-gray-900">5) Barcode Mode</div>
-              <div className="mt-2 flex flex-wrap gap-3">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="barcodeMode"
-                    checked={barcodeMode === "manual"}
-                    onChange={() => setBarcodeMode("manual")}
-                    className="h-4 w-4 border-gray-300 text-brand focus:ring-brand"
-                  />
-                  Manual (from file)
-                </label>
-                <label className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="barcodeMode"
-                    checked={barcodeMode === "auto"}
-                    onChange={() => setBarcodeMode("auto")}
-                    className="h-4 w-4 border-gray-300 text-brand focus:ring-brand"
-                  />
-                  Auto Generate
-                </label>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/></svg>
+                  Barcode Mode
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBarcodeMode("manual")}
+                    className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition-all ${
+                      barcodeMode === "manual" ? "border-brand bg-brand text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    Manual (from file)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBarcodeMode("auto")}
+                    className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition-all ${
+                      barcodeMode === "auto" ? "border-brand bg-brand text-white shadow-sm" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    Auto Generate
+                  </button>
+                </div>
+                {shipmentMode === "mix_articles" ? (
+                  <div className="mt-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800">
+                    <span className="font-semibold">Hybrid mode:</span> Valid tracking IDs kept. Missing IDs auto-generated.
+                  </div>
+                ) : barcodeMode === "auto" ? (
+                  <div className="mt-2 rounded-xl border border-brand/20 bg-brand/10 px-3 py-2 text-xs text-brand">
+                    <span className="font-semibold">Auto Generate:</span> Valid tracking IDs preserved; missing IDs generated.
+                  </div>
+                ) : null}
               </div>
-              {shipmentMode === "mix_articles" ? (
-                <div className="mt-2 rounded-2xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800">
-                  <div className="font-semibold">Mix Services runs in hybrid mode.</div>
-                  <div className="mt-1">Valid tracking IDs are kept.</div>
-                  <div>Missing IDs are auto-generated.</div>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                  Money Orders
                 </div>
-              ) : barcodeMode === "auto" ? (
-                <div className="mt-2 rounded-2xl border border-brand/20 bg-brand/10 px-3 py-2 text-xs text-brand">
-                  <span className="font-semibold">Auto Generate Tracking ID / Barcode:</span> Uploaded tracking IDs are preserved when valid; missing tracking IDs are generated.
-                </div>
-              ) : null}
+                {eligibleForMoneyOrder ? (
+                  <div className="mt-3 space-y-2">
+                    <div className="text-sm text-slate-500">VPL/VPP include commission. COD has no commission.</div>
+                    {shipmentMode === "mix_articles" ? (
+                      <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">
+                        MO generated only for VPL, VPP, COD rows. Eligible: {uploadInsights?.moneyOrderEligibleRows ?? 0}. Ineligible: {uploadInsights?.moneyOrderIneligibleRows ?? 0}.
+                      </div>
+                    ) : null}
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={includeMoneyOrders}
+                        onChange={(e) => {
+                          setIncludeMoneyOrders(e.target.checked);
+                          if (e.target.checked) setShowMoUnitNotice(true);
+                        }}
+                        className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
+                      />
+                      Generate Money Order PDF
+                    </label>
+                    {showMoUnitNotice && includeMoneyOrders ? (
+                      <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">Standard unit consumption will be applied.</div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="mt-3 text-sm text-slate-500">Select VPL, VPP, or COD to enable money orders.</div>
+                )}
+              </div>
             </div>
 
             <div>
-              <div className="font-medium text-gray-900">6) Output Mode</div>
-              <div className="mt-3 grid min-w-0 grid-cols-1 gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white xl:grid-cols-2">
-                <div className="grid min-w-0 grid-cols-1 gap-2 border-b border-slate-200 p-3 sm:grid-cols-2 xl:border-b-0 xl:border-r">
+              <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
+                Output Mode
+              </div>
+              <div className="grid min-w-0 grid-cols-1 gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white xl:grid-cols-2">
+                <div className="grid min-w-0 grid-cols-1 gap-2 border-b border-slate-200 p-4 sm:grid-cols-2 xl:border-b-0 xl:border-r">
                   {([
                     { id: "envelope-9x4" as const, label: "Envelope 9x4", desc: "Dedicated 9 x 4 layout with right-side compact amount/barcode" },
                     { id: "universal-9x4" as const, label: "Universal 9x4", desc: "Template-driven 9 x 4 layout for all shipment types" },
@@ -1654,10 +1693,10 @@ export default function Upload() {
                         setHasManualOutputChoice(true);
                         setOutputMode(opt.id);
                       }}
-                      className={`flex flex-col items-start rounded-2xl border px-4 py-3 text-left transition-colors ${
+                      className={`flex flex-col items-start rounded-2xl border px-4 py-3 text-left transition-all ${
                         outputMode === opt.id
-                          ? "border-brand bg-brand/10 ring-1 ring-brand/30"
-                          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+                          ? "border-brand bg-brand/10 ring-2 ring-brand/30"
+                          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 hover:shadow-sm"
                       }`}
                     >
                       <span className={`text-sm font-semibold ${
@@ -1669,9 +1708,9 @@ export default function Upload() {
                     </button>
                   ))}
                 </div>
-                <div className="flex min-w-0 flex-col p-3">
+                <div className="flex min-w-0 flex-col p-4">
                   <div className="text-sm font-semibold text-slate-900">Preview</div>
-                  <div className="mt-1 text-xs text-slate-600">
+                  <div className="mt-1 text-xs text-slate-500">
                     {previewMode === "labels"
                       ? "A4 preview with a 2 x 2 label grid."
                       : previewMode === "flyer"
@@ -1679,17 +1718,17 @@ export default function Upload() {
                         : "Envelope preview shown here."}
                   </div>
                   {previewSummary ? (
-                    <div className="mt-2 text-xs font-medium text-slate-500">
+                    <div className="mt-1 text-xs font-medium text-slate-500">
                       {previewMode === "envelope" ? `${previewSummary} record${previewSummary === 1 ? "" : "s"} in preview` : `${previewSummary} page${previewSummary === 1 ? "" : "s"} in preview`}
                     </div>
                   ) : null}
-                  <div className="mt-3 flex-1 rounded-2xl border border-slate-300 bg-white p-2">
+                  <div className="mt-3 flex-1 rounded-2xl border border-slate-200 bg-white p-2">
                     {!outputMode ? (
-                      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-center text-sm text-slate-600">
+                      <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-center text-sm text-slate-500">
                         Select an output mode to enable preview.
                       </div>
                     ) : previewLoading ? (
-                      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-center text-sm text-slate-600">
+                      <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-center text-sm text-slate-500">
                         Loading preview...
                       </div>
                     ) : previewError ? (
@@ -1721,7 +1760,7 @@ export default function Upload() {
                         </div>
                       </div>
                     ) : (
-                      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-center text-sm text-slate-600">
+                      <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-center text-sm text-slate-500">
                         Preview unavailable.
                       </div>
                     )}
@@ -1831,90 +1870,41 @@ export default function Upload() {
           </Card>
         ) : null}
 
-        {eligibleForMoneyOrder ? (
-          <Card className="border-slate-200 bg-white p-5 shadow-sm">
-            <CardTitle>Generate Money Orders</CardTitle>
-            <div className="mt-0.5 text-sm font-normal text-slate-500">All actions consume units based on usage.</div>
-            <div className="mt-2 text-sm text-gray-600">
-                VPL/VPP include commission. COD has no commission.
-            </div>
-            {shipmentMode === "mix_articles" ? (
-              <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                    Mix Services mode: money orders are generated only for VPL, VPP, and COD rows.
-                {uploadInsights ? ` Eligible rows: ${uploadInsights.moneyOrderEligibleRows}. Ineligible rows: ${uploadInsights.moneyOrderIneligibleRows}.` : ""}
-              </div>
-            ) : null}
-            <label className="mt-4 flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={includeMoneyOrders}
-                onChange={(e) => {
-                  setIncludeMoneyOrders(e.target.checked);
-                  if (e.target.checked) {
-                    setShowMoUnitNotice(true);
-                  }
-                }}
-                className="h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand"
-              />
-              Generate Money Order PDF
-            </label>
-            {showMoUnitNotice && includeMoneyOrders ? (
-              <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                Standard unit consumption will be applied for this action.
-              </div>
-            ) : null}
-          </Card>
-        ) : null}
-
-        <Card className="border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-          <CardTitle>Track Parcel</CardTitle>
-          <div className="mt-0.5 text-sm font-normal text-slate-500">All actions consume units based on usage.</div>
-          <div className="mt-2 text-sm text-gray-600">Tracking file is generated with completed jobs. Use Tracking page to upload or process tracking updates.</div>
-          <div className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-            Tracking Master.xlsx is generated with every completed job.
-          </div>
-          <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-            <div className="font-semibold text-slate-800">Recommended workflow:</div>
-            <div className="mt-1">1. Generate labels and tracking IDs from validated upload rows.</div>
-            <div>2. Export and retain the generated Tracking Master.xlsx.</div>
-            <div>3. Use Track Parcel for delivery status updates and complaint submissions.</div>
-            <div>4. Use the same export for settlement and reconciliation checks.</div>
-          </div>
-        </Card>
-
-          </div>
-        </div>
+      </div>
+    </div>
 
         <div>
-        <Card className="border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <CardTitle className="text-xl">Generate Labels</CardTitle>
-              <div className="mt-1 text-sm text-gray-600">
-                Button is visible only when all required inputs are selected.
+        <Card className="border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+                Generate
               </div>
+              <div className="mt-1 text-lg font-bold text-slate-900">Ready to generate labels?</div>
+              <div className="mt-0.5 text-sm text-slate-500">All required inputs must be selected to proceed.</div>
               {!isReadyToGenerate ? (
-                <div className="mt-3 text-sm text-gray-700">
-                  <div className="font-medium">Missing:</div>
-                  <ul className="mt-1 list-disc pl-5 text-gray-600">
+                <div className="mt-3">
+                  <div className="text-xs font-semibold text-amber-700">Missing configuration:</div>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
                     {missing.map((x) => (
-                      <li key={x}>{x}</li>
+                      <span key={x} className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-800">{x}</span>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               ) : null}
             </div>
 
-            <div className="flex w-full flex-col items-stretch gap-2 sm:w-auto sm:items-end">
+            <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
               <button
                 type="button"
                 onClick={startGenerate}
                 disabled={!isReadyToGenerate || uiState === "uploading" || uiState === "processing"}
-                className="rounded-2xl bg-brand px-6 py-3 text-sm font-semibold text-white shadow-md hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] w-full sm:w-auto"
+                className="rounded-2xl bg-brand px-8 py-3.5 text-sm font-bold text-white shadow-lg hover:bg-brand-dark disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px] w-full sm:w-auto transition-all active:scale-[0.98]"
               >
-                Generate Labels
+                {uiState === "uploading" || uiState === "processing" ? "Generating..." : "Generate Labels"}
               </button>
-              <div className="text-xs text-gray-600">{normalizedStatusLabel}</div>
+              <div className="text-xs text-slate-500">{normalizedStatusLabel}</div>
               {showStillWorkingNotice ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                   Large files may take a little longer. Please keep this tab open.
@@ -1925,12 +1915,12 @@ export default function Upload() {
                   type="button"
                   onClick={() => void checkCurrentJobStatus()}
                   disabled={statusCheckBusy || !polling.jobId}
-                  className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {statusCheckBusy ? "Checking status..." : "Check status"}
                 </button>
               ) : null}
-              {statusCheckMessage ? <div className="text-xs text-slate-600">{statusCheckMessage}</div> : null}
+              {statusCheckMessage ? <div className="text-xs text-slate-500">{statusCheckMessage}</div> : null}
               {uiError ? <div className="text-xs font-medium text-red-600">{uiError}</div> : null}
             </div>
           </div>
@@ -2099,14 +2089,6 @@ export default function Upload() {
                   {completionAction === "tracking-master" ? "Preparing Tracking Master.xlsx..." : "Tracking Master.xlsx"}
                 </button>
               ) : null}
-              <button
-                type="button"
-                onClick={() => void runCompletionAction("tracking-workspace")}
-                disabled={completionButtonsDisabled}
-                className="rounded-[1.4rem] bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-md hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {completionAction === "tracking-workspace" ? "Opening..." : "Track These Shipments"}
-              </button>
             </div>
           </div>
         </div>

@@ -4247,3 +4247,13 @@ READY FOR PRODUCTION - All 3 critical fixes implemented and tested.
 - **F. Weight Field**: Added weight to Universal 9x4 (`productDetailsWithWeight` in tokenMap), Envelope (`productDetailsWithWeight` in valueMap). Box/Flyer already had weight.
 - **G. Build**: `npm run build` PASS
 - **Files changed**: `apps/api/src/templates/labels.ts`, `multipage-label.html`, `apps/api/src/templates/multipage-label.html`, `AI_IMPLEMENTATION_INDEX.md`
+
+## 2026-06-08 - Generate Labels Page: Duplicate UI Removal + Premium Redesign
+- **A. Duplicate progress UI removed**: Eliminated the duplicate 4-step generation flow card at top of page. Removed redundant ProcessStepper from UploadDropzone. Simplified LabelGenerationProgressCard to remove 7-stage timeline grid and 3rd stats card. Single ProcessStepper now shows 5-step workflow (Upload, Validate, Generate, Download, Complete).
+- **B. Duplicate loading windows removed**: Single processing overlay with streamlined ProgressCard. No secondary status popups. Completion overlay is single source of truth for downloads.
+- **C. Generation flow simplified**: Backend 7 internal stages (uploading_file, validating_records, creating_job, queued, generating_labels, preparing_download, completed) remain internal. UI now shows only 5 steps: Upload, Validate, Generate, Download, Complete.
+- **D. Track Parcel section removed**: Entire Track Parcel card removed from Upload.tsx. "Track These Shipments" button removed from completion overlay. Tracking redirect stays in navigation, but no tracking UI on generate page.
+- **E. Premium UI redesign**: Card-based wizard layout replaces form-like configuration. Carrier, Shipment Mode, Category, Shipment Type, Barcode Mode, Money Orders grouped into bordered panels with SVG icons. Active options use filled brand color. Output mode uses card selection. Generate button section redesigned with status badges. Cleaner spacing and typography throughout.
+- **F. Responsive**: Cards use responsive grid (sm:grid-cols-2) for desktop/tablet, stack on mobile. No overflow or clipped content.
+- **G. Build**: `npm run build` PASS
+- **Files changed**: `apps/web/src/pages/Upload.tsx`, `apps/web/src/components/LabelGenerationProgressCard.tsx`, `apps/web/src/components/UploadDropzone.tsx`, `AI_IMPLEMENTATION_INDEX.md`
