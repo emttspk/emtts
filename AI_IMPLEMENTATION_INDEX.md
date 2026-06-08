@@ -1,5 +1,11 @@
 # AI Implementation Index
 
+## 2026-06-08 - Python Service Crash Recovery
+- Audited Python deploy failure `2417b9b6` (FAILED at 12:30). Root cause: **Transient Nixpacks build infrastructure failure** — same pattern as earlier `97053657`. Manual redeploy `1d141420` (same code, zero changes) succeeded at 12:39.
+- Verified: `PORT=8000` ✅, `REDIS_URL` configured ✅, `DATABASE_URL` empty (Python tracks via HTTP, not Postgres) ✅, health endpoint `{"ok":true}` ✅.
+- All services online: Api, Worker, Python, Web, Redis, Postgres.
+- Created audit documentation at `docs/audits/python-service-crash-recovery-2026-06-08.md`.
+
 ## 2026-06-08 - UI Cleanup — Remove Onboarding + Progress UI
 - Removed login progress modal (`LoadingOverlay`) from Login.tsx — "Authenticate/Load account/Prepare workspace/Open dashboard" steps.
 - Removed "First User Success" card from Dashboard.tsx — Upload First File, View Upgrade Options, Step 1/2/3, Free Plan Visible, Upgrade After Success, Ready For First Label badges.
