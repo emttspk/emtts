@@ -4237,3 +4237,13 @@ READY FOR PRODUCTION - All 3 critical fixes implemented and tested.
 - **E. Regression**: Money Order/COD/PAR/RGL/VPL/mixed mode checked - no token rendering failures. All use benchmark slot-filling or server-side template literals.
 - **F. Files changed**: `multipage-label.html`, `apps/api/src/templates/multipage-label.html`, `apps/api/src/templates/labels.ts`, `apps/api/src/templates/label-box-a4.html`, `AI_IMPLEMENTATION_INDEX.md`
 - **Build**: `npm run build` PASS
+
+## 2026-06-08 - Label System Phase 2: Full Audit, Hardening, Weight Field, Premium Design Phase 2
+- **A. Full Regression Audit**: Traced all 5 templates (Universal 9x4/root+api, Box 4/A4, Flyer 8/A4, Envelope 9x4, Envelope std) + all renderers. Verified PAR/RGL/VPL/VPP/COD/UMO/MOS paths. No unresolved `{{...}}` tokens remain in any template.
+- **B. Template Consistency**: Added `{prefix}` to envelope valueMap (was previously unbound, silently cleaned by regex). Weight now rendered in Universal 9x4 (via product_details) and Envelope (via product_details).
+- **C. Preview Audit**: Preview generator (`previewLabelHtml()`) uses same `renderLabelDocumentHtml()` dispatch as actual PDF generation — previews match real output by design. No mismatch.
+- **D. Universal 9x4 Hardening**: Enhanced unresolved token detection logs template path + missing token names + tokenMap keys before throwing. Added envelope leftover token warning log.
+- **E. Premium Design Phase 2**: Root template — 2px outer border, 56px header, 23px receiver name, darker FROM text weight, solid total border (2px), promo box top border separator, footer gap/spacing increased. API template — matching 2px border.
+- **F. Weight Field**: Added weight to Universal 9x4 (`productDetailsWithWeight` in tokenMap), Envelope (`productDetailsWithWeight` in valueMap). Box/Flyer already had weight.
+- **G. Build**: `npm run build` PASS
+- **Files changed**: `apps/api/src/templates/labels.ts`, `multipage-label.html`, `apps/api/src/templates/multipage-label.html`, `AI_IMPLEMENTATION_INDEX.md`

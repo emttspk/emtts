@@ -620,6 +620,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
     "Universal 9x4 template not found: multipage-label.html",
   );
 
+  const templatePath = template.templatePath;
   const templateHead = injectSharedPrintCss(template.head.replace(/<script[\s\S]*?<\/script>/gi, ""));
   const templateBody = template.body.replace(/<script[\s\S]*?<\/script>/gi, "");
 
@@ -649,6 +650,8 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
 
     const orderSource = String(o.reference ?? (o as any)?.source ?? (o as any)?.Source ?? "ePost Workspace").trim() || "ePost Workspace";
     const productDetails = String(o.ProductDescription ?? "").trim() || "-";
+    const weight = formatWeightInGrams(o.Weight);
+    const productDetailsWithWeight = weight ? `${productDetails} | ${weight}` : productDetails;
     const shouldSuppressAmountBox = ["PAR", "RGL", "UMS", "IRL"].includes(shipmentType);
     const showUniversalAmountBlock = showAmountBlock && !shouldSuppressAmountBox;
     const renderableSummary = showUniversalAmountBlock
@@ -673,7 +676,7 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
       "{{sender_inline}}": escapeHtml(senderInline),
       "{{sender_inline_class}}": escapeHtml(senderInlineClass),
       "{{order_source}}": escapeHtml(orderSource),
-      "{{product_details}}": escapeHtml(productDetails),
+      "{{product_details}}": escapeHtml(productDetailsWithWeight),
     };
 
     let html = templateBody;
@@ -713,7 +716,9 @@ export function universal9x4Html(orders: LabelOrder[], opts?: { autoGenerateTrac
 
     const unresolvedTokens = Array.from(new Set(html.match(/\{\{\s*[^{}]+\s*\}\}/g) ?? []));
     if (unresolvedTokens.length > 0) {
-      console.error(`[Universal9x4] unresolved tokens: ${unresolvedTokens.join(", ")}`);
+      console.error(`[Universal9x4] TEMPLATE: ${templatePath}`);
+      console.error(`[Universal9x4] UNRESOLVED TOKENS: ${unresolvedTokens.join(", ")}`);
+      console.error(`[Universal9x4] tokenMap keys: ${Object.keys(tokenMap).join(", ")}`);
       throw new Error(`Universal 9x4 render failed due to unresolved tokens: ${unresolvedTokens.join(", ")}`);
     }
 
@@ -950,6 +955,8 @@ export function envelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking
     const orderId = String((o as any).ordered ?? "").trim();
     const orderSource = String(o.reference ?? (o as any)?.source ?? (o as any)?.Source ?? "ePost Workspace").trim() || "ePost Workspace";
     const productDetails = String((o as any).ProductDescription ?? "").trim();
+    const weight = formatWeightInGrams(o.Weight);
+    const productDetailsWithWeight = weight ? `${productDetails} | ${weight}` : productDetails;
 
     const calcDisplay = amountSummary.showCalculation ? "" : "is-hidden";
     const amountPrimaryLabel = "MO Amount";
@@ -997,10 +1004,11 @@ export function envelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking
       "{amount_total_value}": escapeHtml(amountTotalValue),
       "{amount_total_class}": amountTotalClass,
       "{calc_class}": calcDisplay,
+      "{prefix}": escapeHtml(shipmentLabel),
       "{order_id}": escapeHtml(orderId),
       "{order_source}": escapeHtml(orderSource),
       "{order_class}": orderId ? "" : "is-hidden",
-      "{product_details}": escapeHtml(productDetails),
+      "{product_details}": escapeHtml(productDetailsWithWeight),
       "{product_class}": productDetails ? "" : "is-hidden",
       "{dispatch_date}": escapeHtml(`Dispatch Date: ${resolveDispatchDate((o as any)?.issueDate)}`),
       "{marketing_footer}": marketingFooterTextHtml(),
@@ -1008,6 +1016,11 @@ export function envelopeHtml(orders: LabelOrder[], opts?: { autoGenerateTracking
     };
 
     const rendered = Object.entries(valueMap).reduce((html, [token, value]) => html.split(token).join(value), templateBody);
+    const leftoverTokenMatch = rendered.match(/\{[a-z_]+\}/g);
+    if (leftoverTokenMatch) {
+      const leftoverTokens = Array.from(new Set(leftoverTokenMatch));
+      console.warn(`[Envelope] leftover tokens (will be cleaned): ${leftoverTokens.join(", ")}`);
+    }
     return rendered.replace(/\{[a-z_]+\}/g, "");
   };
 
