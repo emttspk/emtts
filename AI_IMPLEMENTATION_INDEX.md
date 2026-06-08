@@ -4144,3 +4144,18 @@ READY FOR PRODUCTION - All 3 critical fixes implemented and tested.
 - **Build**: passes
 - **Audit**: docs/audits/google-auth-no-auth-event-2026-06-08.md
 
+## Phase 9: Google Auth Popup-Only Final Fix (2026-06-08)
+
+- **Root Cause**: `getRedirectResult(auth)` is fundamentally broken with `initializeAuth()` on mobile Safari and some Chromium-based browsers. After Phases 3-8 all failed to make the redirect flow work reliably, the redirect approach is abandoned.
+- **Fix**:
+  - Removed all `signInWithRedirect` code from Login.tsx and Register.tsx.
+  - Both pages now exclusively use `signInWithPopup(auth, provider)` for all devices.
+  - Removed redirect-detection `useEffect` from both pages.
+  - Added `getPopupErrorMessage()` helper with friendly messages for `auth/popup-blocked` and `auth/popup-closed-by-user`.
+  - Added `clearStaleAuthStorage()` to clear `GOOGLE_REDIRECT_START`, `GOOGLE_AUTH_DEBUG`, `GOOGLE_AUTH_FIREBASE_DIAG`, and `labelgen_google_auth_redirect_started:v1`.
+  - Removed dead redirect functions from `googleAuth.ts`: `readGoogleRedirectStart`, `writeGoogleRedirectStart`, `GoogleRedirectStartState`, `waitForReadyCurrentUser`, `processGoogleRedirect`, Firebase auth imports.
+  - Simplified `GoogleAuthCallback.tsx` to legacy fallback only — no redirect dependencies.
+  - Cleaned up `firebase.ts` — removed `clearGoogleRedirectStart` import and call.
+- **Files changed**: `apps/web/src/lib/googleAuth.ts`, `apps/web/src/pages/Login.tsx`, `apps/web/src/pages/Register.tsx`, `apps/web/src/pages/GoogleAuthCallback.tsx`, `apps/web/src/firebase.ts`
+- **Build**: passes
+- **Audit**: docs/audits/google-auth-popup-final-fix-2026-06-08.md

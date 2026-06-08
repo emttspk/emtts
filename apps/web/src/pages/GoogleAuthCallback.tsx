@@ -1,5 +1,5 @@
+import { getRedirectResult } from "firebase/auth";
 import { useEffect, useRef, useState } from "react";
-import { getRedirectResult, onAuthStateChanged, type User } from "firebase/auth";
 
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AuthShell from "../components/AuthShell";
@@ -8,39 +8,7 @@ import { auth, firebaseReady } from "../firebase";
 import { getToken, setSession } from "../lib/auth";
 import { trackLogin, trackRegistrationComplete } from "../lib/analytics";
 import { getFriendlyFirebaseAuthMessage } from "../lib/firebaseAuthGuards";
-import { clearGoogleRedirectStart, exchangeGoogleFirebaseToken, getFlow, normalizeNextPath, readGoogleRedirectStart, type GoogleAuthFlow } from "../lib/googleAuth";
-
-async function waitForReadyCurrentUser(maxWaitMs = 2500) {
-  if (!auth) return null;
-  const snapshot = auth.currentUser;
-  if (snapshot?.uid) return snapshot;
-
-  return await new Promise<User | null>((resolve) => {
-    let settled = false;
-    let timeoutId: ReturnType<typeof window.setTimeout> | null = null;
-    let unsubscribe = () => {};
-
-    const finish = (user: User | null) => {
-      if (settled) return;
-      settled = true;
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
-      }
-      unsubscribe();
-      resolve(user?.uid ? user : null);
-    };
-
-    timeoutId = window.setTimeout(() => {
-      finish(auth.currentUser);
-    }, maxWaitMs);
-
-    unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user?.uid) {
-        finish(user);
-      }
-    });
-  });
-}
+import { exchangeGoogleFirebaseToken, getFlow, normalizeNextPath, clearGoogleRedirectStart } from "../lib/googleAuth";
 
 export default function GoogleAuthCallback() {
   const nav = useNavigate();
@@ -52,11 +20,7 @@ export default function GoogleAuthCallback() {
   const [status, setStatus] = useState("Completing Google sign-in...");
   const cancelledRef = useRef(false);
 
-  async function completeSession(
-    idToken: string,
-    source: "redirect" | "fallback-current-user",
-    identity: { uid?: string | null; email?: string | null } = {},
-  ) {
+  async function completeSession(idToken: string) {
     const data = await exchangeGoogleFirebaseToken(idToken);
 
     try {
@@ -81,14 +45,8 @@ export default function GoogleAuthCallback() {
   useEffect(() => {
     cancelledRef.current = false;
 
-    // Clear stale redirect marker if present (not our flow)
-    const marker = readGoogleRedirectStart();
-    if (marker && marker.flow !== flow) {
-      clearGoogleRedirectStart();
-    }
-
     if (!firebaseReady || !auth) {
-      setErr("Google sign-in is not configured. Please contact support.");
+      setStatus("Google sign-in is not configured.");
       setLoading(false);
       return () => {
         cancelledRef.current = true;
@@ -97,7 +55,6 @@ export default function GoogleAuthCallback() {
 
     const existingToken = getToken();
     if (existingToken) {
-      setStatus("Session already exists. Redirecting...");
       clearGoogleRedirectStart();
       const timer = window.setTimeout(() => {
         if (!cancelledRef.current) {
@@ -118,7 +75,7 @@ export default function GoogleAuthCallback() {
         try {
           result = await getRedirectResult(auth);
         } catch {
-          // getRedirectResult may throw on some browsers; fall through to currentUser.
+          // Fall through.
         }
 
         if (cancelled || cancelledRef.current) return;
@@ -126,31 +83,11 @@ export default function GoogleAuthCallback() {
         if (result) {
           setStatus("Google authentication finished. Saving session...");
           const idToken = await result.user.getIdToken();
-          await completeSession(idToken, "redirect", {
-            uid: result.user.uid,
-            email: result.user.email ?? null,
-          });
+          await completeSession(idToken);
           return;
         }
 
-        const currentUser = await waitForReadyCurrentUser();
-
-        if (cancelled || cancelledRef.current) return;
-
-        if (currentUser) {
-          setStatus("Google authentication finished. Restoring session...");
-          const idToken = await currentUser.getIdToken(true);
-          await completeSession(idToken, "fallback-current-user", {
-            uid: currentUser.uid,
-            email: currentUser.email ?? null,
-          });
-          return;
-        }
-
-        const fallbackMessage = flow === "register"
-          ? "Google registration could not be completed. Please try again."
-          : "Google sign-in could not be completed. Please try again.";
-        setErr(fallbackMessage);
+        setErr("Google sign-in now uses a popup. Please sign in from the login or register page.");
       } catch (error) {
         if (!cancelled && !cancelledRef.current) {
           const fallback = flow === "register" ? "Google registration failed" : "Google login failed";
@@ -169,11 +106,6 @@ export default function GoogleAuthCallback() {
     };
   }, [flow, nextPath, nav]);
 
-  const title = flow === "register" ? "Complete Google signup" : "Signing you in";
-  const subtitle = flow === "register"
-    ? "Finalizing your account and restoring your workspace."
-    : "Restoring your session and preparing your dashboard.";
-
   return (
     <>
       <SEO
@@ -181,7 +113,7 @@ export default function GoogleAuthCallback() {
         description="Google sign-in callback for ePost.pk."
         canonicalPath="/auth/callback"
       />
-      <AuthShell mode={flow === "register" ? "register" : "login"} title={title} subtitle={subtitle} loading={loading}>
+      <AuthShell mode={flow === "register" ? "register" : "login"} title="Google sign-in" subtitle="Legacy callback page" loading={loading}>
 
         {err ? (
           <div className="mb-4 rounded-[22px] border border-red-200/80 bg-red-50/90 px-4 py-3 text-sm font-medium text-red-700 shadow-[0_12px_24px_rgba(239,68,68,0.08)]" role="alert" aria-live="polite">
@@ -190,22 +122,17 @@ export default function GoogleAuthCallback() {
         ) : null}
 
         <div className="space-y-3 rounded-2xl border border-[#dce8f5] bg-[linear-gradient(145deg,#f4faff,#eefaf5)] px-4 py-4 text-sm text-slate-700">
-          <p>{loading ? status : "Google authentication finished."}</p>
-          {!loading && !err ? (
-            <p className="text-slate-500">Redirecting to your workspace...</p>
-          ) : null}
+          <p>{loading ? status : "Google sign-in handled."}</p>
         </div>
 
-        {err ? (
-          <div className="mt-4">
-            <Link
-              to={flow === "register" ? "/register" : "/login"}
-              className="block text-center text-sm font-semibold text-[#0b7f6d] transition hover:text-[#096658]"
-            >
-              Back to {flow === "register" ? "register" : "login"}
-            </Link>
-          </div>
-        ) : null}
+        <div className="mt-4">
+          <Link
+            to={flow === "register" ? "/register" : "/login"}
+            className="block text-center text-sm font-semibold text-[#0b7f6d] transition hover:text-[#096658]"
+          >
+            Go to {flow === "register" ? "register" : "login"}
+          </Link>
+        </div>
       </AuthShell>
     </>
   );

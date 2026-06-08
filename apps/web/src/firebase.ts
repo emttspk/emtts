@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { browserLocalPersistence, browserPopupRedirectResolver, initializeAuth } from "firebase/auth";
-import { clearGoogleAuthDebugStorage, clearGoogleRedirectStart, GOOGLE_AUTH_DEBUG_KEY, GOOGLE_REDIRECT_START_KEY, restoreGoogleAuthDebugFromStorage } from "./lib/googleAuth";
+import { clearGoogleAuthDebugStorage, GOOGLE_AUTH_DEBUG_KEY, restoreGoogleAuthDebugFromStorage } from "./lib/googleAuth";
 
 declare global {
   interface Window {
@@ -43,7 +43,6 @@ if (typeof window !== "undefined") {
 
   if (window.location.pathname.startsWith("/dashboard")) {
     clearGoogleAuthDebugStorage();
-    clearGoogleRedirectStart();
   } else if (!window.sessionStorage.getItem(GOOGLE_AUTH_DEBUG_KEY)) {
     try {
       window.__GOOGLE_AUTH_DEBUG__ = undefined;

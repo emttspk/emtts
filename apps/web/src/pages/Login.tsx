@@ -1,5 +1,5 @@
-import { GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signOut } from "firebase/auth";
-import { useEffect, useRef, useState } from "react";
+import { GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup, signOut } from "firebase/auth";
+import { useRef, useState } from "react";
 import { ArrowRight, Eye, EyeOff, KeyRound, Mail, SquareArrowOutUpRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, apiUrl } from "../lib/api";
@@ -10,12 +10,35 @@ import GoogleAuthButton from "../components/GoogleAuthButton";
 import AuthInputField from "../components/auth/AuthInputField";
 import LoadingOverlay from "../components/LoadingOverlay";
 import { auth, firebaseReady } from "../firebase";
-import { getFriendlyFirebaseAuthMessage, shouldFallbackToApiLogin, shouldThrottle, shouldUseRedirectAuthFlow } from "../lib/firebaseAuthGuards";
+import { getFriendlyFirebaseAuthMessage, shouldFallbackToApiLogin, shouldThrottle } from "../lib/firebaseAuthGuards";
 import { trackLogin } from "../lib/analytics";
 import SEO from "../components/SEO";
-import { clearGoogleAuthDebugStorage, clearGoogleRedirectStart, processGoogleRedirect, readGoogleRedirectStart, writeGoogleRedirectStart } from "../lib/googleAuth";
 
 const AUTH_ACTION_DEBOUNCE_MS = 1200;
+
+function getPopupErrorMessage(error: unknown): string {
+  if (error && typeof error === "object" && "code" in error) {
+    const code = String((error as { code: unknown }).code);
+    if (code === "auth/popup-blocked") {
+      return "Please allow popups and try again.";
+    }
+    if (code === "auth/popup-closed-by-user") {
+      return "Google sign-in was cancelled. Please try again.";
+    }
+  }
+  return getFriendlyFirebaseAuthMessage(error, "Google login failed");
+}
+
+function clearStaleAuthStorage() {
+  try {
+    window.sessionStorage.removeItem("GOOGLE_REDIRECT_START");
+    window.sessionStorage.removeItem("GOOGLE_AUTH_DEBUG");
+    window.sessionStorage.removeItem("GOOGLE_AUTH_FIREBASE_DIAG");
+    window.sessionStorage.removeItem("labelgen_google_auth_redirect_started:v1");
+  } catch {
+    // Ignore storage failures.
+  }
+}
 
 export default function Login() {
   const nav = useNavigate();
@@ -25,11 +48,10 @@ export default function Login() {
   const [passwordLoginLoading, setPasswordLoginLoading] = useState(false);
   const [googleLoginLoading, setGoogleLoginLoading] = useState(false);
   const [postLoginRedirecting, setPostLoginRedirecting] = useState(false);
-  const [googleRedirectProcessing, setGoogleRedirectProcessing] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const lastPasswordSubmitAtRef = useRef(0);
-  const loginOverlayVisible = passwordLoginLoading || googleLoginLoading || postLoginRedirecting || googleRedirectProcessing;
+  const loginOverlayVisible = passwordLoginLoading || googleLoginLoading || postLoginRedirecting;
 
   function finalizeLogin(token: string, role: string, refreshToken?: string, method = "password") {
     const sessionStartedAt = performance.now();
@@ -58,73 +80,23 @@ export default function Login() {
       return;
     }
 
+    clearStaleAuthStorage();
     setGoogleLoginLoading(true);
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
-
-    if (shouldUseRedirectAuthFlow()) {
-      clearGoogleAuthDebugStorage();
-      clearGoogleRedirectStart();
-      writeGoogleRedirectStart("login", "entry");
-      await signInWithRedirect(auth, provider);
-      return;
-    }
 
     try {
       const result = await signInWithPopup(auth, provider);
       const idToken = await result.user.getIdToken();
       await loginWithFirebaseToken(idToken);
     } catch (error) {
-      const message = getFriendlyFirebaseAuthMessage(error, "Google login failed");
+      const message = getPopupErrorMessage(error);
       setErr(message);
       setPostLoginRedirecting(false);
     } finally {
       setGoogleLoginLoading(false);
     }
   }
-
-  useEffect(() => {
-    const marker = readGoogleRedirectStart();
-    if (!marker || marker.flow !== "login") return;
-
-    let cancelled = false;
-
-    void (async () => {
-      setGoogleRedirectProcessing(true);
-      try {
-        if (!auth) {
-          setErr("Google sign-in is not configured. Please contact support.");
-          clearGoogleRedirectStart();
-          return;
-        }
-
-        const result = await processGoogleRedirect(auth);
-        if (cancelled) return;
-
-        if (result) {
-          await loginWithFirebaseToken(result.idToken);
-          clearGoogleRedirectStart();
-          clearGoogleAuthDebugStorage();
-        } else {
-          setErr("Google sign-in could not be completed. Please try again.");
-          clearGoogleRedirectStart();
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setErr(getFriendlyFirebaseAuthMessage(error, "Google login failed"));
-          clearGoogleRedirectStart();
-        }
-      } finally {
-        if (!cancelled) {
-          setGoogleRedirectProcessing(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   return (
     <>

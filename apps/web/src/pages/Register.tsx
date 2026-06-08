@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { GoogleAuthProvider, createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, signInWithRedirect, signOut } from "firebase/auth";
+import { GoogleAuthProvider, createUserWithEmailAndPassword, sendEmailVerification, signInWithPopup, signOut } from "firebase/auth";
 import { api } from "../lib/api";
 import { setSession } from "../lib/auth";
 import AuthShell from "../components/AuthShell";
@@ -13,13 +13,35 @@ import {
   getFriendlyFirebaseAuthMessage,
   isFirebaseTooManyRequests,
   shouldThrottle,
-  shouldUseRedirectAuthFlow,
 } from "../lib/firebaseAuthGuards";
-import { clearGoogleAuthDebugStorage, clearGoogleRedirectStart, processGoogleRedirect, readGoogleRedirectStart, writeGoogleRedirectStart } from "../lib/googleAuth";
 
 const VERIFY_ACTION_DEBOUNCE_MS = 1200;
 const RESEND_COOLDOWN_MS = 60 * 1000;
 const LOCKOUT_COOLDOWN_MS = 10 * 60 * 1000;
+
+function getPopupErrorMessage(error: unknown): string {
+  if (error && typeof error === "object" && "code" in error) {
+    const code = String((error as { code: unknown }).code);
+    if (code === "auth/popup-blocked") {
+      return "Please allow popups and try again.";
+    }
+    if (code === "auth/popup-closed-by-user") {
+      return "Google registration was cancelled. Please try again.";
+    }
+  }
+  return getFriendlyFirebaseAuthMessage(error, "Google registration failed");
+}
+
+function clearStaleAuthStorage() {
+  try {
+    window.sessionStorage.removeItem("GOOGLE_REDIRECT_START");
+    window.sessionStorage.removeItem("GOOGLE_AUTH_DEBUG");
+    window.sessionStorage.removeItem("GOOGLE_AUTH_FIREBASE_DIAG");
+    window.sessionStorage.removeItem("labelgen_google_auth_redirect_started:v1");
+  } catch {
+    // Ignore storage failures.
+  }
+}
 
 export default function Register() {
   const nav = useNavigate();
@@ -32,7 +54,6 @@ export default function Register() {
   const [err, setErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [googleRedirectProcessing, setGoogleRedirectProcessing] = useState(false);
 
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
@@ -99,55 +120,6 @@ export default function Register() {
     return () => clearInterval(timer);
   }, [pendingVerification, resendCooldownUntil]);
 
-  useEffect(() => {
-    const marker = readGoogleRedirectStart();
-    if (!marker || marker.flow !== "register") return;
-
-    let cancelled = false;
-
-    void (async () => {
-      setGoogleRedirectProcessing(true);
-      try {
-        if (!auth) {
-          setErr("Google registration is not configured. Please contact support.");
-          clearGoogleRedirectStart();
-          return;
-        }
-
-        const result = await processGoogleRedirect(auth);
-        if (cancelled) return;
-
-        if (result) {
-          const data = await api<{ token: string; refreshToken?: string; user: { role: string }; onboardingRequired?: boolean }>("/api/auth/firebase-login", {
-            method: "POST",
-            body: JSON.stringify({ idToken: result.idToken }),
-          });
-
-          trackRegistrationComplete("google");
-          clearGoogleRedirectStart();
-          clearGoogleAuthDebugStorage();
-          await finalizeRegistrationSession(data);
-        } else {
-          setErr("Google registration could not be completed. Please try again.");
-          clearGoogleRedirectStart();
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setErr(getFriendlyFirebaseAuthMessage(error, "Google registration failed"));
-          clearGoogleRedirectStart();
-        }
-      } finally {
-        if (!cancelled) {
-          setGoogleRedirectProcessing(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   async function finalizeRegistrationSession(data: { token: string; refreshToken?: string; user: { role: string }; onboardingRequired?: boolean }) {
     setSession(data.token, data.user.role, data.refreshToken);
     nav("/dashboard", { replace: true });
@@ -162,17 +134,10 @@ export default function Register() {
       return;
     }
 
+    clearStaleAuthStorage();
     setLoading(true);
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
-
-    if (shouldUseRedirectAuthFlow()) {
-      clearGoogleAuthDebugStorage();
-      clearGoogleRedirectStart();
-      writeGoogleRedirectStart("register", "entry");
-      await signInWithRedirect(auth, provider);
-      return;
-    }
 
     try {
       const result = await signInWithPopup(auth, provider);
@@ -185,7 +150,7 @@ export default function Register() {
       trackRegistrationComplete("google");
       await finalizeRegistrationSession(data);
     } catch (error) {
-      setErr(getFriendlyFirebaseAuthMessage(error, "Google registration failed"));
+      setErr(getPopupErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -436,11 +401,11 @@ export default function Register() {
             </label>
           </div>
 
-          <button disabled={loading || googleRedirectProcessing} className="btn-primary w-full rounded-xl">
-            {loading || googleRedirectProcessing ? "Creating account..." : "Continue"}
+          <button disabled={loading} className="btn-primary w-full rounded-xl">
+            {loading ? "Creating account..." : "Continue"}
           </button>
 
-          <GoogleAuthButton className="w-full" label="Sign up with Google" disabled={loading || googleRedirectProcessing} loading={loading || googleRedirectProcessing} onClick={handleGoogleRegister} />
+          <GoogleAuthButton className="w-full" label="Sign up with Google" disabled={loading} loading={loading} onClick={handleGoogleRegister} />
 
           <div className="flex items-center justify-between text-sm text-slate-500">
             <Link to={`/login${email ? `?email=${encodeURIComponent(email)}` : ""}`} className="font-semibold text-[#0b7f6d] transition hover:text-[#096658]">

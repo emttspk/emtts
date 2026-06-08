@@ -1,44 +1,8 @@
-import { getRedirectResult, onAuthStateChanged, type Auth, type User } from "firebase/auth";
 import { apiUrl } from "./api";
 
 export type GoogleAuthFlow = "login" | "register";
 
-export type GoogleRedirectStartState = {
-  stage: "entry" | "redirect-started";
-  timestamp: string;
-  flow: GoogleAuthFlow;
-  origin: string;
-  authDomain: string | null;
-};
-
 export const GOOGLE_REDIRECT_START_KEY = "GOOGLE_REDIRECT_START";
-
-export function readGoogleRedirectStart(): GoogleRedirectStartState | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.sessionStorage.getItem(GOOGLE_REDIRECT_START_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as GoogleRedirectStartState;
-  } catch {
-    return null;
-  }
-}
-
-export function writeGoogleRedirectStart(flow: GoogleAuthFlow, stage: GoogleRedirectStartState["stage"]) {
-  if (typeof window === "undefined") return;
-  const state: GoogleRedirectStartState = {
-    stage,
-    timestamp: new Date().toISOString(),
-    flow,
-    origin: window.location.href,
-    authDomain: null,
-  };
-  try {
-    window.sessionStorage.setItem(GOOGLE_REDIRECT_START_KEY, JSON.stringify(state));
-  } catch {
-    // Ignore storage failures.
-  }
-}
 
 export function clearGoogleRedirectStart() {
   if (typeof window === "undefined") return;
@@ -47,59 +11,6 @@ export function clearGoogleRedirectStart() {
   } catch {
     // Ignore storage failures.
   }
-}
-
-export async function waitForReadyCurrentUser(authInstance: Auth, maxWaitMs = 2500): Promise<User | null> {
-  const snapshot = authInstance.currentUser;
-  if (snapshot?.uid) return snapshot;
-
-  return await new Promise<User | null>((resolve) => {
-    let settled = false;
-    let timeoutId: ReturnType<typeof window.setTimeout> | null = null;
-    let unsubscribe = () => {};
-
-    const finish = (user: User | null) => {
-      if (settled) return;
-      settled = true;
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
-      }
-      unsubscribe();
-      resolve(user?.uid ? user : null);
-    };
-
-    timeoutId = window.setTimeout(() => {
-      finish(authInstance.currentUser);
-    }, maxWaitMs);
-
-    unsubscribe = onAuthStateChanged(authInstance, (user) => {
-      if (user?.uid) {
-        finish(user);
-      }
-    });
-  });
-}
-
-export async function processGoogleRedirect(authInstance: Auth): Promise<{ user: User; idToken: string } | null> {
-  let result = null;
-  try {
-    result = await getRedirectResult(authInstance);
-  } catch {
-    // getRedirectResult may throw on some browsers; fall through to currentUser.
-  }
-
-  if (result) {
-    const idToken = await result.user.getIdToken();
-    return { user: result.user, idToken };
-  }
-
-  const currentUser = await waitForReadyCurrentUser(authInstance);
-  if (currentUser) {
-    const idToken = await currentUser.getIdToken(true);
-    return { user: currentUser, idToken };
-  }
-
-  return null;
 }
 
 export function getFlow(value: string | null): GoogleAuthFlow {
