@@ -1,5 +1,13 @@
 # AI Implementation Index
 
+## 2026-06-08 - Login Regression Recovery
+- **URGENT FIX:** Commit `8664681` accidentally removed 5 critical imports from `Login.tsx` alongside `LoadingOverlay`: `setSession`, `AuthShell`, `GoogleAuthButton`, `AuthInputField`, `logDevTiming`.
+- All login pages crashed with `AppErrorBoundary` "We hit a loading problem".
+- Restored all 5 imports in `apps/web/src/pages/Login.tsx`.
+- Verified: `/login`, `/register`, `/forgot-password`, Google auth all render correctly.
+- Build: `npm run build -w apps/web` PASS.
+- Created audit documentation at `docs/audits/login-regression-recovery-2026-06-08.md`.
+
 ## 2026-06-08 - Python Service Crash Recovery
 - Audited Python deploy failure `2417b9b6` (FAILED at 12:30). Root cause: **Transient Nixpacks build infrastructure failure** — same pattern as earlier `97053657`. Manual redeploy `1d141420` (same code, zero changes) succeeded at 12:39.
 - Verified: `PORT=8000` ✅, `REDIS_URL` configured ✅, `DATABASE_URL` empty (Python tracks via HTTP, not Postgres) ✅, health endpoint `{"ok":true}` ✅.
