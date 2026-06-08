@@ -405,7 +405,13 @@ All labels follow a unified MO-structured layout with six standardised blocks:
 - Rendered by `labelsHtml()` in `labels.ts`
 - Full MO structured blocks, 0.95× scaled inner core
 
-### 3. Flyer Label — 8 per A4 (`label-flyer-a4.html`)
+### 3. Universal 9x4 / Premium Label (`multipage-label.html`)
+- Print size: 9 × 4 inch, one label per page
+- Rendered by `universal9x4Html()` in `labels.ts`
+- Premium courier-grade layout with VPL header, barcode, TO/FROM blocks
+- Supports amount summary for VPL/VPP/COD, lite layout for PAR/RGL/UMS/IRL
+
+### 4. Flyer Label — 8 per A4 (`label-flyer-a4.html`)
 - Print size: 105mm × 74.25mm, 2 × 4 grid on A4
 - Rendered by `flyerHtml()` in `labels.ts`
 - Compact MO layout — smaller fonts, all blocks retained

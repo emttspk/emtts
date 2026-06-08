@@ -431,6 +431,7 @@ export function labelsHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?:
     const senderName = String(o.shipperName ?? "").trim();
     const senderAddress = normalizeAddressLines(o.shipperAddress);
     const senderCity = String(o.senderCity ?? "").trim();
+    const senderPhone = String((o as any)?.senderPhone ?? o.shipperPhone ?? "").trim() || "-";
 
     const receiverName = String(o.consigneeName ?? "");
     const receiverAddress = normalizeAddressLines(o.consigneeAddress);
@@ -485,6 +486,7 @@ export function labelsHtml(orders: LabelOrder[], opts?: { autoGenerateTracking?:
             <div class="v strong from-name">${escapeHtml(senderName || "-")}</div>
             <div class="v address">${escapeHtml(senderAddress || "-")}</div>
             <div class="v">${escapeHtml(senderCity || "-")}</div>
+            <div class="v">${escapeHtml(senderPhone)}</div>
           </div>
         </div>
 

@@ -4228,3 +4228,12 @@ READY FOR PRODUCTION - All 3 critical fixes implemented and tested.
 - **Files changed**: `apps/web/src/lib/googleAuth.ts`, `apps/web/src/pages/Login.tsx`, `apps/web/src/pages/Register.tsx`, `apps/web/src/pages/GoogleAuthCallback.tsx`, `apps/web/src/firebase.ts`
 - **Build**: passes
 - **Audit**: docs/audits/google-auth-popup-final-fix-2026-06-08.md
+
+## 2026-06-08 - Label System Audit & Fix (Universal 9x4, Box, Premium Redesign)
+- **A. {{header_right}} fix**: Root `multipage-label.html` used unresolved `{{header_right}}` token. Replaced with hardcoded VPL + barcode HTML matching the API template. Renderer's `tokenMap` now covers all `{{...}}` tokens. Validation (`unresolvedTokens`) remains as guard.
+- **B. Box label sender phone**: `labelsHtml()` in `labels.ts` now resolves `senderPhone` via `(o as any)?.senderPhone ?? o.shipperPhone` and renders it in the FROM block. Previously only sender name/address/city were shown.
+- **C. Premium redesign**: Rewrote CSS in both `multipage-label.html` (root) and `apps/api/src/templates/multipage-label.html`. Key changes: 1.5px borders (up from 1px), bolder typography (font-weight:900), tighter spacing, uppercase section labels, darker body text, increased letter-spacing for headers, cleaner barcode section, centered VPL+Barcode layout, improved footer hierarchy. B&W printer friendly. No measurement changes (9×4in preserved).
+- **D. Audit**: All 4 label types (Envelope 9x4/standard, Universal 9x4, Box 4/A4, Flyer 8/A4) verified for: Tracking ID, Order ID, Weight, Sender name, Sender phone, Receiver name, Receiver phone, Shipment type, Product description. Weight omitted from envelope by design. Sender phone now present in all types (fixed in box label).
+- **E. Regression**: Money Order/COD/PAR/RGL/VPL/mixed mode checked - no token rendering failures. All use benchmark slot-filling or server-side template literals.
+- **F. Files changed**: `multipage-label.html`, `apps/api/src/templates/multipage-label.html`, `apps/api/src/templates/labels.ts`, `apps/api/src/templates/label-box-a4.html`, `AI_IMPLEMENTATION_INDEX.md`
+- **Build**: `npm run build` PASS
