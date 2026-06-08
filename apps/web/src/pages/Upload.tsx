@@ -774,11 +774,6 @@ export default function Upload() {
   const displayJobId = localhostUxDemo ? "demo-label-job-ux-001" : polling.jobId;
   const showProcessingOverlay = uiState === "uploading" || uiState === "processing" || localhostUxDemo === "processing" || localhostUxDemo === "generating";
   const showCompletedOverlay = (uiState === "completed" && polling.jobId && showCompletionModal) || localhostUxDemo === "completed";
-  const firstLabelChecklist = [
-    "Upload CSV, XLS, or XLSX.",
-    "Pick your carrier and output options.",
-    "Generate labels and download the first batch.",
-  ];
 
   async function runCompletionAction(action: "labels" | "money-orders" | "tracking-master" | "tracking-workspace") {
     if (!polling.jobId || completionAction) return;
@@ -1411,46 +1406,6 @@ export default function Upload() {
 
         <div className="grid grid-cols-1 gap-3">
           <div className="space-y-3 min-w-0 w-full">
-        <Card className="border-sky-200 bg-[linear-gradient(135deg,#f8fbff_0%,#eef6ff_48%,#ffffff_100%)] p-4 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">
-                First User Success
-              </div>
-              <CardTitle className="mt-3 text-base text-slate-950">Your first label batch is the milestone.</CardTitle>
-              <BodyText className="mt-2 max-w-2xl text-sm text-slate-600">
-                Start with the free plan, complete your first upload, and use the upgrade flow only when your order volume grows.
-              </BodyText>
-            </div>
-            <div className="flex flex-col gap-2 sm:items-end">
-              <button
-                type="button"
-                onClick={() => navigate("/billing")}
-                className="inline-flex items-center justify-center rounded-2xl border border-sky-200 bg-white px-4 py-2 text-sm font-semibold text-sky-800 shadow-sm hover:bg-sky-50"
-              >
-                View Upgrade Options
-              </button>
-              <button
-                type="button"
-                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                className="inline-flex items-center justify-center rounded-2xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-md hover:bg-sky-700"
-              >
-                Upload First File
-              </button>
-            </div>
-          </div>
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">
-            {firstLabelChecklist.map((item, index) => (
-              <div key={item} className="flex items-start gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-700">
-                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Step {index + 1}</div>
-                  <div className="mt-1 font-medium text-slate-800">{item}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
         <UploadDropzone
           title="Upload Orders File"
           subtitle="Upload CSV/XLS/XLSX, choose options, then generate labels."
@@ -2113,28 +2068,6 @@ export default function Upload() {
                 </div>
               </div>
 
-              <div className="rounded-[1.75rem] border border-sky-200 bg-[linear-gradient(135deg,rgba(239,246,255,0.95),rgba(255,255,255,0.98))] p-5 shadow-sm">
-                <div className="text-sm font-semibold text-sky-950">Ready to upgrade when you are.</div>
-                <div className="mt-3 text-sm leading-6 text-sky-900">
-                  Your first label batch is complete. Stay on the free plan for light usage, or open billing when you want higher volume and longer retention.
-                </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => navigate("/billing")}
-                    className="rounded-2xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-sky-700"
-                  >
-                    View Upgrade Options
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/dashboard")}
-                    className="rounded-2xl border border-sky-200 bg-white px-4 py-2 text-sm font-semibold text-sky-800 shadow-sm hover:bg-sky-50"
-                  >
-                    Back to Dashboard
-                  </button>
-                </div>
-              </div>
             </div>
 
             <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">

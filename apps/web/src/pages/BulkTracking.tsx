@@ -3950,32 +3950,6 @@ export default function BulkTracking() {
         </Card>
       ) : null}
 
-      <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-      <Card className="w-full min-w-0 overflow-hidden border border-[color:var(--line)] bg-[linear-gradient(135deg,#ffffff_0%,#f8fbff_56%,#eefbf3_100%)] p-3.5 shadow-[0_12px_30px_rgba(15,23,42,0.08)] sm:p-5 md:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
-          <div className="min-w-0">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
-              <Activity className="h-3 w-3" />
-              Tracking Workspace
-            </div>
-              <div className="mt-2 text-2xl font-bold tracking-[-0.04em] text-slate-900 sm:text-[28px]">Shipment status</div>
-            <div className="mt-1 text-xs leading-relaxed text-slate-600 sm:text-sm">Live view of every synced shipment row.</div>
-          </div>
-          <div className="flex w-full shrink-0 flex-wrap items-center gap-2.5 sm:w-auto sm:gap-3">
-            <div className="min-w-[120px] flex-1 rounded-2xl border border-[#E5E7EB] bg-white p-2.5 sm:flex-none sm:p-3">
-              <div className="text-xs font-medium text-slate-500">Current File</div>
-              <div className="mt-1 truncate text-sm font-semibold text-slate-900">{file?.name ?? "No file selected"}</div>
-            </div>
-            <div className="min-w-[110px] rounded-2xl border border-[#E5E7EB] bg-white p-2.5 sm:p-3">
-              <div className="text-xs font-medium text-slate-500">Job State</div>
-              <div className="mt-1 text-sm font-semibold text-slate-900">{statusLabel}</div>
-            </div>
-            <div className="hidden h-14 w-24 rounded-2xl border border-[#E5E7EB] bg-[radial-gradient(circle_at_20%_30%,rgba(16,185,129,0.25),transparent_55%),radial-gradient(circle_at_80%_65%,rgba(59,130,246,0.2),transparent_60%)] sm:block" />
-          </div>
-        </div>
-      </Card>
-      </motion.div>
-
       <UnifiedShipmentCards
         items={[
           {

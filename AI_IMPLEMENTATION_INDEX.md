@@ -1,5 +1,14 @@
 # AI Implementation Index
 
+## 2026-06-08 - UI Cleanup — Remove Onboarding + Progress UI
+- Removed login progress modal (`LoadingOverlay`) from Login.tsx — "Authenticate/Load account/Prepare workspace/Open dashboard" steps.
+- Removed "First User Success" card from Dashboard.tsx — Upload First File, View Upgrade Options, Step 1/2/3, Free Plan Visible, Upgrade After Success, Ready For First Label badges.
+- Removed first-label onboarding cards from Upload.tsx — firstLabelChecklist, First User Success card, Ready-to-upgrade card.
+- Removed Tracking Workspace hero card from BulkTracking.tsx — "Shipment status/Current File/Job State" section.
+- Deleted `apps/web/src/components/LoadingOverlay.tsx` (no remaining references).
+- Build: `npm run build -w apps/web` PASS — Dashboard 13.07kB (−3kB), Upload 65.93kB (−3kB), BulkTracking 155.86kB (−2kB).
+- Created audit documentation at `docs/audits/ui-cleanup-2026-06-08.md`.
+
 ## 2026-06-08 - Python Service Recovery Audit
 - Audited Python service deployment failure (deploy `97053657` FAILED at 11:54, auto-rollback + retry `7ec47f85` SUCCESS at 12:04).
 - Root cause: **Transient infrastructure failure** — no code or config changes were involved; retry without changes succeeded.

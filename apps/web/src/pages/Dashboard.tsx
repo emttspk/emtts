@@ -1,13 +1,12 @@
 import { useMemo } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router-dom";
-import { ArrowRight, Boxes, CheckCircle2, Clock3, Package2, ShieldCheck } from "lucide-react";
+import { ArrowRight, Boxes, Clock3, Package2, ShieldCheck } from "lucide-react";
 import Card from "../components/Card";
 import type { MeResponse } from "../lib/types";
 import ActionButton from "../components/ui/ActionButton";
 import { BodyText, CardTitle, PageHeader, PageShell } from "../components/ui/PageSystem";
 import StatsCard from "../components/ui/StatsCard";
 import UnifiedShipmentCards from "../components/UnifiedShipmentCards";
-import LoadingOverlay from "../components/LoadingOverlay";
 import { useShipmentStats } from "../hooks/useShipmentStats";
 import { formatComplaintLimitValue } from "../lib/complaintLimits";
 
@@ -78,9 +77,6 @@ export default function Dashboard() {
   const complaintMonthly = me?.balances?.complaintMonthlyLimit ?? me?.subscription?.plan?.monthlyComplaintLimit ?? 0;
   const complaintDailyLabel = formatComplaintLimitValue(complaintDaily);
   const complaintMonthlyLabel = formatComplaintLimitValue(complaintMonthly);
-  const freePlan = Boolean(me?.subscription?.plan?.priceCents === 0 || me?.subscription?.plan?.name?.toLowerCase().includes("free"));
-  const firstLabelReady = Boolean(me?.onboardingRequired === false && packageLimit > 0);
-
   const activity = useMemo(() => [...stats.graphData].slice(-6), [stats.graphData]);
   const maxActivity = useMemo(() => Math.max(1, ...activity.map((item) => item.total)), [activity]);
 
@@ -98,21 +94,6 @@ export default function Dashboard() {
 
   return (
     <PageShell className="space-y-5">
-      {showStatsSkeleton ? (
-        <LoadingOverlay
-          title="Loading dashboard"
-          subtitle="Fetching your shipment summary, complaint counts, and activity view."
-          progress={42}
-          activeIndex={1}
-          steps={[
-            { label: "Load account", detail: "Confirm the authenticated user session." },
-            { label: "Fetch summary", detail: "Pull shipment totals and complaint counts." },
-            { label: "Build cards", detail: "Prepare the dashboard tiles and charts." },
-            { label: "Ready", detail: "Open the dashboard once data is available." },
-          ]}
-        />
-      ) : null}
-
       <PageHeader
         eyebrow="Dashboard"
         title="ePost.pk Command Center"
@@ -137,46 +118,6 @@ export default function Dashboard() {
           ? <DashboardMetricCardSkeleton />
           : <StatsCard title="Tracking used" value={stats.trackingUsed.toLocaleString()} detail="Tracking actions" icon={Clock3} tone="purple" />}
       </div>
-
-      <Card className="border-emerald-200 bg-[linear-gradient(135deg,#f5fff8,#eefbf6)] p-5 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              First User Success
-            </div>
-            <h2 className="mt-3 text-2xl font-black tracking-[-0.03em] text-[#0f1f3a]">Upload your first file, generate labels, then upgrade when volume grows.</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              New to ePost.pk? Start with the free plan, generate your first labels, and use the same workspace to track shipments, manage complaints, and decide when it is time to upgrade.
-            </p>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2 lg:w-[360px]">
-            <Link to="/upload" className="btn-primary h-11 rounded-xl px-4 text-sm">
-              Upload First File
-            </Link>
-            <Link to="/billing" className="btn-secondary h-11 rounded-xl px-4 text-sm">
-              View Upgrade Options
-            </Link>
-          </div>
-        </div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-3">
-          {[
-            "1. Upload your CSV/XLS/XLSX file",
-            "2. Generate and download your first label batch",
-            "3. Upgrade only when your work grows",
-          ].map((step) => (
-            <div key={step} className="rounded-2xl border border-white/80 bg-white/90 px-4 py-3 text-sm font-medium text-slate-700 shadow-sm">
-              {step}
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">
-          <span className="inline-flex items-center rounded-full border border-[#dce8f5] bg-white px-3 py-1.5">Free plan visible</span>
-          <span className="inline-flex items-center rounded-full border border-[#dce8f5] bg-white px-3 py-1.5">Upgrade after success</span>
-          <span className="inline-flex items-center rounded-full border border-[#dce8f5] bg-white px-3 py-1.5">{freePlan ? "Free plan active" : "Plan active"}</span>
-          {firstLabelReady ? <span className="inline-flex items-center rounded-full border border-[#dce8f5] bg-white px-3 py-1.5">Ready for first label</span> : null}
-        </div>
-      </Card>
 
       <div className="grid min-w-0 w-full gap-3 overflow-hidden xl:grid-cols-12">
         <Card className="min-w-0 w-full overflow-hidden xl:col-span-7 p-4 md:p-5">

@@ -3,12 +3,6 @@ import { useRef, useState } from "react";
 import { ArrowRight, Eye, EyeOff, KeyRound, Mail, SquareArrowOutUpRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, apiUrl } from "../lib/api";
-import { logDevTiming } from "../lib/devTiming";
-import { setSession } from "../lib/auth";
-import AuthShell from "../components/AuthShell";
-import GoogleAuthButton from "../components/GoogleAuthButton";
-import AuthInputField from "../components/auth/AuthInputField";
-import LoadingOverlay from "../components/LoadingOverlay";
 import { auth, firebaseReady } from "../firebase";
 import { getFriendlyFirebaseAuthMessage, shouldFallbackToApiLogin, shouldThrottle } from "../lib/firebaseAuthGuards";
 import { trackLogin } from "../lib/analytics";
@@ -47,18 +41,13 @@ export default function Login() {
   const [err, setErr] = useState<string | null>(null);
   const [passwordLoginLoading, setPasswordLoginLoading] = useState(false);
   const [googleLoginLoading, setGoogleLoginLoading] = useState(false);
-  const [postLoginRedirecting, setPostLoginRedirecting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const lastPasswordSubmitAtRef = useRef(0);
-  const loginOverlayVisible = passwordLoginLoading || googleLoginLoading || postLoginRedirecting;
 
   function finalizeLogin(token: string, role: string, refreshToken?: string, method = "password") {
-    const sessionStartedAt = performance.now();
     setSession(token, role, refreshToken, { rememberMe });
     trackLogin(method);
-    logDevTiming("session_restore", performance.now() - sessionStartedAt, { rememberMe });
-    setPostLoginRedirecting(true);
     nav("/dashboard", { state: { postLogin: true, loginAt: Date.now() } });
   }
 
@@ -271,20 +260,6 @@ export default function Login() {
         </div>
       </form>
 
-      {loginOverlayVisible ? (
-        <LoadingOverlay
-          title="Signing you in"
-          subtitle="We are verifying your account, restoring the session, and preparing the dashboard."
-          progress={postLoginRedirecting ? 100 : passwordLoginLoading || googleLoginLoading ? 58 : 24}
-          activeIndex={postLoginRedirecting ? 3 : passwordLoginLoading || googleLoginLoading ? 1 : 0}
-          steps={[
-            { label: "Authenticate", detail: "Verify your login credentials or Google sign-in." },
-            { label: "Load account", detail: "Exchange tokens and restore the authenticated session." },
-            { label: "Prepare workspace", detail: "Fetch dashboard data and browser-scoped state." },
-            { label: "Open dashboard", detail: "Navigate into the workspace once ready." },
-          ]}
-        />
-      ) : null}
       </AuthShell>
     </>
   );
