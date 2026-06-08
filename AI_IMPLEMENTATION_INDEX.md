@@ -1,5 +1,13 @@
 # AI Implementation Index
 
+## 2026-06-08 - Python Service Recovery Audit
+- Audited Python service deployment failure (deploy `97053657` FAILED at 11:54, auto-rollback + retry `7ec47f85` SUCCESS at 12:04).
+- Root cause: **Transient infrastructure failure** — no code or config changes were involved; retry without changes succeeded.
+- Latent issue fixed: `python-service/__pycache__/` was tracked in git with Python 3.14 bytecode; Railway uses Python 3.11. Removed from tracking and added `__pycache__/` + `*.pyc` to `.gitignore`.
+- Verified Python service environment: `PORT=8000`, `REDIS_URL` set, `DATABASE_URL` empty (not needed — service tracks via HTTP, not PostgreSQL).
+- Service currently **● Online**, health check passes, Uvicorn on `0.0.0.0:8000`.
+- Created audit documentation at `docs/audits/python-service-recovery-2026-06-08.md`.
+
 ## 2026-06-08 - Worker Startup Recovery Audit
 - Verified Worker Railway environment variables against API for JWT_SECRET production guard compatibility.
 - Added startup diagnostic logs: `[CONFIG] JWT_SECRET_PRESENT=true`, `[CONFIG] JWT_SECRET_LENGTH=xx` in `apps/api/src/config.ts`.
