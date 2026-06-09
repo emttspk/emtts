@@ -1,5 +1,15 @@
 # AI Implementation Index
 
+## 2026-06-09 - Complaint Queue Visibility Improvements
+- Updated frontend action labels: QUEUED → "Queued for Submission", PROCESSING → "Submitting to Pakistan Post...", MANUAL REVIEW → "Complaint requires manual review" (replaces "Processing failed").
+- Added `summarizeError()` function in BulkTracking.tsx that maps raw error text to user-friendly summaries (500 → "Pakistan Post temporarily unavailable", tracking unavailable → "Tracking information unavailable", location mapping → "Delivery office verification failed").
+- Error summary displayed in card state for MANUAL REVIEW and RETRY PENDING states.
+- Updated card `stateMessage` for MANUAL REVIEW: "Complaint requires manual review. {error summary}. Contact support if this persists."
+- Added card `stateMessage` for QUEUED: "Queued for submission to Pakistan Post."
+- Updated AdminComplaintMonitor retry queue table: added "Attempt" column (X/6) and "Last Error" column with truncated error text and title tooltip.
+- Updated `isComplaintActionLocked` to include new labels.
+- Build: `npm run build` PASS. Tests: 66/66 PASS.
+
 ## 2026-06-09 - Orphan Backfill Execution + Confirm Resolved Auth Fix
 - Executed SQL backfill for 7 orphan legacy records: prepended `DUE_DATE: DD-MM-YYYY | COMPLAINT_STATE: OVERDUE` to complaintText using actual `ComplaintQueue.dueDate`. No fabricated CMP numbers. All 7 records now eligible for sync and reopen.
 - Fixed "Confirm Resolved" network error: `handleConfirmResolved` in BulkTracking.tsx used raw `fetch()` without auth token. Changed to use `api()` helper which adds JWT token via `Authorization: Bearer` header or `?token=` URL param.

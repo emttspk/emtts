@@ -480,6 +480,16 @@ function isComplaintActionAllowed(
   return statusUpper === "PENDING" && !hasKnownComplaint;
 }
 
+function summarizeError(raw: string | null | undefined): string | null {
+  const text = String(raw ?? "").trim();
+  if (!text) return null;
+  if (/500\s*Server\s*Error/i.test(text)) return "Pakistan Post temporarily unavailable";
+  if (/tracking\s*(response|data).*(mis|unavail)/i.test(text)) return "Tracking information unavailable";
+  if (/unable\s*to\s*map/i.test(text)) return "Delivery office verification failed";
+  if (/timeout/i.test(text)) return "Request timed out — retrying";
+  return text.length > 60 ? text.substring(0, 57) + "..." : text;
+}
+
 function resolveComplaintActionLabel(
   shipmentStatus: string | null | undefined,
   lifecycle: ComplaintLifecycle,
@@ -497,15 +507,15 @@ function resolveComplaintActionLabel(
   if (!hasComplaint) return "Complaint";
 
   const queueState = normalizeQueueStatusLabel(queueSnapshot?.complaintStatus);
-  if (queueState === "QUEUED") return "Queued";
+  if (queueState === "QUEUED") return "Queued for Submission";
+  if (queueState === "PROCESSING") return "Submitting to Pakistan Post...";
   if (queueState === "RETRY PENDING") return "Retry Pending";
-  if (queueState === "MANUAL REVIEW") return "Processing failed";
+  if (queueState === "MANUAL REVIEW") return "Complaint requires manual review";
 
   const dueExpired = lifecycle.dueDateTs != null && lifecycle.dueDateTs < todayStart.getTime();
   const terminal = ["RESOLVED", "CLOSED", "REJECTED"].includes(lifecycleStateUp) || dueExpired;
   if (statusUpper === "PENDING" && terminal) return "Reopen Complaint";
 
-  // Reopened (attempt > 1) should still appear as in process until terminal.
   const reopenedInProgress = lifecycle.latestAttempt > 1 && !terminal;
   if (reopenedInProgress || isComplaintInProcess(lifecycle)) return "In Process";
 
@@ -524,7 +534,8 @@ function complaintStateBadgeClass(stateLabel: string) {
 }
 
 function isComplaintActionLocked(label: string) {
-  return ["In Process", "Queued", "Retry Pending", "Processing failed"].includes(String(label ?? "").trim());
+  const lbl = String(label ?? "").trim();
+  return ["In Process", "Queued", "Queued for Submission", "Submitting to Pakistan Post...", "Retry Pending", "Processing failed", "Complaint requires manual review"].includes(lbl);
 }
 
 function formatRetryCountdown(nextRetryAt: string | null | undefined, nowMs: number): string {
@@ -4846,11 +4857,16 @@ export default function BulkTracking() {
                         const processingIsStale = showProcessingTimer
                           && processingUpdatedMs > 0
                           && retryCountdownNow - processingUpdatedMs > COMPLAINT_PROCESSING_STALE_UI_MS;
+                        const lastErr = summarizeError(queueSnapshot?.lastError ?? null);
                         const stateMessage = waitingComplaintId
                           ? "Complaint already queued. Waiting for complaint number."
                           : complaintCardState.toUpperCase() === "MANUAL REVIEW"
-                            ? "Processing failed. Pending retry/manual review."
-                            : "";
+                            ? "Complaint requires manual review." + (lastErr ? ` ${lastErr}` : " Contact support if this persists.")
+                            : complaintCardState.toUpperCase() === "QUEUED"
+                              ? "Queued for submission to Pakistan Post."
+                              : lastErr && complaintCardState.toUpperCase() === "RETRY PENDING"
+                                ? lastErr
+                                : "";
                         return (
                           <div className="w-full rounded-xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff,#f8fafc)] px-2.5 py-2 text-left text-[10px] shadow-sm">
                             <div className="font-semibold text-[#111827] break-all" title={complaintId}>{complaintId}</div>

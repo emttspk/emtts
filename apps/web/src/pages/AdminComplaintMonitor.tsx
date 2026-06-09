@@ -393,9 +393,10 @@ export default function AdminComplaintMonitor() {
                 <th className="px-4 py-2 text-left">Tracking</th>
                 <th className="px-4 py-2 text-left">Complaint ID</th>
                 <th className="px-4 py-2 text-left">Status</th>
-                <th className="px-4 py-2 text-left">Retry Count</th>
+                <th className="px-4 py-2 text-left">Attempt</th>
                 <th className="px-4 py-2 text-left">Next Retry</th>
                 <th className="px-4 py-2 text-left">Countdown</th>
+                <th className="px-4 py-2 text-left">Last Error</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
@@ -408,14 +409,15 @@ export default function AdminComplaintMonitor() {
                       {normalizeStatusLabel(row.complaintStatus)}
                     </span>
                   </td>
-                  <td className="px-4 py-2 text-xs text-slate-700">{row.retryCount}</td>
+                  <td className="px-4 py-2 text-xs text-slate-700">{row.retryCount}/6</td>
                   <td className="px-4 py-2 text-xs text-slate-700">{row.nextRetryAt ? new Date(row.nextRetryAt).toLocaleString("en-GB") : "-"}</td>
                   <td className="px-4 py-2 text-xs font-semibold text-amber-700">{formatRetryCountdown(row.nextRetryAt, nowMs)}</td>
+                  <td className="px-4 py-2 text-xs text-red-700 max-w-[200px] truncate" title={row.lastError || ""}>{row.lastError || "-"}</td>
                 </tr>
               ))}
               {retryRows.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-6 text-center text-sm text-slate-500" colSpan={6}>No retry_pending rows right now.</td>
+                  <td className="px-4 py-6 text-center text-sm text-slate-500" colSpan={7}>No retry_pending rows right now.</td>
                 </tr>
               ) : null}
             </tbody>
