@@ -30,13 +30,16 @@ Define complaint reliability architecture across API, worker, queue storage, and
 ## Sync Lifecycle (deriveComplaintState)
 The sync job (`complaint-sync.service.ts`) updates complaint lifecycle state based on live tracking data:
 
-1. **Manual override check** — if `manualPendingOverride` is set, complaint stays ACTIVE/PROCESSING regardless of tracking.
+1. **Manual override check** — if `manualPendingOverride` is set, complaint stays ACTIVE/OVERDUE regardless of tracking.
 2. **Live tracking check** — if tracking returns DELIVERED or RETURNED, complaint transitions to RESOLVED (or CLOSED if already resolved). This check runs before the stale `shipment.status` field, so live tracking data takes precedence over the locally cached status column.
-3. **Stale shipment status** — if local `shipment.status` is PENDING but live tracking is not terminal, complaint stays ACTIVE/PROCESSING.
-4. **Tracking unavailable** — if live tracking fails, complaint stays ACTIVE or transitions to PROCESSING if due date passed.
-5. **Due date passed** — if due date has passed with no resolution, complaint transitions to PROCESSING.
+3. **Stale shipment status** — if local `shipment.status` is PENDING but live tracking is not terminal, complaint stays ACTIVE or OVERDUE (if due date passed).
+4. **Tracking unavailable** — if live tracking fails, complaint stays ACTIVE or transitions to OVERDUE if due date passed.
+5. **Due date passed** — if due date has passed with no resolution, complaint transitions to OVERDUE.
 
 This ordering was corrected in June 2026. Previously, the stale `shipment.status === "PENDING"` check ran before the live tracking check, which prevented 165 complaints with confirmed DELIVERED/RETURNED tracking from reaching RESOLVED.
+
+### Phase C1: PROCESSING → OVERDUE (June 2026)
+In June 2026, the complaint lifecycle state `PROCESSING` was renamed to `OVERDUE` to better reflect its meaning: the due date has passed with no resolution. The lifecycle `COMPLAINT_STATE` values are now: ACTIVE, OVERDUE, RESOLVED, CLOSED. The `complaintInProcess` stats counter is deprecated in favor of `complaintOverdue`.
 
 ### Shipment.status Synchronization (Phase B)
 Starting June 2026, the sync also updates `shipment.status` from the live tracking result. When the sync detects DELIVERED or RETURNED, the DB column is updated to match. When tracking returns PENDING, the column is set to PENDING. This eliminates the stale-column problem at the source: `shipment.status` now reflects the last known live tracking state rather than the initial upload status. See `Shipment Retention` below for cleanup retention implications.

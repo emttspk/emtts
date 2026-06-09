@@ -7,7 +7,7 @@ export type ComplaintRecord = {
   complaintId: string;
   dueDate: string;
   dueDateTs: number | null;
-  state: "OPEN" | "IN_PROCESS" | "PROCESSING" | "RESOLVED" | "CLOSED" | "ACTIVE" | "REJECTED";
+  state: "OPEN" | "IN_PROCESS" | "OVERDUE" | "RESOLVED" | "CLOSED" | "ACTIVE" | "REJECTED";
   active: boolean;
   complaintStatus: string;
   complaintText: string;

@@ -1723,7 +1723,7 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
       && Boolean(id)
       && dueTs != null
       && dueTs >= today.getTime();
-    const activeByState = ["ACTIVE", "FILED", "SUBMITTED", "PROCESSING", "QUEUED", "MANUAL_REVIEW", "DUPLICATE"].includes(normalizedState)
+    const activeByState = ["ACTIVE", "FILED", "SUBMITTED", "OVERDUE", "QUEUED", "MANUAL_REVIEW", "DUPLICATE"].includes(normalizedState)
       && Boolean(id)
       && (dueTs == null || dueTs >= today.getTime());
     const active = !isTerminalState && (activeByStatusAndDue || activeByState);

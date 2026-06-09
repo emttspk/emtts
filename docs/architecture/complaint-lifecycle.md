@@ -17,10 +17,10 @@ Complaint flow for tracking workspace and complaints page, including queue statu
 The sync job (`complaint-sync.service.ts:deriveComplaintState`) transitions COMPLAINT_STATE as follows:
 
 - **ACTIVE** → starts here on successful filing
-- **ACTIVE → PROCESSING**: due date passed, tracking not yet terminal
+- **ACTIVE → OVERDUE**: due date passed, tracking not yet terminal
 - **ACTIVE → RESOLVED**: live tracking confirms DELIVERED or RETURNED (priority over stale `shipment.status`)
 - **RESOLVED → CLOSED**: confirmed on second sync cycle
-- **PROCESSING → RESOLVED**: live tracking confirms DELIVERED or RETURNED
+- **OVERDUE → RESOLVED**: live tracking confirms DELIVERED or RETURNED
 
 State changes are written to `complaintText` metadata. The `shipment.status` column is read only as a fallback — live tracking data takes precedence when available. This ordering was corrected in June 2026; previously, stale `shipment.status=PENDING` blocked RESOLVED for delivered shipments.
 

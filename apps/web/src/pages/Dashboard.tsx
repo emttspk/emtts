@@ -55,11 +55,13 @@ export default function Dashboard() {
       complaintAmount: shipmentStats?.complaintAmount ?? 0,
       complaintActive: shipmentStats?.complaintActive ?? 0,
       complaintInProcess: shipmentStats?.complaintInProcess ?? 0,
+      complaintOverdue: shipmentStats?.complaintOverdue ?? 0,
       complaintClosed: shipmentStats?.complaintClosed ?? 0,
       complaintReopened: shipmentStats?.complaintReopened ?? 0,
       complaintWatchAmount: shipmentStats?.complaintWatchAmount ?? 0,
       complaintActiveAmount: shipmentStats?.complaintActiveAmount ?? 0,
       complaintInProcessAmount: shipmentStats?.complaintInProcessAmount ?? 0,
+      complaintOverdueAmount: shipmentStats?.complaintOverdueAmount ?? 0,
       complaintClosedAmount: shipmentStats?.complaintClosedAmount ?? 0,
       complaintReopenedAmount: shipmentStats?.complaintReopenedAmount ?? 0,
       trackingUsed: shipmentStats?.trackingUsed ?? 0,
@@ -201,7 +203,7 @@ export default function Dashboard() {
               { label: "Active Complaints", count: stats.complaintActive, amount: stats.complaintActiveAmount, filter: "COMPLAINT_ACTIVE", tone: "text-amber-800" },
               { label: "Closed Complaints", count: stats.complaintClosed, amount: stats.complaintClosedAmount, filter: "COMPLAINT_CLOSED", tone: "text-emerald-800" },
               { label: "Reopened Complaints", count: stats.complaintReopened, amount: stats.complaintReopenedAmount, filter: "COMPLAINT_REOPENED", tone: "text-violet-700" },
-              { label: "In Process Complaints", count: stats.complaintInProcess, amount: stats.complaintInProcessAmount, filter: "COMPLAINT_IN_PROCESS", tone: "text-sky-700" },
+              { label: "Overdue Complaints", count: stats.complaintOverdue, amount: stats.complaintOverdueAmount, filter: "COMPLAINT_OVERDUE", tone: "text-orange-700" },
             ].map((item) => (
               <button
                 key={item.label}

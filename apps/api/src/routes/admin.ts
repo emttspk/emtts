@@ -269,7 +269,7 @@ function isResolvedComplaintState(state: string) {
 }
 
 function isPendingComplaintState(state: string) {
-  return ["FILED", "ACTIVE", "OPEN", "IN_PROCESS", "IN PROCESS", "PROCESSING", "PENDING"].includes(state);
+  return ["FILED", "ACTIVE", "OPEN", "IN_PROCESS", "IN PROCESS", "OVERDUE", "PENDING"].includes(state);
 }
 
 async function getRevenueTotals() {
@@ -1154,7 +1154,7 @@ adminRouter.get("/complaints/monitor", async (_req, res) => {
 
   for (const complaint of complaints) {
     const state = String(complaint.state ?? "").trim().toUpperCase().replace(/[\-_]+/g, " ");
-    if (["ACTIVE", "IN PROCESS", "OPEN", "PROCESSING"].includes(state)) {
+    if (["ACTIVE", "IN PROCESS", "OPEN", "OVERDUE"].includes(state)) {
       summary.open += 1;
     }
     if (["RESOLVED", "CLOSED"].includes(state)) {

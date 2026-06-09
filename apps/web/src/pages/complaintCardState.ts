@@ -27,7 +27,7 @@ function normalizeStatus(input: string | null | undefined): string {
   return String(input ?? "").trim().toUpperCase();
 }
 
-export function normalizeQueueStatusLabel(raw: string | null | undefined): "QUEUED" | "PROCESSING" | "ACTIVE" | "RETRY PENDING" | "RESOLVED" | "MANUAL REVIEW" | "DUPLICATE" | "SUBMITTED" {
+export function normalizeQueueStatusLabel(raw: string | null | undefined): "QUEUED" | "PROCESSING" | "ACTIVE" | "RETRY PENDING" | "RESOLVED" | "MANUAL REVIEW" | "DUPLICATE" | "SUBMITTED" | "OVERDUE" {
   const token = String(raw ?? "").trim().toUpperCase().replace(/[\-_]+/g, " ");
   if (!token) return "ACTIVE";
   if (token === "RETRYING" || token === "RETRY PENDING") return "RETRY PENDING";
@@ -64,7 +64,7 @@ export function resolveComplaintCardState(
     if (queueState === "RETRY PENDING") return "RETRY PENDING";
     if (queueState === "MANUAL REVIEW") return "MANUAL REVIEW";
     const dueExpired = lifecycle.dueDateTs != null && lifecycle.dueDateTs < todayStart.getTime();
-    return dueExpired ? "PROCESSING" : "ACTIVE";
+    return dueExpired ? "OVERDUE" : "ACTIVE";
   }
 
   if (lifecycleResolved) return "RESOLVED";

@@ -40,7 +40,7 @@ export function deriveComplaintState(input: {
 
   if (input.manualPendingOverride) {
     return {
-      state: duePassed ? "PROCESSING" : "ACTIVE",
+      state: duePassed ? "OVERDUE" : "ACTIVE",
       reason: "shipment_pending_manual_override",
       trackingStateAtSync,
     };
@@ -56,7 +56,7 @@ export function deriveComplaintState(input: {
 
   if (shipmentState === "PENDING") {
     return {
-      state: duePassed ? "PROCESSING" : "ACTIVE",
+      state: duePassed ? "OVERDUE" : "ACTIVE",
       reason: "shipment_pending_system",
       trackingStateAtSync,
     };
@@ -64,7 +64,7 @@ export function deriveComplaintState(input: {
 
   if (!input.trackingAvailable || trackingStateAtSync === "UNAVAILABLE" || trackingStateAtSync === "UNKNOWN") {
     return {
-      state: duePassed ? "PROCESSING" : "ACTIVE",
+      state: duePassed ? "OVERDUE" : "ACTIVE",
       reason: "tracking_unavailable_or_uncertain",
       trackingStateAtSync,
     };
@@ -72,7 +72,7 @@ export function deriveComplaintState(input: {
 
   if (duePassed) {
     return {
-      state: "PROCESSING",
+      state: "OVERDUE",
       reason: "due_date_reached_pending_verification",
       trackingStateAtSync,
     };

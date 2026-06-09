@@ -100,7 +100,8 @@ type ExtendedStatusFilter =
   | "COMPLAINT_ACTIVE"
   | "COMPLAINT_CLOSED"
   | "COMPLAINT_REOPENED"
-  | "COMPLAINT_IN_PROCESS";
+  | "COMPLAINT_IN_PROCESS"
+  | "COMPLAINT_OVERDUE";
 
 type TrackingUploadFileKind = "tracking master file" | "shipment upload file" | "tracking-only file" | "unknown file";
 
@@ -402,7 +403,8 @@ function parseComplaintLifecycle(shipment: Shipment): ComplaintLifecycle {
     const token = String(raw ?? "").trim().toUpperCase().replace(/[\-_]+/g, " ");
     if (!token) return "ACTIVE";
     if (["ACTIVE", "OPEN", "FILED"].includes(token)) return "ACTIVE";
-    if (["IN PROCESS", "INPROGRESS", "IN_PROGRESS", "PROCESSING", "PENDING", "DUPLICATE"].includes(token)) return "IN PROCESS";
+    if (["OVERDUE", "PROCESSING"].includes(token)) return "OVERDUE";
+    if (["IN PROCESS", "INPROGRESS", "IN_PROGRESS", "PENDING", "DUPLICATE"].includes(token)) return "IN PROCESS";
     if (["RESOLVED", "RESOLVE"].includes(token)) return "RESOLVED";
     if (["CLOSED", "CLOSE"].includes(token)) return "CLOSED";
     if (["REJECTED", "REJECT", "ERROR", "FAILED"].includes(token)) return "REJECTED";
@@ -416,7 +418,7 @@ function parseComplaintLifecycle(shipment: Shipment): ComplaintLifecycle {
   const hasComplaint = Boolean(complaintId) || ["FILED", "DUPLICATE", "ACTIVE", "IN PROCESS", "RESOLVED", "CLOSED", "REJECTED"].includes(normalizeState(stateFromStatus));
   const active = Boolean(
     hasComplaint
-    && ["ACTIVE", "IN PROCESS"].includes(normalizedState)
+    && normalizedState === "ACTIVE"
     && dueDateTs != null
     && dueDateTs >= todayStart.getTime(),
   );
@@ -456,7 +458,7 @@ function isComplaintActionAllowed(
   const complaintCardState = resolveComplaintCardState(lifecycle, shipmentStatus, queueSnapshot).toUpperCase();
   const hasKnownComplaint = lifecycle.exists || Boolean(queueSnapshot)
     || Boolean(String(lifecycle.complaintId ?? "").trim() || String(queueSnapshot?.complaintId ?? "").trim())
-    || ["ACTIVE", "QUEUED", "PROCESSING", "RETRY PENDING", "MANUAL REVIEW", "SUBMITTED", "DUPLICATE", "RESOLVED"].includes(complaintCardState);
+    || ["ACTIVE", "QUEUED", "OVERDUE", "RETRY PENDING", "MANUAL REVIEW", "SUBMITTED", "DUPLICATE", "RESOLVED"].includes(complaintCardState);
   if (reopenEligible) return true;
   return statusUpper === "PENDING" && !hasKnownComplaint;
 }
@@ -496,7 +498,8 @@ function resolveComplaintActionLabel(
 function complaintStateBadgeClass(stateLabel: string) {
   const token = String(stateLabel ?? "").trim().toUpperCase();
   if (token === "QUEUED") return "border-slate-200 bg-slate-50 text-slate-700";
-  if (token === "PROCESSING" || token === "IN PROCESS") return "border-blue-200 bg-blue-50 text-blue-800";
+  if (token === "OVERDUE") return "border-orange-200 bg-orange-50 text-orange-800";
+  if (token === "IN PROCESS") return "border-blue-200 bg-blue-50 text-blue-800";
   if (token === "RETRY PENDING") return "border-amber-200 bg-amber-50 text-amber-800";
   if (token === "RESOLVED" || token === "CLOSED") return "border-emerald-200 bg-emerald-50 text-emerald-800";
   if (token === "MANUAL REVIEW") return "border-red-200 bg-red-50 text-red-800";
@@ -1574,7 +1577,7 @@ export default function BulkTracking() {
       const cardState = resolveComplaintCardState(lifecycle, effectiveShipmentStatus, queueSnapshot).toUpperCase();
       const hasComplaintId = Boolean(String(lifecycle.complaintId ?? "").trim() || String(queueSnapshot.complaintId ?? "").trim());
       const resolved = hasComplaintId || ["ACTIVE", "RESOLVED", "CLOSED", "REJECTED"].includes(cardState);
-      if (!resolved && ["QUEUED", "PROCESSING", "RETRY PENDING"].includes(cardState)) {
+      if (!resolved && ["QUEUED", "OVERDUE", "RETRY PENDING"].includes(cardState)) {
         unresolved += 1;
       }
     }
@@ -2613,17 +2616,20 @@ export default function BulkTracking() {
   const complaintTotals = useMemo(() => {
     let total = 0;
     let active = 0;
+    let overdue = 0;
     let closed = 0;
     for (const row of trackingTableRows) {
       if (!row.lifecycle.exists) continue;
       total += 1;
-      if (["ACTIVE", "IN PROCESS"].includes(row.lifecycle.state)) {
+      if (row.lifecycle.state === "ACTIVE") {
         active += 1;
+      } else if (row.lifecycle.state === "OVERDUE") {
+        overdue += 1;
       } else if (["RESOLVED", "CLOSED", "REJECTED"].includes(row.lifecycle.state)) {
         closed += 1;
       }
     }
-    return { total, active, closed };
+    return { total, active, overdue, closed };
   }, [trackingTableRows]);
 
   const workspaceShipmentStats = useMemo(() => {
@@ -2793,6 +2799,7 @@ export default function BulkTracking() {
       statusFilter === "COMPLAINT_WATCH"
       || statusFilter === "COMPLAINT_TOTAL"
       || statusFilter === "COMPLAINT_ACTIVE"
+      || statusFilter === "COMPLAINT_OVERDUE"
       || statusFilter === "COMPLAINT_CLOSED"
       || statusFilter === "COMPLAINT_REOPENED"
       || statusFilter === "COMPLAINT_IN_PROCESS"
@@ -2812,7 +2819,11 @@ export default function BulkTracking() {
     }
 
     if (statusFilter === "COMPLAINT_ACTIVE") {
-      return filtered.filter((row) => row.lifecycle.exists && ["ACTIVE", "IN PROCESS"].includes(row.lifecycle.state));
+      return filtered.filter((row) => row.lifecycle.exists && row.lifecycle.state === "ACTIVE");
+    }
+
+    if (statusFilter === "COMPLAINT_OVERDUE") {
+      return filtered.filter((row) => row.lifecycle.exists && row.lifecycle.state === "OVERDUE");
     }
 
     if (statusFilter === "COMPLAINT_CLOSED") {
@@ -2846,7 +2857,7 @@ export default function BulkTracking() {
     }
 
     if (statusFilter === "COMPLAINT_IN_PROCESS") {
-      return filtered.filter((row) => row.lifecycle.exists && row.lifecycle.state === "IN PROCESS");
+      return filtered.filter((row) => row.lifecycle.exists && ["IN PROCESS", "OVERDUE"].includes(row.lifecycle.state));
     }
 
     if (!searchTerm.trim()) return filtered;
@@ -3129,7 +3140,7 @@ export default function BulkTracking() {
     const complaintCardState = resolveComplaintCardState(complaintLifecycle, selectedTrackingStatus, queueSnapshot);
     const presentation = resolveTrackingPresentation(selectedTrackingStatus, timeline, deliveryProgress, trackingLifecycle, {
       operationalStatus: selectedTrackingStatus,
-      complaintActive: isComplaintInProcess(complaintLifecycle) || ["ACTIVE", "PROCESSING", "RETRY PENDING", "MANUAL REVIEW", "QUEUED"].includes(complaintCardState.toUpperCase()),
+      complaintActive: isComplaintInProcess(complaintLifecycle) || ["ACTIVE", "OVERDUE", "RETRY PENDING", "MANUAL REVIEW", "QUEUED"].includes(complaintCardState.toUpperCase()),
       complaintStateLabel: complaintCardState === "ACTIVE" ? "Under Investigation" : complaintCardState,
     });
     const bookingDate = timeline[0]?.date || "-";
@@ -4364,6 +4375,7 @@ export default function BulkTracking() {
                 <option value="COMPLAINT_WATCH">Complaint Watch</option>
                 <option value="COMPLAINT_TOTAL">Complaint Total</option>
                 <option value="COMPLAINT_ACTIVE">Complaint Active</option>
+                <option value="COMPLAINT_OVERDUE">Complaint Overdue</option>
                 <option value="COMPLAINT_CLOSED">Complaint Closed</option>
                 <option value="COMPLAINT_REOPENED">Complaint Reopened</option>
                 <option value="COMPLAINT_IN_PROCESS">Complaint In Process</option>

@@ -47,11 +47,13 @@ type ShipmentStatsResponse = {
   complaintWatchAmount: number;
   complaintActive: number;
   complaintInProcess: number;
+  complaintOverdue: number;
   complaintResolved: number;
   complaintClosed: number;
   complaintReopened: number;
   complaintActiveAmount: number;
   complaintInProcessAmount: number;
+  complaintOverdueAmount: number;
   complaintResolvedAmount: number;
   complaintClosedAmount: number;
   complaintReopenedAmount: number;
@@ -400,7 +402,7 @@ function normalizeComplaintLifecycleState(state: string): "ACTIVE" | "IN_PROCESS
   if (!token) return "ACTIVE";
   if (["RESOLVED", "RESOLVE"].includes(token)) return "RESOLVED";
   if (["CLOSED", "CLOSE", "REJECTED", "REJECT", "ERROR", "FAILED"].includes(token)) return "CLOSED";
-  if (["IN PROCESS", "INPROCESS", "PROCESSING", "PENDING", "DUPLICATE", "OPEN"].includes(token)) return "IN_PROCESS";
+  if (["IN PROCESS", "INPROCESS", "OVERDUE", "PENDING", "DUPLICATE", "OPEN"].includes(token)) return "IN_PROCESS";
   return "ACTIVE";
 }
 
@@ -533,11 +535,13 @@ shipmentsRouter.get("/stats", async (req, res) => {
   let complaintResolved = 0;
   let complaintClosed = 0;
   let complaintReopened = 0;
+  let complaintOverdue = 0;
   let complaintActiveAmount = 0;
   let complaintInProcessAmount = 0;
   let complaintResolvedAmount = 0;
   let complaintClosedAmount = 0;
   let complaintReopenedAmount = 0;
+  let complaintOverdueAmount = 0;
   let complaintWatch = 0;
   let complaintWatchAmount = 0;
   for (const record of complaintRecords) {
@@ -564,6 +568,10 @@ shipmentsRouter.get("/stats", async (req, res) => {
     if (lifecycleState === "CLOSED") {
       complaintClosed += 1;
       complaintClosedAmount += amount;
+    }
+    if (String(record.state ?? "").trim().toUpperCase() === "OVERDUE") {
+      complaintOverdue += 1;
+      complaintOverdueAmount += amount;
     }
     if (totalAttempts > 1) {
       complaintReopened += 1;
@@ -607,11 +615,13 @@ shipmentsRouter.get("/stats", async (req, res) => {
     complaintWatchAmount,
     complaintActive,
     complaintInProcess,
+    complaintOverdue,
     complaintResolved,
     complaintClosed,
     complaintReopened,
     complaintActiveAmount,
     complaintInProcessAmount,
+    complaintOverdueAmount,
     complaintResolvedAmount,
     complaintClosedAmount,
     complaintReopenedAmount,

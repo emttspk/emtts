@@ -1,5 +1,14 @@
 # AI Implementation Index
 
+## 2026-06-09 - Phase C1: Rename complaint lifecycle PROCESSING → OVERDUE
+- Renamed complaint lifecycle state `PROCESSING` to `OVERDUE` across backend (deriveComplaintState, type union, routes, admin), frontend (normalizeState, badge class, card state, filter tabs), stats (dual-emit complaintInProcess + complaintOverdue), and docs.
+- Added `COMPLAINT_OVERDUE` filter tab showing overdue complaints only.
+- COMPLAINT_ACTIVE filter now shows ACTIVE-only complaints (previously included PROCESSING/IN PROCESS).
+- Dashboard: "In Process Complaints" renamed to "Overdue Complaints" using `complaintOverdue` metric.
+- Backward compatibility: `complaintInProcess` still emitted in stats API (deprecated).
+- Legacy `PROCESSING` values in existing complaintText still map correctly via normalizeState `["OVERDUE", "PROCESSING"]` → `"OVERDUE"`.
+- Build: `npm run build` PASS. All 59 tests PASS.
+
 ## 2026-06-09 - Phase B: Sync shipment.status from Live Tracking
 - Added `status: decision.trackingStateAtSync` to the `prisma.shipment.update()` in `complaint-sync.service.ts` success path.
 - After next sync cycle, `shipment.status` will reflect live tracking: 402→237 PENDING (−165), ~165→302 DELIVERED (+137), ~25→53 RETURNED (+28).

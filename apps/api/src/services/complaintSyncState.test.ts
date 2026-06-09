@@ -97,7 +97,7 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: "pending tracking with due passed returns PROCESSING and PENDING tracking state",
+    name: "pending tracking with due passed returns OVERDUE and PENDING tracking state",
     run() {
       const decision = deriveComplaintState({
         priorState: "ACTIVE",
@@ -108,7 +108,7 @@ const tests: TestCase[] = [
         dueDateTs: 0,
         now: Date.now(),
       });
-      assert.equal(decision.state, "PROCESSING");
+      assert.equal(decision.state, "OVERDUE");
       assert.equal(decision.reason, "shipment_pending_system");
       assert.equal(decision.trackingStateAtSync, "PENDING");
     },

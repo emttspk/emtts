@@ -11,6 +11,7 @@ export type ShipmentStats = {
   complaintWatch?: number;
   complaintActive?: number;
   complaintInProcess?: number;
+  complaintOverdue?: number;
   complaintResolved?: number;
   complaintClosed?: number;
   complaintReopened?: number;
@@ -25,6 +26,7 @@ export type ShipmentStats = {
   complaintWatchAmount?: number;
   complaintActiveAmount?: number;
   complaintInProcessAmount?: number;
+  complaintOverdueAmount?: number;
   complaintResolvedAmount?: number;
   complaintClosedAmount?: number;
   complaintReopenedAmount?: number;

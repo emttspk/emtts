@@ -190,7 +190,7 @@ When a new complaint is filed after due date expiry:
 | State | Description | Set By |
 |---|---|---|
 | `ACTIVE` | Complaint within due date, tracking not yet terminal | `composeComplaintText` (initial write) |
-| `PROCESSING` | Due date passed or tracking unavailable; pending verification | `deriveComplaintState` (sync) |
+| `OVERDUE` | Due date passed or tracking unavailable; pending verification. Renamed from PROCESSING in Phase C1 (June 2026). | `deriveComplaintState` (sync) |
 | `RESOLVED` | Live tracking confirms DELIVERED or RETURNED | `deriveComplaintState` (sync, when tracking check fires before stale status) |
 | `CLOSED` | Second sync cycle confirms RESOLVED state | `deriveComplaintState` (sync) |
 | `NONE` | No complaint data | Not stored as COMPLAINT_STATE; mapped during backfill |
