@@ -27,6 +27,17 @@ Define complaint reliability architecture across API, worker, queue storage, and
 7. Retry cron re-enqueues failed rows when nextRetryAt is due.
 8. Sync/SLA/watch/backup jobs run independently on schedule.
 
+## Sync Lifecycle (deriveComplaintState)
+The sync job (`complaint-sync.service.ts`) updates complaint lifecycle state based on live tracking data:
+
+1. **Manual override check** — if `manualPendingOverride` is set, complaint stays ACTIVE/PROCESSING regardless of tracking.
+2. **Live tracking check** — if tracking returns DELIVERED or RETURNED, complaint transitions to RESOLVED (or CLOSED if already resolved). This check runs before the stale `shipment.status` field, so live tracking data takes precedence over the locally cached status column.
+3. **Stale shipment status** — if local `shipment.status` is PENDING but live tracking is not terminal, complaint stays ACTIVE/PROCESSING.
+4. **Tracking unavailable** — if live tracking fails, complaint stays ACTIVE or transitions to PROCESSING if due date passed.
+5. **Due date passed** — if due date has passed with no resolution, complaint transitions to PROCESSING.
+
+This ordering was corrected in June 2026. Previously, the stale `shipment.status === "PENDING"` check ran before the live tracking check, which prevented 165 complaints with confirmed DELIVERED/RETURNED tracking from reaching RESOLVED.
+
 ## Retry Logic
 - Retry schedule: 5, 15, 30, 60, 180 minutes.
 - Maximum retries: 6.

@@ -8,7 +8,7 @@ type TestCase = {
 
 const tests: TestCase[] = [
   {
-    name: "pending shipment does not resolve complaint",
+    name: "delivered tracking resolves complaint even when shipment status is stale PENDING",
     run() {
       const decision = deriveComplaintState({
         priorState: "ACTIVE",
@@ -19,10 +19,8 @@ const tests: TestCase[] = [
         dueDateTs: null,
         now: Date.now(),
       });
-      assert.ok(["ACTIVE", "PROCESSING"].includes(decision.state));
-      assert.notEqual(decision.state, "RESOLVED");
-      assert.notEqual(decision.state, "CLOSED");
-      assert.equal(decision.reason, "shipment_pending_system");
+      assert.equal(decision.state, "RESOLVED");
+      assert.equal(decision.reason, "verified_tracking_delivered");
     },
   },
   {

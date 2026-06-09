@@ -38,10 +38,10 @@ export function deriveComplaintState(input: {
   const shipmentState = normalizeShipmentState(input.shipmentStatus);
   const duePassed = input.dueDateTs != null && input.dueDateTs <= input.now;
 
-  if (input.manualPendingOverride || shipmentState === "PENDING") {
+  if (input.manualPendingOverride) {
     return {
       state: duePassed ? "PROCESSING" : "ACTIVE",
-      reason: input.manualPendingOverride ? "shipment_pending_manual_override" : "shipment_pending_system",
+      reason: "shipment_pending_manual_override",
       trackingStateAtSync,
     };
   }
@@ -50,6 +50,14 @@ export function deriveComplaintState(input: {
     return {
       state: input.priorState === "RESOLVED" || input.priorState === "CLOSED" ? "CLOSED" : "RESOLVED",
       reason: `verified_tracking_${trackingStateAtSync.toLowerCase()}`,
+      trackingStateAtSync,
+    };
+  }
+
+  if (shipmentState === "PENDING") {
+    return {
+      state: duePassed ? "PROCESSING" : "ACTIVE",
+      reason: "shipment_pending_system",
       trackingStateAtSync,
     };
   }

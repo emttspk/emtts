@@ -187,13 +187,15 @@ When a new complaint is filed after due date expiry:
 
 ## 8. Complaint States
 
-| State | Description |
-|---|---|
-| `FILED` / `ACTIVE` | Complaint accepted by Pakistan Post, within due date |
-| `IN PROCESS` | Worker is actively processing (queue status: processing/queued/retry_pending) |
-| `RESOLVED` | Complaint resolved (queue status: resolved/closed) |
-| `REJECTED` / `ERROR` | Submission failed |
-| `DUPLICATE` | Pakistan Post returned duplicate; prior complaint ID retained |
+| State | Description | Set By |
+|---|---|---|
+| `ACTIVE` | Complaint within due date, tracking not yet terminal | `composeComplaintText` (initial write) |
+| `PROCESSING` | Due date passed or tracking unavailable; pending verification | `deriveComplaintState` (sync) |
+| `RESOLVED` | Live tracking confirms DELIVERED or RETURNED | `deriveComplaintState` (sync, when tracking check fires before stale status) |
+| `CLOSED` | Second sync cycle confirms RESOLVED state | `deriveComplaintState` (sync) |
+| `NONE` | No complaint data | Not stored as COMPLAINT_STATE; mapped during backfill |
+
+Note: The sync's `deriveComplaintState` checks live tracking data before the local `shipment.status` column. This ensures that complaints for delivered shipments reach RESOLVED even when the local status field is stale. Prior to June 2026, the stale `shipment.status === "PENDING"` check ran first, blocking RESOLVED for approximately 165 complaints with confirmed DELIVERED/RETURNED tracking.
 
 ---
 

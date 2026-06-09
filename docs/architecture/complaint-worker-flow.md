@@ -21,6 +21,17 @@ Explain worker-side complaint execution lifecycle with queue reliability control
 8. Retry cron re-enqueues queued/retry_pending rows.
 9. Admin monitor (/api/admin/complaints/monitor) reports queue + circuit + complaint summary.
 
+## Sync Lifecycle State Resolution
+The sync job (`complaint-sync.service.ts`) runs every 6 hours. Its `deriveComplaintState` function resolves COMPLAINT_STATE using this priority:
+
+1. Manual pending override (admin action) — blocks resolution
+2. **Live tracking DELIVERED/RETURNED** — transitions to RESOLVED/CLOSED
+3. Stale `shipment.status` field — only checked if live tracking is non-terminal
+4. Tracking unavailable — stays ACTIVE or transitions to PROCESSING
+5. Due date passed — transitions to PROCESSING
+
+This ordering was corrected in June 2026. Previously, the stale `shipment.status === "PENDING"` check (step 3) ran before the live tracking check (step 2), preventing 165 complaints with confirmed DELIVERED/RETURNED tracking from reaching RESOLVED.
+
 ## Retry Logic
 - queue retryCount increments on failure.
 - nextRetryAt computed by fixed schedule.

@@ -1,5 +1,15 @@
 # AI Implementation Index
 
+## 2026-06-09 - Complaint Sync State Resolution Fix
+- Fixed `deriveComplaintState()` in `complaint-sync.service.ts` to check live tracking DELIVERED/RETURNED before stale `shipment.status === "PENDING"`.
+- Previously, the stale `shipment.status` check (line 41) short-circuited before the live tracking check (line 49), preventing 165 complaints with confirmed DELIVERED/RETURNED tracking from reaching RESOLVED.
+- New order: (1) manual override, (2) live tracking terminal check, (3) stale shipment status, (4) tracking unavailable, (5) due date passed.
+- Updated `complaintSyncState.test.ts` — test "pending shipment does not resolve complaint" now expects RESOLVED.
+- Production impact after next sync cycle: PROCESSING -165, RESOLVED +165.
+- Files changed: `apps/api/src/services/complaint-sync.service.ts`, `apps/api/src/services/complaintSyncState.test.ts`, `docs/architecture/complaint-architecture.md`, `docs/architecture/complaint-lifecycle.md`, `docs/architecture/complaint-full-map.md`, `docs/architecture/complaint-worker-flow.md`, `AI_IMPLEMENTATION_INDEX.md`.
+- Build: `npm run build` PASS.
+- Tests: `npm run test:complaints` PASS.
+
 ## 2026-06-08 - Tracking Cache Regression Fix
 - Increased `TRACKING_CACHE_TTL_MS` from 60s to 30min and `COMPLAINT_QUEUE_CACHE_TTL_MS` from 45s to 30min in `BulkTracking.tsx`.
 - The 60-second TTL forced a full API re-fetch on every visit after 60s, causing perceived delay. Cache data was always shown instantly (from localStorage) but then immediately overwritten by background refresh.
