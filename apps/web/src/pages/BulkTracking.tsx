@@ -4843,7 +4843,7 @@ export default function BulkTracking() {
                           && !String(queueSnapshot?.complaintId ?? "").trim();
                         const displayCmp = (lifecycle.complaintId || queueSnapshot?.complaintId || "").trim();
                         const complaintId = displayCmp || (waitingComplaintId ? "Queued" : "CMP Not Available");
-                        const attemptCount = Math.max(1, lifecycle.complaintCount || queueSnapshot ? 1 : 0);
+                        const attemptCount = Math.max(1, lifecycle.complaintCount || (queueSnapshot ? 1 : 0));
                         const dueDate = lifecycle.dueDateText
                           || (queueSnapshot?.dueDate ? new Date(queueSnapshot.dueDate).toLocaleDateString("en-GB") : "-");
                         const retryHint = complaintCardState === "RETRY PENDING"

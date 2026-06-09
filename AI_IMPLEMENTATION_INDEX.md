@@ -1,5 +1,9 @@
 # AI Implementation Index
 
+## 2026-06-09 - Fix complaint card attempt count always showing 1
+- `BulkTracking.tsx:4846`: operator precedence bug — `Math.max(1, lifecycle.complaintCount || queueSnapshot ? 1 : 0)` parsed as `Math.max(1, (complaintCount || queueSnapshot) ? 1 : 0)` which is always `1`. Fixed with parentheses: `Math.max(1, lifecycle.complaintCount || (queueSnapshot ? 1 : 0))`. Now correctly shows actual attempt count (e.g., "Attempt 2 of 2" for VPL13688105).
+- Build: `npm run build` PASS.
+
 ## 2026-06-09 - Fix Confirm Resolved auth — requireAuth does not set email
 - `requireAuth` middleware (`middleware/auth.ts`) sets `req.user = { id, role }` from JWT claims.
 - The resolve endpoint (`tracking.ts:2311`) checked `if (!user?.id || !user?.email)` and returned 401 because `email` is never populated by the middleware.
