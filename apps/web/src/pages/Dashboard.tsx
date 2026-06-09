@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useOutletContext } from "react-router-dom";
-import { ArrowRight, Boxes, Clock3, Package2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ArrowRight, Boxes, Clock3, Loader2, Package2, ShieldCheck } from "lucide-react";
 import Card from "../components/Card";
 import type { MeResponse } from "../lib/types";
 import ActionButton from "../components/ui/ActionButton";
@@ -9,6 +9,7 @@ import StatsCard from "../components/ui/StatsCard";
 import UnifiedShipmentCards from "../components/UnifiedShipmentCards";
 import { useShipmentStats } from "../hooks/useShipmentStats";
 import { formatComplaintLimitValue } from "../lib/complaintLimits";
+import { api } from "../lib/api";
 
 type ShellCtx = { me: MeResponse | null; refreshMe: () => Promise<void> };
 
@@ -39,6 +40,40 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { shipmentStats, shipmentStatsLoading } = useShipmentStats(me?.user?.id);
   const showStatsSkeleton = shipmentStatsLoading && !shipmentStats;
+
+  const [queueHealth, setQueueHealth] = useState<{ queued: number; processing: number; retryPending: number; manualReview: number; failed: number; avgSecs: number } | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
+  const isAdmin = me?.user?.role === "ADMIN";
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    setHealthLoading(true);
+    api<{ queue: Array<{ complaintStatus: string; updatedAt: string }> }>("/api/admin/complaints/monitor")
+      .then((data) => {
+        const rows = data.queue ?? [];
+        const q: Record<string, number> = { queued: 0, processing: 0, retry_pending: 0, manual_review: 0 };
+        let totalSecs = 0;
+        let doneCount = 0;
+        for (const r of rows) {
+          const s = r.complaintStatus;
+          if (s in q) q[s]++;
+          const created = new Date(r.updatedAt).getTime();
+          if (["submitted", "duplicate"].includes(s) && created > Date.now() - 86400000) {
+            doneCount++;
+          }
+        }
+        setQueueHealth({
+          queued: q.queued,
+          processing: q.processing,
+          retryPending: q.retry_pending,
+          manualReview: q.manual_review,
+          failed: 0,
+          avgSecs: doneCount > 0 ? Math.round(totalSecs / doneCount) : 0,
+        });
+        setHealthLoading(false);
+      })
+      .catch(() => setHealthLoading(false));
+  }, [isAdmin]);
 
   const stats = useMemo(
     () => ({
@@ -244,6 +279,78 @@ export default function Dashboard() {
           </div>
         </Card>
       </div>
+
+      {isAdmin || queueHealth ? (
+        <div className="grid min-w-0 w-full gap-3 overflow-hidden xl:grid-cols-12">
+          <Card className="min-w-0 w-full overflow-hidden xl:col-span-5 p-4 md:p-5">
+            <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Complaint Queue Health</div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              {healthLoading ? (
+                <div className="col-span-3 flex items-center justify-center py-6 text-sm text-slate-500"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading queue health...</div>
+              ) : queueHealth ? (
+                <>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <div className="text-xs text-slate-500">Queued</div>
+                    <div className="text-lg font-bold text-slate-800">{queueHealth.queued}</div>
+                  </div>
+                  <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+                    <div className="text-xs text-slate-500">Processing</div>
+                    <div className="text-lg font-bold text-blue-800">{queueHealth.processing}</div>
+                  </div>
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <div className="text-xs text-slate-500">Retry Pending</div>
+                    <div className="text-lg font-bold text-amber-800">{queueHealth.retryPending}</div>
+                  </div>
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+                    <div className="text-xs text-slate-500">Manual Review</div>
+                    <div className="text-lg font-bold text-red-800">{queueHealth.manualReview}</div>
+                  </div>
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                    <div className="text-xs text-slate-500">24h Avg Duration</div>
+                    <div className="text-lg font-bold text-emerald-800">{queueHealth.avgSecs > 0 ? `${queueHealth.avgSecs}s` : "-"}</div>
+                  </div>
+                  <div className="rounded-xl border border-violet-200 bg-violet-50 p-3">
+                    <div className="text-xs text-slate-500">Circuit Breaker</div>
+                    <div className="text-lg font-bold text-violet-800">-</div>
+                  </div>
+                </>
+              ) : (
+                <div className="col-span-3 rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">Queue health available for admin accounts.</div>
+              )}
+            </div>
+          </Card>
+
+          <Card className="min-w-0 w-full overflow-hidden xl:col-span-7 p-4 md:p-5">
+            <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Complaint Health</div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+              <button type="button" onClick={() => navigateToTrackingFilter("COMPLAINT_ACTIVE")} className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-left transition hover:-translate-y-0.5 hover:border-amber-300">
+                <div className="text-xs text-amber-600">Active</div>
+                <div className="mt-1 text-lg font-bold text-amber-800">{stats.complaintActive}</div>
+              </button>
+              <button type="button" onClick={() => navigateToTrackingFilter("COMPLAINT_OVERDUE")} className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-left transition hover:-translate-y-0.5 hover:border-orange-300">
+                <div className="text-xs text-orange-600">Overdue</div>
+                <div className="mt-1 text-lg font-bold text-orange-800">{stats.complaintOverdue}</div>
+              </button>
+              <button type="button" onClick={() => navigateToTrackingFilter("COMPLAINT_REOPENED")} className="rounded-xl border border-violet-200 bg-violet-50 p-3 text-left transition hover:-translate-y-0.5 hover:border-violet-300">
+                <div className="text-xs text-violet-600">Reopened</div>
+                <div className="mt-1 text-lg font-bold text-violet-800">{stats.complaintReopened}</div>
+              </button>
+              <button type="button" onClick={() => navigateToTrackingFilter("COMPLAINT_TOTAL")} className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-left transition hover:-translate-y-0.5 hover:border-sky-300">
+                <div className="text-xs text-sky-600">Total Complaints</div>
+                <div className="mt-1 text-lg font-bold text-sky-800">{stats.complaints}</div>
+              </button>
+              <button type="button" onClick={() => navigateToTrackingFilter("COMPLAINT_WATCH")} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:-translate-y-0.5 hover:border-slate-300">
+                <div className="text-xs text-slate-600">Complaint Watch</div>
+                <div className="mt-1 text-lg font-bold text-slate-800">{stats.complaintWatch}</div>
+              </button>
+              <button type="button" onClick={() => navigateToTrackingFilter("COMPLAINT_CLOSED")} className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-left transition hover:-translate-y-0.5 hover:border-emerald-300">
+                <div className="text-xs text-emerald-600">Resolved/Closed</div>
+                <div className="mt-1 text-lg font-bold text-emerald-800">{stats.complaintClosed}</div>
+              </button>
+            </div>
+          </Card>
+        </div>
+      ) : null}
     </PageShell>
   );
 }

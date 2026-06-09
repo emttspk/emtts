@@ -1,5 +1,11 @@
 # AI Implementation Index
 
+## 2026-06-09 - Complaint Operations Dashboard
+- Added Complaint Queue Health card to Dashboard.tsx (visible to admin users): queued, processing, retry_pending, manual_review counts, and 24h avg duration fetched from `/api/admin/complaints/monitor` API.
+- Added Complaint Health card with navigable buttons: Active, Overdue, Reopened, Total Complaints, Complaint Watch, Resolved/Closed. Each button navigates to the corresponding tracking workspace filter.
+- Added `api` import, `useEffect`/`useState` imports, and queue health state management.
+- Build: `npm run build` PASS.
+
 ## 2026-06-09 - Fix complaint card showing stale queue CMP after reopen
 - `complaintQueueRowsToMap` in BulkTracking.tsx:271-279 picked the FIRST queue row per tracking number (`if (next.has(trackingId)) continue;`). For reopened complaints with multiple queue rows (old + new), this discarded the latest CMP.
 - Fixed to pick the LATEST queue row by comparing `createdAt` timestamps. Old row is replaced when a newer row exists for the same tracking number.
