@@ -8,6 +8,7 @@ export type ComplaintRecord = {
   dueDate: string;
   dueDateTs: number | null;
   state: "OPEN" | "IN_PROCESS" | "OVERDUE" | "RESOLVED" | "CLOSED" | "ACTIVE" | "REJECTED";
+  manualStatePinned: boolean;
   active: boolean;
   complaintStatus: string;
   complaintText: string;
@@ -144,6 +145,7 @@ export function parseComplaintRecord(textBlob: string | null | undefined, compla
   const shipmentStatusAtComplaintSubmit = String(text.match(/shipmentStatusAtComplaintSubmit\s*:\s*([^|\n]+)/i)?.[1] ?? "").trim().toUpperCase();
   const trackingStateAtSync = String(text.match(/trackingStateAtSync\s*:\s*([^|\n]+)/i)?.[1] ?? "").trim().toUpperCase();
   const complaintStateReason = String(text.match(/complaintStateReason\s*:\s*([^|\n]+)/i)?.[1] ?? "").trim();
+  const manualStatePinned = String(text.match(/manualStatePinned\s*:\s*([^|\n|]+)/i)?.[1] ?? "").trim().toLowerCase() === "true";
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const active = String(complaintStatus ?? "").toUpperCase() === "FILED"
@@ -157,6 +159,7 @@ export function parseComplaintRecord(textBlob: string | null | undefined, compla
     dueDate: String(dueDate).trim(),
     dueDateTs,
     state: state as ComplaintRecord["state"],
+    manualStatePinned,
     active,
     shipmentStatusAtComplaintSubmit,
     trackingStateAtSync,
@@ -281,6 +284,7 @@ export async function listComplaintRecords(filters?: { trackingIds?: string[]; u
         dueDate: parsed.dueDate,
         dueDateTs: parsed.dueDateTs,
         state: parsed.state,
+        manualStatePinned: parsed.manualStatePinned,
         active: parsed.active,
         complaintStatus: String(shipment.complaintStatus ?? "").trim().toUpperCase(),
         complaintText: String(shipment.complaintText ?? ""),
@@ -323,6 +327,52 @@ export async function ensureComplaintNotificationTable() {
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
+}
+
+export async function markComplaintResolved(input: {
+  userId: string;
+  trackingNumber: string;
+  complaintId: string;
+  actorEmail: string;
+  resolutionNote?: string;
+}) {
+  const shipment = await prisma.shipment.findUnique({
+    where: { userId_trackingNumber: { userId: input.userId, trackingNumber: input.trackingNumber } },
+  });
+  if (!shipment || !shipment.complaintText) {
+    return { success: false, message: "Complaint record not found" };
+  }
+
+  const existingHistory = extractComplaintHistory(shipment.complaintText, shipment.complaintStatus, input.trackingNumber);
+  const resolvedHistoryEntry: ComplaintHistoryEntry = {
+    complaintId: input.complaintId,
+    trackingId: input.trackingNumber,
+    createdAt: new Date().toISOString(),
+    dueDate: "",
+    status: "RESOLVED",
+    attemptNumber: existingHistory.length + 1,
+    previousComplaintReference: existingHistory.length > 0 ? existingHistory[existingHistory.length - 1]?.complaintId : "",
+  };
+  const updatedHistory = appendComplaintHistoryAttempt(existingHistory, resolvedHistoryEntry);
+
+  const metadata: Record<string, string> = {
+    COMPLAINT_STATE: "RESOLVED",
+    complaintStateReason: input.actorEmail ? "user_confirmed_resolution" : "admin_resolved",
+    manualStatePinned: "true",
+    trackingStateAtSync: "MANUAL_RESOLVE",
+  };
+  if (String(input.resolutionNote ?? "").trim()) {
+    metadata.resolutionNote = String(input.resolutionNote).trim();
+  }
+  const nextText = upsertComplaintMetadata(shipment.complaintText, metadata);
+  const finalText = `${nextText}\n\n${COMPLAINT_HISTORY_MARKER} ${JSON.stringify({ entries: updatedHistory })}`;
+
+  await prisma.shipment.update({
+    where: { userId_trackingNumber: { userId: input.userId, trackingNumber: input.trackingNumber } },
+    data: { complaintText: finalText },
+  });
+
+  return { success: true, state: "RESOLVED", text: finalText };
 }
 
 export async function listComplaintAlerts(limit = 200): Promise<ComplaintAlertRecord[]> {

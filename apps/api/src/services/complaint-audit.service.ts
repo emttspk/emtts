@@ -6,7 +6,8 @@ export type ComplaintAuditAction =
   | "complaint_synced"
   | "complaint_exported"
   | "complaint_updated"
-  | "complaint_closed";
+  | "complaint_closed"
+  | "complaint_resolved";
 
 export async function ensureComplaintAuditTable() {
   await prisma.$executeRawUnsafe(`

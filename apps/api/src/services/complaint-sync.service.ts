@@ -31,12 +31,21 @@ export function deriveComplaintState(input: {
   trackingAvailable: boolean;
   shipmentStatus: string;
   manualPendingOverride: boolean;
+  manualStatePinned: boolean;
   dueDateTs: number | null;
   now: number;
 }) {
   const trackingStateAtSync = input.trackingAvailable ? normalizeTrackingState(input.trackingState) : "UNAVAILABLE";
   const shipmentState = normalizeShipmentState(input.shipmentStatus);
   const duePassed = input.dueDateTs != null && input.dueDateTs <= input.now;
+
+  if (input.manualStatePinned && (input.priorState === "RESOLVED" || input.priorState === "CLOSED")) {
+    return {
+      state: input.priorState,
+      reason: "manual_state_pinned",
+      trackingStateAtSync,
+    };
+  }
 
   if (input.manualPendingOverride) {
     return {
@@ -171,6 +180,7 @@ export async function runComplaintSync(options?: { trackingIds?: string[]; actor
         trackingAvailable,
         shipmentStatus: complaint.shipmentStatus,
         manualPendingOverride: complaint.manualPendingOverride,
+        manualStatePinned: complaint.manualStatePinned,
         dueDateTs: complaint.dueDateTs,
         now: Date.now(),
       });
@@ -223,6 +233,7 @@ export async function runComplaintSync(options?: { trackingIds?: string[]; actor
         trackingAvailable: false,
         shipmentStatus: complaint.shipmentStatus,
         manualPendingOverride: complaint.manualPendingOverride,
+        manualStatePinned: complaint.manualStatePinned,
         dueDateTs: complaint.dueDateTs,
         now: Date.now(),
       });

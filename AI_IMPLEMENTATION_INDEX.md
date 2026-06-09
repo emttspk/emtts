@@ -1,5 +1,15 @@
 # AI Implementation Index
 
+## 2026-06-09 - Phase C2-A: Manual Resolve Workflow
+- Added `complaint_resolved` to `ComplaintAuditAction` type.
+- Added `markComplaintResolved()` in complaint.service.ts: updates complaintText metadata (COMPLAINT_STATE: RESOLVED, manualStatePinned: true), appends history entry, writes audit log.
+- Added user endpoint `POST /tracking/:trackingNumber/resolve` (ownership-verified, allows ACTIVE/OVERDUE states).
+- Added admin endpoint `POST /admin/complaints/:trackingNumber/resolve` (requires resolution note, finds shipment by tracking number).
+- Added `manualStatePinned` to ComplaintRecord type, parseComplaintRecord, listComplaintRecords, and deriveComplaintState input.
+- Added `manualStatePinned` early return in deriveComplaintState: preserves RESOLVED/CLOSED when pinned, prevents sync from overwriting manual state.
+- Added 3 new sync state tests (10 total): manualStatePinned preserves RESOLVED, preserves CLOSED, false does not block resolve.
+- Build: `npm run build` PASS. All 65 tests PASS (62 existing + 3 new sync state tests).
+
 ## 2026-06-09 - Phase C1: Rename complaint lifecycle PROCESSING → OVERDUE
 - Renamed complaint lifecycle state `PROCESSING` to `OVERDUE` across backend (deriveComplaintState, type union, routes, admin), frontend (normalizeState, badge class, card state, filter tabs), stats (dual-emit complaintInProcess + complaintOverdue), and docs.
 - Added `COMPLAINT_OVERDUE` filter tab showing overdue complaints only.

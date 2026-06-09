@@ -16,6 +16,7 @@ const tests: TestCase[] = [
         trackingAvailable: true,
         shipmentStatus: "PENDING",
         manualPendingOverride: false,
+        manualStatePinned: false,
         dueDateTs: null,
         now: Date.now(),
       });
@@ -33,10 +34,11 @@ const tests: TestCase[] = [
         trackingAvailable: true,
         shipmentStatus: "DELIVERED",
         manualPendingOverride: true,
+        manualStatePinned: false,
         dueDateTs: null,
         now: Date.now(),
       });
-      assert.ok(["ACTIVE", "PROCESSING"].includes(decision.state));
+      assert.ok(["ACTIVE", "OVERDUE"].includes(decision.state));
       assert.notEqual(decision.state, "RESOLVED");
       assert.notEqual(decision.state, "CLOSED");
       assert.equal(decision.reason, "shipment_pending_manual_override");
@@ -86,10 +88,11 @@ const tests: TestCase[] = [
         trackingAvailable: false,
         shipmentStatus: "UNKNOWN",
         manualPendingOverride: false,
+        manualStatePinned: false,
         dueDateTs: null,
         now: Date.now(),
       });
-      assert.ok(["ACTIVE", "PROCESSING"].includes(decision.state));
+      assert.ok(["ACTIVE", "OVERDUE"].includes(decision.state));
       assert.notEqual(decision.state, "RESOLVED");
       assert.notEqual(decision.state, "CLOSED");
       assert.equal(decision.reason, "tracking_unavailable_or_uncertain");
@@ -105,12 +108,64 @@ const tests: TestCase[] = [
         trackingAvailable: true,
         shipmentStatus: "PENDING",
         manualPendingOverride: false,
+        manualStatePinned: false,
         dueDateTs: 0,
         now: Date.now(),
       });
       assert.equal(decision.state, "OVERDUE");
       assert.equal(decision.reason, "shipment_pending_system");
       assert.equal(decision.trackingStateAtSync, "PENDING");
+    },
+  },
+  {
+    name: "manualStatePinned preserves resolved state even when tracking shows delivered",
+    run() {
+      const decision = deriveComplaintState({
+        priorState: "RESOLVED",
+        trackingState: "DELIVERED",
+        trackingAvailable: true,
+        shipmentStatus: "PENDING",
+        manualPendingOverride: false,
+        manualStatePinned: true,
+        dueDateTs: 0,
+        now: Date.now(),
+      });
+      assert.equal(decision.state, "RESOLVED");
+      assert.equal(decision.reason, "manual_state_pinned");
+    },
+  },
+  {
+    name: "manualStatePinned preserves closed state even when tracking is pending",
+    run() {
+      const decision = deriveComplaintState({
+        priorState: "CLOSED",
+        trackingState: "PENDING",
+        trackingAvailable: true,
+        shipmentStatus: "PENDING",
+        manualPendingOverride: false,
+        manualStatePinned: true,
+        dueDateTs: 0,
+        now: Date.now(),
+      });
+      assert.equal(decision.state, "CLOSED");
+      assert.equal(decision.reason, "manual_state_pinned");
+    },
+  },
+  {
+    name: "manualStatePinned false does not block resolve when tracking is delivered",
+    run() {
+      const decision = deriveComplaintState({
+        priorState: "OVERDUE",
+        trackingState: "DELIVERED",
+        trackingAvailable: true,
+        shipmentStatus: "PENDING",
+        manualPendingOverride: false,
+        manualStatePinned: false,
+        dueDateTs: 0,
+        now: Date.now(),
+      });
+      assert.equal(decision.state, "RESOLVED");
+      assert.equal(decision.reason, "verified_tracking_delivered");
     },
   },
   {
@@ -122,6 +177,7 @@ const tests: TestCase[] = [
         trackingAvailable: true,
         shipmentStatus: "DELIVERED",
         manualPendingOverride: false,
+        manualStatePinned: false,
         dueDateTs: null,
         now: Date.now(),
       });

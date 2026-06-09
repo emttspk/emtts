@@ -29,7 +29,7 @@ import {
 import { buildTrackingLifecycleResolution, type TrackingLifecycleResolution } from "../services/trackingLifecycle.js";
 import { logComplaintAudit } from "../services/complaint-audit.service.js";
 import { enqueueComplaint, findActiveComplaintDuplicate, type ComplaintQueuePayload } from "../services/complaint-queue.service.js";
-import { extractComplaintHistory } from "../services/complaint.service.js";
+import { extractComplaintHistory, markComplaintResolved, listComplaintRecords } from "../services/complaint.service.js";
 import { processTracking } from "../services/trackingStatus.js";
 import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "../services/trackingIntelligence.js";
 import { logTelemetry } from "../telemetry.js";
@@ -2301,5 +2301,59 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
       success: false,
       message: "Complaint queueing failed. Please retry.",
     });
+  }
+});
+
+// POST /tracking/:trackingNumber/resolve — user confirms complaint resolved
+trackingRouter.post("/:trackingNumber/resolve", requireAuth, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user?.id || !user?.email) {
+      return res.status(401).json({ success: false, message: "Authentication required" });
+    }
+
+    const trackingNumber = String(req.params.trackingNumber ?? "").trim().toUpperCase();
+    if (!trackingNumber) {
+      return res.status(400).json({ success: false, message: "Tracking number required" });
+    }
+
+    const complaints = await listComplaintRecords({ userId: user.id, trackingIds: [trackingNumber] });
+    const complaint = complaints[0];
+    if (!complaint) {
+      return res.status(404).json({ success: false, message: "Complaint record not found" });
+    }
+
+    const allowedStates = ["ACTIVE", "OVERDUE"];
+    if (!allowedStates.includes(String(complaint.state ?? "").toUpperCase())) {
+      return res.status(409).json({
+        success: false,
+        message: `Complaint in state ${complaint.state} cannot be resolved manually`,
+      });
+    }
+
+    const result = await markComplaintResolved({
+      userId: user.id,
+      trackingNumber,
+      complaintId: complaint.complaintId,
+      actorEmail: user.email,
+      resolutionNote: String((req.body as any)?.note ?? "").trim() || undefined,
+    });
+
+    if (!result.success) {
+      return res.status(500).json({ success: false, message: result.message });
+    }
+
+    await logComplaintAudit({
+      actorEmail: user.email,
+      action: "complaint_resolved",
+      trackingId: trackingNumber,
+      complaintId: complaint.complaintId,
+      details: `user_resolved:true;prior_state:${complaint.state}`,
+    });
+
+    return res.json({ success: true, state: "RESOLVED" });
+  } catch (error) {
+    console.error(`[ComplaintResolve] Failed for ${req.params.trackingNumber}:`, error instanceof Error ? error.message : error);
+    return res.status(500).json({ success: false, message: "Failed to resolve complaint" });
   }
 });

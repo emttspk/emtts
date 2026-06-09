@@ -11,7 +11,7 @@ import { monthKeyUTC } from "../usage/month.js";
 import { env } from "../config.js";
 import { labelQueue, trackingQueue } from "../queue/queue.js";
 import { refundUnitsByAmount } from "../usage/unitConsumption.js";
-import { buildComplaintExportCsv, listComplaintAlerts, listComplaintRecords } from "../services/complaint.service.js";
+import { buildComplaintExportCsv, listComplaintAlerts, listComplaintRecords, markComplaintResolved } from "../services/complaint.service.js";
 import { listComplaintAuditLogs, logComplaintAudit } from "../services/complaint-audit.service.js";
 import { runComplaintSyncJob, startComplaintSyncJob } from "../jobs/complaint-sync.job.js";
 import { runComplaintBackupJob, startComplaintBackupJob } from "../jobs/complaint-backup.job.js";
@@ -1227,6 +1227,52 @@ adminRouter.post("/complaints/manual-override", async (req, res) => {
 adminRouter.get("/complaints/alerts", async (_req, res) => {
   const alerts = await listComplaintAlerts(300);
   res.json({ success: true, alerts });
+});
+
+adminRouter.post("/complaints/:trackingNumber/resolve", async (req, res) => {
+  try {
+    const actorEmail = String((req as any).user?.email ?? "system").trim() || "system";
+    const trackingNumber = String(req.params.trackingNumber ?? "").trim().toUpperCase();
+    if (!trackingNumber) {
+      return res.status(400).json({ success: false, message: "Tracking number required" });
+    }
+
+    const note = String((req.body as any)?.note ?? "").trim();
+    if (!note) {
+      return res.status(400).json({ success: false, message: "Resolution note is required" });
+    }
+
+    const shipment = await prisma.shipment.findFirst({
+      where: { trackingNumber, complaintStatus: { not: "NOT_REQUIRED" } },
+    });
+    if (!shipment) {
+      return res.status(404).json({ success: false, message: "Complaint record not found" });
+    }
+
+    const result = await markComplaintResolved({
+      userId: shipment.userId,
+      trackingNumber,
+      complaintId: String((req.body as any)?.complaintId ?? shipment.complaintText?.match(/COMPLAINT_ID\s*:\s*(\S+)/i)?.[1] ?? "").trim(),
+      actorEmail,
+      resolutionNote: note,
+    });
+
+    if (!result.success) {
+      return res.status(500).json({ success: false, message: result.message });
+    }
+
+    await logComplaintAudit({
+      actorEmail,
+      action: "complaint_resolved",
+      trackingId: trackingNumber,
+      details: `admin_resolved:true;note:${note}`,
+    });
+
+    return res.json({ success: true, state: "RESOLVED" });
+  } catch (error) {
+    console.error(`[AdminComplaintResolve] Failed for ${req.params.trackingNumber}:`, error instanceof Error ? error.message : error);
+    return res.status(500).json({ success: false, message: "Failed to resolve complaint" });
+  }
 });
 
 adminRouter.post("/complaints/backup", async (req, res) => {
