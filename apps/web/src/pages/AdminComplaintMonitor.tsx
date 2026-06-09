@@ -184,6 +184,36 @@ export default function AdminComplaintMonitor() {
     }
   }
 
+  const [resolveTracking, setResolveTracking] = useState("");
+  const [resolveNote, setResolveNote] = useState("");
+  const [resolving, setResolving] = useState(false);
+
+  async function handleAdminResolve() {
+    const tn = resolveTracking.trim().toUpperCase();
+    if (!tn || !resolveNote.trim()) return;
+    setResolving(true);
+    try {
+      const resp = await fetch(`/api/admin/complaints/${encodeURIComponent(tn)}/resolve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: resolveNote.trim() }),
+      });
+      const json = await resp.json() as { success?: boolean; message?: string };
+      if (!resp.ok || !json.success) {
+        setActionNotice({ kind: "error", message: json.message || "Failed to resolve complaint" });
+      } else {
+        setActionNotice({ kind: "ok", message: `Complaint ${tn} resolved successfully.` });
+        setResolveTracking("");
+        setResolveNote("");
+        await refresh();
+      }
+    } catch {
+      setActionNotice({ kind: "error", message: "Network error resolving complaint" });
+    } finally {
+      setResolving(false);
+    }
+  }
+
   const summary = monitor?.summary;
   const queue = monitor?.queue ?? [];
   const retryRows = useMemo(
@@ -223,6 +253,33 @@ export default function AdminComplaintMonitor() {
           <Card className="p-4"><div className="text-xs text-slate-500">Submitted</div><div className="mt-1 text-2xl font-semibold text-emerald-700">{summary?.submitted ?? 0}</div></Card>
           <Card className="p-4"><div className="text-xs text-slate-500">Duplicate</div><div className="mt-1 text-2xl font-semibold text-violet-700">{summary?.duplicate ?? 0}</div></Card>
           <Card className="p-4"><div className="text-xs text-slate-500">Resolved</div><div className="mt-1 text-2xl font-semibold text-emerald-700">{summary?.resolved ?? 0}</div></Card>
+        </div>
+        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+          <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Mark Complaint Resolved</div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <input
+              type="text"
+              placeholder="Tracking number"
+              value={resolveTracking}
+              onChange={(e) => setResolveTracking(e.target.value.toUpperCase())}
+              className="min-w-0 flex-1 rounded-lg border border-emerald-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 placeholder-slate-400 focus:border-emerald-500 focus:ring-emerald-500"
+            />
+            <input
+              type="text"
+              placeholder="Resolution note (required)"
+              value={resolveNote}
+              onChange={(e) => setResolveNote(e.target.value)}
+              className="min-w-0 flex-1 rounded-lg border border-emerald-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 placeholder-slate-400 focus:border-emerald-500 focus:ring-emerald-500"
+            />
+            <button
+              type="button"
+              onClick={() => void handleAdminResolve()}
+              disabled={resolving || !resolveTracking.trim() || !resolveNote.trim()}
+              className="rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {resolving ? "Resolving..." : "Mark Resolved"}
+            </button>
+          </div>
         </div>
         <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
           Circuit: <span className={monitor?.circuit?.open ? "font-semibold text-red-700" : "font-semibold text-emerald-700"}>{monitor?.circuit?.open ? "OPEN" : "CLOSED"}</span>

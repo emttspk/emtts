@@ -438,6 +438,18 @@ function parseComplaintLifecycle(shipment: Shipment): ComplaintLifecycle {
   };
 }
 
+function isConfirmResolvedVisible(
+  lifecycle: ComplaintLifecycle,
+  shipmentStatus: string | null | undefined,
+): boolean {
+  const lifecycleStateUp = String(lifecycle.state ?? "").toUpperCase();
+  const statusUp = String(shipmentStatus ?? "").toUpperCase();
+  const hasComplaint = lifecycle.exists || Boolean(String(lifecycle.complaintId ?? "").trim());
+  const allowedLifecycle = lifecycleStateUp === "ACTIVE" || lifecycleStateUp === "OVERDUE";
+  const deliveryEvidence = statusUp.includes("DELIVER") || statusUp.includes("RETURN");
+  return hasComplaint && allowedLifecycle && deliveryEvidence;
+}
+
 function isComplaintInProcess(lifecycle: ComplaintLifecycle): boolean {
   const state = String(lifecycle.state ?? "").trim().toUpperCase();
   return lifecycle.exists && (state === "ACTIVE" || state === "IN PROCESS" || lifecycle.active);
@@ -1203,6 +1215,7 @@ export default function BulkTracking() {
     return `Restored ${cached.shipments.length} cached tracking rows. Syncing latest updates in the background.`;
   });
   const [refreshingPending, setRefreshingPending] = useState(false);
+  const [resolvingTrackingNumber, setResolvingTrackingNumber] = useState<string | null>(null);
   const [selectedTracking, setSelectedTracking] = useState<FinalTrackingRecord | null>(null);
   const { refreshShipmentStats, shipmentStatsFetchedAt } = useShipmentStats(userCacheScope);
   const [pageSize, setPageSize] = useState<20 | 50 | 100>(() => readInitialWorkspaceViewState(userCacheScope)?.pageSize ?? 20);
@@ -3248,6 +3261,29 @@ export default function BulkTracking() {
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
+  async function handleConfirmResolved(trackingNumber: string) {
+    if (resolvingTrackingNumber) return;
+    setResolvingTrackingNumber(trackingNumber);
+    try {
+      const resp = await fetch(`/api/tracking/${encodeURIComponent(trackingNumber)}/resolve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const json = await resp.json() as { success?: boolean; message?: string };
+      if (!resp.ok || !json.success) {
+        alert(json.message || "Failed to resolve complaint");
+      } else {
+        refreshTracking(undefined, { skipCache: true });
+        refreshAllPending();
+      }
+    } catch {
+      alert("Network error resolving complaint");
+    } finally {
+      setResolvingTrackingNumber(null);
+    }
+  }
+
   function openComplaintModal(record: FinalTrackingRecord) {
     const shipment = record.shipment;
     const trackingId = String(shipment.trackingNumber ?? "").trim();
@@ -4559,6 +4595,16 @@ export default function BulkTracking() {
                         >
                           {complaintActionLabel}
                         </button>
+                        {isConfirmResolvedVisible(lifecycle, row.actionStatus) ? (
+                          <button
+                            type="button"
+                            onClick={() => handleConfirmResolved(s.trackingNumber)}
+                            disabled={resolvingTrackingNumber === s.trackingNumber}
+                            className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-3 py-2 text-[11px] font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                          >
+                            {resolvingTrackingNumber === s.trackingNumber ? "Resolving..." : "Confirm Resolved"}
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -4837,34 +4883,44 @@ export default function BulkTracking() {
                                   : "cursor-not-allowed bg-gray-50 text-gray-400 ring-gray-200"
                               )}
                             >
-                              {complaintActionLabel}
+                            {complaintActionLabel}
+                          </button>
+                          {lifecycle.complaintCount > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => setHistoryModalRecord(row.record)}
+                              className="mt-1 inline-flex w-full items-center justify-center rounded px-2 py-0.5 text-[9px] font-medium ring-1 ring-inset transition-all bg-slate-50 text-slate-600 ring-slate-200 hover:bg-slate-100"
+                            >
+                              View History ({lifecycle.complaintCount})
                             </button>
-                            {lifecycle.complaintCount > 0 ? (
-                              <button
-                                type="button"
-                                onClick={() => setHistoryModalRecord(row.record)}
-                                className="mt-1 inline-flex w-full items-center justify-center rounded px-2 py-0.5 text-[9px] font-medium ring-1 ring-inset transition-all bg-slate-50 text-slate-600 ring-slate-200 hover:bg-slate-100"
-                              >
-                                View History ({lifecycle.complaintCount})
-                              </button>
-                            ) : null}
-                          </div>
-                        );
-                      })() : (
-                        <button
-                          disabled={!isComplaintEnabled}
-                          onClick={() => openComplaintModal(row.record)}
-                          className={cn(
-                            "inline-flex w-full items-center justify-center gap-1 rounded-xl px-2 py-1 text-[11px] font-semibold shadow-sm ring-1 ring-inset transition-all",
-                            isComplaintEnabled
-                              ? "bg-red-50 text-red-700 ring-red-200 hover:bg-red-100"
-                              : "cursor-not-allowed bg-gray-50 text-gray-400 ring-gray-200"
-                          )}
-                        >
-                          <MessageSquare className="h-3 w-3" />
-                          {resolveComplaintActionLabel(actionStatus, lifecycle, queueSnapshot)}
-                        </button>
-                      )}
+                          ) : null}
+                          {isConfirmResolvedVisible(lifecycle, actionStatus) ? (
+                            <button
+                              type="button"
+                              onClick={() => handleConfirmResolved(s.trackingNumber)}
+                              disabled={resolvingTrackingNumber === s.trackingNumber}
+                              className="mt-1 inline-flex w-full items-center justify-center rounded px-2 py-0.5 text-[10px] font-semibold bg-emerald-600 text-white ring-1 ring-inset ring-emerald-700 hover:bg-emerald-700 disabled:opacity-50"
+                            >
+                              {resolvingTrackingNumber === s.trackingNumber ? "Resolving..." : "Confirm Resolved"}
+                            </button>
+                          ) : null}
+                        </div>
+                      );
+                    })() : (
+                      <button
+                        disabled={!isComplaintEnabled}
+                        onClick={() => openComplaintModal(row.record)}
+                        className={cn(
+                          "inline-flex w-full items-center justify-center gap-1 rounded-xl px-2 py-1 text-[11px] font-semibold shadow-sm ring-1 ring-inset transition-all",
+                          isComplaintEnabled
+                            ? "bg-red-50 text-red-700 ring-red-200 hover:bg-red-100"
+                            : "cursor-not-allowed bg-gray-50 text-gray-400 ring-gray-200"
+                        )}
+                      >
+                        <MessageSquare className="h-3 w-3" />
+                        {resolveComplaintActionLabel(actionStatus, lifecycle, queueSnapshot)}
+                      </button>
+                    )}
                     </td>
                   </tr>
                 );

@@ -1,5 +1,11 @@
 # AI Implementation Index
 
+## 2026-06-09 - Phase C2-A Frontend: Manual Resolve UI
+- Added "Confirm Resolved" button in BulkTracking grid view and table view. Visible when lifecycle is ACTIVE or OVERDUE and tracking status shows DELIVERED or RETURNED (via `isConfirmResolvedVisible`). Calls `POST /tracking/:tn/resolve`.
+- Added `handleConfirmResolved` async handler with loading state (`resolvingTrackingNumber`), success auto-refresh, and error alert.
+- Added "Mark Resolved" section in AdminComplaintMonitor with tracking number input, required resolution note, and submit button. Calls `POST /admin/complaints/:tn/resolve`.
+- Build: `npm run build` PASS. All 65 tests PASS.
+
 ## 2026-06-09 - Phase C2-A: Manual Resolve Workflow
 - Added `complaint_resolved` to `ComplaintAuditAction` type.
 - Added `markComplaintResolved()` in complaint.service.ts: updates complaintText metadata (COMPLAINT_STATE: RESOLVED, manualStatePinned: true), appends history entry, writes audit log.
