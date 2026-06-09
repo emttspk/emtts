@@ -1,5 +1,10 @@
 # AI Implementation Index
 
+## 2026-06-09 - Complaint History Visibility
+- Complaint card: shows "CMP Not Available" for records without a complaint ID (replaces confusing "Complaint" label). Shows "Attempt X of Y" line replacing generic "Complaint Count".
+- History modal: null CMP entries show "CMP Not Available" instead of "-". Previous complaint reference now always shown (derived from prior entry). Added "Previous Ref: None" for first attempt.
+- Build: `npm run build` PASS. All 17 relevant tests PASS.
+
 ## 2026-06-09 - Manual Review Recovery (admin retry endpoint + UI)
 - Added admin endpoint `POST /admin/complaints/:trackingNumber/retry` that finds the latest `manual_review` queue row, resets it to `queued` with retryCount=0, lastError=null, nextRetryAt=now, creates a new trackingJob and BullMQ COMPLAINT job, logs audit action.
 - Added "Retry Manual Review Complaint" section in AdminComplaintMonitor with: text input for tracking number, confirmation dialog showing last error, "Confirm Retry" and "Cancel" buttons.

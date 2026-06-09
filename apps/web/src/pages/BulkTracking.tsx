@@ -4841,7 +4841,9 @@ export default function BulkTracking() {
                         const waitingComplaintId = complaintCardState.toUpperCase() === "QUEUED"
                           && !String(lifecycle.complaintId ?? "").trim()
                           && !String(queueSnapshot?.complaintId ?? "").trim();
-                        const complaintId = lifecycle.complaintId || queueSnapshot?.complaintId || (waitingComplaintId ? "Queued" : "Complaint");
+                        const displayCmp = (lifecycle.complaintId || queueSnapshot?.complaintId || "").trim();
+                        const complaintId = displayCmp || (waitingComplaintId ? "Queued" : "CMP Not Available");
+                        const attemptCount = Math.max(1, lifecycle.complaintCount || queueSnapshot ? 1 : 0);
                         const dueDate = lifecycle.dueDateText
                           || (queueSnapshot?.dueDate ? new Date(queueSnapshot.dueDate).toLocaleDateString("en-GB") : "-");
                         const retryHint = complaintCardState === "RETRY PENDING"
@@ -4871,7 +4873,7 @@ export default function BulkTracking() {
                           <div className="w-full rounded-xl border border-slate-200 bg-[linear-gradient(180deg,#ffffff,#f8fafc)] px-2.5 py-2 text-left text-[10px] shadow-sm">
                             <div className="font-semibold text-[#111827] break-all" title={complaintId}>{complaintId}</div>
                             <div className="mt-0.5 text-[#6B7280]">Due: {dueDate}</div>
-                            <div className="mt-0.5 text-[#6B7280]">Complaint Count: {lifecycle.complaintCount.toLocaleString()}</div>
+                            <div className="mt-0.5 text-[#6B7280]">Attempt {attemptCount} of {attemptCount}</div>
                             <div className="mt-0.5">
                               <span className={cn("inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ring-1 ring-inset", stateStyle)}>
                                 {complaintCardState}
@@ -5879,7 +5881,7 @@ export default function BulkTracking() {
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div>
                             <span className="text-slate-500">Complaint ID:</span>
-                            <span className="ml-1 font-semibold text-slate-800">{entry.complaintId || "-"}</span>
+                            <span className="ml-1 font-semibold text-slate-800">{entry.complaintId ? entry.complaintId : "CMP Not Available"}</span>
                           </div>
                           <div>
                             <span className="text-slate-500">Filed Date:</span>
@@ -5891,12 +5893,10 @@ export default function BulkTracking() {
                             <span className="text-slate-500">Due Date:</span>
                             <span className="ml-1 font-semibold text-slate-800">{entry.dueDate || "-"}</span>
                           </div>
-                          {entry.previousComplaintReference ? (
-                            <div>
-                              <span className="text-slate-500">Previous Ref:</span>
-                              <span className="ml-1 font-semibold text-slate-800">{entry.previousComplaintReference}</span>
-                            </div>
-                          ) : null}
+                          <div>
+                            <span className="text-slate-500">Previous Ref:</span>
+                            <span className="ml-1 font-semibold text-slate-800">{entry.previousComplaintReference || (idx > 0 ? (sortedEntries[idx - 1]?.complaintId || "N/A") : "None")}</span>
+                          </div>
                         </div>
                       </div>
                     ))}
