@@ -21,6 +21,7 @@ const tests: TestCase[] = [
       });
       assert.equal(decision.state, "RESOLVED");
       assert.equal(decision.reason, "verified_tracking_delivered");
+      assert.equal(decision.trackingStateAtSync, "DELIVERED");
     },
   },
   {
@@ -39,6 +40,7 @@ const tests: TestCase[] = [
       assert.notEqual(decision.state, "RESOLVED");
       assert.notEqual(decision.state, "CLOSED");
       assert.equal(decision.reason, "shipment_pending_manual_override");
+      assert.equal(decision.trackingStateAtSync, "DELIVERED");
     },
   },
   {
@@ -55,6 +57,7 @@ const tests: TestCase[] = [
       });
       assert.equal(decision.state, "RESOLVED");
       assert.equal(decision.reason, "verified_tracking_delivered");
+      assert.equal(decision.trackingStateAtSync, "DELIVERED");
     },
   },
   {
@@ -71,6 +74,7 @@ const tests: TestCase[] = [
       });
       assert.equal(decision.state, "RESOLVED");
       assert.equal(decision.reason, "verified_tracking_returned");
+      assert.equal(decision.trackingStateAtSync, "RETURNED");
     },
   },
   {
@@ -89,6 +93,39 @@ const tests: TestCase[] = [
       assert.notEqual(decision.state, "RESOLVED");
       assert.notEqual(decision.state, "CLOSED");
       assert.equal(decision.reason, "tracking_unavailable_or_uncertain");
+      assert.equal(decision.trackingStateAtSync, "UNAVAILABLE");
+    },
+  },
+  {
+    name: "pending tracking with due passed returns PROCESSING and PENDING tracking state",
+    run() {
+      const decision = deriveComplaintState({
+        priorState: "ACTIVE",
+        trackingState: "PENDING",
+        trackingAvailable: true,
+        shipmentStatus: "PENDING",
+        manualPendingOverride: false,
+        dueDateTs: 0,
+        now: Date.now(),
+      });
+      assert.equal(decision.state, "PROCESSING");
+      assert.equal(decision.reason, "shipment_pending_system");
+      assert.equal(decision.trackingStateAtSync, "PENDING");
+    },
+  },
+  {
+    name: "normalized delivered with payment tracking state returns DELIVERED",
+    run() {
+      const decision = deriveComplaintState({
+        priorState: "ACTIVE",
+        trackingState: "DELIVERED WITH PAYMENT",
+        trackingAvailable: true,
+        shipmentStatus: "DELIVERED",
+        manualPendingOverride: false,
+        dueDateTs: null,
+        now: Date.now(),
+      });
+      assert.equal(decision.trackingStateAtSync, "DELIVERED");
     },
   },
 ];

@@ -1,5 +1,12 @@
 # AI Implementation Index
 
+## 2026-06-09 - Phase B: Sync shipment.status from Live Tracking
+- Added `status: decision.trackingStateAtSync` to the `prisma.shipment.update()` in `complaint-sync.service.ts` success path.
+- After next sync cycle, `shipment.status` will reflect live tracking: 402→237 PENDING (−165), ~165→302 DELIVERED (+137), ~25→53 RETURNED (+28).
+- Consolidated all status consumers already prefer rawJson live data; this column update only affects fallback paths and implicit filters.
+- Cleanup retention (Phase B-0) already protects complaint records from shortened deletion window.
+- Build: `npm run build` PASS. All 59 tests PASS (7 sync + 6 cleanup + 46 other complaint).
+
 ## 2026-06-09 - Cleanup Retention Protection for Complaint Records
 - Updated `cleanup.ts` to explicitly protect complaint records from shortened retention when `shipment.status` changes from PENDING to DELIVERED/RETURNED.
 - New retention rules: complaint records → 90 days regardless of status; non-complaint non-pending → 30 days; non-complaint pending → 90 days.

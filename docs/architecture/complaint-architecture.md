@@ -38,6 +38,9 @@ The sync job (`complaint-sync.service.ts`) updates complaint lifecycle state bas
 
 This ordering was corrected in June 2026. Previously, the stale `shipment.status === "PENDING"` check ran before the live tracking check, which prevented 165 complaints with confirmed DELIVERED/RETURNED tracking from reaching RESOLVED.
 
+### Shipment.status Synchronization (Phase B)
+Starting June 2026, the sync also updates `shipment.status` from the live tracking result. When the sync detects DELIVERED or RETURNED, the DB column is updated to match. When tracking returns PENDING, the column is set to PENDING. This eliminates the stale-column problem at the source: `shipment.status` now reflects the last known live tracking state rather than the initial upload status. See `Shipment Retention` below for cleanup retention implications.
+
 ## Retry Logic
 - Retry schedule: 5, 15, 30, 60, 180 minutes.
 - Maximum retries: 6.

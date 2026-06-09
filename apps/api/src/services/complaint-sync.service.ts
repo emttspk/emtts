@@ -196,6 +196,7 @@ export async function runComplaintSync(options?: { trackingIds?: string[]; actor
           data: {
             complaintText: nextText,
             complaintStatus: decision.state === "CLOSED" ? "FILED" : complaint.complaintStatus,
+            status: decision.trackingStateAtSync,
           },
         });
         await logComplaintAudit({
