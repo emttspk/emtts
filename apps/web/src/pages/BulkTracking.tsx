@@ -3281,7 +3281,7 @@ export default function BulkTracking() {
     if (resolvingTrackingNumber) return;
     setResolvingTrackingNumber(trackingNumber);
     try {
-      const json = await api<{ success: boolean; state: string }>(`/tracking/${encodeURIComponent(trackingNumber)}/resolve`, {
+      const json = await api<{ success: boolean; state: string }>(`/api/tracking/${encodeURIComponent(trackingNumber)}/resolve`, {
         method: "POST",
         body: JSON.stringify({}),
       });

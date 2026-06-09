@@ -1,5 +1,10 @@
 # AI Implementation Index
 
+## 2026-06-09 - Fix Confirm Resolved 404 (missing /api prefix)
+- Frontend `handleConfirmResolved` called `/tracking/${tn}/resolve` (missing `/api` prefix). Backend route is at `/api/tracking/:tn/resolve` via `app.use("/api", router)` and `router.use("/tracking", trackingRouter)`.
+- Changed frontend URL from `/tracking/${tn}/resolve` to `/api/tracking/${tn}/resolve` matching all other API call patterns.
+- Build: `npm run build` PASS.
+
 ## 2026-06-09 - Complaint History Visibility
 - Complaint card: shows "CMP Not Available" for records without a complaint ID (replaces confusing "Complaint" label). Shows "Attempt X of Y" line replacing generic "Complaint Count".
 - History modal: null CMP entries show "CMP Not Available" instead of "-". Previous complaint reference now always shown (derived from prior entry). Added "Previous Ref: None" for first attempt.
