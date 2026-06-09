@@ -712,17 +712,36 @@ async function runCleanup() {
     where: { createdAt: { lt: new Date(now - THIRTY_DAYS_MS) } },
   });
 
-  // Delete shipments older than 30 days (non-pending); keep pending for 90 days
+  // Non-complaint shipments (complaintStatus IS NULL or "NOT_REQUIRED"):
+  //   non-pending → 30-day retention
+  //   pending     → 90-day retention (kept longer for tracking visibility)
+  // Complaint records (any other complaintStatus value):
+  //   90-day retention regardless of shipment.status
+  //   This ensures Phase B (updating shipment.status from live tracking
+  //   data) does not shorten retention from 90 to 30 days for delivered
+  //   complaint records whose status column changes from PENDING to DELIVERED.
+  const noComplaint = [
+    { complaintStatus: null },
+    { complaintStatus: "NOT_REQUIRED" },
+  ];
   await prisma.shipment.deleteMany({
     where: {
       updatedAt: { lt: new Date(now - THIRTY_DAYS_MS) },
       status: { notIn: ["PENDING"] },
+      OR: noComplaint,
     },
   });
   await prisma.shipment.deleteMany({
     where: {
       updatedAt: { lt: new Date(now - NINETY_DAYS_MS) },
       status: { in: ["PENDING"] },
+      OR: noComplaint,
+    },
+  });
+  await prisma.shipment.deleteMany({
+    where: {
+      updatedAt: { lt: new Date(now - NINETY_DAYS_MS) },
+      NOT: { OR: noComplaint },
     },
   });
 

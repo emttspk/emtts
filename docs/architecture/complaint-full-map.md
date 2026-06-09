@@ -197,6 +197,12 @@ When a new complaint is filed after due date expiry:
 
 Note: The sync's `deriveComplaintState` checks live tracking data before the local `shipment.status` column. This ensures that complaints for delivered shipments reach RESOLVED even when the local status field is stale. Prior to June 2026, the stale `shipment.status === "PENDING"` check ran first, blocking RESOLVED for approximately 165 complaints with confirmed DELIVERED/RETURNED tracking.
 
+### Retention Protection
+The cleanup cron (`apps/api/src/cron/cleanup.ts`) explicitly protects complaint records from shortened retention when `shipment.status` changes:
+- Complaint records: 90-day retention regardless of `shipment.status`
+- Non-complaint pending: 90-day retention  
+- Non-complaint non-pending: 30-day retention
+
 ---
 
 ## 9. API Endpoints

@@ -57,6 +57,14 @@ This ordering was corrected in June 2026. Previously, the stale `shipment.status
 4. Run build and typecheck.
 5. Validate admin complaint queue endpoint and retry action.
 
+## Shipment Retention
+The cleanup cron (`apps/api/src/cron/cleanup.ts`) applies different retention periods:
+- Non-complaint shipments, non-pending status: **30-day retention**
+- Non-complaint shipments, pending status: **90-day retention**
+- Complaint records (any `complaintStatus` other than null or `NOT_REQUIRED`): **90-day retention regardless of shipment.status**
+
+This retention policy ensures that Phase B (updating `shipment.status` from live tracking) does not shorten complaint record retention from 90 to 30 days when their status changes from PENDING to DELIVERED/RETURNED.
+
 ## Rollback Steps
 1. Revert complaint route enqueue/worker changes.
 2. Disable complaint cron starters.

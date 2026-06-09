@@ -1,5 +1,13 @@
 # AI Implementation Index
 
+## 2026-06-09 - Cleanup Retention Protection for Complaint Records
+- Updated `cleanup.ts` to explicitly protect complaint records from shortened retention when `shipment.status` changes from PENDING to DELIVERED/RETURNED.
+- New retention rules: complaint records → 90 days regardless of status; non-complaint non-pending → 30 days; non-complaint pending → 90 days.
+- Added `apps/api/src/cron/cleanupRetention.test.ts` with 6 tests covering all status+complaint combinations.
+- Ensures Phase B (sync writes `shipment.status` from live tracking) does not cause data loss.
+- Build: `npm run build` PASS. All 57 tests PASS (6 cleanup + 51 complaint).
+- No Phase B `shipment.status` update yet.
+
 ## 2026-06-09 - Complaint Sync State Resolution Fix
 - Fixed `deriveComplaintState()` in `complaint-sync.service.ts` to check live tracking DELIVERED/RETURNED before stale `shipment.status === "PENDING"`.
 - Previously, the stale `shipment.status` check (line 41) short-circuited before the live tracking check (line 49), preventing 165 complaints with confirmed DELIVERED/RETURNED tracking from reaching RESOLVED.
