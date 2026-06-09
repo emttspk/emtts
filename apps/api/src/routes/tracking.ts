@@ -2308,7 +2308,7 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
 trackingRouter.post("/:trackingNumber/resolve", requireAuth, async (req, res) => {
   try {
     const user = (req as any).user;
-    if (!user?.id || !user?.email) {
+    if (!user?.id) {
       return res.status(401).json({ success: false, message: "Authentication required" });
     }
 
@@ -2331,11 +2331,12 @@ trackingRouter.post("/:trackingNumber/resolve", requireAuth, async (req, res) =>
       });
     }
 
+    const actorEmail = String(user.email ?? `user:${user.id}`).trim();
     const result = await markComplaintResolved({
       userId: user.id,
       trackingNumber,
       complaintId: complaint.complaintId,
-      actorEmail: user.email,
+      actorEmail,
       resolutionNote: String((req.body as any)?.note ?? "").trim() || undefined,
     });
 
@@ -2344,7 +2345,7 @@ trackingRouter.post("/:trackingNumber/resolve", requireAuth, async (req, res) =>
     }
 
     await logComplaintAudit({
-      actorEmail: user.email,
+      actorEmail,
       action: "complaint_resolved",
       trackingId: trackingNumber,
       complaintId: complaint.complaintId,

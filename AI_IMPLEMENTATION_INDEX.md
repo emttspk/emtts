@@ -1,5 +1,12 @@
 # AI Implementation Index
 
+## 2026-06-09 - Fix Confirm Resolved auth — requireAuth does not set email
+- `requireAuth` middleware (`middleware/auth.ts`) sets `req.user = { id, role }` from JWT claims.
+- The resolve endpoint (`tracking.ts:2311`) checked `if (!user?.id || !user?.email)` and returned 401 because `email` is never populated by the middleware.
+- Fixed: removed `!user?.email` check (only requires `user?.id`). Changed `actorEmail` from direct `user.email` to `String(user.email ?? 'user:' + user.id)` with fallback.
+- All other complaint actions (admin close, admin resolve, admin retry) already used `(req as any).user?.email ?? "system"` pattern and were unaffected.
+- Build: `npm run build` PASS.
+
 ## 2026-06-09 - Increase complaint queue worker concurrency 1→3 with 15min lock
 - Tracking worker (`worker.ts:1832`): concurrency increased from 1 to 3. Allows up to 3 COMPLAINT + BULK_TRACK jobs to process in parallel instead of serial.
 - Added `lockDuration: 900_000ms` (15 minutes) to prevent BullMQ from releasing the job lock while a long-running Pakistan Post submission (up to 12 min observed) is in progress.
