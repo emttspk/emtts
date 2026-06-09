@@ -313,6 +313,11 @@ function parseDueDateToTs(input: string): number | null {
     const dt = new Date(year, month - 1, day, 0, 0, 0, 0).getTime();
     return Number.isFinite(dt) ? dt : null;
   }
+  const dash = value.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (dash) {
+    const dt = new Date(Number(dash[3]), Number(dash[2]) - 1, Number(dash[1]), 0, 0, 0, 0).getTime();
+    return Number.isFinite(dt) ? dt : null;
+  }
   const iso = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
   if (iso) {
     const year = Number(iso[1]);
