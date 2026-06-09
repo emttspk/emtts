@@ -268,7 +268,8 @@ export async function listComplaintRecords(filters?: { trackingIds?: string[]; u
   return shipments
     .map((shipment) => {
       const parsed = parseComplaintRecord(shipment.complaintText, shipment.complaintStatus);
-      if (!parsed.complaintId && String(shipment.complaintStatus ?? "").toUpperCase() !== "ERROR") return null;
+      const hasLegacyData = shipment.complaintText && (shipment.complaintText.includes("DUE_DATE") || shipment.complaintText.includes("COMPLAINT_STATE"));
+      if (!parsed.complaintId && !hasLegacyData && String(shipment.complaintStatus ?? "").toUpperCase() !== "ERROR") return null;
       let manualPendingOverride = false;
       try {
         const raw = shipment.rawJson ? JSON.parse(shipment.rawJson) as Record<string, unknown> : {};

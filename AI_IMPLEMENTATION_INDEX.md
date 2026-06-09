@@ -1,5 +1,12 @@
 # AI Implementation Index
 
+## 2026-06-09 - Legacy Complaint Repair (no COMPLAINT_ID records)
+- `listComplaintRecords()` in `complaint.service.ts`: changed filter condition — records with complaintText containing DUE_DATE or COMPLAINT_STATE are now included even without a COMPLAINT_ID. Previously they were silently excluded, making them invisible to the sync scheduler.
+- `complaint-sync.service.ts` line 170: changed guard `if (!complaint.complaintId) continue;` to `if (!complaint.complaintId && !complaint.complaintText?.includes("DUE_DATE")) continue;`. Legacy records with DUE_DATE metadata now enter sync processing.
+- Legacy records transition ACTIVE → OVERDUE normally via deriveComplaintState when due date has passed. No synthetic CMP numbers are fabricated.
+- Affected: 8 production records (1.9% of FILED), including 1 stuck ACTIVE with past due date (VPL25090109).
+- Build: `npm run build` PASS. All 63 tests PASS.
+
 ## 2026-06-09 - Phase C2-B: Manual Close Workflow
 - Added `ComplaintCloseReason` type (DUPLICATE, INVALID, USER_REQUESTED, STALE, OTHER) and `markComplaintClosed()` in `complaint.service.ts`. Sets COMPLAINT_STATE: CLOSED, manualStatePinned: true, stores adminCloseReason and adminCloseNote, appends history with status CLOSED, creates audit log.
 - Added admin endpoint `POST /admin/complaints/:trackingNumber/close` with zod-validated close reason enum and required note.

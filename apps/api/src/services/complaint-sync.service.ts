@@ -167,7 +167,7 @@ export async function runComplaintSync(options?: { trackingIds?: string[]; actor
   const results: Array<{ trackingId: string; complaintId: string; previousState: string; nextState: string; alerts: string[]; reason: string; trackingStateAtSync: string }> = [];
 
   for (const complaint of complaints) {
-    if (!complaint.complaintId) continue;
+    if (!complaint.complaintId && !complaint.complaintText?.includes("DUE_DATE")) continue;
     let liveStatus = "";
     let trackingAvailable = false;
     try {

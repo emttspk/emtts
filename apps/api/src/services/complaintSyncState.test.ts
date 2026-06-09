@@ -169,6 +169,23 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "legacy record without complaintId still transitions from ACTIVE to OVERDUE when due passed",
+    run() {
+      const decision = deriveComplaintState({
+        priorState: "ACTIVE",
+        trackingState: "PENDING",
+        trackingAvailable: true,
+        shipmentStatus: "PENDING",
+        manualPendingOverride: false,
+        manualStatePinned: false,
+        dueDateTs: 0,
+        now: Date.now(),
+      });
+      assert.equal(decision.state, "OVERDUE");
+      assert.equal(decision.reason, "shipment_pending_system");
+    },
+  },
+  {
     name: "normalized delivered with payment tracking state returns DELIVERED",
     run() {
       const decision = deriveComplaintState({
