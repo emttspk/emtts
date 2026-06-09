@@ -272,8 +272,11 @@ function complaintQueueRowsToMap(rows: ComplaintQueueSnapshot[]): Map<string, Co
   const next = new Map<string, ComplaintQueueSnapshot>();
   for (const row of rows) {
     const trackingId = String(row.trackingId ?? "").trim();
-    if (!trackingId || next.has(trackingId)) continue;
-    next.set(trackingId, row);
+    if (!trackingId) continue;
+    const existing = next.get(trackingId);
+    if (!existing || (row.createdAt && existing.createdAt && new Date(row.createdAt).getTime() > new Date(existing.createdAt).getTime())) {
+      next.set(trackingId, row);
+    }
   }
   return next;
 }

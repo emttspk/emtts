@@ -1,5 +1,10 @@
 # AI Implementation Index
 
+## 2026-06-09 - Fix complaint card showing stale queue CMP after reopen
+- `complaintQueueRowsToMap` in BulkTracking.tsx:271-279 picked the FIRST queue row per tracking number (`if (next.has(trackingId)) continue;`). For reopened complaints with multiple queue rows (old + new), this discarded the latest CMP.
+- Fixed to pick the LATEST queue row by comparing `createdAt` timestamps. Old row is replaced when a newer row exists for the same tracking number.
+- Build: `npm run build` PASS.
+
 ## 2026-06-09 - Fix complaint card attempt count always showing 1
 - `BulkTracking.tsx:4846`: operator precedence bug — `Math.max(1, lifecycle.complaintCount || queueSnapshot ? 1 : 0)` parsed as `Math.max(1, (complaintCount || queueSnapshot) ? 1 : 0)` which is always `1`. Fixed with parentheses: `Math.max(1, lifecycle.complaintCount || (queueSnapshot ? 1 : 0))`. Now correctly shows actual attempt count (e.g., "Attempt 2 of 2" for VPL13688105).
 - Build: `npm run build` PASS.
