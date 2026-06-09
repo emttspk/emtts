@@ -1325,6 +1325,64 @@ adminRouter.post("/complaints/:trackingNumber/close", async (req, res) => {
   }
 });
 
+adminRouter.post("/complaints/:trackingNumber/retry", async (req, res) => {
+  try {
+    const actorEmail = String((req as any).user?.email ?? "system").trim() || "system";
+    const trackingNumber = String(req.params.trackingNumber ?? "").trim().toUpperCase();
+    if (!trackingNumber) {
+      return res.status(400).json({ success: false, message: "Tracking number required" });
+    }
+
+    const queueRow = await prisma.complaintQueue.findFirst({
+      where: { trackingId: trackingNumber, complaintStatus: "manual_review" },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (!queueRow) {
+      return res.status(404).json({ success: false, message: "No manual_review queue row found for this tracking number" });
+    }
+
+    await prisma.complaintQueue.update({
+      where: { id: queueRow.id },
+      data: {
+        complaintStatus: "queued",
+        retryCount: 0,
+        nextRetryAt: new Date(),
+        lastError: null,
+      },
+    });
+
+    const retryJob = await prisma.trackingJob.create({
+      data: {
+        userId: queueRow.userId,
+        kind: "COMPLAINT",
+        status: "QUEUED",
+        recordCount: 1,
+        originalFilename: null,
+        uploadPath: null,
+      },
+      select: { id: true },
+    });
+
+    await trackingQueue.add(
+      "process-complaint",
+      { jobId: retryJob.id, kind: "COMPLAINT", queueId: queueRow.id, trackingNumber, phone: "" },
+      { jobId: `complaint-retry-${queueRow.id}-${Date.now()}` },
+    );
+
+    await logComplaintAudit({
+      actorEmail,
+      action: "complaint_updated",
+      trackingId: trackingNumber,
+      details: `manual_review_retry:true;queue_id:${queueRow.id};job_id:${retryJob.id}`,
+    });
+
+    return res.json({ success: true, message: `Complaint ${trackingNumber} retry queued.` });
+  } catch (error) {
+    console.error(`[AdminComplaintRetry] Failed for ${req.params.trackingNumber}:`, error instanceof Error ? error.message : error);
+    return res.status(500).json({ success: false, message: "Failed to retry complaint" });
+  }
+});
+
 adminRouter.post("/complaints/backup", async (req, res) => {
   const actorEmail = String((req as any).user?.email ?? "system").trim() || "system";
   const result = await runComplaintBackupJob();

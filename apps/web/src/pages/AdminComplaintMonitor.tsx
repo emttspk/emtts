@@ -184,6 +184,43 @@ export default function AdminComplaintMonitor() {
     }
   }
 
+  const [retryTracking, setRetryTracking] = useState("");
+  const [retrying, setRetrying] = useState(false);
+  const [retryConfirmTracking, setRetryConfirmTracking] = useState<string | null>(null);
+  const [retryConfirmError, setRetryConfirmError] = useState<string | null>(null);
+
+  async function handleAdminRetry() {
+    const tn = retryTracking.trim().toUpperCase();
+    if (!tn) return;
+    setRetrying(true);
+    try {
+      const json = await api<{ success: boolean; message?: string }>(`/admin/complaints/${encodeURIComponent(tn)}/retry`, {
+        method: "POST",
+      });
+      if (!json.success) {
+        setActionNotice({ kind: "error", message: json.message || "Failed to retry complaint" });
+      } else {
+        setActionNotice({ kind: "ok", message: `Complaint ${tn} retry queued.` });
+        setRetryTracking("");
+        await refresh();
+      }
+    } catch (e) {
+      setActionNotice({ kind: "error", message: e instanceof Error ? e.message : "Network error retrying complaint" });
+    } finally {
+      setRetrying(false);
+      setRetryConfirmTracking(null);
+      setRetryConfirmError(null);
+    }
+  }
+
+  async function handleAdminRetryDirect(tn: string) {
+    setRetryTracking(tn);
+    setRetryConfirmTracking(tn);
+    const rows = monitor?.queue ?? [];
+    const mr = rows.find(r => r.trackingId === tn && r.complaintStatus === "manual_review");
+    setRetryConfirmError(mr?.lastError || null);
+  }
+
   const [resolveTracking, setResolveTracking] = useState("");
   const [resolveNote, setResolveNote] = useState("");
   const [resolving, setResolving] = useState(false);
@@ -308,6 +345,24 @@ export default function AdminComplaintMonitor() {
               {resolving ? "Resolving..." : "Mark Resolved"}
             </button>
           </div>
+        </div>
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
+          <div className="text-xs font-semibold uppercase tracking-wide text-amber-700">Retry Manual Review Complaint</div>
+          {retryConfirmTracking ? (
+            <div className="mt-2 rounded-lg border border-amber-300 bg-amber-100 p-2 text-xs text-amber-900">
+              <div className="font-semibold">{retryConfirmTracking}</div>
+              {retryConfirmError ? <div className="mt-1 text-[10px] text-amber-700">Last error: {retryConfirmError}</div> : null}
+              <div className="mt-2 flex gap-2">
+                <button type="button" onClick={() => { void handleAdminRetry(); }} disabled={retrying} className="rounded-lg bg-amber-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50">{retrying ? "Retrying..." : "Confirm Retry"}</button>
+                <button type="button" onClick={() => { setRetryConfirmTracking(null); setRetryConfirmError(null); setRetryTracking(""); }} className="rounded-lg bg-white px-4 py-1.5 text-xs font-semibold text-slate-600 ring-1 ring-inset ring-slate-300 hover:bg-slate-50">Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-2 flex flex-wrap gap-2">
+              <input type="text" placeholder="Tracking number" value={retryTracking} onChange={(e) => setRetryTracking(e.target.value.toUpperCase())} className="min-w-0 flex-1 rounded-lg border border-amber-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 placeholder-slate-400 focus:border-amber-500 focus:ring-amber-500" />
+              <button type="button" onClick={() => { if (retryTracking.trim()) void handleAdminRetryDirect(retryTracking.trim()); }} disabled={!retryTracking.trim()} className="rounded-lg bg-amber-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50">Retry Complaint</button>
+            </div>
+          )}
         </div>
         <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3">
           <div className="text-xs font-semibold uppercase tracking-wide text-red-700">Close Complaint Without Resolution</div>

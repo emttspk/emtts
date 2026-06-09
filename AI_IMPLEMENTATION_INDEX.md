@@ -1,5 +1,11 @@
 # AI Implementation Index
 
+## 2026-06-09 - Manual Review Recovery (admin retry endpoint + UI)
+- Added admin endpoint `POST /admin/complaints/:trackingNumber/retry` that finds the latest `manual_review` queue row, resets it to `queued` with retryCount=0, lastError=null, nextRetryAt=now, creates a new trackingJob and BullMQ COMPLAINT job, logs audit action.
+- Added "Retry Manual Review Complaint" section in AdminComplaintMonitor with: text input for tracking number, confirmation dialog showing last error, "Confirm Retry" and "Cancel" buttons.
+- Added `handleAdminRetry` and `handleAdminRetryDirect` handlers using the existing `api()` helper for auth.
+- Build: `npm run build` PASS. All 31 relevant tests PASS.
+
 ## 2026-06-09 - Complaint Queue Visibility Improvements
 - Updated frontend action labels: QUEUED → "Queued for Submission", PROCESSING → "Submitting to Pakistan Post...", MANUAL REVIEW → "Complaint requires manual review" (replaces "Processing failed").
 - Added `summarizeError()` function in BulkTracking.tsx that maps raw error text to user-friendly summaries (500 → "Pakistan Post temporarily unavailable", tracking unavailable → "Tracking information unavailable", location mapping → "Delivery office verification failed").
