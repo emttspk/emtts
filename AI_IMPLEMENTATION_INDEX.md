@@ -1,5 +1,11 @@
 # AI Implementation Index
 
+## 2026-06-09 - Orphan Backfill Execution + Confirm Resolved Auth Fix
+- Executed SQL backfill for 7 orphan legacy records: prepended `DUE_DATE: DD-MM-YYYY | COMPLAINT_STATE: OVERDUE` to complaintText using actual `ComplaintQueue.dueDate`. No fabricated CMP numbers. All 7 records now eligible for sync and reopen.
+- Fixed "Confirm Resolved" network error: `handleConfirmResolved` in BulkTracking.tsx used raw `fetch()` without auth token. Changed to use `api()` helper which adds JWT token via `Authorization: Bearer` header or `?token=` URL param.
+- Fixed admin resolve/close handlers in AdminComplaintMonitor.tsx: same auth token issue — changed from raw `fetch()` to `api()` helper.
+- Manual review audit: 6 queue rows (5 unique TNs) — admin can close via Phase C2-B UI.
+
 ## 2026-06-09 - Legacy Complaint Repair (no COMPLAINT_ID records)
 - `listComplaintRecords()` in `complaint.service.ts`: changed filter condition — records with complaintText containing DUE_DATE or COMPLAINT_STATE are now included even without a COMPLAINT_ID. Previously they were silently excluded, making them invisible to the sync scheduler.
 - `complaint-sync.service.ts` line 170: changed guard `if (!complaint.complaintId) continue;` to `if (!complaint.complaintId && !complaint.complaintText?.includes("DUE_DATE")) continue;`. Legacy records with DUE_DATE metadata now enter sync processing.

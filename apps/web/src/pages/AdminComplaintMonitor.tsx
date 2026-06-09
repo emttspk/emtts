@@ -198,13 +198,11 @@ export default function AdminComplaintMonitor() {
     if (!tn || !closeNote.trim()) return;
     setClosing(true);
     try {
-      const resp = await fetch(`/api/admin/complaints/${encodeURIComponent(tn)}/close`, {
+      const json = await api<{ success: boolean; message?: string }>(`/admin/complaints/${encodeURIComponent(tn)}/close`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason: closeReason, note: closeNote.trim() }),
       });
-      const json = await resp.json() as { success?: boolean; message?: string };
-      if (!resp.ok || !json.success) {
+      if (!json.success) {
         setActionNotice({ kind: "error", message: json.message || "Failed to close complaint" });
       } else {
         setActionNotice({ kind: "ok", message: `Complaint ${tn} closed (${closeReason}).` });
@@ -213,8 +211,8 @@ export default function AdminComplaintMonitor() {
         setCloseReason("DUPLICATE");
         await refresh();
       }
-    } catch {
-      setActionNotice({ kind: "error", message: "Network error closing complaint" });
+    } catch (e) {
+      setActionNotice({ kind: "error", message: e instanceof Error ? e.message : "Network error closing complaint" });
     } finally {
       setClosing(false);
     }
@@ -225,13 +223,11 @@ export default function AdminComplaintMonitor() {
     if (!tn || !resolveNote.trim()) return;
     setResolving(true);
     try {
-      const resp = await fetch(`/api/admin/complaints/${encodeURIComponent(tn)}/resolve`, {
+      const json = await api<{ success: boolean; message?: string }>(`/admin/complaints/${encodeURIComponent(tn)}/resolve`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ note: resolveNote.trim() }),
       });
-      const json = await resp.json() as { success?: boolean; message?: string };
-      if (!resp.ok || !json.success) {
+      if (!json.success) {
         setActionNotice({ kind: "error", message: json.message || "Failed to resolve complaint" });
       } else {
         setActionNotice({ kind: "ok", message: `Complaint ${tn} resolved successfully.` });
@@ -239,8 +235,8 @@ export default function AdminComplaintMonitor() {
         setResolveNote("");
         await refresh();
       }
-    } catch {
-      setActionNotice({ kind: "error", message: "Network error resolving complaint" });
+    } catch (e) {
+      setActionNotice({ kind: "error", message: e instanceof Error ? e.message : "Network error resolving complaint" });
     } finally {
       setResolving(false);
     }

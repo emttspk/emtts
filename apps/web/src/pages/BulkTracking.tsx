@@ -3265,20 +3265,17 @@ export default function BulkTracking() {
     if (resolvingTrackingNumber) return;
     setResolvingTrackingNumber(trackingNumber);
     try {
-      const resp = await fetch(`/api/tracking/${encodeURIComponent(trackingNumber)}/resolve`, {
+      const json = await api<{ success: boolean; state: string }>(`/tracking/${encodeURIComponent(trackingNumber)}/resolve`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
-      const json = await resp.json() as { success?: boolean; message?: string };
-      if (!resp.ok || !json.success) {
-        alert(json.message || "Failed to resolve complaint");
-      } else {
+      if (json.success) {
         refreshTracking(undefined, { skipCache: true });
         refreshAllPending();
       }
-    } catch {
-      alert("Network error resolving complaint");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Network error resolving complaint";
+      alert(message);
     } finally {
       setResolvingTrackingNumber(null);
     }
