@@ -1,5 +1,11 @@
 # AI Implementation Index
 
+## 2026-06-09 - Increase complaint queue worker concurrency 1→3 with 15min lock
+- Tracking worker (`worker.ts:1832`): concurrency increased from 1 to 3. Allows up to 3 COMPLAINT + BULK_TRACK jobs to process in parallel instead of serial.
+- Added `lockDuration: 900_000ms` (15 minutes) to prevent BullMQ from releasing the job lock while a long-running Pakistan Post submission (up to 12 min observed) is in progress.
+- Previously had default 30s lock → risk of stalled/re-queued jobs for submissions taking > 30s.
+- Build: `npm run build` PASS.
+
 ## 2026-06-09 - Fix Confirm Resolved 404 (missing /api prefix)
 - Frontend `handleConfirmResolved` called `/tracking/${tn}/resolve` (missing `/api` prefix). Backend route is at `/api/tracking/:tn/resolve` via `app.use("/api", router)` and `router.use("/tracking", trackingRouter)`.
 - Changed frontend URL from `/tracking/${tn}/resolve` to `/api/tracking/${tn}/resolve` matching all other API call patterns.

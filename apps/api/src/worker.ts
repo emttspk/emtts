@@ -1829,7 +1829,11 @@ const trackingWorker = new Worker(
       }
     }
   },
-  { connection: redis, concurrency: 1 },
+  {
+    connection: redis,
+    concurrency: 3,
+    lockDuration: 900_000,
+  },
 );
 
 trackingWorker.on("failed", (job, err) => {
