@@ -375,6 +375,54 @@ export async function markComplaintResolved(input: {
   return { success: true, state: "RESOLVED", text: finalText };
 }
 
+export type ComplaintCloseReason = "DUPLICATE" | "INVALID" | "USER_REQUESTED" | "STALE" | "OTHER";
+
+export async function markComplaintClosed(input: {
+  userId: string;
+  trackingNumber: string;
+  complaintId: string;
+  actorEmail: string;
+  reason: ComplaintCloseReason;
+  note: string;
+}) {
+  const shipment = await prisma.shipment.findUnique({
+    where: { userId_trackingNumber: { userId: input.userId, trackingNumber: input.trackingNumber } },
+  });
+  if (!shipment || !shipment.complaintText) {
+    return { success: false, message: "Complaint record not found" };
+  }
+
+  const existingHistory = extractComplaintHistory(shipment.complaintText, shipment.complaintStatus, input.trackingNumber);
+  const closeHistoryEntry: ComplaintHistoryEntry = {
+    complaintId: input.complaintId,
+    trackingId: input.trackingNumber,
+    createdAt: new Date().toISOString(),
+    dueDate: "",
+    status: "CLOSED",
+    attemptNumber: existingHistory.length + 1,
+    previousComplaintReference: existingHistory.length > 0 ? existingHistory[existingHistory.length - 1]?.complaintId : "",
+  };
+  const updatedHistory = appendComplaintHistoryAttempt(existingHistory, closeHistoryEntry);
+
+  const metadata: Record<string, string> = {
+    COMPLAINT_STATE: "CLOSED",
+    complaintStateReason: `admin_closed_${input.reason.toLowerCase()}`,
+    manualStatePinned: "true",
+    trackingStateAtSync: "ADMIN_CLOSE",
+    adminCloseReason: input.reason,
+    adminCloseNote: String(input.note ?? "").trim(),
+  };
+  const nextText = upsertComplaintMetadata(shipment.complaintText, metadata);
+  const finalText = `${nextText}\n\n${COMPLAINT_HISTORY_MARKER} ${JSON.stringify({ entries: updatedHistory })}`;
+
+  await prisma.shipment.update({
+    where: { userId_trackingNumber: { userId: input.userId, trackingNumber: input.trackingNumber } },
+    data: { complaintText: finalText },
+  });
+
+  return { success: true, state: "CLOSED", text: finalText };
+}
+
 export async function listComplaintAlerts(limit = 200): Promise<ComplaintAlertRecord[]> {
   await ensureComplaintNotificationTable();
   const rows = await prisma.$queryRawUnsafe<Array<ComplaintAlertRecord>>(

@@ -1,5 +1,12 @@
 # AI Implementation Index
 
+## 2026-06-09 - Phase C2-B: Manual Close Workflow
+- Added `ComplaintCloseReason` type (DUPLICATE, INVALID, USER_REQUESTED, STALE, OTHER) and `markComplaintClosed()` in `complaint.service.ts`. Sets COMPLAINT_STATE: CLOSED, manualStatePinned: true, stores adminCloseReason and adminCloseNote, appends history with status CLOSED, creates audit log.
+- Added admin endpoint `POST /admin/complaints/:trackingNumber/close` with zod-validated close reason enum and required note.
+- Added "Close Complaint Without Resolution" UI section in AdminComplaintMonitor.tsx with tracking number input, reason dropdown (5 values), required note input, and submit button.
+- Sync protection via existing manualStatePinned (Phase C2-A) preserves CLOSED state from sync overwrite.
+- Build: `npm run build` PASS. Tests: 65/65 PASS.
+
 ## 2026-06-09 - Phase C2-A Frontend: Manual Resolve UI
 - Added "Confirm Resolved" button in BulkTracking grid view and table view. Visible when lifecycle is ACTIVE or OVERDUE and tracking status shows DELIVERED or RETURNED (via `isConfirmResolvedVisible`). Calls `POST /tracking/:tn/resolve`.
 - Added `handleConfirmResolved` async handler with loading state (`resolvingTrackingNumber`), success auto-refresh, and error alert.

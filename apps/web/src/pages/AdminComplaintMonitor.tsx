@@ -188,6 +188,38 @@ export default function AdminComplaintMonitor() {
   const [resolveNote, setResolveNote] = useState("");
   const [resolving, setResolving] = useState(false);
 
+  const [closeTracking, setCloseTracking] = useState("");
+  const [closeReason, setCloseReason] = useState("DUPLICATE");
+  const [closeNote, setCloseNote] = useState("");
+  const [closing, setClosing] = useState(false);
+
+  async function handleAdminClose() {
+    const tn = closeTracking.trim().toUpperCase();
+    if (!tn || !closeNote.trim()) return;
+    setClosing(true);
+    try {
+      const resp = await fetch(`/api/admin/complaints/${encodeURIComponent(tn)}/close`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: closeReason, note: closeNote.trim() }),
+      });
+      const json = await resp.json() as { success?: boolean; message?: string };
+      if (!resp.ok || !json.success) {
+        setActionNotice({ kind: "error", message: json.message || "Failed to close complaint" });
+      } else {
+        setActionNotice({ kind: "ok", message: `Complaint ${tn} closed (${closeReason}).` });
+        setCloseTracking("");
+        setCloseNote("");
+        setCloseReason("DUPLICATE");
+        await refresh();
+      }
+    } catch {
+      setActionNotice({ kind: "error", message: "Network error closing complaint" });
+    } finally {
+      setClosing(false);
+    }
+  }
+
   async function handleAdminResolve() {
     const tn = resolveTracking.trim().toUpperCase();
     if (!tn || !resolveNote.trim()) return;
@@ -278,6 +310,44 @@ export default function AdminComplaintMonitor() {
               className="rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
             >
               {resolving ? "Resolving..." : "Mark Resolved"}
+            </button>
+          </div>
+        </div>
+        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3">
+          <div className="text-xs font-semibold uppercase tracking-wide text-red-700">Close Complaint Without Resolution</div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <input
+              type="text"
+              placeholder="Tracking number"
+              value={closeTracking}
+              onChange={(e) => setCloseTracking(e.target.value.toUpperCase())}
+              className="min-w-0 flex-1 rounded-lg border border-red-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 placeholder-slate-400 focus:border-red-500 focus:ring-red-500"
+            />
+            <select
+              value={closeReason}
+              onChange={(e) => setCloseReason(e.target.value)}
+              className="rounded-lg border border-red-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:border-red-500 focus:ring-red-500"
+            >
+              <option value="DUPLICATE">Duplicate</option>
+              <option value="INVALID">Invalid</option>
+              <option value="USER_REQUESTED">User Requested</option>
+              <option value="STALE">Stale</option>
+              <option value="OTHER">Other</option>
+            </select>
+            <input
+              type="text"
+              placeholder="Close note (required)"
+              value={closeNote}
+              onChange={(e) => setCloseNote(e.target.value)}
+              className="min-w-0 flex-1 rounded-lg border border-red-300 px-2.5 py-1.5 text-xs font-medium text-slate-700 placeholder-slate-400 focus:border-red-500 focus:ring-red-500"
+            />
+            <button
+              type="button"
+              onClick={() => void handleAdminClose()}
+              disabled={closing || !closeTracking.trim() || !closeNote.trim()}
+              className="rounded-lg bg-red-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {closing ? "Closing..." : "Close Complaint"}
             </button>
           </div>
         </div>

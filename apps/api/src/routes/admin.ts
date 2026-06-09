@@ -11,7 +11,7 @@ import { monthKeyUTC } from "../usage/month.js";
 import { env } from "../config.js";
 import { labelQueue, trackingQueue } from "../queue/queue.js";
 import { refundUnitsByAmount } from "../usage/unitConsumption.js";
-import { buildComplaintExportCsv, listComplaintAlerts, listComplaintRecords, markComplaintResolved } from "../services/complaint.service.js";
+import { buildComplaintExportCsv, listComplaintAlerts, listComplaintRecords, markComplaintResolved, markComplaintClosed } from "../services/complaint.service.js";
 import { listComplaintAuditLogs, logComplaintAudit } from "../services/complaint-audit.service.js";
 import { runComplaintSyncJob, startComplaintSyncJob } from "../jobs/complaint-sync.job.js";
 import { runComplaintBackupJob, startComplaintBackupJob } from "../jobs/complaint-backup.job.js";
@@ -1272,6 +1272,56 @@ adminRouter.post("/complaints/:trackingNumber/resolve", async (req, res) => {
   } catch (error) {
     console.error(`[AdminComplaintResolve] Failed for ${req.params.trackingNumber}:`, error instanceof Error ? error.message : error);
     return res.status(500).json({ success: false, message: "Failed to resolve complaint" });
+  }
+});
+
+adminRouter.post("/complaints/:trackingNumber/close", async (req, res) => {
+  try {
+    const actorEmail = String((req as any).user?.email ?? "system").trim() || "system";
+    const trackingNumber = String(req.params.trackingNumber ?? "").trim().toUpperCase();
+    if (!trackingNumber) {
+      return res.status(400).json({ success: false, message: "Tracking number required" });
+    }
+
+    const closeReason = z.enum(["DUPLICATE", "INVALID", "USER_REQUESTED", "STALE", "OTHER"]).parse((req.body as any)?.reason ?? "OTHER");
+    const note = String((req.body as any)?.note ?? "").trim();
+    if (!note) {
+      return res.status(400).json({ success: false, message: "Close note is required" });
+    }
+
+    const shipment = await prisma.shipment.findFirst({
+      where: { trackingNumber, complaintStatus: { not: "NOT_REQUIRED" } },
+    });
+    if (!shipment) {
+      return res.status(404).json({ success: false, message: "Complaint record not found" });
+    }
+
+    const complaintId = String((req.body as any)?.complaintId ?? shipment.complaintText?.match(/COMPLAINT_ID\s*:\s*(\S+)/i)?.[1] ?? "").trim();
+    const result = await markComplaintClosed({
+      userId: shipment.userId,
+      trackingNumber,
+      complaintId,
+      actorEmail,
+      reason: closeReason,
+      note,
+    });
+
+    if (!result.success) {
+      return res.status(500).json({ success: false, message: result.message });
+    }
+
+    await logComplaintAudit({
+      actorEmail,
+      action: "complaint_closed",
+      trackingId: trackingNumber,
+      complaintId,
+      details: `admin_closed:true;reason:${closeReason};note:${note}`,
+    });
+
+    return res.json({ success: true, state: "CLOSED", reason: closeReason });
+  } catch (error) {
+    console.error(`[AdminComplaintClose] Failed for ${req.params.trackingNumber}:`, error instanceof Error ? error.message : error);
+    return res.status(500).json({ success: false, message: "Failed to close complaint" });
   }
 });
 
