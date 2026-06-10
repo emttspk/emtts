@@ -1,5 +1,60 @@
 # AI Implementation Index
 
+## 2026-06-10 - PRODUCTION UI REGRESSION: ACTIVE complaints showing "Filed", missing timer, wrong labels
+
+### Root Cause (A) — "Filed" label on ACTIVE complaints
+`resolveComplaintActionLabel()` in `BulkTracking.tsx:494` had `"Filed"` check before
+reopen check in committed `fd4ed21` code. Uncommitted working tree fixes reordered
+to `reopenEligible` → `"Filed"` but still missing `queueState === "ACTIVE" → "Active"`.
+Previous fallthrough returned `"In Process"` instead of `"Active"`. Non-deployed fixes
++ wrong fallthrough = production shows stale behavior.
+
+### Root Cause (B) — Missing timer
+Timer gate at committed line 4862 required `!complaintId` to be empty:
+`const showProcessingTimer = inFlight && !complaintId && !queueSnapshot?.complaintId`.
+Once complaint ID was assigned, timer disappeared. Fixed: `showProcessingTimer = inFlight`
+without complaintId guard. Timer now shows for all in-flight states regardless of CMP assignment.
+
+### Root Cause (C) — Non-deployed fixes
+Working tree changes in `BulkTracking.tsx` and `complaintCardState.ts` were never committed
+or pushed. Production still runs `fd4ed21` committed code. See git diff HEAD for full delta.
+
+### Fixes Applied
+1. **Label ACTIVE→"Active"**: Added `if (queueState === "ACTIVE") return "Active"` before
+   `isComplaintInProcess` fallthrough. Fallback returns `"Active"` instead of `"In Process"`.
+2. **Label OVERDUE→"Re-open Complaint"**: Changed from `"Reopen Complaint"` to `"Re-open Complaint"`.
+   Reordered: `reopenEligible` checked before `"Filed"`.
+3. **Label FILED→"Filed"**: Reordered after reopen check. Preserved from prior fix.
+4. **Timer shows always**: Removed `!complaintId` guard on `showProcessingTimer`.
+5. **Timer uses `createdAt`**: Uses `queueSnapshot?.createdAt || queueSnapshot?.updatedAt`
+   as start reference (previously only used `updatedAt`).
+6. **Timer format MM:SS**: Changed from `HH:MM:SS` to `MM:SS`.
+7. **Timer stale/slow detection**: 5 min threshold → "Taking longer than expected",
+   10+ min → "Stale — Pending Retry".
+8. **Timer stage labels**: PROCESSING→"Processing", QUEUED→"Submitting to Pakistan Post",
+   RETRY PENDING→"Retry Pending".
+9. **Card state**: `resolveComplaintCardState` now called live (not `row.complaintState`).
+   Added `inFlight` early return to prevent state fallthrough when queue shows in-flight.
+10. **State message**: Shows contextual help for MANUAL REVIEW, QUEUED, RETRY PENDING.
+    Hides when complaintId exists and queue submit done / not in-flight.
+11. **Action locked**: Added "Active" to `isComplaintActionLocked`.
+12. **Badge classes**: Added PROCESSING (blue), SUBMITTED/FILED (emerald), FAILED/ERROR (red).
+13. **Auto-refresh**: useEffect watches all in-flight + newly submitted entries.
+    Polls every 3s instead of previous 5s stale-only check.
+
+### Files Changed
+- `apps/web/src/pages/BulkTracking.tsx`
+- `apps/web/src/pages/complaintCardState.ts`
+- `docs/architecture/complaint-ui.md`
+- `docs/architecture/complaint-worker-flow.md`
+- `KILO_CODE_AUDIT_REPORT.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Tests
+- `npm run test:complaint-units --workspace=@labelgen/api` PASS
+- `npm run test:complaints --workspace=@labelgen/api` PASS
+- `npm run build` PASS
+
 ## 2026-06-10 - Improve complaint processing visibility with timer, stage badges, auto-refresh
 
 ### Changes

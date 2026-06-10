@@ -15,7 +15,7 @@ Each tracking table row has a complaint card (rightmost column) showing:
 | Stage badge | Color-coded badge (see below) |
 | Timer | Live elapsed timer for in-flight states |
 | State message | Contextual help text |
-| Action button | Context-sensitive (Complaint, Reopen, Filed, etc.) |
+| Action button | Context-sensitive (Complaint, Active, Re-open Complaint, Filed, etc.) |
 | History button | If complaintCount > 0 |
 | Confirm Resolved | If shipment delivered and complaint active/overdue |
 
@@ -34,20 +34,23 @@ Each tracking table row has a complaint card (rightmost column) showing:
 | ERROR | Red | Network/parser error |
 | ACTIVE | Violet | Within due date, tracking not terminal |
 | OVERDUE | Orange | Due date passed, tracking not terminal |
-| IN PROCESS | Blue | Reopen in progress or queue active |
 | RESOLVED | Emerald | Live tracking confirms delivery/return |
 | CLOSED | Emerald | Admin closed or second sync confirmed |
 
 ## Processing Timer
 
-When queue status is `queued`, `processing`, or `retry_pending` and no
-`complaintId` has been received yet, a live elapsed timer shows:
+When queue status is `queued`, `processing`, or `retry_pending` (regardless of
+complaintId), a live elapsed timer shows:
 
 | Duration | Display |
 |----------|---------|
 | 0-5 min | `QUEUED... 00:32` / `PROCESSING... 01:45` |
 | 5-10 min | `Taking longer than expected (05:22)` |
 | 10+ min | `Stale — Pending Retry (12:05)` |
+| With CMP assigned | `PROCESSING... 01:45 — CMP assigned` |
+
+Timer uses `queueSnapshot.createdAt` (preferred) or `queueSnapshot.updatedAt`
+as the elapsed start reference.
 
 ## Auto-Refresh
 
@@ -71,5 +74,24 @@ Two mechanisms keep the card updated:
 | Retry Pending | Queue status = RETRY PENDING |
 | Complaint requires manual review | Queue status = MANUAL REVIEW |
 | Filed | Queue status = SUBMITTED or DUPLICATE |
-| Reopen Complaint | Shipment PENDING, complaint terminal/due expired |
-| In Process | Reopen in progress or active complaint |
+| Re-open Complaint | Shipment PENDING, complaint terminal/due expired |
+| Active | Queue status = ACTIVE, or in-process complaint |
+
+## resolveComplaintActionLabel (BulkTracking.tsx:494)
+
+```
+QUEUED             → "Queued for Submission"
+PROCESSING         → "Submitting to Pakistan Post..."
+RETRY PENDING      → "Retry Pending"
+MANUAL REVIEW      → "Complaint requires manual review"
+ACTIVE             → "Active"
+SUBMITTED/DUPLICATE → "Filed"
+Reopen eligible    → "Re-open Complaint"
+Fallthrough        → "Active"
+```
+
+## resolveComplaintCardState (complaintCardState.ts:45)
+
+Returns card state badge label. Prioritizes in-flight queue states (QUEUED,
+PROCESSING, RETRY PENDING, MANUAL REVIEW) above lifecycle. Falls back to ACTIVE,
+OVERDUE, or RESOLVED based on complaint ID, due date, and lifecycle state.

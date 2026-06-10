@@ -53,6 +53,14 @@ export function resolveComplaintCardState(
   const hasComplaintId = Boolean(String(lifecycle.complaintId ?? "").trim() || String(queueSnapshot?.complaintId ?? "").trim());
   const hasDueDate = lifecycle.dueDateTs != null || Boolean(String(queueSnapshot?.dueDate ?? "").trim());
   const queueSubmitDone = queueState === "SUBMITTED" || queueState === "DUPLICATE";
+  const inFlight = ["QUEUED", "PROCESSING", "RETRY PENDING", "MANUAL REVIEW"].includes(queueState);
+
+  if (inFlight) {
+    if (queueState === "QUEUED") return "QUEUED";
+    if (queueState === "PROCESSING") return "PROCESSING";
+    if (queueState === "RETRY PENDING") return "RETRY PENDING";
+    if (queueState === "MANUAL REVIEW") return "MANUAL REVIEW";
+  }
 
   if (hasComplaintId && (hasDueDate || queueSubmitDone)) {
     if (lifecycleResolved && !shipmentPending) return "RESOLVED";
@@ -62,19 +70,12 @@ export function resolveComplaintCardState(
   }
 
   if (shipmentPending && lifecycleResolved) {
-    if (queueState === "PROCESSING") return "PROCESSING";
-    if (queueState === "RETRY PENDING") return "RETRY PENDING";
-    if (queueState === "MANUAL REVIEW") return "MANUAL REVIEW";
     const dueExpired = isDueDateExpired(lifecycle.dueDateTs);
     return dueExpired ? "OVERDUE" : "ACTIVE";
   }
 
   if (lifecycleResolved) return "RESOLVED";
   if (hasComplaintId || queueSubmitDone) return "ACTIVE";
-  if (queueState === "PROCESSING") return "PROCESSING";
-  if (queueState === "QUEUED") return "QUEUED";
-  if (queueState === "RETRY PENDING") return "RETRY PENDING";
-  if (queueState === "MANUAL REVIEW") return "MANUAL REVIEW";
   if (lifecycle.exists) return lifecycle.stateLabel || "ACTIVE";
   return "";
 }

@@ -62,6 +62,21 @@ This ordering was corrected in June 2026. Previously, the stale `shipment.status
 - > 5 minutes in any in-flight state: UI shows `Taking longer than expected`
 - > 10 minutes: UI shows `Stale — Pending Retry`, triggers backend rescue sweep
 
+### Timer Reference
+Timer uses `queueSnapshot.createdAt` (preferred) or `queueSnapshot.updatedAt`.
+The `createdAt` field was added to `ComplaintQueueSnapshot` type in the UI
+regression fix (2026-06-10). API returns `createdAt` from the queue row DB record.
+Previously the timer only used `updatedAt` which could show incorrect elapsed
+duration after retries.
+
+### Timer Gate (Fix applied 2026-06-10)
+BEFORE: `showProcessingTimer = inFlight && !complaintId && !queueSnapshot?.complaintId`
+  — Timer disappeared once complaint ID was assigned. This was incorrect because
+  status changes (retry, manual_review) can occur after CMP assignment.
+
+AFTER: `showProcessingTimer = inFlight`
+  — Timer shows for all in-flight states regardless of complaint ID presence.
+
 ## Rollback Steps
 1. Revert worker complaint branch to legacy behavior.
 2. Leave queue tables intact for audit.
