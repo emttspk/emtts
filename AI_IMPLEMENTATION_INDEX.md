@@ -1,5 +1,11 @@
 # AI Implementation Index
 
+## 2026-06-10 - Fix due-date reopen: backend used Date.now() instead of todayStart
+- Backend `POST /:trackingNumber/resolve` duplicate check (`tracking.ts:1996`): used `Date.now()` which includes current time, so a complaint with due date today was considered expired (e.g., 5AM on due date day). Frontend correctly used `todayStart.setHours(0,0,0,0)` (midnight).
+- Fixed: changed `dueDateExpired = existing.dueTs < Date.now()` to `existing.dueTs < todayStart.getTime().getTime()` where `todayStart` is local midnight.
+- Worker service redeployed for concurrency=3 activation.
+- Build: `npm run build` PASS.
+
 ## 2026-06-09 - Complaint Operations Dashboard
 - Added Complaint Queue Health card to Dashboard.tsx (visible to admin users): queued, processing, retry_pending, manual_review counts, and 24h avg duration fetched from `/api/admin/complaints/monitor` API.
 - Added Complaint Health card with navigable buttons: Active, Overdue, Reopened, Total Complaints, Complaint Watch, Resolved/Closed. Each button navigates to the corresponding tracking workspace filter.

@@ -1993,7 +1993,9 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
       });
     }
 
-    const dueDateExpired = existing.dueTs != null && existing.dueTs < Date.now();
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const dueDateExpired = existing.dueTs != null && existing.dueTs < todayStart.getTime();
     const reopenAllowedByLifecycle = ["RESOLVED", "CLOSED", "REJECTED"].includes(existing.state) || dueDateExpired;
 
     const duplicate = await findActiveComplaintDuplicate(userId, trackingNumber);
