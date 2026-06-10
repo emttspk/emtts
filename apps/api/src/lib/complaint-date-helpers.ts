@@ -2,6 +2,9 @@ export type ComplaintState = "ACTIVE" | "OVERDUE" | "RESOLVED" | "CLOSED" | "REJ
 
 export type ComplaintLifecycleState = ComplaintState | "QUEUED" | "PROCESSING" | "RETRY_PENDING" | "MANUAL_REVIEW";
 
+export const LEGACY_DUE_DATE_BUG_START = new Date("2026-05-02T00:00:00.000Z").getTime();
+export const LEGACY_DUE_DATE_BUG_END = new Date("2026-06-10T15:43:42.000Z").getTime();
+
 export function getTodayStart(): Date {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -35,4 +38,19 @@ export function isComplaintInProcess(lifecycle: { exists: boolean; state: string
 export function isQueueStateBlockingReopen(queueStatus: string | null | undefined): boolean {
   const normalized = String(queueStatus ?? "").trim().toUpperCase().replace(/[\-_]+/g, " ");
   return ["QUEUED", "PROCESSING", "RETRY PENDING"].includes(normalized);
+}
+
+export function isLegacyDueDateInheritedEntry(entry: { createdAt: string; dueDate: string; complaintId: string; attemptNumber: number }): boolean {
+  if (entry.attemptNumber <= 1) return false;
+  if (!entry.dueDate) return false;
+  if (!entry.createdAt) return false;
+  const createdTs = new Date(entry.createdAt).getTime();
+  if (!Number.isFinite(createdTs)) return false;
+  return createdTs >= LEGACY_DUE_DATE_BUG_START && createdTs <= LEGACY_DUE_DATE_BUG_END;
+}
+
+export function detectLegacyDueDateReview(entries: { createdAt: string; dueDate: string; complaintId: string; attemptNumber: number }[]): boolean {
+  if (entries.length < 2) return false;
+  const attempt2plus = entries.filter((e) => e.attemptNumber > 1);
+  return attempt2plus.some((entry) => isLegacyDueDateInheritedEntry(entry));
 }

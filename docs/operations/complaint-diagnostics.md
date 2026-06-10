@@ -117,3 +117,42 @@ dueDate: normalizedFinalDueDate,            // no fallback to history
 When Python returns no due date, the new attempt stores an empty due date rather than silently inheriting the previous attempt's date. The complaint sync service will recalculate the state based on available data.
 
 See `docs/architecture/complaint-worker-flow.md` for updated flow details.
+
+## Legacy Due Date Detection (2026-06-10)
+
+After the stale due date inheritance fix (commit `c3b62f0`), the system
+flags records that may have been affected by the bug.
+
+### Detection Logic
+
+Defined in `apps/api/src/lib/complaint-date-helpers.ts`:
+
+- `LEGACY_DUE_DATE_BUG_START`: 2026-05-02T00:00:00.000Z (commit `be1414e`)
+- `LEGACY_DUE_DATE_BUG_END`:   2026-06-10T15:43:42.000Z (commit `c3b62f0`)
+- `isLegacyDueDateInheritedEntry(entry)`: returns `true` if entry has
+  `attemptNumber > 1`, a non-empty `dueDate`, and `createdAt` falls within
+  the bug window
+- `detectLegacyDueDateReview(entries)`: returns `true` if ANY entry in
+  the history matches `isLegacyDueDateInheritedEntry`
+
+### Admin Report Visibility
+
+The `/api/admin/complaints/monitor` endpoint now returns a `legacy_due_date_review`
+count in the summary. Records flagged with `legacyDueDateReview: true` are
+counted under this bucket instead of `active` or `overdue`.
+
+### Classification Rules
+
+| Classification | Condition | Action |
+|----------------|-----------|--------|
+| Active | `legacyDueDateReview: false`, state ACTIVE/OPEN/IN_PROCESS | Normal sync/watch/reopen |
+| Overdue | `legacyDueDateReview: false`, state OVERDUE | Follow-up, reopen rules apply |
+| Legacy Due Date Review | `legacyDueDateReview: true` | Flagged for admin review, no due date guessing |
+| Closed / Settled | state RESOLVED or CLOSED | Left as final, no auto-reopen |
+
+### Railway Log Search
+
+```bash
+railway logs -s Python --search "ComplaintDueDateAudit"
+railway logs -s Worker --search "ComplaintDueDateAudit"
+```

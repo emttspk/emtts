@@ -1,4 +1,5 @@
 import { prisma } from "../lib/prisma.js";
+import { detectLegacyDueDateReview } from "../lib/complaint-date-helpers.js";
 
 export type ComplaintRecord = {
   userId: string;
@@ -8,6 +9,7 @@ export type ComplaintRecord = {
   dueDate: string;
   dueDateTs: number | null;
   state: "OPEN" | "IN_PROCESS" | "OVERDUE" | "RESOLVED" | "CLOSED" | "ACTIVE" | "REJECTED";
+  legacyDueDateReview: boolean;
   manualStatePinned: boolean;
   active: boolean;
   complaintStatus: string;
@@ -146,6 +148,10 @@ export function parseComplaintRecord(textBlob: string | null | undefined, compla
   const trackingStateAtSync = String(text.match(/trackingStateAtSync\s*:\s*([^|\n]+)/i)?.[1] ?? "").trim().toUpperCase();
   const complaintStateReason = String(text.match(/complaintStateReason\s*:\s*([^|\n]+)/i)?.[1] ?? "").trim();
   const manualStatePinned = String(text.match(/manualStatePinned\s*:\s*([^|\n|]+)/i)?.[1] ?? "").trim().toLowerCase() === "true";
+
+  const history = extractComplaintHistoryFromText(text);
+  const legacyDueDateReview = detectLegacyDueDateReview(history);
+
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const active = String(complaintStatus ?? "").toUpperCase() === "FILED"
@@ -159,6 +165,7 @@ export function parseComplaintRecord(textBlob: string | null | undefined, compla
     dueDate: String(dueDate).trim(),
     dueDateTs,
     state: state as ComplaintRecord["state"],
+    legacyDueDateReview,
     manualStatePinned,
     active,
     shipmentStatusAtComplaintSubmit,
@@ -194,6 +201,10 @@ function parseStoredComplaintHistory(textBlob: string | null | undefined): Compl
   } catch {
     return [];
   }
+}
+
+export function extractComplaintHistoryFromText(textBlob: string | null | undefined): ComplaintHistoryEntry[] {
+  return parseStoredComplaintHistory(textBlob);
 }
 
 export function extractComplaintHistory(textBlob: string | null | undefined, complaintStatus?: string | null, trackingId?: string) {
@@ -285,6 +296,7 @@ export async function listComplaintRecords(filters?: { trackingIds?: string[]; u
         dueDate: parsed.dueDate,
         dueDateTs: parsed.dueDateTs,
         state: parsed.state,
+        legacyDueDateReview: parsed.legacyDueDateReview,
         manualStatePinned: parsed.manualStatePinned,
         active: parsed.active,
         complaintStatus: String(shipment.complaintStatus ?? "").trim().toUpperCase(),

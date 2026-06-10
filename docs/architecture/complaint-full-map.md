@@ -265,9 +265,10 @@ Parsed by `parseComplaintLifecycle()` in `BulkTracking.tsx`:
 |---|---|---|
 | `ACTIVE` | Green badge "FILED" | None (within due date) |
 | `IN PROCESS` | Amber spinner | None (queued/processing) |
-| `RESOLVED` | Grey "Resolved" | Reopen if due date passed + not delivered |
+| `OVERDUE` | Amber badge "OVERDUE" | Reopen if due date passed + not delivered + no queue in flight + plan limits allow |
+| `RESOLVED` | Grey "Resolved" | Reopen if not delivered + no queue in flight |
 | `REJECTED` | Red "Error" | New complaint allowed |
-| `CLOSED` | Grey "Closed" | Reopen if not delivered |
+| `CLOSED` | Grey "Closed" | Do not reopen automatically |
 
 ---
 
@@ -282,3 +283,26 @@ Shows all entries from `COMPLAINT_HISTORY_JSON.entries` sorted by `attemptNumber
 - Due Date
 - Status
 - Previous Reference (if attempt > 1)
+
+---
+
+## 12. Classification Buckets (2026-06-10)
+
+| Classification | States | Admin Monitor Field | Description |
+|----------------|--------|-------------------|-------------|
+| Active | ACTIVE, OPEN, IN_PROCESS (`legacyDueDateReview: false`) | `summary.active` | Within due date, continue normal processing |
+| Overdue | OVERDUE (`legacyDueDateReview: false`) | `summary.overdue` | Follow-up required, reopen rules apply |
+| Legacy Due Date Review | ACTIVE, OVERDUE, OPEN, IN_PROCESS (`legacyDueDateReview: true`) | `summary.legacy_due_date_review` | Multi-attempt records in bug window (2026-05-02 to 2026-06-10), flagged for admin review |
+| Resolved | RESOLVED | `summary.resolved` | Tracking confirmed delivery/return |
+| Closed | CLOSED | `summary.closed` | Admin closed or second sync confirmed |
+
+### Detection Source
+
+`apps/api/src/lib/complaint-date-helpers.ts`:
+- `isLegacyDueDateInheritedEntry()` — checks `attemptNumber > 1`, non-empty `dueDate`, `createdAt` within bug window
+- `detectLegacyDueDateReview()` — true if any entry matches
+
+The `legacyDueDateReview` flag is set during `parseComplaintRecord()` and
+appears on each `ComplaintRecord` returned by `listComplaintRecords()`.
+The admin monitor endpoint (`GET /api/admin/complaints/monitor`) counts
+flagged records separately.

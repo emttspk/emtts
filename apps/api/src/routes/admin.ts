@@ -1138,8 +1138,11 @@ adminRouter.get("/complaints/monitor", async (_req, res) => {
     manual_review: 0,
     submitted: 0,
     duplicate: 0,
-    open: 0,
+    active: 0,
+    overdue: 0,
+    legacy_due_date_review: 0,
     resolved: 0,
+    closed: 0,
   };
 
   for (const row of queue) {
@@ -1154,11 +1157,23 @@ adminRouter.get("/complaints/monitor", async (_req, res) => {
 
   for (const complaint of complaints) {
     const state = String(complaint.state ?? "").trim().toUpperCase().replace(/[\-_]+/g, " ");
-    if (["ACTIVE", "IN PROCESS", "OPEN", "OVERDUE"].includes(state)) {
-      summary.open += 1;
-    }
-    if (["RESOLVED", "CLOSED"].includes(state)) {
+    const isLegacy = complaint.legacyDueDateReview;
+    if (state === "ACTIVE" || state === "IN PROCESS" || state === "OPEN") {
+      if (isLegacy) {
+        summary.legacy_due_date_review += 1;
+      } else {
+        summary.active += 1;
+      }
+    } else if (state === "OVERDUE") {
+      if (isLegacy) {
+        summary.legacy_due_date_review += 1;
+      } else {
+        summary.overdue += 1;
+      }
+    } else if (state === "RESOLVED") {
       summary.resolved += 1;
+    } else if (state === "CLOSED") {
+      summary.closed += 1;
     }
   }
 

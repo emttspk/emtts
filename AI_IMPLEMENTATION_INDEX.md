@@ -1,5 +1,35 @@
 # AI Implementation Index
 
+## 2026-06-10 - Add safe complaint cleanup and follow-up classification
+
+### Changes
+- Added `LEGACY_DUE_DATE_BUG_START` and `LEGACY_DUE_DATE_BUG_END` constants
+- Added `isLegacyDueDateInheritedEntry()` and `detectLegacyDueDateReview()` in `complaint-date-helpers.ts`
+- Added `legacyDueDateReview: boolean` to `ComplaintRecord` type
+- Added `extractComplaintHistoryFromText()` public export in `complaint.service.ts`
+- Updated `parseComplaintRecord()` to detect legacy due date inheritance
+- Updated admin `/complaints/monitor` endpoint with `active`, `overdue`, `legacy_due_date_review`, `resolved`, `closed` counts
+- Updated docs: `complaint-lifecycle.md`, `complaint-state-machine.md` (new), `complaint-diagnostics.md`, `complaint-full-map.md`, `AI_IMPLEMENTATION_INDEX.md`
+
+### Files Changed
+- `apps/api/src/lib/complaint-date-helpers.ts`
+- `apps/api/src/services/complaint.service.ts`
+- `apps/api/src/routes/admin.ts`
+- `docs/architecture/complaint-lifecycle.md`
+- `docs/architecture/complaint-state-machine.md` (new)
+- `docs/operations/complaint-diagnostics.md`
+- `docs/architecture/complaint-full-map.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Classification Rules
+- **Active**: `legacyDueDateReview: false`, state ACTIVE/OPEN/IN_PROCESS — normal process
+- **Overdue**: `legacyDueDateReview: false`, state OVERDUE — follow-up, reopen rules
+- **Legacy Due Date Review**: `legacyDueDateReview: true` — flagged for admin, no guessing
+- **Closed / Settled**: RESOLVED or CLOSED — left as final
+
+### Tests
+- Complaint parser tests pass (18 existing + new legacy detection)
+
 ## 2026-06-10 - Fix due-date sync: unified date logic with shared helper
 
 ### Issue 1: Date Synchronization

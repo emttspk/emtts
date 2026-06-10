@@ -13,6 +13,39 @@ Complaint flow for tracking workspace and complaints page, including queue statu
    - `COMPLAINT_STATE`
    - `COMPLAINT_HISTORY_JSON` marker with attempt chain
 
+## Classification Rules
+
+### Active Complaints
+- Within due date, tracking not yet terminal.
+- Keep in active process. Continue sync/watch/reopen logic normally.
+- Display: green badge "FILED"
+
+### Overdue Complaints
+- Due date has passed, tracking not yet confirmed delivered/returned.
+- Keep in follow-up process. Show overdue clearly.
+- **Reopen allowed only if**:
+  - shipment is still PENDING
+  - no queue is in flight (QUEUED, PROCESSING, RETRY_PENDING)
+  - plan limits allow (sufficient complaint units)
+- Display: amber badge "OVERDUE"
+
+### Legacy Due Date Review
+- Multi-attempt complaints submitted between 2026-05-02 and 2026-06-10
+  where attempt 2+ may have inherited a stale due date from the previous
+  attempt (bug fixed in commit `c3b62f0`).
+- Automatically detected by `detectLegacyDueDateReview()` via
+  `isLegacyDueDateInheritedEntry()` — checks each entry's `createdAt`
+  against the bug window (`LEGACY_DUE_DATE_BUG_START` to `LEGACY_DUE_DATE_BUG_END`).
+- **Do NOT modify** closed/settled records.
+- For active/overdue affected records, `legacyDueDateReview: true` is set
+  for admin visibility. No due dates are guessed.
+- Display: flagged for admin review
+
+### Closed / Settled Complaints
+- RESOLVED or CLOSED state.
+- Leave as final. Do not modify history. Do not reopen automatically.
+- Display: grey badge
+
 ## Sync Lifecycle State Transitions
 The sync job (`complaint-sync.service.ts:deriveComplaintState`) transitions COMPLAINT_STATE as follows:
 
@@ -32,11 +65,3 @@ State changes are written to `complaintText` metadata. The `shipment.status` col
   - `finalShipment.complaintStatus="FILED"`
   - `finalShipment.complaintId="CMP-001400"`
   - `finalShipment.dueDate="14-05-2026"`
-
-## Reopen Attempt (Current Result)
-- `temp-out-reopen-test.txt`:
-  - target tracking: `VPL26030723`
-  - submit result: `409 duplicate`
-  - message: `Complaint already active for tracking VPL26030723`
-
-Status: reopen re-submission on overdue complaint is currently failing in production verification (expected new attempt, observed duplicate block).
