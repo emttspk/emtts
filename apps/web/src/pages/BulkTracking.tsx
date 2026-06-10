@@ -1727,6 +1727,10 @@ export default function BulkTracking() {
     if (isAdmin) {
       void refreshComplaintQueueSnapshot({ force: true });
     }
+    // Poll every 2s for up to 120s. Worker processing takes 10-61s on average
+    // (observed max 79s), so a 2s/120s window ensures the card updates within
+    // ~2s of the worker completing, rather than waiting for the next 15s periodic
+    // refresh cycle (which could add 15s of staleness after the worker finishes).
     let attempts = 0;
     const timer = window.setInterval(() => {
       attempts += 1;
@@ -1734,10 +1738,10 @@ export default function BulkTracking() {
       if (isAdmin) {
         void refreshComplaintQueueSnapshot({ force: true });
       }
-      if (attempts >= 2) {
+      if (attempts >= 60) {
         window.clearInterval(timer);
       }
-    }, 1500);
+    }, 2000);
   }
 
   // PROTECTED RENDER PATH: DO NOT MODIFY WITHOUT EXPLICIT APPROVAL.

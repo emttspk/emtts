@@ -1,5 +1,10 @@
 # AI Implementation Index
 
+## 2026-06-10 - Fix complaint card UI sync delay after submission
+- `schedulePostSubmitRefresh()` in BulkTracking.tsx:1725-1741 polled only 3 seconds (2 intervals at 1500ms) after complaint submit. Worker takes 10-61s average, so card showed stale data for 12-60s until the next 15s periodic refresh.
+- Increased polling to 60 intervals at 2000ms (120s max), covering the 99th percentile of worker processing time. Card now updates within ~2s of worker completion.
+- Build: `npm run build` PASS.
+
 ## 2026-06-10 - Fix due-date reopen: backend used Date.now() instead of todayStart
 - Backend `POST /:trackingNumber/resolve` duplicate check (`tracking.ts:1996`): used `Date.now()` which includes current time, so a complaint with due date today was considered expired (e.g., 5AM on due date day). Frontend correctly used `todayStart.setHours(0,0,0,0)` (midnight).
 - Fixed: changed `dueDateExpired = existing.dueTs < Date.now()` to `existing.dueTs < todayStart.getTime().getTime()` where `todayStart` is local midnight.
