@@ -1711,7 +1711,7 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
       ?? textBlob.match(/Complaint\s*ID\s*([A-Z0-9\-]+)/i)?.[1]
       ?? "";
     const due = textBlob.match(/DUE_DATE\s*:\s*([^\n|]+)/i)?.[1]
-      ?? textBlob.match(/Due\s*Date\s*(?:on)?\s*([0-3]?\d\/[0-1]?\d\/\d{4})/i)?.[1]
+      ?? textBlob.match(/Due\s*Date\s*(?:on)?\s*([0-3]?\d[\/-][0-1]?\d[\/-]\d{4})/i)?.[1]
       ?? "";
     const state = textBlob.match(/COMPLAINT_STATE\s*:\s*([^\n|]+)/i)?.[1]
       ?? String(complaintStatus ?? "");

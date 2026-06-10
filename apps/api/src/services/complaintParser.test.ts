@@ -39,6 +39,49 @@ const tests: TestCase[] = [
     },
   },
   {
+    name: "DD-MM-YYYY is NOT interpreted as MM-DD-YYYY (08-06-2026 = June 8, not August 6)",
+    run() {
+      const parsed = parseComplaintRecord("COMPLAINT_ID: CMP-T1 | DUE_DATE: 08-06-2026", "FILED");
+      assert.ok(parsed.dueDateTs != null);
+      const expected = new Date(2026, 5, 8).getTime(); // June 8, 2026
+      assert.equal(parsed.dueDateTs, expected, "08-06-2026 should be June 8, 2026, not August 6, 2026");
+    },
+  },
+  {
+    name: "DD-MM-YYYY with day <= 12 is not swapped (10-06-2026 = June 10, not October 6)",
+    run() {
+      const parsed = parseComplaintRecord("COMPLAINT_ID: CMP-T2 | DUE_DATE: 10-06-2026", "FILED");
+      assert.ok(parsed.dueDateTs != null);
+      const expected = new Date(2026, 5, 10).getTime(); // June 10, 2026
+      assert.equal(parsed.dueDateTs, expected, "10-06-2026 should be June 10, 2026, not October 6, 2026");
+    },
+  },
+  {
+    name: "DD-MM-YYYY with valid month-day edge (11-06-2026 = November? No, June 11)",
+    run() {
+      const parsed = parseComplaintRecord("COMPLAINT_ID: CMP-T3 | DUE_DATE: 11-06-2026", "FILED");
+      assert.ok(parsed.dueDateTs != null);
+      const expected = new Date(2026, 5, 11).getTime(); // June 11, 2026
+      assert.equal(parsed.dueDateTs, expected, "11-06-2026 should be June 11, 2026");
+    },
+  },
+  {
+    name: "empty due date string returns null",
+    run() {
+      const parsed = parseComplaintRecord("COMPLAINT_ID: CMP-T4 | DUE_DATE: ", "FILED");
+      assert.equal(parsed.dueDateTs, null, "empty due date should return null");
+    },
+  },
+  {
+    name: "DD-MM-YYYY without leading zeros works correctly (8-6-2026 = June 8, 2026)",
+    run() {
+      const parsed = parseComplaintRecord("COMPLAINT_ID: CMP-T5 | DUE_DATE: 8-6-2026", "FILED");
+      assert.ok(parsed.dueDateTs != null);
+      const expected = new Date(2026, 5, 8).getTime(); // June 8, 2026
+      assert.equal(parsed.dueDateTs, expected, "8-6-2026 should be June 8, 2026");
+    },
+  },
+  {
     name: "preserves due date text while parsing complaint metadata",
     run() {
       const slash = parseComplaintRecord("COMPLAINT_ID: CMP-101 | DUE_DATE: 26/05/2026 | COMPLAINT_STATE: ACTIVE", "FILED");

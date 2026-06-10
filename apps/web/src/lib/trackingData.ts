@@ -289,6 +289,14 @@ function parseDueDateToTs(input: string): number | null {
     const dt = new Date(year, month - 1, day, 0, 0, 0, 0).getTime();
     return Number.isFinite(dt) ? dt : null;
   }
+  const dash = value.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if (dash) {
+    const day = Number(dash[1]);
+    const month = Number(dash[2]);
+    const year = Number(dash[3]);
+    const dt = new Date(year, month - 1, day, 0, 0, 0, 0).getTime();
+    return Number.isFinite(dt) ? dt : null;
+  }
   const iso = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
   if (iso) {
     const year = Number(iso[1]);
@@ -297,8 +305,7 @@ function parseDueDateToTs(input: string): number | null {
     const dt = new Date(year, month - 1, day, 0, 0, 0, 0).getTime();
     return Number.isFinite(dt) ? dt : null;
   }
-  const parsed = new Date(value).getTime();
-  return Number.isFinite(parsed) ? parsed : null;
+  return null;
 }
 
 function hasActiveComplaint(shipment: Shipment): boolean {
@@ -311,7 +318,7 @@ function hasActiveComplaint(shipment: Shipment): boolean {
   if (!id) return false;
 
   const due = blob.match(/DUE_DATE\s*:\s*([^\n|]+)/i)?.[1]
-    ?? blob.match(/Due\s*Date\s*(?:on)?\s*([0-3]?\d\/[0-1]?\d\/\d{4}|\d{4}-\d{1,2}-\d{1,2})/i)?.[1]
+    ?? blob.match(/Due\s*Date\s*(?:on)?\s*([0-3]?\d[\/-][0-1]?\d[\/-]\d{4})/i)?.[1]
     ?? "";
   const dueTs = parseDueDateToTs(String(due).trim());
   if (dueTs == null) return false;

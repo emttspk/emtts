@@ -32,6 +32,22 @@
 - **ACTIVE**: `today <= dueDate` (due date day is NOT expired)
 - **OVERDUE**: `today > dueDate` (due date has passed)
 - **REOPEN**: `today > dueDate` only (overdue complaints can be reopened)
+
+## 2026-06-10 - Fix DD-MM-YYYY date parsing: frontend missing dash handler
+
+### Issue 1: Date Parsing MM-DD-YYYY vs DD-MM-YYYY
+- **Root Cause**: Frontend `trackingData.ts:parseDueDateToTs()` was missing the DD-MM-YYYY (dash) handler.
+  - When `08-06-2026` was passed, it fell through to `new Date("08-06-2026")` which browsers interpret as MM-DD-YYYY (August 6)
+  - Backend `complaint.service.ts:parseDueDateToTs()` correctly handled DD-MM-YYYY
+  - Three DUE_DATE capture regexes only matched slash format, missing dash format
+- **Fix**: Added DD-MM-YYYY handler to frontend `parseDueDateToTs()`, removed `new Date(value)` fallback, fixed all DUE_DATE regexes to include dashes
+- **Files Changed**:
+  - `apps/web/src/lib/trackingData.ts` (added dash handler + fixed regex + removed fallback)
+  - `apps/web/src/pages/BulkTracking.tsx` (fixed DUE_DATE fallback regex)
+  - `apps/api/src/routes/tracking.ts` (fixed DUE_DATE fallback regex)
+  - `apps/api/src/services/complaintParser.test.ts` (added 5 DD-MM-YYYY verification tests)
+  - `docs/rules/complaint-date-rules.md` (added DD-MM-YYYY parsing section)
+  - `AI_IMPLEMENTATION_INDEX.md`
 - Backend `deriveComplaintState` (`complaint-sync.service.ts:40`) used `<=` for `duePassed`, so the due-date day was considered expired from 00:00:01. Frontend consistently uses `<` (expired only after midnight of the next day).
 - Changed `<= input.now` to `< input.now` to match frontend convention. Due date day is now NOT expired from the sync perspective, consistent with the frontend.
 - Build: `npm run build` PASS. Tests 17/17 PASS.

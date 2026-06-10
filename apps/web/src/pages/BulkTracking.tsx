@@ -402,7 +402,7 @@ function parseComplaintLifecycle(shipment: Shipment): ComplaintLifecycle {
     : "";
 
   const dueStructured = textBlob.match(/DUE_DATE\s*:\s*([^\n|]+)/i)?.[1] ?? "";
-  const dueFromMessage = textBlob.match(/Due\s*Date\s*(?:on)?\s*([0-3]?\d\/[0-1]?\d\/\d{4})/i)?.[1] ?? "";
+  const dueFromMessage = textBlob.match(/Due\s*Date\s*(?:on)?\s*([0-3]?\d[\/-][0-1]?\d[\/-]\d{4})/i)?.[1] ?? "";
   const dueDateText = String(latestHistory?.dueDate || dueStructured || dueFromMessage || "").trim();
   const dueDateTs = parseDueDateToTs(dueDateText);
   const stateFromStructured = textBlob.match(/COMPLAINT_STATE\s*:\s*([^\n|]+)/i)?.[1] ?? "";
