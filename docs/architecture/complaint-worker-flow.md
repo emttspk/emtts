@@ -55,14 +55,31 @@ This ordering was corrected in June 2026. Previously, the stale `shipment.status
 
 ## Due Date Diagnostics (added 2026-06-10)
 
-The processor logs `[ComplaintDueDateAudit]` when the `dueDate` fallback chain activates:
+The processor logs `[ComplaintDueDateAudit]` when Python returns no due date:
 
 ```
-finalizedDueDate = dueDate (from Python)
-  ?? queueRow.dueDate           // set at enqueue from existing DUE_DATE header
-  ?? existingParsed.dueDateTs   // parsed from existing complaintText
+[ComplaintDueDateAudit] NO_DUE_DATE Tracking=VPL26030243 QueueId=xxx RawDueDate=empty
+   NormalizedDueDate=empty QueueRowDueDate=2026-06-11T00:00:00.000Z
+   ExistingParsedDueDateTs=2026-06-11T00:00:00.000Z
+   -- NOT inherited from fallback
 ```
 
-If `dueDate` is null (Python returned no date), the processor falls back to `queueRow.dueDate` which was set at enqueue time from the existing shipment's `DUE_DATE` header. This can cause a NEW attempt to inherit the OLD attempt's due date.
+### Stale Inheritance Fix (2026-06-10)
 
-See `docs/operations/complaint-diagnostics.md` for full diagnostic documentation and Railway log search commands.
+**Bug**: The `finalizedDueDate` used this fallback chain, causing attempt 2 to inherit attempt 1's due date when Python returned no due date:
+```typescript
+// REMOVED
+const finalizedDueDate = dueDate
+  ?? queueRow.dueDate
+  ?? (existingParsed.dueDateTs != null ? new Date(existingParsed.dueDateTs) : null);
+```
+
+And `nextEntry.dueDate` fell back to `latestHistory?.dueDate`:
+```typescript
+// REMOVED
+dueDate: normalizedFinalDueDate || latestHistory?.dueDate || "",
+```
+
+**Fix**: The `dueDate` and `normalizedFinalDueDate` now use ONLY the Python response. No fallback to queue row or existing shipment data.
+
+See `docs/operations/complaint-diagnostics.md` for Railway log search commands.

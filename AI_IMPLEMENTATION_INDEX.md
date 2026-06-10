@@ -71,6 +71,33 @@ railway logs -s Worker --search "ComplaintDueDateAudit"
 ```
 
 For each reopened tracking number, compare ExtractedDueDate values between attempt 1 and attempt 2 Python log lines.
+
+## 2026-06-10 - Remove stale due date inheritance from complaint history
+
+### Root Cause
+Commit `be1414e` (2026-05-02) introduced `finalizedDueDate` fallback chain that allowed a new complaint attempt to inherit the previous attempt's due date when Python returned no `due_date`:
+
+```
+dueDate (Python) ?? queueRow.dueDate ?? existingParsed.dueDateTs
+```
+
+Commit `ee8c5c6` compounded this by adding `latestHistory?.dueDate` as a last-resort fallback in `nextEntry.dueDate`.
+
+### Fix
+- `finalizedDueDate` now uses ONLY `dueDate` (from Python response). No fallback.
+- `normalizedFinalDueDate` now uses ONLY `normalizedDueDate`. No fallback.
+- `nextEntry.dueDate` now uses ONLY `normalizedFinalDueDate`. No `latestHistory?.dueDate` fallback.
+- Diagnostic logging changed from tracking which fallback was used to tracking `NO_DUE_DATE` events.
+
+### Files Changed
+- `apps/api/src/processors/complaint.processor.ts` (removed fallback chains)
+- `apps/api/src/services/complaintParser.test.ts` (added 2 inheritance tests)
+- `docs/operations/complaint-diagnostics.md` (updated for fix)
+- `docs/architecture/complaint-worker-flow.md` (updated for fix)
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Tests
+- 18 complaint parser tests pass (2 new: empty due date not inherited, different dates preserved)
 - Backend `deriveComplaintState` (`complaint-sync.service.ts:40`) used `<=` for `duePassed`, so the due-date day was considered expired from 00:00:01. Frontend consistently uses `<` (expired only after midnight of the next day).
 - Changed `<= input.now` to `< input.now` to match frontend convention. Due date day is now NOT expired from the sync perspective, consistent with the frontend.
 - Build: `npm run build` PASS. Tests 17/17 PASS.

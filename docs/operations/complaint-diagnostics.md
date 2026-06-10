@@ -86,7 +86,34 @@ railway logs -s Worker --search "ComplaintDueDateAudit"
 2. For each tracking, find ALL log lines — there should be one per attempt
 3. Compare `ExtractedDueDate` values between attempt 1 and attempt 2 for the SAME tracking number
 4. If both attempts have different `ExtractedDueDate` values → Pakistan Post returned different due dates → **genuine behavior**
-5. If attempt 2 shows `PythonDueDate=empty` and `FinalizedSource=queueRow.dueDate` → **fallback chain activated** → ePost storage bug
-6. If attempt 2 shows `PythonDueDate` equals attempt 1's `ExtractedDueDate` → **Pakistan Post returned same date** → needs further investigation
+5. If attempt 2 shows `ExtractedDueDate=` (empty) and `DefaultDueDate=n/a` → **Python received no due date from Pakistan Post** → the worker will store empty due date for this attempt (no inheritance)
+6. If attempt 2 shows `PythonDueDate=empty` → **fallback to queueRow or existingParsed is no longer possible** — the fix removed stale inheritance
 
-Also search Worker logs for `[ComplaintDueDateAudit]` to check if the fallback chain ever fires in production.
+Also search Worker logs for `[ComplaintDueDateAudit] NO_DUE_DATE` to track submissions where Python returned no due date.
+
+## Fix Applied 2026-06-10
+
+The stale due date inheritance bug was fixed in commit `XXXXXXX`. Previously, the `finalizedDueDate` fallback chain:
+```typescript
+// REMOVED - this fallback caused stale inheritance:
+const finalizedDueDate = dueDate
+  ?? queueRow.dueDate                              // stale from previous attempt's processing
+  ?? (existingParsed.dueDateTs != null ? new Date(existingParsed.dueDateTs) : null);  // stale from existing shipment header
+```
+
+And `nextEntry.dueDate` also fell back to `latestHistory?.dueDate`:
+```typescript
+// REMOVED - this caused new entries to inherit old due dates:
+dueDate: normalizedFinalDueDate || latestHistory?.dueDate || "",
+```
+
+Now the code uses ONLY the Python response's due date:
+```typescript
+const finalizedDueDate = dueDate;           // only from Python response
+const normalizedFinalDueDate = normalizedDueDate;  // only from Python response
+dueDate: normalizedFinalDueDate,            // no fallback to history
+```
+
+When Python returns no due date, the new attempt stores an empty due date rather than silently inheriting the previous attempt's date. The complaint sync service will recalculate the state based on available data.
+
+See `docs/architecture/complaint-worker-flow.md` for updated flow details.

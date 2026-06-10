@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { composeComplaintText, extractComplaintHistory, parseComplaintRecord } from "./complaint.service.js";
+import { composeComplaintText, extractComplaintHistory, parseComplaintRecord, appendComplaintHistoryAttempt } from "./complaint.service.js";
 
 type TestCase = {
   name: string;
@@ -210,6 +210,68 @@ const tests: TestCase[] = [
       });
       const firstLine = String(text.split(/\r?\n/)[0] ?? "").trim();
       assert.equal(firstLine, "COMPLAINT_ID: CMP-7001 | DUE_DATE: 26-05-2026 | COMPLAINT_STATE: ACTIVE");
+    },
+  },
+  {
+    name: "appendComplaintHistoryAttempt does NOT inherit previous attempt's due date when new entry has empty due date",
+    run() {
+      const existing = [
+        {
+          complaintId: "CMP-100",
+          trackingId: "VPL1",
+          createdAt: "2026-05-01T00:00:00.000Z",
+          dueDate: "11-06-2026",
+          status: "ACTIVE",
+          attemptNumber: 1,
+          previousComplaintReference: "",
+          userComplaint: "first attempt",
+        },
+      ];
+      const nextEntry = {
+        complaintId: "CMP-200",
+        trackingId: "VPL1",
+        createdAt: "2026-06-10T00:00:00.000Z",
+        dueDate: "",
+        status: "ACTIVE",
+        attemptNumber: 2,
+        previousComplaintReference: "CMP-100",
+        userComplaint: "second attempt with no due date from Python",
+      };
+      const merged = appendComplaintHistoryAttempt(existing, nextEntry);
+      assert.equal(merged.length, 2);
+      assert.equal(merged[0]?.dueDate, "11-06-2026");
+      assert.equal(merged[1]?.dueDate, "", "attempt 2 must NOT inherit attempt 1's due date");
+    },
+  },
+  {
+    name: "appendComplaintHistoryAttempt preserves different due dates for each attempt",
+    run() {
+      const existing = [
+        {
+          complaintId: "CMP-100",
+          trackingId: "VPL1",
+          createdAt: "2026-05-01T00:00:00.000Z",
+          dueDate: "11-06-2026",
+          status: "ACTIVE",
+          attemptNumber: 1,
+          previousComplaintReference: "",
+          userComplaint: "first attempt",
+        },
+      ];
+      const nextEntry = {
+        complaintId: "CMP-200",
+        trackingId: "VPL1",
+        createdAt: "2026-06-10T00:00:00.000Z",
+        dueDate: "08-06-2026",
+        status: "ACTIVE",
+        attemptNumber: 2,
+        previousComplaintReference: "CMP-100",
+        userComplaint: "second attempt with valid due date",
+      };
+      const merged = appendComplaintHistoryAttempt(existing, nextEntry);
+      assert.equal(merged.length, 2);
+      assert.equal(merged[0]?.dueDate, "11-06-2026");
+      assert.equal(merged[1]?.dueDate, "08-06-2026", "attempt 2 must keep its own due date");
     },
   },
   {

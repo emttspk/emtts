@@ -105,16 +105,11 @@ export async function processComplaintQueueById(queueId: string) {
       || queueRow.complaintId
       || "",
     ).trim();
-    const finalizedDueDate = dueDate
-      ?? queueRow.dueDate
-      ?? (existingParsed.dueDateTs != null ? new Date(existingParsed.dueDateTs) : null);
-    const normalizedFinalDueDate = normalizedDueDate
-      || formatDateToDdMmYyyy(finalizedDueDate);
+    const finalizedDueDate = dueDate;
+    const normalizedFinalDueDate = normalizedDueDate;
 
     if (!dueDate) {
-      const usedQueue = queueRow.dueDate != null && (dueDate == null);
-      const usedExisting = existingParsed.dueDateTs != null && (dueDate == null && queueRow.dueDate == null);
-      console.log(`[ComplaintDueDateAudit] Tracking=${trackingNumber} QueueId=${queueId} PythonDueDate=${rawDueDate || "empty"} NormalizedDueDate=${normalizedDueDate || "empty"} FinalizedSource=${usedQueue ? "queueRow.dueDate" : usedExisting ? "existingParsed.dueDateTs" : "dueDate"} FinalizedValue=${normalizedFinalDueDate || "null"} QueueRowDueDate=${queueRow.dueDate?.toISOString() ?? "null"} ExistingParsedDueDateTs=${existingParsed.dueDateTs != null ? new Date(existingParsed.dueDateTs).toISOString() : "null"}`);
+      console.log(`[ComplaintDueDateAudit] NO_DUE_DATE Tracking=${trackingNumber} QueueId=${queueId} RawDueDate=${rawDueDate || "empty"} NormalizedDueDate=empty QueueRowDueDate=${queueRow.dueDate?.toISOString() ?? "null"} ExistingParsedDueDateTs=${existingParsed.dueDateTs != null ? new Date(existingParsed.dueDateTs).toISOString() : "null"} -- NOT inherited from fallback`);
     }
 
     const queueStatus: "duplicate" | "submitted" = alreadyExists ? "duplicate" : "submitted";
@@ -140,7 +135,7 @@ export async function processComplaintQueueById(queueId: string) {
       complaintId: finalizedComplaintId || latestHistory?.complaintId || "",
       trackingId: trackingNumber,
       createdAt: new Date().toISOString(),
-      dueDate: normalizedFinalDueDate || latestHistory?.dueDate || "",
+      dueDate: normalizedFinalDueDate,
       status: submitSuccess || alreadyExists ? "ACTIVE" : "ERROR",
       attemptNumber,
       previousComplaintReference: String(payload.previous_complaint_reference ?? latestHistory?.complaintId ?? "").trim(),
