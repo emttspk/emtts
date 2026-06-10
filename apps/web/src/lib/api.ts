@@ -43,6 +43,11 @@ function networkErrorMessage(url: string) {
   return `Failed to reach API endpoint ${url}. Verify the API server is running and reachable.`;
 }
 
+function methodName(path: string): string {
+  const match = path.match(/\/api\/([^/?]+)/);
+  return match ? match[1] : "unknown";
+}
+
 export function apiUrl(path: string) {
   if (/^https?:\/\//i.test(path)) return path;
   return `${resolvedBase}${path}`;
@@ -117,8 +122,10 @@ async function executeApiRequest<T>(path: string, url: string, init: RequestInit
   let res: Response;
   try {
     res = await fetch(url, { ...init, headers });
-  } catch {
-    throw new Error(networkErrorMessage(url));
+  } catch (error) {
+    const errorType = error instanceof TypeError ? error.message : (error instanceof Error ? error.message : String(error ?? "Unknown error"));
+    console.error(`[API] Network error for ${methodName(path)} ${url}: ${errorType}`);
+    throw new Error(`${networkErrorMessage(url)} (${errorType})`);
   }
   const text = await res.text();
   let body: any;
@@ -185,15 +192,17 @@ export async function uploadFile(path: string, file: File, fields?: Record<strin
   }
   const url = apiUrl(path);
   let res: Response;
-  try {
-    res = await fetch(url, {
-      method: "POST",
-      headers: token ? { authorization: `Bearer ${token}` } : undefined,
-      body: form,
-    });
-  } catch {
-    throw new Error(networkErrorMessage(url));
-  }
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: token ? { authorization: `Bearer ${token}` } : undefined,
+        body: form,
+      });
+    } catch (error) {
+      const errorType = error instanceof TypeError ? error.message : (error instanceof Error ? error.message : String(error ?? "Unknown error"));
+      console.error(`[API] Network error for upload ${url}: ${errorType}`);
+      throw new Error(`${networkErrorMessage(url)} (${errorType})`);
+    }
   const text = await res.text();
   let body: any;
   try {
@@ -255,8 +264,10 @@ export async function downloadApiFile(path: string) {
     res = await fetch(url, {
       headers: token ? { authorization: `Bearer ${token}` } : undefined,
     });
-  } catch {
-    throw new Error(networkErrorMessage(url));
+  } catch (error) {
+    const errorType = error instanceof TypeError ? error.message : (error instanceof Error ? error.message : String(error ?? "Unknown error"));
+    console.error(`[API] Network error for download ${url}: ${errorType}`);
+    throw new Error(`${networkErrorMessage(url)} (${errorType})`);
   }
 
   if (!res.ok) {

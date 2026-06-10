@@ -98,6 +98,28 @@ Commit `ee8c5c6` compounded this by adding `latestHistory?.dueDate` as a last-re
 
 ### Tests
 - 18 complaint parser tests pass (2 new: empty due date not inherited, different dates preserved)
+
+## 2026-06-10 - Add diagnostic detail to frontend API fetch errors
+
+### Root Cause
+The "Failed to reach API endpoint" error message collapsed ALL fetch() failure types into one generic
+message. The actual error (DNS failure, TLS handshake, timeout, connection refused, AbortController)
+was discarded in the catch {} block at apps/web/src/lib/api.ts:120.
+
+Additionally, the API global error handler (apps/api/src/index.ts:866) fires when express.json()
+fails to parse request bodies, returning HTTP 500 with `{"success":false,"message":"Internal server
+error"}`. This can cause Cloudflare to intermittently return 500, which the browser's fetch() may
+report as a network error depending on timing.
+
+### Fix
+- Preserve the original error type (`error.message` or `TypeError` details) in all three catch blocks
+- Log the error type via console.error for debugging
+- Append error detail to the user-visible message: `(Failed to fetch)` or `(Load failed)`
+- Added `methodName()` helper for clearer log output
+
+### Files Changed
+- `apps/web/src/lib/api.ts` (3 catch blocks + new handler function)
+- `AI_IMPLEMENTATION_INDEX.md`
 - Backend `deriveComplaintState` (`complaint-sync.service.ts:40`) used `<=` for `duePassed`, so the due-date day was considered expired from 00:00:01. Frontend consistently uses `<` (expired only after midnight of the next day).
 - Changed `<= input.now` to `< input.now` to match frontend convention. Due date day is now NOT expired from the sync perspective, consistent with the frontend.
 - Build: `npm run build` PASS. Tests 17/17 PASS.
