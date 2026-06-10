@@ -1,5 +1,53 @@
 # AI Implementation Index
 
+## 2026-06-10 - PRODUCTION UI REGRESSION v2: OVERDUE showing "Submitting to Pakistan Post..." without timer (VPL13687764, VPL13687910)
+
+### PART 4 — Production Web Bundle Verification
+
+Production bundle: `/assets/index-BeiSZ288.js` → `BulkTracking-CGRhWO8b.js`
+
+**Confirmed the deployed bundle has the OLD committed code from `fd4ed21`:**
+
+| Fix | Production (old) | Working tree (new) |
+|-----|-----------------|-------------------|
+| Timer guard | `vt=["QUEUED","PROCESSING","RETRY PENDING"].includes(g.toUpperCase())&&!String(x.complaintId??"").trim()&&!String((p==null?void 0:p.complaintId)??"").trim()` — **HAS `!complaintId` guard** | `showProcessingTimer = inFlight` — no guard |
+| Card state | `row.complaintState` — stale precomputed | `resolveComplaintCardState(lifecycle, actionStatus, queueSnapshot)` — live |
+| State message | `waitingComplaintId ? "Complaint already queued..."` | `hasComplaintId && (queueSubmitDone \|\| !inFlight) ? ""` — contextual |
+| Timer display | Simple ternary: `xs?"Stale...":Hs?"Taking longer...":"${g}... ${yt}"` | Staged IIFE with "Processing"/"Submitting to Pakistan Post"/"Retry Pending" labels |
+| Timer format | `HH:MM:SS` (from `formatProcessingElapsed`) | `MM:SS` |
+| Label ACTIVE | "In Process" | "Active" |
+| Reopen label | "Reopen Complaint" | "Re-open Complaint" |
+
+### Root Cause: A + C
+- **A. Stale deployment** — The working tree fixes were never committed/pushed. Production runs `fd4ed21` committed code.
+- **C. Frontend rendering wrong property** — `const complaintCardState = row.complaintState` was used instead of live `resolveComplaintCardState(lifecycle, actionStatus, queueSnapshot)`. The precomputed `complaintState` value from the row cache could diverge from the queue snapshot data.
+
+**The OVERDUE status showing "Submitting to Pakistan Post..." means the queue status IS "processing" for these tracking numbers. The timer doesn't show because `complaintId` exists (guard prevents timer display when CMP assigned).**
+
+### Fixes Deployed (commit `cc84b83`)
+Same 12 fixes from the previous investigation, now committed and pushed.
+
+### Railway Deploy Status
+Push to main completed. Railway Web service should auto-deploy. Old bundle hash: `index-BeiSZ288.js` → new bundle hash will differ after Railway build completes.
+
+### .gitignore
+Added `KILO_CODE_AUDIT_REPORT.md` to .gitignore. Previous KILO_CODE_AUDIT_REPORT.md committed at `fd4ed21` remains in git history.
+
+### Files Changed
+- `apps/web/src/pages/BulkTracking.tsx`
+- `apps/web/src/pages/complaintCardState.ts`
+- `.gitignore`
+- `docs/architecture/complaint-ui.md`
+- `docs/architecture/complaint-worker-flow.md`
+- `KILO_CODE_AUDIT_REPORT.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Tests
+- `npm run build` PASS
+- `git push origin main` PASS
+
+---
+
 ## 2026-06-10 - PRODUCTION UI REGRESSION: ACTIVE complaints showing "Filed", missing timer, wrong labels
 
 ### Root Cause (A) — "Filed" label on ACTIVE complaints

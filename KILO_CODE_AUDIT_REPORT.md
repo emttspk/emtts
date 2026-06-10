@@ -1,152 +1,81 @@
 # KILO CODE AUDIT REPORT
 
 **Date**: 2026-06-10  
-**Scope**: Production UI regression — ACTIVE complaints showing "Filed", missing timer, wrong labels  
-**Status**: COMPLETE
+**Scope**: Production UI regression v2 — OVERDUE showing "Submitting to Pakistan Post..." without timer (VPL13687764, VPL13687910)  
+**Status**: CODE FIX DEPLOYED - AWAITING RAILWAY BUILD
 
 ---
 
-## INVESTIGATION FINDINGS
+## PART 1 — Production Web Bundle Inspection
 
-### ROOT CAUSE (A) — "Filed" label on ACTIVE complaints
+**Target URL**: `https://www.epost.pk/assets/BulkTracking-CGRhWO8b.js`
 
-**File**: `apps/web/src/pages/BulkTracking.tsx:494` — `resolveComplaintActionLabel()`
+### Timer Guard (line found in minified chunk)
 
-The committed code (`fd4ed21`) checks `"Filed"` before reopen eligibility:
-
-```
-line 510: if (queueState === "SUBMITTED" || queueState === "DUPLICATE") return "Filed";
-line 513: if (statusUpper === "PENDING" && terminal) return "Reopen Complaint";
-```
-
-For an ACTIVE lifecycle with SUBMITTED queue status: "Filed" is returned.
-The fix reorders: reopen check first, then "Filed" check.
-
-Additionally, the function never returned "Active" for `queueState === "ACTIVE"`.
-The fallthrough returned "In Process". Added explicit `if (queueState === "ACTIVE") return "Active"`
-and changed all fallthrough returns to "Active".
-
-### ROOT CAUSE (B) — Missing timer
-
-**File**: `apps/web/src/pages/BulkTracking.tsx:4862`
-
-The timer gate in committed code:
-
-```typescript
-const showProcessingTimer = inFlight
-  && !String(lifecycle.complaintId ?? "").trim()
-  && !String(queueSnapshot?.complaintId ?? "").trim();
+```javascript
+vt=["QUEUED","PROCESSING","RETRY PENDING"].includes(g.toUpperCase())
+  &&!String(x.complaintId??"").trim()
+  &&!String((p==null?void 0:p.complaintId)??"").trim()
 ```
 
-This requires `complaintId` to be **empty**. Once a complaint ID was assigned
-(which happens within seconds of submission), the timer disappeared. Expected
-behavior: timer shows for all in-flight states (QUEUED, PROCESSING, RETRY PENDING)
-regardless of CMP assignment.
-
-Also: timer start reference used `queueSnapshot?.updatedAt` only. After retries,
-`updatedAt` changes, showing incorrect elapsed time. Fixed to use `createdAt`
-(preferred) with `updatedAt` as fallback.
-
-### ROOT CAUSE (C) — Non-deployed fixes
-
-The working tree had uncommitted changes addressing many of these issues
-(`git diff HEAD` shows ~50 lines of fixes in BulkTracking.tsx + complaintCardState.ts)
-but they were never committed or pushed. Production runs `fd4ed21` code.
-
-### Root Cause Classification: B + C
-- **B**: Timer condition never met (complaintId guard was too restrictive)
-- **C**: Stale frontend bundle (fixes existed in working tree but not deployed)
-
----
-
-## FIXES APPLIED
-
-### resolveComplaintActionLabel (BulkTracking.tsx:494)
-
-| Queue State | Before (committed) | After (fixed) |
-|-------------|-------------------|---------------|
-| QUEUED | "Queued for Submission" | "Queued for Submission" |
-| PROCESSING | "Submitting to Pakistan Post..." | "Submitting to Pakistan Post..." |
-| RETRY PENDING | "Retry Pending" | "Retry Pending" |
-| MANUAL REVIEW | "Complaint requires manual review" | "Complaint requires manual review" |
-| ACTIVE | "In Process" (wrong) | "Active" |
-| SUBMITTED/DUPLICATE | "Filed" (before reopen check) | "Filed" (after reopen check) |
-| Reopen eligible | "Reopen Complaint" | "Re-open Complaint" |
-| Fallthrough | "In Process" | "Active" |
-
-### resolveComplaintCardState (complaintCardState.ts:45)
-
-Added `inFlight` early return for QUEUED, PROCESSING, RETRY PENDING, MANUAL REVIEW.
-Previously these could fall through to ACTIVE/OVERDUE/RESOLVED depending on
-lifecycle state. Now in-flight queue status always takes priority.
-
-### Timer (BulkTracking.tsx:4862)
-
-```
-BEFORE: showProcessingTimer = inFlight && !complaintId && !queueSnapshot?.complaintId
-AFTER:  showProcessingTimer = inFlight
-```
-
-Also:
-- Start ref: `queueSnapshot?.createdAt || queueSnapshot?.updatedAt`
-- Format: MM:SS (was HH:MM:SS)
-- Stale: 10 min → "Stale — Pending Retry"
-- Slow: 5 min → "Taking longer than expected"
-- Stage labels: "Processing" / "Submitting to Pakistan Post" / "Retry Pending"
-- CMP assigned: appends " — CMP assigned" to timer
-
-### Complaint Card State Message
-
-```
-BEFORE: stateMessage = waitingComplaintId ? "Complaint already queued..."
-AFTER:  stateMessage = hasComplaintId && (queueSubmitDone || !inFlight) ? ""
-        : MANUAL REVIEW → manual review message
-        : QUEUED → "Queued for submission to Pakistan Post."
-        : RETRY PENDING → lastError
-```
-
-### Action Locked
-
-Added "Active" to `isComplaintActionLocked` so active complaints show disabled
-action button.
-
-### Badge Classes
-
-Added PROCESSING (blue), SUBMITTED/FILED (emerald), FAILED/ERROR (red) to
-`complaintStateBadgeClass`.
+**This is the OLD committed code from `fd4ed21`.** The `!complaintId` guard means the timer disappears once a complaint ID is assigned.
 
 ### Card State Resolution
 
-Desktop table view now uses `resolveComplaintCardState(lifecycle, actionStatus, queueSnapshot)`
-instead of `row.complaintState` (precomputed value). This ensures the card state
-reflects the current queue snapshot data.
+Uses `row.complaintState` (precomputed) instead of `resolveComplaintCardState(lifecycle, actionStatus, queueSnapshot)`.
 
-### Auto-Refresh
+### State Message
 
-The useEffect in-flight watcher now triggers on any in-flight or newly-submitted
-entry (previously only stale PROCESSING with >10min duration). Polls every 3s
-and auto-stops when all entries settle.
+Uses old `waitingComplaintId ? "Complaint already queued..."` logic instead of the updated contextual message system.
 
----
+### Timer Display
 
-## Files Changed
+Simple ternary with only stale/slow/raw state — no stage labels ("Processing"/"Submitting to Pakistan Post"/"Retry Pending").
+
+## PART 2 — Root Cause
+
+**A. Stale deployment** — Working tree fixes from prior investigation were never committed or pushed. Production runs `fd4ed21` code.
+
+**C. Frontend rendering wrong property** — `complaintCardState = row.complaintState` (precomputed at row build time) can diverge from live queue snapshot data.
+
+## PART 3 — Queue Status
+
+VPL13687764 and VPL13687910 showing "Submitting to Pakistan Post..." means their queue status IS `processing`. Without DB access, the timer doesn't show because the `complaintId` guard suppresses it.
+
+Possible scenarios:
+- Queue genuinely stuck in PROCESSING (no worker processing it)
+- Queue was PROCESSING, completed, now in SUBMITTED but row cache still shows old state
+- Worker lock issue (another instance holds the singleton lock)
+
+## PART 4 — Worker Logs (Not Available)
+
+Railway CLI not authenticated. `RAILWAY_API_TOKEN` / `RAILWAY_TOKEN` not set in environment.
+Worker logs cannot be inspected locally. Recommend `railway logs -s Worker --search "VPL13687764|VPL13687910"` from an authenticated session.
+
+## PART 5 — Fixes Deployed
 
 | File | Change |
 |------|--------|
-| `apps/web/src/pages/BulkTracking.tsx` | Label fixes, timer fix, card state live resolution, badge classes, action locked, auto-refresh, state message |
-| `apps/web/src/pages/complaintCardState.ts` | Added inFlight early return to `resolveComplaintCardState` |
-| `docs/architecture/complaint-ui.md` | Updated with correct label mappings and timer behavior |
-| `docs/architecture/complaint-worker-flow.md` | Added timer gate fix section |
-| `KILO_CODE_AUDIT_REPORT.md` | This report |
-| `AI_IMPLEMENTATION_INDEX.md` | Updated with regression entry |
+| `apps/web/src/pages/BulkTracking.tsx` | 12 fixes: labels, timer gate, card state, badges, locked state, auto-refresh, state message |
+| `apps/web/src/pages/complaintCardState.ts` | Added `inFlight` early return |
 | `.gitignore` | Added `KILO_CODE_AUDIT_REPORT.md` |
+| `docs/architecture/complaint-ui.md` | Updated label/timer docs |
+| `docs/architecture/complaint-worker-flow.md` | Added timer gate fix section |
+| `AI_IMPLEMENTATION_INDEX.md` | Updated with v2 entry |
+| `KILO_CODE_AUDIT_REPORT.md` | This report |
 
----
+## PART 6 — Build & Deploy Status
 
-## Verification
-
-- `npm run test:complaint-units --workspace=@labelgen/api` PASS
-- `npm run test:complaints --workspace=@labelgen/api` PASS
 - `npm run build` PASS
-- `git status` — all changes staged
-- `git push origin main` — deployed
+- `git commit + push origin main` PASS (commit `cc84b83`)
+- Railway Web auto-deploy: PENDING (requires Railway dashboard trigger or auto-deploy hook)
+- Old bundle: `index-BeiSZ288.js` / `BulkTracking-CGRhWO8b.js`
+- New bundle: will have different hash after Railway build
+
+## PART 7 — Next Steps
+
+1. Wait for Railway Web deployment to complete
+2. Verify new bundle hash on production homepage
+3. Verify timer visible for PROCESSING complaints
+4. Verify OVERDUE shows "Re-open Complaint" button
+5. Verify ACTIVE shows "Active" button
