@@ -1717,16 +1717,16 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
       ?? String(complaintStatus ?? "");
     const normalizedState = String(state).trim().toUpperCase();
     const dueTs = parseDueDateToTs(String(due).trim());
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
     const isTerminalState = ["RESOLVED", "CLOSED", "REJECTED"].includes(normalizedState);
     const activeByStatusAndDue = String(complaintStatus ?? "").toUpperCase() === "FILED"
       && Boolean(id)
       && dueTs != null
-      && dueTs >= today.getTime();
+      && dueTs >= todayStart.getTime();
     const activeByState = ["ACTIVE", "FILED", "SUBMITTED", "OVERDUE", "QUEUED", "MANUAL_REVIEW", "DUPLICATE"].includes(normalizedState)
       && Boolean(id)
-      && (dueTs == null || dueTs >= today.getTime());
+      && (dueTs == null || dueTs >= todayStart.getTime());
     const active = !isTerminalState && (activeByStatusAndDue || activeByState);
     return {
       active,

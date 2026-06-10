@@ -146,12 +146,12 @@ export function parseComplaintRecord(textBlob: string | null | undefined, compla
   const trackingStateAtSync = String(text.match(/trackingStateAtSync\s*:\s*([^|\n]+)/i)?.[1] ?? "").trim().toUpperCase();
   const complaintStateReason = String(text.match(/complaintStateReason\s*:\s*([^|\n]+)/i)?.[1] ?? "").trim();
   const manualStatePinned = String(text.match(/manualStatePinned\s*:\s*([^|\n|]+)/i)?.[1] ?? "").trim().toLowerCase() === "true";
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
   const active = String(complaintStatus ?? "").toUpperCase() === "FILED"
     && Boolean(String(complaintId).trim())
     && dueDateTs != null
-    && dueDateTs >= today.getTime()
+    && dueDateTs >= todayStart.getTime()
     && !["RESOLVED", "CLOSED"].includes(state);
 
   return {
