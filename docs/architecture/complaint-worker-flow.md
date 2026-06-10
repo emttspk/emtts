@@ -52,3 +52,17 @@ This ordering was corrected in June 2026. Previously, the stale `shipment.status
 1. Revert worker complaint branch to legacy behavior.
 2. Leave queue tables intact for audit.
 3. Disable retry cron if rollback requires frozen state.
+
+## Due Date Diagnostics (added 2026-06-10)
+
+The processor logs `[ComplaintDueDateAudit]` when the `dueDate` fallback chain activates:
+
+```
+finalizedDueDate = dueDate (from Python)
+  ?? queueRow.dueDate           // set at enqueue from existing DUE_DATE header
+  ?? existingParsed.dueDateTs   // parsed from existing complaintText
+```
+
+If `dueDate` is null (Python returned no date), the processor falls back to `queueRow.dueDate` which was set at enqueue time from the existing shipment's `DUE_DATE` header. This can cause a NEW attempt to inherit the OLD attempt's due date.
+
+See `docs/operations/complaint-diagnostics.md` for full diagnostic documentation and Railway log search commands.

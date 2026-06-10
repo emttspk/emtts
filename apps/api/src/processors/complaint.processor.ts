@@ -111,6 +111,12 @@ export async function processComplaintQueueById(queueId: string) {
     const normalizedFinalDueDate = normalizedDueDate
       || formatDateToDdMmYyyy(finalizedDueDate);
 
+    if (!dueDate) {
+      const usedQueue = queueRow.dueDate != null && (dueDate == null);
+      const usedExisting = existingParsed.dueDateTs != null && (dueDate == null && queueRow.dueDate == null);
+      console.log(`[ComplaintDueDateAudit] Tracking=${trackingNumber} QueueId=${queueId} PythonDueDate=${rawDueDate || "empty"} NormalizedDueDate=${normalizedDueDate || "empty"} FinalizedSource=${usedQueue ? "queueRow.dueDate" : usedExisting ? "existingParsed.dueDateTs" : "dueDate"} FinalizedValue=${normalizedFinalDueDate || "null"} QueueRowDueDate=${queueRow.dueDate?.toISOString() ?? "null"} ExistingParsedDueDateTs=${existingParsed.dueDateTs != null ? new Date(existingParsed.dueDateTs).toISOString() : "null"}`);
+    }
+
     const queueStatus: "duplicate" | "submitted" = alreadyExists ? "duplicate" : "submitted";
     if (submitSuccess || alreadyExists) {
       await markComplaintQueueSuccess({

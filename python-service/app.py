@@ -1080,12 +1080,18 @@ def _extract_due_date_from_message(message: str) -> str:
   hit = re.search(r"Due\s*Date\s*(?:on)?\s*([0-3]?\d/[0-1]?\d/\d{4}|[0-3]?\d-[0-1]?\d-\d{4}|\d{4}-\d{1,2}-\d{1,2})", text, flags=re.IGNORECASE)
   if hit:
     raw = _safe_match_group(hit, 1)
+    print(f"[ComplaintDueDateAudit] _extract_due_date_from_message raw_capture={raw!r}")
     for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d"):
       try:
-        return datetime.strptime(raw, fmt).strftime("%d-%m-%Y")
+        parsed = datetime.strptime(raw, fmt)
+        normalized = parsed.strftime("%d-%m-%Y")
+        print(f"[ComplaintDueDateAudit] _extract_due_date_from_message fmt={fmt} parsed={normalized}")
+        return normalized
       except Exception:
         continue
+    print(f"[ComplaintDueDateAudit] _extract_due_date_from_message no_fmt_match returning_raw={raw!r}")
     return raw
+  print(f"[ComplaintDueDateAudit] _extract_due_date_from_message no_match text_snippet={text[:200]!r}")
   return ""
 
 
@@ -1611,6 +1617,7 @@ def submit_complaint(tracking_number, phone_number, details: dict[str, Any] | No
         due_date = _default_due_date(7)
 
       print(f"[ComplaintAPI] Tracking={tn} Attempt={attempt} Message={message_text or '-'} ParsedComplaintID={complaint_no or '-'} DueDate={due_date or '-'}")
+      print(f"[ComplaintDueDateAudit] Tracking={tn} Attempt={attempt} ComplaintID={complaint_no or '-'} RawResponseSnippet={message_text[:300]!r} ExtractedDueDate={due_date or '-'} DefaultDueDate={'{:.0f}'.format((datetime.now() + timedelta(days=7)).timestamp()) if not due_date else 'n/a'} Timestamp={datetime.now().isoformat()}")
 
       if is_success or already_exists:
         return {

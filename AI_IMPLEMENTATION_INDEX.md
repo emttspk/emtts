@@ -48,6 +48,29 @@
   - `apps/api/src/services/complaintParser.test.ts` (added 5 DD-MM-YYYY verification tests)
   - `docs/rules/complaint-date-rules.md` (added DD-MM-YYYY parsing section)
   - `AI_IMPLEMENTATION_INDEX.md`
+
+## 2026-06-10 - Add complaint due date diagnostics logging (Python + Worker)
+
+### Purpose
+Collect production evidence to determine whether complaint due dates are genuinely returned by Pakistan Post or incorrectly stored by the ePost system.
+
+### Changes
+- **Python service** (`python-service/app.py`):
+  - Added `[ComplaintDueDateAudit]` log lines inside `_extract_due_date_from_message()` showing raw regex capture, attempted format parsings, and normalized output
+  - Added structured `[ComplaintDueDateAudit]` log line in the main submission handler with Tracking, ComplaintID, RawResponseSnippet, ExtractedDueDate, DefaultDueDate, and Timestamp
+- **TypeScript worker** (`apps/api/src/processors/complaint.processor.ts`):
+  - Added `[ComplaintDueDateAudit]` log when `dueDate` from Python is null, showing which fallback source was used (queueRow.dueDate, existingParsed.dueDateTs) and all intermediate values
+- **Docs**:
+  - Created `docs/operations/complaint-diagnostics.md` with full field descriptions and Railway log search commands
+  - Updated `docs/architecture/complaint-worker-flow.md` with Due Date Diagnostics section
+
+### How to collect evidence
+```bash
+railway logs -s Python --search "ComplaintDueDateAudit"
+railway logs -s Worker --search "ComplaintDueDateAudit"
+```
+
+For each reopened tracking number, compare ExtractedDueDate values between attempt 1 and attempt 2 Python log lines.
 - Backend `deriveComplaintState` (`complaint-sync.service.ts:40`) used `<=` for `duePassed`, so the due-date day was considered expired from 00:00:01. Frontend consistently uses `<` (expired only after midnight of the next day).
 - Changed `<= input.now` to `< input.now` to match frontend convention. Due date day is now NOT expired from the sync perspective, consistent with the frontend.
 - Build: `npm run build` PASS. Tests 17/17 PASS.
