@@ -126,6 +126,7 @@ const TRACKING_CACHE_TTL_MS = 30 * 60 * 1000;
 const COMPLAINT_QUEUE_CACHE_TTL_MS = 30 * 60 * 1000;
 /** After this elapsed time a "processing" complaint card is considered stale and shows a retry warning. */
 const COMPLAINT_PROCESSING_STALE_UI_MS = 10 * 60 * 1000; // 10 minutes
+const COMPLAINT_TIMEOUT_WARNING_MS = 5 * 60 * 1000; // 5 minutes
 const WORKSPACE_RENDER_CACHE_PERSIST_MS = 150;
 const WORKSPACE_FULL_SNAPSHOT_PERSIST_MS = 300;
 const BACKGROUND_BATCH_SIZE = 100;
@@ -266,6 +267,7 @@ type ComplaintQueueSnapshot = {
   dueDate: string | null;
   nextRetryAt: string | null;
   retryCount: number;
+  createdAt: string;
   updatedAt: string;
 };
 
@@ -508,6 +510,7 @@ function resolveComplaintActionLabel(
   if (queueState === "PROCESSING") return "Submitting to Pakistan Post...";
   if (queueState === "RETRY PENDING") return "Retry Pending";
   if (queueState === "MANUAL REVIEW") return "Complaint requires manual review";
+  if (queueState === "SUBMITTED" || queueState === "DUPLICATE") return "Filed";
 
   const dueExpired = isDueDateExpired(lifecycle.dueDateTs);
   const terminal = ["RESOLVED", "CLOSED", "REJECTED"].includes(lifecycleStateUp) || dueExpired;
@@ -521,7 +524,10 @@ function resolveComplaintActionLabel(
 
 function complaintStateBadgeClass(stateLabel: string) {
   const token = String(stateLabel ?? "").trim().toUpperCase();
-  if (token === "QUEUED") return "border-slate-200 bg-slate-50 text-slate-700";
+  if (token === "QUEUED" || token === "SUBMITTING") return "border-slate-200 bg-slate-50 text-slate-700";
+  if (token === "PROCESSING") return "border-blue-200 bg-blue-100 text-blue-800";
+  if (token === "SUBMITTED" || token === "FILED") return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  if (token === "FAILED" || token === "ERROR") return "border-red-200 bg-red-50 text-red-800";
   if (token === "OVERDUE") return "border-orange-200 bg-orange-50 text-orange-800";
   if (token === "IN PROCESS") return "border-blue-200 bg-blue-50 text-blue-800";
   if (token === "RETRY PENDING") return "border-amber-200 bg-amber-50 text-amber-800";
@@ -548,12 +554,12 @@ function formatRetryCountdown(nextRetryAt: string | null | undefined, nowMs: num
 
 function formatProcessingElapsed(startAt: string | null | undefined, nowMs: number): string {
   const startedMs = startAt ? new Date(startAt).getTime() : 0;
-  if (!Number.isFinite(startedMs) || startedMs <= 0) return "00:00:00";
+  if (!Number.isFinite(startedMs) || startedMs <= 0) return "00:00";
   const elapsed = Math.max(0, nowMs - startedMs);
-  const hours = Math.floor(elapsed / 3_600_000);
-  const minutes = Math.floor((elapsed % 3_600_000) / 60_000);
-  const seconds = Math.floor((elapsed % 60_000) / 1_000);
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  const totalSeconds = Math.floor(elapsed / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function friendlyComplaintMessage(raw: string | null | undefined): string {
@@ -1619,22 +1625,23 @@ export default function BulkTracking() {
     return () => window.clearInterval(timer);
   }, [isAdmin, unresolvedComplaintCount]);
 
-  // Extra rapid refresh when any complaint card has been in PROCESSING beyond the
-  // stale threshold — the backend rescue will have fired but the UI needs to pick up
-  // the new retry_pending/manual_review state without a page reload.
+  // Extra rapid refresh when any complaint queue entry is in an in-flight state
+  // and we haven't received a complaintId yet, or when a card transitions to
+  // submitted/filed — auto-update without page reload.
   useEffect(() => {
-    if (!isAdmin) return;
-    const hasStaleProcessing = Array.from(complaintQueueByTracking.values()).some((snapshot) => {
-      if (String(snapshot?.complaintStatus ?? "").toLowerCase() !== "processing") return false;
-      const updatedMs = snapshot?.updatedAt ? new Date(snapshot.updatedAt).getTime() : 0;
-      return updatedMs > 0 && Date.now() - updatedMs > COMPLAINT_PROCESSING_STALE_UI_MS;
+    const hasInFlight = Array.from(complaintQueueByTracking.values()).some((snapshot) => {
+      const status = String(snapshot?.complaintStatus ?? "").toLowerCase();
+      const hasComplaintId = Boolean(String(snapshot?.complaintId ?? "").trim());
+      return (["queued", "processing", "retry_pending"].includes(status) && !hasComplaintId)
+        || (["submitted", "duplicate"].includes(status) && hasComplaintId);
     });
-    if (!hasStaleProcessing) return;
+    if (!hasInFlight) return;
     const timer = window.setInterval(() => {
       void refreshComplaintQueueSnapshot({ force: true });
-    }, 5_000);
+      void refreshShipments({ force: true });
+    }, 3_000);
     return () => window.clearInterval(timer);
-  }, [isAdmin, complaintQueueByTracking]);
+  }, [complaintQueueByTracking]);
 
   useEffect(() => {
     let interval: number;
@@ -4848,16 +4855,23 @@ export default function BulkTracking() {
                         const retryHint = complaintCardState === "RETRY PENDING"
                           ? formatRetryCountdown(queueSnapshot?.nextRetryAt, retryCountdownNow)
                           : "";
-                        const showProcessingTimer = complaintCardState === "PROCESSING"
+                        const inFlight = ["QUEUED", "PROCESSING", "RETRY PENDING"].includes(complaintCardState.toUpperCase());
+                        const showProcessingTimer = inFlight
                           && !String(lifecycle.complaintId ?? "").trim()
                           && !String(queueSnapshot?.complaintId ?? "").trim();
                         const processingElapsed = showProcessingTimer
-                          ? formatProcessingElapsed(queueSnapshot?.updatedAt, retryCountdownNow)
+                          ? formatProcessingElapsed(queueSnapshot?.createdAt || queueSnapshot?.updatedAt, retryCountdownNow)
                           : "";
-                        const processingUpdatedMs = showProcessingTimer && queueSnapshot?.updatedAt ? new Date(queueSnapshot.updatedAt).getTime() : 0;
+                        const processingStartMs = showProcessingTimer && (queueSnapshot?.createdAt || queueSnapshot?.updatedAt)
+                          ? new Date(queueSnapshot.createdAt || queueSnapshot.updatedAt).getTime()
+                          : 0;
                         const processingIsStale = showProcessingTimer
-                          && processingUpdatedMs > 0
-                          && retryCountdownNow - processingUpdatedMs > COMPLAINT_PROCESSING_STALE_UI_MS;
+                          && processingStartMs > 0
+                          && retryCountdownNow - processingStartMs > COMPLAINT_PROCESSING_STALE_UI_MS;
+                        const processingIsSlow = showProcessingTimer
+                          && processingStartMs > 0
+                          && retryCountdownNow - processingStartMs > COMPLAINT_TIMEOUT_WARNING_MS
+                          && !processingIsStale;
                         const lastErr = summarizeError(queueSnapshot?.lastError ?? null);
                         const stateMessage = waitingComplaintId
                           ? "Complaint already queued. Waiting for complaint number."
@@ -4885,7 +4899,9 @@ export default function BulkTracking() {
                               <div className="mt-1 text-[9px] font-semibold text-purple-700">
                                 {processingIsStale
                                   ? `Stale — Pending Retry (${processingElapsed})`
-                                  : `Processing... ${processingElapsed}`}
+                                  : processingIsSlow
+                                    ? `Taking longer than expected (${processingElapsed})`
+                                    : `${complaintCardState}... ${processingElapsed}`}
                               </div>
                             ) : null}
                             {stateMessage ? (

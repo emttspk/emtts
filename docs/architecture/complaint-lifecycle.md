@@ -46,6 +46,20 @@ Complaint flow for tracking workspace and complaints page, including queue statu
 - Leave as final. Do not modify history. Do not reopen automatically.
 - Display: grey badge
 
+## Queue States (UI Visibility)
+
+| Queue State | UI Label | Timer | Auto-Refresh |
+|-------------|----------|-------|--------------|
+| QUEUED | Queued for Submission | Live elapsed (MM:SS) | 3s polling |
+| PROCESSING | Submitting to Pakistan Post... | Live elapsed (MM:SS) | 3s polling |
+| SUBMITTED / DUPLICATE | Filed | None | 3s polling while complaintId present |
+| RETRY PENDING | Retry Pending | Countdown to next retry | 3s polling |
+| MANUAL REVIEW | Complaint requires manual review | None | No |
+
+### Timeout Handling
+- > 5 minutes in any in-flight state: `Taking longer than expected (05:22)`
+- > 10 minutes: `Stale — Pending Retry (12:05)`, triggers backend rescue sweep
+
 ## Sync Lifecycle State Transitions
 The sync job (`complaint-sync.service.ts:deriveComplaintState`) transitions COMPLAINT_STATE as follows:
 

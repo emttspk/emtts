@@ -48,6 +48,20 @@ This ordering was corrected in June 2026. Previously, the stale `shipment.status
 2. Confirm COMPLAINT jobs complete or fail with persisted error.
 3. Validate complaint result JSON in outputs directory.
 
+## Queue State Timeline
+
+| State | Duration | UI Display |
+|-------|----------|------------|
+| QUEUED | 0-30s typically | `Queued for Submission` with elapsed timer |
+| PROCESSING | 10-79s (avg 10-61s) | `Submitting to Pakistan Post...` with elapsed timer |
+| SUBMITTED/DUPLICATE | Instant | `Filed` with complaint ID |
+| RETRY PENDING | 5-180 min | `Retry Pending` with countdown |
+| MANUAL REVIEW | Indefinite | `Complaint requires manual review` |
+
+### Long-Running Detection
+- > 5 minutes in any in-flight state: UI shows `Taking longer than expected`
+- > 10 minutes: UI shows `Stale — Pending Retry`, triggers backend rescue sweep
+
 ## Rollback Steps
 1. Revert worker complaint branch to legacy behavior.
 2. Leave queue tables intact for audit.

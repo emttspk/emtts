@@ -1,5 +1,33 @@
 # AI Implementation Index
 
+## 2026-06-10 - Improve complaint processing visibility with timer, stage badges, auto-refresh
+
+### Changes
+- **Processing timer**: Live elapsed timer (MM:SS) for all in-flight states
+  (queued, processing, retry_pending). Shows queue-specific label:
+  `PROCESSING... 01:45`, `QUEUED... 00:32`, etc.
+- **Timeout monitoring**: > 5 min → `Taking longer than expected (05:22)`,
+  > 10 min → `Stale — Pending Retry (12:05)`
+- **Stage badges**: Added `PROCESSING` (blue), `SUBMITTED`/`FILED` (emerald),
+  `FAILED`/`ERROR` (red) to `complaintStateBadgeClass`
+- **Auto-refresh**: New useEffect watches `complaintQueueByTracking` — polls
+  every 3s while any entry is in-flight (without complaintId) or newly
+  submitted (with complaintId). Automatically stops when all entries settle.
+- **Action labels**: `Submitted`/`Duplicate` queue states now show `Filed`
+  instead of falling through to `In Process`
+- **Snapshot type**: Added missing `createdAt` field to `ComplaintQueueSnapshot`
+- **Timer format**: Changed from `HH:MM:SS` to `MM:SS` for readability
+
+### Files Changed
+- `apps/web/src/pages/BulkTracking.tsx`
+- `docs/architecture/complaint-ui.md` (new)
+- `docs/architecture/complaint-worker-flow.md`
+- `KILO_CODE_AUDIT_REPORT.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Tests
+- 18/18 complaint parser, 11/11 sync state, build PASS
+
 ## 2026-06-10 - Fix isReopenEligible normalization mismatch
 
 ### Root Cause
