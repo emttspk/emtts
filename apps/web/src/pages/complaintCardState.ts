@@ -56,6 +56,8 @@ export function resolveComplaintCardState(
 
   if (hasComplaintId && (hasDueDate || queueSubmitDone)) {
     if (lifecycleResolved && !shipmentPending) return "RESOLVED";
+    const dueExpired = isDueDateExpired(lifecycle.dueDateTs);
+    if (dueExpired) return "OVERDUE";
     return "ACTIVE";
   }
 
