@@ -1,3 +1,5 @@
+import { isDueDateExpired } from "../lib/complaint-date-helpers";
+
 export type ComplaintLifecycleCardInput = {
   exists: boolean;
   active: boolean;
@@ -46,8 +48,6 @@ export function resolveComplaintCardState(
   queueSnapshot: ComplaintQueueCardInput | undefined,
 ) {
   const shipmentPending = normalizeStatus(shipmentStatus) === "PENDING";
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
   const queueState = normalizeQueueStatusLabel(queueSnapshot?.complaintStatus);
   const lifecycleResolved = ["RESOLVED", "CLOSED", "REJECTED"].includes(String(lifecycle.state ?? "").toUpperCase());
   const hasComplaintId = Boolean(String(lifecycle.complaintId ?? "").trim() || String(queueSnapshot?.complaintId ?? "").trim());
@@ -63,7 +63,7 @@ export function resolveComplaintCardState(
     if (queueState === "PROCESSING") return "PROCESSING";
     if (queueState === "RETRY PENDING") return "RETRY PENDING";
     if (queueState === "MANUAL REVIEW") return "MANUAL REVIEW";
-    const dueExpired = lifecycle.dueDateTs != null && lifecycle.dueDateTs < todayStart.getTime();
+    const dueExpired = isDueDateExpired(lifecycle.dueDateTs);
     return dueExpired ? "OVERDUE" : "ACTIVE";
   }
 

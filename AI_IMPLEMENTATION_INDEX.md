@@ -1,6 +1,37 @@
 # AI Implementation Index
 
-## 2026-06-10 - Fix due-date sync: backend used <= instead of <
+## 2026-06-10 - Fix due-date sync: unified date logic with shared helper
+
+### Issue 1: Date Synchronization
+- **Root Cause**: Multiple duplicate date calculations across frontend and backend:
+  - Backend `deriveComplaintState` (`complaint-sync.service.ts:40`) used `Date.now()` which includes time-of-day
+  - Frontend used `todayStart.setHours(0,0,0,0)` (midnight timestamp)
+  - This caused due dates to be considered "expired" from the sync perspective even on the due date itself
+- **Fix**: Created shared helper `apps/api/src/lib/complaint-date-helpers.ts` with:
+  - `getTodayStart()`: returns midnight timestamp for consistent date comparison
+  - `isDueDateExpired(dueDateTs, now?)`: single source of truth for due date expiration
+  - `computeComplaintState(...)`: unified state computation logic
+- **Files Changed**:
+  - `apps/api/src/lib/complaint-date-helpers.ts` (new)
+  - `apps/api/src/services/complaint-sync.service.ts` (refactored)
+  - `apps/api/src/routes/tracking.ts` (updated to use shared helper)
+  - `apps/web/src/lib/complaint-date-helpers.ts` (new)
+  - `apps/web/src/pages/BulkTracking.tsx` (updated)
+  - `apps/web/src/pages/complaintCardState.ts` (updated)
+
+### Issue 2: Reopen Button Remains Enabled After Submit
+- **Root Cause**: `isComplaintActionAllowed` in BulkTracking.tsx did not check queue state. When a complaint was submitted and in QUEUED/PROCESSING/RETRY_PENDING state, the Reopen button remained clickable.
+- **Fix**: Added `isQueueStateBlockingReopen()` check at the start of `isComplaintActionAllowed()`:
+  - QUEUED, PROCESSING, RETRY PENDING states now block the reopen action
+  - User cannot submit a new complaint while one is already in flight
+- **Files Changed**:
+  - `apps/web/src/lib/complaint-date-helpers.ts` (added `isQueueStateBlockingReopen`)
+  - `apps/web/src/pages/BulkTracking.tsx` (updated `isComplaintActionAllowed`)
+
+### Date Rules (Single Source of Truth)
+- **ACTIVE**: `today <= dueDate` (due date day is NOT expired)
+- **OVERDUE**: `today > dueDate` (due date has passed)
+- **REOPEN**: `today > dueDate` only (overdue complaints can be reopened)
 - Backend `deriveComplaintState` (`complaint-sync.service.ts:40`) used `<=` for `duePassed`, so the due-date day was considered expired from 00:00:01. Frontend consistently uses `<` (expired only after midnight of the next day).
 - Changed `<= input.now` to `< input.now` to match frontend convention. Due date day is now NOT expired from the sync perspective, consistent with the frontend.
 - Build: `npm run build` PASS. Tests 17/17 PASS.

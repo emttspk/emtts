@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { pythonTrackOne } from "./trackingService.js";
 import { ensureComplaintNotificationTable, listComplaintRecords, upsertComplaintMetadata } from "./complaint.service.js";
 import { logComplaintAudit } from "./complaint-audit.service.js";
+import { isDueDateExpired, getTodayStart } from "../lib/complaint-date-helpers.js";
 
 let complaintSyncScheduleStarted = false;
 
@@ -33,11 +34,11 @@ export function deriveComplaintState(input: {
   manualPendingOverride: boolean;
   manualStatePinned: boolean;
   dueDateTs: number | null;
-  now: number;
+  now?: number;
 }) {
   const trackingStateAtSync = input.trackingAvailable ? normalizeTrackingState(input.trackingState) : "UNAVAILABLE";
   const shipmentState = normalizeShipmentState(input.shipmentStatus);
-  const duePassed = input.dueDateTs != null && input.dueDateTs < input.now;
+  const duePassed = isDueDateExpired(input.dueDateTs, input.now);
 
   if (input.manualStatePinned && (input.priorState === "RESOLVED" || input.priorState === "CLOSED")) {
     return {
@@ -182,7 +183,6 @@ export async function runComplaintSync(options?: { trackingIds?: string[]; actor
         manualPendingOverride: complaint.manualPendingOverride,
         manualStatePinned: complaint.manualStatePinned,
         dueDateTs: complaint.dueDateTs,
-        now: Date.now(),
       });
       const alerts = await updateComplaintAlerts(complaint);
       if (shouldPersistSyncUpdate({
@@ -235,7 +235,6 @@ export async function runComplaintSync(options?: { trackingIds?: string[]; actor
         manualPendingOverride: complaint.manualPendingOverride,
         manualStatePinned: complaint.manualStatePinned,
         dueDateTs: complaint.dueDateTs,
-        now: Date.now(),
       });
       const nextText = upsertComplaintMetadata(
         complaint.complaintText,

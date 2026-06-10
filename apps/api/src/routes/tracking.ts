@@ -33,6 +33,7 @@ import { extractComplaintHistory, markComplaintResolved, listComplaintRecords } 
 import { processTracking } from "../services/trackingStatus.js";
 import { persistTrackingIntelligence, refreshTrackingIntelligenceAggregates } from "../services/trackingIntelligence.js";
 import { logTelemetry } from "../telemetry.js";
+import { isDueDateExpired } from "../lib/complaint-date-helpers.js";
 
 export const trackingRouter = Router();
 const inlineRunningJobs = new Set<string>();
@@ -1993,9 +1994,7 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
       });
     }
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const dueDateExpired = existing.dueTs != null && existing.dueTs < todayStart.getTime();
+    const dueDateExpired = isDueDateExpired(existing.dueTs);
     const reopenAllowedByLifecycle = ["RESOLVED", "CLOSED", "REJECTED"].includes(existing.state) || dueDateExpired;
 
     const duplicate = await findActiveComplaintDuplicate(userId, trackingNumber);

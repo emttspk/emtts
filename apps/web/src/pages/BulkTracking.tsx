@@ -41,6 +41,7 @@ import {
   type TrackingWorkspaceViewState,
 } from "../lib/trackingWorkspaceCache";
 import { normalizeQueueStatusLabel, resolveComplaintCardState } from "./complaintCardState";
+import { isReopenEligible, isComplaintInProcess, isQueueStateBlockingReopen, getTodayStart, isDueDateExpired } from "../lib/complaint-date-helpers";
 
 type Shipment = BaseShipment & {
   shipmentType?: string | null;
@@ -468,19 +469,14 @@ function isComplaintActionAllowed(
   lifecycle: ComplaintLifecycle,
   queueSnapshot: ComplaintQueueSnapshot | undefined,
 ) {
-  const statusUpper = normalizeStatus(shipmentStatus).toUpperCase();
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const lifecycleStateUp = String(lifecycle.state ?? "").toUpperCase();
-  const reopenEligible = statusUpper === "PENDING"
-    && (["RESOLVED", "CLOSED", "REJECTED"].includes(lifecycleStateUp)
-      || (lifecycle.dueDateTs != null && lifecycle.dueDateTs < todayStart.getTime()));
+  if (isQueueStateBlockingReopen(queueSnapshot?.complaintStatus)) return false;
+  const reopenEligible = isReopenEligible(shipmentStatus, lifecycle.state, lifecycle.dueDateTs);
   const complaintCardState = resolveComplaintCardState(lifecycle, shipmentStatus, queueSnapshot).toUpperCase();
   const hasKnownComplaint = lifecycle.exists || Boolean(queueSnapshot)
     || Boolean(String(lifecycle.complaintId ?? "").trim() || String(queueSnapshot?.complaintId ?? "").trim())
     || ["ACTIVE", "QUEUED", "OVERDUE", "RETRY PENDING", "MANUAL REVIEW", "SUBMITTED", "DUPLICATE", "RESOLVED"].includes(complaintCardState);
   if (reopenEligible) return true;
-  return statusUpper === "PENDING" && !hasKnownComplaint;
+  return normalizeStatus(shipmentStatus) === "PENDING" && !hasKnownComplaint;
 }
 
 function summarizeError(raw: string | null | undefined): string | null {
@@ -499,8 +495,6 @@ function resolveComplaintActionLabel(
   queueSnapshot: ComplaintQueueSnapshot | undefined,
 ) {
   const statusUpper = normalizeStatus(shipmentStatus).toUpperCase();
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
 
   const lifecycleStateUp = String(lifecycle.state ?? "").toUpperCase();
   const hasComplaint = lifecycle.exists
@@ -515,7 +509,7 @@ function resolveComplaintActionLabel(
   if (queueState === "RETRY PENDING") return "Retry Pending";
   if (queueState === "MANUAL REVIEW") return "Complaint requires manual review";
 
-  const dueExpired = lifecycle.dueDateTs != null && lifecycle.dueDateTs < todayStart.getTime();
+  const dueExpired = isDueDateExpired(lifecycle.dueDateTs);
   const terminal = ["RESOLVED", "CLOSED", "REJECTED"].includes(lifecycleStateUp) || dueExpired;
   if (statusUpper === "PENDING" && terminal) return "Reopen Complaint";
 
@@ -3368,9 +3362,7 @@ export default function BulkTracking() {
 
     // For reopen: append canonical previous complaint history and warning
     const lifecycle = parseComplaintLifecycle(shipment);
-    const _reopenTodayStart = new Date(); _reopenTodayStart.setHours(0, 0, 0, 0);
-    const isReopeningComplaint = ["RESOLVED", "CLOSED", "REJECTED"].includes(String(lifecycle.state ?? "").toUpperCase())
-      || (lifecycle.dueDateTs != null && lifecycle.dueDateTs < _reopenTodayStart.getTime());
+    const isReopeningComplaint = isReopenEligible(normalizedFormState.shipment_status, lifecycle.state, lifecycle.dueDateTs);
     let finalRemarks = normalizedFormState.remarks;
     if (isReopeningComplaint) {
       const textBlob = String(shipment.complaintText ?? "").trim();
