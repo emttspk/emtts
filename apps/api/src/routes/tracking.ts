@@ -2184,9 +2184,7 @@ trackingRouter.post("/complaint", requireAuth, async (req, res) => {
   const previousComplaintReference = String(latestHistory?.complaintId ?? "").trim();
   const previousDueDate = String(latestHistory?.dueDate ?? "").trim();
   const previousDueDateTs = parseDueDateToTs(previousDueDate);
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const previousDueDatePassed = previousDueDateTs != null && previousDueDateTs < todayStart.getTime();
+  const previousDueDatePassed = isDueDateExpired(previousDueDateTs);
 
   const stripReopenAppendix = (input: string) => input
     .replace(/\n\n--- PREVIOUS COMPLAINT HISTORY ---[\s\S]*$/i, "")
