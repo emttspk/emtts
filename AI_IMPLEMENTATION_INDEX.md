@@ -1,5 +1,28 @@
 # AI Implementation Index
 
+## 2026-06-10 - PRODUCTION INCIDENT INVESTIGATION: VPL12511817 / VPL12511818 reopen failure
+
+### Root Cause
+**No code bug.** VPL12511817 and VPL12511818 (Aug 2024 shipments) have Pakistan Post status
+DELIVERED/IN_TRANSIT. Both frontend (`isReopenEligible`) and backend (`complaintAllowed`)
+correctly block reopening for non-PENDING shipments. Zero API/Worker/Python log entries exist
+for either tracking number — the API was never called.
+
+### Contrast with VPL14437444 / VPL14437502
+These succeeded because an admin had already patched them to PENDING via
+`PATCH /api/shipments/:id { status: "PENDING" }`, setting `manual_pending_override: true`
+which allowed `complaintAllowed = true`.
+
+### Action Required
+Admin must PATCH both shipments to PENDING before reopening:
+```
+PATCH /api/shipments/VPL12511817 { "status": "PENDING" }
+PATCH /api/shipments/VPL12511818 { "status": "PENDING" }
+```
+
+### Files Created
+- `KILO_CODE_AUDIT_REPORT.md` (full audit report)
+
 ## 2026-06-10 - Add safe complaint cleanup and follow-up classification
 
 ### Changes
