@@ -13,14 +13,23 @@ export function isDueDateExpired(dueDateTs: number | null): boolean {
   return dueDateTs < todayStart.getTime();
 }
 
+export function normalizeShipmentStatus(status: string | null | undefined): string {
+  const s = String(status ?? "").toUpperCase();
+  if (!s || s === "-") return "PENDING";
+  if (s === "DELIVERED WITH PAYMENT") return "DELIVERED WITH PAYMENT";
+  if (s.includes("DELIVER")) return "DELIVERED";
+  if (s.includes("RETURN") || s.includes("RTO")) return "RETURNED";
+  return "PENDING";
+}
+
 export function isReopenEligible(
   shipmentStatus: string | null | undefined,
   lifecycleState: string | null | undefined,
   lifecycleDueDateTs: number | null,
 ): boolean {
-  const statusUpper = String(shipmentStatus ?? "").trim().toUpperCase();
+  const normalizedStatus = normalizeShipmentStatus(shipmentStatus);
+  if (normalizedStatus !== "PENDING") return false;
   const stateUpper = String(lifecycleState ?? "").trim().toUpperCase();
-  if (statusUpper !== "PENDING") return false;
   if (["RESOLVED", "CLOSED", "REJECTED"].includes(stateUpper)) return true;
   return isDueDateExpired(lifecycleDueDateTs);
 }

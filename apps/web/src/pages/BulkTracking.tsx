@@ -41,7 +41,7 @@ import {
   type TrackingWorkspaceViewState,
 } from "../lib/trackingWorkspaceCache";
 import { normalizeQueueStatusLabel, resolveComplaintCardState } from "./complaintCardState";
-import { isReopenEligible, isComplaintInProcess, isQueueStateBlockingReopen, getTodayStart, isDueDateExpired } from "../lib/complaint-date-helpers";
+import { isReopenEligible, isComplaintInProcess, isQueueStateBlockingReopen, getTodayStart, isDueDateExpired, normalizeShipmentStatus } from "../lib/complaint-date-helpers";
 
 type Shipment = BaseShipment & {
   shipmentType?: string | null;

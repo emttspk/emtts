@@ -1,5 +1,34 @@
 # AI Implementation Index
 
+## 2026-06-10 - Fix isReopenEligible normalization mismatch
+
+### Root Cause
+`isReopenEligible` in both frontend and backend compared the raw shipment status
+string against "PENDING" using strict equality. Compound status values like
+"PENDING (PAYMENT IN PROCESS)" (returned by processTracking for VPL articles
+where article was delivered but money order is pending) were not recognized as
+PENDING, causing the reopen button to be disabled despite the label showing
+"Reopen Complaint".
+
+### Fix
+Added `normalizeShipmentStatus()` function to both `apps/web/src/lib/complaint-date-helpers.ts`
+and `apps/api/src/lib/complaint-date-helpers.ts` that normalizes shipment status
+identically to `BulkTracking.tsx:normalizeStatus()`:
+- Non-DELIVERED/non-RETURNED statuses → "PENDING"
+- DELIVER-containing statuses → "DELIVERED"
+- RETURN/RTO-containing statuses → "RETURNED"
+
+### Files Changed
+- `apps/web/src/lib/complaint-date-helpers.ts`
+- `apps/api/src/lib/complaint-date-helpers.ts`
+- `KILO_CODE_AUDIT_REPORT.md` (updated with full audit)
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Impact
+VPL articles with "PENDING (PAYMENT IN PROCESS)" or "PENDING (MOS NOT ISSUED)"
+status now correctly show the reopen button as enabled. Previously: label showed
+"Reopen Complaint" but button was disabled due to raw string mismatch.
+
 ## 2026-06-10 - PRODUCTION INCIDENT INVESTIGATION: VPL12511817 / VPL12511818 reopen failure
 
 ### Root Cause
