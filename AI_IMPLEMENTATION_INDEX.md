@@ -1,5 +1,10 @@
 # AI Implementation Index
 
+## 2026-06-10 - Fix due-date sync: backend used <= instead of <
+- Backend `deriveComplaintState` (`complaint-sync.service.ts:40`) used `<=` for `duePassed`, so the due-date day was considered expired from 00:00:01. Frontend consistently uses `<` (expired only after midnight of the next day).
+- Changed `<= input.now` to `< input.now` to match frontend convention. Due date day is now NOT expired from the sync perspective, consistent with the frontend.
+- Build: `npm run build` PASS. Tests 17/17 PASS.
+
 ## 2026-06-10 - Fix complaint card UI sync delay after submission
 - `schedulePostSubmitRefresh()` in BulkTracking.tsx:1725-1741 polled only 3 seconds (2 intervals at 1500ms) after complaint submit. Worker takes 10-61s average, so card showed stale data for 12-60s until the next 15s periodic refresh.
 - Increased polling to 60 intervals at 2000ms (120s max), covering the 99th percentile of worker processing time. Card now updates within ~2s of worker completion.

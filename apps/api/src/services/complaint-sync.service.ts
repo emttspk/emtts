@@ -37,7 +37,7 @@ export function deriveComplaintState(input: {
 }) {
   const trackingStateAtSync = input.trackingAvailable ? normalizeTrackingState(input.trackingState) : "UNAVAILABLE";
   const shipmentState = normalizeShipmentState(input.shipmentStatus);
-  const duePassed = input.dueDateTs != null && input.dueDateTs <= input.now;
+  const duePassed = input.dueDateTs != null && input.dueDateTs < input.now;
 
   if (input.manualStatePinned && (input.priorState === "RESOLVED" || input.priorState === "CLOSED")) {
     return {
