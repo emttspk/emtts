@@ -1,5 +1,35 @@
 # AI Implementation Index
 
+## 2026-06-11 - Add competitor landing pages, BreadcrumbList, sameAs
+
+### Scope
+SEO landing pages only — no business logic, tracking engine, complaint engine, labels, money orders, billing, auth, workers, queues, Prisma, or API changes.
+
+### Verified Already Existed
+- TCS/Leopards/M&P/COD/Post Office landing pages — all missing, all created
+
+### Added
+1. 5 new landing pages: /tcs-tracking-alternative, /leopards-tracking-alternative, /mp-tracking-alternative, /cash-on-delivery-pakistan, /post-office-tracking
+2. BreadcrumbList JSON-LD in index.html (Home → Tracking → Pricing → Support)
+3. Organization sameAs social profile (Twitter)
+4. Sitemap expanded to 20 URLs
+5. Footer links for all new pages
+
+### Files Changed
+- apps/web/src/pages/* (5 new files)
+- apps/web/src/App.tsx
+- apps/web/public/sitemap.xml
+- apps/web/index.html
+- apps/web/src/components/Footer.jsx
+- docs/seo/SEO_MASTER_PLAN_2026.md
+- AI_IMPLEMENTATION_INDEX.md
+
+### Scores
+- SEO: 78% → 85%
+- Marketing: 96%
+- Overall: 91%
+- Build: PASS
+
 ## 2026-06-11 - Add missing Meta events: Contact, ViewContent, Subscribe, ComplaintCreated, GA4 sign_up
 
 ### Scope

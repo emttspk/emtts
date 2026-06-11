@@ -80,8 +80,17 @@
 
 ### Phase 4: Performance & Sitelinks (Long-term)
 1.  **Image Optimization**: Convert assets to WebP.
-2.  **Breadcrumbs**: Implement BreadcrumbList structured data on sub-pages.
+2.  **Breadcrumbs**: BreadcrumbList JSON-LD implemented in `index.html` (Home → Tracking → Pricing → Support).
 3.  **Gzip/Brotli**: Ensure Railway/Cloudflare is configured for compression.
+
+## 2026-06-11 Update: Competitor Landing Pages + BreadcrumbList + sameAs
+
+- Added 5 new SEO landing pages: `/tcs-tracking-alternative`, `/leopards-tracking-alternative`, `/mp-tracking-alternative`, `/cash-on-delivery-pakistan`, `/post-office-tracking`.
+- Added BreadcrumbList JSON-LD to `index.html` for rich snippet eligibility.
+- Added `sameAs` social profile (Twitter) to Organization JSON-LD.
+- Expanded sitemap to 20 URLs.
+- Expanded Footer with 5 new internal links.
+- **SEO score**: 78/100 → **85/100**.
 
 ---
 

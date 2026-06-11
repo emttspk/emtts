@@ -51,6 +51,11 @@ const PakistanPostComplaints = lazy(() => import("./pages/PakistanPostComplaints
 const LabelGeneratorLanding = lazy(() => import("./pages/LabelGeneratorLanding"));
 const MoneyOrderGenerationLanding = lazy(() => import("./pages/MoneyOrderGenerationLanding"));
 const EcommerceShippingPakistanLanding = lazy(() => import("./pages/EcommerceShippingPakistanLanding"));
+const TcsTrackingAlternative = lazy(() => import("./pages/TcsTrackingAlternative"));
+const LeopardsTrackingAlternative = lazy(() => import("./pages/LeopardsTrackingAlternative"));
+const MpTrackingAlternative = lazy(() => import("./pages/MpTrackingAlternative"));
+const CashOnDeliveryPakistan = lazy(() => import("./pages/CashOnDeliveryPakistan"));
+const PostOfficeTracking = lazy(() => import("./pages/PostOfficeTracking"));
 
 function Loading() {
   const serviceCards = [
@@ -159,6 +164,11 @@ export default function App() {
         <Route path="/label-generator" element={<LabelGeneratorLanding />} />
         <Route path="/money-order-generation" element={<MoneyOrderGenerationLanding />} />
         <Route path="/ecommerce-shipping-pakistan" element={<EcommerceShippingPakistanLanding />} />
+        <Route path="/tcs-tracking-alternative" element={<TcsTrackingAlternative />} />
+        <Route path="/leopards-tracking-alternative" element={<LeopardsTrackingAlternative />} />
+        <Route path="/mp-tracking-alternative" element={<MpTrackingAlternative />} />
+        <Route path="/cash-on-delivery-pakistan" element={<CashOnDeliveryPakistan />} />
+        <Route path="/post-office-tracking" element={<PostOfficeTracking />} />
         <Route path="/payment/jazzcash/result" element={<JazzCashResult />} />
         <Route
           element={

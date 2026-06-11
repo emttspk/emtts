@@ -21,6 +21,11 @@ export default function Footer() {
         { label: "Track Shipment", href: "/tracking" },
         { label: "Book Parcel", href: "/upload" },
         { label: "Complaint Monitor", href: "/complaints" },
+        { label: "TCS Tracking Alternative", href: "/tcs-tracking-alternative" },
+        { label: "Leopards Tracking Alternative", href: "/leopards-tracking-alternative" },
+        { label: "M&P Tracking Alternative", href: "/mp-tracking-alternative" },
+        { label: "Cash on Delivery Pakistan", href: "/cash-on-delivery-pakistan" },
+        { label: "Post Office Tracking", href: "/post-office-tracking" },
       ],
     },
     {
