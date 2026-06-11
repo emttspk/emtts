@@ -45,11 +45,15 @@ const PAN_AUGMENT = { "Profile & Account": 2.5 };
 
 const LANDSCAPE_FILL_WIDTH = new Set(["Admin Dashboard", "Profile & Account", "Complaint Automation"]);
 
+function getPanAnimationName(title) {
+  return `pan-${title.replace(/[^a-z0-9]+/gi, '').toLowerCase()}`;
+}
+
 function getImagePanKeyframes(title, dims, containerH, containerW) {
   if (!dims) return null;
   const isPortrait = dims.h > dims.w;
   const fillWidth = isPortrait || LANDSCAPE_FILL_WIDTH.has(title);
-  const name = `pan-${title.replace(/\s+/g, '').toLowerCase()}`;
+  const name = getPanAnimationName(title);
 
   if (fillWidth) {
     const imgH = containerW * (dims.h / dims.w);
@@ -226,7 +230,7 @@ export default function OperationsModules() {
 
             const containerHeight = isPrimary ? "h-44 sm:h-52" : "h-36 sm:h-40";
 
-            const panName = dims ? `pan-${module.title.replace(/\s+/g, '').toLowerCase()}` : null;
+            const panName = dims ? getPanAnimationName(module.title) : null;
             const needsPan = dims && (() => {
               const ch = isPrimary ? 208 : 160;
               const cw = 313;
