@@ -239,7 +239,7 @@ export default function OperationsModules() {
                 className={`group ${cardClass} flex min-h-0 flex-col overflow-hidden p-0`}
                 aria-label={`${module.title} — ${ctaLabel}`}
               >
-                <div className={`relative flex items-center justify-center overflow-hidden border-b border-[#dce8f5] bg-[radial-gradient(circle_at_top,rgba(47,126,219,0.18),transparent_56%),linear-gradient(160deg,#ffffff,#edf6ff_58%,#eefaf5)] ${containerHeight}`}>
+                <div className={`relative flex overflow-hidden border-b border-[#dce8f5] bg-[radial-gradient(circle_at_top,rgba(47,126,219,0.18),transparent_56%),linear-gradient(160deg,#ffffff,#edf6ff_58%,#eefaf5)] ${containerHeight} ${needsPan ? (isPortrait ? 'justify-center items-start' : 'items-center justify-start') : 'items-center justify-center'}`}>
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(14,165,118,0.12),transparent_34%)]" />
                   {badge ? (
                     <span className={`absolute right-2 top-2 z-20 ${badge.style}`}>
