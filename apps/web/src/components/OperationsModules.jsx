@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchPlans } from "../lib/PackageService";
 import { trackLeadStart } from "../lib/analytics";
 
@@ -40,6 +40,32 @@ const IMAGE_DIMENSIONS = {
   "Admin Dashboard": { w: 1512, h: 982 },
   "Profile & Account": { w: 1402, h: 1122 },
 };
+
+function getImagePanKeyframes(title, dims, containerH, containerW) {
+  if (!dims) return null;
+  const isPortrait = dims.h > dims.w;
+  const name = `pan-${title.replace(/\s+/g, '').toLowerCase()}`;
+
+  if (isPortrait) {
+    const imgH = containerW * (dims.h / dims.w);
+    if (imgH <= containerH) return null;
+    const overflow = imgH - containerH;
+    const panPct = (overflow / imgH) * 100;
+    return {
+      name,
+      css: `@keyframes ${name} { 0% { transform: translateY(0); } 20% { transform: translateY(0); } 50% { transform: translateY(-${panPct.toFixed(1)}%); } 80% { transform: translateY(-${panPct.toFixed(1)}%); } 100% { transform: translateY(0); } }`,
+    };
+  } else {
+    const imgW = containerH * (dims.w / dims.h);
+    if (imgW <= containerW) return null;
+    const overflow = imgW - containerW;
+    const panPct = (overflow / imgW) * 100;
+    return {
+      name,
+      css: `@keyframes ${name} { 0% { transform: translateX(0); } 20% { transform: translateX(0); } 50% { transform: translateX(-${panPct.toFixed(1)}%); } 80% { transform: translateX(-${panPct.toFixed(1)}%); } 100% { transform: translateX(0); } }`,
+    };
+  }
+}
 
 const MODULES = [
   {
@@ -108,6 +134,7 @@ function complaintLimitText(plan) {
 export default function OperationsModules() {
   const [plans, setPlans] = useState([]);
   const [plansFailed, setPlansFailed] = useState(false);
+  const styleRef = useRef(null);
 
   function loadPlans() {
     setPlansFailed(false);
@@ -121,6 +148,34 @@ export default function OperationsModules() {
 
   useEffect(() => {
     loadPlans();
+  }, []);
+
+  const panStyles = useMemo(() => {
+    const primaryH = 208;
+    const secondaryH = 160;
+    const cardW = 313;
+
+    const keyframes = MODULES.map((m) => {
+      const dims = IMAGE_DIMENSIONS[m.title];
+      const tier = TIER[m.title] || "secondary";
+      const ch = tier === "primary" ? primaryH : secondaryH;
+      return getImagePanKeyframes(m.title, dims, ch, cardW);
+    }).filter(Boolean);
+
+    if (keyframes.length === 0) return "";
+    const classNames = keyframes.map((k) => k.name).join(", ");
+    return `<style>${keyframes.map((k) => k.css).join("\n")}
+.pan-anim {
+  animation-duration: 14s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+.pan-anim:hover {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pan-anim { animation: none !important; }
+}</style>`;
   }, []);
 
   const billingPackages = useMemo(() => {
@@ -145,6 +200,7 @@ export default function OperationsModules() {
 
   return (
     <section id="services" className="relative overflow-hidden bg-[linear-gradient(180deg,#edf6ff_0%,#f7fcfb_46%,#edf4ff_100%)] py-10 md:py-12">
+      {panStyles ? <div ref={styleRef} dangerouslySetInnerHTML={{ __html: panStyles }} /> : null}
       <div className="mx-auto w-full max-w-[1320px] px-4 md:px-6 lg:px-10">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-700">Operations Product Suite</p>
@@ -164,7 +220,17 @@ export default function OperationsModules() {
 
             const containerHeight = isPrimary ? "h-44 sm:h-52" : "h-36 sm:h-40";
 
-            const panClass = isPortrait ? "animate-pan-vertical" : "animate-pan-horizontal";
+            const panName = dims ? `pan-${module.title.replace(/\s+/g, '').toLowerCase()}` : null;
+            const needsPan = dims && (() => {
+              const ch = isPrimary ? 208 : 160;
+              const cw = 313;
+              if (isPortrait) {
+                const imgH = cw * (dims.h / dims.w);
+                return imgH > ch;
+              }
+              const imgW = ch * (dims.w / dims.h);
+              return imgW > cw;
+            })();
 
             return (
               <a
@@ -183,12 +249,13 @@ export default function OperationsModules() {
                   <img
                     src={module.image}
                     alt=""
-                    className={`relative z-10 block transition-transform duration-500 group-hover:scale-[1.05] ${panClass}`}
+                    className={`relative z-10 block transition-transform duration-500 group-hover:scale-[1.05] ${needsPan ? 'pan-anim' : ''}`}
                     style={{
                       width: isPortrait ? '100%' : 'auto',
                       height: isPortrait ? 'auto' : '100%',
                       maxWidth: isPortrait ? '100%' : 'none',
                       maxHeight: isPortrait ? 'none' : '100%',
+                      animationName: needsPan ? panName : undefined,
                     }}
                     loading={index < 2 ? "eager" : "lazy"}
                     decoding="async"
