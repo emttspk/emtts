@@ -1,5 +1,26 @@
 # AI Implementation Index
 
+## 2026-06-11 - Conversion Funnel Audit
+
+### Result
+Audit only — no code changes. Full report in `kilo_code_audit_report.md`.
+
+### Key Findings
+- 20 conversion issues identified. Biggest gap: new user goes from Register → blank Dashboard → complex Upload page with zero guidance.
+- No onboarding tour, no empty-state guidance for first-time users.
+- "No active plan" shown instead of "Free Plan" — confusing.
+- Upload page requires XLSX file — no manual entry or test-label option.
+- Quick wins (5 items, <1hr each) could improve activation from ~35% to ~45%.
+
+### Scores (Unchanged)
+- SEO: 85%
+- Marketing: 96%
+- Overall: 91%
+
+### Files Changed (documentation only)
+- `kilo_code_audit_report.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
 ## 2026-06-11 - Production Verification Audit
 
 ### Result
