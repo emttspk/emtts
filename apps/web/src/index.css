@@ -81,13 +81,17 @@
 
 @keyframes panVertical {
   0% { transform: translateY(0); }
-  50% { transform: translateY(-20%); }
+  25% { transform: translateY(0); }
+  50% { transform: translateY(-55%); }
+  75% { transform: translateY(-55%); }
   100% { transform: translateY(0); }
 }
 
 @keyframes panHorizontal {
   0% { transform: translateX(0); }
-  50% { transform: translateX(-15%); }
+  25% { transform: translateX(0); }
+  50% { transform: translateX(-50%); }
+  75% { transform: translateX(-50%); }
   100% { transform: translateX(0); }
 }
 
@@ -336,22 +340,6 @@
   h5,
   h6 {
     letter-spacing: -0.02em;
-  }
-
-  .ui-card-utility .ui-card-utility-image {
-    @apply hidden;
-  }
-
-  .ui-card-utility {
-    @apply flex-row items-center gap-3 p-3;
-  }
-
-  .ui-card-utility .ui-card-utility-body {
-    @apply flex-1 p-0;
-  }
-
-  .ui-card-utility .ui-card-utility-cta {
-    @apply shrink-0;
   }
 }
 
