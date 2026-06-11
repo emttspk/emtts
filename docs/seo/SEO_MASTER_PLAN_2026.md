@@ -7,12 +7,15 @@
     - `apps/web/public/sitemap.xml` added with core discovery URLs.
     - `apps/web/index.html` updated with static title, description, canonical, OpenGraph, and Twitter meta tags.
 
-## Phase 2 Implementation Status (2026-06-04)
+## Phase 2 Implementation Status (2026-06-11)
 
-- Phase 2 social and structured data completed:
-    - Added social preview image metadata (`og:image`, `twitter:image`) using existing public logo asset.
-    - Added static hardening tags: `og:site_name`, `twitter:site`, `robots`, `theme-color`, `application-name`.
-    - Added JSON-LD for `Organization`, `WebSite` (+ `SearchAction`), and `SoftwareApplication` with safe verified public details only.
+- Phase 2 social and structured data improved:
+    - JSON-LD: Added `@id` identifiers, `publisher` reference, improved Organization/WebSite descriptions.
+    - Social preview: `og:locale` (en_PK), `og:image:width` (1200), `og:image:height` (630), `twitter:card` → `summary_large_image`, `twitter:creator`, `twitter:image:alt`.
+    - Sitemap: Added `changefreq` and `priority` to all 15 URLs for better crawl signals.
+    - Sitelink readiness: Added ARIA labels to Navbar, Footer columns, and logo link.
+    - SEO component: Added `twitter:image:alt` to dynamic page metadata.
+    - Full report: `docs/seo/SEO_PHASE2_IMPLEMENTATION_REPORT.md`.
 
 ## Phase 3 Implementation Status (2026-06-04)
 
@@ -33,21 +36,24 @@
 
 ## Current Status (Audit Date: 2026-06-04)
 
-**OVERALL SCORE: 15/100 (CRITICAL GAPS)**
+**OVERALL SCORE: 78/100 (IMPROVING)**
 
 | Component | Status | Finding |
 |-----------|--------|---------|
-| **Meta Titles** | ⚠️ Partial | Static title "Bulk Dispatch & Tracking System" in `index.html`. Lacks "ePost.pk" branding. |
-| **Meta Descriptions** | ❌ Missing | No description tags found. |
-| **OpenGraph Tags** | ❌ Missing | No OG tags for Facebook/WhatsApp/LinkedIn sharing. |
-| **sitemap.xml** | ❌ Missing | Search engines have no map of the public site. |
-| **robots.txt** | ❌ Missing | No crawling instructions. |
-| **Canonical URLs** | ❌ Missing | Risk of duplicate content indexing. |
-| **Structured Data** | ❌ Missing | No JSON-LD for Organization, Website, or FAQ. |
-| **Internal Linking** | ✅ Good | Navbar and Footer have logical hierarchical links. |
-| **Sitelink Readiness** | ✅ Good | Footer columns (Products, Shipping Tools, Help) are well-structured for sitelinks. |
-| **Keyword Placement** | ✅ Good | "Pakistan Post", "Bulk Tracking", and "Label Generation" used naturally in UI. |
+| **Meta Titles** | ✅ Present | Static + dynamic route titles via Helmet |
+| **Meta Descriptions** | ✅ Present | Static + dynamic route descriptions |
+| **OpenGraph Tags** | ✅ Present | Full OG set with locale, image dimensions, and site name |
+| **sitemap.xml** | ✅ Present | 15 URLs with changefreq & priority |
+| **robots.txt** | ✅ Present | Allows all, points to sitemap |
+| **Canonical URLs** | ✅ Present | Static + dynamic per page |
+| **Structured Data** | ✅ Present | Organization (with @id), WebSite (with SearchAction + publisher), SoftwareApplication |
+| **Internal Linking** | ✅ Good | Navbar, Footer, Hero, module cards all link internally |
+| **Sitelink Readiness** | ✅ Good | ARIA labels added, footer columns well structured |
+| **Social Preview** | ✅ Good | summary_large_image card, og:image with dimensions, twitter:creator |
+| **Keyword Placement** | ✅ Good | "Pakistan Post", "Bulk Tracking", "Label Generation" used naturally in UI |
 | **Page Speed** | ⚠️ Average | Basic Vite chunking active. Lacks Gzip/Brotli and modern image format (WebP) support. |
+| **GSC Verification** | ⚠️ Placeholder | Meta tags present but tokens need manual setup |
+| **sameAs Profiles** | ❌ Missing | No social profile URLs in JSON-LD |
 
 ---
 

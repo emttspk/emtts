@@ -26,6 +26,7 @@ export default function SEO({ title, description, canonicalPath = "/" }: SEOProp
       <meta name="twitter:title" content={title} />
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={SOCIAL_IMAGE_URL} />
+      <meta name="twitter:image:alt" content={`ePost.pk - ${title}`} />
     </Helmet>
   );
 }

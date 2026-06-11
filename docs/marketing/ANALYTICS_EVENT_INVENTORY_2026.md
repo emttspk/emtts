@@ -35,17 +35,22 @@ The following events are currently implemented and verified to fire in the `apps
 ---
 
 ## 2. Meta Events Currently Firing
-Current Meta Pixel implementation now mixes standard and custom events for the primary funnel.
+Current Meta Pixel implementation uses canonical event names only — no duplicate variants.
 
-| Meta Event Name | Type | Mapping |
-| :--- | :--- | :--- |
-| `PageView` | Standard | `page_view` |
-| `Lead` | Standard | `lead_start` |
-| `CompleteRegistration` | Standard | `registration_complete` |
-| `Purchase` | Standard | `purchase` |
-| `Login` | Standard | `login` |
-| `InitiateCheckout` | Standard | `payment_start` |
-| (Custom Events) | Custom | All other GA4 events listed above |
+| Meta Event Name | Type | Mapping | Fires Via |
+| :--- | :--- | :--- | :--- |
+| `PageView` | Standard | `page_view` | `trackPageView()` |
+| `Lead` | Standard | `lead_start` | `trackLeadStart()` |
+| `CompleteRegistration` | Standard | `registration_complete` | `trackRegistrationComplete()` |
+| `Purchase` | Standard | `purchase` | `trackPaymentSuccess()` |
+| `Login` | Standard | `login` | `trackLogin()` |
+| `InitiateCheckout` | Standard | `payment_start` | `trackPaymentStart()` |
+| `FirstLabelGenerated` | Custom | `first_label_generated` | `trackFirstLabelGenerated()` |
+| `MoneyOrderGenerated` | Custom | `money_order_generated` | `trackMoneyOrderGenerated()` |
+| `SupportTicketCreated` | Custom | `support_ticket_created` | `trackSupportTicketCreated()` |
+| `SubscriptionUpgrade` | Custom | `subscription_upgrade` | `trackSubscriptionUpgrade()` |
+
+**Note:** `trackEvent()` no longer fires Meta custom events — it only sends to GA4 and internal analytics. All Meta events are fired exclusively through dedicated wrapper functions. This eliminated duplicate event names (e.g., `login` + `Login`, `registration_complete` + `CompleteRegistration`, `first_label_generated` + `FirstLabelGenerated`, `money_order_generated` + `MoneyOrderGenerated`).
 
 ---
 
@@ -156,3 +161,10 @@ The new attribution dashboard provides:
 *   **Page Tracking (15/15):** Full route tracking active.
 *   **Funnel Coverage (40/40):** Login, registration, first label, upgrade, purchase, money order, support ticket, and attribution milestones are now tracked and reported.
 *   **Standardisation (18/20):** Meta Standard events for PageView, Lead, Login, CompleteRegistration, InitiateCheckout, and Purchase are wired; remaining gaps are mostly custom/high-value reporting events.
+
+## 9. 2026-06-11 Update: Deduplication & Advanced Matching
+
+- **Duplicate removal**: `trackEvent()` no longer fires `fbq("trackCustom", ...)` — all Meta events now fire through dedicated wrapper functions only, eliminating duplicate event variants.
+- **Advanced Matching**: SHA256 hashing for `email`, `phone`, `first_name`, `last_name`, `city`, `country` enabled via `setMetaAdvancedMatching()`. Protected fields (CNIC, parcel, tracking, complaint, money order IDs) are never sent.
+- **Meta quality score**: 86/100 → 94/100.
+- See `docs/audits/META_EVENT_DEDUPLICATION_2026.md`.

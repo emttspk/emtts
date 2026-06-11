@@ -25,16 +25,21 @@
     />
     <meta property="og:url" content="https://www.epost.pk/" />
     <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_PK" />
     <meta property="og:image" content="https://www.epost.pk/assets/pakistan-post-logo.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
 
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@epostpk" />
+    <meta name="twitter:creator" content="@epostpk" />
     <meta name="twitter:title" content="Pakistan Post Tracking, 1 Click Complaints, Bulk Tracking, Labels &amp; Money Orders | ePost.pk" />
     <meta
       name="twitter:description"
       content="Use ePost.pk for Pakistan Post bulk tracking, 1 click complaints, label generation, money order generation, billing, and ecommerce shipping management from one workspace."
     />
     <meta name="twitter:image" content="https://www.epost.pk/assets/pakistan-post-logo.png" />
+    <meta name="twitter:image:alt" content="ePost.pk - Pakistan Post Operations Platform" />
     <!-- Search engine/domain verification placeholders:
       Google Search Console:
       <meta name="google-site-verification" content="REPLACE_WITH_REAL_TOKEN" />
@@ -51,16 +56,19 @@
         "@graph": [
           {
             "@type": "Organization",
+            "@id": "https://www.epost.pk/#organization",
             "name": "ePost.pk",
             "url": "https://www.epost.pk/",
-            "description": "Use ePost.pk for Pakistan Post bulk tracking, 1 click complaints, label generation, money order generation, billing, and ecommerce shipping management from one workspace.",
+            "description": "Pakistan Post tracking, labels, money orders, complaints and ecommerce shipping management.",
             "logo": "https://www.epost.pk/assets/pakistan-post-logo.png"
           },
           {
             "@type": "WebSite",
+            "@id": "https://www.epost.pk/#website",
             "name": "ePost.pk",
             "url": "https://www.epost.pk/",
-            "description": "Use ePost.pk for Pakistan Post bulk tracking, 1 click complaints, label generation, money order generation, billing, and ecommerce shipping management from one workspace.",
+            "description": "Pakistan Post operations platform for bulk tracking, label generation, money orders, and complaint management.",
+            "publisher": { "@id": "https://www.epost.pk/#organization" },
             "potentialAction": {
               "@type": "SearchAction",
               "target": {

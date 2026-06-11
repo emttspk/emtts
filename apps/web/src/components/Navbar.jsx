@@ -25,6 +25,7 @@ export default function Navbar() {
           <a
             href="/"
             className="inline-flex shrink-0 items-center justify-center rounded-2xl border border-[#dce8f5] bg-white px-1.5 py-1.5 shadow-[0_12px_30px_rgba(14,165,118,0.12)] sm:px-2 sm:py-2"
+            aria-label="ePost.pk Home"
           >
             <img src="/assets/pakistan-post-logo.png" alt="Pakistan Post" className="h-7 w-auto object-contain sm:h-8" width="108" height="32" loading="eager" decoding="async" fetchPriority="high" />
           </a>
@@ -37,7 +38,7 @@ export default function Navbar() {
           </div>
         </div>
 
-        <nav className="hidden min-w-0 flex-1 items-center justify-center px-4 lg:flex">
+        <nav className="hidden min-w-0 flex-1 items-center justify-center px-4 lg:flex" aria-label="Main navigation">
           <div className="flex items-center gap-5 whitespace-nowrap text-[13px] font-semibold text-slate-700 xl:gap-7">
             {navLinks.map((item) => (
               <a
@@ -81,7 +82,7 @@ export default function Navbar() {
       </div>
 
       {open ? (
-        <div className="border-t border-[#e9f1fa] bg-white px-4 pb-5 pt-3.5 shadow-[0_16px_36px_rgba(10,31,68,0.1)] lg:hidden">
+        <div className="border-t border-[#e9f1fa] bg-white px-4 pb-5 pt-3.5 shadow-[0_16px_36px_rgba(10,31,68,0.1)] lg:hidden" role="navigation" aria-label="Mobile navigation">
           <div className="mx-auto grid w-full max-w-[1240px] gap-2">
             {navLinks.map((item) => (
               <a

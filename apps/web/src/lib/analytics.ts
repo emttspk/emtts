@@ -39,6 +39,15 @@ type AttributionContext = {
   capturedAt: string;
 };
 
+type MetaAdvancedMatchingFields = {
+  em?: string;
+  ph?: string;
+  fn?: string;
+  ln?: string;
+  ct?: string;
+  country?: string;
+};
+
 declare global {
   interface Window {
     dataLayer?: unknown[];
@@ -47,6 +56,39 @@ declare global {
     _fbq?: (...args: unknown[]) => void;
   }
 }
+
+const META_CANONICAL_EVENTS = new Set([
+  "PageView",
+  "Lead",
+  "CompleteRegistration",
+  "Login",
+  "InitiateCheckout",
+  "Purchase",
+  "Contact",
+  "FirstLabelGenerated",
+  "MoneyOrderGenerated",
+  "ComplaintCreated",
+  "SupportTicketCreated",
+  "SubscriptionUpgrade",
+]);
+
+const GA4_INTERNAL_EVENTS = new Set([
+  "lead_start",
+  "registration_complete",
+  "login",
+  "payment_start",
+  "payment_success",
+  "whatsapp_demo_click",
+  "tracking_search",
+  "file_upload",
+  "label_generation_start",
+  "label_generation_success",
+  "first_label_generated",
+  "money_order_generated",
+  "subscription_upgrade",
+  "package_select",
+  "support_ticket_created",
+]);
 
 function injectScript(id: string, src: string) {
   if (typeof document === "undefined") return;
@@ -152,7 +194,6 @@ function setSessionStorageSnapshot(snapshot: AttributionContext) {
   try {
     window.sessionStorage.setItem(ANALYTICS_ATTRIBUTION_KEY, JSON.stringify(snapshot));
   } catch {
-    // Ignore storage failures and continue with best-effort reporting.
   }
   fallbackAttributionSnapshot = snapshot;
 }
@@ -273,7 +314,86 @@ function queueInternalAnalyticsEvent(eventName: string, params: AnalyticsParams,
       keepalive: true,
     }).catch(() => {});
   } catch {
-    // Never block the UI on reporting.
+  }
+}
+
+async function sha256(value: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(value);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+const ADVANCED_MATCHING_KEYS: (keyof MetaAdvancedMatchingFields)[] = [
+  "em",
+  "ph",
+  "fn",
+  "ln",
+  "ct",
+  "country",
+];
+
+async function buildAdvancedMatchingFields(): Promise<MetaAdvancedMatchingFields | null> {
+  if (typeof window === "undefined") return null;
+  const profileRaw = window.sessionStorage.getItem("labelgen_profile_advanced:v1");
+  if (!profileRaw) return null;
+
+  try {
+    const profile = JSON.parse(profileRaw) as Record<string, string>;
+    const fields: MetaAdvancedMatchingFields = {};
+    let hasField = false;
+
+    if (profile.em) {
+      fields.em = await sha256(profile.em.trim().toLowerCase());
+      hasField = true;
+    }
+    if (profile.ph) {
+      const digits = profile.ph.replace(/\D/g, "");
+      if (digits) {
+        fields.ph = await sha256(digits);
+        hasField = true;
+      }
+    }
+    if (profile.fn) {
+      fields.fn = await sha256(profile.fn.trim().toLowerCase());
+      hasField = true;
+    }
+    if (profile.ln) {
+      fields.ln = await sha256(profile.ln.trim().toLowerCase());
+      hasField = true;
+    }
+    if (profile.ct) {
+      fields.ct = await sha256(profile.ct.trim().toLowerCase());
+      hasField = true;
+    }
+    if (profile.country) {
+      fields.country = await sha256(profile.country.trim().toLowerCase());
+      hasField = true;
+    }
+
+    return hasField ? fields : null;
+  } catch {
+    return null;
+  }
+}
+
+function fireMetaEvent(
+  type: "track" | "trackCustom",
+  eventName: string,
+  params?: Record<string, AnalyticsValue>,
+  advancedMatching?: MetaAdvancedMatchingFields,
+) {
+  if (typeof window === "undefined") return;
+  if (!window.fbq) return;
+
+  if (type === "trackCustom") {
+    window.fbq("trackCustom", eventName, params ?? {});
+  } else {
+    window.fbq("track", eventName, {
+      ...(params ?? {}),
+      ...(advancedMatching ? { advanced_matching: advancedMatching } : {}),
+    });
   }
 }
 
@@ -347,10 +467,6 @@ export function trackEvent(name: string, params?: AnalyticsParams) {
     window.gtag("event", eventName, safeParams);
   }
 
-  if (window.fbq) {
-    window.fbq("trackCustom", eventName, safeParams);
-  }
-
   queueInternalAnalyticsEvent(eventName, safeParams, pagePath);
 }
 
@@ -365,24 +481,20 @@ export function trackPageView(path: string) {
       page_title: pageTitle,
     });
   }
-  if (window.fbq) {
-    window.fbq("track", "PageView");
-  }
+  fireMetaEvent("track", "PageView");
   queueInternalAnalyticsEvent("page_view", {}, safePath);
 }
 
 export function trackLeadStart(source: string) {
   trackEvent("lead_start", { source });
-  if (typeof window !== "undefined" && window.fbq && markOneTimeSessionEvent("lead")) {
-    window.fbq("track", "Lead");
+  if (markOneTimeSessionEvent("lead")) {
+    fireMetaEvent("track", "Lead");
   }
 }
 
 export function trackRegistrationComplete(method: string) {
   trackEvent("registration_complete", { method });
-  if (typeof window !== "undefined" && window.fbq) {
-    window.fbq("track", "CompleteRegistration");
-  }
+  fireMetaEvent("track", "CompleteRegistration");
 }
 
 export function trackWhatsAppClick(source: string) {
@@ -411,16 +523,12 @@ export function trackPackageSelect(planName: string) {
 
 export function trackPaymentStart(planName: string) {
   trackEvent("payment_start", { plan_name: planName });
-  if (typeof window !== "undefined" && window.fbq) {
-    window.fbq("track", "InitiateCheckout", { plan_name: planName });
-  }
+  fireMetaEvent("track", "InitiateCheckout", { plan_name: planName });
 }
 
 export function trackLogin(method: string) {
   trackEvent("login", { method });
-  if (typeof window !== "undefined" && window.fbq) {
-    window.fbq("track", "Login");
-  }
+  fireMetaEvent("track", "Login");
 }
 
 export function trackPaymentSuccess(planName: string, amountCents: number, currency: string) {
@@ -428,9 +536,7 @@ export function trackPaymentSuccess(planName: string, amountCents: number, curre
   const safeCurrency = String(currency || "PKR").trim().toUpperCase() || "PKR";
   const amount = safeAmountCents / 100;
   trackEvent("payment_success", { plan_name: planName, amount, value: amount, currency: safeCurrency });
-  if (typeof window !== "undefined" && window.fbq) {
-    window.fbq("track", "Purchase", { plan_name: planName, value: amount, currency: safeCurrency });
-  }
+  fireMetaEvent("track", "Purchase", { plan_name: planName, value: amount, currency: safeCurrency });
   if (typeof window !== "undefined" && window.gtag) {
     window.gtag("event", "purchase", { plan_name: planName, amount, value: amount, currency: safeCurrency });
   }
@@ -439,9 +545,7 @@ export function trackPaymentSuccess(planName: string, amountCents: number, curre
 export function trackFirstLabelGenerated(accountId: string, rowCount: number) {
   if (!markOneTimeAccountEvent("first_label_generated", accountId)) return;
   trackEvent("first_label_generated", { count: Math.max(0, Number(rowCount) || 0) });
-  if (typeof window !== "undefined" && window.fbq) {
-    window.fbq("trackCustom", "FirstLabelGenerated", { count: Math.max(0, Number(rowCount) || 0) });
-  }
+  fireMetaEvent("trackCustom", "FirstLabelGenerated", { count: Math.max(0, Number(rowCount) || 0) });
 }
 
 export function trackSubscriptionUpgrade(accountId: string, planName: string, amountCents: number, currency: string) {
@@ -450,22 +554,62 @@ export function trackSubscriptionUpgrade(accountId: string, planName: string, am
   const safeCurrency = String(currency || "PKR").trim().toUpperCase() || "PKR";
   const amount = safeAmountCents / 100;
   trackEvent("subscription_upgrade", { plan_name: planName, amount, value: amount, currency: safeCurrency });
-  if (typeof window !== "undefined" && window.fbq) {
-    window.fbq("trackCustom", "SubscriptionUpgrade", { plan_name: planName, value: amount, currency: safeCurrency });
-  }
+  fireMetaEvent("trackCustom", "SubscriptionUpgrade", { plan_name: planName, value: amount, currency: safeCurrency });
 }
 
 export function trackMoneyOrderGenerated(rowCount: number) {
   const safeCount = Math.max(0, Number(rowCount) || 0);
   trackEvent("money_order_generated", { count: safeCount });
-  if (typeof window !== "undefined" && window.fbq) {
-    window.fbq("trackCustom", "MoneyOrderGenerated", { count: safeCount });
-  }
+  fireMetaEvent("trackCustom", "MoneyOrderGenerated", { count: safeCount });
 }
 
 export function trackSupportTicketCreated() {
   trackEvent("support_ticket_created", { count: 1 });
-  if (typeof window !== "undefined" && window.fbq) {
-    window.fbq("trackCustom", "SupportTicketCreated", { count: 1 });
+  fireMetaEvent("trackCustom", "SupportTicketCreated", { count: 1 });
+}
+
+export async function setMetaAdvancedMatching(userProfile: {
+  email?: string | null;
+  contactNumber?: string | null;
+  companyName?: string | null;
+  originCity?: string | null;
+}) {
+  if (typeof window === "undefined") return;
+
+  const profile: Record<string, string> = {};
+
+  if (userProfile.email) {
+    profile.em = userProfile.email;
+  }
+  if (userProfile.contactNumber) {
+    profile.ph = userProfile.contactNumber;
+  }
+  if (userProfile.companyName) {
+    const nameParts = userProfile.companyName.trim().split(/\s+/);
+    if (nameParts.length >= 2) {
+      profile.fn = nameParts[0];
+      profile.ln = nameParts.slice(1).join(" ");
+    } else {
+      profile.fn = userProfile.companyName;
+    }
+  }
+  if (userProfile.originCity) {
+    profile.ct = userProfile.originCity;
+  }
+  profile.country = "PK";
+
+  try {
+    window.sessionStorage.setItem("labelgen_profile_advanced:v1", JSON.stringify(profile));
+  } catch {
   }
 }
+
+export function clearMetaAdvancedMatching() {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem("labelgen_profile_advanced:v1");
+  } catch {
+  }
+}
+
+export { META_CANONICAL_EVENTS, GA4_INTERNAL_EVENTS, MetaAdvancedMatchingFields };

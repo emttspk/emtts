@@ -85,7 +85,7 @@ export default function Footer() {
           {columns.map((group) => (
             <div key={group.title} className="flex h-full flex-col rounded-2xl border border-white/85 bg-white/80 p-4 shadow-[0_12px_28px_rgba(10,31,68,0.08)]">
               <h3 className="min-h-[2.25rem] text-xs font-bold uppercase tracking-[0.16em] text-slate-700">{group.title}</h3>
-              <ul className="mt-3 space-y-2.5 text-sm text-slate-600">
+              <ul className="mt-3 space-y-2.5 text-sm text-slate-600" aria-label={`${group.title} links`}>
                 {group.links.map((item) => (
                   <li key={item.label}>
                     <a href={item.href} className="transition-colors duration-200 hover:text-[#0f1f3a]">

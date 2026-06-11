@@ -110,6 +110,7 @@ tmp-audit/
 
 # Kilo Code Audit Report (regenerated per session, local only)
 KILO_CODE_AUDIT_REPORT.md
+kilo_code_audit_report.md
 
 # Local third-party reference bundle (not part of product source)
 jazz cash/
