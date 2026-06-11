@@ -41,17 +41,33 @@ const IMAGE_DIMENSIONS = {
   "Profile & Account": { w: 1402, h: 1122 },
 };
 
+const LANDSCAPE_FILL_WIDTH = new Set(["Admin Dashboard", "Profile & Account"]);
+
 function getImagePanKeyframes(title, dims, containerH, containerW) {
   if (!dims) return null;
+  const isPortrait = dims.h > dims.w;
+  const fillWidth = isPortrait || LANDSCAPE_FILL_WIDTH.has(title);
   const name = `pan-${title.replace(/\s+/g, '').toLowerCase()}`;
-  const imgH = containerW * (dims.h / dims.w);
-  if (imgH <= containerH) return null;
-  const overflow = imgH - containerH;
-  const panPct = (overflow / imgH) * 100;
-  return {
-    name,
-    css: `@keyframes ${name} { 0% { transform: translateY(0); } 20% { transform: translateY(0); } 50% { transform: translateY(-${panPct.toFixed(1)}%); } 80% { transform: translateY(-${panPct.toFixed(1)}%); } 100% { transform: translateY(0); } }`,
-  };
+
+  if (fillWidth) {
+    const imgH = containerW * (dims.h / dims.w);
+    if (imgH <= containerH) return null;
+    const overflow = imgH - containerH;
+    const panPct = (overflow / imgH) * 100;
+    return {
+      name,
+      css: `@keyframes ${name} { 0% { transform: translateY(0); } 20% { transform: translateY(0); } 50% { transform: translateY(-${panPct.toFixed(1)}%); } 80% { transform: translateY(-${panPct.toFixed(1)}%); } 100% { transform: translateY(0); } }`,
+    };
+  } else {
+    const imgW = containerH * (dims.w / dims.h);
+    if (imgW <= containerW) return null;
+    const overflow = imgW - containerW;
+    const panPct = (overflow / imgW) * 100;
+    return {
+      name,
+      css: `@keyframes ${name} { 0% { transform: translateX(0); } 20% { transform: translateX(0); } 50% { transform: translateX(-${panPct.toFixed(1)}%); } 80% { transform: translateX(-${panPct.toFixed(1)}%); } 100% { transform: translateX(0); } }`,
+    };
+  }
 }
 
 const MODULES = [
@@ -203,6 +219,8 @@ export default function OperationsModules() {
 
             const cardClass = tier === "primary" ? "ui-card-primary" : "ui-card-secondary";
             const isPrimary = tier === "primary";
+            const isPortrait = dims && dims.h > dims.w;
+            const isLandscapeFill = !isPortrait && LANDSCAPE_FILL_WIDTH.has(module.title);
 
             const containerHeight = isPrimary ? "h-44 sm:h-52" : "h-36 sm:h-40";
 
@@ -210,8 +228,12 @@ export default function OperationsModules() {
             const needsPan = dims && (() => {
               const ch = isPrimary ? 208 : 160;
               const cw = 313;
-              const imgH = cw * (dims.h / dims.w);
-              return imgH > ch;
+              if (isPortrait || isLandscapeFill) {
+                const imgH = cw * (dims.h / dims.w);
+                return imgH > ch;
+              }
+              const imgW = ch * (dims.w / dims.h);
+              return imgW > cw;
             })();
 
             return (
@@ -221,7 +243,7 @@ export default function OperationsModules() {
                 className={`group ${cardClass} flex min-h-0 flex-col overflow-hidden p-0`}
                 aria-label={`${module.title} — ${ctaLabel}`}
               >
-                <div className={`relative flex overflow-hidden border-b border-[#dce8f5] bg-[radial-gradient(circle_at_top,rgba(47,126,219,0.18),transparent_56%),linear-gradient(160deg,#ffffff,#edf6ff_58%,#eefaf5)] ${containerHeight} ${needsPan ? 'justify-center items-start' : 'items-center justify-center'}`}>
+                <div className={`relative flex overflow-hidden border-b border-[#dce8f5] bg-[radial-gradient(circle_at_top,rgba(47,126,219,0.18),transparent_56%),linear-gradient(160deg,#ffffff,#edf6ff_58%,#eefaf5)] ${containerHeight} ${needsPan ? ((isPortrait || isLandscapeFill) ? 'justify-center items-start' : 'items-center justify-start') : 'items-center justify-center'}`}>
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(14,165,118,0.12),transparent_34%)]" />
                   {badge ? (
                     <span className={`absolute right-2 top-2 z-20 ${badge.style}`}>
@@ -233,8 +255,10 @@ export default function OperationsModules() {
                     alt=""
                     className={`relative z-10 block transition-transform duration-500 group-hover:scale-[1.05] ${needsPan ? 'pan-anim' : ''}`}
                     style={{
-                      width: '100%',
-                      height: 'auto',
+                      width: (isPortrait || isLandscapeFill) ? '100%' : 'auto',
+                      height: (isPortrait || isLandscapeFill) ? 'auto' : '100%',
+                      maxWidth: (isPortrait || isLandscapeFill) ? '100%' : 'none',
+                      maxHeight: (isPortrait || isLandscapeFill) ? 'none' : '100%',
                       animationName: needsPan ? panName : undefined,
                     }}
                     loading={index < 2 ? "eager" : "lazy"}
