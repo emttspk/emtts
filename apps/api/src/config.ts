@@ -220,7 +220,7 @@ const envSchema = z.object({
   EP_GATEWAY_STATUS_FAILED_VALUES: z.string().default("FAILED,FAIL,ERROR,01,999"),
   EP_GATEWAY_STATUS_CANCELED_VALUES: z.string().default("CANCELED,CANCELLED,CANCEL"),
   EP_GATEWAY_PAYMENT_MODE: z.string().default("CC"),
-  JAZZCASH_ENV: z.enum(["sandbox", "production"]).default("production"),
+  JAZZCASH_ENV: z.enum(["sandbox", "production"]).default("sandbox"),
   JAZZCASH_MERCHANT_ID: z.string().optional(),
   JAZZCASH_PASSWORD: z.string().optional(),
   JAZZCASH_INTEGRITY_SALT: z.string().optional(),

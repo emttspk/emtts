@@ -324,7 +324,7 @@ authRouter.post("/login", async (req, res) => {
       return res.status(423).json({ error: `Account temporarily locked. Try again in ${lockout.remainingSeconds}s.` });
     }
 
-    console.log(`[AUTH] Login attempt for identifier: ${rawIdentifier} (${isEmail ? "email" : "username"})`);
+    console.log(`[AUTH] Login attempt (${isEmail ? "email" : "username"})`);
     const user = isEmail
       ? await (async () => {
         const startedAt = Date.now();
@@ -340,7 +340,7 @@ authRouter.post("/login", async (req, res) => {
       })();
 
     if (!user) {
-      console.log(`[AUTH] Login failed: User not found for identifier: ${rawIdentifier}`);
+      console.log(`[AUTH] Login failed: User not found`);
       logDevAuthTiming("login_user_missing", {
         identifier: rawIdentifier,
         isEmail,
@@ -354,18 +354,18 @@ authRouter.post("/login", async (req, res) => {
     }
 
     if (user.suspended) {
-      console.log(`[AUTH] Login failed: Suspended account for identifier: ${rawIdentifier}`);
+      console.log(`[AUTH] Login failed: Suspended account`);
       auditAuthEvent("auth.login.suspended", req, { identifier: rawIdentifier, userId: user.id });
       auditAuthMetric(req, "login_failure", { reason: "suspended", identifier: rawIdentifier, userId: user.id });
       return res.status(403).json({ error: "Account disabled" });
     }
 
-    console.log(`[AUTH] User found for identifier: ${rawIdentifier}. Verifying password...`);
+    console.log(`[AUTH] User found. Verifying password...`);
     const passwordVerifyStartedAt = Date.now();
     const ok = await verifyPassword(parsed.data.password, user.passwordHash);
     passwordVerifyMs = Date.now() - passwordVerifyStartedAt;
     if (!ok) {
-      console.log(`[AUTH] Login failed: Invalid password for identifier: ${rawIdentifier}`);
+      console.log(`[AUTH] Login failed: Invalid password`);
       logDevAuthTiming("login_invalid_password", {
         identifier: rawIdentifier,
         isEmail,
@@ -387,7 +387,7 @@ authRouter.post("/login", async (req, res) => {
     }
 
     await clearFailedAttempts(lookupKey, ip);
-    console.log(`[AUTH] Login successful for identifier: ${rawIdentifier}`);
+    console.log(`[AUTH] Login successful`);
     logDevAuthTiming("login_success", {
       identifier: rawIdentifier,
       isEmail,
