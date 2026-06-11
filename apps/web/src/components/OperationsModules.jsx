@@ -41,6 +41,8 @@ const IMAGE_DIMENSIONS = {
   "Profile & Account": { w: 1402, h: 1122 },
 };
 
+const PAN_AUGMENT = { "Profile & Account": 2.5 };
+
 const LANDSCAPE_FILL_WIDTH = new Set(["Admin Dashboard", "Profile & Account", "Complaint Automation"]);
 
 function getImagePanKeyframes(title, dims, containerH, containerW) {
@@ -53,7 +55,7 @@ function getImagePanKeyframes(title, dims, containerH, containerW) {
     const imgH = containerW * (dims.h / dims.w);
     if (imgH <= containerH) return null;
     const overflow = imgH - containerH;
-    const panPct = (overflow / imgH) * 100;
+    const panPct = (overflow / imgH) * 100 * (PAN_AUGMENT[title] || 1);
     return {
       name,
       css: `@keyframes ${name} { 0% { transform: translateY(0); } 20% { transform: translateY(0); } 50% { transform: translateY(-${panPct.toFixed(1)}%); } 80% { transform: translateY(-${panPct.toFixed(1)}%); } 100% { transform: translateY(0); } }`,
