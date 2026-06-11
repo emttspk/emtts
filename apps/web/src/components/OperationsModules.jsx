@@ -41,7 +41,7 @@ const IMAGE_DIMENSIONS = {
   "Profile & Account": { w: 1402, h: 1122 },
 };
 
-const LANDSCAPE_FILL_WIDTH = new Set(["Admin Dashboard", "Profile & Account"]);
+const LANDSCAPE_FILL_WIDTH = new Set(["Admin Dashboard", "Profile & Account", "Complaint Automation"]);
 
 function getImagePanKeyframes(title, dims, containerH, containerW) {
   if (!dims) return null;
