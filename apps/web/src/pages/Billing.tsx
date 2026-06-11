@@ -297,6 +297,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
       if (Number(me?.subscription?.plan?.priceCents ?? me?.activePackage?.priceCents ?? 0) === 0 || String(me?.subscription?.plan?.name ?? me?.activePackage?.planName ?? "").toLowerCase().includes("free")) {
         if (Number(plan.priceCents) > 0) {
           trackSubscriptionUpgrade(me?.user?.id ?? "", plan.name, plan.priceCents, "PKR");
+          trackSubscribe(plan.name);
         }
       }
       await refreshMe();

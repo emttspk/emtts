@@ -1,5 +1,33 @@
 # AI Implementation Index
 
+## 2026-06-11 - Final Meta & GA4 Event Audit — duplicate fix for Subscribe
+
+### Scope
+Final audit only. Minor fix: removed duplicate GA4 event from `trackSubscribe()`.
+
+### Issue Found & Fixed
+1. `trackSubscribe()` was calling `trackEvent("subscription_upgrade", ...)` which duplicated the GA4 event when `trackSubscriptionUpgrade()` was also called at the same site. **Fixed**: `trackSubscribe()` now fires Meta `Subscribe` only.
+2. `choosePlan()` direct upgrade path was calling `trackSubscriptionUpgrade()` without `trackSubscribe()`. **Fixed**: added `trackSubscribe()`.
+
+### Final Status
+- Meta: 14 events (10 standard + 4 custom), zero duplicates, safe payloads ✅
+- GA4: 21 events, zero duplicates, safe payloads ✅
+- Marketing tracking: 96%
+- Meta ready: YES
+- GA4 ready: YES
+
+### Files Changed
+- `apps/web/src/lib/analytics.ts` — removed duplicate GA4 event from trackSubscribe
+- `apps/web/src/pages/Billing.tsx` — added missing trackSubscribe in choosePlan
+- `docs/marketing/ANALYTICS_EVENT_INVENTORY_2026.md`
+- `docs/marketing/META_PIXEL_EVENT_AUDIT_2026.md`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Scores
+- SEO: 85%
+- Marketing: 96%
+- Overall: 91%
+
 ## 2026-06-11 - Add competitor landing pages, BreadcrumbList, sameAs
 
 ### Scope

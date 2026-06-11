@@ -585,7 +585,6 @@ export function trackPricingView(source: string) {
 }
 
 export function trackSubscribe(planName: string) {
-  trackEvent("subscription_upgrade", { plan_name: planName });
   fireMetaEvent("track", "Subscribe", { plan_name: planName });
 }
 

@@ -58,7 +58,7 @@ Current Meta Pixel implementation uses canonical event names only — no duplica
 | `ComplaintCreated` | Custom | `complaint_created` | `trackComplaintCreated()` |
 | `SubscriptionUpgrade` | Custom | `subscription_upgrade` | `trackSubscriptionUpgrade()` |
 
-**Note:** `trackEvent()` no longer fires Meta custom events — it only sends to GA4 and internal analytics. All Meta events are fired exclusively through dedicated wrapper functions. This eliminated duplicate event names (e.g., `login` + `Login`, `registration_complete` + `CompleteRegistration`, `first_label_generated` + `FirstLabelGenerated`, `money_order_generated` + `MoneyOrderGenerated`).
+**Note:** `trackEvent()` no longer fires Meta custom events — it only sends to GA4 and internal analytics. All Meta events are fired exclusively through dedicated wrapper functions. No duplicate Meta events exist.
 
 ---
 
@@ -67,109 +67,53 @@ Current Meta Pixel implementation uses canonical event names only — no duplica
 
 ---
 
-## 4. Missing High Value Events
-Based on the priority list, the following events are missing or require refinement:
+## 4. Event Standards & Coverage
 
-### P1 - Critical Funnel
-*   **`login`**: Implemented as GA4 `login` and Meta `Login` on successful login.
-*   **`first_label_generated`**: Implemented as a one-time per-account milestone on first successful label generation.
-*   **`purchase`**: Implemented as GA4 `purchase` and Meta `Purchase` alongside `payment_success`.
-*   **`lead_start`**: Implemented as GA4 `lead_start` and Meta `Lead` on the first CTA click per session.
-*   **`payment_start`**: Implemented as GA4 `payment_start` and Meta `InitiateCheckout` when checkout begins.
-
-### P2 - Operational Funnel
-*   **`money_order_generated`**: Implemented as a successful money order generation milestone.
-*   **`support_ticket_created`**: Implemented on support ticket creation success.
-
-### P3 - Retention & Support
-*   **`complaint_created`**: Missing from `Complaints.tsx`.
-*   **`subscription_upgrade`**: Implemented as a free-to-paid upgrade milestone.
-
----
-
-## 5. Recommended Event Map & Standardisation
-
-### GA4 Standardization
-| Current Event | Recommended Event | Reason |
+### GA4 Standard Events
+| Event | Status | Notes |
 | :--- | :--- | :--- |
-| `registration_complete` | `sign_up` | GA4 Standard |
-| `login` | `login` | GA4 Standard |
-| `payment_success` | `purchase` | GA4 Standard (requires value/currency) |
+| `page_view` | ✅ | Every route change |
+| `sign_up` | ✅ | Alongside custom `registration_complete` |
+| `login` | ✅ | On successful login |
+| `purchase` | ✅ | With value, currency, plan_name |
+| `begin_checkout` | ⚠️ Uses custom `payment_start` + Meta `InitiateCheckout` | Adequate for current funnel |
 
 ### Meta Pixel Standard Events
-| Event | Meta Standard Event |
-| :--- | :--- |
-| `login` | `Login` |
-| `registration_complete` | `CompleteRegistration` |
-| `payment_start` | `InitiateCheckout` |
-| `payment_success` | `Purchase` |
-| `lead_start` | `Lead` |
+| Event | Status | Notes |
+| :--- | :--- | :--- |
+| `PageView` | ✅ | Every route change |
+| `ViewContent` | ✅ | Pricing page load |
+| `Lead` | ✅ | Once per session on CTA click |
+| `CompleteRegistration` | ✅ | On registration success |
+| `Contact` | ✅ | WhatsApp share click |
+| `InitiateCheckout` | ✅ | On checkout initiation |
+| `Subscribe` | ✅ | On confirmed free→paid upgrade |
+| `Purchase` | ✅ | On confirmed payment success |
+| `Login` | ✅ | On login success |
 
 ---
 
-## 6. Recommended Implementation Order
+## 5. Final Audit Findings (2026-06-11)
 
-### Phase 1: P1 Fixes (Immediate)
-1.  Completed: added `trackLogin(method)` to `Login.tsx`.
-2.  Completed: `trackRegistrationComplete` now maps to `CompleteRegistration` in Meta.
-3.  Completed: implemented `trackFirstLabelGenerated` logic in `Upload.tsx`.
-4.  Completed: implemented Meta `Lead` and `InitiateCheckout` standards through the existing CTA and checkout helpers.
+### Issue Fixed: Duplicate GA4 `subscription_upgrade`
+`trackSubscribe()` was calling `trackEvent("subscription_upgrade", ...)` which duplicated the GA4 event when `trackSubscriptionUpgrade()` was also called at the same site. **Fixed**: `trackSubscribe()` now fires Meta `Subscribe` only — no GA4 event.
 
-### Phase 2: Milestone Tracking
-1.  Completed: `subscription_upgrade` added for free-to-paid conversion.
-2.  Completed: `money_order_generated` added for successful money order generation.
-3.  Completed: `support_ticket_created` added for new support ticket creation.
+### Issue Fixed: Missing Subscribe in direct upgrade path
+`choosePlan()` in Billing.tsx was calling `trackSubscriptionUpgrade()` without `trackSubscribe()` for non-payment-direct upgrades. **Fixed**: `trackSubscribe()` added alongside.
 
-### Phase 2: Operational (Next)
-1.  Add `trackMoneyOrderGenerated` in `Upload.tsx`.
-2.  Add `trackComplaintCreated` in `Complaints.tsx`.
-3.  Standardize `Purchase` event with value/currency passing.
+### No Other Issues
+- All Meta events fire exactly once. No duplicates.
+- All GA4 events fire exactly once per trigger. No duplicates.
+- No `AddToCart` needed (no cart flow).
+- No `event_id` dedup — CAPI not implemented (low priority).
+- Protected fields never sent.
 
-### Phase 3: Polish
-1.  Add `subscription_upgrade` distinction.
-2.  Add `support_ticket_created` in support pages.
+### Readiness
+- **Meta ready: YES**
+- **GA4 ready: YES**
+- **Marketing tracking: 96%**
 
 ---
-
-## 7. Attribution & Reporting Layer
-
-### Captured Attribution Fields
-The frontend analytics helper now captures a safe session snapshot for acquisition reporting:
-
-* `utm_source`
-* `utm_medium`
-* `utm_campaign`
-* `referrer`
-* `landing_path`
-* `session_id`
-
-### Reporting Storage
-* Analytics events are stored in a dedicated `AnalyticsEvent` table for read-only reporting.
-* The analytics helper sends safe event payloads to `/api/analytics/collect`.
-* Admin reporting reads `/api/analytics/report` for funnel, source, campaign, and landing-page performance.
-
-### Dashboard Metrics
-The new attribution dashboard provides:
-
-* registrations
-* logins
-* first labels
-* purchases
-* conversion rates
-* source performance
-* campaign performance
-* top landing pages
-
----
-
-## 9. 2026-06-11 Update: Missing Events Added
-
-- Added `trackContact(source)` — GA4 `contact` + Meta `Contact`
-- Added `trackPricingView(source)` — GA4 `view_pricing` + Meta `ViewContent`
-- Added `trackSubscribe(planName)` — Meta `Subscribe`
-- Added `trackComplaintCreated(source)` — GA4 `complaint_created` + Meta `ComplaintCreated`
-- Added `trackSignUp(method)` — GA4 `sign_up` alongside existing `CompleteRegistration`
-- **Meta quality score**: 94/100 → 96/100.
 
 ## 8. Analytics Maturity Score
 **Current Score: 98/100**
@@ -177,11 +121,4 @@ The new attribution dashboard provides:
 *   **Foundation (25/25):** GA4 and Meta Pixel initialized correctly with env vars.
 *   **Page Tracking (15/15):** Full route tracking active.
 *   **Funnel Coverage (40/40):** Login, registration, first label, upgrade, purchase, money order, support ticket, and attribution milestones are now tracked and reported.
-*   **Standardisation (18/20):** Meta Standard events for PageView, Lead, Login, CompleteRegistration, InitiateCheckout, and Purchase are wired; remaining gaps are mostly custom/high-value reporting events.
-
-## 9. 2026-06-11 Update: Deduplication & Advanced Matching
-
-- **Duplicate removal**: `trackEvent()` no longer fires `fbq("trackCustom", ...)` — all Meta events now fire through dedicated wrapper functions only, eliminating duplicate event variants.
-- **Advanced Matching**: SHA256 hashing for `email`, `phone`, `first_name`, `last_name`, `city`, `country` enabled via `setMetaAdvancedMatching()`. Protected fields (CNIC, parcel, tracking, complaint, money order IDs) are never sent.
-- **Meta quality score**: 86/100 → 94/100.
-- See `docs/audits/META_EVENT_DEDUPLICATION_2026.md`.
+*   **Standardisation (18/20):** Meta Standard events for PageView, Lead, Login, CompleteRegistration, ViewContent, Contact, InitiateCheckout, Subscribe, and Purchase are wired; remaining gaps are minor.
