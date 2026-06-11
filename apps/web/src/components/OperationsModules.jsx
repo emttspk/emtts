@@ -2,6 +2,34 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchPlans } from "../lib/PackageService";
 import { trackLeadStart } from "../lib/analytics";
 
+const CTA_LABELS = {
+  "Label Generation": "Generate Labels",
+  "Parcel Booking": "Book Parcel",
+  Tracking: "Track Parcel",
+  "Complaint Automation": "File Complaint",
+  "Money Orders": "Send Money Order",
+  "Billing Packages": "View Plans",
+  "Admin Dashboard": "Open Dashboard",
+  "Profile & Account": "My Account",
+};
+
+const TIER = {
+  "Label Generation": "primary",
+  "Parcel Booking": "primary",
+  Tracking: "primary",
+  "Complaint Automation": "secondary",
+  "Money Orders": "secondary",
+  "Billing Packages": "secondary",
+  "Admin Dashboard": "utility",
+  "Profile & Account": "utility",
+};
+
+const BADGES = {
+  Tracking: { label: "Popular", style: "ui-badge-popular" },
+  "Label Generation": { label: "Most Used", style: "ui-badge-most-used" },
+  "Complaint Automation": { label: "Free", style: "ui-badge-free" },
+};
+
 const MODULES = [
   {
     title: "Label Generation",
@@ -113,35 +141,78 @@ export default function OperationsModules() {
         </div>
 
         <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {MODULES.map((module, index) => (
-            <article
-              key={module.title}
-              className="group ui-card-premium flex min-h-[300px] flex-col overflow-hidden p-0"
-            >
-              <div className="relative flex h-36 items-center justify-center overflow-hidden border-b border-[#dce8f5] bg-[radial-gradient(circle_at_top,rgba(47,126,219,0.18),transparent_56%),linear-gradient(160deg,#ffffff,#edf6ff_58%,#eefaf5)] sm:h-40">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(14,165,118,0.12),transparent_34%)]" />
-                <img
-                  src={module.image}
-                  alt={module.title}
-                  className="relative z-10 h-24 w-24 object-contain drop-shadow-[0_18px_28px_rgba(15,31,58,0.18)] transition-transform duration-300 group-hover:scale-[1.06] sm:h-28 sm:w-28"
-                  loading={index < 2 ? "eager" : "lazy"}
-                  decoding="async"
-                  fetchPriority={index < 2 ? "high" : "low"}
-                />
-              </div>
+          {MODULES.map((module, index) => {
+            const tier = TIER[module.title] || "secondary";
+            const badge = BADGES[module.title] || null;
+            const ctaLabel = CTA_LABELS[module.title] || "Explore";
 
-              <div className="flex flex-1 flex-col p-4 sm:p-4.5">
-                <h3 className="text-[17px] font-black tracking-[-0.02em] text-[#0f1f3a]">{module.title}</h3>
-                <p className="mt-1.5 min-h-[52px] text-[13px] leading-5 text-slate-700">{module.description}</p>
-                <a
-                  href={module.href}
-                  className="btn-primary mt-auto inline-flex h-11 rounded-xl px-4 text-sm font-bold"
-                >
-                  Explore
-                </a>
-              </div>
-            </article>
-          ))}
+            const cardClass =
+              tier === "primary"
+                ? "ui-card-primary"
+                : tier === "utility"
+                  ? "ui-card-utility"
+                  : "ui-card-secondary";
+
+            const isUtility = tier === "utility";
+
+            return (
+              <a
+                key={module.title}
+                href={module.href}
+                className={`group ${cardClass} flex ${isUtility ? "min-h-0 flex-row items-center gap-3 p-3 sm:flex-col sm:gap-0 sm:p-0" : "min-h-0 flex-col overflow-hidden sm:min-h-[300px]"} ${isUtility ? "" : "p-0"}`}
+                aria-label={`${module.title} — ${ctaLabel}`}
+              >
+                {!isUtility ? (
+                  <div className="relative flex h-32 items-center justify-center overflow-hidden border-b border-[#dce8f5] bg-[radial-gradient(circle_at_top,rgba(47,126,219,0.18),transparent_56%),linear-gradient(160deg,#ffffff,#edf6ff_58%,#eefaf5)] sm:h-36">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(14,165,118,0.12),transparent_34%)]" />
+                    {badge ? (
+                      <span className={`absolute right-2 top-2 z-20 ${badge.style}`}>
+                        {badge.label}
+                      </span>
+                    ) : null}
+                    <img
+                      src={module.image}
+                      alt=""
+                      className="relative z-10 h-20 w-20 object-contain drop-shadow-[0_14px_24px_rgba(15,31,58,0.16)] transition-transform duration-300 group-hover:scale-[1.06] sm:h-24 sm:w-24"
+                      loading={index < 2 ? "eager" : "lazy"}
+                      decoding="async"
+                      fetchPriority={index < 2 ? "high" : "low"}
+                    />
+                  </div>
+                ) : (
+                  <div className="ui-card-utility-image flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[radial-gradient(circle_at_top,rgba(47,126,219,0.18),transparent_56%),linear-gradient(160deg,#ffffff,#edf6ff_58%,#eefaf5)] sm:h-20 sm:w-full">
+                    <img
+                      src={module.image}
+                      alt=""
+                      className="h-8 w-8 object-contain sm:h-14 sm:w-14"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </div>
+                )}
+
+                <div className={`ui-card-utility-body flex flex-1 flex-col ${isUtility ? "" : "p-4 sm:p-4.5"}`}>
+                  <h3 className="text-[16px] font-black tracking-[-0.02em] text-[#0f1f3a] sm:text-[17px]">{module.title}</h3>
+                  <p className={`mt-1 text-[13px] leading-5 text-slate-600 ${isUtility ? "hidden sm:block" : "sm:min-h-[40px]"}`}>
+                    {module.description}
+                  </p>
+                  <span
+                    className={`ui-card-utility-cta mt-auto inline-flex items-center ${
+                      isUtility
+                        ? "btn-text gap-1 text-xs sm:text-sm"
+                        : tier === "primary"
+                          ? "btn-primary mt-3 h-10 rounded-xl px-4 text-sm font-bold sm:mt-auto"
+                          : "btn-primary mt-3 h-10 rounded-xl px-4 text-sm font-bold sm:mt-auto"
+                    }`}
+                    aria-label={ctaLabel}
+                  >
+                    {ctaLabel}
+                    {isUtility ? <span className="text-emerald-600 transition-transform duration-200 group-hover:translate-x-0.5">→</span> : null}
+                  </span>
+                </div>
+              </a>
+            );
+          })}
         </div>
 
         {plansFailed ? (

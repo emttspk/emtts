@@ -72,6 +72,11 @@
     font-family: "Sora", ui-sans-serif, sans-serif;
     letter-spacing: -0.035em;
   }
+
+  :focus-visible {
+    outline: 2px solid rgba(14, 165, 118, 0.5);
+    outline-offset: 2px;
+  }
 }
 
 @layer components {
@@ -84,7 +89,19 @@
   }
 
   .ui-card-premium {
-    @apply rounded-[22px] border border-white/85 bg-[linear-gradient(160deg,rgba(255,255,255,0.95),rgba(246,252,255,0.9))] shadow-[0_18px_44px_rgba(10,31,68,0.1)] backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_54px_rgba(10,31,68,0.14)];
+    @apply rounded-[22px] border border-white/85 bg-[linear-gradient(160deg,rgba(255,255,255,0.95),rgba(246,252,255,0.9))] shadow-[0_18px_44px_rgba(10,31,68,0.1)] backdrop-blur-xl transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-[0_24px_54px_rgba(10,31,68,0.14)];
+  }
+
+  .ui-card-primary {
+    @apply rounded-[24px] border border-emerald-200/70 bg-[linear-gradient(160deg,rgba(255,255,255,0.97),rgba(236,252,245,0.92))] shadow-[0_20px_48px_rgba(10,31,68,0.12)] backdrop-blur-xl transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_28px_60px_rgba(10,31,68,0.18)] hover:border-emerald-300/80;
+  }
+
+  .ui-card-secondary {
+    @apply rounded-[22px] border border-white/85 bg-[linear-gradient(160deg,rgba(255,255,255,0.95),rgba(246,252,255,0.9))] shadow-[0_16px_40px_rgba(10,31,68,0.08)] backdrop-blur-xl transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-[0_22px_50px_rgba(10,31,68,0.13)] hover:border-emerald-200/60;
+  }
+
+  .ui-card-utility {
+    @apply rounded-[20px] border border-white/80 bg-[linear-gradient(160deg,rgba(255,255,255,0.92),rgba(246,252,255,0.85))] shadow-[0_12px_32px_rgba(10,31,68,0.06)] backdrop-blur transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(10,31,68,0.1)];
   }
 
   .ui-glass {
@@ -113,6 +130,34 @@
 
   .ui-chip {
     @apply inline-flex items-center rounded-full border border-slate-200 bg-white/90 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-700 shadow-sm;
+  }
+
+  .ui-badge {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em];
+  }
+
+  .ui-badge-popular {
+    @apply inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-amber-700;
+  }
+
+  .ui-badge-most-used {
+    @apply inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-emerald-700;
+  }
+
+  .ui-badge-free {
+    @apply inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-sky-700;
+  }
+
+  .ui-badge-new {
+    @apply inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-blue-700;
+  }
+
+  .btn-text {
+    @apply inline-flex items-center justify-center gap-1 text-sm font-semibold text-slate-600 transition-colors duration-200 hover:text-emerald-700;
+  }
+
+  .btn-text:focus-visible {
+    @apply rounded-lg;
   }
 
   .btn-primary {
@@ -258,6 +303,22 @@
   h5,
   h6 {
     letter-spacing: -0.02em;
+  }
+
+  .ui-card-utility .ui-card-utility-image {
+    @apply hidden;
+  }
+
+  .ui-card-utility {
+    @apply flex-row items-center gap-3 p-3;
+  }
+
+  .ui-card-utility .ui-card-utility-body {
+    @apply flex-1 p-0;
+  }
+
+  .ui-card-utility .ui-card-utility-cta {
+    @apply shrink-0;
   }
 }
 
