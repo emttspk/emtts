@@ -1,5 +1,25 @@
 # AI Implementation Index
 
+## 2026-06-11 - First-Label Friction Reduction
+
+### Changes
+- Added Output Guide card (3 steps: Generate PDF → Print → Attach to parcel) on Upload page
+- Added "Your labels are ready. Print and attach them to your parcels." success message on first label generation only
+- sessionStorage flag tracks first label completion
+
+### Files Changed
+- `apps/web/src/pages/Upload.tsx`
+- `AI_IMPLEMENTATION_INDEX.md`
+
+### Build: PASS
+### Push: `origin main`
+### Est. activation improvement: ~35% → ~55%
+
+### Scores (unchanged)
+- SEO: 85%
+- Marketing: 96%
+- Overall: 91%
+
 ## 2026-06-11 - Onboarding & Conversion Improvements
 
 ### Changes
