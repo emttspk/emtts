@@ -79,6 +79,39 @@
   }
 }
 
+@keyframes panVertical {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-20%); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes panHorizontal {
+  0% { transform: translateX(0); }
+  50% { transform: translateX(-15%); }
+  100% { transform: translateX(0); }
+}
+
+.animate-pan-vertical {
+  animation: panVertical 12s ease-in-out infinite;
+}
+.animate-pan-vertical:hover {
+  animation-play-state: paused;
+}
+
+.animate-pan-horizontal {
+  animation: panHorizontal 14s ease-in-out infinite;
+}
+.animate-pan-horizontal:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-pan-vertical,
+  .animate-pan-horizontal {
+    animation: none;
+  }
+}
+
 @layer components {
   .ui-page {
     @apply w-full max-w-none px-4 py-6 md:px-6 md:py-8 xl:px-8;

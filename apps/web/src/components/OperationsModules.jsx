@@ -30,6 +30,17 @@ const BADGES = {
   "Complaint Automation": { label: "Free", style: "ui-badge-free" },
 };
 
+const IMAGE_DIMENSIONS = {
+  "Label Generation": { w: 1122, h: 1402 },
+  "Parcel Booking": { w: 1907, h: 825 },
+  Tracking: { w: 1024, h: 1536 },
+  "Complaint Automation": { w: 1536, h: 1024 },
+  "Money Orders": { w: 1055, h: 1491 },
+  "Billing Packages": { w: 1055, h: 1491 },
+  "Admin Dashboard": { w: 1512, h: 982 },
+  "Profile & Account": { w: 1402, h: 1122 },
+};
+
 const MODULES = [
   {
     title: "Label Generation",
@@ -145,6 +156,7 @@ export default function OperationsModules() {
             const tier = TIER[module.title] || "secondary";
             const badge = BADGES[module.title] || null;
             const ctaLabel = CTA_LABELS[module.title] || "Explore";
+            const dims = IMAGE_DIMENSIONS[module.title];
 
             const cardClass =
               tier === "primary"
@@ -154,16 +166,27 @@ export default function OperationsModules() {
                   : "ui-card-secondary";
 
             const isUtility = tier === "utility";
+            const isPrimary = tier === "primary";
+
+            const needsPan = isPrimary && dims && (dims.h / dims.w > 1.3);
+            const needsPanH = isPrimary && dims && (dims.w / dims.h > 2.0);
+            const panClass = needsPan ? "animate-pan-vertical" : needsPanH ? "animate-pan-horizontal" : "";
+
+            const imageStyle = isPrimary && dims
+              ? { aspectRatio: `${dims.w} / ${dims.h}`, maxHeight: '100%', width: 'auto', height: '100%' }
+              : { maxHeight: '75%', maxWidth: '80%' };
+
+            const containerHeight = isPrimary ? "h-44 sm:h-52" : "h-28 sm:h-32";
 
             return (
               <a
                 key={module.title}
                 href={module.href}
-                className={`group ${cardClass} flex ${isUtility ? "min-h-0 flex-row items-center gap-3 p-3 sm:flex-col sm:gap-0 sm:p-0" : "min-h-0 flex-col overflow-hidden sm:min-h-[300px]"} ${isUtility ? "" : "p-0"}`}
+                className={`group ${cardClass} flex ${isUtility ? "min-h-0 flex-row items-center gap-3 p-3 sm:flex-col sm:gap-0 sm:p-0" : "min-h-0 flex-col overflow-hidden"} ${isUtility ? "" : "p-0"}`}
                 aria-label={`${module.title} — ${ctaLabel}`}
               >
                 {!isUtility ? (
-                  <div className="relative flex h-32 items-center justify-center overflow-hidden border-b border-[#dce8f5] bg-[radial-gradient(circle_at_top,rgba(47,126,219,0.18),transparent_56%),linear-gradient(160deg,#ffffff,#edf6ff_58%,#eefaf5)] sm:h-36">
+                  <div className={`relative flex items-center justify-center overflow-hidden border-b border-[#dce8f5] bg-[radial-gradient(circle_at_top,rgba(47,126,219,0.18),transparent_56%),linear-gradient(160deg,#ffffff,#edf6ff_58%,#eefaf5)] ${containerHeight}`}>
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(14,165,118,0.12),transparent_34%)]" />
                     {badge ? (
                       <span className={`absolute right-2 top-2 z-20 ${badge.style}`}>
@@ -173,7 +196,8 @@ export default function OperationsModules() {
                     <img
                       src={module.image}
                       alt=""
-                      className="relative z-10 h-20 w-20 object-contain drop-shadow-[0_14px_24px_rgba(15,31,58,0.16)] transition-transform duration-300 group-hover:scale-[1.06] sm:h-24 sm:w-24"
+                      className={`relative z-10 max-h-full max-w-full object-contain transition-transform duration-500 group-hover:scale-[1.03] ${panClass}`}
+                      style={imageStyle}
                       loading={index < 2 ? "eager" : "lazy"}
                       decoding="async"
                       fetchPriority={index < 2 ? "high" : "low"}
@@ -193,16 +217,14 @@ export default function OperationsModules() {
 
                 <div className={`ui-card-utility-body flex flex-1 flex-col ${isUtility ? "" : "p-4 sm:p-4.5"}`}>
                   <h3 className="text-[16px] font-black tracking-[-0.02em] text-[#0f1f3a] sm:text-[17px]">{module.title}</h3>
-                  <p className={`mt-1 text-[13px] leading-5 text-slate-600 ${isUtility ? "hidden sm:block" : "sm:min-h-[40px]"}`}>
+                  <p className={`mt-1 text-[13px] leading-5 text-slate-600 ${isUtility ? "hidden sm:block" : ""}`}>
                     {module.description}
                   </p>
                   <span
                     className={`ui-card-utility-cta mt-auto inline-flex items-center ${
                       isUtility
                         ? "btn-text gap-1 text-xs sm:text-sm"
-                        : tier === "primary"
-                          ? "btn-primary mt-3 h-10 rounded-xl px-4 text-sm font-bold sm:mt-auto"
-                          : "btn-primary mt-3 h-10 rounded-xl px-4 text-sm font-bold sm:mt-auto"
+                        : "btn-primary mt-3 h-10 rounded-xl px-4 text-sm font-bold"
                     }`}
                     aria-label={ctaLabel}
                   >
