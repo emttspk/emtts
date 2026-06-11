@@ -43,7 +43,9 @@ const IMAGE_DIMENSIONS = {
 
 const PAN_AUGMENT = { "Profile & Account": 2.5 };
 
-const LANDSCAPE_FILL_WIDTH = new Set(["Admin Dashboard", "Profile & Account", "Complaint Automation"]);
+const LANDSCAPE_FILL_WIDTH = new Set(["Admin Dashboard", "Complaint Automation"]);
+const MONEY_ORDER_VIEWPORT_TITLES = new Set(["Money Orders"]);
+const PROFILE_COVER_TITLES = new Set(["Profile & Account"]);
 
 function getPanAnimationName(title) {
   return `pan-${title.replace(/[^a-z0-9]+/gi, '').toLowerCase()}`;
@@ -51,6 +53,13 @@ function getPanAnimationName(title) {
 
 function getImagePanKeyframes(title, dims, containerH, containerW) {
   if (!dims) return null;
+  if (PROFILE_COVER_TITLES.has(title)) {
+    const name = getPanAnimationName(title);
+    return {
+      name,
+      css: `@keyframes ${name} { 0% { object-position: 0% 50%; } 20% { object-position: 0% 50%; } 50% { object-position: 50% 50%; } 80% { object-position: 100% 50%; } 100% { object-position: 0% 50%; } }`,
+    };
+  }
   const isPortrait = dims.h > dims.w;
   const fillWidth = isPortrait || LANDSCAPE_FILL_WIDTH.has(title);
   const name = getPanAnimationName(title);
@@ -167,7 +176,7 @@ export default function OperationsModules() {
     const keyframes = MODULES.map((m) => {
       const dims = IMAGE_DIMENSIONS[m.title];
       const tier = TIER[m.title] || "secondary";
-      const ch = tier === "primary" ? primaryH : secondaryH;
+      const ch = tier === "primary" || MONEY_ORDER_VIEWPORT_TITLES.has(m.title) ? primaryH : secondaryH;
       return getImagePanKeyframes(m.title, dims, ch, cardW);
     }).filter(Boolean);
 
@@ -225,15 +234,18 @@ export default function OperationsModules() {
 
             const cardClass = tier === "primary" ? "ui-card-primary" : "ui-card-secondary";
             const isPrimary = tier === "primary";
+            const isMoneyOrderViewport = MONEY_ORDER_VIEWPORT_TITLES.has(module.title);
+            const isProfileCover = PROFILE_COVER_TITLES.has(module.title);
             const isPortrait = dims && dims.h > dims.w;
             const isLandscapeFill = !isPortrait && LANDSCAPE_FILL_WIDTH.has(module.title);
 
-            const containerHeight = isPrimary ? "h-44 sm:h-52" : "h-36 sm:h-40";
+            const containerHeight = (isPrimary || isMoneyOrderViewport) ? "h-44 sm:h-52" : "h-36 sm:h-40";
 
             const panName = dims ? getPanAnimationName(module.title) : null;
             const needsPan = dims && (() => {
-              const ch = isPrimary ? 208 : 160;
+              const ch = (isPrimary || isMoneyOrderViewport) ? 208 : 160;
               const cw = 313;
+              if (isProfileCover) return true;
               if (isPortrait || isLandscapeFill) {
                 const imgH = cw * (dims.h / dims.w);
                 return imgH > ch;
@@ -261,10 +273,12 @@ export default function OperationsModules() {
                     alt=""
                     className={`relative z-10 block transition-transform duration-500 group-hover:scale-[1.05] ${needsPan ? 'pan-anim' : ''}`}
                     style={{
-                      width: (isPortrait || isLandscapeFill) ? '100%' : 'auto',
-                      height: (isPortrait || isLandscapeFill) ? 'auto' : '100%',
-                      maxWidth: (isPortrait || isLandscapeFill) ? '100%' : 'none',
-                      maxHeight: (isPortrait || isLandscapeFill) ? 'none' : '100%',
+                      width: isProfileCover ? '100%' : ((isPortrait || isLandscapeFill) ? '100%' : 'auto'),
+                      height: isProfileCover ? '100%' : ((isPortrait || isLandscapeFill) ? 'auto' : '100%'),
+                      maxWidth: isProfileCover ? '100%' : ((isPortrait || isLandscapeFill) ? '100%' : 'none'),
+                      maxHeight: isProfileCover ? '100%' : ((isPortrait || isLandscapeFill) ? 'none' : '100%'),
+                      objectFit: isProfileCover ? 'cover' : undefined,
+                      objectPosition: isProfileCover ? '50% 50%' : undefined,
                       animationName: needsPan ? panName : undefined,
                     }}
                     loading={index < 2 ? "eager" : "lazy"}
