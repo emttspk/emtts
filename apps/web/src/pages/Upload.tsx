@@ -1390,6 +1390,20 @@ export default function Upload() {
 
         <div className="grid grid-cols-1 gap-3">
           <div className="space-y-3 min-w-0 w-full">
+
+        <Card className="border-emerald-200 bg-emerald-50/80 p-4 shadow-sm">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-emerald-600" />
+            <span className="text-sm font-bold text-emerald-900">How to generate labels — first time</span>
+          </div>
+          <div className="mt-3 grid gap-2 text-xs text-emerald-800 sm:grid-cols-4">
+            <div className="rounded-xl border border-emerald-200 bg-white px-3 py-2"><span className="font-semibold">Step 1:</span> Download the sample file</div>
+            <div className="rounded-xl border border-emerald-200 bg-white px-3 py-2"><span className="font-semibold">Step 2:</span> Fill in your shipment data</div>
+            <div className="rounded-xl border border-emerald-200 bg-white px-3 py-2"><span className="font-semibold">Step 3:</span> Upload your file below</div>
+            <div className="rounded-xl border border-emerald-200 bg-white px-3 py-2"><span className="font-semibold">Step 4:</span> Configure and generate labels</div>
+          </div>
+        </Card>
+
         <UploadDropzone
           title="Upload Orders File"
           subtitle="Upload CSV/XLS/XLSX, choose options, then generate labels."

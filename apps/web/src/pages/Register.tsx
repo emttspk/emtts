@@ -286,6 +286,16 @@ export default function Register() {
         {err ? <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">{err}</div> : null}
         {notice ? <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800">{notice}</div> : null}
 
+        <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 text-sm">
+          <div className="font-bold text-emerald-900">Free Plan Includes:</div>
+          <ul className="mt-2 space-y-1 text-emerald-800">
+            <li className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />Shared units for labels &amp; tracking</li>
+            <li className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />Money order generation</li>
+            <li className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />Complaint management</li>
+            <li className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />No credit card required</li>
+          </ul>
+        </div>
+
         <form
           className="space-y-3.5"
           onSubmit={async (e) => {

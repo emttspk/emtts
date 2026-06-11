@@ -443,6 +443,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
           const isCurrent = currentPlanId === plan.id && !expired && !nearExpiry;
           const canRenewCurrentPlan = currentPlanId === plan.id && (expired || nearExpiry);
           const isTargeted = Boolean(planParam && plan.name.toLowerCase().replace(/\s+plan$/i, "").trim() === planParam);
+          const isFree = plan.priceCents === 0;
           const highlight = isCurrent || isTargeted || index === 1;
           const upgrading = !isCurrent && (me?.subscription?.plan?.monthlyLabelLimit ?? 0) < plan.monthlyLabelLimit;
           const discountedPrice = plan.discountPriceCents ?? plan.priceCents;
@@ -454,6 +455,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                 <div className="flex items-start justify-between">
                   <div>
                     <CardTitle className="text-slate-900">{plan.name}</CardTitle>
+                    {isFree ? <span className="ml-2 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-700">FREE</span> : null}
                     <div className="mt-2 text-3xl font-semibold text-gray-900">
                       {formatPKR.format(Math.round(discountedPrice / 100)).replace(/\u00A0/g, " ").replace("PKR", "Rs.")}
                       <span className="ml-2 text-sm font-medium text-gray-600">/ month</span>
@@ -506,7 +508,9 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
                             ? `Downgrade to ${plan.name}`
                             : plan.isSuspended
                               ? "Temporarily Unavailable"
-                              : `Buy Now`}
+                              : isFree
+                                ? "Activate Free Plan"
+                                : `Buy Now`}
                 </ActionButton>
                 {discountedPrice > 0 && !isCurrent && !plan.isSuspended && (
                   <div className="mt-2 space-y-2">
@@ -535,6 +539,32 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
           );
         })}
       </div>
+
+      <Card className="border-slate-200 bg-white p-5 shadow-sm md:p-6">
+        <div className="text-lg font-bold text-slate-900">FAQ</div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            <div className="text-sm font-semibold text-slate-800">What happens when I run out of units?</div>
+            <p className="mt-1 text-xs leading-5 text-slate-600">You can purchase a plan with more shared units anytime. Your data and history remain intact.</p>
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-slate-800">Can I upgrade or switch plans anytime?</div>
+            <p className="mt-1 text-xs leading-5 text-slate-600">Yes. Upgrades take effect immediately. Downgrades apply at the next billing period.</p>
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-slate-800">Do unused units roll over?</div>
+            <p className="mt-1 text-xs leading-5 text-slate-600">Units are shared monthly. Unused units expire at the end of each billing cycle.</p>
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-slate-800">What payment methods are accepted?</div>
+            <p className="mt-1 text-xs leading-5 text-slate-600">JazzCash, Easypaisa, and direct bank transfer. Invoices are generated for every transaction.</p>
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-slate-800">Can I cancel anytime?</div>
+            <p className="mt-1 text-xs leading-5 text-slate-600">Yes. Cancel from billing settings. Access continues until the end of the current period.</p>
+          </div>
+        </div>
+      </Card>
     </PageShell>
     {jazzcashModalPlan ? (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">

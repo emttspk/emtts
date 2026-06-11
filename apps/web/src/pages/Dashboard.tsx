@@ -108,7 +108,7 @@ export default function Dashboard() {
   const remainingUnits = me?.balances?.unitsRemaining ?? me?.activePackage?.unitsRemaining ?? 0;
   const packageLimit = me?.balances?.labelLimit ?? me?.subscription?.plan?.monthlyLabelLimit ?? 0;
   const usedUnits = Math.max(0, packageLimit - remainingUnits);
-  const activePlanName = me?.subscription?.plan?.name ?? me?.activePackage?.planName ?? "No active plan";
+  const activePlanName = me?.subscription?.plan?.name ?? me?.activePackage?.planName ?? "Free Plan Available";
   const billingStatus = me?.subscription?.status ?? me?.activePackage?.status ?? "-";
   const complaintDaily = me?.balances?.complaintDailyLimit ?? me?.subscription?.plan?.dailyComplaintLimit ?? 0;
   const complaintMonthly = me?.balances?.complaintMonthlyLimit ?? me?.subscription?.plan?.monthlyComplaintLimit ?? 0;
@@ -217,6 +217,19 @@ export default function Dashboard() {
       )}
 
       <div className="grid min-w-0 w-full gap-3 overflow-hidden xl:grid-cols-12">
+        {!showStatsSkeleton && stats.total === 0 ? (
+          <Card className="min-w-0 w-full overflow-hidden xl:col-span-12 border border-emerald-200 bg-emerald-50 p-5 md:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <div className="text-lg font-bold text-emerald-900">Welcome to ePost.pk</div>
+                <p className="mt-1 max-w-lg text-sm leading-6 text-emerald-800">Upload your first file to generate labels and start tracking shipments.</p>
+              </div>
+              <Link to="/generate-labels">
+                <ActionButton className="shrink-0" leadingIcon={<Package2 className="h-4 w-4" />}>Generate First Label</ActionButton>
+              </Link>
+            </div>
+          </Card>
+        ) : null}
         <Card className="min-w-0 w-full overflow-hidden xl:col-span-8 p-4 md:p-5">
           <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Shipment Status</div>
           <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
