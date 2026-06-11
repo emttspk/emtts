@@ -16,6 +16,8 @@ import {
   trackPaymentStart,
   trackSubscriptionUpgrade,
   trackPaymentSuccess,
+  trackPricingView,
+  trackSubscribe,
 } from "../lib/analytics";
 import type { MeResponse } from "../lib/types";
 import ActionButton from "../components/ui/ActionButton";
@@ -83,6 +85,12 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
       .finally(() => setLoadingPlans(false));
   }, []);
 
+  useEffect(() => {
+    if (!loadingPlans && plans.length > 0) {
+      trackPricingView(entryMode === "select" ? "checkout" : entryMode === "update" ? "update" : "pricing_page");
+    }
+  }, [loadingPlans, plans.length, entryMode]);
+
   // Auto-initiate checkout when ?plan= param is present (from /billing/checkout?plan=standard)
   useEffect(() => {
     if (!planParam || autoInitDone.current || loadingPlans || plans.length === 0) return;
@@ -112,6 +120,7 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
       trackPaymentSuccess(planName, purchaseAmountCents, purchaseCurrency);
       if (wasFreePlan && Number(purchaseAmountCents) > 0) {
         trackSubscriptionUpgrade(me?.user?.id ?? "", planName, purchaseAmountCents, purchaseCurrency);
+        trackSubscribe(planName);
       }
       void refreshMe();
     } else if (payment === "pending") {
@@ -341,7 +350,8 @@ export default function Billing({ entryMode = "billing" }: BillingProps = {}) {
         trackPaymentSuccess(plan.name, plan.priceCents, "PKR");
         if (wasFreeBeforeSuccess) {
           if (Number(plan.priceCents) > 0) {
-            trackSubscriptionUpgrade(me?.user?.id ?? "", plan.name, plan.priceCents, "PKR");
+          trackSubscriptionUpgrade(me?.user?.id ?? "", plan.name, plan.priceCents, "PKR");
+          trackSubscribe(plan.name);
           }
         }
         await refreshMe();

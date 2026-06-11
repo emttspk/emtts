@@ -65,6 +65,8 @@ const META_CANONICAL_EVENTS = new Set([
   "InitiateCheckout",
   "Purchase",
   "Contact",
+  "ViewContent",
+  "Subscribe",
   "FirstLabelGenerated",
   "MoneyOrderGenerated",
   "ComplaintCreated",
@@ -88,6 +90,10 @@ const GA4_INTERNAL_EVENTS = new Set([
   "subscription_upgrade",
   "package_select",
   "support_ticket_created",
+  "sign_up",
+  "contact",
+  "view_pricing",
+  "complaint_created",
 ]);
 
 function injectScript(id: string, src: string) {
@@ -566,6 +572,30 @@ export function trackMoneyOrderGenerated(rowCount: number) {
 export function trackSupportTicketCreated() {
   trackEvent("support_ticket_created", { count: 1 });
   fireMetaEvent("trackCustom", "SupportTicketCreated", { count: 1 });
+}
+
+export function trackContact(source: string) {
+  trackEvent("contact", { source });
+  fireMetaEvent("track", "Contact");
+}
+
+export function trackPricingView(source: string) {
+  trackEvent("view_pricing", { source });
+  fireMetaEvent("track", "ViewContent", { source });
+}
+
+export function trackSubscribe(planName: string) {
+  trackEvent("subscription_upgrade", { plan_name: planName });
+  fireMetaEvent("track", "Subscribe", { plan_name: planName });
+}
+
+export function trackComplaintCreated(source: string) {
+  trackEvent("complaint_created", { source });
+  fireMetaEvent("trackCustom", "ComplaintCreated", { source });
+}
+
+export function trackSignUp(method: string) {
+  trackEvent("sign_up", { method });
 }
 
 export async function setMetaAdvancedMatching(userProfile: {

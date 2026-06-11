@@ -5,7 +5,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import SEO from "../components/SEO";
 import type { TrackingLifecycle } from "../lib/types";
-import { trackTrackingSearch, trackWhatsAppClick } from "../lib/analytics";
+import { trackContact, trackTrackingSearch, trackWhatsAppClick } from "../lib/analytics";
 import {
   buildTrackingWhatsAppShareUrl,
   getStatusDisplayColor,
@@ -330,6 +330,7 @@ function TrackingResultCard({ result }: { result: TrackingResult }) {
                 rel="noopener noreferrer"
                 onClick={() => {
                   trackWhatsAppClick("public_tracking_share");
+                  trackContact("public_tracking_share");
                   setWaModalOpen(false);
                 }}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-emerald-700"

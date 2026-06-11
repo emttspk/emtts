@@ -7,7 +7,7 @@ import AuthShell from "../components/AuthShell";
 import GoogleAuthButton from "../components/GoogleAuthButton";
 import SEO from "../components/SEO";
 import { auth, firebaseReady } from "../firebase";
-import { trackRegistrationComplete } from "../lib/analytics";
+import { trackRegistrationComplete, trackSignUp } from "../lib/analytics";
 import {
   getCooldownRemainingSeconds,
   getFriendlyFirebaseAuthMessage,
@@ -150,6 +150,7 @@ export default function Register() {
       });
 
       trackRegistrationComplete("google");
+      trackSignUp("google");
       await finalizeRegistrationSession(data);
     } catch (error) {
       setErr(getPopupErrorMessage(error));
@@ -322,6 +323,7 @@ export default function Register() {
               });
 
               trackRegistrationComplete("email_password");
+              trackSignUp("email_password");
 
               if (firebaseReady && auth) {
                 try {

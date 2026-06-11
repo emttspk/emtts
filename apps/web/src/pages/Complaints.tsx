@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Card from "../components/Card";
 import { useOutletContext } from "react-router-dom";
 import { api } from "../lib/api";
+import { trackComplaintCreated } from "../lib/analytics";
 import { useTrackingJobPolling } from "../lib/useTrackingJobPolling";
 import type { Shipment } from "../lib/types";
 import { buildScopedCacheKey } from "../lib/cache";
@@ -169,6 +170,7 @@ export default function Complaints() {
                   method: "POST",
                   body: JSON.stringify({ tracking_number: selected, phone: normalizedPhone }),
                 });
+                trackComplaintCreated("complaints_page");
                 polling.start(res.jobId);
               } catch (e) {
                 setError(e instanceof Error ? e.message : "Complaint request failed");

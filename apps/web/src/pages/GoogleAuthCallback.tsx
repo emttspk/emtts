@@ -6,7 +6,7 @@ import AuthShell from "../components/AuthShell";
 import SEO from "../components/SEO";
 import { auth, firebaseReady } from "../firebase";
 import { getToken, setSession } from "../lib/auth";
-import { trackLogin, trackRegistrationComplete } from "../lib/analytics";
+import { trackLogin, trackRegistrationComplete, trackSignUp } from "../lib/analytics";
 import { getFriendlyFirebaseAuthMessage } from "../lib/firebaseAuthGuards";
 import { exchangeGoogleFirebaseToken, getFlow, normalizeNextPath, clearGoogleRedirectStart } from "../lib/googleAuth";
 
@@ -26,6 +26,7 @@ export default function GoogleAuthCallback() {
     try {
       if (flow === "register") {
         trackRegistrationComplete("google");
+        trackSignUp("google");
       } else {
         trackLogin("google");
       }
